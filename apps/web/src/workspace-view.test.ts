@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderMainWorkspace } from "./workspace-view.js";
+import { renderMainWorkspace, workspaceMenuItems } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
@@ -1698,6 +1698,52 @@ test("bar styles change the real bar layers while the schedule facts stay untouc
   assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
 });
 
+test("Gantt chart options drive labels, legend, sight lines and the progress line", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const state = {
+    ...withWbsNodes(scheduledGanttState(), [
+      { id: "W-1", parentKind: "project" as const, parentWbsId: null, localCode: "1", name: "Civil", sequenceNumber: 1, recordRevision: 1 },
+    ]),
+    // Day zoom exposes more than one tick, so the minor vertical sight lines exist.
+    ganttScale: "day" as const,
+  };
+  const presentation = normalizePresentation({
+    bars: { milestone: { visible: false }, progress: { visible: false } },
+    gantt: {
+      showBarLabels: false,
+      labelFontSize: 13,
+      labelColor: "#223344",
+      sightLines: { beforeSummaries: true, rowInterval: 2, minorVertical: true },
+      legend: { visible: true, position: "top" },
+      progressLine: { visible: true, color: "#ff8800", thickness: 3 },
+    },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /data-bar-labels="false"/);
+  assert.match(container.innerHTML, /--cp-bar-label-size:13px/);
+  assert.match(container.innerHTML, /--cp-bar-label-color:#223344/);
+  assert.match(container.innerHTML, /data-gantt-legend="top"/);
+  assert.match(container.innerHTML, /cp-gantt-legend-item" data-gantt-legend-kind="task"/);
+  assert.match(container.innerHTML, /class="cp-gantt-sight-line is-horizontal is-major"/);
+  assert.match(container.innerHTML, /class="cp-gantt-sight-line is-horizontal is-minor"/);
+  assert.match(container.innerHTML, /data-gantt-grid-minor=/);
+  assert.match(container.innerHTML, /data-gantt-progress-line="\d+"/);
+  assert.match(container.innerHTML, /--cp-progress-color:#ff8800/);
+  // The read model exposes no Data Date, so no fabricated line is drawn.
+  assert.doesNotMatch(container.innerHTML, /data-gantt-data-date=/);
+});
+
+test("an authoritative Data Date draws the line with the saved style", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    gantt: { dataDateLine: { visible: true, style: "dashed", thickness: 2, color: "#00aa55" } },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation, dataDate: "2026-09-03" });
+  assert.match(container.innerHTML, /data-gantt-data-date="2026-09-03"/);
+  assert.match(container.innerHTML, /cp-gantt-data-date is-dashed/);
+  assert.match(container.innerHTML, /--cp-data-date-color:#00aa55/);
+});
+
 test("summary bars consume the configured summary style", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   const presentation = normalizePresentation({
@@ -1898,7 +1944,7 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 });
 
 
-test("desktop workbench renders one compact navigation rail, a full menu flyout and a single contextual command bar", () => {
+test("desktop workbench renders one compact navigation rail, a full menu flyout and no artificial command strip", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
@@ -1915,8 +1961,12 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
-  assert.equal((html.match(/class="cp-context-command-bar"/g) ?? []).length, 1);
-  assert.match(html, /Current window commands/);
+  assert.doesNotMatch(html, /cp-context-command-bar/);
+  assert.doesNotMatch(html, /cp-p6-activity-header/);
+  assert.doesNotMatch(html, /Current window commands/);
+  assert.match(html, /data-activity-create-open/);
+  assert.match(html, /data-columns-open/);
+  assert.match(html, /class="cp-p6-grid-actions"/);
   assert.doesNotMatch(html, /class="cp-window-tabs"/);
   assert.doesNotMatch(html, /class="cp-context-add-menu"/);
   assert.doesNotMatch(html, /class="cp-window-tab\b/);
@@ -2145,32 +2195,49 @@ test("collapsing a WBS branch removes its table rows and Gantt bars together", (
 });
 
 test("activity context menu exposes the reference commands, real ones enabled and unsupported ones disabled with a reason", () => {
-  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
-  renderMainWorkspace(container as unknown as HTMLElement, {
-    ...wbsActivityState(),
-    selectedActivityId: "A-1",
-  });
-  const html = container.innerHTML;
-  const menu = html.match(/<div class="cp-context-menu"[^>]*>[\s\S]*?<\/div>\s*<\/div>$/)?.[0] ?? html;
-  assert.match(html, /data-activity-context-menu data-activity-menu-for="A-1" role="menu"/);
+  const state = { ...wbsActivityState(), selectedActivityId: "A-1" };
+  const items = workspaceMenuItems(
+    { state, options: {} },
+    { kind: "table-activity", activityId: "A-1", anchor: {} as HTMLElement },
+  );
+  const commands = items.map((item) => item.command);
   for (const command of [
     "details", "cut", "copy", "paste", "fill-down", "add", "delete", "dissolve", "renumber",
     "export-excel", "assign", "link", "columns", "line-numbers", "font-row", "filters",
     "group-sort", "expand-all", "collapse-all", "collapse-to",
   ]) {
-    assert.ok(menu.includes(`data-activity-menu-command="${command}"`), `missing context command ${command}`);
+    assert.ok(commands.includes(command), `missing context command ${command}`);
   }
-  assert.match(html, /data-activity-menu-command="cut"[^>]*disabled aria-disabled="true" title="Cut needs the activity delete route/);
-  assert.match(html, /data-activity-menu-command="delete"[^>]*disabled aria-disabled="true"/);
-  assert.match(html, /data-activity-menu-command="export-excel"[^>]*disabled aria-disabled="true" title="Only XML interchange is available; no XLSX export route exists\."/);
-  assert.match(html, /data-activity-menu-command="assign"[^>]*disabled aria-disabled="true" title="Resource assignment write is not available/);
-  assert.doesNotMatch(html, /data-activity-menu-command="details"[^>]*disabled/);
-  assert.doesNotMatch(html, /data-activity-menu-command="link"[^>]*disabled/);
-  assert.match(html, /data-activity-context-menu[^>]* hidden>/);
-  assert.match(html, /data-collapse-to-dialog/);
+  const byCommand = new Map(items.map((item) => [item.command, item]));
+  assert.equal(byCommand.get("cut")?.disabled, true);
+  assert.match(byCommand.get("cut")?.reason ?? "", /activity delete route/);
+  assert.equal(byCommand.get("delete")?.disabled, true);
+  assert.match(byCommand.get("export-excel")?.reason ?? "", /no XLSX export route exists/);
+  assert.match(byCommand.get("assign")?.reason ?? "", /Resource assignment write is not available/);
+  assert.notEqual(byCommand.get("details")?.disabled, true);
+  assert.notEqual(byCommand.get("link")?.disabled, true);
+
+  const headerItems = workspaceMenuItems(
+    { state, options: {} },
+    { kind: "table-header", columnId: state.columns[0]?.id ?? "", anchor: {} as HTMLElement },
+  );
+  const headerCommands = headerItems.map((item) => item.command);
+  assert.ok(headerCommands.includes("columns"), "column header menu must open the real Columns dialog");
+  assert.ok(headerCommands.includes("sort-asc"));
+  assert.ok(headerCommands.includes("sort-desc"));
+  assert.ok(headerCommands.includes("hide-column"));
+
+  const ganttLinkItems = workspaceMenuItems(
+    { state, options: {} },
+    { kind: "gantt-link", relationshipId: state.relationships[0]?.id, anchor: {} as HTMLElement },
+  );
+  const linkCommands = ganttLinkItems.map((item) => item.command);
+  assert.ok(linkCommands.includes("relationship-edit"));
+  assert.ok(linkCommands.includes("relationship-delete"));
+  assert.ok(!linkCommands.includes("cut"), "relationship menus must not carry activity-only commands");
 });
 
-test("right-click on an activity row selects it and requests the context menu", () => {
+test("right-click on an activity row selects it, prevents the browser menu and opens the pointer portal", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const container = {
     innerHTML: "",
@@ -2182,7 +2249,10 @@ test("right-click on an activity row selects it and requests the context menu", 
   renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState(), {
     onActivitySelect: (activityId) => selected.push(activityId),
   });
-  const row = { dataset: { activityId: "A-1" }, closest: () => row };
+  const row = {
+    dataset: { activityId: "A-1" },
+    closest: (selector: string) => (selector.includes("[data-activity-id]") ? row : null),
+  };
   let prevented = 0;
   listeners.get("contextmenu")?.({
     target: row,

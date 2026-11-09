@@ -1137,6 +1137,7 @@ function renderApp(
       sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
       dataAvailability: presentationDataAvailability(state.activities),
+      dataDate: chromeProject.dataDate === "—" ? null : chromeProject.dataDate,
     },
     {
       onWindowOpen: activateWindow,
@@ -1373,9 +1374,13 @@ function renderApp(
     }
   };
 
+  // The workspace read model exposes no project Data Date, so the Gantt must
+  // not invent one; the line stays absent until an authoritative date exists.
+  const projectDataDate = chromeProject.dataDate === "—" ? null : chromeProject.dataDate;
   renderMainWorkspace(workspace, state, {
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
+    dataDate: projectDataDate,
     onGanttCommand: (command) => openDesktopDialog(desktopHost, command),
     onActivityContextCommand: (command) => {
       switch (command) {
@@ -1717,6 +1722,9 @@ function renderApp(
       const direction = state.activitySort?.columnId === columnId
         ? state.activitySort.direction
         : "asc";
+      renderApp(container, setActivitySort(state, columnId, direction), persistence);
+    },
+    onActivitySortSet: (columnId, direction) => {
       renderApp(container, setActivitySort(state, columnId, direction), persistence);
     },
     onActivitySortDirectionToggle: () => {

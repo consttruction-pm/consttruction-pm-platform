@@ -93,9 +93,12 @@ Assertions for every state:
 ## Honest limits recorded up front
 
 - The project read model exposes no data date fact (`dataDate` is rendered as
-  “—”), so the Data Date line and a Remaining bar split at the data date will
-  stay disabled rather than fabricated. They are tracked as blocked on a
-  service contract, not simulated.
+  “—”). The renderer and layout model now accept an authoritative date and
+  support the documented line style/thickness/colour, but without a date the
+  line stays undrawn and the Data Date fieldset is disabled with an explicit
+  note. A Remaining bar split at the data date and progress-line ahead/behind
+  colouring likewise stay disabled rather than fabricated; they are blocked on
+  a service contract, not simulated.
 - Fiscal-year, shift and day/hour timescale intervals need calendar facts the
   runtime does not expose yet; they stay disabled with an explicit reason in
   the Timescale dialog.

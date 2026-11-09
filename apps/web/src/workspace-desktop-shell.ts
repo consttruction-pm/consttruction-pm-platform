@@ -1,6 +1,7 @@
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
-import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, resetFilterEditor, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
+import { defaultLayoutPatch, loadFilterEditor, readLayoutPatch, renderLayoutDialogs, resetFilterEditor, setFilterListEnabled, sortFilterList, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
+import { findActivityFilter } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
@@ -131,6 +132,8 @@ export type DesktopShellState = {
   sortLevels?: readonly { columnId: string; direction: "asc" | "desc" }[];
   presentation?: WorkspacePresentation;
   dataAvailability?: { actual: boolean; baseline: boolean };
+  /** Authoritative project Data Date; null when the read model exposes none. */
+  dataDate?: string | null;
 };
 
 export type DesktopShellHandlers = {
@@ -376,7 +379,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       id: "window",
       label: { en: "Window", fa: "پنجره" },
       items: [
-        ...WINDOW_ORDER.map((key, index) => windowItem(key, `Alt+${index + 1}`)),
+        ...WINDOW_ORDER.map((key, index) => windowItem(key, index < 9 ? `Alt+${index + 1}` : undefined)),
         {
           id: "window.close",
           label: { en: "Close current window", fa: "بستن پنجرهٔ جاری" },
@@ -591,6 +594,8 @@ export function renderDesktopShell(
   handlers: DesktopShellHandlers,
 ): void {
   runtimeByHost.set(host, { state, handlers });
+  const openFilter = host.querySelector<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
+  const filterSnapshot = openFilter?.open ? captureFilterDialog(openFilter) : null;
   const layout = state.layout ?? { groupBy: state.capabilities.groupByWbs ? "wbs" : "none", ganttScale: "day", showRelationships: true, density: "compact" };
   const chrome = {
     locale: state.locale,
@@ -618,10 +623,18 @@ export function renderDesktopShell(
     barTone: "crimson",
     presentation: state.presentation ?? DEFAULT_PRESENTATION,
     dataAvailability: state.dataAvailability ?? { actual: false, baseline: false },
+    dataDate: state.dataDate ?? null,
   })}
   ${renderShortcutsDialog(state)}
   ${renderAboutDialog(state)}`;
   bindHost(host);
+  if (filterSnapshot) {
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
+    if (dialog) {
+      restoreFilterDialog(dialog, filterSnapshot);
+      if (!dialog.open) dialog.showModal();
+    }
+  }
   syncFullscreenControls();
 }
 
@@ -671,6 +684,138 @@ function openMenu(host: HTMLElement, menuId: string, focusFirst = false): void {
 }
 
 export type DesktopDialogName = "shortcuts" | "about" | "filters" | "group-sort" | "timescale" | "bars" | "font-row" | "user-preferences";
+
+type FilterDialogSnapshot = {
+  builder: {
+    name: string;
+    editingId: string;
+    scope: string;
+    match: string;
+    rows: { field: string; operator: string; value: string }[];
+  };
+  list: {
+    selected: string[];
+    allActivities: boolean;
+    combine: string;
+    applyMode: string;
+    currentRow: string | null;
+  } | null;
+};
+
+function fieldValue(dialog: HTMLDialogElement, selector: string): string {
+  const element = dialog.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
+  return element?.value ?? "";
+}
+
+/** Deleting the filter loaded in the builder must also clear that builder. */
+let clearFilterBuilderAfterRender = false;
+
+/**
+ * A submit applies the visible selection, so the re-rendered list already shows
+ * the fresh state. Restoring the pre-submit checkboxes would undo the result of
+ * actions such as Paste or Copy as Layout.
+ */
+let filterListFromState = false;
+
+/**
+ * A layout commit answers asynchronously and re-renders the shell. The Filters
+ * dialog is modal, so its in-progress criteria and checked rows must survive that
+ * render instead of being wiped under the user's hands.
+ */
+function captureFilterDialog(dialog: HTMLDialogElement): FilterDialogSnapshot {
+  const clearBuilder = clearFilterBuilderAfterRender;
+  clearFilterBuilderAfterRender = false;
+  const listFromState = filterListFromState;
+  filterListFromState = false;
+  return {
+    builder: clearBuilder
+      ? {
+        name: "",
+        editingId: "",
+        scope: "layout",
+        match: "all",
+        rows: [0, 1, 2, 3].map(() => ({ field: "activity_name", operator: "contains", value: "" })),
+      }
+      : {
+        name: fieldValue(dialog, 'input[name="filterName"]'),
+        editingId: fieldValue(dialog, 'input[name="filterEditingId"]'),
+        scope: fieldValue(dialog, 'select[name="filterScope"]'),
+        match: fieldValue(dialog, 'select[name="filterMatch"]'),
+        rows: [0, 1, 2, 3].map((index) => ({
+          field: fieldValue(dialog, `select[name="filter.field.${index}"]`),
+          operator: fieldValue(dialog, `select[name="filter.operator.${index}"]`),
+          value: fieldValue(dialog, `input[name="filter.value.${index}"]`),
+        })),
+      },
+    list: listFromState
+      ? null
+      : {
+        selected: Array.from(dialog.querySelectorAll<HTMLInputElement>('input[name="filterSelected"]'))
+          .filter((input) => input.checked)
+          .map((input) => input.value),
+        allActivities: dialog.querySelector<HTMLInputElement>('input[name="filterAllActivities"]')?.checked ?? false,
+        combine: dialog.querySelector<HTMLInputElement>('input[name="filterCombine"]:checked')?.value ?? "all",
+        applyMode: dialog.querySelector<HTMLInputElement>('input[name="filterApplyMode"]:checked')?.value ?? "replace",
+        currentRow: dialog.querySelector<HTMLElement>("tr.is-current")?.dataset.filterId ?? null,
+      },
+  };
+}
+
+function restoreFilterDialog(dialog: HTMLDialogElement, snapshot: FilterDialogSnapshot): void {
+  const set = (selector: string, value: string): void => {
+    const element = dialog.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
+    if (element && value) element.value = value;
+  };
+  set('input[name="filterName"]', snapshot.builder.name);
+  set('input[name="filterEditingId"]', snapshot.builder.editingId);
+  set('select[name="filterScope"]', snapshot.builder.scope);
+  set('select[name="filterMatch"]', snapshot.builder.match);
+  snapshot.builder.rows.forEach((row, index) => {
+    set(`select[name="filter.field.${index}"]`, row.field);
+    set(`select[name="filter.operator.${index}"]`, row.operator);
+    set(`input[name="filter.value.${index}"]`, row.value);
+    const operator = dialog.querySelector<HTMLSelectElement>(`select[name="filter.operator.${index}"]`);
+    if (operator) syncFilterOperator(operator);
+    const value = dialog.querySelector<HTMLInputElement>(`input[name="filter.value.${index}"]`);
+    if (value && row.value) value.value = row.value;
+  });
+  if (snapshot.list) {
+    const all = dialog.querySelector<HTMLInputElement>('input[name="filterAllActivities"]');
+    if (all) all.checked = snapshot.list.allActivities;
+    const combine = dialog.querySelector<HTMLInputElement>(`input[name="filterCombine"][value="${snapshot.list.combine}"]`);
+    if (combine) combine.checked = true;
+    const mode = dialog.querySelector<HTMLInputElement>(`input[name="filterApplyMode"][value="${snapshot.list.applyMode}"]`);
+    if (mode) mode.checked = true;
+    const wanted = new Set(snapshot.list.selected);
+    for (const input of dialog.querySelectorAll<HTMLInputElement>('input[name="filterSelected"]')) {
+      input.checked = wanted.has(input.value);
+    }
+    setFilterListEnabled(dialog, !snapshot.list.allActivities);
+  }
+  const current = snapshot.list
+    ? snapshot.list.currentRow
+    : dialog.querySelector<HTMLInputElement>('input[name="filterSelected"]:checked')?.value ?? null;
+  const row = current
+    ? dialog.querySelector<HTMLElement>(`tr[data-filter-id="${current}"]`)
+    : null;
+  if (row) {
+    markCurrentFilterRow(dialog, row);
+  } else {
+    const hidden = dialog.querySelector<HTMLInputElement>('input[name="filterRowId"]');
+    if (hidden) hidden.value = "";
+  }
+}
+
+function markCurrentFilterRow(dialog: HTMLDialogElement, row: HTMLElement): void {
+  for (const other of dialog.querySelectorAll("tr.is-current")) other.classList.remove("is-current");
+  row.classList.add("is-current");
+  for (const button of dialog.querySelectorAll<HTMLElement>("[data-filter-row-select]")) {
+    const selected = button.closest("tr") === row;
+    button.setAttribute("aria-pressed", String(selected));
+  }
+  const hidden = dialog.querySelector<HTMLInputElement>('input[name="filterRowId"]');
+  if (hidden) hidden.value = row.dataset.filterId ?? "";
+}
 
 function openDialog(host: HTMLElement, name: DesktopDialogName): void {
   const dialog = host.querySelector<HTMLDialogElement>(`[data-desktop-dialog="${name}"]`);
@@ -811,6 +956,44 @@ function bindHost(host: HTMLElement): void {
       return;
     }
 
+    const filterDialog = target.closest<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
+    const filterNew = target.closest<HTMLElement>("[data-filter-new]");
+    if (filterNew && filterDialog) {
+      // Version 26: New starts a global filter; the list selection is unchanged.
+      resetFilterEditor(filterDialog, "global");
+      filterDialog.querySelector<HTMLInputElement>('input[name="filterName"]')?.focus();
+      return;
+    }
+    const filterRowSelect = target.closest<HTMLElement>("[data-filter-row-select]");
+    if (filterRowSelect && filterDialog) {
+      const row = filterRowSelect.closest<HTMLElement>("tr[data-filter-id]");
+      if (row) markCurrentFilterRow(filterDialog, row);
+      return;
+    }
+    const filterModify = target.closest<HTMLElement>("[data-filter-modify]");
+    if (filterModify && filterDialog) {
+      const currentRow = filterDialog.querySelector<HTMLElement>("tr.is-current");
+      const checked = filterDialog.querySelector<HTMLInputElement>('input[name="filterSelected"]:checked');
+      const filters = (runtime.state.presentation ?? DEFAULT_PRESENTATION).filters;
+      const filter = findActivityFilter(filters, currentRow?.dataset.filterId ?? checked?.value);
+      // Default filters ship read-only, exactly as the Help says.
+      if (filter && !filter.builtin) {
+        loadFilterEditor(filterDialog, filter);
+        filterDialog.querySelector<HTMLInputElement>('input[name="filterName"]')?.focus();
+      } else {
+        filterModify.setAttribute("title", translateWorkspaceUiText(runtime.state.locale, "Select a saved global or layout filter to modify.", "برای ویرایش، یک فیلتر سراسری یا چیدمان ذخیره‌شده را انتخاب کنید."));
+      }
+      return;
+    }
+    const filterSort = target.closest<HTMLElement>("[data-filter-sort]");
+    if (filterSort && filterDialog) {
+      const column = filterSort.dataset.filterSort === "select" ? "select" : "name";
+      const descending = filterSort.dataset.filterSortDirection === "desc";
+      filterSort.dataset.filterSortDirection = descending ? "asc" : "desc";
+      sortFilterList(filterDialog, column, descending);
+      return;
+    }
+
     const cancel = target.closest<HTMLElement>("[data-dialog-cancel]");
     if (cancel) {
       cancel.closest<HTMLDialogElement>("dialog")?.close();
@@ -871,14 +1054,19 @@ function bindHost(host: HTMLElement): void {
 
   host.addEventListener("change", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    if (target.matches('[data-desktop-dialog="filters"] select[name="filterActiveId"]')) {
-      // Picking an entry in the Apply list is the user's intent: clear the
-      // custom builder so its leftover criteria cannot resave the old filter.
-      const dialog = target.closest("dialog");
-      if (dialog) resetFilterEditor(dialog);
-      return;
+    if (!(target instanceof HTMLSelectElement) && !(target instanceof HTMLInputElement)) return;
+    const dialog = target.closest<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
+    if (dialog) {
+      if (target instanceof HTMLInputElement && target.name === "filterAllActivities") {
+        setFilterListEnabled(dialog, !target.checked);
+        return;
+      }
+      if (target instanceof HTMLSelectElement && target.name.startsWith("filter.operator.")) {
+        syncFilterOperator(target);
+        return;
+      }
     }
+    if (!(target instanceof HTMLSelectElement)) return;
     if (!target.matches("[data-workspace-language]")) return;
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
@@ -890,8 +1078,33 @@ function bindHost(host: HTMLElement): void {
     if (!(form instanceof HTMLFormElement) || !form.matches("[data-dialog-form]")) return;
     event.preventDefault();
     const runtime = runtimeByHost.get(host);
-    runtime?.handlers.onLayoutOptions?.(readLayoutPatch(form, runtime.state.presentation ?? DEFAULT_PRESENTATION));
-    form.closest<HTMLDialogElement>("dialog")?.close();
+    const dialog = form.closest<HTMLDialogElement>("dialog");
+    const dialogName = dialog?.dataset.desktopDialog;
+    // Apply and the filter actions keep the dialog open (Version 26 behaviour);
+    // the patch re-renders the shell, so reopen the freshly rendered dialog.
+    const submitter = event instanceof SubmitEvent ? event.submitter : null;
+    const keepOpen = Boolean(submitter?.closest("[data-dialog-apply]"));
+    const data = new FormData(form);
+    if (submitter instanceof HTMLButtonElement && submitter.name) data.append(submitter.name, submitter.value);
+    if (dialogName === "filters") filterListFromState = true;
+    if (data.get("filterAction") === "delete") {
+      const editingId = String(data.get("filterEditingId") ?? "");
+      const targetId = String(data.get("filterRowId") ?? "") || editingId;
+      // The render happens inside onLayoutOptions, so flag the builder reset first.
+      if (editingId && editingId === targetId) clearFilterBuilderAfterRender = true;
+    }
+    // Closing before the patch matters: renderDesktopShell re-opens a filters
+    // dialog that was open when it rendered, so a dialog left open here would
+    // be snapshotted and shown again after OK, making OK look ineffective.
+    if (!keepOpen) dialog?.close();
+    runtime?.handlers.onLayoutOptions?.(readLayoutPatch(data, runtime.state.presentation ?? DEFAULT_PRESENTATION));
+    filterListFromState = false;
+    clearFilterBuilderAfterRender = false;
+    if (keepOpen && dialogName) {
+      // The patch re-rendered the shell, so the original dialog is detached.
+      const fresh = host.querySelector<HTMLDialogElement>(`[data-desktop-dialog="${dialogName}"]`);
+      if (fresh && !fresh.open) openDialog(host, dialogName as DesktopDialogName);
+    }
   });
 
   host.addEventListener("keydown", (event) => {
@@ -933,6 +1146,17 @@ function bindHost(host: HTMLElement): void {
     }
     if (!(event.ctrlKey || event.metaKey) || typing) return;
     const lower = event.key.toLowerCase();
+    // Version 26 documents Ctrl+Numpad + / - for Expand All / Collapse All.
+    // Only the numeric keypad is claimed so the browser keeps its own
+    // Ctrl+= / Ctrl+- zoom bindings.
+    if (event.ctrlKey && (event.code === "NumpadAdd" || event.code === "NumpadSubtract")) {
+      const caps = runtime.state.capabilities;
+      if (caps.hasWbs && caps.groupByWbs) {
+        event.preventDefault();
+        runtime.handlers.onCommand(event.code === "NumpadAdd" ? "view.expand-all" : "view.collapse-all");
+      }
+      return;
+    }
     if (lower === "f") { event.preventDefault(); runtime.handlers.onCommand("edit.find"); return; }
     if (lower === "z") {
       if (runtime.state.capabilities.canUndoLayout) {

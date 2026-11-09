@@ -39,6 +39,16 @@ export type ActivityFilterCriterion = {
   value: string;
 };
 
+/**
+ * Version 26 Filters dialog categories: Default, Global, Layout, User-Defined.
+ * A default filter ships with the product and cannot be edited; a layout filter
+ * is saved with the layout it was created in; a global filter is available to
+ * every layout; a user-defined filter belongs to the signed-in user.
+ */
+export type ActivityFilterScope = "default" | "global" | "layout" | "user";
+
+export const ACTIVITY_FILTER_SCOPES: readonly ActivityFilterScope[] = ["default", "global", "layout", "user"];
+
 export type ActivityFilterDefinition = {
   /** `builtin:*` for the documented defaults, `custom:<slug>` for saved filters. */
   id: string;
@@ -46,16 +56,30 @@ export type ActivityFilterDefinition = {
   match: "all" | "any";
   criteria: readonly ActivityFilterCriterion[];
   builtin?: boolean;
+  scope?: ActivityFilterScope;
 };
 
 export type ActivityFilterState = {
   saved: readonly ActivityFilterDefinition[];
+  /** Legacy single-selection field; equals the first entry of selectedIds. */
   activeId: string | null;
+  /** Version 26 Select column: every checked filter applies to the layout. */
+  selectedIds?: readonly string[];
+  /** "All selected filters" versus "Any selected filter". */
+  combine?: "all" | "any";
+  /** Matches the All Activities checkbox in the Filters dialog. */
+  allActivities?: boolean;
+  /** Replace the activities shown, or keep them and highlight matches. */
+  applyMode?: "replace" | "highlight";
 };
 
 export const EMPTY_ACTIVITY_FILTERS: ActivityFilterState = Object.freeze({
   saved: Object.freeze([]),
   activeId: null,
+  selectedIds: Object.freeze([]),
+  combine: "all",
+  allActivities: false,
+  applyMode: "replace",
 });
 
 function builtin(
@@ -70,6 +94,7 @@ function builtin(
     match,
     criteria: Object.freeze(criteria.map((criterion) => Object.freeze({ ...criterion }))),
     builtin: true,
+    scope: "default" as const,
   });
 }
 
@@ -113,6 +138,36 @@ export function findActivityFilter(
 
 export function getActiveActivityFilter(state: ActivityFilterState): ActivityFilterDefinition | null {
   return findActivityFilter(state, state.activeId);
+}
+
+/** Checked filters in display order, de-duplicated; falls back to the legacy id. */
+export function getSelectedActivityFilters(state: ActivityFilterState): ActivityFilterDefinition[] {
+  const ids = state.selectedIds?.length ? state.selectedIds : state.activeId ? [state.activeId] : [];
+  const seen = new Set<string>();
+  const filters: ActivityFilterDefinition[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const filter = findActivityFilter(state, id);
+    if (filter) filters.push(filter);
+  }
+  return filters;
+}
+
+/** Version 26 only deletes and modifies global and layout filters. */
+export function canDeleteActivityFilter(filter: ActivityFilterDefinition | null): boolean {
+  if (!filter || filter.builtin) return false;
+  return (filter.scope ?? "layout") !== "default";
+}
+
+export function filterScopeLabel(scope: ActivityFilterScope, locale: string): string {
+  const labels: Record<ActivityFilterScope, { en: string; fa: string }> = {
+    default: { en: "Default", fa: "پیش‌فرض" },
+    global: { en: "Global", fa: "سراسری" },
+    layout: { en: "Layout", fa: "چیدمان" },
+    user: { en: "User Defined", fa: "کاربر" },
+  };
+  return /^fa\b/i.test(locale) ? labels[scope].fa : labels[scope].en;
 }
 
 const FIELD_LABELS: Record<ActivityFilterFieldId, { en: string; fa: string }> = {
@@ -285,6 +340,48 @@ export function filterActivitiesByDefinition(
   return activities.filter((activity) => activityMatchesFilter(activity, filter, wbsLabels));
 }
 
+export type ActivityFilterApplication = {
+  /** Rows that stay visible: all rows in highlight mode. */
+  activities: readonly WorkspaceActivityRow[];
+  /** Every row that satisfies the checked filters. */
+  matchedIds: ReadonlySet<string>;
+  highlight: boolean;
+  filters: readonly ActivityFilterDefinition[];
+};
+
+/**
+ * Applies the version 26 selection model: All Activities bypasses filtering,
+ * "All selected filters" requires every checked filter to match, "Any selected
+ * filter" requires one, and highlight mode keeps the rows on screen.
+ */
+export function applyActivityFilterState(
+  activities: readonly WorkspaceActivityRow[],
+  state: ActivityFilterState,
+  wbsNodes: readonly WbsLabelNode[] = [],
+): ActivityFilterApplication {
+  const filters = getSelectedActivityFilters(state);
+  const allIds = new Set(activities.map((activity) => activity.id));
+  if (state.allActivities || filters.length === 0) {
+    return { activities, matchedIds: allIds, highlight: false, filters: [] };
+  }
+  const wbsLabels = buildWbsLabels(wbsNodes);
+  const combine = state.combine === "any" ? "any" : "all";
+  const matchedIds = new Set<string>();
+  for (const activity of activities) {
+    const matches = combine === "any"
+      ? filters.some((filter) => activityMatchesFilter(activity, filter, wbsLabels))
+      : filters.every((filter) => activityMatchesFilter(activity, filter, wbsLabels));
+    if (matches) matchedIds.add(activity.id);
+  }
+  const highlight = state.applyMode === "highlight";
+  return {
+    activities: highlight ? activities : activities.filter((activity) => matchedIds.has(activity.id)),
+    matchedIds,
+    highlight,
+    filters,
+  };
+}
+
 const MAX_SAVED_FILTERS = 20;
 const MAX_CRITERIA = 8;
 const MAX_NAME = 60;
@@ -322,7 +419,8 @@ export function normalizeActivityFilter(value: unknown): ActivityFilterDefinitio
   if (!isRecord(value)) return null;
   const name = typeof value.name === "string" ? value.name.trim().slice(0, MAX_NAME) : "";
   if (!name) return null;
-  const idPart = slug(name);
+  const explicitId = typeof value.id === "string" && /^custom:[^\s:]{1,80}$/u.test(value.id) ? value.id : null;
+  const idPart = explicitId ? explicitId.slice("custom:".length) : slug(name);
   if (!idPart) return null;
   const criteriaInput = Array.isArray(value.criteria) ? value.criteria.slice(0, MAX_CRITERIA) : [];
   const criteria = criteriaInput
@@ -330,11 +428,13 @@ export function normalizeActivityFilter(value: unknown): ActivityFilterDefinitio
     .filter((criterion): criterion is ActivityFilterCriterion => criterion !== null);
   const complete = criteria.filter(criterionIsComplete);
   if (complete.length === 0) return null;
+  const scope: ActivityFilterScope = value.scope === "global" || value.scope === "user" ? value.scope : "layout";
   return {
-    id: `custom:${idPart}`,
+    id: explicitId ?? `custom:${idPart}`,
     name,
     match: value.match === "any" ? "any" : "all",
     criteria: complete,
+    scope,
   };
 }
 
@@ -349,11 +449,25 @@ export function normalizeActivityFilterState(value: unknown): ActivityFilterStat
     seen.add(filter.id);
     normalized.push(filter);
   }
-  const activeId = typeof value.activeId === "string"
-    && (findActivityFilter({ saved: normalized, activeId: null }, value.activeId) !== null)
-    ? value.activeId
-    : null;
-  return { saved: normalized, activeId };
+  const known = (id: unknown): id is string => typeof id === "string"
+    && findActivityFilter({ saved: normalized, activeId: null }, id) !== null;
+  const legacyActive = known(value.activeId) ? value.activeId : null;
+  const selectedRaw = Array.isArray(value.selectedIds) ? value.selectedIds : legacyActive ? [legacyActive] : [];
+  const selectedIds: string[] = [];
+  const selectedSeen = new Set<string>();
+  for (const id of selectedRaw) {
+    if (!known(id) || selectedSeen.has(id)) continue;
+    selectedSeen.add(id);
+    selectedIds.push(id);
+  }
+  return {
+    saved: normalized,
+    activeId: selectedIds[0] ?? legacyActive,
+    selectedIds,
+    combine: value.combine === "any" ? "any" : "all",
+    allActivities: value.allActivities === true,
+    applyMode: value.applyMode === "highlight" ? "highlight" : "replace",
+  };
 }
 
 export function upsertActivityFilter(
@@ -365,8 +479,11 @@ export function upsertActivityFilter(
   const saved = state.saved.filter((item) => item.id !== normalized.id);
   saved.unshift(normalized);
   return {
+    ...state,
     saved: saved.slice(0, MAX_SAVED_FILTERS),
     activeId: normalized.id,
+    selectedIds: [normalized.id],
+    allActivities: false,
   };
 }
 
@@ -374,9 +491,18 @@ export function deleteActivityFilter(
   state: ActivityFilterState,
   id: string,
 ): ActivityFilterState {
+  const target = findActivityFilter(state, id);
+  // Version 26 only deletes global and layout filters.
+  if (!canDeleteActivityFilter(target)) return state;
   const saved = state.saved.filter((item) => item.id !== id);
   if (saved.length === state.saved.length) return state;
-  return { saved, activeId: state.activeId === id ? null : state.activeId };
+  const selectedIds = (state.selectedIds ?? []).filter((item) => item !== id);
+  return {
+    ...state,
+    saved,
+    selectedIds,
+    activeId: state.activeId === id ? selectedIds[0] ?? null : state.activeId,
+  };
 }
 
 export function setActiveActivityFilter(
@@ -384,8 +510,103 @@ export function setActiveActivityFilter(
   id: string | null,
 ): ActivityFilterState {
   const activeId = findActivityFilter(state, id) ? id : null;
-  if (activeId === state.activeId) return state;
-  return { ...state, activeId };
+  return {
+    ...state,
+    activeId,
+    selectedIds: activeId ? [activeId] : [],
+    allActivities: false,
+  };
+}
+
+export function selectActivityFilter(
+  state: ActivityFilterState,
+  id: string,
+  selected: boolean,
+): ActivityFilterState {
+  if (!findActivityFilter(state, id)) return state;
+  const current = state.selectedIds ?? (state.activeId ? [state.activeId] : []);
+  const next = selected
+    ? current.includes(id) ? current : [...current, id]
+    : current.filter((item) => item !== id);
+  return { ...state, selectedIds: next, activeId: next[0] ?? null };
+}
+
+export function setActivityFilterCombine(
+  state: ActivityFilterState,
+  combine: "all" | "any",
+): ActivityFilterState {
+  return state.combine === combine ? state : { ...state, combine };
+}
+
+export function setActivityFilterAllActivities(
+  state: ActivityFilterState,
+  allActivities: boolean,
+): ActivityFilterState {
+  return state.allActivities === allActivities ? state : { ...state, allActivities };
+}
+
+export function setActivityFilterApplyMode(
+  state: ActivityFilterState,
+  applyMode: "replace" | "highlight",
+): ActivityFilterState {
+  return state.applyMode === applyMode ? state : { ...state, applyMode };
+}
+
+function uniqueFilterId(state: ActivityFilterState, base: string): string {
+  const taken = new Set([
+    ...state.saved.map((filter) => filter.id),
+    ...getBuiltinActivityFilters().map((filter) => filter.id),
+  ]);
+  let candidate = base;
+  let suffix = 2;
+  while (taken.has(candidate)) candidate = `${base}-${suffix++}`;
+  return candidate;
+}
+
+/** Makes a layout filter global; other categories are unchanged. */
+export function makeGlobalActivityFilter(
+  state: ActivityFilterState,
+  id: string,
+): ActivityFilterState {
+  const target = state.saved.find((filter) => filter.id === id);
+  if (!target || target.scope !== "layout") return state;
+  return {
+    ...state,
+    saved: state.saved.map((filter) => (filter.id === id ? { ...filter, scope: "global" as const } : filter)),
+  };
+}
+
+/** Copy as Layout: a default or global filter becomes a layout filter. */
+export function copyActivityFilterAsLayout(
+  state: ActivityFilterState,
+  id: string,
+): ActivityFilterState {
+  const source = findActivityFilter(state, id);
+  if (!source) return state;
+  const copy: ActivityFilterDefinition = {
+    ...source,
+    id: uniqueFilterId(state, `custom:${slug(source.name)}-layout`),
+    name: source.name.slice(0, MAX_NAME),
+    builtin: false,
+    scope: "layout",
+  };
+  return { ...state, saved: [copy, ...state.saved].slice(0, MAX_SAVED_FILTERS) };
+}
+
+/** Paste: store a copied filter in the given category with a unique id. */
+export function pasteActivityFilter(
+  state: ActivityFilterState,
+  source: ActivityFilterDefinition,
+  scope: ActivityFilterScope = "layout",
+): ActivityFilterState {
+  if (scope === "default") return state;
+  const copy: ActivityFilterDefinition = {
+    ...source,
+    id: uniqueFilterId(state, `custom:${slug(source.name)}`),
+    builtin: false,
+    scope,
+  };
+  return { ...state, saved: [copy, ...state.saved].slice(0, MAX_SAVED_FILTERS) };
 }
 
 /** Human-readable criterion summary used by the layout bar and captures. */

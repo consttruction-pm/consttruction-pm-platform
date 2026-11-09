@@ -3,9 +3,9 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
+  applyActivityFilterState,
   describeActivityFilter,
-  filterActivitiesByDefinition,
-  getActiveActivityFilter,
+  type ActivityFilterApplication,
 } from "./workspace-activity-filters.js";
 import {
   buildWbsTreeGuides,
@@ -27,9 +27,11 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
+import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { renderActivityNetwork } from "./workspace-network.js";
 import {
   DEFAULT_PRESENTATION,
+  GANTT_BAR_KINDS,
   activityBarFacts,
   barKindMatchesFilter,
   barLabelText,
@@ -160,8 +162,6 @@ const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
-/** Right-click menu request survives the selection re-render it triggers. */
-const activityContextMenuByContainer = new WeakMap<HTMLElement, { activityId: string; x: number; y: number }>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 const WORKSPACE_SPLIT_STORAGE_KEY = "cubi:workspace:split";
 const WORKSPACE_TOP_LAYOUT_STORAGE_KEY = "cubi:workspace:top-layout";
@@ -288,6 +288,60 @@ function openWbsDrawer(container: HTMLElement): void {
   if (!drawer) return;
   container.querySelectorAll<HTMLElement>("[data-tools-drawer],[data-nav-flyout]").forEach((other) => { other.hidden = true; });
   drawer.hidden = false;
+}
+
+/** Open the real Layout Options / Timescale dialog from any toolbar or menu. */
+function openLayoutOptionsDialog(container: HTMLElement): void {
+  const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+  if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+  else dialog?.setAttribute("open", "");
+}
+
+function resetTableSplit(container: HTMLElement): void {
+  const split = container.querySelector<HTMLElement>("[data-panel-split]");
+  if (!split) return;
+  if (split.dataset.splitKey) clearStoredSplit(split.dataset.splitKey);
+  split.style.setProperty("--cp-split-table", `${DEFAULT_TABLE_SPLIT}%`);
+  split.querySelector<HTMLElement>("[data-panel-splitter]")?.setAttribute("aria-valuenow", String(DEFAULT_TABLE_SPLIT));
+}
+
+function resetDetailsSplit(container: HTMLElement): void {
+  const main = container.querySelector<HTMLElement>(".cp-main");
+  const splitter = container.querySelector<HTMLElement>("[data-details-splitter]");
+  if (!main) return;
+  if (splitter?.dataset.splitKey) clearStoredSplit(splitter.dataset.splitKey);
+  main.style.setProperty("--cp-split-primary", `${DEFAULT_DETAILS_SPLIT}%`);
+  main.style.setProperty("--cp-split-details", `${DEFAULT_DETAILS_SPLIT}%`);
+  splitter?.setAttribute("aria-valuenow", String(DEFAULT_DETAILS_SPLIT));
+}
+
+function resetColumnWidths(container: HTMLElement): void {
+  const record = workspaceRenderRecords.get(container);
+  const widths: Record<string, number> = {};
+  for (const column of record?.state.columns ?? []) {
+    if (record?.state.p6Layout?.columns.some((entry) => entry.field_id === column.id)) {
+      widths[column.id] = defaultActivityColumnWidth(column);
+    }
+  }
+  if (record?.options.onP6ColumnWidthsReset && Object.keys(widths).length > 0) {
+    record.options.onP6ColumnWidthsReset(widths);
+    return;
+  }
+  for (const [columnId, width] of Object.entries(widths)) {
+    applyActivityColumnWidth(container, columnId, width, false);
+  }
+}
+
+/** Open the activity create form with the clicked WBS element preselected. */
+function openActivityCreateForWbs(container: HTMLElement, wbsId: string | null): void {
+  openToolsDrawer(container);
+  const form = container.querySelector<HTMLFormElement>("[data-activity-create-form]");
+  if (!form) return;
+  if (wbsId) {
+    const select = form.querySelector<HTMLSelectElement>('select[name="wbs_id"]');
+    if (select && Array.from(select.options).some((option) => option.value === wbsId)) select.value = wbsId;
+  }
+  form.querySelector<HTMLInputElement>('input[name="activity_id"]')?.focus({ preventScroll: true });
 }
 
 function startTableGanttResize(splitter: HTMLElement, event: PointerEvent): void {
@@ -432,7 +486,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   // either pane keeps every bar on the row it belongs to.
   container.addEventListener("scroll", (event) => {
     const target = event.target as HTMLElement | null;
-    if (activityContextMenuByContainer.has(container)) hideActivityContextMenu(container);
     const table = container.querySelector<HTMLElement>("#cp-activity-grid .cp-table-wrap");
     const chart = container.querySelector<HTMLElement>("#cp-gantt .cp-gantt-chart");
     if (!table || !chart || !target || (target !== table && target !== chart)) return;
@@ -578,15 +631,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-menu-command],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths]") : null;
-    // A click outside an open activity menu dismisses it before any other
-    // handler runs; clicking an item is handled by the item's own branch.
-    if (activityContextMenuByContainer.has(container)) {
-      const menu = container.querySelector<HTMLElement>("[data-activity-context-menu]");
-      if (!menu || !event.target || typeof (event.target as HTMLElement).closest !== "function" || !(event.target as HTMLElement).closest("[data-activity-context-menu]")) {
-        hideActivityContextMenu(container);
-      }
-    }
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -753,43 +798,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
-    if (target.dataset.resetTableSplit !== undefined) {
-      const split = container.querySelector<HTMLElement>("[data-panel-split]");
-      if (split) {
-        if (split.dataset.splitKey) clearStoredSplit(split.dataset.splitKey);
-        split.style.setProperty("--cp-split-table", `${DEFAULT_TABLE_SPLIT}%`);
-        split.querySelector<HTMLElement>("[data-panel-splitter]")?.setAttribute("aria-valuenow", String(DEFAULT_TABLE_SPLIT));
-      }
-      return;
-    }
-    if (target.dataset.resetDetailsSplit !== undefined) {
-      const main = container.querySelector<HTMLElement>(".cp-main");
-      const splitter = container.querySelector<HTMLElement>("[data-details-splitter]");
-      if (main) {
-        if (splitter?.dataset.splitKey) clearStoredSplit(splitter.dataset.splitKey);
-        main.style.setProperty("--cp-split-primary", `${DEFAULT_DETAILS_SPLIT}%`);
-        main.style.setProperty("--cp-split-details", `${DEFAULT_DETAILS_SPLIT}%`);
-        splitter?.setAttribute("aria-valuenow", String(DEFAULT_DETAILS_SPLIT));
-      }
-      return;
-    }
-    if (target.dataset.resetColumnWidths !== undefined) {
-      const record = workspaceRenderRecords.get(container);
-      const widths: Record<string, number> = {};
-      for (const column of record?.state.columns ?? []) {
-        if (record?.state.p6Layout?.columns.some((entry) => entry.field_id === column.id)) {
-          widths[column.id] = defaultActivityColumnWidth(column);
-        }
-      }
-      if (record?.options.onP6ColumnWidthsReset && Object.keys(widths).length > 0) {
-        record.options.onP6ColumnWidthsReset(widths);
-        return;
-      }
-      for (const [columnId, width] of Object.entries(widths)) {
-        applyActivityColumnWidth(container, columnId, width, false);
-      }
-      return;
-    }
+    if (target.dataset.resetTableSplit !== undefined) { resetTableSplit(container); return; }
+    if (target.dataset.resetDetailsSplit !== undefined) { resetDetailsSplit(container); return; }
+    if (target.dataset.resetColumnWidths !== undefined) { resetColumnWidths(container); return; }
+    if (target.dataset.activityCreateOpen !== undefined) { options.onActivityContextCommand?.("add", state.selectedActivityId ?? ""); return; }
+    if (target.dataset.columnsOpen !== undefined) { options.onActivityContextCommand?.("columns", state.selectedActivityId ?? ""); return; }
     if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
     if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
     if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
@@ -862,9 +875,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.layoutOptionsOpen !== undefined) {
-      const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
-      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
-      else dialog?.setAttribute("open", "");
+      openLayoutOptionsDialog(container);
       return;
     }
     if (target.dataset.layoutOptionsClose !== undefined) {
@@ -932,44 +943,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       else dialog?.removeAttribute("open");
       return;
     }
-    if (target.dataset.activityMenuCommand) {
-      const command = target.dataset.activityMenuCommand;
-      const menu = container.querySelector<HTMLElement>("[data-activity-context-menu]");
-      const activityId = menu?.dataset.activityMenuFor || state.selectedActivityId || "";
-      hideActivityContextMenu(container);
-      if (command === "expand-all") {
-        setCollapsedWbsIds(state.context.project_id, []);
-        rerenderWorkspaceRows(container);
-        return;
-      }
-      if (command === "collapse-all") {
-        setCollapsedWbsIds(state.context.project_id, collapseAllWbsIds(state.activities, state.wbsNodes));
-        rerenderWorkspaceRows(container);
-        return;
-      }
-      if (command === "collapse-to") {
-        const dialog = container.querySelector<HTMLDialogElement>("[data-collapse-to-dialog]");
-        const select = dialog?.querySelector<HTMLSelectElement>("[data-collapse-to-select]");
-        if (select && activityId) {
-          const node = state.activities.find((activity) => activity.id === activityId)?.wbsId;
-          if (node && state.wbsNodes.some((item) => item.id === node)) select.value = node;
-        }
-        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
-        else dialog?.setAttribute("open", "");
-        return;
-      }
-      if (command === "filters") {
-        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
-        return;
-      }
-      if (
-        command === "details" || command === "add" || command === "link" || command === "columns" ||
-        command === "line-numbers" || command === "font-row" || command === "group-sort"
-      ) {
-        options.onActivityContextCommand?.(command, activityId);
-      }
-      return;
-    }
     if (target.dataset.wbsRow) {
       options.onWbsSelect?.(target.dataset.wbsRow);
       return;
@@ -979,34 +952,25 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   container.addEventListener("contextmenu", (event) => {
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
-    const row = target.closest<HTMLElement>("[data-activity-id]");
-    const ganttRow = row ?? target.closest<HTMLElement>("[data-gantt-activity-id]");
-    const wbsRow = target.closest<HTMLElement>("[data-wbs-row]");
-    const inGrid = target.closest("#cp-activity-grid") || target.closest("#cp-gantt");
-    if (!row && !ganttRow && !wbsRow && !inGrid) return;
+    // The details pane is a separate surface with its own Customize menu.
+    if (target.closest("#cp-details")) return;
+    const context = workspaceContextAt(target);
+    if (!context) return;
     event.preventDefault();
-    const record = workspaceRenderRecords.get(container);
-    if (!record) return;
-    const activityId = row?.dataset.activityId ?? ganttRow?.dataset.ganttActivityId ?? wbsRow?.dataset.wbsRow ?? null;
-    const selectedId = row?.dataset.activityId ?? activityId ?? record.state.selectedActivityId ?? "";
-    const point = event as MouseEvent;
-    activityContextMenuByContainer.set(container, {
-      activityId: selectedId,
-      x: Number.isFinite(point.clientX) ? point.clientX : 24,
-      y: Number.isFinite(point.clientY) ? point.clientY : 24,
-    });
-    if (row || ganttRow) {
-      record.options.onActivitySelect?.(selectedId);
-      const next = workspaceRenderRecords.get(container);
-      if (next && next !== record) {
-        activityContextMenuByContainer.set(container, {
-          activityId: selectedId,
-          x: Number.isFinite(point.clientX) ? point.clientX : 24,
-          y: Number.isFinite(point.clientY) ? point.clientY : 24,
-        });
-      }
+    if (context.kind === "table-activity" || context.kind === "gantt-activity") {
+      const activityId = context.activityId;
+      if (activityId) workspaceRenderRecords.get(container)?.options.onActivitySelect?.(activityId);
     }
-    showActivityContextMenu(container);
+    const point = event as MouseEvent;
+    const fallback = anchorPoint(context.anchor);
+    openWorkspaceContextMenu(
+      container,
+      context,
+      Number.isFinite(point.clientX) ? point.clientX : fallback.x,
+      Number.isFinite(point.clientY) ? point.clientY : fallback.y,
+      context.anchor,
+      false,
+    );
   });
   container.addEventListener("dblclick", (event) => {
     const target = event.target as HTMLElement | null;
@@ -1020,26 +984,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("keydown", (event) => {
     const keyTarget = event.target as HTMLElement | null;
-    if (event.key === "Escape" && activityContextMenuByContainer.has(container)) {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      if (!keyTarget || typeof keyTarget.closest !== "function") return;
+      if (keyTarget.closest("#cp-details")) return;
+      const context = workspaceContextAt(keyTarget);
+      if (!context) return;
       event.preventDefault();
-      const previous = activityContextMenuByContainer.get(container)?.activityId;
-      hideActivityContextMenu(container);
-      const row = previous
-        ? container.querySelector<HTMLElement>(`[data-activity-id="${previous.replace(/["\\]/g, "\\$&")}"]`)
-        : null;
-      row?.focus({ preventScroll: true });
-      return;
-    }
-    const menuItem = keyTarget && typeof keyTarget.closest === "function" ? keyTarget.closest<HTMLElement>("[data-activity-context-menu]") : null;
-    if (menuItem && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-      const items = Array.from(menuItem.querySelectorAll<HTMLElement>("[data-activity-menu-command]:not(:disabled)"));
-      const index = items.indexOf(keyTarget as HTMLElement);
-      if (!items.length) return;
-      event.preventDefault();
-      const next = event.key === "ArrowDown"
-        ? items[(index + 1 + items.length) % items.length]
-        : items[(index - 1 + items.length) % items.length];
-      next.focus();
+      const point = anchorPoint(context.anchor);
+      openWorkspaceContextMenu(container, context, point.x, point.y, context.anchor);
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -1163,6 +1115,446 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const label = target.value.trim();
     if (fieldId && label) workspaceRenderRecords.get(container)?.options.onP6FieldPresentationChange?.(fieldId, { label });
   });
+}
+
+export type WorkspaceContextKind =
+  | "table-activity"
+  | "table-header"
+  | "table-empty"
+  | "table-wbs"
+  | "gantt-activity"
+  | "gantt-link"
+  | "gantt-wbs"
+  | "gantt-empty"
+  | "gantt-timescale";
+
+export type WorkspaceContextTarget = {
+  kind: WorkspaceContextKind;
+  anchor: HTMLElement;
+  activityId?: string;
+  wbsId?: string;
+  relationshipId?: string;
+  columnId?: string;
+};
+
+/** Classify the object under the pointer. Each Gantt object owns its menu. */
+function workspaceContextAt(target: HTMLElement): WorkspaceContextTarget | null {
+  const closest = <T extends Element>(selector: string): T | null => {
+    try {
+      return target.closest<T>(selector);
+    } catch {
+      return null;
+    }
+  };
+  const link = closest<SVGPathElement>("[data-gantt-link],[data-gantt-link-hit]");
+  const relationshipId = link?.dataset.ganttLink ?? link?.dataset.ganttLinkHit;
+  if (relationshipId) {
+    return { kind: "gantt-link", relationshipId, anchor: link as unknown as HTMLElement };
+  }
+  const header = closest<HTMLElement>("#cp-activity-grid thead th");
+  if (header) {
+    return { kind: "table-header", columnId: header.dataset.columnId ?? "", anchor: header };
+  }
+  const activityRow = closest<HTMLElement>("#cp-activity-grid tbody tr[data-activity-id]");
+  if (activityRow?.dataset.activityId) {
+    return { kind: "table-activity", activityId: activityRow.dataset.activityId, anchor: activityRow };
+  }
+  const tableWbs = closest<HTMLElement>("#cp-activity-grid tr[data-wbs-row]");
+  if (tableWbs?.dataset.wbsRow) {
+    return { kind: "table-wbs", wbsId: tableWbs.dataset.wbsRow, anchor: tableWbs };
+  }
+  const ganttRow = closest<HTMLElement>("#cp-gantt [data-gantt-activity-id]");
+  if (ganttRow) {
+    const activityId = ganttRow.dataset.ganttActivityId;
+    if (activityId) return { kind: "gantt-activity", activityId, anchor: ganttRow };
+  }
+  if (closest("#cp-gantt")) {
+    const summary = closest<HTMLElement>("[data-gantt-summary]");
+    const group = closest<HTMLElement>(".cp-gantt-group-row[data-gantt-wbs-id]");
+    const wbsTarget = summary ?? group;
+    if (wbsTarget) {
+      const wbsId = wbsTarget.getAttribute("data-gantt-wbs-id")
+        ?? wbsTarget.closest<HTMLElement>("[data-gantt-wbs-id]")?.getAttribute("data-gantt-wbs-id")
+        ?? "";
+      if (wbsId) return { kind: "gantt-wbs", wbsId, anchor: wbsTarget };
+    }
+  }
+  const axis = closest<HTMLElement>("#cp-gantt .cp-gantt-axis");
+  if (axis) return { kind: "gantt-timescale", anchor: axis };
+  const gantt = closest<HTMLElement>("#cp-gantt");
+  if (gantt) return { kind: "gantt-empty", anchor: gantt };
+  const grid = closest<HTMLElement>("#cp-activity-grid");
+  if (grid) return { kind: "table-empty", anchor: grid };
+  return null;
+}
+
+type ContextItemOptions = {
+  shortcut?: string;
+  disabled?: boolean;
+  reason?: { en: string; fa: string };
+  checked?: boolean;
+  separator?: boolean;
+};
+
+function contextItem(
+  state: WorkspaceState,
+  command: string,
+  label: { en: string; fa: string },
+  icon: string,
+  options: ContextItemOptions = {},
+): ContextMenuItem {
+  return {
+    command,
+    label: uiText(state.locale, label.en, label.fa),
+    icon,
+    shortcut: options.shortcut,
+    disabled: options.disabled,
+    reason: options.reason ? uiText(state.locale, options.reason.en, options.reason.fa) : undefined,
+    checked: options.checked,
+    separatorBefore: options.separator,
+  };
+}
+
+function activityMenuItems(
+  state: WorkspaceState,
+  activityId: string | undefined,
+  gantt: boolean,
+  lineNumbers: boolean,
+): ContextMenuItem[] {
+  const hasActivity = Boolean(activityId);
+  const hasWbsGroups = state.activityGroupBy === "wbs" && state.wbsNodes.length > 0;
+  const wbsActions: ContextMenuItem[] = [
+    contextItem(state, "expand-all", ACTIVITY_CONTEXT_LABELS.expandAll, "expand", { shortcut: "Ctrl+Num +", disabled: !hasWbsGroups, separator: true }),
+    contextItem(state, "collapse-all", ACTIVITY_CONTEXT_LABELS.collapseAll, "collapse", { shortcut: "Ctrl+Num -", disabled: !hasWbsGroups }),
+    contextItem(state, "collapse-to", ACTIVITY_CONTEXT_LABELS.collapseTo, "collapseTo", { disabled: !hasWbsGroups }),
+  ];
+  if (gantt) {
+    return [
+      contextItem(state, "details", ACTIVITY_CONTEXT_LABELS.details, "activity", { disabled: !hasActivity }),
+      contextItem(state, "add", ACTIVITY_CONTEXT_LABELS.add, "plus", { shortcut: "Ins", disabled: !state.wbsNodes.length, separator: true }),
+      contextItem(state, "link", ACTIVITY_CONTEXT_LABELS.link, "link", { disabled: !hasActivity }),
+      contextItem(state, "bars", { en: "Bar Styles…", fa: "سبک میله‌ها…" }, "bars", { separator: true }),
+      contextItem(state, "font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font"),
+      contextItem(state, "filters", ACTIVITY_CONTEXT_LABELS.filters, "filter", { separator: true }),
+      contextItem(state, "group-sort", ACTIVITY_CONTEXT_LABELS.groupSort, "group"),
+      contextItem(state, "relationships", { en: "Show Relationships", fa: "نمایش روابط" }, "link", { checked: state.showGanttRelationships, separator: true }),
+      ...wbsActions,
+    ];
+  }
+  return [
+    contextItem(state, "details", ACTIVITY_CONTEXT_LABELS.details, "activity", { disabled: !hasActivity }),
+    contextItem(state, "cut", ACTIVITY_CONTEXT_LABELS.cut, "cut", { shortcut: "Ctrl+X", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.cut, separator: true }),
+    contextItem(state, "copy", ACTIVITY_CONTEXT_LABELS.copy, "copy", { shortcut: "Ctrl+C", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.copy }),
+    contextItem(state, "paste", ACTIVITY_CONTEXT_LABELS.paste, "paste", { shortcut: "Ctrl+V", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.paste }),
+    contextItem(state, "fill-down", ACTIVITY_CONTEXT_LABELS.fillDown, "fill", { shortcut: "Ctrl+E", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.fillDown }),
+    contextItem(state, "add", ACTIVITY_CONTEXT_LABELS.add, "plus", { shortcut: "Ins", disabled: !state.wbsNodes.length }),
+    contextItem(state, "delete", ACTIVITY_CONTEXT_LABELS.delete, "delete", { shortcut: "Del", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.delete }),
+    contextItem(state, "dissolve", ACTIVITY_CONTEXT_LABELS.dissolve, "dissolve", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.dissolve }),
+    contextItem(state, "renumber", ACTIVITY_CONTEXT_LABELS.renumber, "renumber", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.renumber }),
+    contextItem(state, "export-excel", ACTIVITY_CONTEXT_LABELS.exportExcel, "excel", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.exportExcel }),
+    contextItem(state, "assign", ACTIVITY_CONTEXT_LABELS.assign, "assignment", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.assign }),
+    contextItem(state, "link", ACTIVITY_CONTEXT_LABELS.link, "link", { disabled: !hasActivity }),
+    contextItem(state, "columns", ACTIVITY_CONTEXT_LABELS.columns, "columns", { disabled: !hasActivity, separator: true }),
+    contextItem(state, "line-numbers", ACTIVITY_CONTEXT_LABELS.lineNumbers, "lineNumbers", { checked: lineNumbers }),
+    contextItem(state, "font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font", { disabled: !hasActivity }),
+    contextItem(state, "filters", ACTIVITY_CONTEXT_LABELS.filters, "filter", { separator: true }),
+    contextItem(state, "group-sort", ACTIVITY_CONTEXT_LABELS.groupSort, "group"),
+    ...wbsActions,
+  ];
+}
+
+function headerMenuItems(state: WorkspaceState, columnId: string, lineNumbers: boolean): ContextMenuItem[] {
+  const sort = state.activitySort;
+  const isColumn = Boolean(columnId);
+  const ascending = isColumn && sort?.columnId === columnId && (sort?.direction ?? "asc") === "asc";
+  const descending = isColumn && sort?.columnId === columnId && sort?.direction === "desc";
+  const layoutColumn = state.p6Layout?.columns.some((entry) => entry.field_id === columnId) ?? false;
+  const canHide = layoutColumn && state.columns.length > 1;
+  return [
+    contextItem(state, "columns", ACTIVITY_CONTEXT_LABELS.columns, "columns"),
+    contextItem(state, "sort-asc", { en: "Sort Ascending", fa: "ترتیب صعودی" }, "sort", { disabled: !isColumn, checked: ascending, separator: true }),
+    contextItem(state, "sort-desc", { en: "Sort Descending", fa: "ترتیب نزولی" }, "sort", { disabled: !isColumn, checked: descending }),
+    contextItem(state, "hide-column", { en: "Hide Column", fa: "پنهان کردن ستون" }, "close", {
+      disabled: !canHide,
+      reason: layoutColumn
+        ? { en: "At least one column must stay visible.", fa: "دست‌کم یک ستون باید نمایان بماند." }
+        : { en: "This column is not part of the persisted layout.", fa: "این ستون بخشی از چیدمان ذخیره‌شده نیست." },
+    }),
+    contextItem(state, "line-numbers", ACTIVITY_CONTEXT_LABELS.lineNumbers, "lineNumbers", { checked: lineNumbers, separator: true }),
+    contextItem(state, "font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font"),
+    contextItem(state, "reset-column-widths", { en: "Reset Column Widths", fa: "بازنشانی عرض ستون‌ها" }, "columns"),
+    contextItem(state, "filters", ACTIVITY_CONTEXT_LABELS.filters, "filter", { separator: true }),
+    contextItem(state, "group-sort", ACTIVITY_CONTEXT_LABELS.groupSort, "group"),
+  ];
+}
+
+function tableEmptyMenuItems(state: WorkspaceState, lineNumbers: boolean): ContextMenuItem[] {
+  const hasWbsGroups = state.activityGroupBy === "wbs" && state.wbsNodes.length > 0;
+  return [
+    contextItem(state, "add", ACTIVITY_CONTEXT_LABELS.add, "plus", { disabled: !state.wbsNodes.length }),
+    contextItem(state, "paste", ACTIVITY_CONTEXT_LABELS.paste, "paste", { shortcut: "Ctrl+V", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.paste }),
+    contextItem(state, "columns", ACTIVITY_CONTEXT_LABELS.columns, "columns", { separator: true }),
+    contextItem(state, "line-numbers", ACTIVITY_CONTEXT_LABELS.lineNumbers, "lineNumbers", { checked: lineNumbers }),
+    contextItem(state, "font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font"),
+    contextItem(state, "filters", ACTIVITY_CONTEXT_LABELS.filters, "filter", { separator: true }),
+    contextItem(state, "group-sort", ACTIVITY_CONTEXT_LABELS.groupSort, "group"),
+    contextItem(state, "expand-all", ACTIVITY_CONTEXT_LABELS.expandAll, "expand", { disabled: !hasWbsGroups, separator: true }),
+    contextItem(state, "collapse-all", ACTIVITY_CONTEXT_LABELS.collapseAll, "collapse", { disabled: !hasWbsGroups }),
+    contextItem(state, "collapse-to", ACTIVITY_CONTEXT_LABELS.collapseTo, "collapseTo", { disabled: !hasWbsGroups }),
+    contextItem(state, "layout-options", { en: "Layout Options…", fa: "گزینه‌های چیدمان…" }, "settings", { separator: true }),
+    contextItem(state, "reset-table-split", { en: "Reset Table Split", fa: "بازنشانی تقسیم جدول" }, "table"),
+    contextItem(state, "reset-details-split", { en: "Reset Details Split", fa: "بازنشانی تقسیم جزئیات" }, "table"),
+    contextItem(state, "reset-column-widths", { en: "Reset Column Widths", fa: "بازنشانی عرض ستون‌ها" }, "columns"),
+  ];
+}
+
+function wbsMenuItems(state: WorkspaceState, wbsId: string | undefined, collapsed: boolean): ContextMenuItem[] {
+  return [
+    contextItem(state, collapsed ? "expand-wbs" : "collapse-wbs", collapsed
+      ? { en: "Expand This Branch", fa: "بازکردن این شاخه" }
+      : { en: "Collapse This Branch", fa: "بستن این شاخه" }, collapsed ? "expand" : "collapse", { disabled: !wbsId }),
+    contextItem(state, "collapse-to", ACTIVITY_CONTEXT_LABELS.collapseTo, "collapseTo", { disabled: !state.wbsNodes.length }),
+    contextItem(state, "wbs-add-activity", { en: "Add Activity in This WBS", fa: "افزودن فعالیت در این ساختار شکست" }, "plus", { disabled: !wbsId || !state.wbsNodes.length, separator: true }),
+    contextItem(state, "wbs-details", { en: "WBS Details", fa: "جزئیات ساختار شکست" }, "wbs", { disabled: !wbsId }),
+    contextItem(state, "group-wbs", { en: "Group by WBS", fa: "گروه‌بندی بر اساس ساختار شکست" }, "group", { checked: state.activityGroupBy === "wbs", separator: true }),
+    contextItem(state, "layout-options", { en: "Layout Options…", fa: "گزینه‌های چیدمان…" }, "settings", { separator: true }),
+  ];
+}
+
+function ganttScaleItems(state: WorkspaceState): ContextMenuItem[] {
+  const labels: Record<WorkspaceGanttScale, { en: string; fa: string }> = {
+    day: { en: "Day", fa: "روز" },
+    week: { en: "Week", fa: "هفته" },
+    month: { en: "Month", fa: "ماه" },
+    quarter: { en: "Quarter", fa: "فصل" },
+    year: { en: "Year", fa: "سال" },
+  };
+  return (["day", "week", "month", "quarter", "year"] as const).map((mode, index) =>
+    contextItem(state, `scale-${mode}`, labels[mode], "calendar", {
+      checked: state.ganttScale === mode,
+      separator: index === 0,
+    }));
+}
+
+function ganttEmptyMenuItems(state: WorkspaceState): ContextMenuItem[] {
+  return [
+    ...ganttScaleItems(state),
+    contextItem(state, "layout-options", { en: "Timescale…", fa: "مقیاس زمانی…" }, "calendar", { separator: true }),
+    contextItem(state, "bars", { en: "Bar Styles…", fa: "سبک میله‌ها…" }, "bars"),
+    contextItem(state, "font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font"),
+    contextItem(state, "user-preferences", { en: "User Preferences…", fa: "ترجیحات کاربر…" }, "settings"),
+    contextItem(state, "relationships", { en: "Show Relationships", fa: "نمایش روابط" }, "link", { checked: state.showGanttRelationships, separator: true }),
+    contextItem(state, "reset-table-split", { en: "Reset Table Split", fa: "بازنشانی تقسیم جدول" }, "table", { separator: true }),
+    contextItem(state, "reset-details-split", { en: "Reset Details Split", fa: "بازنشانی تقسیم جزئیات" }, "table"),
+    contextItem(state, "reset-column-widths", { en: "Reset Column Widths", fa: "بازنشانی عرض ستون‌ها" }, "columns"),
+  ];
+}
+
+function ganttTimescaleMenuItems(state: WorkspaceState): ContextMenuItem[] {
+  return [
+    contextItem(state, "layout-options", { en: "Timescale…", fa: "مقیاس زمانی…" }, "calendar"),
+    ...ganttScaleItems(state),
+    contextItem(state, "relationships", { en: "Show Relationships", fa: "نمایش روابط" }, "link", { checked: state.showGanttRelationships, separator: true }),
+  ];
+}
+
+function ganttLinkMenuItems(state: WorkspaceState, relationshipId: string | undefined): ContextMenuItem[] {
+  const relationship = state.relationships.find((entry) => entry.id === relationshipId);
+  return [
+    contextItem(state, "relationship-edit", { en: "Edit Relationship…", fa: "ویرایش رابطه…" }, "edit", { disabled: !relationship }),
+    contextItem(state, "relationship-delete", { en: "Delete Relationship", fa: "حذف رابطه" }, "delete", {
+      disabled: !relationship,
+      reason: { en: "The relationship was not found in the current schedule.", fa: "رابطه در زمان‌بندی جاری یافت نشد." },
+    }),
+    contextItem(state, "relationship-predecessor", { en: "Go to Predecessor", fa: "رفتن به پیش‌نیاز" }, "activity", { disabled: !relationship, separator: true }),
+    contextItem(state, "relationship-successor", { en: "Go to Successor", fa: "رفتن به پس‌نیاز" }, "activity", { disabled: !relationship }),
+  ];
+}
+
+export function workspaceMenuItems(record: WorkspaceRenderRecord, context: WorkspaceContextTarget): ContextMenuItem[] {
+  const { state } = record;
+  const lineNumbers = (record.options.presentation ?? DEFAULT_PRESENTATION).table.lineNumbers;
+  switch (context.kind) {
+    case "table-activity": return activityMenuItems(state, context.activityId, false, lineNumbers);
+    case "table-header": return headerMenuItems(state, context.columnId ?? "", lineNumbers);
+    case "table-empty": return tableEmptyMenuItems(state, lineNumbers);
+    case "table-wbs": {
+      const collapsed = getCollapsedWbsIds(state.context.project_id).has(context.wbsId ?? "");
+      return wbsMenuItems(state, context.wbsId, collapsed);
+    }
+    case "gantt-activity": return activityMenuItems(state, context.activityId, true, lineNumbers);
+    case "gantt-link": return ganttLinkMenuItems(state, context.relationshipId);
+    case "gantt-wbs": {
+      const collapsed = getCollapsedWbsIds(state.context.project_id).has(context.wbsId ?? "");
+      return wbsMenuItems(state, context.wbsId, collapsed);
+    }
+    case "gantt-timescale": return ganttTimescaleMenuItems(state);
+    case "gantt-empty": return ganttEmptyMenuItems(state);
+  }
+}
+
+const CONTEXT_MENU_LABELS: Record<WorkspaceContextKind, { en: string; fa: string }> = {
+  "table-activity": { en: "Activity", fa: "فعالیت" },
+  "table-header": { en: "Column", fa: "ستون" },
+  "table-empty": { en: "Activity Table", fa: "جدول فعالیت‌ها" },
+  "table-wbs": { en: "WBS Element", fa: "عنصر ساختار شکست" },
+  "gantt-activity": { en: "Gantt Activity", fa: "فعالیت گانت" },
+  "gantt-link": { en: "Relationship", fa: "رابطه" },
+  "gantt-wbs": { en: "Gantt WBS Summary", fa: "خلاصهٔ ساختار شکست در گانت" },
+  "gantt-empty": { en: "Gantt Chart", fa: "نمودار گانت" },
+  "gantt-timescale": { en: "Timescale", fa: "مقیاس زمانی" },
+};
+
+function openWorkspaceContextMenu(
+  container: HTMLElement,
+  context: WorkspaceContextTarget,
+  x: number,
+  y: number,
+  anchor: HTMLElement | null,
+  focusFirst = true,
+): void {
+  const record = workspaceRenderRecords.get(container);
+  if (!record) return;
+  const items = workspaceMenuItems(record, context);
+  if (!items.length) return;
+  const label = CONTEXT_MENU_LABELS[context.kind];
+  openContextMenu({
+    x,
+    y,
+    anchor,
+    focusFirst,
+    kind: context.kind,
+    label: uiText(record.state.locale, label.en, label.fa),
+    direction: record.state.direction === "rtl" ? "rtl" : "ltr",
+    items,
+    onCommand: (command) => runWorkspaceMenuCommand(container, context, command),
+  });
+}
+
+function openRelationshipEditor(container: HTMLElement, relationshipId: string): void {
+  openToolsDrawer(container);
+  const escaped = relationshipId.replace(/["\\]/g, "\\$&");
+  const box = container.querySelector<HTMLDetailsElement>(`[data-relationship-edit-box="${escaped}"]`);
+  if (!box) return;
+  box.open = true;
+  if (typeof box.scrollIntoView === "function") box.scrollIntoView({ block: "center" });
+  box.querySelector<HTMLElement>("select, input, button")?.focus({ preventScroll: true });
+}
+
+function runWorkspaceMenuCommand(
+  container: HTMLElement,
+  context: WorkspaceContextTarget,
+  command: string,
+): void {
+  const record = workspaceRenderRecords.get(container);
+  if (!record) return;
+  const { state, options } = record;
+  const projectId = state.context.project_id;
+  const activityId = context.activityId ?? state.selectedActivityId ?? "";
+  const wbsId = context.wbsId ?? "";
+  const relationship = context.relationshipId
+    ? state.relationships.find((entry) => entry.id === context.relationshipId)
+    : undefined;
+  switch (command) {
+    case "details":
+    case "add":
+    case "link":
+    case "columns":
+    case "line-numbers":
+    case "font-row":
+    case "group-sort":
+      options.onActivityContextCommand?.(command, activityId);
+      return;
+    case "filters":
+      container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      return;
+    case "expand-all":
+      setCollapsedWbsIds(projectId, []);
+      rerenderWorkspaceRows(container);
+      return;
+    case "collapse-all":
+      setCollapsedWbsIds(projectId, collapseAllWbsIds(state.activities, state.wbsNodes));
+      rerenderWorkspaceRows(container);
+      return;
+    case "collapse-to": {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-collapse-to-dialog]");
+      const select = dialog?.querySelector<HTMLSelectElement>("[data-collapse-to-select]");
+      if (select && wbsId && state.wbsNodes.some((node) => node.id === wbsId)) select.value = wbsId;
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    case "expand-wbs":
+    case "collapse-wbs":
+      if (wbsId) {
+        toggleCollapsedWbs(projectId, wbsId);
+        rerenderWorkspaceRows(container);
+      }
+      return;
+    case "wbs-add-activity":
+      openActivityCreateForWbs(container, wbsId || null);
+      return;
+    case "wbs-details":
+      if (wbsId) {
+        options.onWbsSelect?.(wbsId);
+        openWbsDrawer(container);
+      }
+      return;
+    case "group-wbs":
+      options.onActivityGroupByChange?.("wbs");
+      return;
+    case "bars":
+      options.onGanttCommand?.("bars");
+      return;
+    case "user-preferences":
+      options.onGanttCommand?.("user-preferences");
+      return;
+    case "relationships":
+      options.onGanttRelationshipsChange?.(!state.showGanttRelationships);
+      return;
+    case "layout-options":
+      openLayoutOptionsDialog(container);
+      return;
+    case "reset-table-split":
+      resetTableSplit(container);
+      return;
+    case "reset-details-split":
+      resetDetailsSplit(container);
+      return;
+    case "reset-column-widths":
+      resetColumnWidths(container);
+      return;
+    case "sort-asc":
+    case "sort-desc":
+      if (context.columnId) options.onActivitySortSet?.(context.columnId, command === "sort-asc" ? "asc" : "desc");
+      return;
+    case "hide-column":
+      if (context.columnId) options.onP6FieldVisibilityChange?.(context.columnId, false);
+      return;
+    case "relationship-edit":
+      if (relationship) openRelationshipEditor(container, relationship.id);
+      return;
+    case "relationship-delete": {
+      if (!relationship || !options.onRelationshipDelete) return;
+      const message = uiText(state.locale, "Delete this relationship?", "این رابطه حذف شود؟");
+      if (typeof window.confirm === "function" && !window.confirm(message)) return;
+      void options.onRelationshipDelete(relationship.id, relationship.recordRevision);
+      return;
+    }
+    case "relationship-predecessor":
+      if (relationship) options.onActivitySelect?.(relationship.predecessorId);
+      return;
+    case "relationship-successor":
+      if (relationship) options.onActivitySelect?.(relationship.successorId);
+      return;
+    default:
+      if (command.startsWith("scale-")) {
+        const mode = command.slice("scale-".length);
+        if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") {
+          options.onGanttScaleChange?.(mode);
+        }
+      }
+  }
 }
 
 function renderWbsTree(
@@ -1432,6 +1824,8 @@ export type WorkspaceRendererOptions = {
   onProjectSettings?: () => void;
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
+  /** Sets both the sort column and direction in one state transition. */
+  onActivitySortSet?: (columnId: string, direction: "asc" | "desc") => void;
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
@@ -1452,6 +1846,8 @@ export type WorkspaceRendererOptions = {
   };
   onRailAction?: (action: string) => void;
   presentation?: WorkspacePresentation;
+  /** Authoritative project Data Date; null when the read model exposes none. */
+  dataDate?: string | null;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -1475,9 +1871,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     `--cp-p6-bg-color:${presentationColor(tablePresentation.backgroundColor)}`,
     `--cp-p6-row-height:${tablePresentation.rowHeight}px`,
   ].join(";");
-  const activeActivityFilter = getActiveActivityFilter(presentation.filters);
+  const filterApplication = applyActivityFilterState(state.activities, presentation.filters, state.wbsNodes);
   const filteredActivities = filterAndSortActivities(
-    filterActivitiesByDefinition(state.activities, activeActivityFilter, state.wbsNodes),
+    filterApplication.activities,
     state.activityFilter,
     state.activitySort,
     state.activityGroupBy,
@@ -1486,7 +1882,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   );
   // An active filter always reveals matching descendants; collapse is a view
   // preference for browsing the unfiltered schedule, never a way to hide hits.
-  const collapsedWbsIds = state.activityFilter.trim() || activeActivityFilter
+  const collapsedWbsIds = state.activityFilter.trim() || filterApplication.filters.length
     ? new Set<string>()
     : getCollapsedWbsIds(state.context.project_id);
   const displayRows = buildWorkspaceDisplayRows(
@@ -1531,7 +1927,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId, treeGuides[index]);
   }).join("");
 
-  const navigationLabel = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
   const rail = {
     menu: uiText(state.locale, "Workspace menu", "منوی محیط کار"),
     projects: uiText(state.locale, "Projects", "پروژه‌ها"),
@@ -1583,34 +1978,21 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     control: "network",
     settings: "settings",
   };
-  const activeFilterName = activeActivityFilter
+  const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
+  const activeFilterName = appliedFilterName
     ? state.activityFilter.trim()
-      ? `${activeActivityFilter.name} · ${state.activityFilter.trim()}`
-      : activeActivityFilter.name
+      ? `${appliedFilterName} · ${state.activityFilter.trim()}`
+      : appliedFilterName
     : "";
-  const activityFilterLabel = activeFilterName || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
-  const activeFilterTitle = activeActivityFilter
-    ? describeActivityFilter(activeActivityFilter, state.locale)
-    : "";
-  const contextCommands: Array<{ label: string; action: "project-settings" | "wbs" | "tools" }> = state.activeMenu === "project"
-    ? [
-      { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
-      { label: uiText(state.locale, "WBS structure", "ساختار شکست"), action: "wbs" },
-    ]
-    : state.activeMenu === "schedule"
-      ? [
-        { label: uiText(state.locale, "Add activity", "افزودن فعالیت"), action: "tools" },
-        { label: uiText(state.locale, "WBS", "ساختار شکست"), action: "wbs" },
-        { label: uiText(state.locale, "Columns & fields", "ستون‌ها و فیلدها"), action: "tools" },
-      ]
-      : [
-        { label: uiText(state.locale, "Open tools", "بازکردن ابزارها"), action: "tools" },
-      ];
-  const contextCommandMarkup = contextCommands.map((command) => command.action === "project-settings"
-    ? `<button type="button" data-project-settings>${escapeHtml(command.label)}</button>`
-    : command.action === "wbs"
-      ? `<button type="button" data-rail-action="wbs">${escapeHtml(command.label)}</button>`
-      : `<button type="button" data-tools-open>${escapeHtml(command.label)}</button>`).join("");
+  const highlightOnly = filterApplication.highlight;
+  const activityFilterLabel = activeFilterName
+    ? highlightOnly
+      ? uiText(state.locale, `${activeFilterName} (highlighted)`, `${activeFilterName} (برجسته‌شده)`)
+      : activeFilterName
+    : uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
+  const activeFilterTitle = filterApplication.filters
+    .map((filter) => describeActivityFilter(filter, state.locale))
+    .join(" | ");
   const tableSplitKey = splitStorageKey("table-gantt", state);
   const detailsSplitKey = splitStorageKey("details", state);
   const tableSplit = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, readStoredSplit(tableSplitKey, DEFAULT_TABLE_SPLIT)));
@@ -1663,23 +2045,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </nav>
         <div class="cp-p6-body">
-          <header class="cp-p6-activity-header" data-activity-header>
-            <span class="cp-p6-activity-heading">
-              <strong>${escapeHtml(navigationLabel)}</strong>
-              <span>${escapeHtml(state.activeMenu === "schedule" ? rail.activityWorkspace : rail.moduleWorkspace)}</span>
-            </span>
-            <span class="cp-p6-activity-meta">${escapeHtml(t.project)}: ${escapeHtml(state.context.project_id)}</span>
-            <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
-            <span class="cp-p6-activity-meta" data-active-filter="${escapeAttribute(activeActivityFilter?.id ?? "")}" title="${escapeAttribute(activeFilterTitle)}">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
-            <span class="cp-p6-activity-spacer"></span>
-          </header>
-          <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
-            <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<span class="cp-context-command-separator" aria-hidden="true"></span>
-            <button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>
-            <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}">${escapeHtml(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}</button>
-            <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}">${escapeHtml(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}</button>
-            <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}">${escapeHtml(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}</button>` : ""}
-          </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
           <main class="cp-main" data-details-split style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
@@ -1687,8 +2052,22 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
+                    <div class="cp-p6-grid-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Activities toolbar", "نوار ابزار فعالیت‌ها"))}">
+                      <button type="button" data-activity-create-open title="${escapeAttribute(t.activityCreate)}" aria-label="${escapeAttribute(t.activityCreate)}">${workspaceIcon("plus")}</button>
+                      <button type="button" data-columns-open title="${escapeAttribute(ACTIVITY_CONTEXT_LABELS.columns.en)}" aria-label="${escapeAttribute(uiText(state.locale, "Columns", "ستون‌ها"))}">${workspaceIcon("columns")}</button>
+                      <button type="button" data-rail-action="wbs" title="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}" aria-label="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}">${workspaceIcon("wbs")}</button>
+                      <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
+                      <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}">${workspaceIcon("table")}</button>
+                      <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}">${workspaceIcon("table")}</button>
+                      <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("columns")}</button>
+                    </div>
                   </div>
-                  ${renderActivityFilterSort(state, filteredActivities.length, t, groupRows.length)}
+                  ${renderActivityFilterSort(state, filteredActivities.length, t, groupRows.length, {
+                    filterIds: filterApplication.filters.map((filter) => filter.id).join(","),
+                    mode: filterApplication.highlight ? "highlight" : "replace",
+                    title: activeFilterTitle,
+                    stateLabel: activityFilterLabel,
+                  })}
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
                       <thead><tr role="row">${lineNumbers ? `<th role="columnheader" scope="col" class="cp-p6-line-number">#</th>` : ""}${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}"><span class="cp-p6-column-label">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</span><span class="cp-p6-column-resize" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${localizeWorkspaceLabel(state.locale, column.label)} column`, `تغییر عرض ستون ${localizeWorkspaceLabel(state.locale, column.label)}`))}" aria-valuemin="${MIN_COLUMN_WIDTH}" aria-valuemax="${MAX_COLUMN_WIDTH}" aria-valuenow="${column.width}" tabindex="0" data-resize-handle="column"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
@@ -1702,8 +2081,11 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
+                    <div class="cp-p6-grid-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Gantt toolbar", "نوار ابزار گانت"))}">
+                      <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
+                    </div>
                   </div>
-                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale)}
+                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null)}
                 </section>`}
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -1797,15 +2179,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         </div>
       </div>
       <aside class="cp-comments-dock" data-comments-panel hidden aria-label="${escapeAttribute(rail.comments)}"></aside>
-      ${renderActivityContextMenu(state, presentation)}
       ${state.wbsNodes.length ? renderCollapseToDialog(state) : ""}
     </section>
   `;
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+  markFilterHighlights(container, filterApplication);
   alignGanttRows(container);
-  showActivityContextMenu(container);
 }
 
 /**
@@ -2721,6 +3102,7 @@ function renderActivityFilterSort(
   visibleCount: number,
   t: WorkspaceLabels,
   groupCount: number,
+  filterState?: { filterIds: string; mode: string; title: string; stateLabel: string },
 ): string {
   const sort = state.activitySort;
   const treeActions = state.activityGroupBy === "wbs" && state.wbsNodes.length > 0
@@ -2761,6 +3143,7 @@ function renderActivityFilterSort(
     </label>
     <button type="button" data-activity-sort-direction title="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" aria-label="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" ${sort ? "" : "disabled"}>${direction === "asc" ? "↑" : "↓"}</button>
     ${treeActions}
+    ${filterState ? `<output class="cp-activity-filter-state" data-active-filter="${escapeAttribute(filterState.filterIds)}" data-filter-mode="${escapeAttribute(filterState.mode)}" title="${escapeAttribute(filterState.title)}">${escapeHtml(t.activityFilter)}: ${escapeHtml(filterState.stateLabel)}</output>` : ""}
     <output data-activity-count aria-live="polite">${visibleCount} / ${state.activities.length} ${escapeHtml(t.matchingActivities)}</output>
   </div>`;
 }
@@ -2886,50 +3269,6 @@ function contextMenuText(label: { en: string; fa: string }, locale: string): str
   return uiText(locale, label.en, label.fa);
 }
 
-function renderActivityContextMenu(state: WorkspaceState, presentation: WorkspacePresentation): string {
-  const locale = state.locale;
-  const text = (label: { en: string; fa: string }): string => contextMenuText(label, locale);
-  const hasActivity = Boolean(state.selectedActivityId);
-  const hasWbsGroups = state.activityGroupBy === "wbs" && state.wbsNodes.length > 0;
-  const item = (
-    command: string,
-    label: { en: string; fa: string },
-    icon: string,
-    options: { shortcut?: string; disabled?: boolean; reason?: { en: string; fa: string }; checked?: boolean; caret?: boolean } = {},
-  ): string => {
-    const reason = options.reason ? text(options.reason) : "";
-    const shortcut = options.caret ? "›" : options.shortcut ?? "";
-    return `<button type="button" role="menuitem" data-activity-menu-command="${command}"${options.checked ? ` aria-checked="true"` : ""}${options.disabled ? ` disabled aria-disabled="true"` : ""}${reason ? ` title="${escapeAttribute(reason)}"` : ""}><span class="cp-context-icon">${workspaceIcon(options.checked ? "check" : icon)}</span><span class="cp-context-text">${escapeHtml(text(label))}</span><span class="cp-context-shortcut">${escapeHtml(shortcut)}</span></button>`;
-  };
-  const separator = `<div class="cp-context-separator" role="separator"></div>`;
-  return `<div class="cp-context-menu" data-activity-context-menu data-activity-menu-for="${escapeAttribute(state.selectedActivityId ?? "")}" role="menu" aria-label="${escapeAttribute(uiText(locale, "Activity actions", "اقدامات فعالیت"))}" hidden>
-    ${item("details", ACTIVITY_CONTEXT_LABELS.details, "activity", { disabled: !hasActivity })}
-    ${separator}
-    ${item("cut", ACTIVITY_CONTEXT_LABELS.cut, "cut", { shortcut: "Ctrl+X", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.cut })}
-    ${item("copy", ACTIVITY_CONTEXT_LABELS.copy, "copy", { shortcut: "Ctrl+C", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.copy })}
-    ${item("paste", ACTIVITY_CONTEXT_LABELS.paste, "paste", { shortcut: "Ctrl+V", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.paste })}
-    ${item("fill-down", ACTIVITY_CONTEXT_LABELS.fillDown, "fill", { shortcut: "Ctrl+E", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.fillDown })}
-    ${item("add", ACTIVITY_CONTEXT_LABELS.add, "plus", { shortcut: "Ins", disabled: !state.wbsNodes.length })}
-    ${item("delete", ACTIVITY_CONTEXT_LABELS.delete, "delete", { shortcut: "Del", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.delete })}
-    ${item("dissolve", ACTIVITY_CONTEXT_LABELS.dissolve, "dissolve", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.dissolve })}
-    ${item("renumber", ACTIVITY_CONTEXT_LABELS.renumber, "renumber", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.renumber })}
-    ${item("export-excel", ACTIVITY_CONTEXT_LABELS.exportExcel, "excel", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.exportExcel })}
-    ${item("assign", ACTIVITY_CONTEXT_LABELS.assign, "assignment", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.assign, caret: true })}
-    ${item("link", ACTIVITY_CONTEXT_LABELS.link, "link", { disabled: !hasActivity })}
-    ${separator}
-    ${item("columns", ACTIVITY_CONTEXT_LABELS.columns, "columns", { disabled: !hasActivity })}
-    ${item("line-numbers", ACTIVITY_CONTEXT_LABELS.lineNumbers, "lineNumbers", { checked: presentation.table.lineNumbers })}
-    ${item("font-row", ACTIVITY_CONTEXT_LABELS.fontRow, "font", { disabled: !hasActivity })}
-    ${separator}
-    ${item("filters", ACTIVITY_CONTEXT_LABELS.filters, "filter")}
-    ${item("group-sort", ACTIVITY_CONTEXT_LABELS.groupSort, "group")}
-    ${separator}
-    ${item("expand-all", ACTIVITY_CONTEXT_LABELS.expandAll, "expand", { shortcut: "Ctrl+Num +", disabled: !hasWbsGroups })}
-    ${item("collapse-all", ACTIVITY_CONTEXT_LABELS.collapseAll, "collapse", { shortcut: "Ctrl+Num -", disabled: !hasWbsGroups })}
-    ${item("collapse-to", ACTIVITY_CONTEXT_LABELS.collapseTo, "collapseTo", { disabled: !hasWbsGroups })}
-  </div>`;
-}
-
 function renderCollapseToDialog(state: WorkspaceState): string {
   const locale = state.locale;
   const depths = wbsNodeDepths(state.wbsNodes);
@@ -2946,52 +3285,6 @@ function renderCollapseToDialog(state: WorkspaceState): string {
       <div class="cp-dialog-buttons"><button type="button" data-collapse-to-cancel>${escapeHtml(uiText(locale, "Cancel", "انصراف"))}</button><button type="button" class="cp-dialog-primary" data-collapse-to-apply>${escapeHtml(uiText(locale, "Apply", "اعمال"))}</button></div>
     </form>
   </dialog>`;
-}
-
-function showActivityContextMenu(container: HTMLElement): void {
-  if (typeof container.querySelector !== "function") return;
-  const pending = activityContextMenuByContainer.get(container);
-  const menu = container.querySelector<HTMLElement>("[data-activity-context-menu]");
-  if (!pending || !menu) return;
-  // The menu is rendered with the last full paint; when the right-click only
-  // changed the selection through the incremental path, refresh the items that
-  // depend on having a selected activity before the menu is shown.
-  const hasActivity = Boolean(pending.activityId);
-  for (const command of ["details", "link", "columns", "font-row"]) {
-    const button = menu.querySelector<HTMLButtonElement>(`[data-activity-menu-command="${command}"]`);
-    if (!button) continue;
-    button.disabled = !hasActivity;
-    button.setAttribute("aria-disabled", String(!hasActivity));
-  }
-  menu.dataset.activityMenuFor = pending.activityId;
-  menu.hidden = false;
-  menu.style.left = `${pending.x}px`;
-  menu.style.top = `${pending.y}px`;
-  if (typeof menu.getBoundingClientRect === "function" && typeof window !== "undefined") {
-    const bounds = menu.getBoundingClientRect();
-    const width = bounds.width || 236;
-    const height = bounds.height || 430;
-    // The workspace clips its children, so clamp to that surface rather than
-    // the viewport; otherwise the last menu items hide under the status bar.
-    const surface = menu.closest<HTMLElement>(".cp-p6-workspace");
-    const surfaceRect = typeof surface?.getBoundingClientRect === "function" ? surface.getBoundingClientRect() : null;
-    const minLeft = (surfaceRect?.left ?? 0) + 4;
-    const minTop = (surfaceRect?.top ?? 0) + 4;
-    const maxLeft = (surfaceRect?.right ?? (window.innerWidth || 1280)) - width - 4;
-    const maxTop = (surfaceRect?.bottom ?? (window.innerHeight || 720)) - height - 4;
-    if (surfaceRect) menu.style.maxHeight = `${Math.max(180, surfaceRect.height - 8)}px`;
-    const left = Math.max(minLeft, Math.min(pending.x, maxLeft));
-    const top = Math.max(minTop, Math.min(pending.y, maxTop));
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-  }
-  menu.querySelector<HTMLElement>("[data-activity-menu-command]:not(:disabled)")?.focus({ preventScroll: true });
-}
-
-function hideActivityContextMenu(container: HTMLElement): void {
-  activityContextMenuByContainer.delete(container);
-  const menu = container.querySelector<HTMLElement>("[data-activity-context-menu]");
-  if (menu) menu.hidden = true;
 }
 
 /** Forces the next render to rebuild rows (collapse changes live outside state). */
@@ -3031,6 +3324,16 @@ function treeCellMarkup(
     `<span class="cp-p6-wbs-spine" data-spine-level="${level + 1}" style="--cp-spine:${wbsLevelColor(wbs, level)}" aria-hidden="true"></span>`,
   ).join("");
   return `<span class="cp-p6-tree-guides" data-tree-depth="${guide.depth}" style="--cp-wbs-level:${wbsLevelColor(wbs, levelDepth)}">${spines}${content}</span>`;
+}
+
+/** Highlight mode keeps every row on screen and tints the matching ones. */
+function markFilterHighlights(container: HTMLElement, application: ActivityFilterApplication): void {
+  if (!application.highlight) return;
+  const mark = (element: HTMLElement, id: string | undefined): void => {
+    element.classList.toggle("is-filter-match", Boolean(id && application.matchedIds.has(id)));
+  };
+  container.querySelectorAll<HTMLElement>("tr[data-activity-id]").forEach((row) => mark(row, row.dataset.activityId));
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => mark(row, row.dataset.ganttActivityId));
 }
 
 function renderActivityRow(
@@ -3274,6 +3577,7 @@ function renderGantt(
   showRelationships: boolean,
   presentation: WorkspacePresentation,
   locale: string,
+  dataDate: string | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -3287,6 +3591,7 @@ function renderGantt(
     return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
   }
 
+  const gantt = presentation.gantt;
   const rowHeight = ganttRowPitch(presentation.table.rowHeight);
   const rowsHeight = ganttRowsHeight(rows.length, rowHeight);
   const contentWidth = GANTT_CONTENT_WIDTH[ganttScale];
@@ -3391,7 +3696,7 @@ function renderGantt(
     return `<div class="cp-gantt-axis" data-timescale-lines="${timescale.lines}" data-timescale-format="${timescale.dateFormat}" data-timescale-interval="${timescale.interval}" data-timescale-type="${timescale.type}" style="height:${axisHeight}px;--cp-timescale-height:${axisHeight}px;--cp-timescale-font-size:${timescale.fontSize}px;--cp-timescale-color:${timescale.textColor};--cp-timescale-bg:${timescale.backgroundColor}"><div class="cp-gantt-axis-track">${groupRows}<div class="cp-gantt-timescale-ticks">${tickMarkup}</div></div></div>`;
   })();
   const linkSvg = showRelationships && links.length
-    ? `<svg class="cp-gantt-links" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}" style="height:${rowsHeight}px"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" data-link-from-x="${link.fromX}" data-link-to-x="${link.toX}" data-link-lane-x="${link.laneX}" data-link-from-y="${link.fromY}" data-link-to-y="${link.toY}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"><title>${escapeHtml(`${link.type} ${link.predecessorId} → ${link.successorId}${link.lag ? ` (${ganttLagText(link.lag)}${link.lag.unit === "percent" ? "" : " " + link.lag.unit})` : ""}`)}</title></path>`).join("")}</svg>`
+    ? `<svg class="cp-gantt-links" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}" style="height:${rowsHeight}px"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" data-link-from-x="${link.fromX}" data-link-to-x="${link.toX}" data-link-lane-x="${link.laneX}" data-link-from-y="${link.fromY}" data-link-to-y="${link.toY}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"><title>${escapeHtml(`${link.type} ${link.predecessorId} → ${link.successorId}${link.lag ? ` (${ganttLagText(link.lag)}${link.lag.unit === "percent" ? "" : " " + link.lag.unit})` : ""}`)}</title></path><path class="cp-gantt-link-hit" data-gantt-link-hit="${escapeAttribute(link.relationshipId)}" d="${escapeAttribute(link.path)}" aria-hidden="true"></path>`).join("")}</svg>`
     : "";
   // Lag and lead badges sit on the routing lane in HTML space, so they stay
   // upright and unscaled while the SVG stretches with the pane width.
@@ -3405,9 +3710,63 @@ function renderGantt(
   const gridLines = createGanttAxisTicks(scale, ganttScale === "year" ? "year" : "month")
     .map((tick) => `<span class="cp-gantt-grid-line" data-gantt-grid="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
     .join("");
+  // Sight Lines tab: minor vertical lines follow the visible tick resolution.
+  const minorVertical = gantt.sightLines.minorVertical
+    ? ticks
+      .filter((tick) => tick.leftPercent > 0.2)
+      .map((tick) => `<span class="cp-gantt-grid-line is-minor" data-gantt-grid-minor="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
+      .join("")
+    : "";
+  // Horizontal sight lines: one before every summary band, plus the documented
+  // row interval. They live in the body layer so they scroll with the chart.
+  const horizontalSight: string[] = [];
+  if (gantt.sightLines.beforeSummaries) {
+    rows.forEach((row, index) => {
+      if (row.kind === "wbs") horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-major" style="top:${index * rowHeight}px"></span>`);
+    });
+  }
+  if (gantt.sightLines.rowInterval > 0) {
+    for (let index = gantt.sightLines.rowInterval; index < rows.length; index += gantt.sightLines.rowInterval) {
+      horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-minor" style="top:${index * rowHeight}px"></span>`);
+    }
+  }
+  // Completion-percentage point line over the persisted progress of every bar.
+  // Ahead/behind wording needs the Data Date, which is a separate line and is
+  // only drawn when the project exposes an authoritative date.
+  const progressPoints = gantt.progressLine.visible
+    ? rows
+      .map((row, index) => {
+        if (row.kind !== "activity") return null;
+        const bar = barById.get(row.activity.id);
+        if (!bar) return null;
+        const share = Math.min(100, Math.max(0, bar.progressPercent)) / 100;
+        return { x: bar.leftPercent + bar.widthPercent * share, y: index * rowHeight + rowHeight / 2 };
+      })
+      .filter((point): point is { x: number; y: number } => point !== null)
+    : [];
+  const progressLine = progressPoints.length > 1
+    ? `<svg class="cp-gantt-progress-line-layer" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" style="height:${rowsHeight}px;--cp-progress-color:${gantt.progressLine.color};--cp-progress-width:${gantt.progressLine.thickness}px" aria-hidden="true"><path class="cp-gantt-progress-line" data-gantt-progress-line="${progressPoints.length}" d="${progressPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${ganttRound(point.x * 10)} ${ganttRound(point.y)}`).join(" ")}"/></svg>`
+    : "";
+  const dataDateMs = dataDate ? Date.parse(`${dataDate.slice(0, 10)}T00:00:00Z`) : Number.NaN;
+  const dataDatePercent = Number.isFinite(dataDateMs)
+    ? ((dataDateMs - scale.startMs) / scale.rangeMs) * 100
+    : Number.NaN;
+  const dataDateLine = gantt.dataDateLine.visible && Number.isFinite(dataDatePercent) && dataDatePercent >= 0 && dataDatePercent <= 100
+    ? `<span class="cp-gantt-data-date is-${gantt.dataDateLine.style}" data-gantt-data-date="${escapeAttribute(dataDate!.slice(0, 10))}" style="left:${ganttRound(dataDatePercent)}%;--cp-data-date-color:${gantt.dataDateLine.color};--cp-data-date-width:${gantt.dataDateLine.thickness}px"><span class="cp-gantt-data-date-label">${escapeHtml(uiText(locale, "Data Date", "تاریخ داده"))}</span></span>`
+    : "";
+  // Legend follows the General tab: only bar types that are actually displayed.
+  const legendKinds = GANTT_BAR_KINDS.filter((kind) => presentation.bars[kind].visible);
+  const legend = gantt.legend.visible && legendKinds.length
+    ? `<div class="cp-gantt-legend is-${gantt.legend.position}" data-gantt-legend="${gantt.legend.position}" aria-label="${escapeAttribute(uiText(locale, "Gantt legend", "راهنمای گانت"))}">${legendKinds.map((kind) => {
+      const style = presentation.bars[kind];
+      return `<span class="cp-gantt-legend-item" data-gantt-legend-kind="${kind}"><span class="cp-gantt-legend-swatch is-${style.bodyShape} is-pattern-${style.pattern}" style="--cp-legend-color:${style.bodyColor};--cp-legend-border:${style.borderColor}"></span>${escapeHtml(translateWorkspaceUiText(locale, ...GANTT_KIND_LABELS[kind]))}</span>`;
+    }).join("")}</div>`
+    : "";
+  const legendTop = gantt.legend.visible && gantt.legend.position === "top" ? legend : "";
+  const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
   const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, calendarMode);
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px">${toolbar}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}</div>` : ""}${rowsMarkup}${linkSvg}${lagBadges}</div></div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
 
 function renderGanttRows(
@@ -3563,7 +3922,7 @@ function renderGanttActivityRow(
 
   const layerMarkup = layers.map((layer, index) => {
     const height = heights[index];
-    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind ? weekDividers : []);
+    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind && layer.style.necking ? weekDividers : []);
     top += height + gap;
     return markup;
   }).join("");

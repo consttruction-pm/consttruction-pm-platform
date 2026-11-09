@@ -17,6 +17,33 @@ The authoritative reference for the CUBI desktop-style workspace is the official
 
 Every Qoder implementation/review instruction must carry the complete HTML Help URL above. The product owner attaches the supplied 815-page Version 26 PDF when sending each Qoder instruction; Qoder must read both forms and cite the exact topics/pages inspected. The Version 26 Help controls the acceptance criteria. A Version 22 screenshot or any older reference may be retained only as supplementary visual evidence and must never determine behavior when Version 26 documentation differs. Missing PDF evidence must be marked **MISSING / VERIFY**, not treated as completed parity.
 
+## CUBI – Complete Visual and Functional Parity Standard
+
+Binding for every Activities-workspace comparison and every parity claim:
+
+1. **Authority.** The Version 26 HTML Help above and the supplied 815-page
+   Version 26 PDF define behavior, control order, options, terminology mapping
+   and acceptance. Version 22 or earlier captures are supplementary visual
+   evidence only.
+2. **No fabrication.** Any capability without an authoritative service is shown
+   as unavailable with a reason. Invented dates, records, progress or
+   enabled-looking controls without effect are prohibited.
+3. **No premature completion claim.** “The shell is complete” and “matches
+   version 26” are prohibited until the compliance matrix is complete and the 18
+   mandatory browser scenarios carry real screenshots from the built preview.
+4. **Exact status vocabulary.** Use only **مطابق و تأییدشده**،
+   **پیاده‌سازی‌شده ولی آزمون‌نشده**، **ناقص**، **غایب**،
+   **محدودیت مستند و مشخص** in the matrix.
+5. **Change control.** No destructive change, no branch deletion, no force-push,
+   no merge to `main` or Production before tests and visual review; Preview
+   first.
+6. **Scope.** Activities and its direct dependencies only; leave the API,
+   scheduling core, data model, other windows, main shell and entry route
+   untouched.
+7. **Mirrors.** The standard is also recorded in
+   `docs/governance/PROJECT_CONTINUITY_PROTOCOL.md` and
+   `docs/workspace/CANONICAL_VISUAL_WORKSPACE_MIGRATION_LEDGER.md`.
+
 ## Sources reviewed
 
 | Area | Official page | Contribution |

@@ -1,0 +1,2206 @@
+{
+  "checks": [
+    {
+      "name": "table row menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 476,
+          "y": 234
+        },
+        "rect": {
+          "left": 478,
+          "top": 236,
+          "right": 722,
+          "bottom": 710,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 476,
+          "y": 234
+        }
+      }
+    },
+    {
+      "name": "table row menu is the activity menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "commands": [
+          "details",
+          "cut",
+          "copy",
+          "paste",
+          "fill-down",
+          "add",
+          "delete",
+          "dissolve",
+          "renumber",
+          "export-excel",
+          "assign",
+          "link",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "disabled commands keep a localized reason (en-1440)",
+      "ok": true,
+      "detail": {
+        "delete": {
+          "command": "delete",
+          "label": "Delete",
+          "disabled": true,
+          "checked": false,
+          "reason": "The activity delete route is not exposed by this runtime."
+        }
+      }
+    },
+    {
+      "name": "menu visual metrics match v26 (en-1440)",
+      "ok": true,
+      "detail": {
+        "itemHeight": 22,
+        "font": "Tahoma, Arial, sans-serif",
+        "border": "rgb(127, 157, 185)"
+      }
+    },
+    {
+      "name": "scrolling the grid does not dismiss the menu (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "Escape dismisses the menu (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "table cell menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 170,
+          "y": 233
+        },
+        "rect": {
+          "left": 172,
+          "top": 235,
+          "right": 416,
+          "bottom": 709,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 170,
+          "y": 233
+        }
+      }
+    },
+    {
+      "name": "table cell keeps the activity menu (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "column header menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "requested": {
+          "x": 164,
+          "y": 167
+        },
+        "rect": {
+          "left": 166,
+          "top": 169,
+          "right": 410,
+          "bottom": 394,
+          "width": 244,
+          "height": 225
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 164,
+          "y": 167
+        }
+      }
+    },
+    {
+      "name": "column header menu exposes Columns and sorting (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "commands": [
+          "columns",
+          "sort-asc",
+          "sort-desc",
+          "hide-column",
+          "line-numbers",
+          "font-row",
+          "reset-column-widths",
+          "filters",
+          "group-sort"
+        ]
+      }
+    },
+    {
+      "name": "Columns opens the real Columns dialog (en-1440)",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "available": 0,
+        "selected": 20
+      }
+    },
+    {
+      "name": "table empty-area menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "requested": {
+          "x": 691,
+          "y": 639
+        },
+        "rect": {
+          "left": 693,
+          "top": 295,
+          "right": 937,
+          "bottom": 637,
+          "width": 244,
+          "height": 342
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 691,
+          "y": 639
+        }
+      }
+    },
+    {
+      "name": "table empty-area menu exposes Add and Layout Options (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "commands": [
+          "add",
+          "paste",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to",
+          "layout-options",
+          "reset-table-split",
+          "reset-details-split",
+          "reset-column-widths"
+        ]
+      }
+    },
+    {
+      "name": "WBS band menu is the WBS menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "Shift+F10 opens the menu and focuses the first command (en-1440)",
+      "ok": true,
+      "detail": {
+        "menu": {
+          "kind": "table-activity",
+          "requested": {
+            "x": 71,
+            "y": 233
+          },
+          "dir": "ltr",
+          "parentIsBody": true,
+          "position": "fixed",
+          "rect": {
+            "left": 73,
+            "top": 235,
+            "right": 317,
+            "bottom": 709,
+            "width": 244,
+            "height": 474
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900,
+            "clientWidth": 1440,
+            "dpr": 1,
+            "scale": 1
+          },
+          "items": [
+            {
+              "command": "details",
+              "label": "Activity Details",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "cut",
+              "label": "Cut",
+              "disabled": true,
+              "checked": false,
+              "reason": "Cut needs the activity delete route, which this runtime does not expose."
+            },
+            {
+              "command": "copy",
+              "label": "Copy",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity duplication is not implemented by the project service."
+            },
+            {
+              "command": "paste",
+              "label": "Paste",
+              "disabled": true,
+              "checked": false,
+              "reason": "There is no activity clipboard or bulk-create route."
+            },
+            {
+              "command": "fill-down",
+              "label": "Fill Down",
+              "disabled": true,
+              "checked": false,
+              "reason": "Bulk cell updates are not exposed by the activity API."
+            },
+            {
+              "command": "add",
+              "label": "Add",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "delete",
+              "label": "Delete",
+              "disabled": true,
+              "checked": false,
+              "reason": "The activity delete route is not exposed by this runtime."
+            },
+            {
+              "command": "dissolve",
+              "label": "Dissolve",
+              "disabled": true,
+              "checked": false,
+              "reason": "Dissolving a group has no server-side contract."
+            },
+            {
+              "command": "renumber",
+              "label": "Renumber Activity IDs",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity ID renumbering is not implemented."
+            },
+            {
+              "command": "export-excel",
+              "label": "Export to Excel",
+              "disabled": true,
+              "checked": false,
+              "reason": "Only XML interchange is available; no XLSX export route exists."
+            },
+            {
+              "command": "assign",
+              "label": "Assign",
+              "disabled": true,
+              "checked": false,
+              "reason": "Resource assignment write is not available; capacity is read-only."
+            },
+            {
+              "command": "link",
+              "label": "Link Activities",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "columns",
+              "label": "Columns…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "line-numbers",
+              "label": "Line Numbers",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "font-row",
+              "label": "Table Font and Row…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "filters",
+              "label": "Filters…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "group-sort",
+              "label": "Group and Sort…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "expand-all",
+              "label": "Expand All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-all",
+              "label": "Collapse All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-to",
+              "label": "Collapse To…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            }
+          ],
+          "itemHeight": 22,
+          "fontFamily": "Tahoma, Arial, sans-serif",
+          "borderColor": "rgb(127, 157, 185)",
+          "focused": "details"
+        }
+      }
+    },
+    {
+      "name": "no artificial command strip remains and the body has one row (en-1440)",
+      "ok": true,
+      "detail": {
+        "strip": 0,
+        "bodyRows": "789px",
+        "actions": 8
+      }
+    },
+    {
+      "name": "Add Activity toolbar button opens the real create form (en-1440)",
+      "ok": true,
+      "detail": {
+        "drawer": true,
+        "focused": "activity_id"
+      }
+    },
+    {
+      "name": "Columns toolbar button opens the real Columns dialog (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "Layout Options toolbar button opens the real Timescale dialog (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "the filter state lives in the real filter toolbar (en-1440)",
+      "ok": true,
+      "detail": {
+        "text": "Filter activities: All Activities",
+        "filterIds": "",
+        "mode": "replace"
+      }
+    },
+    {
+      "name": "Gantt bar menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "requested": {
+          "x": 743,
+          "y": 197
+        },
+        "rect": {
+          "left": 745,
+          "top": 199,
+          "right": 989,
+          "bottom": 482,
+          "width": 244,
+          "height": 283
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 743,
+          "y": 197
+        }
+      }
+    },
+    {
+      "name": "Gantt bar menu is bar-specific (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "commands": [
+          "details",
+          "add",
+          "link",
+          "bars",
+          "font-row",
+          "filters",
+          "group-sort",
+          "relationships",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "relationship menu exposes edit/delete only for relationships (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-link",
+        "commands": [
+          "relationship-edit",
+          "relationship-delete",
+          "relationship-predecessor",
+          "relationship-successor"
+        ]
+      }
+    },
+    {
+      "name": "Gantt empty-area menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-empty",
+        "requested": {
+          "x": 1384,
+          "y": 591
+        },
+        "rect": {
+          "left": 1138,
+          "top": 269,
+          "right": 1382,
+          "bottom": 589,
+          "width": 244,
+          "height": 320
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 1384,
+          "y": 591
+        }
+      }
+    },
+    {
+      "name": "Gantt empty-area menu exposes timescale and bar styles (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-empty",
+        "commands": [
+          "scale-day",
+          "scale-week",
+          "scale-month",
+          "scale-quarter",
+          "scale-year",
+          "layout-options",
+          "bars",
+          "font-row",
+          "user-preferences",
+          "relationships",
+          "reset-table-split",
+          "reset-details-split",
+          "reset-column-widths"
+        ]
+      }
+    },
+    {
+      "name": "timescale header has its own menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-timescale",
+        "commands": [
+          "layout-options",
+          "scale-day",
+          "scale-week",
+          "scale-month",
+          "scale-quarter",
+          "scale-year",
+          "relationships"
+        ]
+      }
+    },
+    {
+      "name": "Gantt WBS summary has a WBS menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "Activity Details menu opens at the pointer (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "activity-details",
+        "requested": {
+          "x": 85,
+          "y": 675
+        },
+        "rect": {
+          "left": 87,
+          "top": 677,
+          "right": 331,
+          "bottom": 705,
+          "width": 244,
+          "height": 28
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 85,
+          "y": 675
+        }
+      }
+    },
+    {
+      "name": "Activity Details menu offers Customize Activity Details (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "activity-details",
+        "commands": [
+          "customize-details"
+        ]
+      }
+    },
+    {
+      "name": "Customize Activity Details dialog exposes the full v26 control set (en-1440)",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "title": "Customize Activity Details",
+        "available": 0,
+        "display": 18,
+        "hasAdd": true,
+        "hasAddAll": true,
+        "hasRemove": true,
+        "hasRemoveAll": true,
+        "hasUp": true,
+        "hasDown": true,
+        "hasDefault": true,
+        "hasApply": true,
+        "hasCancel": true,
+        "dir": "ltr"
+      }
+    },
+    {
+      "name": "Customize removes the selected tab into Available (en-1440)",
+      "ok": true,
+      "detail": {
+        "displayId": "calendar",
+        "afterRemove": {
+          "available": 1,
+          "display": 17
+        }
+      }
+    },
+    {
+      "name": "Customize adds the selected available tab back (en-1440)",
+      "ok": true,
+      "detail": {
+        "readdedId": "calendar",
+        "afterRemove": {
+          "available": 1,
+          "display": 17
+        },
+        "afterAdd": {
+          "available": 0,
+          "display": 18
+        }
+      }
+    },
+    {
+      "name": "Apply writes the tab order to the live details pane (en-1440)",
+      "ok": true,
+      "detail": {
+        "before": {
+          "tabs": [
+            "general",
+            "status",
+            "resources",
+            "predecessors",
+            "successors",
+            "codes",
+            "tasks",
+            "discussion",
+            "notebook",
+            "steps",
+            "feedback",
+            "wps-docs",
+            "expenses",
+            "summary",
+            "relationships",
+            "risks",
+            "udfs",
+            "calendar"
+          ]
+        },
+        "afterApply": {
+          "tabs": [
+            "general",
+            "status",
+            "resources",
+            "predecessors",
+            "successors",
+            "codes",
+            "tasks",
+            "discussion",
+            "notebook",
+            "steps",
+            "feedback",
+            "wps-docs",
+            "expenses",
+            "summary",
+            "relationships",
+            "risks",
+            "udfs"
+          ],
+          "dialogOpen": true
+        },
+        "displayId": "calendar"
+      }
+    },
+    {
+      "name": "Customize Activity Details persists across reload (en-1440)",
+      "ok": true,
+      "detail": {
+        "persisted": [
+          "general",
+          "status",
+          "resources",
+          "predecessors",
+          "successors",
+          "codes",
+          "tasks",
+          "discussion",
+          "notebook",
+          "steps",
+          "feedback",
+          "wps-docs",
+          "expenses",
+          "summary",
+          "relationships",
+          "risks",
+          "udfs"
+        ],
+        "removed": "calendar"
+      }
+    },
+    {
+      "name": "menu flips and clamps at the bottom-right edge (en-1440)",
+      "ok": true,
+      "detail": {
+        "menu": {
+          "kind": "table-empty",
+          "requested": {
+            "x": 719,
+            "y": 569
+          },
+          "dir": "ltr",
+          "parentIsBody": true,
+          "position": "fixed",
+          "rect": {
+            "left": 721,
+            "top": 225,
+            "right": 965,
+            "bottom": 567,
+            "width": 244,
+            "height": 342
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900,
+            "clientWidth": 1440,
+            "dpr": 1,
+            "scale": 1
+          },
+          "items": [
+            {
+              "command": "add",
+              "label": "Add",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "paste",
+              "label": "Paste",
+              "disabled": true,
+              "checked": false,
+              "reason": "There is no activity clipboard or bulk-create route."
+            },
+            {
+              "command": "columns",
+              "label": "Columns…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "line-numbers",
+              "label": "Line Numbers",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "font-row",
+              "label": "Table Font and Row…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "filters",
+              "label": "Filters…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "group-sort",
+              "label": "Group and Sort…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "expand-all",
+              "label": "Expand All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-all",
+              "label": "Collapse All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-to",
+              "label": "Collapse To…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "layout-options",
+              "label": "Layout Options…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "reset-table-split",
+              "label": "Reset Table Split",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "reset-details-split",
+              "label": "Reset Details Split",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "reset-column-widths",
+              "label": "Reset Column Widths",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            }
+          ],
+          "itemHeight": 22,
+          "fontFamily": "Tahoma, Arial, sans-serif",
+          "borderColor": "rgb(127, 157, 185)",
+          "focused": null
+        },
+        "point": {
+          "x": 719,
+          "y": 569
+        }
+      }
+    },
+    {
+      "name": "table row menu opens at the pointer (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 476,
+          "y": 188
+        },
+        "rect": {
+          "left": 478,
+          "top": 190,
+          "right": 722,
+          "bottom": 664,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "clientWidth": 1280,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 476,
+          "y": 188
+        }
+      }
+    },
+    {
+      "name": "table row menu is the activity menu (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "commands": [
+          "details",
+          "cut",
+          "copy",
+          "paste",
+          "fill-down",
+          "add",
+          "delete",
+          "dissolve",
+          "renumber",
+          "export-excel",
+          "assign",
+          "link",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "disabled commands keep a localized reason (en-1280)",
+      "ok": true,
+      "detail": {
+        "delete": {
+          "command": "delete",
+          "label": "Delete",
+          "disabled": true,
+          "checked": false,
+          "reason": "The activity delete route is not exposed by this runtime."
+        }
+      }
+    },
+    {
+      "name": "menu visual metrics match v26 (en-1280)",
+      "ok": true,
+      "detail": {
+        "itemHeight": 22,
+        "font": "Tahoma, Arial, sans-serif",
+        "border": "rgb(127, 157, 185)"
+      }
+    },
+    {
+      "name": "scrolling the grid does not dismiss the menu (en-1280)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "Escape dismisses the menu (en-1280)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "table cell menu opens at the pointer (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 170,
+          "y": 186
+        },
+        "rect": {
+          "left": 172,
+          "top": 188,
+          "right": 416,
+          "bottom": 662,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "clientWidth": 1280,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 170,
+          "y": 186
+        }
+      }
+    },
+    {
+      "name": "table cell keeps the activity menu (en-1280)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "column header menu opens at the pointer (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "requested": {
+          "x": 164,
+          "y": 121
+        },
+        "rect": {
+          "left": 166,
+          "top": 123,
+          "right": 410,
+          "bottom": 348,
+          "width": 244,
+          "height": 225
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "clientWidth": 1280,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 164,
+          "y": 121
+        }
+      }
+    },
+    {
+      "name": "column header menu exposes Columns and sorting (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "commands": [
+          "columns",
+          "sort-asc",
+          "sort-desc",
+          "hide-column",
+          "line-numbers",
+          "font-row",
+          "reset-column-widths",
+          "filters",
+          "group-sort"
+        ]
+      }
+    },
+    {
+      "name": "Columns opens the real Columns dialog (en-1280)",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "available": 0,
+        "selected": 20
+      }
+    },
+    {
+      "name": "table empty-area menu opens at the pointer (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "requested": {
+          "x": 615,
+          "y": 523
+        },
+        "rect": {
+          "left": 617,
+          "top": 179,
+          "right": 861,
+          "bottom": 521,
+          "width": 244,
+          "height": 342
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "clientWidth": 1280,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 615,
+          "y": 523
+        }
+      }
+    },
+    {
+      "name": "table empty-area menu exposes Add and Layout Options (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "commands": [
+          "add",
+          "paste",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to",
+          "layout-options",
+          "reset-table-split",
+          "reset-details-split",
+          "reset-column-widths"
+        ]
+      }
+    },
+    {
+      "name": "WBS band menu is the WBS menu (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "table-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "Shift+F10 opens the menu and focuses the first command (en-1280)",
+      "ok": true,
+      "detail": {
+        "menu": {
+          "kind": "table-activity",
+          "requested": {
+            "x": 71,
+            "y": 187
+          },
+          "dir": "ltr",
+          "parentIsBody": true,
+          "position": "fixed",
+          "rect": {
+            "left": 73,
+            "top": 189,
+            "right": 317,
+            "bottom": 663,
+            "width": 244,
+            "height": 474
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 800,
+            "clientWidth": 1280,
+            "dpr": 1,
+            "scale": 1
+          },
+          "items": [
+            {
+              "command": "details",
+              "label": "Activity Details",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "cut",
+              "label": "Cut",
+              "disabled": true,
+              "checked": false,
+              "reason": "Cut needs the activity delete route, which this runtime does not expose."
+            },
+            {
+              "command": "copy",
+              "label": "Copy",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity duplication is not implemented by the project service."
+            },
+            {
+              "command": "paste",
+              "label": "Paste",
+              "disabled": true,
+              "checked": false,
+              "reason": "There is no activity clipboard or bulk-create route."
+            },
+            {
+              "command": "fill-down",
+              "label": "Fill Down",
+              "disabled": true,
+              "checked": false,
+              "reason": "Bulk cell updates are not exposed by the activity API."
+            },
+            {
+              "command": "add",
+              "label": "Add",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "delete",
+              "label": "Delete",
+              "disabled": true,
+              "checked": false,
+              "reason": "The activity delete route is not exposed by this runtime."
+            },
+            {
+              "command": "dissolve",
+              "label": "Dissolve",
+              "disabled": true,
+              "checked": false,
+              "reason": "Dissolving a group has no server-side contract."
+            },
+            {
+              "command": "renumber",
+              "label": "Renumber Activity IDs",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity ID renumbering is not implemented."
+            },
+            {
+              "command": "export-excel",
+              "label": "Export to Excel",
+              "disabled": true,
+              "checked": false,
+              "reason": "Only XML interchange is available; no XLSX export route exists."
+            },
+            {
+              "command": "assign",
+              "label": "Assign",
+              "disabled": true,
+              "checked": false,
+              "reason": "Resource assignment write is not available; capacity is read-only."
+            },
+            {
+              "command": "link",
+              "label": "Link Activities",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "columns",
+              "label": "Columns…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "line-numbers",
+              "label": "Line Numbers",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "font-row",
+              "label": "Table Font and Row…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "filters",
+              "label": "Filters…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "group-sort",
+              "label": "Group and Sort…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "expand-all",
+              "label": "Expand All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-all",
+              "label": "Collapse All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-to",
+              "label": "Collapse To…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            }
+          ],
+          "itemHeight": 22,
+          "fontFamily": "Tahoma, Arial, sans-serif",
+          "borderColor": "rgb(127, 157, 185)",
+          "focused": "details"
+        }
+      }
+    },
+    {
+      "name": "Gantt bar menu opens at the pointer (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "requested": {
+          "x": 663,
+          "y": 197
+        },
+        "rect": {
+          "left": 665,
+          "top": 199,
+          "right": 909,
+          "bottom": 482,
+          "width": 244,
+          "height": 283
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "clientWidth": 1280,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 663,
+          "y": 197
+        }
+      }
+    },
+    {
+      "name": "Gantt bar menu is bar-specific (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "commands": [
+          "details",
+          "add",
+          "link",
+          "bars",
+          "font-row",
+          "filters",
+          "group-sort",
+          "relationships",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "relationship menu exposes edit/delete only for relationships (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-link",
+        "commands": [
+          "relationship-edit",
+          "relationship-delete",
+          "relationship-predecessor",
+          "relationship-successor"
+        ]
+      }
+    },
+    {
+      "name": "timescale header has its own menu (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-timescale",
+        "commands": [
+          "layout-options",
+          "scale-day",
+          "scale-week",
+          "scale-month",
+          "scale-quarter",
+          "scale-year",
+          "relationships"
+        ]
+      }
+    },
+    {
+      "name": "Gantt WBS summary has a WBS menu (en-1280)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "menu flips and clamps at the bottom-right edge (en-1280)",
+      "ok": true,
+      "detail": {
+        "menu": {
+          "kind": "table-wbs",
+          "requested": {
+            "x": 639,
+            "y": 499
+          },
+          "dir": "ltr",
+          "parentIsBody": true,
+          "position": "fixed",
+          "rect": {
+            "left": 641,
+            "top": 501,
+            "right": 885,
+            "bottom": 660,
+            "width": 244,
+            "height": 159
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 800,
+            "clientWidth": 1280,
+            "dpr": 1,
+            "scale": 1
+          },
+          "items": [
+            {
+              "command": "collapse-wbs",
+              "label": "Collapse This Branch",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-to",
+              "label": "Collapse To…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "wbs-add-activity",
+              "label": "Add Activity in This WBS",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "wbs-details",
+              "label": "WBS Details",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "group-wbs",
+              "label": "Group by WBS",
+              "disabled": false,
+              "checked": true,
+              "reason": ""
+            },
+            {
+              "command": "layout-options",
+              "label": "Layout Options…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            }
+          ],
+          "itemHeight": 22,
+          "fontFamily": "Tahoma, Arial, sans-serif",
+          "borderColor": "rgb(127, 157, 185)",
+          "focused": null
+        },
+        "point": {
+          "x": 639,
+          "y": 499
+        }
+      }
+    },
+    {
+      "name": "table row menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 546,
+          "y": 188
+        },
+        "rect": {
+          "left": 548,
+          "top": 190,
+          "right": 792,
+          "bottom": 664,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 546,
+          "y": 188
+        }
+      }
+    },
+    {
+      "name": "table row menu is the activity menu (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "commands": [
+          "details",
+          "cut",
+          "copy",
+          "paste",
+          "fill-down",
+          "add",
+          "delete",
+          "dissolve",
+          "renumber",
+          "export-excel",
+          "assign",
+          "link",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "disabled commands keep a localized reason (en-1920)",
+      "ok": true,
+      "detail": {
+        "delete": {
+          "command": "delete",
+          "label": "Delete",
+          "disabled": true,
+          "checked": false,
+          "reason": "The activity delete route is not exposed by this runtime."
+        }
+      }
+    },
+    {
+      "name": "menu visual metrics match v26 (en-1920)",
+      "ok": true,
+      "detail": {
+        "itemHeight": 22,
+        "font": "Tahoma, Arial, sans-serif",
+        "border": "rgb(127, 157, 185)"
+      }
+    },
+    {
+      "name": "scrolling the grid does not dismiss the menu (en-1920)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "Escape dismisses the menu (en-1920)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "table cell menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 189,
+          "y": 187
+        },
+        "rect": {
+          "left": 191,
+          "top": 189,
+          "right": 435,
+          "bottom": 663,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 189,
+          "y": 187
+        }
+      }
+    },
+    {
+      "name": "table cell keeps the activity menu (en-1920)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "column header menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "requested": {
+          "x": 183,
+          "y": 121
+        },
+        "rect": {
+          "left": 185,
+          "top": 123,
+          "right": 429,
+          "bottom": 348,
+          "width": 244,
+          "height": 225
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 183,
+          "y": 121
+        }
+      }
+    },
+    {
+      "name": "column header menu exposes Columns and sorting (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-header",
+        "commands": [
+          "columns",
+          "sort-asc",
+          "sort-desc",
+          "hide-column",
+          "line-numbers",
+          "font-row",
+          "reset-column-widths",
+          "filters",
+          "group-sort"
+        ]
+      }
+    },
+    {
+      "name": "Columns opens the real Columns dialog (en-1920)",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "available": 0,
+        "selected": 20
+      }
+    },
+    {
+      "name": "table empty-area menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "requested": {
+          "x": 919,
+          "y": 719
+        },
+        "rect": {
+          "left": 921,
+          "top": 721,
+          "right": 1165,
+          "bottom": 1063,
+          "width": 244,
+          "height": 342
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 919,
+          "y": 719
+        }
+      }
+    },
+    {
+      "name": "table empty-area menu exposes Add and Layout Options (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-empty",
+        "commands": [
+          "add",
+          "paste",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to",
+          "layout-options",
+          "reset-table-split",
+          "reset-details-split",
+          "reset-column-widths"
+        ]
+      }
+    },
+    {
+      "name": "WBS band menu is the WBS menu (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "table-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "Shift+F10 opens the menu and focuses the first command (en-1920)",
+      "ok": true,
+      "detail": {
+        "menu": {
+          "kind": "table-activity",
+          "requested": {
+            "x": 71,
+            "y": 187
+          },
+          "dir": "ltr",
+          "parentIsBody": true,
+          "position": "fixed",
+          "rect": {
+            "left": 73,
+            "top": 189,
+            "right": 317,
+            "bottom": 663,
+            "width": 244,
+            "height": 474
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080,
+            "clientWidth": 1920,
+            "dpr": 1,
+            "scale": 1
+          },
+          "items": [
+            {
+              "command": "details",
+              "label": "Activity Details",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "cut",
+              "label": "Cut",
+              "disabled": true,
+              "checked": false,
+              "reason": "Cut needs the activity delete route, which this runtime does not expose."
+            },
+            {
+              "command": "copy",
+              "label": "Copy",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity duplication is not implemented by the project service."
+            },
+            {
+              "command": "paste",
+              "label": "Paste",
+              "disabled": true,
+              "checked": false,
+              "reason": "There is no activity clipboard or bulk-create route."
+            },
+            {
+              "command": "fill-down",
+              "label": "Fill Down",
+              "disabled": true,
+              "checked": false,
+              "reason": "Bulk cell updates are not exposed by the activity API."
+            },
+            {
+              "command": "add",
+              "label": "Add",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "delete",
+              "label": "Delete",
+              "disabled": true,
+              "checked": false,
+              "reason": "The activity delete route is not exposed by this runtime."
+            },
+            {
+              "command": "dissolve",
+              "label": "Dissolve",
+              "disabled": true,
+              "checked": false,
+              "reason": "Dissolving a group has no server-side contract."
+            },
+            {
+              "command": "renumber",
+              "label": "Renumber Activity IDs",
+              "disabled": true,
+              "checked": false,
+              "reason": "Activity ID renumbering is not implemented."
+            },
+            {
+              "command": "export-excel",
+              "label": "Export to Excel",
+              "disabled": true,
+              "checked": false,
+              "reason": "Only XML interchange is available; no XLSX export route exists."
+            },
+            {
+              "command": "assign",
+              "label": "Assign",
+              "disabled": true,
+              "checked": false,
+              "reason": "Resource assignment write is not available; capacity is read-only."
+            },
+            {
+              "command": "link",
+              "label": "Link Activities",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "columns",
+              "label": "Columns…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "line-numbers",
+              "label": "Line Numbers",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "font-row",
+              "label": "Table Font and Row…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "filters",
+              "label": "Filters…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "group-sort",
+              "label": "Group and Sort…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "expand-all",
+              "label": "Expand All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-all",
+              "label": "Collapse All",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            },
+            {
+              "command": "collapse-to",
+              "label": "Collapse To…",
+              "disabled": false,
+              "checked": false,
+              "reason": ""
+            }
+          ],
+          "itemHeight": 22,
+          "fontFamily": "Tahoma, Arial, sans-serif",
+          "borderColor": "rgb(127, 157, 185)",
+          "focused": "details"
+        }
+      }
+    },
+    {
+      "name": "Gantt bar menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "requested": {
+          "x": 985,
+          "y": 197
+        },
+        "rect": {
+          "left": 987,
+          "top": 199,
+          "right": 1231,
+          "bottom": 482,
+          "width": 244,
+          "height": 283
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 985,
+          "y": 197
+        }
+      }
+    },
+    {
+      "name": "Gantt bar menu is bar-specific (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-activity",
+        "commands": [
+          "details",
+          "add",
+          "link",
+          "bars",
+          "font-row",
+          "filters",
+          "group-sort",
+          "relationships",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "name": "relationship menu exposes edit/delete only for relationships (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-link",
+        "commands": [
+          "relationship-edit",
+          "relationship-delete",
+          "relationship-predecessor",
+          "relationship-successor"
+        ]
+      }
+    },
+    {
+      "name": "Gantt empty-area menu opens at the pointer (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-empty",
+        "requested": {
+          "x": 1857,
+          "y": 717
+        },
+        "rect": {
+          "left": 1611,
+          "top": 719,
+          "right": 1855,
+          "bottom": 1039,
+          "width": 244,
+          "height": 320
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "clientWidth": 1920,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 1857,
+          "y": 717
+        }
+      }
+    },
+    {
+      "name": "Gantt empty-area menu exposes timescale and bar styles (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-empty",
+        "commands": [
+          "scale-day",
+          "scale-week",
+          "scale-month",
+          "scale-quarter",
+          "scale-year",
+          "layout-options",
+          "bars",
+          "font-row",
+          "user-preferences",
+          "relationships",
+          "reset-table-split",
+          "reset-details-split",
+          "reset-column-widths"
+        ]
+      }
+    },
+    {
+      "name": "timescale header has its own menu (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-timescale",
+        "commands": [
+          "layout-options",
+          "scale-day",
+          "scale-week",
+          "scale-month",
+          "scale-quarter",
+          "scale-year",
+          "relationships"
+        ]
+      }
+    },
+    {
+      "name": "Gantt WBS summary has a WBS menu (en-1920)",
+      "ok": true,
+      "detail": {
+        "kind": "gantt-wbs",
+        "commands": [
+          "collapse-wbs",
+          "collapse-to",
+          "wbs-add-activity",
+          "wbs-details",
+          "group-wbs",
+          "layout-options"
+        ]
+      }
+    },
+    {
+      "name": "language switch to Persian is real (fa-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "name": "RTL table menu opens at the pointer (fa-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "requested": {
+          "x": 1034,
+          "y": 187
+        },
+        "rect": {
+          "left": 1036,
+          "top": 189,
+          "right": 1280,
+          "bottom": 663,
+          "width": 244,
+          "height": 474
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 1034,
+          "y": 187
+        }
+      }
+    },
+    {
+      "name": "RTL menu carries dir=rtl and Persian labels (fa-1440)",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "first": "جزئیات فعالیت"
+      }
+    },
+    {
+      "name": "Activity Details menu opens at the pointer (fa-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "activity-details",
+        "requested": {
+          "x": 1379,
+          "y": 675
+        },
+        "rect": {
+          "left": 1133,
+          "top": 677,
+          "right": 1377,
+          "bottom": 705,
+          "width": 244,
+          "height": 28
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "clientWidth": 1440,
+          "dpr": 1,
+          "scale": 1
+        },
+        "point": {
+          "x": 1379,
+          "y": 675
+        }
+      }
+    },
+    {
+      "name": "Activity Details menu offers Customize Activity Details (fa-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "activity-details",
+        "commands": [
+          "customize-details"
+        ]
+      }
+    },
+    {
+      "name": "Customize Activity Details dialog exposes the full v26 control set (fa-1440)",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "title": "تنظیم جزئیات فعالیت",
+        "available": 1,
+        "display": 17,
+        "hasAdd": true,
+        "hasAddAll": true,
+        "hasRemove": true,
+        "hasRemoveAll": true,
+        "hasUp": true,
+        "hasDown": true,
+        "hasDefault": true,
+        "hasApply": true,
+        "hasCancel": true,
+        "dir": "rtl"
+      }
+    }
+  ],
+  "build": {
+    "git_head": "ecc4f463ad72567a27ef54683605a066ea54901b",
+    "base_url": "http://127.0.0.1:4174"
+  },
+  "screenshots": [],
+  "failed": 0,
+  "passed": 84,
+  "finished_at": "2026-11-09T06:09:12.803Z"
+}

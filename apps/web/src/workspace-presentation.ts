@@ -53,6 +53,51 @@ export type GanttBarStyle = {
   pattern: GanttBarPattern;
   labelField: GanttBarLabelField;
   labelPosition: GanttBarLabelPosition;
+  /** Bar Settings > "Calendar nonwork time": neck the bar at nonwork weeks. */
+  necking: boolean;
+};
+
+export type GanttSightLines = {
+  /** Horizontal lines immediately above every summary (WBS) band. */
+  beforeSummaries: boolean;
+  /** Horizontal line interval in rows; 0 hides the minor horizontal lines. */
+  rowInterval: number;
+  /** Vertical lines at every tick of the visible timescale, in addition to periods. */
+  minorVertical: boolean;
+};
+
+export type GanttLegend = {
+  visible: boolean;
+  position: "top" | "bottom";
+};
+
+export type GanttDataDateLine = {
+  visible: boolean;
+  style: "solid" | "dashed" | "dotted";
+  /** Thickness in pixels, 1..10. Only a solid line supports more than 1. */
+  thickness: number;
+  color: string;
+};
+
+export type GanttProgressLine = {
+  /**
+   * Completion-percentage point line: joins the persisted progress point of
+   * every drawn bar. Ahead/behind interpretation additionally needs the
+   * project Data Date, which is drawn separately when one exists.
+   */
+  visible: boolean;
+  color: string;
+  thickness: number;
+};
+
+export type GanttChartSettings = {
+  showBarLabels: boolean;
+  labelFontSize: number;
+  labelColor: string;
+  sightLines: GanttSightLines;
+  legend: GanttLegend;
+  dataDateLine: GanttDataDateLine;
+  progressLine: GanttProgressLine;
 };
 
 export type TablePresentation = {
@@ -110,6 +155,7 @@ export type WorkspacePresentation = {
   bars: GanttBarStyleSet;
   timescale: GanttTimescale;
   wbs: WbsPresentation;
+  gantt: GanttChartSettings;
   /** Saved activity filters and the currently applied filter. */
   filters: ActivityFilterState;
 };
@@ -191,15 +237,33 @@ function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): 
     pattern: "solid",
     labelField: "none",
     labelPosition: "right",
+    necking: true,
     ...style,
   };
 }
+
+const DEFAULT_GANTT: GanttChartSettings = {
+  showBarLabels: true,
+  labelFontSize: 10,
+  labelColor: "#000000",
+  sightLines: { beforeSummaries: false, rowInterval: 0, minorVertical: false },
+  legend: { visible: false, position: "bottom" },
+  dataDateLine: { visible: true, style: "solid", thickness: 1, color: "#c00000" },
+  progressLine: { visible: false, color: "#7030a0", thickness: 1 },
+};
 
 export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
   filters: EMPTY_ACTIVITY_FILTERS,
   timescale: { ...DEFAULT_TIMESCALE },
   wbs: { levelColors: [...DEFAULT_WBS_LEVEL_COLORS] },
+  gantt: {
+    ...DEFAULT_GANTT,
+    sightLines: { ...DEFAULT_GANTT.sightLines },
+    legend: { ...DEFAULT_GANTT.legend },
+    dataDateLine: { ...DEFAULT_GANTT.dataDateLine },
+    progressLine: { ...DEFAULT_GANTT.progressLine },
+  },
   bars: {
     // P6 desktop defaults: blue task bars, red critical bars, black summary and
     // milestone markers, green actuals and a grey baseline line. Every bar uses
@@ -263,6 +327,44 @@ export function normalizeBarStyle(value: unknown, fallback: GanttBarStyle): Gant
     pattern: oneOf(GANTT_BAR_PATTERNS, input.pattern, fallback.pattern),
     labelField: oneOf(GANTT_LABEL_FIELDS, input.labelField, fallback.labelField),
     labelPosition: oneOf(GANTT_LABEL_POSITIONS, input.labelPosition, fallback.labelPosition),
+    necking: boolean(input.necking, fallback.necking),
+  };
+}
+
+export function normalizeGanttSettings(
+  value: unknown,
+  fallback: GanttChartSettings = DEFAULT_GANTT,
+): GanttChartSettings {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const sight = input.sightLines && typeof input.sightLines === "object" ? input.sightLines as Record<string, unknown> : {};
+  const legend = input.legend && typeof input.legend === "object" ? input.legend as Record<string, unknown> : {};
+  const dataDate = input.dataDateLine && typeof input.dataDateLine === "object" ? input.dataDateLine as Record<string, unknown> : {};
+  const progress = input.progressLine && typeof input.progressLine === "object" ? input.progressLine as Record<string, unknown> : {};
+  const lineThickness = (raw: unknown, base: number): number => clampInteger(raw, 1, 10, base);
+  return {
+    showBarLabels: boolean(input.showBarLabels, fallback.showBarLabels),
+    labelFontSize: clampInteger(input.labelFontSize, 8, 16, fallback.labelFontSize),
+    labelColor: color(input.labelColor, fallback.labelColor),
+    sightLines: {
+      beforeSummaries: boolean(sight.beforeSummaries, fallback.sightLines.beforeSummaries),
+      rowInterval: clampInteger(sight.rowInterval, 0, 10, fallback.sightLines.rowInterval),
+      minorVertical: boolean(sight.minorVertical, fallback.sightLines.minorVertical),
+    },
+    legend: {
+      visible: boolean(legend.visible, fallback.legend.visible),
+      position: legend.position === "top" ? "top" : legend.position === "bottom" ? "bottom" : fallback.legend.position,
+    },
+    dataDateLine: {
+      visible: boolean(dataDate.visible, fallback.dataDateLine.visible),
+      style: oneOf(["solid", "dashed", "dotted"] as const, dataDate.style, fallback.dataDateLine.style),
+      thickness: lineThickness(dataDate.thickness, fallback.dataDateLine.thickness),
+      color: color(dataDate.color, fallback.dataDateLine.color),
+    },
+    progressLine: {
+      visible: boolean(progress.visible, fallback.progressLine.visible),
+      color: color(progress.color, fallback.progressLine.color),
+      thickness: lineThickness(progress.thickness, fallback.progressLine.thickness),
+    },
   };
 }
 
@@ -275,7 +377,7 @@ export function isIsoDate(value: unknown): value is string {
 export function normalizeTimescale(value: unknown, fallback: GanttTimescale = DEFAULT_TIMESCALE): GanttTimescale {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
-    lines: input.lines === 3 ? 3 : fallback.lines,
+    lines: input.lines === 2 ? 2 : input.lines === 3 ? 3 : fallback.lines,
     dateFormat: oneOf(GANTT_TIMESCALE_FORMATS, input.dateFormat, fallback.dateFormat),
     type: oneOf(GANTT_TIMESCALE_TYPES, input.type, fallback.type),
     interval: oneOf(GANTT_TIMESCALE_INTERVALS, input.interval, fallback.interval),
@@ -356,6 +458,7 @@ export function normalizePresentation(value: unknown): WorkspacePresentation {
     bars,
     timescale: normalizeTimescale(input.timescale),
     wbs: normalizeWbs(input.wbs),
+    gantt: normalizeGanttSettings(input.gantt),
     filters: normalizeActivityFilterState(input.filters),
   };
 }
