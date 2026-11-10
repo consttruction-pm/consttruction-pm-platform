@@ -1,14 +1,14 @@
 {
   "contract": "cubi-projects-v26.v1",
-  "baseUrl": "http://127.0.0.1:4175",
-  "gitHead": "534b7f8a459b9aee96cec12d80435c1f675a759f",
-  "capturedAt": "2026-11-10T05:29:22.029Z",
+  "baseUrl": "http://127.0.0.1:4181",
+  "gitHead": "e3c97e6a36403492583e9187fd33c6f931099417",
+  "capturedAt": "2026-11-10T05:57:04.518Z",
   "scenarios": [
     {
       "id": "01",
       "name": "پنجرهٔ Projects دقیقاً پروژه‌های مجاز نشست را از سرور نشان می‌دهد",
       "status": "pass",
-      "at": "2026-11-10T05:29:27.594Z",
+      "at": "2026-11-10T05:57:10.321Z",
       "rows": [
         {
           "id": "preview-rps-01",
@@ -27,7 +27,7 @@
       "id": "02",
       "name": "نوار عنوان و تب General جزئیات، رکورد مرجع پروژه را نشان می‌دهند",
       "status": "pass",
-      "at": "2026-11-10T05:29:27.755Z",
+      "at": "2026-11-10T05:57:10.470Z",
       "header": "Riverside Pump Station Upgrade",
       "fields": [
         {
@@ -84,7 +84,7 @@
       "id": "03",
       "name": "تب Dates تاریخ برنامه‌ای را نشان می‌دهد و تب Settings مرزهای واقعی رکورد را اعلام می‌کند",
       "status": "pass",
-      "at": "2026-11-10T05:29:28.666Z",
+      "at": "2026-11-10T05:57:11.408Z",
       "dates": "Planned Start shown",
       "settings": "honest boundary shown"
     },
@@ -92,14 +92,14 @@
       "id": "04",
       "name": "Riverside Pump Station Upgrade",
       "status": "pass",
-      "at": "2026-11-10T05:29:29.289Z",
+      "at": "2026-11-10T05:57:12.038Z",
       "revision": "Configuration revision R0"
     },
     {
       "id": "05",
       "name": "بازکردن پروژهٔ دوم از جدول، محیط کار همان پروژه را از سرور دوباره می‌خواند",
       "status": "pass",
-      "at": "2026-11-10T05:29:30.924Z",
+      "at": "2026-11-10T05:57:13.907Z",
       "context": "preview-nse-02",
       "header": "نوسازی سامانه شرقی",
       "current": "preview-nse-02"
@@ -108,7 +108,7 @@
       "id": "06",
       "name": "بازگشت به پروژهٔ اول، رکورد و جدول قبلی را بازمی‌گرداند",
       "status": "pass",
-      "at": "2026-11-10T05:29:32.394Z",
+      "at": "2026-11-10T05:57:15.763Z",
       "context": "preview-rps-01",
       "header": "Riverside Pump Station Upgrade",
       "exceptions": 0,
@@ -127,5 +127,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-10T05:29:32.394Z"
+  "finishedAt": "2026-11-10T05:57:15.763Z"
 }
