@@ -95,6 +95,7 @@ import {
 import {
   applyWorkspaceTheme,
   isWorkspaceTheme,
+  WORKSPACE_THEME_IDS,
   readWorkspaceTheme,
   rememberWorkspaceTheme,
   workspaceThemeLabels,
@@ -802,7 +803,7 @@ function renderApp(
   const themeLabel = translateWorkspaceUiText(state.locale, "Workspace theme", "پوستهٔ محیط کار");
   themeSelect.setAttribute("aria-label", themeLabel);
   themeSelect.setAttribute("title", themeLabel);
-  for (const theme of ["classic", "modern"] as const) {
+  for (const theme of WORKSPACE_THEME_IDS) {
     const option = document.createElement("option");
     option.value = theme;
     option.textContent = themeLabels[theme];
@@ -1044,6 +1045,18 @@ function renderApp(
         return;
       case "view.theme-modern":
         setTheme("modern");
+        return;
+      case "view.theme-midnight":
+        setTheme("midnight");
+        return;
+      case "view.theme-copper":
+        setTheme("copper");
+        return;
+      case "view.theme-arctic":
+        setTheme("arctic");
+        return;
+      case "view.theme-graphite":
+        setTheme("graphite");
         return;
       case "tools.run-schedule":
         pendingDesktopFocusSelector = "#cp-schedule-run input, #cp-schedule-run select, #cp-schedule-run button";

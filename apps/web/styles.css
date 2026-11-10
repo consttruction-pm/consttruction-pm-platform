@@ -7868,12 +7868,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 
 /* ====================================================================== */
 /* CUBI workspace presentation skins                                      */
-/* One DOM, one command registry, two centralized token sets. Classic     */
-/* mirrors the documented workstation appearance; Modern 3D applies a     */
-/* Windows 11 inspired Fluent surface treatment with the CUBI palette     */
-/* (Deep Navy, Engineering Blue, Copper Orange, Brushed Titanium). Every  */
-/* rule below is presentation only: no layout track, command, permission, */
-/* filter, calculation or persisted value changes with the skin.          */
+/* One DOM and command registry support six CUBI presentation themes.     */
+/* Classic keeps the compact reference surface; the other themes share   */
+/* layered component treatment with independent, accessible palettes.  */
+/* No theme changes layout, commands, permissions, data or calculations. */
 /* ====================================================================== */
 :root,
 html[data-cubi-theme="classic"] {
@@ -7926,285 +7924,339 @@ html[data-cubi-theme="modern"] {
   --skin-shadow-menu: 0 18px 42px rgba(15, 39, 71, .22), 0 2px 6px rgba(15, 39, 71, .12);
   --skin-shadow-raised: 0 1px 2px rgba(15, 39, 71, .10), 0 4px 12px rgba(15, 39, 71, .08);
   --skin-statusbar: rgba(248, 250, 253, .94);
+  --skin-menu-bg: rgba(255, 255, 255, .96);
+  --skin-toolbar-active-border: rgba(25, 118, 210, .38);
+  --skin-chip-hover-border: rgba(25, 118, 210, .45);
+  --skin-gantt-selected: rgba(25, 118, 210, .14);
+  --skin-body-background: radial-gradient(1100px 520px at 12% -12%, #e4effb 0%, transparent 58%), radial-gradient(900px 460px at 105% 0%, #f3ecff 0%, transparent 52%), var(--skin-bg);
+  --skin-titlebar-accent: #f28c28; --skin-grid-text: #24354f; --skin-row-divider: rgba(15,39,71,.08);
+  --skin-row-stripe:#f7f9fd; --skin-row-hover:#eaf3fd; --skin-row-selected:#dcecff; --skin-selected-text:#10243f;
+  --skin-filter-match:#fff4c9; --skin-filter-selected:#ffe58f; --skin-network-stroke:#8fb4da; --skin-splitter:#a9b7c8;
+  --skin-nav-bg:linear-gradient(180deg,#f5f8fc,#eaf0f8); --skin-rail-selected-shadow:inset 0 0 0 1px rgba(25,118,210,.22),var(--skin-shadow-raised);
+  --skin-details-bg:linear-gradient(180deg,#fbfdff,var(--skin-surface) 22%); --skin-backdrop:rgba(15,39,71,.42);
+  --skin-status-hover-border:rgba(25,118,210,.5); --skin-status-active-border:rgba(25,118,210,.45); --skin-status-muted-bg:#f1f4f9;
 }
 
 /* The theme selector sits beside the calendar control in the lowest bar. */
 .cp-p6 > .cp-app-status .cp-workspace-theme {
-  flex: 0 0 auto;
-  min-height: 12px;
-  height: 12px;
-  max-width: 15.5rem;
-  padding: 0 3px;
-  border: 1px solid #b7c2d0;
-  border-radius: 2px;
-  background: #f7f9fc;
-  color: #1f2d3d;
-  font: inherit;
-  font-size: 9px;
-  line-height: 1;
-  cursor: pointer;
+  flex: 0 0 auto; min-height: 28px; height: 28px; max-width: 16rem; padding: 0 .55rem;
+  border: 1px solid #b7c2d0; border-radius: .45rem; background: #f7f9fc; color: #1f2d3d;
+  font: inherit; font-size: .72rem; line-height: 1.2; cursor: pointer;
 }
 .cp-p6 > .cp-app-status .cp-workspace-theme:focus-visible {
   outline: 1px solid var(--skin-focus);
   outline-offset: 1px;
 }
 
-html[data-cubi-theme="modern"] { color-scheme: light; }
-html[data-cubi-theme="modern"] body {
-  /* CUBI Modern 3D typography: Inter for Latin, Vazirmatn for Persian/Arabic. */
-  font-family: "Inter", "Vazirmatn", "Segoe UI Variable Text", system-ui, sans-serif;
-  background:
-    radial-gradient(1100px 520px at 12% -12%, #e4effb 0%, transparent 58%),
-    radial-gradient(900px 460px at 105% 0%, #f3ecff 0%, transparent 52%),
-    var(--skin-bg);
+html[data-cubi-theme="graphite"] {
+  --skin-bg:#111a27; --skin-surface:#1a2736; --skin-sunken:#121e2c; --skin-chrome:#202f40; --skin-header:#26394d;
+  --skin-text:#edf4fb; --skin-muted:#a9bbcd; --skin-border:rgba(174,201,224,.22); --skin-divider:rgba(174,201,224,.13);
+  --skin-accent:#4cc8d8; --skin-accent-strong:#8ce8ef; --skin-selection:rgba(76,200,216,.2); --skin-hover:rgba(76,200,216,.11); --skin-focus:#8ce8ef;
+  --skin-titlebar:linear-gradient(180deg,#354b60,#172331); --skin-grid-head:linear-gradient(180deg,#2a3d50,#213245);
+  --skin-radius-card:12px; --skin-radius-control:7px; --skin-radius-menu:10px;
+  --skin-shadow-card:0 2px 5px rgba(0,0,0,.2),0 16px 36px rgba(0,0,0,.24); --skin-shadow-menu:0 20px 48px rgba(0,0,0,.48),0 3px 8px rgba(0,0,0,.2); --skin-shadow-raised:0 2px 4px rgba(0,0,0,.2),0 6px 16px rgba(0,0,0,.2);
+  --skin-statusbar:rgba(25,39,54,.96); --skin-menu-bg:rgba(26,39,54,.98); --skin-body-background:radial-gradient(900px 520px at 12% -10%,rgba(76,200,216,.14),transparent 62%),radial-gradient(800px 500px at 100% 0%,rgba(82,106,168,.16),transparent 58%),var(--skin-bg);
+  --skin-titlebar-accent:#4cc8d8; --skin-grid-text:#edf4fb; --skin-row-divider:rgba(174,201,224,.12); --skin-row-stripe:rgba(255,255,255,.025); --skin-row-hover:rgba(76,200,216,.12); --skin-row-selected:rgba(76,200,216,.22); --skin-selected-text:#f8fdff;
+  --skin-filter-match:#57431f; --skin-filter-selected:#76571d; --skin-network-stroke:#72d2dc; --skin-splitter:#7895a8; --skin-nav-bg:linear-gradient(180deg,#1d3043,#172637);
+  --skin-rail-selected-shadow:inset 0 0 0 1px rgba(76,200,216,.34),var(--skin-shadow-raised); --skin-details-bg:linear-gradient(180deg,#223448,var(--skin-surface) 26%); --skin-backdrop:rgba(2,8,15,.72);
+  --skin-status-hover-border:rgba(76,200,216,.65); --skin-status-active-border:rgba(76,200,216,.55); --skin-status-muted-bg:#233548; --skin-toolbar-active-border:rgba(76,200,216,.42); --skin-chip-hover-border:rgba(76,200,216,.55); --skin-gantt-selected:rgba(76,200,216,.16);
 }
-html[data-cubi-theme="modern"][dir="rtl"] body {
+
+html[data-cubi-theme="arctic"] {
+  --skin-bg:#eaf2f6; --skin-surface:#fff; --skin-sunken:#f4f9fb; --skin-chrome:#e6f0f3; --skin-header:#dcebef;
+  --skin-text:#173443; --skin-muted:#5c7886; --skin-border:rgba(24,75,91,.18); --skin-divider:rgba(24,75,91,.12);
+  --skin-accent:#0e8993; --skin-accent-strong:#08636b; --skin-selection:#d7eff0; --skin-hover:#ebf8f8; --skin-focus:#087f88;
+  --skin-titlebar:linear-gradient(180deg,#1b6c77,#124650); --skin-grid-head:linear-gradient(180deg,#fbfeff,#e5f1f4);
+  --skin-radius-card:12px; --skin-radius-control:7px; --skin-radius-menu:10px;
+  --skin-shadow-card:0 2px 4px rgba(21,73,88,.06),0 14px 32px rgba(21,73,88,.09); --skin-shadow-menu:0 18px 42px rgba(21,73,88,.2),0 3px 8px rgba(21,73,88,.08); --skin-shadow-raised:0 2px 4px rgba(21,73,88,.08),0 6px 16px rgba(21,73,88,.08);
+  --skin-statusbar:rgba(246,251,252,.96); --skin-menu-bg:rgba(255,255,255,.98); --skin-body-background:radial-gradient(980px 520px at 8% -12%,#d9eff4 0%,transparent 60%),radial-gradient(860px 480px at 100% 0%,#e7f5ef 0%,transparent 58%),var(--skin-bg);
+  --skin-titlebar-accent:#58c7bd; --skin-grid-text:#1a3b4a; --skin-row-divider:rgba(24,75,91,.09); --skin-row-stripe:#f6fafc; --skin-row-hover:#e8f7f7; --skin-row-selected:#d5eeee; --skin-selected-text:#12313d;
+  --skin-filter-match:#fff3cf; --skin-filter-selected:#ffe39a; --skin-network-stroke:#55a6ad; --skin-splitter:#91b1b7; --skin-nav-bg:linear-gradient(180deg,#f2f9fa,#e4f0f2);
+  --skin-rail-selected-shadow:inset 0 0 0 1px rgba(14,137,147,.2),var(--skin-shadow-raised); --skin-details-bg:linear-gradient(180deg,#fbffff,var(--skin-surface) 26%); --skin-backdrop:rgba(11,43,52,.36);
+  --skin-status-hover-border:rgba(14,137,147,.48); --skin-status-active-border:rgba(14,137,147,.42); --skin-status-muted-bg:#edf4f6; --skin-toolbar-active-border:rgba(14,137,147,.35); --skin-chip-hover-border:rgba(14,137,147,.5); --skin-gantt-selected:rgba(14,137,147,.12);
+}
+
+html[data-cubi-theme="copper"] {
+  --skin-bg:#f2e9df; --skin-surface:#fffdfa; --skin-sunken:#f8f1e9; --skin-chrome:#efe2d4; --skin-header:#ead9c7;
+  --skin-text:#392a20; --skin-muted:#806957; --skin-border:rgba(91,57,37,.2); --skin-divider:rgba(91,57,37,.13);
+  --skin-accent:#b85f38; --skin-accent-strong:#7d3d25; --skin-selection:#f4ddcf; --skin-hover:#fbefe7; --skin-focus:#bd653e;
+  --skin-titlebar:linear-gradient(180deg,#75452f,#3e2a20); --skin-grid-head:linear-gradient(180deg,#fffaf4,#efdfce);
+  --skin-radius-card:12px; --skin-radius-control:7px; --skin-radius-menu:10px;
+  --skin-shadow-card:0 2px 4px rgba(74,45,28,.07),0 14px 30px rgba(74,45,28,.11); --skin-shadow-menu:0 18px 42px rgba(58,35,22,.24),0 3px 8px rgba(58,35,22,.1); --skin-shadow-raised:0 2px 4px rgba(74,45,28,.08),0 6px 16px rgba(74,45,28,.1);
+  --skin-statusbar:rgba(250,245,239,.96); --skin-menu-bg:rgba(255,252,247,.98); --skin-body-background:radial-gradient(980px 520px at 10% -12%,#f8e5d2 0%,transparent 60%),radial-gradient(820px 480px at 100% 0%,#efe4d6 0%,transparent 56%),var(--skin-bg);
+  --skin-titlebar-accent:#e49a61; --skin-grid-text:#453126; --skin-row-divider:rgba(91,57,37,.1); --skin-row-stripe:#fbf6ef; --skin-row-hover:#faeee5; --skin-row-selected:#f1d9c8; --skin-selected-text:#38261b;
+  --skin-filter-match:#fff1c8; --skin-filter-selected:#f5dc9c; --skin-network-stroke:#c58a69; --skin-splitter:#b89a84; --skin-nav-bg:linear-gradient(180deg,#f8f1e9,#eee1d3);
+  --skin-rail-selected-shadow:inset 0 0 0 1px rgba(184,95,56,.2),var(--skin-shadow-raised); --skin-details-bg:linear-gradient(180deg,#fffdf9,var(--skin-surface) 26%); --skin-backdrop:rgba(47,29,20,.4);
+  --skin-status-hover-border:rgba(184,95,56,.48); --skin-status-active-border:rgba(184,95,56,.42); --skin-status-muted-bg:#f2e8df; --skin-toolbar-active-border:rgba(184,95,56,.34); --skin-chip-hover-border:rgba(184,95,56,.5); --skin-gantt-selected:rgba(184,95,56,.13);
+}
+
+html[data-cubi-theme="midnight"] {
+  --skin-bg:#081727; --skin-surface:#10243a; --skin-sunken:#0b1b2d; --skin-chrome:#142d47; --skin-header:#193954;
+  --skin-text:#eaf4ff; --skin-muted:#a6bfd5; --skin-border:rgba(127,177,218,.22); --skin-divider:rgba(127,177,218,.13);
+  --skin-accent:#68baff; --skin-accent-strong:#b9e0ff; --skin-selection:rgba(70,151,224,.24); --skin-hover:rgba(70,151,224,.12); --skin-focus:#8acaff;
+  --skin-titlebar:linear-gradient(180deg,#20547e,#091a2d); --skin-grid-head:linear-gradient(180deg,#1b3e5b,#132c44);
+  --skin-radius-card:10px; --skin-radius-control:6px; --skin-radius-menu:9px;
+  --skin-shadow-card:0 2px 5px rgba(0,0,0,.2),0 16px 38px rgba(0,0,0,.26); --skin-shadow-menu:0 22px 50px rgba(0,0,0,.52),0 3px 8px rgba(0,0,0,.24); --skin-shadow-raised:0 2px 4px rgba(0,0,0,.22),0 6px 16px rgba(0,0,0,.2);
+  --skin-statusbar:rgba(13,34,55,.96); --skin-menu-bg:rgba(16,36,58,.98); --skin-body-background:radial-gradient(1000px 540px at 12% -12%,rgba(47,123,184,.24),transparent 62%),radial-gradient(800px 480px at 100% 0%,rgba(88,81,165,.18),transparent 58%),var(--skin-bg);
+  --skin-titlebar-accent:#68baff; --skin-grid-text:#eaf4ff; --skin-row-divider:rgba(127,177,218,.12); --skin-row-stripe:rgba(255,255,255,.025); --skin-row-hover:rgba(70,151,224,.13); --skin-row-selected:rgba(70,151,224,.22); --skin-selected-text:#f8fcff;
+  --skin-filter-match:#55431f; --skin-filter-selected:#75571c; --skin-network-stroke:#77bce9; --skin-splitter:#7596b2; --skin-nav-bg:linear-gradient(180deg,#152f49,#10263d);
+  --skin-rail-selected-shadow:inset 0 0 0 1px rgba(104,186,255,.3),var(--skin-shadow-raised); --skin-details-bg:linear-gradient(180deg,#193751,var(--skin-surface) 28%); --skin-backdrop:rgba(2,9,18,.76);
+  --skin-status-hover-border:rgba(104,186,255,.65); --skin-status-active-border:rgba(104,186,255,.55); --skin-status-muted-bg:#1a344e; --skin-toolbar-active-border:rgba(104,186,255,.4); --skin-chip-hover-border:rgba(104,186,255,.55); --skin-gantt-selected:rgba(104,186,255,.16);
+}
+
+html[data-cubi-theme-surface="layered"] { color-scheme: light; }
+html[data-cubi-theme-surface="layered"] body {
+  font-family:"Inter","Vazirmatn","Segoe UI Variable Text",system-ui,sans-serif;
+  background:var(--skin-body-background,var(--skin-bg));
+  color:var(--skin-text);
+}
+html[data-cubi-theme-surface="layered"][dir="rtl"] body {
   font-family: "Vazirmatn", "Inter", "Segoe UI Variable Text", system-ui, sans-serif;
 }
-html[data-cubi-theme="modern"] .cp-p6 { background: transparent; }
-html[data-cubi-theme="modern"] #workspace { background: transparent; }
+html[data-cubi-theme-surface="layered"] .cp-p6 { background: transparent; }
+html[data-cubi-theme-surface="layered"] #workspace { background: transparent; }
 
 /* Application chrome: layered acrylic-like bars and elevated surfaces. */
-html[data-cubi-theme="modern"] .cp-desktop-host { padding-top: 8px; }
-html[data-cubi-theme="modern"] .cp-desktop {
+html[data-cubi-theme-surface="layered"] .cp-desktop-host { padding-top: 8px; }
+html[data-cubi-theme-surface="layered"] .cp-desktop {
   border: 1px solid var(--skin-border);
   border-radius: 14px 14px 0 0;
   background: var(--skin-surface);
   box-shadow: var(--skin-shadow-card);
 }
-html[data-cubi-theme="modern"] .cp-titlebar {
-  border-bottom: 2px solid var(--cubi-copper-orange, #f28c28);
+html[data-cubi-theme-surface="layered"] .cp-titlebar {
+  border-bottom: 2px solid var(--skin-titlebar-accent);
   border-radius: 14px 14px 0 0;
   background: var(--skin-titlebar);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
 }
-html[data-cubi-theme="modern"] .cp-titlebar-mark {
+html[data-cubi-theme-surface="layered"] .cp-titlebar-mark {
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .35);
 }
-html[data-cubi-theme="modern"] .cp-menubar {
+html[data-cubi-theme-surface="layered"] .cp-menubar {
   border-bottom: 1px solid var(--skin-divider);
   border-radius: 0;
   background: var(--skin-chrome);
 }
-html[data-cubi-theme="modern"] .cp-menubar-trigger {
+html[data-cubi-theme-surface="layered"] .cp-menubar-trigger {
   border-radius: var(--skin-radius-control);
   color: var(--skin-text);
   font-weight: 600;
   transition: background .14s ease, box-shadow .14s ease, color .14s ease;
 }
-html[data-cubi-theme="modern"] .cp-menubar-trigger:hover,
-html[data-cubi-theme="modern"] .cp-menubar-trigger[aria-expanded="true"] {
+html[data-cubi-theme-surface="layered"] .cp-menubar-trigger:hover,
+html[data-cubi-theme-surface="layered"] .cp-menubar-trigger[aria-expanded="true"] {
   border-color: var(--skin-border);
   background: var(--skin-surface);
   box-shadow: var(--skin-shadow-raised);
   color: var(--skin-accent-strong);
 }
-html[data-cubi-theme="modern"] .cp-menubar-popup {
+html[data-cubi-theme-surface="layered"] .cp-menubar-popup {
   border: 1px solid var(--skin-border);
   border-radius: var(--skin-radius-menu);
-  background: rgba(255, 255, 255, .96);
+  background: var(--skin-menu-bg);
   backdrop-filter: blur(22px) saturate(1.25);
   box-shadow: var(--skin-shadow-menu);
 }
-html[data-cubi-theme="modern"] .cp-menubar-item {
+html[data-cubi-theme-surface="layered"] .cp-menubar-item {
   border-radius: 6px;
   color: var(--skin-text);
   transition: background .12s ease, color .12s ease;
 }
-html[data-cubi-theme="modern"] .cp-menubar-item:hover:not(:disabled) { background: var(--skin-hover); }
-html[data-cubi-theme="modern"] .cp-menubar-item[aria-checked="true"] .cp-menubar-item-label::before {
+html[data-cubi-theme-surface="layered"] .cp-menubar-item:hover:not(:disabled) { background: var(--skin-hover); }
+html[data-cubi-theme-surface="layered"] .cp-menubar-item[aria-checked="true"] .cp-menubar-item-label::before {
   color: var(--skin-accent);
 }
-html[data-cubi-theme="modern"] .cp-toolbar {
+html[data-cubi-theme-surface="layered"] .cp-toolbar {
   border-bottom: 1px solid var(--skin-divider);
   background: var(--skin-chrome);
 }
-html[data-cubi-theme="modern"] .cp-toolbar-button {
+html[data-cubi-theme-surface="layered"] .cp-toolbar-button {
   border-color: transparent;
   border-radius: var(--skin-radius-control);
   background: transparent;
   color: var(--skin-text);
   transition: background .14s ease, box-shadow .14s ease, border-color .14s ease;
 }
-html[data-cubi-theme="modern"] .cp-toolbar-button:hover:not(:disabled) {
+html[data-cubi-theme-surface="layered"] .cp-toolbar-button:hover:not(:disabled) {
   border-color: var(--skin-border);
   background: var(--skin-surface);
   box-shadow: var(--skin-shadow-raised);
 }
-html[data-cubi-theme="modern"] .cp-toolbar-button[aria-pressed="true"] {
-  border-color: rgba(25, 118, 210, .38);
+html[data-cubi-theme-surface="layered"] .cp-toolbar-button[aria-pressed="true"] {
+  border-color: var(--skin-toolbar-active-border);
   background: var(--skin-selection);
   color: var(--skin-accent-strong);
 }
-html[data-cubi-theme="modern"] .cp-window-tabs {
+html[data-cubi-theme-surface="layered"] .cp-window-tabs {
   background: var(--skin-chrome);
 }
-html[data-cubi-theme="modern"] .cp-window-tab { border-radius: 8px 8px 0 0; }
-html[data-cubi-theme="modern"] .cp-window-tab.is-active {
+html[data-cubi-theme-surface="layered"] .cp-window-tab { border-radius: 8px 8px 0 0; }
+html[data-cubi-theme-surface="layered"] .cp-window-tab.is-active {
   border-color: var(--skin-border);
   background: var(--skin-surface);
   box-shadow: inset 0 2px 0 var(--skin-accent), 0 -1px 0 rgba(255, 255, 255, .6);
 }
-html[data-cubi-theme="modern"] .cp-statusbar {
+html[data-cubi-theme-surface="layered"] .cp-statusbar {
   border-color: var(--skin-border);
   border-radius: 0 0 12px 12px;
   background: var(--skin-chrome);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-statusbar-cell { border-inline-end-color: var(--skin-divider); }
+html[data-cubi-theme-surface="layered"] .cp-statusbar-cell { border-inline-end-color: var(--skin-divider); }
 
 /* Navigation rail and work area. */
-html[data-cubi-theme="modern"] .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
-  background: linear-gradient(180deg, #f5f8fc, #eaf0f8);
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  background: var(--skin-nav-bg);
   border-inline-end: 1px solid var(--skin-divider);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-navigation-tree .cp-rail-button {
   border-radius: 7px;
   color: var(--skin-muted);
   transition: background .14s ease, color .14s ease, box-shadow .14s ease;
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button:hover {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-navigation-tree .cp-rail-button:hover {
   background: var(--skin-surface);
   color: var(--skin-accent-strong);
   box-shadow: var(--skin-shadow-raised);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button[aria-current="page"] {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-navigation-tree .cp-rail-button[aria-current="page"] {
   background: var(--skin-selection);
   color: var(--skin-accent-strong);
-  box-shadow: inset 0 0 0 1px rgba(25, 118, 210, .22), var(--skin-shadow-raised);
+  box-shadow: var(--skin-rail-selected-shadow);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-workspace { background: transparent; }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-body { background: transparent; }
-html[data-cubi-theme="modern"] .cp-p6 .cp-main {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-workspace { background: transparent; }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-body { background: transparent; }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-main {
   margin: 6px;
   border: 1px solid var(--skin-border);
   border-radius: var(--skin-radius-card);
   background: var(--skin-surface);
   box-shadow: var(--skin-shadow-card);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-primary { border-radius: var(--skin-radius-card); }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-head,
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-primary { border-radius: var(--skin-radius-card); }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-grid-head,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-gantt-head {
   border-bottom: 1px solid var(--skin-divider);
   background: var(--skin-grid-head);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-actions button,
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head button {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-grid-actions button,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-gantt-head button {
   border-radius: 4px;
   color: var(--skin-muted);
   transition: background .12s ease, color .12s ease;
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-actions button:hover,
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head button:hover {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-grid-actions button:hover,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-gantt-head button:hover {
   border-color: var(--skin-border);
   background: var(--skin-surface);
   color: var(--skin-accent-strong);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-toolbar {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-toolbar {
   border-bottom: 1px solid var(--skin-divider);
   background: var(--skin-chrome);
   color: var(--skin-muted);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-chip {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-chip {
   border-color: var(--skin-border);
   border-radius: 999px;
   background: var(--skin-surface);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-chip:hover {
-  border-color: rgba(25, 118, 210, .45);
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-chip:hover {
+  border-color: var(--skin-chip-hover-border);
   background: var(--skin-hover);
 }
 
 /* Activity table, WBS bands and Gantt. */
-html[data-cubi-theme="modern"] .cp-p6 .cp-table-wrap { background: var(--skin-surface); }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid thead th {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-table-wrap { background: var(--skin-surface); }
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid thead th {
   border-bottom: 1px solid var(--skin-border);
   border-inline-end: 1px solid var(--skin-divider);
   background: var(--skin-grid-head);
-  color: #24354f;
+  color: var(--skin-grid-text);
   font-weight: 700;
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody td {
-  border-bottom: 1px solid rgba(15, 39, 71, .08);
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody td {
+  border-bottom: 1px solid var(--skin-row-divider);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 97%, #1976d2 3%);
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr:nth-child(even) td {
+  background: var(--skin-row-stripe);
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:hover td {
-  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 90%, #1976d2 10%);
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr:hover td {
+  background: var(--skin-row-hover);
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-selected td {
-  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 80%, #1976d2 20%);
-  color: #10243f;
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr.is-selected td {
+  background: var(--skin-row-selected);
+  color: var(--skin-selected-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:focus-visible {
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr:focus-visible {
   outline: 2px solid var(--skin-focus);
   outline-offset: -2px;
 }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match td { background: #fff4c9; }
-html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match.is-selected td { background: #ffe58f; }
-html[data-cubi-theme="modern"] .cp-p6 .cp-gantt-row.is-selected { background: rgba(25, 118, 210, .14); }
-html[data-cubi-theme="modern"] .cp-p6 .cp-network-node-surface {
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match td { background: var(--skin-filter-match); }
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match.is-selected td { background: var(--skin-filter-selected); }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-gantt-row.is-selected { background: var(--skin-gantt-selected); }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-network-node-surface {
   fill: var(--skin-surface);
-  stroke: #8fb4da;
+  stroke: var(--skin-network-stroke);
   filter: drop-shadow(0 2px 4px rgba(15, 39, 71, .14));
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-network-node.is-selected .cp-network-node-surface {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-network-node.is-selected .cp-network-node-surface {
   stroke: var(--skin-accent);
   fill: var(--skin-selection);
 }
 
 /* Splitters read as slim rounded handles with a blue hover. */
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-splitter {
   background: transparent;
   border-block: 1px solid var(--skin-divider);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter span {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-splitter span {
   width: 30px;
   height: 2px;
   border-radius: 999px;
-  background: #a9b7c8;
+  background: var(--skin-splitter);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter:hover,
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter:focus-visible {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-splitter:hover,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-splitter:focus-visible {
   background: var(--skin-hover);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-p6-splitter span { background: #a9b7c8; }
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-p6-splitter span { background: #a9b7c8; }
 
 /* Bottom Details pane and its tabs. */
-html[data-cubi-theme="modern"] .cp-p6 #cp-details {
+html[data-cubi-theme-surface="layered"] .cp-p6 #cp-details {
   border-top: 1px solid var(--skin-border);
-  background: linear-gradient(180deg, #fbfdff, var(--skin-surface) 22%);
+  background: var(--skin-details-bg);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-head,
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-details-heading,
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs,
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-head,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-details-heading,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-detail-tabs,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-tabs {
   border-bottom: 1px solid var(--skin-divider);
   background: var(--skin-chrome);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button,
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-detail-tabs button,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-tabs button {
   border-radius: 6px 6px 0 0;
   color: var(--skin-muted);
   transition: background .12s ease, color .12s ease;
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button:hover,
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button:hover {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-detail-tabs button:hover,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-tabs button:hover {
   background: var(--skin-hover);
   color: var(--skin-accent-strong);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button.is-active,
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button.is-active {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-activity-detail-tabs button.is-active,
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-tabs button.is-active {
   background: var(--skin-surface);
   color: var(--skin-accent-strong);
   box-shadow: inset 0 2px 0 var(--skin-accent);
 }
-html[data-cubi-theme="modern"] .cp-p6 .cp-details-id {
+html[data-cubi-theme-surface="layered"] .cp-p6 .cp-details-id {
   border-color: var(--skin-border);
   border-radius: 5px;
   background: var(--skin-selection);
@@ -8212,72 +8264,72 @@ html[data-cubi-theme="modern"] .cp-p6 .cp-details-id {
 }
 
 /* Dialogs and option surfaces. */
-html[data-cubi-theme="modern"] .cp-desktop-dialog,
-html[data-cubi-theme="modern"] dialog.cp-option-dialog,
-html[data-cubi-theme="modern"] dialog[data-p6-columns-dialog],
-html[data-cubi-theme="modern"] dialog[data-details-customize-dialog],
-html[data-cubi-theme="modern"] dialog[data-layout-options-dialog] {
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog,
+html[data-cubi-theme-surface="layered"] dialog.cp-option-dialog,
+html[data-cubi-theme-surface="layered"] dialog[data-p6-columns-dialog],
+html[data-cubi-theme-surface="layered"] dialog[data-details-customize-dialog],
+html[data-cubi-theme-surface="layered"] dialog[data-layout-options-dialog] {
   border: 1px solid var(--skin-border);
   border-radius: 12px;
   background: var(--skin-surface);
   box-shadow: 0 26px 60px rgba(15, 39, 71, .28), 0 4px 12px rgba(15, 39, 71, .14);
 }
-html[data-cubi-theme="modern"] .cp-desktop-dialog::backdrop {
-  background: rgba(15, 39, 71, .42);
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog::backdrop {
+  background: var(--skin-backdrop);
   backdrop-filter: blur(3px);
 }
-html[data-cubi-theme="modern"] .cp-desktop-dialog th,
-html[data-cubi-theme="modern"] .cp-desktop-dialog td {
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog th,
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog td {
   border-bottom-color: var(--skin-divider);
 }
-html[data-cubi-theme="modern"] .cp-dialog-group {
+html[data-cubi-theme-surface="layered"] .cp-dialog-group {
   border-color: var(--skin-border);
   border-radius: 8px;
   background: var(--skin-sunken);
 }
-html[data-cubi-theme="modern"] .cp-desktop-dialog input,
-html[data-cubi-theme="modern"] .cp-desktop-dialog select,
-html[data-cubi-theme="modern"] .cp-desktop-dialog textarea,
-html[data-cubi-theme="modern"] .cp-option-dialog input,
-html[data-cubi-theme="modern"] .cp-option-dialog select {
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog input,
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog select,
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog textarea,
+html[data-cubi-theme-surface="layered"] .cp-option-dialog input,
+html[data-cubi-theme-surface="layered"] .cp-option-dialog select {
   border-color: var(--skin-border);
   border-radius: 5px;
   background: var(--skin-surface);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-desktop-dialog button,
-html[data-cubi-theme="modern"] .cp-option-dialog button {
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog button,
+html[data-cubi-theme-surface="layered"] .cp-option-dialog button {
   border-radius: 6px;
 }
 
 /* Bottom application bar and its global switches. */
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status {
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status {
   border-top: 1px solid var(--skin-border);
   background: var(--skin-statusbar);
   backdrop-filter: blur(18px) saturate(1.3);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status button,
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-workspace-theme {
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status button,
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-workspace-theme {
   border-color: var(--skin-border);
   border-radius: 5px;
   background: var(--skin-surface);
   color: var(--skin-text);
 }
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status button:hover {
-  border-color: rgba(25, 118, 210, .5);
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status button:hover {
+  border-color: var(--skin-status-hover-border);
   background: var(--skin-hover);
 }
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-details-toggle.is-active {
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-details-toggle.is-active {
   border-color: rgba(25, 118, 210, .45);
   background: var(--skin-selection);
   color: var(--skin-accent-strong);
 }
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-details-toggle[aria-pressed="false"] {
-  background: #f1f4f9;
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-details-toggle[aria-pressed="false"] {
+  background: var(--skin-status-muted-bg);
   color: var(--skin-muted);
 }
-html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-workspace-language {
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-workspace-language {
   border-color: var(--skin-border);
   border-radius: 5px;
   background: var(--skin-surface);
@@ -8285,6 +8337,34 @@ html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-workspace-language {
 }
 
 /* Shared focus ring for both skins; the modern skin narrows it to the accent. */
-html[data-cubi-theme="modern"] :focus-visible {
+html[data-cubi-theme-surface="layered"] :focus-visible {
   outline-color: var(--skin-focus);
 }
+
+/* Native controls and dialogs follow the selected CUBI palette. */
+html[data-cubi-theme-surface="layered"] .cp-p6 { color:var(--skin-text); }
+html[data-cubi-theme-surface="layered"] .cp-desktop-dialog,
+html[data-cubi-theme-surface="layered"] dialog.cp-option-dialog,
+html[data-cubi-theme-surface="layered"] dialog[data-p6-columns-dialog],
+html[data-cubi-theme-surface="layered"] dialog[data-details-customize-dialog],
+html[data-cubi-theme-surface="layered"] dialog[data-layout-options-dialog] { color:var(--skin-text); }
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-workspace-theme,
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-workspace-language {
+  min-height:28px; height:28px; padding-inline:.6rem; border-radius:var(--skin-radius-control);
+  border-color:var(--skin-border); background:var(--skin-surface); color:var(--skin-text);
+}
+html[data-cubi-color-scheme="dark"] { color-scheme:dark; }
+html[data-cubi-color-scheme="dark"] .cp-p6 > .cp-app-status .cp-workspace-theme option,
+html[data-cubi-color-scheme="dark"] .cp-p6 > .cp-app-status .cp-workspace-language option {
+  background:#15283b; color:#edf4fb;
+}
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status button:hover {
+  border-color:var(--skin-status-hover-border); background:var(--skin-hover);
+}
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-details-toggle.is-active {
+  border-color:var(--skin-status-active-border); background:var(--skin-selection); color:var(--skin-accent-strong);
+}
+html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-details-toggle[aria-pressed="false"] {
+  background:var(--skin-status-muted-bg); color:var(--skin-muted);
+}
+html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--skin-focus); }

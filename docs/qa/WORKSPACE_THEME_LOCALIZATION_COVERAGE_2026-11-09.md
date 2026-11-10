@@ -11,13 +11,12 @@ an evidence index, not a substitute for the automated checks.
 | Renderer | One workspace renderer in `apps/web/src/workspace-view.ts`; no duplicate shell. |
 | Commands | One registry in `apps/web/src/workspace-desktop-shell.ts`; both skins share every command id. |
 | Menus | One menu model; `View` carries `view.toggle-details`, `view.theme-classic`, `view.theme-modern`. |
-| Skins | `CUBI Classic` (default) and `CUBI Modern 3D`, selected by `html[data-cubi-theme]`. |
-| Tokens | Classic values and `html[data-cubi-theme="modern"]` values live in the shared `styles.css`; `public/styles.css` is byte-identical. |
+| Skins | Six selectable CUBI themes: Classic (default), Modern 3D, Graphite (dark), Arctic (light), Copper (warm), and Midnight (deep dark). |
+| Tokens | Classic retains its flat reference surface; the five layered themes share one structural renderer and use independent palette tokens. `apps/web/styles.css` and `apps/web/public/styles.css` remain byte-identical. |
 | Persistence | `cubi:workspace-theme` in `localStorage`, read at boot and written on change. |
-| Branding | No Microsoft logo or product claim. The modern skin uses the CUBI palette (Deep Navy, Engineering Blue, Copper Orange, Brushed Titanium) and the Inter/Vazirmatn stack. |
+| Branding | All six themes use CUBI identity and typography; no third-party logo or product claim is introduced in the customer-facing workspace. |
 
-The modern skin changes tokens only. It does not change data, scheduling,
-permissions, dialog behaviour or command availability.
+The selected theme changes only palette, surface treatment and native color scheme. All six themes retain the same data, scheduling, permissions, dialog behavior and command availability.
 
 ## 2. Details visibility and collapse
 
@@ -86,8 +85,10 @@ back to English by design rather than showing a placeholder.
 
 The master-order run records `e2e/artifacts/master-order/report.json` with
 contract `cubi-workspace-master-order.v1`, the layout numbers above, and
-screenshots at 1280x800, 1440x900 and 1920x1080 for both Details states and both
-skins, plus Russian/Arabic locale captures. The page-by-page Version 26 parity
+screenshots at 1280x800, 1440x900 and 1920x1080 for both Details states and
+all six themes, plus Russian/Arabic locale captures. Each added theme is checked
+for a distinct visual token fingerprint while retaining the same activity rows,
+Gantt bars and Details tabs; Midnight persistence is checked across reload. The page-by-page Version 26 parity
 matrix for the Activities window remains
 `docs/qa/ACTIVITIES_V26_COMPLIANCE_MATRIX_2026-11-08.md`; this increment does not
 change that scope.
@@ -97,3 +98,19 @@ revision-history API caps a listing at 50 entries, so the long-lived preview can
 exceed the history window expected by an older assertion. The full preview suite
 is therefore run with its own isolated `--reset` database, which is the
 documented CI path; this is an environment limit, not a product defect.
+
+
+## 5. Six-theme visual contract
+
+- **Classic** — compact reference workstation appearance and default.
+- **Modern 3D** — light layered surfaces, elevated cards and engineering-blue highlights.
+- **Graphite** — charcoal/slate dark workspace with a crisp teal accent.
+- **Arctic** — cool bright workspace with restrained teal and frosted surfaces.
+- **Copper** — warm ivory workspace with copper accents and deep bronze chrome.
+- **Midnight** — deep navy workspace with clear blue highlights for low-light work.
+
+All non-Classic themes use one shared layered component renderer. Their palette
+tokens cover background, chrome, text, borders, selection, hover, grid header,
+row states, navigation, Details pane, dialogs, focus rings, shadows and native
+light/dark color scheme. Activity, WBS, Gantt and relationship logic are not
+reimplemented by a theme.

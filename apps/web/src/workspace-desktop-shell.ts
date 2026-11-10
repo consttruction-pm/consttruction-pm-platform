@@ -1,4 +1,5 @@
 import type { WorkspaceMenuKey } from "./workspace-model.js";
+import type { WorkspaceTheme } from "./workspace-theme.js";
 import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
 import { defaultLayoutPatch, loadFilterEditor, readLayoutPatch, renderLayoutDialogs, resetFilterEditor, setFilterListEnabled, sortFilterList, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
 import { findActivityFilter } from "./workspace-activity-filters.js";
@@ -47,6 +48,10 @@ export type DesktopCommand =
   | "view.toggle-details"
   | "view.theme-classic"
   | "view.theme-modern"
+  | "view.theme-graphite"
+  | "view.theme-arctic"
+  | "view.theme-copper"
+  | "view.theme-midnight"
   | "tools.run-schedule"
   | "tools.formula"
   | "tools.reference"
@@ -136,7 +141,7 @@ export type DesktopShellState = {
   /** Bottom Details pane visibility; drives the View command label and state. */
   detailsVisible?: boolean;
   /** Active workspace skin token set. */
-  theme?: "classic" | "modern";
+  theme?: WorkspaceTheme;
   dataAvailability?: { actual: boolean; baseline: boolean };
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
@@ -335,6 +340,30 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           label: { en: "CUBI Modern 3D", fa: "CUBI مدرن سه‌بعدی" },
           command: "view.theme-modern",
           checked: state.theme === "modern",
+        },
+        {
+          id: "view.theme-graphite",
+          label: { en: "CUBI Graphite", fa: "CUBI گرافیت" },
+          command: "view.theme-graphite",
+          checked: state.theme === "graphite",
+        },
+        {
+          id: "view.theme-arctic",
+          label: { en: "CUBI Arctic", fa: "CUBI قطبی" },
+          command: "view.theme-arctic",
+          checked: state.theme === "arctic",
+        },
+        {
+          id: "view.theme-copper",
+          label: { en: "CUBI Copper", fa: "CUBI مس" },
+          command: "view.theme-copper",
+          checked: state.theme === "copper",
+        },
+        {
+          id: "view.theme-midnight",
+          label: { en: "CUBI Midnight", fa: "CUBI نیمه‌شب" },
+          command: "view.theme-midnight",
+          checked: state.theme === "midnight",
         },
         { id: "view.calendar", label: { en: "Switch calendar display", fa: "تغییر تقویم نمایش" }, command: "admin.calendar" },
       ],
