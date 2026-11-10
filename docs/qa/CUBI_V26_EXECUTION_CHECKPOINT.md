@@ -4,7 +4,7 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `codex/jalal/cubi-v26-stage-b-layout-trace-20261110` (from `main` @ `e3ce8ef8`).
+Branch: `main` @ `b241699b` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`).
 
 ---
 
@@ -83,8 +83,12 @@ execution order. Gaps already recorded in
 
 ## Stage B — Activities Show on Top, Show on Bottom and Trace Logic
 
-Status: implemented and verified on this branch against the real full-stack preview; independent
-PR opened from this branch and merged only after CI is green on the exact head SHA.
+Status: **merged**. Independent PR
+[#1738](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1738) squash-merged into
+`main` as `b241699b` on 2026-11-10 after twelve of twelve checks passed on head `7ba4ee07`
+(test 3.11/3.12/3.13, typecheck apps/mobile, apps/web, apps/desktop, apps/client-sync, web,
+Vercel Preview Comments, plus the Vercel statuses). The post-merge run on `b241699b` passed all
+eleven checks (test, typecheck, web, build, deploy, postgres-sync).
 
 ### What shipped
 
@@ -153,4 +157,4 @@ layout survives a full reload.
 
 Stage C — Projects/WBS windows, followed by Resources/Calendars, Progress/Cost/Expenses,
 Documents/Reports/Tracking, Issues/Risks/Thresholds/Control/Administration, the six-skin
-integration pass, and the final full matrix.
+integration pass, and the final full matrix. Stage C starts from `main` @ `b241699b`.
