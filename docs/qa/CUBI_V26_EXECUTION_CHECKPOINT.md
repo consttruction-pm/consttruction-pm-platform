@@ -10,8 +10,11 @@ Branch: `codex/jalal/cubi-v26-shell-stage-a-20261110` (from `main` @ `94ad2330`)
 
 ## Stage A — central shell
 
-Status: implemented and locally verified; independent PR opened from this branch and merged only
-after CI is green on the exact head SHA.
+Status: **merged**. Independent PR
+[#1737](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1737) squash-merged into
+`main` as `e3ce8ef8` on 2026-11-10 after all nine required checks passed on head `0c87e093`
+(test 3.11/3.12/3.13, typecheck apps/mobile, apps/web, apps/desktop, apps/client-sync, web,
+plus the Vercel statuses).
 
 ### What shipped
 
