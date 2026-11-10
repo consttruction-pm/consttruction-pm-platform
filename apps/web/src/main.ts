@@ -1223,9 +1223,7 @@ function renderApp(
 
   const t = (en: string, persian: string): string => translateWorkspaceUiText(state.locale, en, persian);
   const chromeProject = {
-    name: activeProjectSummary && activeProjectSummaryProjectId === state.context.project_id
-      ? activeProjectSummary.name || state.context.project_id
-      : state.context.project_id,
+    name: activeProjectLabel(state.context.project_id),
     dataDate: "—",
     baseline: "—",
     user: "—",
@@ -1643,9 +1641,7 @@ function renderApp(
           activities: detailsState.activities,
           selectedActivityId: detailsState.selectedActivityId,
           relationships: detailsState.relationships,
-          projectName: activeProjectSummary && activeProjectSummaryProjectId === detailsState.context.project_id
-            ? activeProjectSummary.name
-            : detailsState.context.project_id,
+          projectName: activeProjectLabel(detailsState.context.project_id),
           dataDate: "—",
           calendarMode: detailsState.calendarMode,
           state: detailsState,
@@ -2302,7 +2298,24 @@ async function loadActiveProjectSummary(
   if (!current || current.context.project_id !== projectId) return;
   activeProjectSummary = result.data.project;
   activeProjectSummaryProjectId = projectId;
-  renderApp(container, current);
+  // Only the Projects window and the chrome consume this record. Re-rendering
+  // any other surface would discard an editor the user opened while this read
+  // was in flight, so the render waits until something visible depends on it.
+  const listedName = currentBootstrap?.openableProjects()
+    .find((project) => project.project_id === projectId)?.name;
+  if (current.activeMenu === "project" || (result.data.project.name && result.data.project.name !== listedName)) {
+    renderAppPreservingDrafts(container, current);
+  }
+}
+
+/** The name the server already gave us for this project, from record or session list. */
+function activeProjectLabel(projectId: string): string {
+  if (activeProjectSummary && activeProjectSummaryProjectId === projectId && activeProjectSummary.name) {
+    return activeProjectSummary.name;
+  }
+  const listed = currentBootstrap?.openableProjects()
+    .find((project) => project.project_id === projectId)?.name;
+  return listed || projectId;
 }
 
 function renderBootstrapState(

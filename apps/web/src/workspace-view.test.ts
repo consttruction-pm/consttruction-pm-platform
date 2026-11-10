@@ -2392,6 +2392,10 @@ test("Projects window states when the authoritative project record is still unre
   });
   assert.match(container.innerHTML, /data-project-metadata-pending="true"/);
   assert.match(container.innerHTML, /The authoritative project record has not been read yet/);
+  assert.match(
+    container.innerHTML,
+    /<div class="cp-project" data-project-id="p-1" title="p-1">Metro Line<\/div>/,
+  );
   assert.match(container.innerHTML, /data-project-row="p-1" aria-current="true"/);
   assert.match(container.innerHTML, /cp-project-current/);
   assert.doesNotMatch(container.innerHTML, /data-project-open="p-1"/);

@@ -2121,13 +2121,20 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const topLayout: WorkspaceTopLayout = state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : "table-gantt";
   const bottomLayout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   const detailsVisible = state.visiblePanels.details && bottomLayout !== "none";
+  // The session list already carries the authoritative name, so the title bar
+  // keeps it on first paint instead of flashing the id until the record loads.
+  const headerProject =
+    options.projectSummary && options.projectSummary.project_id === state.context.project_id
+      ? options.projectSummary
+      : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
+  const headerProjectLabel = headerProject?.name || state.context.project_id;
 
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-table-row-mode="${tablePresentation.rowHeightMode}" data-show-icons="${tablePresentation.showIcons}" data-line-numbers="${lineNumbers}" style="${escapeAttribute(presentationVars)}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
-        <div class="cp-project" data-project-id="${escapeAttribute(state.context.project_id)}" title="${escapeAttribute(state.context.project_id)}">${escapeHtml(options.projectSummary && options.projectSummary.project_id === state.context.project_id ? options.projectSummary.name || state.context.project_id : state.context.project_id)}</div>
+        <div class="cp-project" data-project-id="${escapeAttribute(state.context.project_id)}" title="${escapeAttribute(state.context.project_id)}">${escapeHtml(headerProjectLabel)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
