@@ -4,14 +4,17 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `codex/jalal/cubi-v26-shell-stage-a-20261110` (from `main` @ `94ad2330`).
+Branch: `codex/jalal/cubi-v26-stage-b-layout-trace-20261110` (from `main` @ `e3ce8ef8`).
 
 ---
 
 ## Stage A — central shell
 
-Status: implemented and locally verified; independent PR opened from this branch and merged only
-after CI is green on the exact head SHA.
+Status: **merged**. Independent PR
+[#1737](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1737) squash-merged into
+`main` as `e3ce8ef8` on 2026-11-10 after all nine required checks passed on head `0c87e093`
+(test 3.11/3.12/3.13, typecheck apps/mobile, apps/web, apps/desktop, apps/client-sync, web,
+plus the Vercel statuses).
 
 ### What shipped
 
@@ -75,3 +78,79 @@ drag check is a known intermittent CDP drag race; a clean re-run passed.
 Stage B — Activities/Gantt/Details parity work, followed by the remaining B–I stages in the
 execution order. Gaps already recorded in
 `docs/qa/CUBI_V26_WORKSPACE_WINDOW_ICON_DIALOG_AUDIT_2026-11-10.md` stay the backlog.
+
+---
+
+## Stage B — Activities Show on Top, Show on Bottom and Trace Logic
+
+Status: implemented and verified on this branch against the real full-stack preview; independent
+PR opened from this branch and merged only after CI is green on the exact head SHA.
+
+### What shipped
+
+1. **Show on Top** (View menu and Layout Options): Activity Table, Activity Table + Gantt Chart,
+   and Activity Network. The choice is stored per user-tenant-project-window
+   (`cubi:workspace:top-layout:<tenant>:<project>:<menu>`), re-validated on read against the
+   loaded data, and falls back to Table + Gantt when the stored view is no longer backed by data.
+   Table-only removes the Gantt pane and its splitter; Activity Network renders the real persisted
+   plan logic (14 activities / 15 relationships in the Riverside project) and never estimates or
+   recalculates dates.
+2. **Show on Bottom** (View menu and Layout Options): Activity Details, Trace Logic, and None.
+   The choice is stored per window (`cubi:workspace:bottom-layout:…`). None collapses the bottom
+   allocation instead of leaving an empty pane; choosing Details (or the Details toggle) restores
+   the Activity Details surface and its per-user visibility preference.
+3. **Trace Logic**: a real bottom view built from the persisted activity relationships. It walks
+   predecessors and successors level by level, shows the relationship type and lag (`FS`, `SS+5d`,
+   …), the destination activity and progress, marks critical activities, and supports depth 1–5
+   (default 2, persisted in `cubi:workspace:trace-logic-depth`). An ancestor repeat is reported as
+   a circular dependency, while two branches that meet again (a diamond) are reported once and are
+   not labelled circular. Relationship endpoints that are not loaded activities are counted and
+   explained instead of being invented. Clicking a trace row selects that activity in the table,
+   the Gantt and the activity context used by Details. Every rendered label is escaped.
+4. **Menus and dialog**: the View menu exposes the six commands with real checked state and honest
+   disabled reasons — Activity Network needs loaded relationships, Trace Logic needs a selected
+   activity and loaded relationships, and all six are scoped to the Activities window. The Layout
+   Options dialog reads and writes the same model; the usage spreadsheet/profile views that have
+   no renderer stay disabled.
+5. **Regression found and fixed during the live run**: the interactive Activity Details
+   enhancement replaced the bottom host after every render, which erased a freshly chosen Trace
+   Logic surface (the menu command stored the preference but the pane showed Details). The
+   enhancement now runs only while the bottom surface actually is Activity Details, including
+   after selection changes and after switching back from Trace Logic or None; a unit test pins
+   that Trace Logic is never overwritten.
+
+### Honest limits (no fake capability)
+
+- Activity Usage Spreadsheet/Profile and Resource Usage Spreadsheet/Profile remain disabled: no
+  renderer exists, so they are never shown as available.
+- Trace Logic reads persisted plan logic only; it does not recalculate dates, driving paths or
+  floats, and the view states this.
+- Layout preferences are browser-local per user-tenant-project; they are not written to the
+  project database.
+- Trace Logic is unavailable without a selected activity or without loaded relationships, and the
+  menu and dialog show that reason instead of opening an empty chain.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `npx tsc --noEmit` (apps/web) | clean |
+| Test build | `npx tsc -p tsconfig.test.json` | clean |
+| Unit/integration | `npm test` | 717 `tsx` tests + 14 `node --test` tests pass |
+| Layout/Trace browser E2E | `CUBI_PREVIEW_URL=http://127.0.0.1:4174 node e2e/layout-trace-v26.mjs` | 11/11 scenarios pass |
+| Evidence bundle | `docs/workspace/evidence/layout-trace-v26-2026-11-10/` | JSON report + 11 screenshots |
+| Build | `npm run build` | bundles written to `dist/web/src` |
+
+The browser run logs in as the Planner persona on the real local full-stack preview, selects
+`A130` (the seeded activity with one predecessor and three successors), and verifies the real
+chain: A120/A110 as predecessors and A140, A145, A150, A155, A160, A170 as successors including
+the persisted `SS+5d` link. It also verifies that table-only hides the Gantt and splitter, the
+network draws all 15 relationships, None closes the bottom pane while keeping the selection,
+depth 1 narrows the chain to one level, a trace row re-selects A120 in the table, and the chosen
+layout survives a full reload.
+
+### Next stage
+
+Stage C — Projects/WBS windows, followed by Resources/Calendars, Progress/Cost/Expenses,
+Documents/Reports/Tracking, Issues/Risks/Thresholds/Control/Administration, the six-skin
+integration pass, and the final full matrix.

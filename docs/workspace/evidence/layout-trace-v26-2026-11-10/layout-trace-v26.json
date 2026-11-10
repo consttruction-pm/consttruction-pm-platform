@@ -1,0 +1,466 @@
+{
+  "contract": "cubi-layout-trace-v26.v1",
+  "baseUrl": "http://127.0.0.1:4174",
+  "gitHead": "e3ce8ef82f9f658009e0033fa9643ac0e26f16da",
+  "capturedAt": "2026-11-10T04:34:26.772Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "باز شدن Activities با چیدمان پیش‌فرض جدول + گانت و جزئیات",
+      "status": "pass",
+      "at": "2026-11-10T04:34:31.539Z",
+      "topLayout": "table-gantt",
+      "bottomLayout": "details",
+      "rows": 14,
+      "links": 15
+    },
+    {
+      "id": "02",
+      "name": "منوی View شش فرمان Show on Top و Show on Bottom را با وضعیت واقعی نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T04:34:32.213Z",
+      "items": [
+        {
+          "command": "view.fields",
+          "text": "Columns…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.filters",
+          "text": "Filters…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.group-sort",
+          "text": "Group and Sort…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.timescale",
+          "text": "Timescale…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.bars",
+          "text": "Bar Styles…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.font-row",
+          "text": "Table Font and Row…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "dialog.user-preferences",
+          "text": "User Preferences…",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.line-numbers",
+          "text": "Line Numbers",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.expand-all",
+          "text": "Expand All\n    Ctrl+Num +",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.collapse-all",
+          "text": "Collapse All\n    Ctrl+Num -",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.zoom-in",
+          "text": "Zoom in",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.zoom-out",
+          "text": "Zoom out",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.fit",
+          "text": "Fit to window",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.toggle-wbs",
+          "text": "Show project WBS",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.toggle-gantt",
+          "text": "Show Gantt Chart",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.toggle-details",
+          "text": "Hide Details",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.top-table",
+          "text": "Show on Top: Activity Table",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.top-table-gantt",
+          "text": "Show on Top: Table + Gantt Chart",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.top-network",
+          "text": "Show on Top: Activity Network",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.bottom-details",
+          "text": "Show on Bottom: Activity Details",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.bottom-trace",
+          "text": "Show on Bottom: Trace Logic\n    Select an activity in the grid first",
+          "disabled": true,
+          "checked": false,
+          "reason": "Select an activity in the grid first"
+        },
+        {
+          "command": "view.bottom-none",
+          "text": "Show on Bottom: None",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "admin.calendar",
+          "text": "Switch calendar display",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-workspace",
+          "text": "Toolbar: Workspace",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-edit",
+          "text": "Toolbar: Edit",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-layout",
+          "text": "Toolbar: Layout",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-view",
+          "text": "Toolbar: View",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-project",
+          "text": "Toolbar: Project",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-activities",
+          "text": "Toolbar: Activities",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-wbs",
+          "text": "Toolbar: WBS",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-gantt",
+          "text": "Toolbar: Gantt / Charts",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-resources",
+          "text": "Toolbar: Resources",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-reports",
+          "text": "Toolbar: Reports",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.toolbar-tools",
+          "text": "Toolbar: Tools",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.theme-classic",
+          "text": "CUBI Classic — Version 26 Reference",
+          "disabled": false,
+          "checked": true,
+          "reason": null
+        },
+        {
+          "command": "view.theme-modern",
+          "text": "CUBI Modern 3D",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.theme-graphite",
+          "text": "CUBI Graphite",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.theme-arctic",
+          "text": "CUBI Arctic",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.theme-copper",
+          "text": "CUBI Copper",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "view.theme-midnight",
+          "text": "CUBI Midnight",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        },
+        {
+          "command": "project.close",
+          "text": "Close current window",
+          "disabled": false,
+          "checked": false,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Show on Top: Activity Table فقط جدول را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T04:34:33.824Z",
+      "topLayout": "table-only",
+      "rows": 14,
+      "gantt": false
+    },
+    {
+      "id": "04",
+      "name": "Show on Top: Activity Network شبکه واقعی فعالیت‌ها را از روابط ذخیره‌شده رسم می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T04:34:35.603Z",
+      "topLayout": "activity-network",
+      "nodes": 14,
+      "edges": 15
+    },
+    {
+      "id": "05",
+      "name": "بازگشت به جدول + گانت و انتخاب فعالیت متصل A130",
+      "status": "pass",
+      "at": "2026-11-10T04:34:38.234Z",
+      "topLayout": "table-gantt",
+      "selectedRow": "A130"
+    },
+    {
+      "id": "06",
+      "name": "Show on Bottom: Trace Logic زنجیرهٔ واقعی پیش‌نیاز و پس‌نیاز A130 را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T04:34:39.942Z",
+      "selected": "A130",
+      "depth": 2,
+      "predecessors": 2,
+      "successors": 6,
+      "rows": [
+        {
+          "id": "A120",
+          "level": "1",
+          "edge": "FS"
+        },
+        {
+          "id": "A110",
+          "level": "2",
+          "edge": "FS"
+        },
+        {
+          "id": "A140",
+          "level": "1",
+          "edge": "FS"
+        },
+        {
+          "id": "A150",
+          "level": "1",
+          "edge": "FS"
+        },
+        {
+          "id": "A145",
+          "level": "1",
+          "edge": "FS"
+        },
+        {
+          "id": "A155",
+          "level": "2",
+          "edge": "FS"
+        },
+        {
+          "id": "A160",
+          "level": "2",
+          "edge": "FS"
+        },
+        {
+          "id": "A170",
+          "level": "2",
+          "edge": "SS+5d"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "name": "تغییر عمق ردیابی، زنجیره را به سطح ۱ محدود می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T04:34:41.042Z",
+      "depth": 1,
+      "predecessors": 1,
+      "successors": 3,
+      "stored": "1"
+    },
+    {
+      "id": "08",
+      "name": "پرش از ردیف ردیابی، فعالیت مقصد را در جدول انتخاب می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T04:34:42.292Z",
+      "selectedRow": "A120",
+      "bottomSurface": "trace-logic"
+    },
+    {
+      "id": "09",
+      "name": "Show on Bottom: None ناحیهٔ پایین را می‌بندد و انتخاب را حفظ می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T04:34:44.190Z",
+      "bottomLayout": "none",
+      "collapsed": "true",
+      "selectedRow": "A120"
+    },
+    {
+      "id": "10",
+      "name": "چیدمان انتخابی پس از Refresh پایدار می‌ماند",
+      "status": "pass",
+      "at": "2026-11-10T04:34:49.776Z",
+      "before": {
+        "top": "table-only",
+        "bottom": "none"
+      },
+      "after": {
+        "top": "table-only",
+        "bottom": "none",
+        "collapsed": "true"
+      },
+      "storage": {
+        "cubi:workspace:top-layout:cubi-preview-tenant:preview-rps-01:schedule": "table-only",
+        "cubi:workspace:bottom-layout:cubi-preview-tenant:preview-rps-01:schedule": "none",
+        "cubi:workspace:trace-logic-depth": "1"
+      }
+    },
+    {
+      "id": "11",
+      "name": "بازگرداندن چیدمان پیش‌فرض و بررسی نهایی",
+      "status": "pass",
+      "at": "2026-11-10T04:34:53.172Z",
+      "top": "table-gantt",
+      "bottom": "details",
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0
+    }
+  ],
+  "screenshots": [
+    "01-default-table-gantt-details.png",
+    "02-view-menu-layout-and-trace.png",
+    "03-top-table-only.png",
+    "04-top-activity-network.png",
+    "05-activity-a130-selected.png",
+    "06-bottom-trace-logic-a130.png",
+    "07-trace-depth-1.png",
+    "08-trace-goto-a120.png",
+    "09-bottom-none.png",
+    "10-layout-persisted-after-reload.png",
+    "11-restored-default-layout.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-10T04:34:53.172Z"
+}

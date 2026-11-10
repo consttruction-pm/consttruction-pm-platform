@@ -34,7 +34,16 @@ import {
   type WorkspaceMenuKey,
   type WorkspaceState,
 } from "./workspace-model.js";
-import { invalidateWorkspaceRender, renderMainWorkspace } from "./workspace-view.js";
+import {
+  invalidateWorkspaceRender,
+  isWorkspaceTopLayoutAvailable,
+  isWorkspaceTraceLogicAvailable,
+  readWorkspaceBottomLayout,
+  readWorkspaceTopLayout,
+  renderMainWorkspace,
+  storeWorkspaceBottomLayout,
+  storeWorkspaceTopLayout,
+} from "./workspace-view.js";
 import { collapseAllWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
 import {
@@ -786,6 +795,11 @@ function renderApp(
   };
 
   const setDetailsVisible = (visible: boolean): void => {
+    if (visible && state.activeMenu === "schedule" && readWorkspaceBottomLayout(state) === "none") {
+      // Showing the pane again restores the Activity Details surface instead of
+      // leaving the "Show on Bottom: None" preference in force.
+      storeWorkspaceBottomLayout(state, "details");
+    }
     if (activeWorkspaceUserId) rememberWorkspaceDetailsVisible(state, activeWorkspaceUserId, visible);
     renderApp(
       container,
@@ -1130,6 +1144,27 @@ function renderApp(
       case "view.toggle-details":
         setDetailsVisible(!state.visiblePanels.details);
         return;
+      case "view.top-table":
+      case "view.top-table-gantt":
+      case "view.top-network": {
+        const layout = command === "view.top-table" ? "table-only" : command === "view.top-network" ? "activity-network" : "table-gantt";
+        if (state.activeMenu !== "schedule" || !isWorkspaceTopLayoutAvailable(layout, state)) return;
+        storeWorkspaceTopLayout(state, layout);
+        renderApp(container, state, persistence);
+        return;
+      }
+      case "view.bottom-details":
+      case "view.bottom-trace":
+      case "view.bottom-none": {
+        const layout = command === "view.bottom-details" ? "details" : command === "view.bottom-trace" ? "trace-logic" : "none";
+        if (state.activeMenu !== "schedule") return;
+        if (layout === "trace-logic" && !isWorkspaceTraceLogicAvailable(state)) return;
+        storeWorkspaceBottomLayout(state, layout);
+        const reveal = layout !== "none" && !state.visiblePanels.details;
+        if (reveal && activeWorkspaceUserId) rememberWorkspaceDetailsVisible(state, activeWorkspaceUserId, true);
+        renderApp(container, reveal ? { ...state, visiblePanels: { ...state.visiblePanels, details: true } } : state, persistence);
+        return;
+      }
       case "view.theme-classic":
         setTheme("classic");
         return;
@@ -1313,6 +1348,7 @@ function renderApp(
         canRedoLayout: Boolean(historyView?.canRedo),
         hasWbs: state.wbsNodes.length > 0,
         hasSelectedActivity: Boolean(state.selectedActivityId),
+        hasRelationships: state.relationships.length > 0,
         hasMultipleWindows: getOpenWindows().length > 1,
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         hasLayout: Boolean(state.p6Layout),
@@ -1329,7 +1365,9 @@ function renderApp(
       sortDirection: state.activitySort?.direction ?? "asc",
       sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
-      detailsVisible: state.visiblePanels.details,
+      detailsVisible: state.visiblePanels.details && !(state.activeMenu === "schedule" && readWorkspaceBottomLayout(state) === "none"),
+      activityTopLayout: state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : undefined,
+      activityBottomLayout: state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : undefined,
       theme: activeWorkspaceTheme,
       dataAvailability: presentationDataAvailability(state.activities),
       dataDate: chromeProject.dataDate === "—" ? null : chromeProject.dataDate,
@@ -1577,6 +1615,25 @@ function renderApp(
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     dataDate: projectDataDate,
+    // The interactive Details surface may only replace the pane while it is
+    // actually showing Details; Trace Logic and a hidden pane are untouched.
+    enhanceActivityDetails: (host, detailsState) => {
+      if (detailsState.activeMenu !== "schedule" || readWorkspaceBottomLayout(detailsState) !== "details") return;
+      enhanceActivityDetails(
+        host,
+        {
+          locale: detailsState.locale,
+          activities: detailsState.activities,
+          selectedActivityId: detailsState.selectedActivityId,
+          relationships: detailsState.relationships,
+          projectName: detailsState.context.project_id,
+          dataDate: "—",
+          calendarMode: detailsState.calendarMode,
+          state: detailsState,
+        },
+        (activityId) => renderApp(container, selectActivity(detailsState, activityId), persistence),
+      );
+    },
     onGanttCommand: (command) => openDesktopDialog(desktopHost, command),
     onActivityContextCommand: (command) => {
       switch (command) {
@@ -2138,26 +2195,6 @@ function renderApp(
         renderApp(container, { ...nextState, activeMenu: "progress" }, persistence);
       },
     });
-  }
-
-  // The bottom details pane is a real tabbed surface, not a placeholder. It
-  // reads the selected row and the same relationships the Gantt draws.
-  const detailsHost = workspace.querySelector<HTMLElement>("#cp-details");
-  if (detailsHost) {
-    enhanceActivityDetails(
-      detailsHost,
-      {
-        locale: state.locale,
-        activities: state.activities,
-        selectedActivityId: state.selectedActivityId,
-        relationships: state.relationships,
-        projectName: state.context.project_id,
-        dataDate: "—",
-        calendarMode: state.calendarMode,
-        state,
-      },
-      (activityId) => renderApp(container, selectActivity(state, activityId), persistence),
-    );
   }
 
   // Comments are scoped to the item currently selected in the workspace: an

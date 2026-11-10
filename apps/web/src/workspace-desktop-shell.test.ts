@@ -21,6 +21,7 @@ const capable: DesktopShellCapabilities = {
   canRedoLayout: true,
   hasWbs: true,
   hasSelectedActivity: true,
+  hasRelationships: true,
   hasMultipleWindows: true,
   canOpenFieldChooser: true,
   hasLayout: true,
@@ -539,4 +540,36 @@ test("menu triggers expose their Alt access key and separators render as separat
     assert.match(html, new RegExp(`aria-keyshortcuts="Alt\\+${key.toUpperCase()}"`));
   }
   assert.match(html, /class="cp-menubar-separator" role="separator"/);
+});
+
+test("View menu exposes the Activities Show on Top and Show on Bottom layouts", () => {
+  const view = getDesktopMenus({
+    ...shellState(),
+    activityTopLayout: "activity-network",
+    activityBottomLayout: "trace-logic",
+  }).find((menu) => menu.id === "view");
+  assert.ok(view);
+  const item = (id: string) => view.items.find((entry) => entry.id === id);
+  for (const id of ["view.top-table", "view.top-table-gantt", "view.top-network", "view.bottom-details", "view.bottom-trace", "view.bottom-none"]) {
+    assert.ok(item(id), `missing ${id}`);
+  }
+  assert.equal(item("view.top-network")?.checked, true);
+  assert.equal(item("view.top-table-gantt")?.checked, false);
+  assert.equal(item("view.bottom-trace")?.checked, true);
+  assert.equal(item("view.bottom-details")?.checked, false);
+  assert.equal(item("view.top-network")?.disabledReason, undefined);
+  assert.equal(item("view.bottom-trace")?.disabledReason, undefined);
+});
+
+test("logic layouts explain why they are unavailable instead of pretending to work", () => {
+  const view = getDesktopMenus({ ...shellState({ hasRelationships: false }) }).find((menu) => menu.id === "view");
+  assert.ok(view);
+  assert.match(view.items.find((item) => item.id === "view.top-network")?.disabledReason?.en ?? "", /no persisted relationships/i);
+  assert.match(view.items.find((item) => item.id === "view.bottom-trace")?.disabledReason?.en ?? "", /no persisted relationships/i);
+  const noSelection = getDesktopMenus({ ...shellState({ hasSelectedActivity: false }) }).find((menu) => menu.id === "view");
+  assert.match(noSelection?.items.find((item) => item.id === "view.bottom-trace")?.disabledReason?.en ?? "", /Select an activity/i);
+  const otherWindow = getDesktopMenus({ ...shellState(), activeWindow: "project" }).find((menu) => menu.id === "view");
+  for (const id of ["view.top-table", "view.top-table-gantt", "view.top-network", "view.bottom-details", "view.bottom-trace", "view.bottom-none"]) {
+    assert.match(otherWindow?.items.find((item) => item.id === id)?.disabledReason?.en ?? "", /Activities window/i);
+  }
 });

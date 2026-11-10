@@ -52,6 +52,12 @@ export type DesktopCommand =
   | "view.toggle-wbs"
   | "view.toggle-gantt"
   | "view.toggle-details"
+  | "view.top-table"
+  | "view.top-table-gantt"
+  | "view.top-network"
+  | "view.bottom-details"
+  | "view.bottom-trace"
+  | "view.bottom-none"
   | "view.theme-classic"
   | "view.theme-modern"
   | "view.theme-graphite"
@@ -79,6 +85,8 @@ export type DesktopShellCapabilities = {
   canRedoLayout: boolean;
   hasWbs: boolean;
   hasSelectedActivity: boolean;
+  /** At least one persisted relationship is loaded, so logic views can draw. */
+  hasRelationships: boolean;
   hasMultipleWindows: boolean;
   canOpenFieldChooser: boolean;
   hasLayout: boolean;
@@ -146,6 +154,10 @@ export type DesktopShellState = {
   presentation?: WorkspacePresentation;
   /** Bottom Details pane visibility; drives the View command label and state. */
   detailsVisible?: boolean;
+  /** Activities window: which view owns the top half. */
+  activityTopLayout?: "table-only" | "table-gantt" | "activity-network";
+  /** Activities window: which view owns the bottom half. */
+  activityBottomLayout?: "details" | "trace-logic" | "none";
   /** Active workspace skin token set. */
   theme?: WorkspaceTheme;
   dataAvailability?: { actual: boolean; baseline: boolean };
@@ -210,6 +222,8 @@ const REASONS = {
   noWbs: { en: "Create a WBS element before adding activities", fa: "پیش از افزودن فعالیت، یک عنصر WBS بسازید" },
   noWbsGroup: { en: "Group the activity table by WBS to use hierarchy commands", fa: "برای فرمان‌های سلسله‌مراتب، جدول فعالیت را بر اساس WBS گروه‌بندی کنید" },
   noSelection: { en: "Select an activity in the grid first", fa: "ابتدا یک فعالیت را در جدول انتخاب کنید" },
+  noRelationships: { en: "This project has no persisted relationships to draw", fa: "این پروژه رابطهٔ ذخیره‌شده‌ای برای ترسیم ندارد" },
+  activitiesWindow: { en: "Switch to the Activities window to change its layout", fa: "برای تغییر چیدمان، به پنجرهٔ فعالیت‌ها بروید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
   noLayout: { en: "This project has no saved layout to write", fa: "این پروژه چیدمان ذخیره‌شده‌ای برای نوشتن ندارد" },
   clipboard: { en: "The activity clipboard is not connected to this workspace yet", fa: "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است" },
@@ -236,6 +250,9 @@ const REASONS = {
 export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
   const { capabilities: caps, locale } = state;
   const presentation = state.presentation ?? DEFAULT_PRESENTATION;
+  // Show on Top / Show on Bottom only address the Activities window layout.
+  const layoutScopeOk = state.activeWindow === "schedule";
+  const layoutScopeReason = layoutScopeOk ? undefined : unavailable(REASONS.activitiesWindow, locale);
   const windowItem = (key: WorkspaceMenuKey, shortcut?: string): DesktopMenuItem => ({
     id: `window.${key}`,
     label: WINDOW_TITLES[key],
@@ -352,6 +369,51 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
             : { en: "Hide Details", fa: "پنهان کردن جزئیات" },
           command: "view.toggle-details",
           checked: state.detailsVisible !== false,
+        },
+        separator("view.sep-layouts"),
+        {
+          id: "view.top-table",
+          label: { en: "Show on Top: Activity Table", fa: "نمایش در بالا: جدول فعالیت‌ها" },
+          command: "view.top-table",
+          checked: state.activityTopLayout === "table-only",
+          disabledReason: layoutScopeOk ? undefined : layoutScopeReason,
+        },
+        {
+          id: "view.top-table-gantt",
+          label: { en: "Show on Top: Table + Gantt Chart", fa: "نمایش در بالا: جدول + نمودار گانت" },
+          command: "view.top-table-gantt",
+          checked: (state.activityTopLayout ?? "table-gantt") === "table-gantt",
+          disabledReason: layoutScopeOk ? undefined : layoutScopeReason,
+        },
+        {
+          id: "view.top-network",
+          label: { en: "Show on Top: Activity Network", fa: "نمایش در بالا: شبکهٔ فعالیت‌ها" },
+          command: "view.top-network",
+          checked: state.activityTopLayout === "activity-network",
+          disabledReason: !layoutScopeOk ? layoutScopeReason : caps.hasRelationships ? undefined : unavailable(REASONS.noRelationships, locale),
+        },
+        {
+          id: "view.bottom-details",
+          label: { en: "Show on Bottom: Activity Details", fa: "نمایش در پایین: جزئیات فعالیت" },
+          command: "view.bottom-details",
+          checked: (state.activityBottomLayout ?? "details") === "details",
+          disabledReason: layoutScopeOk ? undefined : layoutScopeReason,
+        },
+        {
+          id: "view.bottom-trace",
+          label: { en: "Show on Bottom: Trace Logic", fa: "نمایش در پایین: ردیابی منطق" },
+          command: "view.bottom-trace",
+          checked: state.activityBottomLayout === "trace-logic",
+          disabledReason: !layoutScopeOk
+            ? layoutScopeReason
+            : caps.hasSelectedActivity && caps.hasRelationships ? undefined : unavailable(caps.hasSelectedActivity ? REASONS.noRelationships : REASONS.noSelection, locale),
+        },
+        {
+          id: "view.bottom-none",
+          label: { en: "Show on Bottom: None", fa: "نمایش در پایین: بدون نما" },
+          command: "view.bottom-none",
+          checked: state.activityBottomLayout === "none",
+          disabledReason: layoutScopeOk ? undefined : layoutScopeReason,
         },
         separator("view.sep2"),
         { id: "view.calendar", label: { en: "Switch calendar display", fa: "تغییر تقویم نمایش" }, command: "admin.calendar" },

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderMainWorkspace, workspaceMenuItems } from "./workspace-view.js";
+import { isWorkspaceTopLayoutAvailable, isWorkspaceTraceLogicAvailable, readWorkspaceBottomLayout, renderMainWorkspace, workspaceMenuItems } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
@@ -2262,4 +2262,93 @@ test("right-click on an activity row selects it, prevents the browser menu and o
   } as unknown as Event);
   assert.equal(prevented, 1);
   assert.deepEqual(selected, ["A-1"]);
+});
+
+function layoutStorage(seed: Record<string, string> = {}): Storage {
+  const rows = new Map(Object.entries(seed));
+  return {
+    get length() { return rows.size; },
+    clear: () => rows.clear(),
+    getItem: (key: string) => rows.get(key) ?? null,
+    key: (index: number) => Array.from(rows.keys())[index] ?? null,
+    removeItem: (key: string) => { rows.delete(key); },
+    setItem: (key: string, value: string) => { rows.set(key, String(value)); },
+  };
+}
+
+test("Activities layout helpers only offer views backed by persisted data", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  assert.equal(isWorkspaceTopLayoutAvailable("table-only", base), true);
+  assert.equal(isWorkspaceTopLayoutAvailable("table-gantt", base), true);
+  assert.equal(isWorkspaceTopLayoutAvailable("activity-network", base), false);
+  assert.equal(isWorkspaceTraceLogicAvailable(base), false);
+  const rows = withActivities(base, [
+    { id: "A", wbsId: "W1", code: "A", name: "A" },
+    { id: "B", wbsId: "W1", code: "B", name: "B" },
+  ]);
+  assert.equal(isWorkspaceTopLayoutAvailable("activity-network", rows), false);
+  const linked = withRelationships(rows, [
+    { id: "r1", predecessorId: "A", successorId: "B", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ]);
+  assert.equal(isWorkspaceTopLayoutAvailable("activity-network", linked), true);
+  assert.equal(isWorkspaceTraceLogicAvailable(linked), false);
+  assert.equal(isWorkspaceTraceLogicAvailable({ ...linked, selectedActivityId: "A" }), true);
+});
+
+test("Activities renders the table-only top layout and the Trace Logic bottom surface", () => {
+  const state = {
+    ...withRelationships(
+      withActivities(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [
+        { id: "A", wbsId: "W1", code: "A", name: "Kickoff" },
+        { id: "B", wbsId: "W1", code: "B", name: "Design" },
+      ]),
+      [{ id: "r1", predecessorId: "A", successorId: "B", type: "FS", lagValue: "2", lagUnit: "working-day", recordRevision: 1 }],
+    ),
+    selectedActivityId: "B",
+  };
+  const storage = layoutStorage({
+    "cubi:workspace:top-layout:tenant-1:project-1:schedule": "table-only",
+    "cubi:workspace:bottom-layout:tenant-1:project-1:schedule": "trace-logic",
+  });
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { value: { localStorage: storage }, configurable: true });
+  try {
+    assert.equal(readWorkspaceBottomLayout(state), "trace-logic");
+    const enhanced: HTMLElement[] = [];
+    const details = { id: "cp-details", innerHTML: "" };
+    const container: RenderContainer & { querySelector: (selector: string) => unknown } = {
+      innerHTML: "",
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => (selector === "#cp-details" ? details : null),
+    };
+    renderMainWorkspace(container as unknown as HTMLElement, state, {
+      enhanceActivityDetails: (host: HTMLElement) => { enhanced.push(host); },
+    });
+    const html = container.innerHTML;
+    assert.match(html, /data-top-layout="table-only"/);
+    assert.doesNotMatch(html, /id="cp-gantt"/);
+    assert.doesNotMatch(html, /data-panel-splitter/);
+    assert.match(html, /data-bottom-surface="trace-logic"/);
+    assert.match(html, /data-trace-logic/);
+    assert.match(html, /data-trace-goto="A"/);
+    assert.match(html, /aria-labelledby="cp-trace-heading"/);
+    // The interactive Activity Details must never replace Trace Logic.
+    assert.equal(enhanced.length, 0);
+
+    storage.setItem("cubi:workspace:bottom-layout:tenant-1:project-1:schedule", "details");
+    const detailsContainer: RenderContainer & { querySelector: (selector: string) => unknown } = {
+      innerHTML: "",
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => (selector === "#cp-details" ? details : null),
+    };
+    renderMainWorkspace(detailsContainer as unknown as HTMLElement, state, {
+      enhanceActivityDetails: (host: HTMLElement) => { enhanced.push(host); },
+    });
+    assert.equal(readWorkspaceBottomLayout(state), "details");
+    assert.equal(enhanced.length, 1);
+    assert.equal(enhanced[0], details as unknown as HTMLElement);
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });

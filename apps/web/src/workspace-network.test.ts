@@ -123,7 +123,7 @@ test("layout options enable the network only with persisted logic and the choice
 
     const container: Container = { innerHTML: "", querySelectorAll: () => [] };
     renderMainWorkspace(container as unknown as HTMLElement, state);
-    assert.match(container.innerHTML, /<select data-top-layout><option value="table-gantt"[^\n]*?<option value="activity-network">/);
+    assert.match(container.innerHTML, /<select data-top-layout><option value="table-only">Activity Table<\/option><option value="table-gantt" selected>[^\n]*?<option value="activity-network">/);
     assert.match(container.innerHTML, /id="cp-activity-grid"/);
 
     const key = "cubi:workspace:top-layout:tenant-1:project-1:schedule";
@@ -142,7 +142,7 @@ test("layout options enable the network only with persisted logic and the choice
     bare = withActivities(bare, [activity("A", "Kickoff")]);
     renderMainWorkspace(container as unknown as HTMLElement, bare);
     assert.match(container.innerHTML, /id="cp-activity-grid"/);
-    assert.match(container.innerHTML, /<select data-top-layout><option value="table-gantt"[^\n]*?<option value="activity-network" disabled>/);
+    assert.match(container.innerHTML, /<select data-top-layout><option value="table-only">Activity Table<\/option><option value="table-gantt" selected>[^\n]*?<option value="activity-network" disabled>/);
     assert.match(container.innerHTML, /instead of drawing placeholder nodes/);
   } finally {
     if (previousWindow === undefined) delete (globalThis as { window?: unknown }).window;
