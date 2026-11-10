@@ -7,6 +7,7 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 import { normalizePresentation } from "./workspace-presentation.js";
+import type { ProjectSummary } from "./session-api.js";
 import { setCollapsedWbsIds } from "./workspace-wbs-display.js";
 
 type RenderContainer = {
@@ -2351,4 +2352,104 @@ test("Activities renders the table-only top layout and the Trace Logic bottom su
     if (previous) Object.defineProperty(globalThis, "window", previous);
     else Reflect.deleteProperty(globalThis, "window");
   }
+});
+
+test("Projects window lists exactly the session projects and marks the open one", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const summary: ProjectSummary = {
+    project_id: "p-1",
+    tenant_id: "tenant-1",
+    name: "Metro Line",
+    revision: 3,
+    start_date: "2026-01-05",
+    date_system: "jalali",
+    primary_calendar_id: "CAL-7",
+    settings_revision: 4,
+  };
+  const listed: ProjectSummary[] = [
+    { project_id: "p-1", tenant_id: "tenant-1", name: "Stale name", revision: 1 },
+    { project_id: "p-2", tenant_id: "tenant-1", name: "Depot", revision: 2, date_system: "gregorian" },
+  ];
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { projectSummary: summary, projects: listed });
+  const html = container.innerHTML;
+  assert.match(html, /data-project-row="p-1" aria-current="true"/);
+  assert.match(html, /data-project-row="p-2"/);
+  assert.match(html, /Metro Line/);
+  assert.doesNotMatch(html, /Stale name/);
+  assert.match(html, /data-project-open="p-2"/);
+  assert.doesNotMatch(html, /data-project-open="p-1"/);
+  assert.match(html, /cp-project-current/);
+  assert.match(html, /CAL-7/);
+  assert.doesNotMatch(html, /data-project-metadata-pending/);
+});
+
+test("Projects window states when the authoritative project record is still unread", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    projects: [{ project_id: "p-1", tenant_id: "tenant-1", name: "Metro Line", revision: 3 }],
+  });
+  assert.match(container.innerHTML, /data-project-metadata-pending="true"/);
+  assert.match(container.innerHTML, /The authoritative project record has not been read yet/);
+  assert.match(
+    container.innerHTML,
+    /<div class="cp-project" data-project-id="p-1" title="p-1">Metro Line<\/div>/,
+  );
+  assert.match(container.innerHTML, /data-project-row="p-1" aria-current="true"/);
+  assert.match(container.innerHTML, /cp-project-current/);
+  assert.doesNotMatch(container.innerHTML, /data-project-open="p-1"/);
+});
+
+test("Project Details tabs read the authoritative project summary instead of placeholders", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const summary: ProjectSummary = {
+    project_id: "p-1",
+    tenant_id: "tenant-1",
+    name: "Metro Line",
+    revision: 3,
+    description: "Phase 2 civil works",
+    start_date: "2026-01-05",
+    date_system: "jalali",
+    primary_calendar_id: "CAL-7",
+    settings_revision: 4,
+  };
+  const withSummary = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(withSummary as unknown as HTMLElement, state, { projectSummary: summary });
+  const html = withSummary.innerHTML;
+  assert.match(html, /Project Details/);
+  assert.match(
+    html,
+    /<div class="cp-project" data-project-id="p-1" title="p-1">Metro Line<\/div>/,
+  );
+  assert.match(html, /Edit Project/);
+  assert.match(html, /Phase 2 civil works/);
+  assert.match(html, /2026-01-05/);
+  assert.match(html, /Jalali/);
+  assert.match(html, /CAL-7/);
+  assert.match(html, /R4/);
+  assert.match(html, /data-project-detail-tab="general" aria-selected="true"/);
+  assert.doesNotMatch(html, /The authoritative project record has not been read yet/);
+
+  const unread = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(unread as unknown as HTMLElement, state);
+  assert.match(unread.innerHTML, /The authoritative project record has not been read yet/);
+  assert.doesNotMatch(unread.innerHTML, />R0</);
+});
+
+test("opening another project from the table dispatches exactly one switch request", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const opened: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onProjectOpen: (projectId) => opened.push(projectId) });
+  const other = { dataset: { projectOpen: "p-2" }, closest: () => other };
+  listeners.get("click")?.({ target: other } as unknown as Event);
+  const current = { dataset: { projectOpen: "p-1" }, closest: () => current };
+  listeners.get("click")?.({ target: current } as unknown as Event);
+  assert.deepEqual(opened, ["p-2"]);
 });

@@ -6829,6 +6829,25 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6-workspace[data-active-menu="project"] .cp-project-wbs-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cp-p6-workspace[data-active-menu="project"] .cp-project-wbs-row small { color: #7b8795; }
 .cp-p6-workspace[data-active-menu="project"] .cp-project-window-note { margin: 7px 0 0 !important; color: #667085; font-size: 9px; }
+.cp-p6-workspace[data-active-menu="project"] .cp-project-table-wrap { max-height: 260px; overflow: auto; }
+.cp-p6-workspace[data-active-menu="project"] .cp-project-table tbody tr[aria-current="true"] { background: #eef5ff; }
+.cp-p6-workspace[data-active-menu="project"] .cp-project-table tbody td code {
+  color: #123a6b; font-size: 10px; font-weight: 700;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-current {
+  display: inline-block; padding: 1px 7px; border-radius: 8px;
+  background: #123a6b; color: #fff; font-size: 9px; font-weight: 700;
+}
+.cp-p6-workspace[data-active-menu="project"] button[data-project-open] {
+  padding: 2px 8px; border: 1px solid #b9c9db; border-radius: 3px;
+  background: #f6f9fc; color: #123a6b; font: inherit; font-size: 9px;
+  font-weight: 700; cursor: pointer;
+}
+.cp-p6-workspace[data-active-menu="project"] button[data-project-open]:hover,
+.cp-p6-workspace[data-active-menu="project"] button[data-project-open]:focus-visible {
+  border-color: #123a6b; background: #e8f0fb;
+}
+.cp-activity-detail-note { margin: 6px 0 0; color: #667085; font-size: 9px; line-height: 1.5; }
 @media (max-width: 900px) {
   .cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview { grid-template-columns: minmax(0, 1fr); }
 }

@@ -210,6 +210,36 @@ test("project creation hydrates the authoritative created context without a seco
   });
 });
 
+test("a created project enters the openable list before the workspace renders", async () => {
+  let created = false;
+  const setup = deps({
+    listProjects: async () => ok({
+      projects: created
+        ? [projects[0], { project_id: "new-project", tenant_id: "t-created", name: "New Project", revision: 0 }]
+        : [projects[0]],
+    }),
+    createProject: async () => {
+      created = true;
+      return ok({
+        context: {
+          tenant_id: "t-created",
+          project_id: "new-project",
+          revision: 0,
+          user_id: "u1",
+        },
+      });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  await bootstrap.createProject("new-project", "New Project");
+
+  assert.deepEqual(
+    bootstrap.openableProjects().map((project) => project.name),
+    [projects[0].name, "New Project"],
+  );
+});
+
 test("project creation failure is surfaced without workspace hydration", async () => {
   const setup = deps({ createProject: async () => error("PROJECT_CREATE_FAILED") });
   const bootstrap = new ProjectBootstrap(setup.dependencies);
@@ -416,4 +446,17 @@ test("metadata load and save delegate to the session API without caching", async
   assert.equal(result.ok ? result.data.project.revision : 0, 4);
   assert.deepEqual(saved[0]?.revision, 3);
   assert.equal(saved[0]?.metadata && (saved[0].metadata as { name: string }).name, "P renamed");
+});
+
+test("the Projects window can only offer projects the session service returned", async () => {
+  const setup = deps({ listProjects: async () => ok({ projects }) });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  assert.deepEqual(bootstrap.openableProjects(), []);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "selecting");
+  assert.deepEqual(bootstrap.openableProjects(), projects);
+  assert.ok(bootstrap.openableProjects().every((project) => projects.some((listed) => listed.project_id === project.project_id)));
 });

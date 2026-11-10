@@ -1,5 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
+import type { ProjectSummary } from "./session-api.js";
 import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
@@ -671,7 +672,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -838,6 +839,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
+    if (target.dataset.projectOpen !== undefined) {
+      const projectId = target.dataset.projectOpen;
+      if (projectId && projectId !== state.context.project_id) options.onProjectOpen?.(projectId);
+      return;
+    }
     if (target.dataset.resetTableSplit !== undefined) { resetTableSplit(container); return; }
     if (target.dataset.resetDetailsSplit !== undefined) { resetDetailsSplit(container); return; }
     if (target.dataset.resetColumnWidths !== undefined) { resetColumnWidths(container); return; }
@@ -1803,11 +1809,11 @@ function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState):
  * swap the Activity Details for Trace Logic or hide the pane entirely; every
  * other window keeps its own details panel.
  */
-function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement): string {
+function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement, options: WorkspaceRendererOptions = {}): string {
   const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   return layout === "trace-logic"
     ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
-    : renderWindowDetailsPanel(state, t, container);
+    : renderWindowDetailsPanel(state, t, container, options);
 }
 
 /**
@@ -1826,7 +1832,7 @@ function renderBottomSurface(container: HTMLElement, state: WorkspaceState, opti
   aside.hidden = !visible;
   aside.dataset.bottomSurface = layout;
   aside.setAttribute("aria-labelledby", layout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading");
-  aside.innerHTML = renderBottomPaneContent(state, getWorkspaceLabels(state.locale), container);
+  aside.innerHTML = renderBottomPaneContent(state, getWorkspaceLabels(state.locale), container, options);
   if (layout === "details") options.enhanceActivityDetails?.(aside, state);
   container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]")?.close();
   workspaceRenderRecords.set(container, { state, options });
@@ -1860,7 +1866,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
     const details = container.querySelector<HTMLElement>("#cp-details");
     if (details) {
-      details.innerHTML = renderBottomPaneContent(next, labels, container);
+      details.innerHTML = renderBottomPaneContent(next, labels, container, options);
       options.enhanceActivityDetails?.(details, next);
     }
     return true;
@@ -1888,7 +1894,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = getWorkspaceLabels(next.locale);
-    details.innerHTML = renderBottomPaneContent(next, t, container);
+    details.innerHTML = renderBottomPaneContent(next, t, container, options);
     options.enhanceActivityDetails?.(details, next);
   }
   return true;
@@ -1931,6 +1937,12 @@ export type WorkspaceRendererOptions = {
   onGanttRelationshipsChange?: (visible: boolean) => void;
   onGanttCommand?: (command: "bars" | "font-row" | "user-preferences") => void;
   onProjectSettings?: () => void;
+  /** Authoritative metadata row of the open project, when the server returned it. */
+  projectSummary?: ProjectSummary | null;
+  /** Projects the session may open, exactly as the session service listed them. */
+  projects?: readonly ProjectSummary[];
+  /** Switches the open project from the Projects window. */
+  onProjectOpen?: (projectId: string) => void;
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
   /** Sets both the sort column and direction in one state transition. */
@@ -2109,13 +2121,20 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const topLayout: WorkspaceTopLayout = state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : "table-gantt";
   const bottomLayout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   const detailsVisible = state.visiblePanels.details && bottomLayout !== "none";
+  // The session list already carries the authoritative name, so the title bar
+  // keeps it on first paint instead of flashing the id until the record loads.
+  const headerProject =
+    options.projectSummary && options.projectSummary.project_id === state.context.project_id
+      ? options.projectSummary
+      : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
+  const headerProjectLabel = headerProject?.name || state.context.project_id;
 
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-table-row-mode="${tablePresentation.rowHeightMode}" data-show-icons="${tablePresentation.showIcons}" data-line-numbers="${lineNumbers}" style="${escapeAttribute(presentationVars)}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
-        <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
+        <div class="cp-project" data-project-id="${escapeAttribute(state.context.project_id)}" title="${escapeAttribute(state.context.project_id)}">${escapeHtml(headerProjectLabel)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
@@ -2204,7 +2223,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <div class="cp-details-splitter" data-details-splitter data-split-key="${escapeAttribute(detailsSplitKey)}" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity area and details", "تغییر اندازهٔ ناحیهٔ فعالیت و جزئیات"))}" aria-valuemin="${MIN_DETAILS_SPLIT}" aria-valuemax="${MAX_DETAILS_SPLIT}" aria-valuenow="${detailsSplit.toFixed(0)}" data-resize-handle="details"><span></span></div>
             <aside id="cp-details" class="cp-panel cp-details" ${detailsVisible ? "" : "hidden"} data-bottom-surface="${bottomLayout}" data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="${bottomLayout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading"}">${bottomLayout === "trace-logic"
                 ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
-                : renderWindowDetailsPanel(state, t, container)}</aside>
+                : renderWindowDetailsPanel(state, t, container, options)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
@@ -2379,33 +2398,43 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   let body = "";
   switch (state.activeMenu) {
     case "project": {
-      const projectRows = [
-        [uiText(state.locale, "Project ID", "شناسه پروژه"), state.context.project_id],
-        [uiText(state.locale, "Workspace revision", "ویرایش محیط کار"), `R${state.context.revision}`],
-        [uiText(state.locale, "WBS elements", "عناصر WBS"), String(state.wbsNodes.length)],
-        [uiText(state.locale, "Activities", "فعالیت‌ها"), String(state.activities.length)],
-        [uiText(state.locale, "Relationships", "روابط"), String(state.relationships.length)],
-        [uiText(state.locale, "Documents", "اسناد"), String(state.documents.length)],
-      ];
+      const currentId = state.context.project_id;
+      const summary = options.projectSummary ?? null;
+      const listed = options.projects ?? [];
+      // The session list is authoritative for which projects exist; the freshly
+      // read summary replaces the list's row for the open project so a renamed
+      // project never shows a stale name.
+      const rows: ProjectSummary[] = listed.map((row) => (row.project_id === currentId && summary ? summary : row));
+      if (summary && !rows.some((row) => row.project_id === currentId)) rows.unshift(summary);
+      const dateSystemLabel = (row: ProjectSummary): string => row.date_system === "jalali"
+        ? uiText(state.locale, "Jalali", "شمسی")
+        : row.date_system === "gregorian" ? uiText(state.locale, "Gregorian", "میلادی") : "—";
+      const tableRows = rows.length
+        ? rows.map((row) => {
+          const current = row.project_id === currentId;
+          return `<tr data-project-row="${escapeAttribute(row.project_id)}"${current ? ' aria-current="true"' : ""}><td><code>${escapeHtml(row.project_id)}</code></td><td>${escapeHtml(row.name || row.project_id)}</td><td>${escapeHtml(row.start_date || "—")}</td><td>${escapeHtml(dateSystemLabel(row))}</td><td>${escapeHtml(row.primary_calendar_id || "—")}</td><td>${current ? `<span class="cp-project-current">${escapeHtml(uiText(state.locale, "Open", "باز"))}</span>` : `<button type="button" data-project-open="${escapeAttribute(row.project_id)}">${escapeHtml(uiText(state.locale, "Open", "بازکردن"))}</button>`}</td></tr>`;
+        }).join("")
+        : `<tr><td colspan="6">${escapeHtml(uiText(state.locale, "The session service returned no projects.", "سرویس نشست هیچ پروژه‌ای برنگرداند."))}</td></tr>`;
       body = `
         <div class="cp-project-window-toolbar">
           ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
-          <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Current project · server-authorized session", "پروژه جاری · نشست تأییدشده توسط سرور"))}</span>
+          <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Session-authorized projects", "پروژه‌های مجاز نشست"))}</span>
         </div>
-        <div class="cp-project-window-overview">
-          <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Current project register", "دفتر ثبت پروژه جاری"))}">
-            <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Register", "دفتر ثبت پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Current session project", "پروژه نشست جاری"))}</span></div>
-            <table class="cp-project-register-table">
-              <thead><tr><th>${escapeHtml(uiText(state.locale, "Property", "مشخصه"))}</th><th>${escapeHtml(uiText(state.locale, "Current value", "مقدار فعلی"))}</th></tr></thead>
-              <tbody>${projectRows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</tbody>
+        <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Project Table", "جدول پروژه‌ها"))}">
+          <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه‌ها"))}</h3><span>${escapeHtml(uiText(state.locale, "Server project list", "فهرست پروژه‌های سرور"))}</span></div>
+          <div class="cp-project-table-wrap">
+            <table class="cp-project-register-table cp-project-table">
+              <thead><tr><th>${escapeHtml(uiText(state.locale, "Project ID", "شناسه پروژه"))}</th><th>${escapeHtml(uiText(state.locale, "Project Name", "نام پروژه"))}</th><th>${escapeHtml(uiText(state.locale, "Start Date", "تاریخ شروع"))}</th><th>${escapeHtml(uiText(state.locale, "Date System", "تقویم"))}</th><th>${escapeHtml(uiText(state.locale, "Primary Calendar", "تقویم اصلی"))}</th><th>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}</th></tr></thead>
+              <tbody>${tableRows}</tbody>
             </table>
-          </section>
-          <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
-            <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
-            ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
-          </section>
-        </div>
-        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
+          </div>
+        </section>
+        <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
+          <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
+          ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
+        </section>
+        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "The table lists exactly the projects the session service returned. Opening a project re-reads that project's workspace from the server; nothing outside the session's membership is invented.", "جدول دقیقاً همان پروژه‌هایی را فهرست می‌کند که سرویس نشست برگردانده است. بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند و هیچ پروژه‌ای بیرون از عضویت نشست ساخته نمی‌شود."))}</p>
+        ${summary ? "" : `<p class="cp-project-window-note" data-project-metadata-pending="true">${escapeHtml(uiText(state.locale, "The authoritative project record has not been read yet, so schedule fields stay blank instead of showing placeholder values.", "رکورد مرجع پروژه هنوز خوانده نشده است؛ بنابراین فیلدهای زمان‌بندی به‌جای نمایش مقدار جایگزین، خالی می‌مانند."))}</p>`}`;
       break;
     }
     case "wbs": {
@@ -4127,25 +4156,54 @@ const PROJECT_DETAIL_TABS = [
   ["udfs", "UDFs", "فیلدهای کاربر"],
 ] as const;
 
-function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement): string {
+function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement, options: WorkspaceRendererOptions = {}): string {
   if (state.activeMenu === "schedule") {
     return renderActivityDetailsPanel(state, t, activityDetailsTabByContainer.get(container) ?? "general", getActivityDetailsVisibleTabs(container));
   }
   if (state.activeMenu === "project") {
     const activeTab = projectDetailsTabByContainer.get(container) ?? "general";
+    const summary = options.projectSummary ?? null;
+    const field = (label: string, content: string): string =>
+      `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+    const dateSystemLabel = (row: ProjectSummary): string => row.date_system === "jalali"
+      ? uiText(state.locale, "Jalali", "شمسی")
+      : row.date_system === "gregorian" ? uiText(state.locale, "Gregorian", "میلادی") : "—";
+    const notRead = (): string => `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "The authoritative project record has not been read yet. Refresh the workspace to read it; no placeholder values are shown.", "رکورد مرجع پروژه هنوز خوانده نشده است. برای خواندن آن محیط کار را به‌روزرسانی کنید؛ هیچ مقدار جایگزینی نمایش داده نمی‌شود."))}</p>`;
     const projectContent = (tab: string): string => {
-      if (tab === "general") return `<div class="cp-activity-detail-fields">
-        <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Project ID", "شناسه پروژه"))}</span><strong>${escapeHtml(state.context.project_id)}</strong></div>
-        <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Workspace revision", "ویرایش محیط کار"))}</span><strong>R${state.context.revision}</strong></div>
-        <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "WBS elements", "عناصر ساختار شکست"))}</span><strong>${state.wbsNodes.length}</strong></div>
-        <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Activities", "فعالیت‌ها"))}</span><strong>${state.activities.length}</strong></div>
-        <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Relationships", "روابط"))}</span><strong>${state.relationships.length}</strong></div>
-      </div>`;
+      if (tab === "general") {
+        if (!summary) return notRead();
+        return `<div class="cp-activity-detail-fields">
+          ${field(uiText(state.locale, "Project Name", "نام پروژه"), summary.name || summary.project_id)}
+          ${field(uiText(state.locale, "Project ID", "شناسه پروژه"), summary.project_id)}
+          ${field(uiText(state.locale, "Description", "توضیحات"), summary.description?.trim() || "—")}
+          ${field(uiText(state.locale, "Start Date", "تاریخ شروع"), summary.start_date || "—")}
+          ${field(uiText(state.locale, "Date System", "تقویم"), dateSystemLabel(summary))}
+          ${field(uiText(state.locale, "Primary Calendar", "تقویم اصلی"), summary.primary_calendar_id || "—")}
+          ${field(uiText(state.locale, "Settings revision", "ویرایش تنظیمات"), `R${summary.settings_revision ?? 0}`)}
+        </div>`;
+      }
+      if (tab === "dates") {
+        if (!summary) return notRead();
+        return `<div class="cp-activity-detail-fields">
+          ${field(uiText(state.locale, "Planned Start", "شروع برنامه‌ای"), summary.start_date || "—")}
+          ${field(uiText(state.locale, "Date System", "تقویم"), dateSystemLabel(summary))}
+        </div>
+        <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Forecast, actual and finish dates are produced by the scheduling core from the activity data; this project record stores only the planned start.", "تاریخ‌های پیش‌بینی، واقعی و پایان توسط هستهٔ زمان‌بندی از داده‌های فعالیت تولید می‌شوند؛ این رکورد پروژه فقط شروع برنامه‌ای را ذخیره می‌کند."))}</p>`;
+      }
+      if (tab === "settings") {
+        if (!summary) return notRead();
+        return `<div class="cp-activity-detail-fields">
+          ${field(uiText(state.locale, "Date System", "تقویم"), dateSystemLabel(summary))}
+          ${field(uiText(state.locale, "Primary Calendar", "تقویم اصلی"), summary.primary_calendar_id || "—")}
+          ${field(uiText(state.locale, "Settings revision", "ویرایش تنظیمات"), `R${summary.settings_revision ?? 0}`)}
+        </div>
+        <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Fiscal year start, default price per unit and activity ID numbering are not stored on the project record this server exposes, so they are not shown as editable.", "شروع سال مالی، قیمت پیش‌فرض واحد و شماره‌گذاری شناسهٔ فعالیت در رکورد پروژه‌ای که این سرور ارائه می‌دهد ذخیره نمی‌شوند؛ بنابراین قابل ویرایش نمایش داده نمی‌شوند."))}</p>`;
+      }
       const tabInfo = PROJECT_DETAIL_TABS.find(([key]) => key === tab);
       return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "project"} detail fields are loaded for this project.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات پروژه"}» برای این پروژه بارگذاری نشده است.`))}</p>`;
     };
     return `<div class="cp-activity-details cp-project-details">
-      <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(uiText(state.locale, "Project Details", "جزئیات پروژه"))}</h2><span>${escapeHtml(state.context.project_id)}</span></div><small>${escapeHtml(uiText(state.locale, "Selected project", "پروژه انتخاب‌شده"))}</small></header>
+      <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(uiText(state.locale, "Project Details", "جزئیات پروژه"))}</h2><span>${escapeHtml(summary ? `${summary.name} — ${summary.project_id}` : state.context.project_id)}</span></div><div class="cp-activity-details-heading-actions"><small>${escapeHtml(uiText(state.locale, "Selected project", "پروژه انتخاب‌شده"))}</small><button type="button" data-project-settings>${escapeHtml(uiText(state.locale, "Edit Project", "ویرایش پروژه"))}</button></div></header>
       <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Project detail tabs", "زبانه‌های جزئیات پروژه"))}">
         ${PROJECT_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-project-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-project-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
       </nav>

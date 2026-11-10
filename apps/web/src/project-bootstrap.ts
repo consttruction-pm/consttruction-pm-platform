@@ -117,6 +117,11 @@ export class ProjectBootstrap {
     );
     if (!this.isCurrent(generation)) return null;
     if (!result.ok) return { status: "error", error: result.error };
+    // The Projects window and the title bar read this list, so the new project
+    // must be in it before the workspace renders, not after a page reload.
+    const listed = await this.dependencies.sessionApi.listProjects();
+    if (!this.isCurrent(generation)) return null;
+    if (listed.ok) this.projects = listed.data.projects;
     return this.hydrateProject(result.data.context, generation, locale);
   }
 
@@ -150,6 +155,11 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.updateProject(projectId, metadata, expectedRevision);
+  }
+
+  /** Projects the current session may open, exactly as the session service listed them. */
+  openableProjects(): readonly ProjectSummary[] {
+    return this.projects;
   }
 
   async selectProject(

@@ -2455,9 +2455,24 @@ async function main() {
       outcome: guideActionOutcome,
     });
 
+    const projectHeader = await page.evaluate(`(() => {
+      const header = document.querySelector(".cp-project");
+      return {
+        label: header?.textContent?.trim() ?? "",
+        project_id: header?.getAttribute("data-project-id") ?? null,
+        title: header?.getAttribute("title") ?? null,
+      };
+    })()`);
+    const projectHeaderRecord = await page.evaluate(
+      `fetch("/api/projects/${PROJECT_ID}").then((response) => response.ok ? response.json() : Promise.reject(new Error("PROJECT_READ_" + response.status)))`,
+      { awaitPromise: true },
+    );
     assert(
-      (await page.text(".cp-project"))?.includes(PROJECT_ID),
-      "workspace identifies the selected project",
+      projectHeader.project_id === PROJECT_ID &&
+        projectHeader.title === PROJECT_ID &&
+        projectHeader.label === projectHeaderRecord?.project?.name,
+      "workspace must identify the selected project by its authoritative name while keeping its id: " +
+        JSON.stringify({ header: projectHeader, name: projectHeaderRecord?.project?.name ?? null }),
     );
     assert(
       (await page.text(".cp-revision"))?.includes(`R${PROJECT_REVISION}`),
@@ -6859,6 +6874,7 @@ async function main() {
     const firstProject = await page.evaluate(`(() => ({
       url: window.location.href,
       project: document.querySelector(".cp-project")?.textContent?.trim() ?? "",
+      project_id: document.querySelector(".cp-project")?.getAttribute("data-project-id") ?? null,
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
       menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? "",
@@ -6963,11 +6979,18 @@ async function main() {
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
       project: document.querySelector(".cp-project")?.textContent?.trim() ?? "",
+      project_id: document.querySelector(".cp-project")?.getAttribute("data-project-id") ?? null,
       menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? "",
       selectionVisible: Boolean(document.querySelector(".cp-project-selection")),
     }))()`);
     assert(!afterFirstReload.selectionVisible, "refresh must not drop the user back to project selection");
     assert(afterFirstReload.project === firstProject.project, "refresh must reopen the same project");
+    assert(
+      firstProject.project_id &&
+        afterFirstReload.project_id === firstProject.project_id,
+      "refresh must reopen the same project identity: " +
+        JSON.stringify({ before: firstProject.project_id, after: afterFirstReload.project_id }),
+    );
     assert(afterFirstReload.url === urlBeforeReload, "refresh must keep the project deep link");
     assert(afterFirstReload.lang === "fa" && afterFirstReload.dir === "rtl", "refresh must keep the selected language");
     assert(afterFirstReload.menu === "control", "refresh must keep the active workspace menu");

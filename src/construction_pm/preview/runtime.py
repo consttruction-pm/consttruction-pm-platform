@@ -818,6 +818,9 @@ def seed_demo_project(
         wbs_by_activity=dict(fixture.wbs),
         demo=True,
         created_at=fixture.snapshot_clock,
+        start_date=fixture.project_start.isoformat(),
+        date_system=fixture.calendar_system.value,
+        primary_calendar_id=fixture.calendar_id,
     )
     store.add_members(PREVIEW_TENANT_ID, fixture.project_id, DEMO_PROJECT_MEMBER_USER_IDS)
 
