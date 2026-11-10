@@ -134,6 +134,9 @@ type LayoutHistoryState = {
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
 let currentWorkspaceState: WorkspaceState | null = null;
 let currentBootstrap: ProjectBootstrap | null = null;
+/** Authoritative metadata of the open project, read from the session service. */
+let activeProjectSummary: ProjectSummary | null = null;
+let activeProjectSummaryProjectId: string | null = null;
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Signed-in user for browser-local preferences that must not leak between profiles. */
@@ -522,6 +525,8 @@ function openProjectSettings(
     // Metadata edits use their own optimistic token; ``project.revision`` is
     // the workspace data revision that persisted rows are stamped with.
     loadedRevision = project.settings_revision ?? 0;
+    activeProjectSummary = project;
+    activeProjectSummaryProjectId = project.project_id;
     nameInput.value = project.name ?? "";
     descriptionInput.value = project.description ?? "";
     startDateInput.value = project.start_date ?? "";
@@ -1218,7 +1223,9 @@ function renderApp(
 
   const t = (en: string, persian: string): string => translateWorkspaceUiText(state.locale, en, persian);
   const chromeProject = {
-    name: state.context.project_id,
+    name: activeProjectSummary && activeProjectSummaryProjectId === state.context.project_id
+      ? activeProjectSummary.name || state.context.project_id
+      : state.context.project_id,
     dataDate: "—",
     baseline: "—",
     user: "—",
@@ -1615,6 +1622,16 @@ function renderApp(
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     dataDate: projectDataDate,
+    // The Projects window renders the session's own project list and the
+    // authoritative metadata row; both come from the server, never from a guess.
+    projects: currentBootstrap?.openableProjects() ?? [],
+    projectSummary: activeProjectSummary,
+    onProjectOpen: (projectId) => {
+      if (!currentBootstrap) return;
+      void currentBootstrap.selectProject(projectId, state.locale).then((next) => {
+        if (next) renderBootstrapState(container, next, currentBootstrap!, state.locale);
+      });
+    },
     // The interactive Details surface may only replace the pane while it is
     // actually showing Details; Trace Logic and a hidden pane are untouched.
     enhanceActivityDetails: (host, detailsState) => {
@@ -1626,7 +1643,9 @@ function renderApp(
           activities: detailsState.activities,
           selectedActivityId: detailsState.selectedActivityId,
           relationships: detailsState.relationships,
-          projectName: detailsState.context.project_id,
+          projectName: activeProjectSummary && activeProjectSummaryProjectId === detailsState.context.project_id
+            ? activeProjectSummary.name
+            : detailsState.context.project_id,
           dataDate: "—",
           calendarMode: detailsState.calendarMode,
           state: detailsState,
@@ -2267,6 +2286,25 @@ function renderApp(
   }
   syncWindowDirtyIndicator(container);
 }
+/**
+ * Reads the authoritative project row once per opened project. The Projects
+ * window and the title bar show its real name, start date and calendar; a
+ * failed read leaves them blank instead of inventing values.
+ */
+async function loadActiveProjectSummary(
+  container: HTMLElement,
+  bootstrap: ProjectBootstrap,
+  projectId: string,
+): Promise<void> {
+  const result = await bootstrap.loadProjectSummary(projectId);
+  if (!result.ok) return;
+  const current = currentWorkspaceState;
+  if (!current || current.context.project_id !== projectId) return;
+  activeProjectSummary = result.data.project;
+  activeProjectSummaryProjectId = projectId;
+  renderApp(container, current);
+}
+
 function renderBootstrapState(
   container: HTMLElement,
   state: ProjectBootstrapState,
@@ -2282,7 +2320,10 @@ function renderBootstrapState(
     activeWorkspaceUserId = state.userId;
     activeWorkspaceRoles = state.roles;
     rememberOpenedProject(state.userId, state.context.project_id);
+    if (activeProjectSummaryProjectId !== state.context.project_id) activeProjectSummary = null;
+    activeProjectSummaryProjectId = state.context.project_id;
     renderApp(container, applyRememberedMenu(state.workspace));
+    void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
     return;
   }
 

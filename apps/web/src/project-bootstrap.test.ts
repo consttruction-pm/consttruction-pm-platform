@@ -417,3 +417,16 @@ test("metadata load and save delegate to the session API without caching", async
   assert.deepEqual(saved[0]?.revision, 3);
   assert.equal(saved[0]?.metadata && (saved[0].metadata as { name: string }).name, "P renamed");
 });
+
+test("the Projects window can only offer projects the session service returned", async () => {
+  const setup = deps({ listProjects: async () => ok({ projects }) });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  assert.deepEqual(bootstrap.openableProjects(), []);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "selecting");
+  assert.deepEqual(bootstrap.openableProjects(), projects);
+  assert.ok(bootstrap.openableProjects().every((project) => projects.some((listed) => listed.project_id === project.project_id)));
+});

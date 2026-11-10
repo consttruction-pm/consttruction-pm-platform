@@ -1,0 +1,131 @@
+{
+  "contract": "cubi-projects-v26.v1",
+  "baseUrl": "http://127.0.0.1:4175",
+  "gitHead": "534b7f8a459b9aee96cec12d80435c1f675a759f",
+  "capturedAt": "2026-11-10T05:29:22.029Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Projects دقیقاً پروژه‌های مجاز نشست را از سرور نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T05:29:27.594Z",
+      "rows": [
+        {
+          "id": "preview-rps-01",
+          "name": "Riverside Pump Station Upgrade",
+          "current": true
+        },
+        {
+          "id": "preview-nse-02",
+          "name": "نوسازی سامانه شرقی",
+          "current": false
+        }
+      ],
+      "wbsRows": 7
+    },
+    {
+      "id": "02",
+      "name": "نوار عنوان و تب General جزئیات، رکورد مرجع پروژه را نشان می‌دهند",
+      "status": "pass",
+      "at": "2026-11-10T05:29:27.755Z",
+      "header": "Riverside Pump Station Upgrade",
+      "fields": [
+        {
+          "label": "Project Name",
+          "value": "Riverside Pump Station Upgrade"
+        },
+        {
+          "label": "Project ID",
+          "value": "preview-rps-01"
+        },
+        {
+          "label": "Description",
+          "value": "—"
+        },
+        {
+          "label": "Start Date",
+          "value": "2026-09-21"
+        },
+        {
+          "label": "Date System",
+          "value": "Gregorian"
+        },
+        {
+          "label": "Primary Calendar",
+          "value": "CUBI-RPS-CAL"
+        },
+        {
+          "label": "Settings revision",
+          "value": "R0"
+        },
+        {
+          "label": "Planned Start",
+          "value": "2026-09-21"
+        },
+        {
+          "label": "Date System",
+          "value": "Gregorian"
+        },
+        {
+          "label": "Date System",
+          "value": "Gregorian"
+        },
+        {
+          "label": "Primary Calendar",
+          "value": "CUBI-RPS-CAL"
+        },
+        {
+          "label": "Settings revision",
+          "value": "R0"
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "تب Dates تاریخ برنامه‌ای را نشان می‌دهد و تب Settings مرزهای واقعی رکورد را اعلام می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T05:29:28.666Z",
+      "dates": "Planned Start shown",
+      "settings": "honest boundary shown"
+    },
+    {
+      "id": "04",
+      "name": "Riverside Pump Station Upgrade",
+      "status": "pass",
+      "at": "2026-11-10T05:29:29.289Z",
+      "revision": "Configuration revision R0"
+    },
+    {
+      "id": "05",
+      "name": "بازکردن پروژهٔ دوم از جدول، محیط کار همان پروژه را از سرور دوباره می‌خواند",
+      "status": "pass",
+      "at": "2026-11-10T05:29:30.924Z",
+      "context": "preview-nse-02",
+      "header": "نوسازی سامانه شرقی",
+      "current": "preview-nse-02"
+    },
+    {
+      "id": "06",
+      "name": "بازگشت به پروژهٔ اول، رکورد و جدول قبلی را بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-10T05:29:32.394Z",
+      "context": "preview-rps-01",
+      "header": "Riverside Pump Station Upgrade",
+      "exceptions": 0,
+      "consoleErrors": 0
+    }
+  ],
+  "screenshots": [
+    "01-project-table-from-session.png",
+    "02-project-details-general.png",
+    "03-project-details-dates.png",
+    "04-project-details-settings.png",
+    "05-project-settings-dialog.png",
+    "06-switched-to-second-project.png",
+    "07-restored-first-project.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-10T05:29:32.394Z"
+}

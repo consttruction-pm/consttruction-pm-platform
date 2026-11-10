@@ -152,6 +152,11 @@ export class ProjectBootstrap {
     return this.dependencies.sessionApi.updateProject(projectId, metadata, expectedRevision);
   }
 
+  /** Projects the current session may open, exactly as the session service listed them. */
+  openableProjects(): readonly ProjectSummary[] {
+    return this.projects;
+  }
+
   async selectProject(
     projectId: string,
     locale: WorkspaceLocale = "en",

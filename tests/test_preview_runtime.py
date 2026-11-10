@@ -132,7 +132,7 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
     try:
         health = runtime.health()
         assert health["mode"] == "local-full-stack-preview"
-        assert health["seed_version"] == "cubi-preview-seed.v2"
+        assert health["seed_version"] == "cubi-preview-seed.v3"
         assert health["project_count"] == 2
         assert health["demo_project_count"] == 2
         assert health["activity_count"] == 20
@@ -143,6 +143,25 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
         )
         assert status == 200
         assert json.loads(body)["roles"] == ["planner"]
+
+        status, _, body = _request(
+            runtime.app, "GET", "/api/projects", cookie=session.session_id
+        )
+        assert status == 200
+        projects = {
+            project["project_id"]: project
+            for project in json.loads(body)["projects"]
+        }
+        assert set(projects) == {"preview-rps-01", "preview-nse-02"}
+        rps = projects["preview-rps-01"]
+        assert rps["name"] == "Riverside Pump Station Upgrade"
+        assert rps["start_date"] == "2026-09-21"
+        assert rps["date_system"] == "gregorian"
+        assert rps["primary_calendar_id"] == "CUBI-RPS-CAL"
+        nse = projects["preview-nse-02"]
+        assert nse["start_date"] == "2027-02-02"
+        assert nse["date_system"] == "jalali"
+        assert nse["primary_calendar_id"] == "CUBI-NSE-CAL"
 
         status, _, body = _request(
             runtime.app,
