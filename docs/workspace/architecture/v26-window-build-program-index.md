@@ -34,6 +34,7 @@ The catalog supplements, rather than silently replaces:
 - workspace-information-architecture.md
 - workspace-window-inventory.md
 - workspace-visual-reference-audit.md
+- [2026-11-10 window/icon/dialog parity audit](../../qa/CUBI_V26_WORKSPACE_WINDOW_ICON_DIALOG_AUDIT_2026-11-10.md)
 - oracle-p6-window-reference.md
 - oracle-p6-menu-reference.md
 - WEB_SURFACE_TRACEABILITY_MATRIX.md
