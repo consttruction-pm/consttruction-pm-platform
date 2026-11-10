@@ -4,7 +4,8 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `b241699b` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`).
+Branch: `main` @ `cb9cc002` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Stage C as `cb9cc002`).
 
 ---
 
@@ -158,3 +159,87 @@ layout survives a full reload.
 Stage C — Projects/WBS windows, followed by Resources/Calendars, Progress/Cost/Expenses,
 Documents/Reports/Tracking, Issues/Risks/Thresholds/Control/Administration, the six-skin
 integration pass, and the final full matrix. Stage C starts from `main` @ `b241699b`.
+
+---
+
+## Stage C — Projects window and Project Details
+
+Status: **merged**. Independent PR
+[#1740](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1740) squash-merged into
+`main` as `cb9cc002` on 2026-11-10 after all eight check-runs passed on head `941a532d`
+(test 3.11/3.12/3.13, typecheck apps/web, apps/mobile, apps/desktop, apps/client-sync, and web). The
+post-merge run on `cb9cc002` also concluded success (ConstructionPM CI, Web CI, Client Typecheck,
+PostgreSQL Sync State Integration, Deploy CUBI Web to GitHub Pages).
+
+### What shipped
+
+1. **Projects window table** built from the session service (`GET /api/projects`), not from a
+   fixture: one row per authorized project with id, name, planned start, date system and primary
+   calendar. The active project is marked `aria-current`; every other row carries a real **Open**
+   button that calls `ProjectBootstrap.selectProject`, which re-reads that project's workspace
+   from the server instead of reusing in-memory state. The same window keeps the real WBS tree
+   (7 rows in the Riverside project). A footer states that the list is exactly the session's
+   membership.
+2. **Authoritative Project Details**: the bottom surface becomes the project's own record
+   (`GET /api/projects/:id`) with General, Dates and Settings tabs, instead of the placeholder
+   "detail tabs are not implemented yet" panel. General shows name, id, description, planned
+   start, date system, primary calendar and settings revision; Dates shows the stored planned
+   start; Settings shows the stored date system, calendar and revision.
+3. **Revision-guarded Edit Project dialog**: the form is seeded from the loaded record and saves
+   name, description, planned start, date system and primary calendar with the revision it read.
+   A stale write returns `PROJECT_REVISION_CONFLICT`, which shows the conflict state and a
+   "reload latest" action instead of overwriting; a successful save adopts the new settings
+   revision and publishes the new project revision to the workspace context.
+4. **Stable title-bar identity**: the header keeps the project **id** in `data-project-id` and
+   `title` while displaying the authoritative **name**, resolved from the project record or, on
+   first paint, from the session's own project list — so the bar never flashes the id and then
+   swaps to the name.
+5. **Preview seed v3** persists `start_date`, `date_system` and `primary_calendar_id` for both
+   seeded projects (Gregorian Riverside, Jalali Eastern), with `ALTER TABLE` migrations so an older
+   preview database gains the columns instead of being recreated.
+6. **Two real regressions found by CI and fixed at the source, not in the assertions**:
+   - the E2E still expected the id inside `.cp-project` after the label became the name; the
+     header now exposes id and name separately and the check verifies both against
+     `/api/projects/:id` (a stronger assertion than the original);
+   - the asynchronous project-record read re-rendered the whole workspace when it resolved, which
+     could discard an editor the user had just opened and changed the header label after reload.
+     The read now re-renders only when a visible surface depends on it, preserving drafts, and
+     `createProject` refreshes the openable list before the workspace renders.
+
+### Honest limits (no fake capability)
+
+- The Dates tab shows only the planned start that the project record stores. Forecast, actual and
+  finish dates belong to the scheduling core and are stated as such rather than filled in.
+- Fiscal year start, default price per unit and activity ID numbering are not stored on the project
+  record this server exposes, so Settings shows that boundary instead of editable fields.
+- Opening another project re-reads the workspace from the server; there is no silent in-memory
+  swap, and no project data outside the session's membership is synthesized.
+- The Projects window does not offer project deletion or archival: no service backs it, so no
+  button implies it.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `npx tsc --noEmit` (apps/web) | clean |
+| Test build | `npx tsc -p tsconfig.test.json` | clean |
+| Unit/integration | `npm test` | 723 `tsx` tests + 14 `node --test` tests pass |
+| Full-stack browser E2E | `CUBI_PREVIEW_URL=… node e2e/preview-e2e.mjs` | 97 checks pass (51 screenshots) on `cb9cc002` |
+| Projects v26 scenarios | `CUBI_PREVIEW_URL=… node e2e/projects-v26.mjs` | 6/6 scenarios pass on `cb9cc002` |
+| Forms E2E | `node e2e/form-builder-e2e.mjs` | 14 checks pass |
+| Evidence bundle | `docs/workspace/evidence/projects-v26-2026-11-10/` | JSON report (`gitHead` = `cb9cc002`) + 7 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Build | `npm run build` | bundles written to `dist/web/src` |
+
+The browser run logs in as the Planner persona on the real local full-stack preview and verifies,
+against `/api/projects` on the same session: the table lists exactly the two authorized projects
+with the current row marked; the title bar and General tab show `Riverside Pump Station Upgrade`
+with its stored planned start, Gregorian system and `CUBI-RPS-CAL` calendar; the Dates and Settings
+tabs show the stored fields and state their boundaries; Edit Project opens the same record with
+its settings revision; opening `preview-nse-02` re-reads that project's workspace (title bar
+`نوسازی سامانه شرقی`); and returning to `preview-rps-01` restores its record and table.
+
+### Next stage
+
+Stage D — Resources/Calendars windows, followed by Progress/Cost/Expenses,
+Documents/Reports/Tracking, Issues/Risks/Thresholds/Control/Administration, the six-skin
+integration pass, and the final full matrix. Stage D starts from `main` @ `cb9cc002`.
