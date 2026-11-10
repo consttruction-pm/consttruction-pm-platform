@@ -26,6 +26,7 @@ function fakeRoot() {
   return {
     attributes,
     setAttribute(name: string, value: string) { attributes.set(name, value); },
+    getAttribute(name: string) { return attributes.get(name) ?? null; },
     removeAttribute(name: string) { attributes.delete(name); },
   } as unknown as HTMLElement & { attributes: Map<string, string> };
 }
