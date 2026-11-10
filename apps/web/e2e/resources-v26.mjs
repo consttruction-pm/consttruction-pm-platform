@@ -20,6 +20,10 @@ import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./previe
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4174";
 const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-10";
+// The commit under test and the commit that stores this report are different facts:
+// the bundle is built from the worktree before the evidence commit exists.
+const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
+const evidenceCommitSha = process.env.CUBI_EVIDENCE_COMMIT_SHA || null;
 const outDir = join(artifactsDir, "resources-v26");
 const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", `resources-v26-${evidenceDate}`);
 mkdirSync(outDir, { recursive: true });
@@ -222,6 +226,8 @@ async function main() {
     contract: "cubi-resources-v26.v1",
     baseUrl,
     gitHead: gitHead(),
+    testedCodeSha,
+    evidenceCommitSha,
     capturedAt: new Date().toISOString(),
     scenarios,
     screenshots,
