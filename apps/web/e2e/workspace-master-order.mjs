@@ -314,9 +314,9 @@ async function main() {
     assert(detailsItem.label === "Hide Details", `View command must read Hide Details, got ${detailsItem.label}`);
     assert(detailsItem.checked === "true", "View command must be checked while Details is visible");
     assert(
-      viewMenu.items.some((item) => item.id === "view.theme-classic") &&
-        viewMenu.items.some((item) => item.id === "view.theme-modern"),
-      "View menu must offer both workspace skins",
+      ["classic", "modern", "graphite", "arctic", "copper", "midnight"].every((theme) =>
+        viewMenu.items.some((item) => item.id === "view.theme-" + theme)),
+      "View menu must offer all six CUBI workspace themes",
     );
     const classicMenuIds = viewMenu.items.map((item) => item.id).join(",");
     await page.screenshot("master-order/classic-view-menu.png");
@@ -372,6 +372,7 @@ async function main() {
         bars: document.querySelectorAll("#cp-gantt .cp-gantt-bar").length,
         detailsTabs: document.querySelectorAll("#cp-details [role=tab]").length,
         languageOptions: document.querySelectorAll(".cp-app-status [data-workspace-language] option").length,
+        themeOptions: document.querySelectorAll("[data-workspace-theme] option").length,
         themeValue: document.querySelector("[data-workspace-theme]")?.value ?? null,
       })`,
     );
@@ -379,6 +380,57 @@ async function main() {
     assert(modernRows.detailsTabs >= 10, "modern skin must keep the details tabs");
     assert(modernRows.languageOptions === 9, `language selector must offer nine locales, got ${modernRows.languageOptions}`);
     assert(modernRows.themeValue === "modern", "theme selector must reflect the modern skin");
+    assert(modernRows.themeOptions === 6, "theme selector must expose all six CUBI skins");
+
+    const classicFingerprint = JSON.stringify({
+      titlebar: classicChrome.titlebar,
+      gridHeader: classicChrome.gridHeader,
+      details: classicChrome.details,
+      body: classicChrome.body,
+    });
+    for (const theme of ["graphite", "arctic", "copper", "midnight"]) {
+      await setTheme(page, theme);
+      const snapshot = await page.evaluate(chromeSnapshot);
+      assert(snapshot.theme === theme, theme + " theme must apply to the document");
+      assert(
+        JSON.stringify({
+          titlebar: snapshot.titlebar,
+          gridHeader: snapshot.gridHeader,
+          details: snapshot.details,
+          body: snapshot.body,
+        }) !== classicFingerprint,
+        theme + " must have a distinct visual token fingerprint",
+      );
+      const liveData = await page.evaluate("({" +
+        "rows: document.querySelectorAll('#cp-activity-grid tbody tr').length," +
+        "bars: document.querySelectorAll('#cp-gantt .cp-gantt-bar').length," +
+        "detailsTabs: document.querySelectorAll('#cp-details [role=tab]').length," +
+        "themeValue: document.querySelector('[data-workspace-theme]')?.value ?? null," +
+        "colorScheme: document.documentElement.getAttribute('data-cubi-color-scheme')" +
+      "})");
+      assert(liveData.rows > 0 && liveData.bars > 0, theme + " must preserve activity rows and Gantt bars");
+      assert(liveData.detailsTabs >= 10, theme + " must preserve the Details tab surface");
+      assert(liveData.themeValue === theme, theme + " selector must reflect the active palette");
+      assert(
+        liveData.colorScheme === (theme === "graphite" || theme === "midnight" ? "dark" : "light"),
+        theme + " must declare the matching native color scheme",
+      );
+      await page.screenshot("master-order/theme-" + theme + "-1440x900.png");
+      record("CUBI " + theme + " palette applies without changing workspace content", {
+        rows: liveData.rows,
+        bars: liveData.bars,
+        detailsTabs: liveData.detailsTabs,
+      });
+    }
+    // Persist a dark skin through a full reload, then return to Modern.
+    await setTheme(page, "midnight");
+    await page.reload("#cp-activity-grid tbody tr", "reload with Midnight theme");
+    await sleep(700);
+    assert(
+      await page.evaluate("document.documentElement.getAttribute('data-cubi-theme')") === "midnight",
+      "selected Midnight theme must persist across reload",
+    );
+    await setTheme(page, "modern");
 
     await page.click('[data-desktop-menu="view"]');
     await page.waitFor(
