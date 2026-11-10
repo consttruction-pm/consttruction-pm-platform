@@ -3,11 +3,16 @@ import test from "node:test";
 import {
   DEFAULT_OPEN_WINDOWS,
   WORKSPACE_WINDOWS_STORAGE_KEY,
+  WORKSPACE_WINDOW_ORDER_STORAGE_KEY,
   closeWorkspaceWindow,
+  moveWorkspaceWindow,
   normalizeOpenWindows,
   openWorkspaceWindow,
+  readWorkspaceWindowOrder,
   readWorkspaceWindows,
+  rememberWorkspaceWindowOrder,
   rememberWorkspaceWindows,
+  reorderWorkspaceWindows,
 } from "./workspace-windows.js";
 import type { PreferenceStorage } from "./workspace-preferences.js";
 
@@ -71,4 +76,38 @@ test("remembered windows survive a reload and are normalized on write", () => {
   const storage = memoryStorage();
   rememberWorkspaceWindows(["reports", "schedule", "reports"], storage);
   assert.deepEqual(readWorkspaceWindows(storage), ["schedule", "reports"]);
+});
+
+test("reordering a tab moves it without inventing or dropping a window", () => {
+  assert.deepEqual(reorderWorkspaceWindows(["schedule", "project", "reports"], "reports", "schedule"), ["reports", "schedule", "project"]);
+  assert.deepEqual(reorderWorkspaceWindows(["schedule", "project"], "schedule", "project"), ["project", "schedule"]);
+  assert.deepEqual(reorderWorkspaceWindows(["schedule", "project"], "schedule", "schedule"), ["schedule", "project"]);
+  assert.deepEqual(reorderWorkspaceWindows(["schedule"], "not-a-window" as never, "schedule"), ["schedule"]);
+});
+
+test("keyboard reordering clamps at the ends", () => {
+  assert.deepEqual(moveWorkspaceWindow(["schedule", "project", "reports"], "project", 1), ["schedule", "reports", "project"]);
+  assert.deepEqual(moveWorkspaceWindow(["schedule", "project"], "schedule", -1), ["schedule", "project"]);
+  assert.deepEqual(moveWorkspaceWindow(["schedule", "project"], "project", 5), ["schedule", "project"]);
+});
+
+test("a saved tab order is applied on read and defaults keep navigation order", () => {
+  const storage = memoryStorage({
+    [WORKSPACE_WINDOWS_STORAGE_KEY]: JSON.stringify(["project", "schedule", "reports"]),
+    [WORKSPACE_WINDOW_ORDER_STORAGE_KEY]: JSON.stringify(["reports", "project"]),
+  });
+  assert.deepEqual(readWorkspaceWindows(storage), ["reports", "project", "schedule"]);
+
+  const canonical = memoryStorage({
+    [WORKSPACE_WINDOWS_STORAGE_KEY]: JSON.stringify(["reports", "schedule", "project"]),
+    [WORKSPACE_WINDOW_ORDER_STORAGE_KEY]: JSON.stringify(["reports", "bogus"]),
+  });
+  assert.deepEqual(readWorkspaceWindows(canonical), ["reports", "project", "schedule"]);
+});
+
+test("remembering an order only keeps real window keys", () => {
+  const storage = memoryStorage();
+  rememberWorkspaceWindowOrder(["reports", "bogus" as never, "schedule"], storage);
+  assert.deepEqual(readWorkspaceWindowOrder(storage), ["reports", "schedule"]);
+  assert.deepEqual(readWorkspaceWindowOrder(memoryStorage({ [WORKSPACE_WINDOW_ORDER_STORAGE_KEY]: "{oops" })), []);
 });

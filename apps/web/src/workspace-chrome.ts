@@ -3,7 +3,7 @@
  * desktop contract: title 23px, layout/filter bar 20px and status bar 14px.
  * Values come from the session; nothing is invented here.
  */
-import { workspaceIcon } from "./workspace-icons.js";
+import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import {
   getAvailableWorkspaceLocales,
   getWorkspaceLocaleDisplayName,
@@ -102,7 +102,7 @@ export function renderTitleBar(state: ChromeState): string {
   </div>`;
 }
 
-function layoutButton(command: string, icon: string, label: string): string {
+function layoutButton(command: string, icon: WorkspaceIconName, label: string): string {
   return `<button type="button" class="cp-layoutbar-button" data-desktop-command="${esc(command)}" title="${esc(label)}">${workspaceIcon(icon)}<span>${esc(label)}</span></button>`;
 }
 

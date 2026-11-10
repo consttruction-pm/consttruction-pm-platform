@@ -3345,6 +3345,24 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-window-tab-close:hover { background: #e8edf4; color: #9b2c2c; }
 .cp-window-tab-label:focus-visible,
 .cp-window-tab-close:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: -2px; }
+.cp-window-tab[draggable="true"] { cursor: grab; }
+.cp-window-tab.is-dirty .cp-window-tab-label { font-style: italic; }
+.cp-window-tab-dirty {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-start: 6px;
+  border-radius: 50%;
+  background: var(--cubi-copper-orange, #c2652a);
+  vertical-align: middle;
+}
+.cp-menubar-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: #dde4ec;
+}
+.cp-desktop-dialog .is-unavailable td { color: #6b7787; }
+.cp-desktop-dialog .cp-shortcut-reason { display: inline-block; margin-inline-start: 6px; color: #8a4b13; font-size: 11px; }
 .cp-desktop-dialog {
   width: min(560px, calc(100vw - 32px));
   max-height: 80vh;

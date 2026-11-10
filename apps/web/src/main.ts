@@ -86,8 +86,15 @@ import {
   closeWorkspaceWindow,
   openWorkspaceWindow,
   readWorkspaceWindows,
+  rememberWorkspaceWindowOrder,
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
+import {
+  isWorkspaceToolbarGroup,
+  readHiddenToolbarGroups,
+  rememberHiddenToolbarGroups,
+  toggleToolbarGroup,
+} from "./workspace-toolbars.js";
 import {
   readWorkspaceDetailsVisible,
   rememberWorkspaceDetailsVisible,
@@ -122,6 +129,8 @@ let currentBootstrap: ProjectBootstrap | null = null;
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Signed-in user for browser-local preferences that must not leak between profiles. */
 let activeWorkspaceUserId = "";
+/** Roles from the authenticated session; administration menus are gated by these. */
+let activeWorkspaceRoles: readonly string[] = [];
 /** Active presentation skin; token-only, never part of project state. */
 let activeWorkspaceTheme: WorkspaceTheme = readWorkspaceTheme();
 let pendingDesktopFocusSelector: string | null = null;
@@ -666,6 +675,41 @@ function restoreWorkspaceDrafts(container: HTMLElement, drafts: readonly Workspa
 }
 
 /**
+ * Unsaved in-progress edits in the rendered workspace: an open settings panel,
+ * an inline activity editor, or typed-but-unsubmitted create/edit values.
+ */
+function workspaceHasPendingEdits(container: HTMLElement): boolean {
+  if (container.querySelector("[data-project-settings-panel]")) return true;
+  if (container.querySelector("[data-activity-update-form]")) return true;
+  const entered = container.querySelectorAll<HTMLInputElement>(
+    "[data-activity-create-form] input, [data-wbs-create-form] input, [data-wbs-edit-form] input",
+  );
+  return Array.from(entered).some((input) => input.value.trim().length > 0);
+}
+
+/**
+ * The dirty marker belongs to the active tab only: other windows keep their
+ * saved state, and switching away does not pretend they hold unsaved edits.
+ */
+function syncWindowDirtyIndicator(container: HTMLElement): void {
+  const dirty = workspaceHasPendingEdits(container);
+  for (const tab of container.querySelectorAll<HTMLElement>("[data-window-tab]")) {
+    const value = dirty && tab.classList.contains("is-active");
+    tab.classList.toggle("is-dirty", value);
+    if (value) tab.setAttribute("data-window-dirty", "true");
+    else tab.removeAttribute("data-window-dirty");
+  }
+}
+
+function bindWindowDirtyIndicators(container: HTMLElement): void {
+  if (container.dataset.dirtyIndicators === "bound") return;
+  container.dataset.dirtyIndicators = "bound";
+  const sync = (): void => syncWindowDirtyIndicator(container);
+  container.addEventListener("input", sync);
+  container.addEventListener("change", sync);
+}
+
+/**
  * Renders that are not initiated by the field owner (locale switch, async
  * layout history, authoritative schedule projection) must not discard values
  * the user has already entered but not submitted.
@@ -697,6 +741,7 @@ function renderApp(
     }
   }
   currentWorkspaceState = state;
+  bindWindowDirtyIndicators(container);
   // The skin is a token set on the document root; applying it before paint
   // avoids a flash of the other theme and keeps both themes on one DOM.
   applyWorkspaceTheme(activeWorkspaceTheme);
@@ -887,10 +932,35 @@ function renderApp(
   const activateWindow = (menu: WorkspaceMenuKey): void => {
     rememberWorkspaceMenu(menu);
     rememberOpenWindows(openWorkspaceWindow(getOpenWindows(), menu));
-    renderApp(container, menu === state.activeMenu ? state : { ...state, activeMenu: menu }, persistence);
+    // Switching windows keeps typed-but-unsubmitted values in this window.
+    renderAppPreservingDrafts(
+      container,
+      menu === state.activeMenu ? state : { ...state, activeMenu: menu },
+      persistence,
+    );
+  };
+
+  /** Tabs keep the user's order in memory and in the per-browser preference. */
+  const reorderDesktopWindows = (open: readonly WorkspaceMenuKey[]): void => {
+    const next = [...open];
+    openWindowKeys = next;
+    rememberWorkspaceWindows(next);
+    rememberWorkspaceWindowOrder(next);
+    renderAppPreservingDrafts(container, state, persistence);
   };
 
   const closeDesktopWindow = (menu: WorkspaceMenuKey): void => {
+    // Closing the window that holds unsaved work asks before discarding it.
+    // There is no generic save path for half-typed forms, so the prompt never
+    // offers a Save action it could not actually perform.
+    if (menu === state.activeMenu && workspaceHasPendingEdits(container)) {
+      const prompt = translateWorkspaceUiText(
+        state.locale,
+        "This window has unsaved changes. Discard them and close it?",
+        "این پنجره تغییرات ذخیره‌نشده دارد. آن‌ها را دور بریزیم و پنجره بسته شود؟",
+      );
+      if (!window.confirm(prompt)) return;
+    }
     const result = closeWorkspaceWindow(getOpenWindows(), menu, state.activeMenu);
     rememberOpenWindows(result.open);
     if (result.active !== state.activeMenu) rememberWorkspaceMenu(result.active);
@@ -902,7 +972,27 @@ function renderApp(
   };
 
   const runDesktopCommand = (command: DesktopCommand): void => {
+    // Toolbar family visibility: hiding a family never disables its commands,
+    // so the same entries remain reachable from the menus and the shortcuts.
+    if (command.startsWith("view.toolbar-")) {
+      const group = command.slice("view.toolbar-".length);
+      if (activeWorkspaceUserId && isWorkspaceToolbarGroup(group)) {
+        const hidden = readHiddenToolbarGroups(activeWorkspaceUserId);
+        rememberHiddenToolbarGroups(activeWorkspaceUserId, toggleToolbarGroup(hidden, group));
+        renderAppPreservingDrafts(container, state, persistence);
+      }
+      return;
+    }
     switch (command) {
+      case "workspace.refresh":
+        // Re-read the authoritative project from the server instead of
+        // re-rendering whatever is already in memory.
+        void (async () => {
+          if (!currentBootstrap) return;
+          const next = await currentBootstrap.start(state.context.project_id, state.locale);
+          if (next) renderBootstrapState(container, next, currentBootstrap, state.locale);
+        })();
+        return;
       case "forms.open":
         openFormsSurface(container, state);
         return;
@@ -1195,16 +1285,8 @@ function renderApp(
     if (next !== state) renderApp(container, next, persistence);
   };
 
-  const workspaceHasPendingEdits = (): boolean => {
-    if (container.querySelector("[data-project-settings-panel]")) return true;
-    if (container.querySelector("[data-activity-update-form]")) return true;
-    const entered = container.querySelectorAll<HTMLInputElement>(
-      "[data-activity-create-form] input, [data-wbs-create-form] input, [data-wbs-edit-form] input",
-    );
-    return Array.from(entered).some((input) => input.value.trim().length > 0);
-  };
   const goWorkspaceHome = (): void => {
-    if (workspaceHasPendingEdits()) {
+    if (workspaceHasPendingEdits(container)) {
       const prompt = translateWorkspaceUiText(
         state.locale,
         "You have unsaved changes in this workspace. Leave without saving?",
@@ -1235,7 +1317,11 @@ function renderApp(
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         hasLayout: Boolean(state.p6Layout),
         groupByWbs: state.activityGroupBy === "wbs",
+        canAdminister: activeWorkspaceRoles.includes("project_admin"),
       },
+      hiddenToolbarGroups: activeWorkspaceUserId ? readHiddenToolbarGroups(activeWorkspaceUserId) : [],
+      ganttVisible: state.visiblePanels.gantt,
+      dirtyWindows: workspaceHasPendingEdits(container) ? [state.activeMenu] : [],
       project: chromeProject,
       layout: chromeLayout,
       sortColumns: state.columns.map((column) => ({ id: column.id, label: column.label })),
@@ -1251,6 +1337,7 @@ function renderApp(
     {
       onWindowOpen: activateWindow,
       onWindowClose: closeDesktopWindow,
+      onWindowReorder: reorderDesktopWindows,
       onCommand: runDesktopCommand,
       onLayoutOptions: applyLayoutOptions,
       onLocaleChange: (locale) => changeLocale(locale),
@@ -2141,6 +2228,7 @@ function renderApp(
     pendingDesktopAction = null;
     window.setTimeout(action, 0);
   }
+  syncWindowDirtyIndicator(container);
 }
 function renderBootstrapState(
   container: HTMLElement,
@@ -2155,6 +2243,7 @@ function renderBootstrapState(
     // reopen the same project and menu after a refresh.
     currentBootstrap = bootstrap;
     activeWorkspaceUserId = state.userId;
+    activeWorkspaceRoles = state.roles;
     rememberOpenedProject(state.userId, state.context.project_id);
     renderApp(container, applyRememberedMenu(state.workspace));
     return;

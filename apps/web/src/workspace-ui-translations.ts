@@ -12,6 +12,7 @@ export type UiTranslation = readonly [german: string, chinese: string];
 
 export const UI_TRANSLATIONS: Readonly<Record<string, UiTranslation>> = {
   // Menus, window titles and toolbar.
+  "Workspace": ["Arbeitsbereich", "工作区"],
   "File": ["Datei", "文件"],
   "New project…": ["Neues Projekt…", "新建项目…"],
   "Open project…": ["Projekt öffnen…", "打开项目…"],

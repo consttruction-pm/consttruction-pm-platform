@@ -17,7 +17,7 @@ export type ProjectBootstrapState =
   | { status: "selecting"; projects: readonly ProjectSummary[] }
   | { status: "opening"; projectId: string }
   | { status: "creating"; projectId: string }
-  | { status: "ready"; context: ProjectContext; workspace: WorkspaceState; userId: string }
+  | { status: "ready"; context: ProjectContext; workspace: WorkspaceState; userId: string; roles: readonly string[] }
   | { status: "error"; error: ClientError };
 
 export type ProjectBootstrapDependencies = {
@@ -58,6 +58,7 @@ function loaderError(error: unknown): ClientError {
 export class ProjectBootstrap {
   private generation = 0;
   private projects: readonly ProjectSummary[] = [];
+  private roles: readonly string[] = [];
 
   constructor(private readonly dependencies: ProjectBootstrapDependencies) {}
 
@@ -70,6 +71,7 @@ export class ProjectBootstrap {
     const session = await this.dependencies.sessionApi.getSession();
     if (!this.isCurrent(generation)) return null;
     if (!session.ok) return { status: "error", error: session.error };
+    this.roles = session.data.roles;
 
     const projects = await this.dependencies.sessionApi.listProjects();
     if (!this.isCurrent(generation)) return null;
@@ -222,6 +224,7 @@ export class ProjectBootstrap {
       context,
       workspace: hydratedWorkspace,
       userId: projectContext.user_id,
+      roles: this.roles,
     };
   }
 

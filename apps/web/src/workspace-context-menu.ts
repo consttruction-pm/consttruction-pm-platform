@@ -10,12 +10,12 @@
  * navigation has completed, and an asynchronous scroll event must not dismiss
  * a menu that is already visible.
  */
-import { workspaceIcon } from "./workspace-icons.js";
+import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 
 export type ContextMenuItem = {
   command: string;
   label: string;
-  icon?: string;
+  icon?: WorkspaceIconName;
   shortcut?: string;
   disabled?: boolean;
   /** Localized reason shown as the native tooltip for a disabled command. */

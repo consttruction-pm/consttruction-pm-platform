@@ -7,7 +7,7 @@
  * project data continues to live in the normal workspace. The shared preview
  * project routes here by default; use the explicit live view to open API-backed data.
  */
-import { workspaceIcon } from "./workspace-icons.js";
+import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { ENGINEERING_SHELLS, ENGINEERING_SHELL_STYLES, isEngineeringShellWindow, renderEngineeringShell, type EngineeringShellWindowId } from "./workspace-engineering-shells.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
@@ -1270,7 +1270,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
   ] },
 ];
 
-const TOOLBARS: Array<{ id: string; label: Label; items: Array<{ icon: string; label: Label; action: MenuAction }> }> = [
+const TOOLBARS: Array<{ id: string; label: Label; items: Array<{ icon: WorkspaceIconName; label: Label; action: MenuAction }> }> = [
   { id: "standard", label: { en: "Standard", fa: "استاندارد" }, items: [
     { icon: "file", label: { en: "New", fa: "جدید" }, action: { dialog: "new-project" } },
     { icon: "book", label: { en: "Open", fa: "بازکردن" }, action: { window: "projects" } },
