@@ -26,7 +26,7 @@ import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNaviga
 import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiText } from "./workspace-localization.js";
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
-import { workspaceIcon } from "./workspace-icons.js";
+import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { renderActivityNetwork } from "./workspace-network.js";
 import {
@@ -1200,7 +1200,7 @@ function contextItem(
   state: WorkspaceState,
   command: string,
   label: { en: string; fa: string },
-  icon: string,
+  icon: WorkspaceIconName,
   options: ContextItemOptions = {},
 ): ContextMenuItem {
   return {
@@ -1958,7 +1958,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     layout: uiText(state.locale, "Layout", "چیدمان"),
     noDataDate: uiText(state.locale, "Not provided", "ارائه نشده"),
   };
-  const railMenuIcons: Record<WorkspaceState["activeMenu"], string> = {
+  const railMenuIcons: Record<WorkspaceState["activeMenu"], WorkspaceIconName> = {
     project: "folder",
     wbs: "wbs",
     schedule: "activity",
@@ -2425,7 +2425,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   </section>`;
 }
 
-function moduleButton(action: string, icon: string, label: string): string {
+function moduleButton(action: string, icon: WorkspaceIconName, label: string): string {
   return `<button type="button" class="cp-p6-module-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}">${workspaceIcon(icon)}<span>${escapeHtml(label)}</span></button>`;
 }
 
@@ -2476,7 +2476,7 @@ function renderModuleEmptyState(state: WorkspaceState): string {
   return `<section class="cp-panel cp-module-empty-state" data-workspace-menu="${state.activeMenu}" aria-live="polite"><h2>${escapeHtml(copy.title)}</h2><p>${escapeHtml(copy.message)}</p></section>`;
 }
 
-function renderFullNavigationMenu(state: WorkspaceState, icons: Record<WorkspaceState["activeMenu"], string>): string {
+function renderFullNavigationMenu(state: WorkspaceState, icons: Record<WorkspaceState["activeMenu"], WorkspaceIconName>): string {
   const t = getWorkspaceLabels(state.locale);
   return `<nav class="cp-p6-flyout-tree" aria-label="${escapeAttribute(t.mainMenu)}">
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
@@ -3445,7 +3445,7 @@ function activityTypeKind(activity: WorkspaceActivityRow): "milestone" | "summar
 
 function activityTypeIcon(activity: WorkspaceActivityRow): string {
   const kind = activityTypeKind(activity);
-  const icon = kind === "milestone" ? "milestone" : kind === "summary" ? "wbs" : "activity";
+  const icon: WorkspaceIconName = kind === "milestone" ? "milestone" : kind === "summary" ? "wbs" : "activity";
   return `<span class="cp-p6-activity-icon is-${kind}" aria-hidden="true">${workspaceIcon(icon)}</span>`;
 }
 
@@ -4248,12 +4248,12 @@ function renderRelationships(state: WorkspaceState, t: WorkspaceLabels): string 
   </div>`;
 }
 
-function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState, icon: string): string {
+function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState, icon: WorkspaceIconName): string {
   const active = key === state.activeMenu;
   return `<button type="button" class="cp-rail-button" data-menu="${key}" aria-current="${active ? "page" : "false"}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
 }
 
-function railActionButton(action: string, label: string, icon: string): string {
+function railActionButton(action: string, label: string, icon: WorkspaceIconName): string {
   return `<button type="button" class="cp-rail-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
 }
 

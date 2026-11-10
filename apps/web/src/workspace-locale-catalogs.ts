@@ -12,6 +12,7 @@
 export type InterfaceCatalog = Readonly<Record<string, string>>;
 
 const RU: InterfaceCatalog = {
+  "Workspace": "Рабочая область",
   "File": "Файл",
   "New project…": "Новый проект…",
   "Open project…": "Открыть проект…",
@@ -212,6 +213,7 @@ const RU: InterfaceCatalog = {
 };
 
 const FR: InterfaceCatalog = {
+  "Workspace": "Espace de travail",
   "File": "Fichier",
   "New project…": "Nouveau projet…",
   "Open project…": "Ouvrir un projet…",
@@ -412,6 +414,7 @@ const FR: InterfaceCatalog = {
 };
 
 const JA: InterfaceCatalog = {
+  "Workspace": "ワークスペース",
   "File": "ファイル",
   "New project…": "新規プロジェクト…",
   "Open project…": "プロジェクトを開く…",
@@ -612,6 +615,7 @@ const JA: InterfaceCatalog = {
 };
 
 const KO: InterfaceCatalog = {
+  "Workspace": "작업 공간",
   "File": "파일",
   "New project…": "새 프로젝트…",
   "Open project…": "프로젝트 열기…",
@@ -812,6 +816,7 @@ const KO: InterfaceCatalog = {
 };
 
 const AR: InterfaceCatalog = {
+  "Workspace": "مساحة العمل",
   "File": "ملف",
   "New project…": "مشروع جديد…",
   "Open project…": "فتح مشروع…",

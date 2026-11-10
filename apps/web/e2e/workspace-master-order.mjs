@@ -485,16 +485,16 @@ async function main() {
     // Phase 6 — nine launch languages, with real translations and RTL Arabic.
     // ---------------------------------------------------------------------
     const localeChecks = [
-      { locale: "ru", fileMenu: "Файл", theme: "Тема рабочей области" },
-      { locale: "fr", fileMenu: "Fichier", theme: "Thème de l'espace de travail" },
-      { locale: "ja", fileMenu: "ファイル", theme: "ワークスペースのテーマ" },
-      { locale: "ko", fileMenu: "파일", theme: "작업 영역 테마" },
-      { locale: "ar", fileMenu: "ملف", theme: "سمة بيئة العمل" },
+      { locale: "ru", fileMenu: "Рабочая область", theme: "Тема рабочей области" },
+      { locale: "fr", fileMenu: "Espace de travail", theme: "Thème de l'espace de travail" },
+      { locale: "ja", fileMenu: "ワークスペース", theme: "ワークスペースのテーマ" },
+      { locale: "ko", fileMenu: "작업 공간", theme: "작업 영역 테마" },
+      { locale: "ar", fileMenu: "مساحة العمل", theme: "سمة بيئة العمل" },
     ];
     for (const { locale, fileMenu, theme } of localeChecks) {
       await setLanguage(page, locale);
       const surface = await page.evaluate(`(() => {
-        const file = document.querySelector('[data-desktop-menu="file"]');
+        const file = document.querySelector('[data-desktop-menu="workspace"]');
         const details = document.querySelector("[data-details-toggle]");
         const themeSelect = document.querySelector("[data-workspace-theme]");
         const languageSelect = document.querySelector("[data-workspace-language]");
@@ -510,11 +510,11 @@ async function main() {
           themeValue: themeSelect?.value ?? null,
           language: languageSelect?.value ?? null,
           header: header ? header.textContent.trim() : null,
-          toggleLabel: document.querySelector('[data-desktop-menu="window"]')?.textContent.trim() ?? null,
+          toggleLabel: document.querySelector('[data-desktop-menu="view"]')?.textContent.trim() ?? null,
         };
       })()`);
       assert(surface.lang === locale, `${locale} document lang ${surface.lang}`);
-      assert(surface.file === fileMenu, `${locale} File menu must read ${fileMenu}, got ${surface.file}`);
+      assert(surface.file === fileMenu, `${locale} Workspace menu must read ${fileMenu}, got ${surface.file}`);
       assert(surface.theme === theme, `${locale} theme aria must read ${theme}, got ${surface.theme}`);
       assert(surface.language === locale, `${locale} selector value ${surface.language}`);
       assert(surface.details && surface.details !== "Hide Details", `${locale} Details tooltip must be translated`);

@@ -1,14 +1,14 @@
 {
   "contract": "cubi-activities-v26-scenarios.v1",
   "baseUrl": "http://127.0.0.1:4174",
-  "gitHead": "ecc4f463ad72567a27ef54683605a066ea54901b",
-  "capturedAt": "2026-11-09T06:09:41.042Z",
+  "gitHead": "94ad233036b71d196679d234dc731a4b13f26e40",
+  "capturedAt": "2026-11-10T03:14:49.776Z",
   "scenarios": [
     {
       "id": "01",
       "name": "بازکردن پنجره Activities",
       "status": "pass",
-      "at": "2026-11-09T06:09:48.012Z",
+      "at": "2026-11-10T03:14:55.314Z",
       "rowIds": [
         "A100",
         "A110",
@@ -52,7 +52,7 @@
       "id": "02",
       "name": "انتخاب فعالیت و بررسی هماهنگی جدول، Gantt و Details",
       "status": "pass",
-      "at": "2026-11-09T06:09:49.277Z",
+      "at": "2026-11-10T03:14:56.365Z",
       "selectedRow": "A130",
       "selectedGantt": "A130",
       "detailsText": "A130"
@@ -61,7 +61,7 @@
       "id": "03",
       "name": "باز و بسته کردن Activity Details",
       "status": "pass",
-      "at": "2026-11-09T06:09:52.429Z",
+      "at": "2026-11-10T03:14:59.218Z",
       "before": true,
       "closed": false,
       "reopened": true
@@ -70,23 +70,23 @@
       "id": "04",
       "name": "تغییر ارتفاع و عرض نواحی",
       "status": "pass",
-      "at": "2026-11-09T06:09:54.042Z",
+      "at": "2026-11-10T03:15:00.710Z",
       "before": {
         "table": "50.00%",
         "details": "70.00%"
       },
       "after": {
         "table": "60.18%",
-        "details": "74.76%"
+        "details": "75.15%"
       },
       "drag": {
         "table": {
           "x": 767,
-          "y": 310.1484375
+          "y": 294.046875
         },
         "details": {
           "x": 645,
-          "y": 506.296875
+          "y": 520.09375
         }
       }
     },
@@ -94,16 +94,16 @@
       "id": "05",
       "name": "Refresh و بررسی پایداری Layout",
       "status": "pass",
-      "at": "2026-11-09T06:09:56.905Z",
+      "at": "2026-11-10T03:15:02.751Z",
       "table": "60.18%",
-      "details": "74.76%",
+      "details": "75.15%",
       "selected": null
     },
     {
       "id": "06",
       "name": "تغییر عرض ستون‌ها و جابه‌جایی ستون‌ها",
       "status": "pass",
-      "at": "2026-11-09T06:10:02.587Z",
+      "at": "2026-11-10T03:15:08.120Z",
       "moved": {
         "id": "activity.name",
         "title": "Activity Name (Name)\n      Activity\n      ◌"
@@ -132,7 +132,7 @@
       "id": "07",
       "name": "اعمال فیلتر و ترکیب چند فیلتر",
       "status": "pass",
-      "at": "2026-11-09T06:10:07.381Z",
+      "at": "2026-11-10T03:15:13.043Z",
       "inProgress": [
         "A130"
       ],
@@ -161,7 +161,7 @@
       "id": "08",
       "name": "ایجاد و ویرایش فیلتر",
       "status": "pass",
-      "at": "2026-11-09T06:10:11.803Z",
+      "at": "2026-11-10T03:15:17.518Z",
       "created": [
         "A130",
         "A140",
@@ -179,7 +179,7 @@
       "id": "09",
       "name": "Group و Sort",
       "status": "pass",
-      "at": "2026-11-09T06:10:15.732Z",
+      "at": "2026-11-10T03:15:21.477Z",
       "group": "wbs",
       "statusField": "activity.name",
       "bands": 2,
@@ -189,7 +189,7 @@
       "id": "10",
       "name": "بازکردن تمام ۱۷ تب Activity Details",
       "status": "pass",
-      "at": "2026-11-09T06:10:22.849Z",
+      "at": "2026-11-10T03:15:28.755Z",
       "tabs": [
         "general",
         "status",
@@ -290,7 +290,7 @@
       "id": "11",
       "name": "راست‌کلیک در تمام نواحی",
       "status": "pass",
-      "at": "2026-11-09T06:10:30.193Z",
+      "at": "2026-11-10T03:15:36.203Z",
       "areas": [
         {
           "label": "activity row",
@@ -416,32 +416,35 @@
       "id": "12",
       "name": "آزمون میانبرهای تأییدشده",
       "status": "pass",
-      "at": "2026-11-09T06:10:34.458Z",
+      "at": "2026-11-10T03:15:40.507Z",
       "focusInside": true,
       "shortcutsOpen": true,
       "shortcutRows": [
-        "Save LayoutCtrl+S",
-        "Print…Ctrl+P",
+        "New projectCtrl+N",
+        "Open projectCtrl+O",
         "Close windowCtrl+W",
-        "Undo layout changeCtrl+Z",
-        "Redo layout changeCtrl+Y",
-        "Find activities…Ctrl+F",
-        "Expand AllCtrl+Num +",
-        "Collapse AllCtrl+Num -",
-        "Edit selected activityEnter",
-        "Schedule activitiesF9",
-        "Search activitiesCtrl+F",
+        "PrintCtrl+P",
+        "Save layoutCtrl+S",
+        "Refresh project dataF5",
         "Keyboard shortcutsF1",
+        "About CUBI WorkspaceShift+F12",
         "ProjectsAlt+1",
-        "WBSAlt+2",
-        "ActivitiesAlt+3",
-        "ProgressAlt+4",
-        "ResourcesAlt+5",
-        "Resource AssignmentsAlt+6",
-        "RolesAlt+7",
-        "CalendarsAlt+8",
-        "CostAlt+9",
-        "Keyboard shortcutsF1"
+        "ActivitiesAlt+2",
+        "Undo layout changeCtrl+Z",
+        "Redo layout changeCtrl+Y Unavailable — No layout change to reapply",
+        "CutCtrl+X Unavailable — The activity clipboard is not connected to this workspace yet",
+        "CopyCtrl+C Unavailable — The activity clipboard is not connected to this workspace yet",
+        "PasteCtrl+V Unavailable — The activity clipboard is not connected to this workspace yet",
+        "Delete activityDel Unavailable — Deleting activities is not available in this workspace yet",
+        "Insert activityIns",
+        "Find activitiesCtrl+F",
+        "Find nextF3 Unavailable — Find Next needs a result set from the current filter",
+        "Schedule activitiesF9",
+        "Schedule optionsShift+F9",
+        "Level resourcesF7 Unavailable — Resource leveling is not available in this workspace yet",
+        "Commit changesF10 Unavailable — There is no staged edit to commit",
+        "Expand all WBS bandsCtrl+Num +",
+        "Collapse all WBS bandsCtrl+Num -"
       ],
       "focusedFilter": true,
       "expandedBands": 7,
@@ -453,7 +456,7 @@
       "id": "13",
       "name": "نمایش و مخفی‌سازی Data Date Line و Progress Line",
       "status": "pass",
-      "at": "2026-11-09T06:10:37.987Z",
+      "at": "2026-11-10T03:15:43.949Z",
       "dataDate": {
         "disabled": true,
         "note": "This project's read model exposes no Data Date, so the line is not drawn. The saved line settings will apply as soon as an authoritative date exists. A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.",
@@ -474,7 +477,7 @@
       "id": "14",
       "name": "بررسی هر چهار نوع رابطه FS/SS/FF/SF",
       "status": "pass",
-      "at": "2026-11-09T06:10:42.083Z",
+      "at": "2026-11-10T03:15:48.121Z",
       "before": {
         "FS": 14,
         "SS": 1
@@ -518,7 +521,7 @@
       "id": "15",
       "name": "Zoom و Scroll در Gantt",
       "status": "pass",
-      "at": "2026-11-09T06:10:45.493Z",
+      "at": "2026-11-10T03:15:51.479Z",
       "before": "month",
       "zoomedIn": "week",
       "zoomedOut": "month",
@@ -531,25 +534,25 @@
         "className": "cp-gantt-chart",
         "before": 0,
         "after": 240,
-        "max": 547
+        "max": 353
       }
     },
     {
       "id": "16",
       "name": "تغییر اندازه Splitterها در چند اندازه صفحه",
       "status": "pass",
-      "at": "2026-11-09T06:10:52.204Z",
+      "at": "2026-11-10T03:15:58.126Z",
       "results": [
         {
           "width": 1024,
           "height": 768,
           "before": {
             "table": "60.18%",
-            "details": "74.76%"
+            "details": "75.15%"
           },
           "after": {
             "table": "52.96%",
-            "details": "72.48%"
+            "details": "72.69%"
           },
           "overflow": {
             "tableRight": 545,
@@ -563,11 +566,11 @@
           "height": 720,
           "before": {
             "table": "52.96%",
-            "details": "72.48%"
+            "details": "72.69%"
           },
           "after": {
             "table": "47.28%",
-            "details": "70.01%"
+            "details": "70.02%"
           },
           "overflow": {
             "tableRight": 612,
@@ -581,11 +584,11 @@
           "height": 900,
           "before": {
             "table": "47.28%",
-            "details": "70.01%"
+            "details": "70.02%"
           },
           "after": {
             "table": "42.27%",
-            "details": "68.11%"
+            "details": "68.00%"
           },
           "overflow": {
             "tableRight": 620,
@@ -599,11 +602,11 @@
           "height": 1080,
           "before": {
             "table": "42.27%",
-            "details": "68.11%"
+            "details": "68.00%"
           },
           "after": {
             "table": "38.57%",
-            "details": "66.56%"
+            "details": "66.37%"
           },
           "overflow": {
             "tableRight": 755,
@@ -618,7 +621,7 @@
       "id": "17",
       "name": "بررسی حالت RTL و LTR",
       "status": "pass",
-      "at": "2026-11-09T06:10:54.555Z",
+      "at": "2026-11-10T03:16:00.410Z",
       "rtl": {
         "dir": "rtl",
         "lang": "fa",
@@ -633,7 +636,7 @@
       "id": "18",
       "name": "بررسی عدم وجود خطای Console و Runtime",
       "status": "pass",
-      "at": "2026-11-09T06:10:57.303Z",
+      "at": "2026-11-10T03:16:03.045Z",
       "exceptions": 0,
       "consoleErrors": 0,
       "apiFailures": 0,
@@ -677,5 +680,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-09T06:10:57.303Z"
+  "finishedAt": "2026-11-10T03:16:03.045Z"
 }

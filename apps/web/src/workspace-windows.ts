@@ -13,6 +13,8 @@ import {
  * workspace without a surface: the caller always receives a valid active key.
  */
 export const WORKSPACE_WINDOWS_STORAGE_KEY = "cubi:workspace-windows";
+/** User-defined tab order; kept apart so the open set stays canonical and valid. */
+export const WORKSPACE_WINDOW_ORDER_STORAGE_KEY = "cubi:workspace-window-order";
 export const DEFAULT_OPEN_WINDOWS: readonly WorkspaceMenuKey[] = ["schedule", "project"];
 
 const WINDOW_ORDER: readonly WorkspaceMenuKey[] = WORKSPACE_NAVIGATION.map((item) => item.key);
@@ -22,9 +24,21 @@ export function isWorkspaceWindowKey(value: string): value is WorkspaceMenuKey {
   return (WINDOW_ORDER as readonly string[]).includes(value);
 }
 
+/** Keep only known keys and deduplicate while preserving the caller's order. */
+function sanitizeOpenWindows(values: readonly string[]): WorkspaceMenuKey[] {
+  const seen = new Set<WorkspaceMenuKey>();
+  const kept: WorkspaceMenuKey[] = [];
+  for (const value of values) {
+    if (!isWorkspaceWindowKey(value) || seen.has(value)) continue;
+    seen.add(value);
+    kept.push(value);
+  }
+  return kept;
+}
+
 /** Keep only known keys, deduplicate, and order them like the navigation tree. */
 export function normalizeOpenWindows(values: readonly string[]): WorkspaceMenuKey[] {
-  const requested = new Set(values.filter(isWorkspaceWindowKey));
+  const requested = new Set(sanitizeOpenWindows(values));
   const ordered = WINDOW_ORDER.filter((key) => requested.has(key));
   return ordered.length ? ordered : [...DEFAULT_OPEN_WINDOWS];
 }
@@ -52,6 +66,82 @@ export function closeWorkspaceWindow(
   return { open: next, active: nextActive };
 }
 
+/** Apply a saved tab order without inventing or dropping a window. */
+export function applyWorkspaceWindowOrder(
+  open: readonly WorkspaceMenuKey[],
+  order: readonly WorkspaceMenuKey[],
+): WorkspaceMenuKey[] {
+  const current = sanitizeOpenWindows(open);
+  const effective = current.length ? current : [...DEFAULT_OPEN_WINDOWS];
+  const ranks = new Map(order.map((key, index) => [key, index]));
+  const positions = new Map(effective.map((key, index) => [key, index]));
+  return [...effective].sort((left, right) => {
+    const leftRank = ranks.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = ranks.get(right) ?? Number.MAX_SAFE_INTEGER;
+    return leftRank === rightRank
+      ? (positions.get(left) ?? 0) - (positions.get(right) ?? 0)
+      : leftRank - rightRank;
+  });
+}
+
+export function reorderWorkspaceWindows(
+  open: readonly WorkspaceMenuKey[],
+  from: WorkspaceMenuKey,
+  to: WorkspaceMenuKey,
+): WorkspaceMenuKey[] {
+  const current = sanitizeOpenWindows(open);
+  const fromIndex = current.indexOf(from);
+  const toIndex = current.indexOf(to);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+  const next = [...current];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
+/** Move a tab by a signed offset; used by the keyboard reorder path. */
+export function moveWorkspaceWindow(
+  open: readonly WorkspaceMenuKey[],
+  key: WorkspaceMenuKey,
+  offset: number,
+): WorkspaceMenuKey[] {
+  const current = sanitizeOpenWindows(open);
+  const index = current.indexOf(key);
+  if (index < 0) return current;
+  const target = Math.min(current.length - 1, Math.max(0, index + offset));
+  if (target === index) return current;
+  return reorderWorkspaceWindows(current, key, current[target]);
+}
+
+export function readWorkspaceWindowOrder(
+  storage: PreferenceStorage | null = browserStorage(),
+): WorkspaceMenuKey[] {
+  const raw = readStoredValue(WORKSPACE_WINDOW_ORDER_STORAGE_KEY, storage);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    return parsed
+      .filter((value): value is string => typeof value === "string" && isWorkspaceWindowKey(value))
+      .filter((value) => (seen.has(value) ? false : (seen.add(value), true)))
+      .slice(0, MAX_OPEN_WINDOWS) as WorkspaceMenuKey[];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberWorkspaceWindowOrder(
+  open: readonly WorkspaceMenuKey[],
+  storage: PreferenceStorage | null = browserStorage(),
+): void {
+  writeStoredValue(
+    WORKSPACE_WINDOW_ORDER_STORAGE_KEY,
+    JSON.stringify(open.filter(isWorkspaceWindowKey)),
+    storage,
+  );
+}
+
 export function readWorkspaceWindows(
   storage: PreferenceStorage | null = browserStorage(),
 ): WorkspaceMenuKey[] {
@@ -60,9 +150,13 @@ export function readWorkspaceWindows(
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [...DEFAULT_OPEN_WINDOWS];
-    return normalizeOpenWindows(
+    const stored = sanitizeOpenWindows(
       parsed.filter((value): value is string => typeof value === "string").slice(0, MAX_OPEN_WINDOWS),
     );
+    if (!stored.length) return [...DEFAULT_OPEN_WINDOWS];
+    const normalized = normalizeOpenWindows(stored);
+    const savedOrder = readWorkspaceWindowOrder(storage);
+    return savedOrder.length ? applyWorkspaceWindowOrder(normalized, savedOrder) : normalized;
   } catch {
     return [...DEFAULT_OPEN_WINDOWS];
   }

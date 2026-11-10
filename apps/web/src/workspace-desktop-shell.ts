@@ -4,8 +4,14 @@ import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } fro
 import { defaultLayoutPatch, loadFilterEditor, readLayoutPatch, renderLayoutDialogs, resetFilterEditor, setFilterListEnabled, sortFilterList, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
 import { findActivityFilter } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
-import { workspaceIcon } from "./workspace-icons.js";
+import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import {
+  WORKSPACE_TOOLBAR_GROUPS,
+  WORKSPACE_TOOLBAR_LABELS,
+  type WorkspaceToolbarGroup,
+} from "./workspace-toolbars.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
+import { moveWorkspaceWindow, reorderWorkspaceWindows } from "./workspace-windows.js";
 
 /**
  * Desktop chrome for the professional workspace: the application menu bar, the
@@ -57,6 +63,7 @@ export type DesktopCommand =
   | "tools.reference"
   | "admin.language"
   | "admin.calendar"
+  | "workspace.refresh"
   | "dialog.group-sort"
   | "dialog.filters"
   | "dialog.timescale"
@@ -64,7 +71,8 @@ export type DesktopCommand =
   | "dialog.font-row"
   | "dialog.user-preferences"
   | "help.shortcuts"
-  | "help.about";
+  | "help.about"
+  | `view.toolbar-${WorkspaceToolbarGroup}`;
 
 export type DesktopShellCapabilities = {
   canUndoLayout: boolean;
@@ -75,6 +83,8 @@ export type DesktopShellCapabilities = {
   canOpenFieldChooser: boolean;
   hasLayout: boolean;
   groupByWbs: boolean;
+  /** Derived from the authenticated session's roles, never from a client guess. */
+  canAdminister: boolean;
 };
 
 export type DesktopMenuItem = {
@@ -85,32 +95,26 @@ export type DesktopMenuItem = {
   command?: DesktopCommand;
   disabledReason?: LocalizedLabel;
   checked?: boolean;
+  separator?: boolean;
 };
 
 export type DesktopMenu = {
   id: DesktopMenuId;
   label: LocalizedLabel;
+  /** Alt+letter mnemonic used by the menu bar's hot-key navigation. */
+  accessKey: string;
   items: DesktopMenuItem[];
 };
 
 export type DesktopMenuId =
-  | "file"
+  | "workspace"
   | "edit"
   | "view"
   | "project"
-  | "enterprise"
+  | "organization"
   | "tools"
-  | "window"
+  | "administration"
   | "help";
-
-export type DesktopToolbarGroupId =
-  | "file"
-  | "edit"
-  | "layout"
-  | "view"
-  | "project"
-  | "activities"
-  | "tools";
 
 export type DesktopToolbarItem = {
   id: string;
@@ -121,8 +125,10 @@ export type DesktopToolbarItem = {
   command?: DesktopCommand;
   disabledReason?: LocalizedLabel;
   active?: boolean;
-  icon?: string;
-  group?: DesktopToolbarGroupId;
+  icon: WorkspaceIconName;
+  group: WorkspaceToolbarGroup;
+  /** Windows on which this toolbar command is meaningful. */
+  windows?: readonly WorkspaceMenuKey[];
   fullscreen?: boolean;
 };
 
@@ -145,11 +151,18 @@ export type DesktopShellState = {
   dataAvailability?: { actual: boolean; baseline: boolean };
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
+  /** Toolbar families the user hid; the commands stay in the menus. */
+  hiddenToolbarGroups?: readonly WorkspaceToolbarGroup[];
+  /** Gantt pane visibility, used for the toolbar's pressed state. */
+  ganttVisible?: boolean;
+  /** Windows carrying unsaved edits, used for the tab indicator and close guard. */
+  dirtyWindows?: readonly WorkspaceMenuKey[];
 };
 
 export type DesktopShellHandlers = {
   onWindowOpen: (window: WorkspaceMenuKey) => void;
   onWindowClose: (window: WorkspaceMenuKey) => void;
+  onWindowReorder?: (open: readonly WorkspaceMenuKey[]) => void;
   onCommand: (command: DesktopCommand) => void;
   onLayoutOptions?: (patch: DesktopLayoutPatch) => void;
   onLocaleChange?: (locale: string) => void;
@@ -177,27 +190,6 @@ export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
   settings: { en: "Administration", fa: "مدیریت" },
 };
 
-const WINDOW_ORDER: readonly WorkspaceMenuKey[] = [
-  "project",
-  "wbs",
-  "schedule",
-  "progress",
-  "resources",
-  "assignments",
-  "roles",
-  "calendars",
-  "cost",
-  "expenses",
-  "documents",
-  "reports",
-  "tracking",
-  "issues",
-  "risks",
-  "thresholds",
-  "control",
-  "settings",
-];
-
 function language(locale: string): "en" | "fa" {
   return locale.split("-")[0] === "fa" ? "fa" : "en";
 }
@@ -220,14 +212,25 @@ const REASONS = {
   noSelection: { en: "Select an activity in the grid first", fa: "ابتدا یک فعالیت را در جدول انتخاب کنید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
   noLayout: { en: "This project has no saved layout to write", fa: "این پروژه چیدمان ذخیره‌شده‌ای برای نوشتن ندارد" },
-  calendarAdmin: { en: "Calendar administration is not available in this workspace yet", fa: "مدیریت تقویم هنوز در این محیط کار در دسترس نیست" },
-  roles: { en: "Role administration is not available in this workspace yet", fa: "مدیریت نقش‌ها هنوز در این محیط کار در دسترس نیست" },
+  clipboard: { en: "The activity clipboard is not connected to this workspace yet", fa: "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است" },
+  deleteActivity: { en: "Deleting activities is not available in this workspace yet", fa: "حذف فعالیت هنوز در این محیط کار در دسترس نیست" },
+  findNext: { en: "Find Next needs a result set from the current filter", fa: "یافتن مورد بعدی به نتیجهٔ فیلتر جاری نیاز دارد" },
+  commit: { en: "There is no staged edit to commit", fa: "ویرایش آماده‌ای برای ثبت وجود ندارد" },
+  replace: { en: "Replace is not available in this workspace yet", fa: "جایگزینی هنوز در این محیط کار در دسترس نیست" },
+  leveling: { en: "Resource leveling is not available in this workspace yet", fa: "تسطیح منابع هنوز در این محیط کار در دسترس نیست" },
+  autoReorg: { en: "Automatic WBS reorganization is not available in this workspace yet", fa: "بازآرایی خودکار ساختار شکست هنوز در این محیط کار در دسترس نیست" },
   udfs: { en: "Enterprise user-defined fields are not available in this workspace yet", fa: "فیلدهای سفارشی سازمانی هنوز در این محیط کار در دسترس نیست" },
   baseline: { en: "Baseline management is not available in this workspace yet", fa: "مدیریت خط مبنا هنوز در این محیط کار در دسترس نیست" },
   compare: { en: "Baseline comparison is not available in this workspace yet", fa: "مقایسهٔ خط مبنا هنوز در این محیط کار در دسترس نیست" },
   progress: { en: "Progress update is not available in this workspace yet", fa: "به‌روزرسانی پیشرفت هنوز در این محیط کار در دسترس نیست" },
-  leveling: { en: "Resource leveling is not available in this workspace yet", fa: "تسطیح منابع هنوز در این محیط کار در دسترس نیست" },
   reports: { en: "Report generation is not available in this workspace yet", fa: "ساخت گزارش هنوز در این محیط کار در دسترس نیست" },
+  users: { en: "User administration is not available in this workspace yet", fa: "مدیریت کاربران هنوز در این محیط کار در دسترس نیست" },
+  security: { en: "Security profiles are not available in this workspace yet", fa: "پروفایل‌های امنیتی هنوز در این محیط کار در دسترس نیستند" },
+  categories: { en: "Administration categories are not available in this workspace yet", fa: "دسته‌های مدیریتی هنوز در این محیط کار در دسترس نیستند" },
+  currencies: { en: "Currency administration is not available in this workspace yet", fa: "مدیریت ارزها هنوز در این محیط کار در دسترس نیست" },
+  periods: { en: "Financial periods are not available in this workspace yet", fa: "دوره‌های مالی هنوز در این محیط کار در دسترس نیستند" },
+  audit: { en: "The audit history is not available in this workspace yet", fa: "تاریخچهٔ ممیزی هنوز در این محیط کار در دسترس نیست" },
+  recovery: { en: "Recovery administration is not available in this workspace yet", fa: "مدیریت بازیابی هنوز در این محیط کار در دسترس نیست" },
 } satisfies Record<string, LocalizedLabel>;
 
 export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
@@ -240,19 +243,31 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     window: key,
   });
   const layoutReason = caps.hasLayout ? undefined : unavailable(REASONS.noLayout, locale);
-  return [
+  const hidden = new Set(state.hiddenToolbarGroups ?? []);
+  const separator = (id: string): DesktopMenuItem => ({ id, label: { en: "—", fa: "—" }, separator: true });
+  const toolbarLabel = (group: WorkspaceToolbarGroup): string => {
+    const pack = WORKSPACE_TOOLBAR_LABELS[locale as keyof typeof WORKSPACE_TOOLBAR_LABELS]
+      ?? WORKSPACE_TOOLBAR_LABELS.en;
+    return pack[group];
+  };
+  const menus: DesktopMenu[] = [
     {
-      id: "file",
-      label: { en: "File", fa: "فایل" },
+      id: "workspace",
+      accessKey: "w",
+      label: { en: "Workspace", fa: "محیط کار" },
       items: [
-        { id: "file.new", label: { en: "New project…", fa: "پروژهٔ جدید…" }, window: "project" },
-        { id: "file.open", label: { en: "Open project…", fa: "بازکردن پروژه…" }, window: "project" },
+        { id: "file.new", label: { en: "New project…", fa: "پروژهٔ جدید…" }, window: "project", shortcut: "Ctrl+N" },
+        { id: "file.open", label: { en: "Open project…", fa: "بازکردن پروژه…" }, window: "project", shortcut: "Ctrl+O" },
+        separator("workspace.sep1"),
         { id: "file.open-layout", label: { en: "Open Layout…", fa: "بازکردن چیدمان…" }, command: "layout.open", disabledReason: caps.canOpenFieldChooser ? undefined : unavailable(REASONS.noFields, locale) },
         { id: "file.save-layout", label: { en: "Save Layout", fa: "ذخیرهٔ چیدمان" }, command: "layout.save", shortcut: "Ctrl+S", disabledReason: layoutReason },
         { id: "file.save-layout-as", label: { en: "Save Layout As…", fa: "ذخیرهٔ چیدمان با نام…" }, command: "layout.save-as", disabledReason: layoutReason },
+        separator("workspace.sep2"),
         { id: "file.settings", label: { en: "Project properties…", fa: "مشخصات پروژه…" }, command: "project.settings" },
         { id: "file.interchange", label: { en: "Import / Export…", fa: "ورود / خروجی…" }, command: "project.interchange" },
+        separator("workspace.sep3"),
         { id: "file.print", label: { en: "Print…", fa: "چاپ…" }, command: "file.print", shortcut: "Ctrl+P" },
+        { id: "file.refresh", label: { en: "Refresh data", fa: "به‌روزرسانی داده" }, command: "workspace.refresh", shortcut: "F5" },
         {
           id: "workspace.close",
           label: { en: "Close window", fa: "بستن پنجره" },
@@ -264,6 +279,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     },
     {
       id: "edit",
+      accessKey: "e",
       label: { en: "Edit", fa: "ویرایش" },
       items: [
         {
@@ -280,6 +296,12 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           shortcut: "Ctrl+Y",
           disabledReason: caps.canRedoLayout ? undefined : unavailable(REASONS.redo, locale),
         },
+        separator("edit.sep1"),
+        { id: "edit.cut", label: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", disabledReason: unavailable(REASONS.clipboard, locale) },
+        { id: "edit.copy", label: { en: "Copy", fa: "کپی" }, shortcut: "Ctrl+C", disabledReason: unavailable(REASONS.clipboard, locale) },
+        { id: "edit.paste", label: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: unavailable(REASONS.clipboard, locale) },
+        { id: "edit.delete", label: { en: "Delete", fa: "حذف" }, shortcut: "Del", disabledReason: unavailable(REASONS.deleteActivity, locale) },
+        separator("edit.sep2"),
         { id: "edit.find", label: { en: "Find activities…", fa: "یافتن فعالیت‌ها…" }, command: "edit.find", shortcut: "Ctrl+F" },
         { id: "edit.group-wbs", label: { en: "Group by WBS", fa: "گروه‌بندی بر اساس WBS" }, command: "edit.group-wbs", checked: caps.groupByWbs },
         { id: "edit.sort-toggle", label: { en: "Reverse sort direction", fa: "معکوس کردن جهت ترتیب" }, command: "edit.sort-toggle" },
@@ -287,6 +309,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     },
     {
       id: "view",
+      accessKey: "v",
       label: { en: "View", fa: "نما" },
       items: [
         {
@@ -302,6 +325,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.font-row", label: { en: "Table Font and Row…", fa: "قلم و ردیف جدول…" }, command: "dialog.font-row" },
         { id: "view.preferences", label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, command: "dialog.user-preferences" },
         { id: "view.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, command: "view.line-numbers", checked: presentation.table.lineNumbers },
+        separator("view.sep1"),
         {
           id: "view.expand-all",
           label: { en: "Expand All", fa: "بازکردن همه" },
@@ -329,47 +353,34 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           command: "view.toggle-details",
           checked: state.detailsVisible !== false,
         },
-        {
-          id: "view.theme-classic",
-          label: { en: "CUBI Classic — Version 26 Reference", fa: "CUBI کلاسیک — مرجع نسخه ۲۶" },
-          command: "view.theme-classic",
-          checked: (state.theme ?? "classic") === "classic",
-        },
-        {
-          id: "view.theme-modern",
-          label: { en: "CUBI Modern 3D", fa: "CUBI مدرن سه‌بعدی" },
-          command: "view.theme-modern",
-          checked: state.theme === "modern",
-        },
-        {
-          id: "view.theme-graphite",
-          label: { en: "CUBI Graphite", fa: "CUBI گرافیت" },
-          command: "view.theme-graphite",
-          checked: state.theme === "graphite",
-        },
-        {
-          id: "view.theme-arctic",
-          label: { en: "CUBI Arctic", fa: "CUBI قطبی" },
-          command: "view.theme-arctic",
-          checked: state.theme === "arctic",
-        },
-        {
-          id: "view.theme-copper",
-          label: { en: "CUBI Copper", fa: "CUBI مس" },
-          command: "view.theme-copper",
-          checked: state.theme === "copper",
-        },
-        {
-          id: "view.theme-midnight",
-          label: { en: "CUBI Midnight", fa: "CUBI نیمه‌شب" },
-          command: "view.theme-midnight",
-          checked: state.theme === "midnight",
-        },
+        separator("view.sep2"),
         { id: "view.calendar", label: { en: "Switch calendar display", fa: "تغییر تقویم نمایش" }, command: "admin.calendar" },
+        ...WORKSPACE_TOOLBAR_GROUPS.map((group) => ({
+          id: `view.toolbar-${group}`,
+          label: { en: `Toolbar: ${toolbarLabel(group)}`, fa: `نوار ابزار: ${toolbarLabel(group)}` },
+          command: `view.toolbar-${group}` as DesktopCommand,
+          checked: !hidden.has(group),
+        })),
+        separator("view.sep3"),
+        { id: "view.theme-classic", label: { en: "CUBI Classic — Version 26 Reference", fa: "CUBI کلاسیک — مرجع نسخه ۲۶" }, command: "view.theme-classic", checked: (state.theme ?? "classic") === "classic" },
+        { id: "view.theme-modern", label: { en: "CUBI Modern 3D", fa: "CUBI مدرن سه‌بعدی" }, command: "view.theme-modern", checked: state.theme === "modern" },
+        { id: "view.theme-graphite", label: { en: "CUBI Graphite", fa: "CUBI گرافیت" }, command: "view.theme-graphite", checked: state.theme === "graphite" },
+        { id: "view.theme-arctic", label: { en: "CUBI Arctic", fa: "CUBI قطبی" }, command: "view.theme-arctic", checked: state.theme === "arctic" },
+        { id: "view.theme-copper", label: { en: "CUBI Copper", fa: "CUBI مس" }, command: "view.theme-copper", checked: state.theme === "copper" },
+        { id: "view.theme-midnight", label: { en: "CUBI Midnight", fa: "CUBI نیمه‌شب" }, command: "view.theme-midnight", checked: state.theme === "midnight" },
+        separator("view.sep4"),
+        ...state.openWindows.map((key, index) => windowItem(key, index < 9 ? `Alt+${index + 1}` : undefined)),
+        {
+          id: "view.close-window",
+          label: { en: "Close current window", fa: "بستن پنجرهٔ جاری" },
+          command: "project.close",
+          disabledReason: caps.hasMultipleWindows ? undefined : unavailable(REASONS.singleWindow, locale),
+        },
       ],
     },
     {
       id: "project",
+      accessKey: "p",
       label: { en: "Project", fa: "پروژه" },
       items: [
         { id: "project.settings", label: { en: "Project properties…", fa: "مشخصات پروژه…" }, command: "project.settings" },
@@ -378,6 +389,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           id: "project.add-activity",
           label: { en: "Add activity", fa: "افزودن فعالیت" },
           command: "project.add-activity",
+          shortcut: "Insert",
           disabledReason: caps.hasWbs ? undefined : unavailable(REASONS.noWbs, locale),
         },
         {
@@ -392,6 +404,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "project.schedule-options", label: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, command: "project.schedule-options" },
         { id: "project.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
         { id: "project.reference", label: { en: "Scheduling reference", fa: "مرجع زمان‌بندی" }, command: "tools.reference" },
+        separator("project.sep1"),
         { id: "project.assign-resources", label: { en: "Assign resources…", fa: "تخصیص منابع…" }, command: "activity.assign-resources" },
         { id: "project.predecessors", label: { en: "Assign predecessors…", fa: "تخصیص پیش‌نیاز…" }, command: "activity.predecessors" },
         { id: "project.successors", label: { en: "Assign successors…", fa: "تخصیص پس‌نیاز…" }, command: "activity.successors" },
@@ -402,21 +415,22 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       ],
     },
     {
-      id: "enterprise",
-      label: { en: "Enterprise", fa: "سازمان" },
+      id: "organization",
+      accessKey: "o",
+      label: { en: "Organization", fa: "سازمان" },
       items: [
         { id: "enterprise.projects", label: WINDOW_TITLES.project, window: "project" },
         { id: "enterprise.resources", label: WINDOW_TITLES.resources, window: "resources" },
-        { id: "enterprise.assignments", label: { en: "Resource assignments", fa: "تخصیص منابع" }, window: "resources" },
-        { id: "enterprise.roles", label: { en: "Roles…", fa: "نقش‌ها…" }, disabledReason: unavailable(REASONS.roles, locale) },
-        { id: "enterprise.calendars", label: { en: "Calendars…", fa: "تقویم‌ها…" }, disabledReason: unavailable(REASONS.calendarAdmin, locale) },
+        { id: "enterprise.assignments", label: { en: "Resource assignments", fa: "تخصیص منابع" }, window: "assignments" },
+        { id: "enterprise.roles", label: { en: "Roles…", fa: "نقش‌ها…" }, window: "roles" },
+        { id: "enterprise.calendars", label: { en: "Calendars…", fa: "تقویم‌ها…" }, window: "calendars" },
         { id: "enterprise.udfs", label: { en: "User defined fields…", fa: "فیلدهای سفارشی…" }, disabledReason: unavailable(REASONS.udfs, locale) },
         { id: "enterprise.forms", label: { en: "Forms & Workflows…", fa: "فرم‌ها و گردش‌کار…" }, command: "forms.open" },
-        { id: "enterprise.admin", label: WINDOW_TITLES.settings, window: "settings" },
       ],
     },
     {
       id: "tools",
+      accessKey: "t",
       label: { en: "Tools", fa: "ابزارها" },
       items: [
         { id: "tools.forms", label: { en: "Forms & Workflows…", fa: "فرم‌ها و گردش‌کار…" }, command: "forms.open" },
@@ -429,90 +443,137 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "tools.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
       ],
     },
-    {
-      id: "window",
-      label: { en: "Window", fa: "پنجره" },
-      items: [
-        ...WINDOW_ORDER.map((key, index) => windowItem(key, index < 9 ? `Alt+${index + 1}` : undefined)),
-        {
-          id: "window.close",
-          label: { en: "Close current window", fa: "بستن پنجرهٔ جاری" },
-          command: "project.close",
-          disabledReason: caps.hasMultipleWindows ? undefined : unavailable(REASONS.singleWindow, locale),
-        },
-      ],
-    },
-    {
-      id: "help",
-      label: { en: "Help", fa: "راهنما" },
-      items: [
-        { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
-        { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
-      ],
-    },
   ];
+  // Administration is a first-class, role-gated menu. Non-administrators keep
+  // the same workspace; they simply do not see administration commands.
+  if (caps.canAdminister !== false) {
+    menus.push({
+      id: "administration",
+      accessKey: "a",
+      label: { en: "Administration", fa: "مدیریت" },
+      items: [
+        { id: "admin.window", label: WINDOW_TITLES.settings, window: "settings" },
+        { id: "admin.preferences", label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, command: "dialog.user-preferences" },
+        { id: "admin.language", label: { en: "Language", fa: "زبان" }, command: "admin.language" },
+        { id: "admin.calendar", label: { en: "Calendar display", fa: "نمایش تقویم" }, command: "admin.calendar" },
+        separator("admin.sep1"),
+        { id: "admin.users", label: { en: "Users…", fa: "کاربران…" }, disabledReason: unavailable(REASONS.users, locale) },
+        { id: "admin.security", label: { en: "Security profiles…", fa: "پروفایل‌های امنیتی…" }, disabledReason: unavailable(REASONS.security, locale) },
+        { id: "admin.categories", label: { en: "Categories…", fa: "دسته‌ها…" }, disabledReason: unavailable(REASONS.categories, locale) },
+        { id: "admin.currencies", label: { en: "Currencies…", fa: "ارزها…" }, disabledReason: unavailable(REASONS.currencies, locale) },
+        { id: "admin.periods", label: { en: "Financial period calendars…", fa: "تقویم دوره‌های مالی…" }, disabledReason: unavailable(REASONS.periods, locale) },
+        { id: "admin.audit", label: { en: "Audit history…", fa: "تاریخچهٔ ممیزی…" }, disabledReason: unavailable(REASONS.audit, locale) },
+        { id: "admin.recovery", label: { en: "Recovery…", fa: "بازیابی…" }, disabledReason: unavailable(REASONS.recovery, locale) },
+      ],
+    });
+  }
+  menus.push({
+    id: "help",
+    accessKey: "h",
+    label: { en: "Help", fa: "راهنما" },
+    items: [
+      { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
+      { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
+    ],
+  });
+  return menus;
 }
 
+export function toolbarGroupLabel(group: WorkspaceToolbarGroup, locale: string): string {
+  const pack = WORKSPACE_TOOLBAR_LABELS[locale as keyof typeof WORKSPACE_TOOLBAR_LABELS]
+    ?? WORKSPACE_TOOLBAR_LABELS.en;
+  return pack[group];
+}
+
+/**
+ * The toolbar is organised into the same families the View menu lists. A family
+ * only appears when the active window can use it, so every visible button runs
+ * a command in the current context instead of showing unrelated chrome.
+ */
 export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[] {
   const { capabilities: caps, locale } = state;
   const presentation = state.presentation ?? DEFAULT_PRESENTATION;
-  const reasoning = (label: LocalizedLabel): LocalizedLabel => unavailable(label, locale);
-  return [
-    { id: "toolbar.new", label: { en: "New", fa: "جدید" }, title: { en: "New project", fa: "پروژهٔ جدید" }, window: "project", icon: "file", group: "file" },
-    { id: "toolbar.open", label: { en: "Open", fa: "بازکردن" }, title: { en: "Open project", fa: "بازکردن پروژه" }, window: "project", icon: "book", group: "file" },
-    { id: "toolbar.print", label: { en: "Print", fa: "چاپ" }, title: { en: "Print the current view", fa: "چاپ نمای جاری" }, command: "file.print", icon: "print", group: "file" },
-    { id: "toolbar.import", label: { en: "Import", fa: "ورود" }, title: { en: "Import project data", fa: "ورود دادهٔ پروژه" }, command: "project.interchange", icon: "book", group: "file" },
-    { id: "toolbar.export", label: { en: "Export", fa: "خروجی" }, title: { en: "Export project data", fa: "خروجی دادهٔ پروژه" }, command: "project.interchange", icon: "book", group: "file" },
+  const why = (label: LocalizedLabel): LocalizedLabel => unavailable(label, locale);
+  const items: DesktopToolbarItem[] = [
+    { id: "toolbar.new", label: { en: "New", fa: "جدید" }, title: { en: "New project", fa: "پروژهٔ جدید" }, window: "project", shortcut: "Ctrl+N", icon: "plus", group: "workspace" },
+    { id: "toolbar.open", label: { en: "Open", fa: "بازکردن" }, title: { en: "Open project", fa: "بازکردن پروژه" }, window: "project", shortcut: "Ctrl+O", icon: "open", group: "workspace" },
+    { id: "toolbar.save-layout", label: { en: "Save", fa: "ذخیره" }, title: { en: "Save layout", fa: "ذخیرهٔ چیدمان" }, command: "layout.save", shortcut: "Ctrl+S", disabledReason: caps.hasLayout ? undefined : why(REASONS.noLayout), icon: "save", group: "workspace" },
+    { id: "toolbar.refresh", label: { en: "Refresh", fa: "به‌روزرسانی" }, title: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, command: "workspace.refresh", shortcut: "F5", icon: "refresh", group: "workspace" },
+    { id: "toolbar.import", label: { en: "Import", fa: "ورود" }, title: { en: "Import project data", fa: "ورود دادهٔ پروژه" }, command: "project.interchange", icon: "import", group: "workspace" },
+    { id: "toolbar.export", label: { en: "Export", fa: "خروجی" }, title: { en: "Export project data", fa: "خروجی دادهٔ پروژه" }, command: "project.interchange", icon: "export", group: "workspace" },
+    { id: "toolbar.print", label: { en: "Print", fa: "چاپ" }, title: { en: "Print the current view", fa: "چاپ نمای جاری" }, command: "file.print", shortcut: "Ctrl+P", icon: "print", group: "workspace" },
 
-    { id: "toolbar.undo", label: { en: "Undo", fa: "بازگردانی" }, title: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, command: "edit.undo", disabledReason: caps.canUndoLayout ? undefined : reasoning(REASONS.undo), icon: "undo", group: "edit" },
-    { id: "toolbar.redo", label: { en: "Redo", fa: "تکرار" }, title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, command: "edit.redo", disabledReason: caps.canRedoLayout ? undefined : reasoning(REASONS.redo), icon: "redo", group: "edit" },
+    { id: "toolbar.undo", label: { en: "Undo", fa: "بازگردانی" }, title: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, command: "edit.undo", shortcut: "Ctrl+Z", disabledReason: caps.canUndoLayout ? undefined : why(REASONS.undo), icon: "undo", group: "edit" },
+    { id: "toolbar.redo", label: { en: "Redo", fa: "تکرار" }, title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, command: "edit.redo", shortcut: "Ctrl+Y", disabledReason: caps.canRedoLayout ? undefined : why(REASONS.redo), icon: "redo", group: "edit" },
+    { id: "toolbar.cut", label: { en: "Cut", fa: "برش" }, title: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", disabledReason: why(REASONS.clipboard), icon: "cut", group: "edit" },
+    { id: "toolbar.copy", label: { en: "Copy", fa: "کپی" }, title: { en: "Copy", fa: "کپی" }, shortcut: "Ctrl+C", disabledReason: why(REASONS.clipboard), icon: "copy", group: "edit" },
+    { id: "toolbar.paste", label: { en: "Paste", fa: "چسباندن" }, title: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: why(REASONS.clipboard), icon: "paste", group: "edit" },
+    { id: "toolbar.find", label: { en: "Find", fa: "یافتن" }, title: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F", icon: "find", group: "edit" },
 
-    { id: "toolbar.fields", label: { en: "Columns", fa: "ستون‌ها" }, title: { en: "Activity field layout", fa: "چیدمان فیلدهای فعالیت" }, command: "view.fields", disabledReason: caps.canOpenFieldChooser ? undefined : reasoning(REASONS.noFields), icon: "columns", group: "layout" },
-    { id: "toolbar.find", label: { en: "Filters", fa: "فیلترها" }, title: { en: "Filter activities", fa: "پالایش فعالیت‌ها" }, command: "dialog.filters", shortcut: "Ctrl+F", icon: "filter", group: "layout" },
-    { id: "toolbar.group-sort", label: { en: "Group & Sort", fa: "گروه و ترتیب" }, title: { en: "Group and sort dialog", fa: "دیالوگ گروه‌بندی و ترتیب" }, command: "dialog.group-sort", icon: "sort", group: "layout" },
-    { id: "toolbar.group-wbs", label: { en: "Group WBS", fa: "گروه WBS" }, title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" }, command: "edit.group-wbs", active: caps.groupByWbs, icon: "group", group: "layout" },
+    { id: "toolbar.columns", label: { en: "Columns", fa: "ستون‌ها" }, title: { en: "Activity field layout", fa: "چیدمان فیلدهای فعالیت" }, command: "view.fields", disabledReason: caps.canOpenFieldChooser ? undefined : why(REASONS.noFields), icon: "columns", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.filters", label: { en: "Filters", fa: "فیلترها" }, title: { en: "Filter activities", fa: "پالایش فعالیت‌ها" }, command: "dialog.filters", icon: "filter", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.group-sort", label: { en: "Group & Sort", fa: "گروه و ترتیب" }, title: { en: "Group and sort dialog", fa: "دیالوگ گروه‌بندی و ترتیب" }, command: "dialog.group-sort", icon: "sort", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.group-wbs", label: { en: "Group WBS", fa: "گروه WBS" }, title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" }, command: "edit.group-wbs", active: caps.groupByWbs, icon: "group", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, title: { en: "Show or hide row numbers in the activity table", fa: "نمایش یا پنهان‌کردن شمارهٔ ردیف در جدول فعالیت‌ها" }, command: "view.line-numbers", active: presentation.table.lineNumbers, icon: "lineNumbers", group: "layout", windows: ["schedule"] },
 
-    { id: "toolbar.zoom-in", label: { en: "Zoom In", fa: "بزرگ‌نمایی" }, title: { en: "Zoom in on the timescale", fa: "بزرگ‌نمایی مقیاس زمانی" }, command: "view.zoom-in", icon: "plus", group: "view" },
-    { id: "toolbar.zoom-out", label: { en: "Zoom Out", fa: "کوچک‌نمایی" }, title: { en: "Zoom out of the timescale", fa: "کوچک‌نمایی مقیاس زمانی" }, command: "view.zoom-out", icon: "left", group: "view" },
-    { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "bars", group: "view" },
-    { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "view" },
-    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar chart options", fa: "تنظیمات نمودار میله‌ای" }, command: "dialog.bars", icon: "bars", group: "view" },
-    { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font, colours and row height", fa: "قلم، رنگ و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "table", group: "view" },
-    { id: "toolbar.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, title: { en: "Show or hide row numbers in the activity table", fa: "نمایش یا پنهان‌کردن شمارهٔ ردیف در جدول فعالیت‌ها" }, command: "view.line-numbers", active: presentation.table.lineNumbers, icon: "table", group: "view" },
-    { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", active: state.detailsVisible !== false, icon: "table", group: "view" },
+    { id: "toolbar.zoom-in", label: { en: "Zoom In", fa: "بزرگ‌نمایی" }, title: { en: "Zoom in on the timescale", fa: "بزرگ‌نمایی مقیاس زمانی" }, command: "view.zoom-in", icon: "zoomIn", group: "view" },
+    { id: "toolbar.zoom-out", label: { en: "Zoom Out", fa: "کوچک‌نمایی" }, title: { en: "Zoom out of the timescale", fa: "کوچک‌نمایی مقیاس زمانی" }, command: "view.zoom-out", icon: "zoomOut", group: "view" },
+    { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "fit", group: "view" },
+    { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", active: state.detailsVisible !== false, icon: "panels", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
 
-    { id: "toolbar.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, title: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9", icon: "calendar", group: "project" },
+    { id: "toolbar.properties", label: { en: "Properties", fa: "مشخصات" }, title: { en: "Project properties", fa: "مشخصات پروژه" }, command: "project.settings", icon: "project", group: "project" },
+    { id: "toolbar.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, title: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9", icon: "calendar", group: "project", windows: ["schedule"] },
+    { id: "toolbar.schedule-options", label: { en: "Options", fa: "تنظیمات" }, title: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, command: "project.schedule-options", icon: "settings", group: "project", windows: ["schedule"] },
+    { id: "toolbar.baseline", label: { en: "Baselines", fa: "خطوط مبنا" }, title: { en: "Baselines", fa: "خطوط مبنا" }, disabledReason: why(REASONS.baseline), icon: "baseline", group: "project" },
 
-    { id: "toolbar.add-wbs", label: { en: "WBS", fa: "WBS" }, title: { en: "Add WBS element", fa: "افزودن عنصر WBS" }, command: "project.add-wbs", icon: "tree", group: "activities" },
-    { id: "toolbar.add-activity", label: { en: "Add", fa: "افزودن" }, title: { en: "Add activity", fa: "افزودن فعالیت" }, command: "project.add-activity", disabledReason: caps.hasWbs ? undefined : reasoning(REASONS.noWbs), icon: "plus", group: "activities" },
-    { id: "toolbar.edit-activity", label: { en: "Edit", fa: "ویرایش" }, title: { en: "Edit selected activity", fa: "ویرایش فعالیت انتخاب‌شده" }, command: "project.edit-activity", disabledReason: caps.hasSelectedActivity ? undefined : reasoning(REASONS.noSelection), icon: "edit", group: "activities" },
-    { id: "toolbar.assign", label: { en: "Resources", fa: "منابع" }, title: { en: "Assign resources", fa: "تخصیص منابع" }, command: "activity.assign-resources", icon: "resource", group: "activities" },
-    { id: "toolbar.predecessors", label: { en: "Predecessors", fa: "پیش‌نیازها" }, title: { en: "Assign predecessors", fa: "تخصیص پیش‌نیاز" }, command: "activity.predecessors", icon: "link", group: "activities" },
-    { id: "toolbar.successors", label: { en: "Successors", fa: "پس‌نیازها" }, title: { en: "Assign successors", fa: "تخصیص پس‌نیاز" }, command: "activity.successors", icon: "network", group: "activities" },
+    { id: "toolbar.add-activity", label: { en: "Add Activity", fa: "افزودن فعالیت" }, title: { en: "Add activity", fa: "افزودن فعالیت" }, command: "project.add-activity", disabledReason: caps.hasWbs ? undefined : why(REASONS.noWbs), icon: "activity", group: "activities", windows: ["schedule"] },
+    { id: "toolbar.edit-activity", label: { en: "Edit", fa: "ویرایش" }, title: { en: "Edit selected activity", fa: "ویرایش فعالیت انتخاب‌شده" }, command: "project.edit-activity", disabledReason: caps.hasSelectedActivity ? undefined : why(REASONS.noSelection), icon: "edit", group: "activities", windows: ["schedule"] },
+    { id: "toolbar.predecessors", label: { en: "Predecessors", fa: "پیش‌نیازها" }, title: { en: "Assign predecessors", fa: "تخصیص پیش‌نیاز" }, command: "activity.predecessors", icon: "link", group: "activities", windows: ["schedule"] },
+    { id: "toolbar.successors", label: { en: "Successors", fa: "پس‌نیازها" }, title: { en: "Assign successors", fa: "تخصیص پس‌نیاز" }, command: "activity.successors", icon: "network", group: "activities", windows: ["schedule"] },
+
+    { id: "toolbar.add-wbs", label: { en: "Add WBS", fa: "افزودن WBS" }, title: { en: "Add WBS element", fa: "افزودن عنصر WBS" }, command: "project.add-wbs", icon: "tree", group: "wbs", windows: ["wbs", "project"] },
+    { id: "toolbar.wbs", label: { en: "WBS", fa: "WBS" }, title: { en: "Open the WBS window", fa: "بازکردن پنجرهٔ WBS" }, window: "wbs", icon: "wbs", group: "wbs" },
+    { id: "toolbar.expand-all", label: { en: "Expand All", fa: "بازکردن همه" }, title: { en: "Expand every WBS band", fa: "بازکردن همهٔ باندهای WBS" }, command: "view.expand-all", shortcut: "Ctrl+Num +", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "expand", group: "wbs", windows: ["schedule", "wbs"] },
+    { id: "toolbar.collapse-all", label: { en: "Collapse All", fa: "بستن همه" }, title: { en: "Collapse every WBS band", fa: "بستن همهٔ باندهای WBS" }, command: "view.collapse-all", shortcut: "Ctrl+Num -", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "collapse", group: "wbs", windows: ["schedule", "wbs"] },
+
+    { id: "toolbar.gantt", label: { en: "Gantt", fa: "گانت" }, title: { en: "Show or hide the Gantt chart", fa: "نمایش یا پنهان‌کردن نمودار گانت" }, command: "view.toggle-gantt", active: state.ganttVisible !== false, icon: "gantt", group: "gantt", windows: ["schedule", "wbs"] },
+    { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "gantt", windows: ["schedule", "wbs"] },
+    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar styles", fa: "سبک میله‌ها" }, command: "dialog.bars", icon: "bars", group: "gantt", windows: ["schedule", "wbs"] },
+    { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font, colours and row height", fa: "قلم، رنگ و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "rowHeight", group: "gantt", windows: ["schedule"] },
+
+    { id: "toolbar.resources", label: { en: "Resources", fa: "منابع" }, title: { en: "Open the Resources window", fa: "بازکردن پنجرهٔ منابع" }, window: "resources", icon: "resource", group: "resources", windows: ["resources", "assignments", "roles"] },
+    { id: "toolbar.assignments", label: { en: "Assignments", fa: "تخصیص‌ها" }, title: { en: "Open Resource Assignments", fa: "بازکردن تخصیص منابع" }, window: "assignments", icon: "assignment", group: "resources", windows: ["resources", "assignments", "roles"] },
+    { id: "toolbar.assign", label: { en: "Assign", fa: "تخصیص" }, title: { en: "Assign resources to the selected activity", fa: "تخصیص منابع به فعالیت انتخاب‌شده" }, command: "activity.assign-resources", icon: "link", group: "resources", windows: ["resources", "assignments", "schedule"] },
+
+    { id: "toolbar.reports", label: { en: "Reports", fa: "گزارش‌ها" }, title: { en: "Open the Reports window", fa: "بازکردن پنجرهٔ گزارش‌ها" }, window: "reports", icon: "reports", group: "reports", windows: ["reports", "documents", "tracking"] },
+    { id: "toolbar.documents", label: { en: "Documents", fa: "اسناد" }, title: { en: "Open the Documents window", fa: "بازکردن پنجرهٔ اسناد" }, window: "documents", icon: "documents", group: "reports", windows: ["reports", "documents", "tracking"] },
+    { id: "toolbar.tracking", label: { en: "Tracking", fa: "رهگیری" }, title: { en: "Open the Tracking window", fa: "بازکردن پنجرهٔ رهگیری" }, window: "tracking", icon: "tracking", group: "reports", windows: ["reports", "documents", "tracking"] },
+    { id: "toolbar.print-preview", label: { en: "Print Preview", fa: "پیش‌نمایش چاپ" }, title: { en: "Print the current view", fa: "چاپ نمای جاری" }, command: "file.print", icon: "print", group: "reports", windows: ["reports", "documents", "tracking"] },
 
     { id: "toolbar.search", label: { en: "Search", fa: "جست‌وجو" }, title: { en: "Search activities", fa: "جست‌وجوی فعالیت‌ها" }, command: "edit.find", icon: "find", group: "tools" },
     { id: "toolbar.preferences", label: { en: "Preferences", fa: "تنظیمات" }, title: { en: "User preferences for the table and bars", fa: "ترجیحات کاربر برای جدول و میله‌ها" }, command: "dialog.user-preferences", icon: "settings", group: "tools" },
+    { id: "toolbar.language", label: { en: "Language", fa: "زبان" }, title: { en: "Switch language", fa: "تغییر زبان" }, command: "admin.language", icon: "language", group: "tools" },
     { id: "toolbar.help", label: { en: "Help", fa: "راهنما" }, title: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1", icon: "help", group: "tools" },
   ];
+  return items.filter((item) => !item.windows || item.windows.includes(state.activeWindow));
 }
 
 export function getDesktopToolbarGroups(state: DesktopShellState): Array<{
-  id: DesktopToolbarGroupId;
+  id: WorkspaceToolbarGroup;
   label: LocalizedLabel;
   items: DesktopToolbarItem[];
 }> {
-  const groups: Array<{ id: DesktopToolbarGroupId; label: LocalizedLabel; items: DesktopToolbarItem[] }> = [
-    { id: "file", label: { en: "File", fa: "فایل" }, items: [] },
-    { id: "edit", label: { en: "Edit", fa: "ویرایش" }, items: [] },
-    { id: "layout", label: { en: "Layout", fa: "چیدمان" }, items: [] },
-    { id: "view", label: { en: "View", fa: "نما" }, items: [] },
-    { id: "project", label: { en: "Project", fa: "پروژه" }, items: [] },
-    { id: "activities", label: { en: "Activities", fa: "فعالیت‌ها" }, items: [] },
-    { id: "tools", label: { en: "Tools", fa: "ابزارها" }, items: [] },
-  ];
+  const hidden = new Set(state.hiddenToolbarGroups ?? []);
+  const groups = WORKSPACE_TOOLBAR_GROUPS
+    .filter((group) => !hidden.has(group))
+    .map((group) => ({
+      id: group,
+      label: { en: toolbarGroupLabel(group, state.locale), fa: toolbarGroupLabel(group, state.locale) },
+      items: [] as DesktopToolbarItem[],
+    }));
   for (const item of getDesktopToolbar(state)) {
-    const group = groups.find((candidate) => candidate.id === (item.group ?? "file"));
+    const group = groups.find((candidate) => candidate.id === item.group);
     group?.items.push(item);
   }
   return groups.filter((group) => group.items.length > 0);
@@ -528,6 +589,7 @@ function escapeHtml(value: string): string {
 }
 
 function renderMenuItem(item: DesktopMenuItem, locale: string): string {
+  if (item.separator) return `<div class="cp-menubar-separator" role="separator"></div>`;
   const disabled = Boolean(item.disabledReason);
   const reason = item.disabledReason ? pick(item.disabledReason, locale) : "";
   const target = item.window
@@ -547,7 +609,7 @@ function renderMenus(state: DesktopShellState): string {
   const menuAria = translateWorkspaceUiText(locale, "Application menu", "منوی برنامه");
   return `<div class="cp-menubar" role="menubar" aria-label="${escapeHtml(menuAria)}">
     ${menus.map((menu) => `<div class="cp-menubar-group">
-      <button type="button" class="cp-menubar-trigger" role="menuitem" aria-haspopup="true" aria-expanded="false" data-desktop-menu="${escapeHtml(menu.id)}">${escapeHtml(pick(menu.label, locale))}</button>
+      <button type="button" class="cp-menubar-trigger" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-keyshortcuts="Alt+${escapeHtml(menu.accessKey.toUpperCase())}" title="${escapeHtml(`Alt+${menu.accessKey.toUpperCase()}`)}" data-desktop-menu="${escapeHtml(menu.id)}" data-desktop-access="${escapeHtml(menu.accessKey)}">${escapeHtml(pick(menu.label, locale))}</button>
       <div class="cp-menubar-popup" role="menu" data-desktop-popup="${escapeHtml(menu.id)}" aria-label="${escapeHtml(pick(menu.label, locale))}" hidden>
         ${menu.items.map((item) => renderMenuItem(item, locale)).join("")}
       </div>
@@ -591,31 +653,156 @@ function renderToolbar(state: DesktopShellState): string {
 function renderTabs(state: DesktopShellState): string {
   const locale = state.locale;
   const closable = state.openWindows.length > 1;
+  const reorderable = state.openWindows.length > 1;
+  const dirty = new Set(state.dirtyWindows ?? []);
   const openWindowsAria = translateWorkspaceUiText(locale, "Open windows", "پنجره‌های باز");
   const closeWord = translateWorkspaceUiText(locale, "Close", "بستن");
+  const unsaved = translateWorkspaceUiText(locale, "Unsaved changes", "تغییرات ذخیره‌نشده");
   return `<div class="cp-window-tabs" role="tablist" aria-label="${escapeHtml(openWindowsAria)}">
     ${state.openWindows.map((key) => {
       const selected = key === state.activeWindow;
       const title = pick(WINDOW_TITLES[key], locale);
-      return `<span class="cp-window-tab${selected ? " is-active" : ""}" role="tab" aria-selected="${selected ? "true" : "false"}" data-window-tab="${escapeHtml(key)}" tabindex="${selected ? "0" : "-1"}">
-        <button type="button" class="cp-window-tab-label" data-window-open="${escapeHtml(key)}">${escapeHtml(title)}</button>
+      const isDirty = dirty.has(key);
+      return `<span class="cp-window-tab${selected ? " is-active" : ""}${isDirty ? " is-dirty" : ""}" role="tab" aria-selected="${selected ? "true" : "false"}"${isDirty ? ' data-window-dirty="true"' : ""} data-window-tab="${escapeHtml(key)}" tabindex="${selected ? "0" : "-1"}"${reorderable ? ' draggable="true"' : ""}>
+        <button type="button" class="cp-window-tab-label" data-window-open="${escapeHtml(key)}"${isDirty ? ` title="${escapeHtml(unsaved)}"` : ""}>${escapeHtml(title)}${isDirty ? `<span class="cp-window-tab-dirty" aria-label="${escapeHtml(unsaved)}"></span>` : ""}</button>
         ${closable ? `<button type="button" class="cp-window-tab-close" data-window-close="${escapeHtml(key)}" aria-label="${escapeHtml(closeWord + " " + title)}" title="${escapeHtml(closeWord + " " + title)}">×</button>` : ""}
       </span>`;
     }).join("")}
   </div>`;
 }
 
+/**
+ * Shortcuts are a closed catalog independent of the menus: a key is either
+ * executed here or listed as unavailable with the reason its service is
+ * missing. Menus can therefore be reorganised without changing any binding.
+ */
+export type DesktopShortcutChord = {
+  key?: string;
+  code?: string;
+  ctrlOrMeta?: boolean;
+  alt?: boolean;
+  shift?: boolean;
+};
+
+export type DesktopShortcut = {
+  id: string;
+  label: LocalizedLabel;
+  keys: string;
+  chord: DesktopShortcutChord;
+  command?: DesktopCommand;
+  window?: WorkspaceMenuKey;
+  requires?: { test: (caps: DesktopShellCapabilities) => boolean; reason: LocalizedLabel };
+  unavailable?: LocalizedLabel;
+};
+
+const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
+  { id: "shortcut.new", label: { en: "New project", fa: "پروژهٔ جدید" }, keys: "Ctrl+N", chord: { key: "n", ctrlOrMeta: true }, window: "project" },
+  { id: "shortcut.open", label: { en: "Open project", fa: "بازکردن پروژه" }, keys: "Ctrl+O", chord: { key: "o", ctrlOrMeta: true }, window: "project" },
+  { id: "shortcut.close-window", label: { en: "Close window", fa: "بستن پنجره" }, keys: "Ctrl+W", chord: { key: "w", ctrlOrMeta: true }, command: "project.close", requires: { test: (caps) => caps.hasMultipleWindows, reason: REASONS.singleWindow } },
+  { id: "shortcut.print", label: { en: "Print", fa: "چاپ" }, keys: "Ctrl+P", chord: { key: "p", ctrlOrMeta: true }, command: "file.print" },
+  { id: "shortcut.save-layout", label: { en: "Save layout", fa: "ذخیرهٔ چیدمان" }, keys: "Ctrl+S", chord: { key: "s", ctrlOrMeta: true }, command: "layout.save", requires: { test: (caps) => caps.hasLayout, reason: REASONS.noLayout } },
+  { id: "shortcut.undo", label: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, keys: "Ctrl+Z", chord: { key: "z", ctrlOrMeta: true }, command: "edit.undo", requires: { test: (caps) => caps.canUndoLayout, reason: REASONS.undo } },
+  { id: "shortcut.redo", label: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, keys: "Ctrl+Y", chord: { key: "y", ctrlOrMeta: true }, command: "edit.redo", requires: { test: (caps) => caps.canRedoLayout, reason: REASONS.redo } },
+  { id: "shortcut.cut", label: { en: "Cut", fa: "برش" }, keys: "Ctrl+X", chord: { key: "x", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
+  { id: "shortcut.copy", label: { en: "Copy", fa: "کپی" }, keys: "Ctrl+C", chord: { key: "c", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
+  { id: "shortcut.paste", label: { en: "Paste", fa: "چسباندن" }, keys: "Ctrl+V", chord: { key: "v", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
+  { id: "shortcut.delete", label: { en: "Delete activity", fa: "حذف فعالیت" }, keys: "Del", chord: { key: "Delete" }, unavailable: REASONS.deleteActivity },
+  { id: "shortcut.insert", label: { en: "Insert activity", fa: "درج فعالیت" }, keys: "Ins", chord: { key: "Insert" }, command: "project.add-activity", requires: { test: (caps) => caps.hasWbs, reason: REASONS.noWbs } },
+  { id: "shortcut.find", label: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, keys: "Ctrl+F", chord: { key: "f", ctrlOrMeta: true }, command: "edit.find" },
+  { id: "shortcut.find-next", label: { en: "Find next", fa: "یافتن مورد بعدی" }, keys: "F3", chord: { key: "F3" }, unavailable: REASONS.findNext },
+  { id: "shortcut.refresh", label: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, keys: "F5", chord: { key: "F5" }, command: "workspace.refresh" },
+  { id: "shortcut.schedule", label: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, keys: "F9", chord: { key: "F9" }, command: "tools.run-schedule" },
+  { id: "shortcut.schedule-options", label: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, keys: "Shift+F9", chord: { key: "F9", shift: true }, command: "project.schedule-options" },
+  { id: "shortcut.leveling", label: { en: "Level resources", fa: "تسطیح منابع" }, keys: "F7", chord: { key: "F7" }, unavailable: REASONS.leveling },
+  { id: "shortcut.commit", label: { en: "Commit changes", fa: "ثبت تغییرات" }, keys: "F10", chord: { key: "F10" }, unavailable: REASONS.commit },
+  { id: "shortcut.expand-all", label: { en: "Expand all WBS bands", fa: "بازکردن همهٔ باندهای WBS" }, keys: "Ctrl+Num +", chord: { code: "NumpadAdd", ctrlOrMeta: true }, command: "view.expand-all", requires: { test: (caps) => caps.hasWbs && caps.groupByWbs, reason: REASONS.noWbsGroup } },
+  { id: "shortcut.collapse-all", label: { en: "Collapse all WBS bands", fa: "بستن همهٔ باندهای WBS" }, keys: "Ctrl+Num -", chord: { code: "NumpadSubtract", ctrlOrMeta: true }, command: "view.collapse-all", requires: { test: (caps) => caps.hasWbs && caps.groupByWbs, reason: REASONS.noWbsGroup } },
+  { id: "shortcut.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, keys: "F1", chord: { key: "F1" }, command: "help.shortcuts" },
+  { id: "shortcut.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, keys: "Shift+F12", chord: { key: "F12", shift: true }, command: "help.about" },
+];
+
+/** Catalog plus the live Alt+1…9 window bindings for the open tabs. */
+export function getDesktopShortcuts(openWindows: readonly WorkspaceMenuKey[] = []): DesktopShortcut[] {
+  const windowShortcuts = openWindows.slice(0, 9).map((key, index) => ({
+    id: `shortcut.window.${key}`,
+    label: WINDOW_TITLES[key],
+    keys: `Alt+${index + 1}`,
+    chord: { key: String(index + 1), alt: true } satisfies DesktopShortcutChord,
+    window: key,
+  }));
+  return [...DESKTOP_SHORTCUTS, ...windowShortcuts];
+}
+
+/** Null when the shortcut is executable in this state, otherwise the reason. */
+export function shortcutUnavailableReason(
+  shortcut: DesktopShortcut,
+  caps: DesktopShellCapabilities,
+): LocalizedLabel | null {
+  if (shortcut.unavailable) return shortcut.unavailable;
+  if (shortcut.requires && !shortcut.requires.test(caps)) return shortcut.requires.reason;
+  return null;
+}
+
+export type DesktopKeyEvent = {
+  key: string;
+  code?: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+};
+
+function chordMatches(chord: DesktopShortcutChord, event: DesktopKeyEvent): boolean {
+  const ctrlOrMeta = Boolean(event.ctrlKey || event.metaKey);
+  if (Boolean(chord.ctrlOrMeta) !== ctrlOrMeta) return false;
+  if (Boolean(chord.alt) !== Boolean(event.altKey)) return false;
+  if (Boolean(chord.shift) !== Boolean(event.shiftKey)) return false;
+  if (chord.code) return event.code === chord.code;
+  return Boolean(chord.key) && event.key.toLowerCase() === chord.key?.toLowerCase();
+}
+
+/** First catalog entry whose chord matches; later entries never shadow earlier ones. */
+export function matchDesktopShortcut(
+  event: DesktopKeyEvent,
+  shortcuts: readonly DesktopShortcut[],
+): DesktopShortcut | null {
+  return shortcuts.find((shortcut) => chordMatches(shortcut.chord, event)) ?? null;
+}
+
 function renderShortcutsDialog(state: DesktopShellState): string {
   const locale = state.locale;
-  const rows = getDesktopMenus(state).flatMap((menu) => menu.items.filter((item) => item.shortcut));
+  const caps = state.capabilities;
+  const groups: Array<{ title: string; rows: DesktopShortcut[] }> = [
+    { title: translateWorkspaceUiText(locale, "Workspace", "محیط کار"), rows: [] },
+    { title: translateWorkspaceUiText(locale, "Editing", "ویرایش"), rows: [] },
+    { title: translateWorkspaceUiText(locale, "View and schedule", "نما و زمان‌بندی"), rows: [] },
+  ];
+  const bucket = (shortcut: DesktopShortcut): number => {
+    if (shortcut.id.startsWith("shortcut.window.")) return 0;
+    if (/^shortcut\.(new|open|close-window|print|save-layout|help|about|refresh)$/.test(shortcut.id)) return 0;
+    if (/^shortcut\.(undo|redo|cut|copy|paste|delete|insert|find)$/.test(shortcut.id)) return 1;
+    return 2;
+  };
+  for (const shortcut of getDesktopShortcuts(state.openWindows)) {
+    groups[bucket(shortcut)].rows.push(shortcut);
+  }
   const heading = translateWorkspaceUiText(locale, "Keyboard shortcuts", "کلیدهای میانبر");
   const command = translateWorkspaceUiText(locale, "Command", "فرمان");
-  const shortcut = translateWorkspaceUiText(locale, "Shortcut", "میانبر");
+  const shortcutWord = translateWorkspaceUiText(locale, "Shortcut", "میانبر");
   const close = translateWorkspaceUiText(locale, "Close", "بستن");
+  const unavailableWord = translateWorkspaceUiText(locale, "Unavailable", "در دسترس نیست");
+  const sections = groups
+    .filter((group) => group.rows.length > 0)
+    .map((group) => `<h3>${escapeHtml(group.title)}</h3>
+      <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th></tr></thead>
+      <tbody>${group.rows.map((shortcut) => {
+        const reason = shortcutUnavailableReason(shortcut, caps);
+        return `<tr${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
+      }).join("")}</tbody></table>`)
+    .join("");
   return `<dialog class="cp-desktop-dialog" data-desktop-dialog="shortcuts" aria-labelledby="cp-shortcuts-heading">
     <h2 id="cp-shortcuts-heading">${escapeHtml(heading)}</h2>
-    <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcut)}</th></tr></thead>
-    <tbody>${rows.map((item) => `<tr><td>${escapeHtml(pick(item.label, locale))}</td><td><kbd>${escapeHtml(item.shortcut ?? "")}</kbd></td></tr>`).join("")}</tbody></table>
+    ${sections}
     <form method="dialog"><button type="submit">${escapeHtml(close)}</button></form>
   </dialog>`;
 }
@@ -1189,51 +1376,123 @@ function bindHost(host: HTMLElement): void {
     if (!runtime) return;
     const target = event.target as HTMLElement | null;
     const typing = Boolean(target?.closest("input, textarea, select, [contenteditable=true]"));
-    if (event.key === "F1") { event.preventDefault(); openDialog(host, "shortcuts"); return; }
-    if (event.altKey && /^[1-9]$/.test(event.key)) {
-      const key = WINDOW_ORDER[Number(event.key) - 1];
-      if (key && runtime.state.openWindows.includes(key)) {
+
+    // Keyboard tab reordering: Ctrl+Shift+Left/Right while a window tab has focus.
+    const tab = target?.closest<HTMLElement>("[data-window-tab]");
+    if (
+      !typing && tab?.dataset.windowTab && event.ctrlKey && event.shiftKey
+      && (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    ) {
+      event.preventDefault();
+      const next = moveWorkspaceWindow(
+        runtime.state.openWindows,
+        tab.dataset.windowTab as WorkspaceMenuKey,
+        event.key === "ArrowRight" ? 1 : -1,
+      );
+      runtime.handlers.onWindowReorder?.(next);
+      return;
+    }
+
+    if (event.key === "Escape") return;
+    if (typing) return;
+
+    // Alt+mnemonic opens a top-level menu. The access key lives on the menu
+    // model, so the bar and this handler cannot drift apart.
+    if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      const menu = getDesktopMenus(runtime.state).find(
+        (candidate) => candidate.accessKey === event.key.toLowerCase(),
+      );
+      if (menu) {
         event.preventDefault();
-        runtime.handlers.onWindowOpen(key);
+        openMenu(host, menu.id, true);
+        return;
+      }
+    }
+
+    const shortcut = matchDesktopShortcut(event, getDesktopShortcuts(runtime.state.openWindows));
+    if (!shortcut) return;
+    if (shortcutUnavailableReason(shortcut, runtime.state.capabilities)) {
+      // Documented but unserviced: the binding is reported in the dialog and
+      // never silently performs a different action.
+      return;
+    }
+    event.preventDefault();
+    if (shortcut.window) {
+      runtime.handlers.onWindowOpen(shortcut.window);
+      return;
+    }
+    if (!shortcut.command) return;
+    if (shortcut.command === "help.shortcuts") { openDialog(host, "shortcuts"); return; }
+    if (shortcut.command === "help.about") { openDialog(host, "about"); return; }
+    const dialogName = dialogNameForCommand(shortcut.command);
+    if (dialogName) { openDialog(host, dialogName); return; }
+    runtime.handlers.onCommand(shortcut.command);
+  });
+
+  // Inside an open menu: arrows, Home/End and first-letter navigation.
+  host.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement | null;
+    const popup = target?.closest<HTMLElement>("[data-desktop-popup]");
+    if (!popup || popup.hidden) return;
+    const items = Array.from(popup.querySelectorAll<HTMLElement>("button:not([disabled])"));
+    if (!items.length) return;
+    const current = items.indexOf(target?.closest<HTMLElement>("button") ?? items[0]);
+    const focusItem = (index: number): void => {
+      const next = items[(index + items.length) % items.length];
+      next?.focus();
+    };
+    if (event.key === "ArrowDown") { event.preventDefault(); focusItem(current + 1); return; }
+    if (event.key === "ArrowUp") { event.preventDefault(); focusItem(current - 1); return; }
+    if (event.key === "Home") { event.preventDefault(); focusItem(0); return; }
+    if (event.key === "End") { event.preventDefault(); focusItem(items.length - 1); return; }
+    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      const triggers = Array.from(host.querySelectorAll<HTMLElement>("[data-desktop-menu]"));
+      const activeTrigger = popup.closest(".cp-menubar-group")?.querySelector<HTMLElement>("[data-desktop-menu]");
+      const index = triggers.indexOf(activeTrigger ?? triggers[0]);
+      const next = triggers[(index + (event.key === "ArrowRight" ? 1 : -1) + triggers.length) % triggers.length];
+      if (next?.dataset.desktopMenu) {
+        next.focus();
+        openMenu(host, next.dataset.desktopMenu, true);
       }
       return;
     }
-    if (!(event.ctrlKey || event.metaKey) || typing) return;
-    const lower = event.key.toLowerCase();
-    // Version 26 documents Ctrl+Numpad + / - for Expand All / Collapse All.
-    // Only the numeric keypad is claimed so the browser keeps its own
-    // Ctrl+= / Ctrl+- zoom bindings.
-    if (event.ctrlKey && (event.code === "NumpadAdd" || event.code === "NumpadSubtract")) {
-      const caps = runtime.state.capabilities;
-      if (caps.hasWbs && caps.groupByWbs) {
-        event.preventDefault();
-        runtime.handlers.onCommand(event.code === "NumpadAdd" ? "view.expand-all" : "view.collapse-all");
-      }
-      return;
-    }
-    if (lower === "f") { event.preventDefault(); runtime.handlers.onCommand("edit.find"); return; }
-    if (lower === "z") {
-      if (runtime.state.capabilities.canUndoLayout) {
-        event.preventDefault();
-        runtime.handlers.onCommand("edit.undo");
-      }
-      return;
-    }
-    if (lower === "y") { event.preventDefault(); if (runtime.state.capabilities.canRedoLayout) runtime.handlers.onCommand("edit.redo"); return; }
-    if (lower === "s") {
-      if (runtime.state.capabilities.hasLayout) {
-        event.preventDefault();
-        runtime.handlers.onCommand("layout.save");
-      }
-      return;
-    }
-    if (lower === "w") {
-      if (runtime.state.capabilities.hasMultipleWindows) {
-        event.preventDefault();
-        runtime.handlers.onCommand("project.close");
-      }
+    if (event.key.length === 1 && /\S/.test(event.key)) {
+      const letter = event.key.toLowerCase();
+      const match = items.find((item) =>
+        (item.querySelector(".cp-menubar-item-label")?.textContent ?? "").trim().toLowerCase().startsWith(letter),
+      );
+      if (match) { event.preventDefault(); match.focus(); }
     }
   });
+
+  // Pointer reordering of window tabs (drag a tab onto another tab).
+  let draggedTab: WorkspaceMenuKey | null = null;
+  host.addEventListener("dragstart", (event) => {
+    const tab = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-window-tab]");
+    if (!tab?.dataset.windowTab) return;
+    draggedTab = tab.dataset.windowTab as WorkspaceMenuKey;
+    event.dataTransfer?.setData("text/plain", draggedTab);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  });
+  host.addEventListener("dragover", (event) => {
+    const tab = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-window-tab]");
+    if (!draggedTab || !tab || tab.dataset.windowTab === draggedTab) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  });
+  host.addEventListener("drop", (event) => {
+    const tab = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-window-tab]");
+    const runtime = runtimeByHost.get(host);
+    if (!draggedTab || !tab?.dataset.windowTab || !runtime) return;
+    event.preventDefault();
+    const targetKey = tab.dataset.windowTab as WorkspaceMenuKey;
+    if (targetKey !== draggedTab) {
+      runtime.handlers.onWindowReorder?.(reorderWorkspaceWindows(runtime.state.openWindows, draggedTab, targetKey));
+    }
+    draggedTab = null;
+  });
+  host.addEventListener("dragend", () => { draggedTab = null; });
 }
 
 function bindDocument(): void {
