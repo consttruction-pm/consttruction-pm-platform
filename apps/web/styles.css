@@ -8386,3 +8386,99 @@ html[data-cubi-theme-surface="layered"] .cp-p6 > .cp-app-status .cp-details-togg
   background:var(--skin-status-muted-bg); color:var(--skin-muted);
 }
 html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--skin-focus); }
+
+/* Show on Top: Activity Table only. The splitter and the second column are
+   absent from the markup, so a single-column template keeps the table
+   full-width without leaving a phantom 50% gap. */
+.cp-p6 .cp-p6-split[data-top-layout="table-only"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cp-p6 .cp-p6-split[data-top-layout="table-only"] > #cp-activity-grid {
+  grid-column: 1;
+}
+
+/* Show on Bottom: Trace Logic. The chain is read from persisted relationship
+   records; this surface only lays it out. */
+.cp-p6 .cp-trace-logic {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: #fff;
+  color: #1f2d3d;
+  font-size: 10.5px;
+  overflow: hidden;
+}
+.cp-p6 .cp-trace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 2px 8px;
+  border-bottom: 1px solid #c3ccd8;
+  background: #e6ebf2;
+}
+.cp-p6 .cp-trace-head h2 { margin: 0; font-size: 11px; color: #1f2d3d; }
+.cp-p6 .cp-trace-selected { display: block; font-size: 9.5px; color: #44536a; }
+.cp-p6 .cp-trace-depth { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; color: #44536a; }
+.cp-p6 .cp-trace-depth select { height: 20px; font: inherit; }
+.cp-p6 .cp-trace-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 12px;
+  min-height: 0;
+  padding: 4px 8px;
+  overflow: auto;
+}
+.cp-p6 .cp-trace-group { min-width: 0; }
+.cp-p6 .cp-trace-group h3 { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px; font-size: 10.5px; color: #0e3f74; }
+.cp-p6 .cp-trace-group h3 small { padding: 0 5px; border-radius: 8px; background: #dbe6f2; color: #24486f; font-size: 9px; font-weight: 700; }
+.cp-p6 .cp-trace-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.cp-p6 .cp-trace-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto 42px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-bottom: 1px solid #e3e8ee;
+}
+.cp-p6 .cp-trace-row.is-critical { border-inline-start: 2px solid #c0392b; }
+.cp-p6 .cp-trace-row.is-selected { background: #eef4fb; }
+.cp-p6 .cp-trace-level {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #dbe6f2;
+  color: #24486f;
+  font-size: 9px;
+  font-weight: 700;
+}
+.cp-p6 .cp-trace-goto {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #0e3f74;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.cp-p6 .cp-trace-goto:hover { text-decoration: underline; }
+.cp-p6 .cp-trace-goto:focus-visible { outline: 1px solid #0e3f74; outline-offset: 1px; }
+.cp-p6 .cp-trace-edge { font-size: 9.5px; color: #8a4a1c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cp-p6 .cp-trace-progress { font-size: 9.5px; color: #44536a; text-align: end; font-variant-numeric: tabular-nums; }
+.cp-p6 .cp-trace-empty { margin: 2px 0; font-size: 9.5px; color: #66788c; }
+.cp-p6 .cp-trace-note { flex: 0 0 auto; margin: 2px 8px 5px; font-size: 9px; color: #66788c; }
+@media (max-width: 760px) {
+  .cp-p6 .cp-trace-groups { grid-template-columns: minmax(0, 1fr); }
+}
