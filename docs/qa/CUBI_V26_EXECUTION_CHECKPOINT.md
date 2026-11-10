@@ -5,7 +5,7 @@ CUBI product identity rules. Every stage below records what shipped, the evidenc
 and what is still honestly unavailable.
 
 Branch: `main` @ `cb9cc002` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`).
+Stage C as `cb9cc002`; Stage D1 on `codex/jalal/cubi-v26-stage-d-resources-20261110`).
 
 ---
 
@@ -243,3 +243,91 @@ its settings revision; opening `preview-nse-02` re-reads that project's workspac
 Stage D — Resources/Calendars windows, followed by Progress/Cost/Expenses,
 Documents/Reports/Tracking, Issues/Risks/Thresholds/Control/Administration, the six-skin
 integration pass, and the final full matrix. Stage D starts from `main` @ `cb9cc002`.
+
+---
+
+## Stage D1 — Resource read register and Calendar verification
+
+Status: **in review** (independent PR
+[#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742), branch
+`codex/jalal/cubi-v26-stage-d-resources-20261110`, based on `main` @ `cecce5fd`). This is a
+partial slice of the macro Stage D: it completes the stored Resource read surface and verifies one
+calendar end to end. It does **not** complete the Resources or Calendars windows.
+
+Help topics used: `activities_window.htm`, `using_main_windows.htm`, `layout_toolbar.htm`,
+`open_a_layout.htm`, `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
+`create_a_new_activity_layout.htm`, plus the PDF sections on the Resources window, Resource
+Assignments and Calendars. PDF page numbers are recorded as `VERIFY` where the printed page could
+not be matched to the attached 815-page PDF.
+
+### What shipped
+
+1. **Resource register built from three stored contracts**: `resource_assignment` envelopes,
+   `p6-resource-capacity-read-api.v1` and `p6-resource-rate-read-api.v1`. The register is the union
+   of the resource ids those contracts return; every row exposes assignment count, budgeted units,
+   planned cost, actual cost, latest effective capacity and rate count. No row is invented for a
+   resource that only exists in a fixture.
+2. **Exact decimal aggregation** (`BigInt` scaling with trailing-zero trimming) for budgeted units
+   and both cost columns, so repeated `0.1` units cannot drift the totals.
+3. **Effective-dated detail tabs** — General, Assignments, Capacity, Rates — populated from the same
+   stored facts. Capacity and Rates keep every segment with its effective-from date; an open-ended
+   segment renders as `Open-ended` instead of a guessed end date. The General tab states the
+   boundary: this server exposes no resource master record (display name, type, e-mail), so those
+   fields are absent rather than synthesized.
+4. **Keyboard and pointer selection** on the register (click, Enter, Space), `aria-selected`, and a
+   **Refresh** action that re-reads all three contracts from the server, re-enables itself and
+   reports a reload error instead of keeping stale rows.
+5. **Calendar verification** in the same window set: the register lists exactly `GET /p6/calendars`
+   with its revision, and the snapshot reads the stored workweek version (seven days, Mon–Fri
+   working, Sat–Sun non-working) rather than a client default.
+6. Unit tests: `workspace-resources.test.ts` covers exact decimal sums, parser field fidelity and
+   foreign-kind rejection, grouping/sorting with the latest segment, endpoint paths, and fail-closed
+   contract handling. Browser E2E: `e2e/resources-v26.mjs` with six scenarios.
+
+### Honest limits (definite, not planned)
+
+- There is still no independent **Resource Master** in the server read contract; the register is an
+  aggregation of assignments, capacity and rates.
+- Resource name, resource type and full resource attributes are not served, so they are not shown.
+- Resource **Create/Edit/Delete** does not exist in this slice.
+- The E2E scenario contains **one** resource id and **zero** assignments; two capacity segments and
+  two rates are exercised for that resource.
+- Calendar coverage is the register, the snapshot and one Gregorian calendar's workweek. Global/
+  project/resource calendar management, split shifts, exceptions and Jalali calendars remain open.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `npx tsc --noEmit` (apps/web) | clean |
+| Test build | `npx tsc -p tsconfig.test.json` | clean |
+| Unit/integration | `npm test` | 728 `tsx` tests + 14 `node --test` tests pass |
+| Build | `npm run build` | bundles written to `dist/web/src` |
+| Resources v26 scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4301 node e2e/resources-v26.mjs` | 6/6 scenarios pass, 7 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| Full-stack browser E2E | `CUBI_PREVIEW_URL=… node e2e/preview-e2e.mjs` | 97 checks, 51 screenshots, twice on two clean previews (`4302`, `4303`) |
+| Projects v26 regression | `CUBI_PREVIEW_URL=http://127.0.0.1:4300 node e2e/projects-v26.mjs` | 6/6 scenarios pass |
+| Forms E2E | `node e2e/form-builder-e2e.mjs` (own reset runtime) | 14 checks pass |
+| Evidence bundle | `docs/workspace/evidence/resources-v26-2026-11-10/` | `resources-v26.json` + 7 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `9023efb39c490a3d4c75940c77d0c2fc4963fb32` |
+| Evidence commit | `6f0d433b9c1edd7f07679abd85410de9616e31af` |
+| Branch head at merge | recorded in the follow-up commit once #1742 is squash-merged |
+
+The stored report previously claimed `gitHead cecce5fd`, which was the base commit at capture time
+rather than the code that ran. The bundle now carries `testedCodeSha` and `evidenceCommitSha` as
+separate fields, and every scenario was re-run from `9023efb3` on a clean preview.
+
+One observation, kept rather than hidden: the first `preview-e2e` attempt reused the preview runtime
+that the Resources suite had just driven and failed the splitter assertion at check 13; two runs on
+fresh preview runtimes passed all 97 checks. The preview runtime is documented as single-suite, so
+the out-of-contract reuse — not a code change — explains that attempt.
+
+### Next stage
+
+Stage D2 — Resource Master, Resource Assignments, Roles and full Calendar management, then
+Progress/Cost/Expenses, Documents/Reports/Tracking,
+Issues/Risks/Thresholds/Control/Administration, the six-skin integration pass and the final matrix.

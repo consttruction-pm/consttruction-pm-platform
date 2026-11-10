@@ -3,7 +3,7 @@
   "baseUrl": "http://127.0.0.1:4301",
   "gitHead": "9023efb39c490a3d4c75940c77d0c2fc4963fb32",
   "testedCodeSha": "9023efb39c490a3d4c75940c77d0c2fc4963fb32",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "6f0d433b9c1edd7f07679abd85410de9616e31af",
   "capturedAt": "2026-11-10T14:19:05.253Z",
   "scenarios": [
     {
