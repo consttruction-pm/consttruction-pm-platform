@@ -2414,7 +2414,10 @@ test("Project Details tabs read the authoritative project summary instead of pla
   renderMainWorkspace(withSummary as unknown as HTMLElement, state, { projectSummary: summary });
   const html = withSummary.innerHTML;
   assert.match(html, /Project Details/);
-  assert.match(html, /<div class="cp-project">Metro Line<\/div>/);
+  assert.match(
+    html,
+    /<div class="cp-project" data-project-id="p-1" title="p-1">Metro Line<\/div>/,
+  );
   assert.match(html, /Edit Project/);
   assert.match(html, /Phase 2 civil works/);
   assert.match(html, /2026-01-05/);

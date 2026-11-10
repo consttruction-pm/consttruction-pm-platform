@@ -2127,7 +2127,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-table-row-mode="${tablePresentation.rowHeightMode}" data-show-icons="${tablePresentation.showIcons}" data-line-numbers="${lineNumbers}" style="${escapeAttribute(presentationVars)}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
-        <div class="cp-project">${escapeHtml(options.projectSummary && options.projectSummary.project_id === state.context.project_id ? options.projectSummary.name || state.context.project_id : state.context.project_id)}</div>
+        <div class="cp-project" data-project-id="${escapeAttribute(state.context.project_id)}" title="${escapeAttribute(state.context.project_id)}">${escapeHtml(options.projectSummary && options.projectSummary.project_id === state.context.project_id ? options.projectSummary.name || state.context.project_id : state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
