@@ -13,6 +13,7 @@ apps/web/dist/
 # Local full-stack preview state (demo SQLite + screenshots scratch)
 .preview/
 .preview-server.log
+.qoder-tmp/
 apps/web/e2e/artifacts/
 .qa-tmp/
 .qa-*.mjs

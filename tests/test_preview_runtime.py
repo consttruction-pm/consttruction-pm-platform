@@ -1063,6 +1063,144 @@ def test_preview_resource_capacity_read_uses_registered_effective_dated_ceilings
         reopened.close()
 
 
+def test_preview_resource_master_round_trip_seeds_facts_and_persists_hierarchy(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    list_path = f"/api/projects/{RPS_PROJECT}/p6/resources"
+
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        assert runtime.health()["resource_count"] == 2
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+
+        status, _, body = _request(
+            runtime.app, "GET", list_path,
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 200
+        payload = json.loads(body)
+        assert payload["contract_version"] == "p6-resource-api.v1"
+        assert len(payload["resources"]) == 1
+        seeded = payload["resources"][0]
+        assert seeded["scope"] == {
+            "tenant_id": RPS_TENANT,
+            "project_id": RPS_PROJECT,
+            "project_revision": RPS_REVISION,
+        }
+        assert seeded["kind"] == "p6_resource"
+        assert seeded["resource"] == {
+            "resource_id": "RPS-CIVIL-CREW",
+            "name": "Riverside Civil Crew",
+            "resource_type": "labor",
+            "parent_resource_id": None,
+            "calendar_id": "CUBI-RPS-CAL",
+            "default_units_per_time": None,
+            "unit_of_measure": "crew",
+            "email": None,
+            "is_active": True,
+            "record_revision": 1,
+        }
+
+        create_payload = {
+            "resource_id": "RPS-CIVIL-CREW-NIGHT",
+            "name": "Riverside Civil Night Shift",
+            "resource_type": "labor",
+            "parent_resource_id": "RPS-CIVIL-CREW",
+            "calendar_id": "CUBI-RPS-CAL",
+            "default_units_per_time": "4",
+            "unit_of_measure": "crew",
+            "email": None,
+            "is_active": True,
+        }
+        status, _, body = _request(
+            runtime.app, "POST", list_path,
+            body=json.dumps(create_payload).encode(),
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 200
+        created = json.loads(body)["resource"]
+        assert created["resource_id"] == "RPS-CIVIL-CREW-NIGHT"
+        assert created["parent_resource_id"] == "RPS-CIVIL-CREW"
+        assert created["record_revision"] == 1
+
+        # A create must not silently overwrite the seeded master.
+        status, _, body = _request(
+            runtime.app, "POST", list_path,
+            body=json.dumps({
+                **create_payload,
+                "resource_id": "RPS-CIVIL-CREW",
+                "parent_resource_id": None,
+            }).encode(),
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "RESOURCE_ALREADY_EXISTS"
+
+        status, _, body = _request(
+            runtime.app, "POST", list_path,
+            body=json.dumps({**create_payload, "resource_id": "RPS-CIVIL-CREW-DAY"}).encode(),
+            cookie=viewer.session_id, headers=_scope_headers(),
+        )
+        assert status == 403
+
+        status, _, body = _request(
+            runtime.app, "GET", list_path,
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 200
+        assert [item["resource"]["resource_id"] for item in json.loads(body)["resources"]] == [
+            "RPS-CIVIL-CREW",
+            "RPS-CIVIL-CREW-NIGHT",
+        ]
+
+        patch_payload = {
+            **create_payload,
+            "name": "Night Shift Crew",
+            "is_active": False,
+            "expected_revision": 1,
+        }
+        item_path = f"{list_path}/RPS-CIVIL-CREW-NIGHT"
+        status, _, body = _request(
+            runtime.app, "PATCH", item_path,
+            body=json.dumps(patch_payload).encode(),
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 200
+        updated = json.loads(body)["resource"]
+        assert (updated["name"], updated["is_active"], updated["record_revision"]) == (
+            "Night Shift Crew", False, 2,
+        )
+
+        status, _, body = _request(
+            runtime.app, "PATCH", item_path,
+            body=json.dumps(patch_payload).encode(),
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app, "GET", list_path,
+            cookie=planner.session_id, headers=_scope_headers(),
+        )
+        assert status == 200
+        resources = json.loads(body)["resources"]
+        assert [item["resource"]["resource_id"] for item in resources] == [
+            "RPS-CIVIL-CREW",
+            "RPS-CIVIL-CREW-NIGHT",
+        ]
+        assert resources[1]["resource"]["record_revision"] == 2
+    finally:
+        reopened.close()
+
+
 def test_preview_resource_capacity_write_closes_open_segment_and_persists(
     tmp_path: Path,
 ) -> None:
@@ -1387,6 +1525,7 @@ def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
             "wbs_node_count",
             "capacity_segment_count",
             "rate_fact_count",
+            "resource_count",
             "session_count",
             "assistant",
         ):

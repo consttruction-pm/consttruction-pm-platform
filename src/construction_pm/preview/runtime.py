@@ -182,6 +182,11 @@ from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_role_api import P6RoleAPI
 from construction_pm.p6_role_repository import SQLiteP6RoleRepository
+from construction_pm.p6_resource_master_api import P6ResourceAPI
+from construction_pm.p6_resource_master_repository import (
+    P6Resource,
+    SQLiteP6ResourceRepository,
+)
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService,
@@ -317,6 +322,7 @@ class PreviewRepositories:
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     roles: SQLiteP6RoleRepository
+    resources: SQLiteP6ResourceRepository
     expenses: SQLiteP6ExpenseRepository
     expense_service: P6ExpenseApplicationService
     cost_accounts: SQLiteP6CostAccountRepository
@@ -381,6 +387,7 @@ class PreviewRepositories:
             current_activity_values, transaction_manager
         )
         roles = SQLiteP6RoleRepository(connection)
+        resources = SQLiteP6ResourceRepository(connection)
         expenses = SQLiteP6ExpenseRepository(connection)
         expense_service = P6ExpenseApplicationService(expenses, transaction_manager)
         cost_accounts = SQLiteP6CostAccountRepository(connection)
@@ -429,6 +436,7 @@ class PreviewRepositories:
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             roles=roles,
+            resources=resources,
             expenses=expenses,
             expense_service=expense_service,
             cost_accounts=cost_accounts,
@@ -567,6 +575,36 @@ def seed_resource_rates(
             source=rate.source,
         )
         repositories.rate_service.save(P6ResourceRateRecord(scope=scope, fact=fact))
+
+
+def seed_resource_master(
+    repositories: PreviewRepositories,
+    fixture: DemoProjectFixture,
+    scope: BackendScope,
+) -> None:
+    """Seed the resource identities that the capacity/rate facts reference.
+
+    Only the resources already named by the fixture are created; no synthetic
+    resource is invented to fill the register.
+    """
+
+    for resource in fixture.resources:
+        repositories.resources.save(
+            P6Resource(
+                scope.tenant_id,
+                scope.project_id,
+                scope.project_revision,
+                resource.resource_id,
+                resource.name,
+                resource.resource_type,
+                resource.parent_resource_id,
+                resource.calendar_id,
+                resource.default_units_per_time,
+                resource.unit_of_measure,
+                None,
+                True,
+            )
+        )
 
 
 def seed_wbs_nodes(
@@ -771,6 +809,7 @@ def seed_demo_project(
     seed_interchange_mappings(repositories, scope)
     seed_resource_capacities(repositories, fixture, scope)
     seed_resource_rates(repositories, fixture, scope)
+    seed_resource_master(repositories, fixture, scope)
     calendar = seed_default_calendar(
         repositories,
         scope=scope,
@@ -1096,6 +1135,10 @@ class PreviewRuntime:
             "SELECT COUNT(*) FROM p6_resource_rate_fact WHERE tenant_id=?",
             (PREVIEW_TENANT_ID,),
         ).fetchone()
+        resource_count = self.connection.execute(
+            "SELECT COUNT(*) FROM p6_resource_master WHERE tenant_id=?",
+            (PREVIEW_TENANT_ID,),
+        ).fetchone()
         wbs_count = self.connection.execute(
             "SELECT COUNT(*) FROM wbs_master WHERE tenant_id=?",
             (PREVIEW_TENANT_ID,),
@@ -1111,6 +1154,7 @@ class PreviewRuntime:
             "wbs_node_count": int(wbs_count[0]) if wbs_count else 0,
             "capacity_segment_count": int(capacity_count[0]) if capacity_count else 0,
             "rate_fact_count": int(rate_count[0]) if rate_count else 0,
+            "resource_count": int(resource_count[0]) if resource_count else 0,
             "session_count": self.sessions.count(),
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
@@ -1409,6 +1453,7 @@ def open_preview_runtime(
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
+        p6_resource_api=P6ResourceAPI(repositories.resources, policy),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
         p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
         p6_financial_period_api=P6FinancialPeriodAPI(

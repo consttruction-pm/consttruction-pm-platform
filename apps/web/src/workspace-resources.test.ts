@@ -4,16 +4,23 @@ import test from "node:test";
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import type { AssignmentRecord } from "./workspace-assignments.js";
 import {
+  RESOURCE_API_VERSION,
   buildResourceRows,
+  createResource,
   loadResourceWorkspace,
   parseCapacitySegment,
   parseRateFact,
+  parseResourceMaster,
   sumDecimal,
+  updateResource,
   type ResourceCapacitySegment,
+  type ResourceInput,
+  type ResourceMasterRecord,
   type ResourceRateFact,
 } from "./workspace-resources.js";
 
 const CONTEXT: ProjectContext = { tenant_id: "t1", project_id: "project-1", revision: 4 };
+const RESOURCES_PATH = "/api/projects/project-1/p6/resources";
 
 function assignment(overrides: Partial<AssignmentRecord> = {}): AssignmentRecord {
   return {
@@ -70,6 +77,37 @@ function rate(overrides: Partial<ResourceRateFact> = {}): ResourceRateFact {
   };
 }
 
+function master(overrides: Partial<ResourceMasterRecord> = {}): ResourceMasterRecord {
+  return {
+    resourceId: "RPS-CIVIL-CREW",
+    name: "Riverside Civil Crew",
+    resourceType: "labor",
+    parentResourceId: null,
+    calendarId: "CUBI-RPS-CAL",
+    defaultUnitsPerTime: "8",
+    unitOfMeasure: "crew",
+    email: null,
+    isActive: true,
+    recordRevision: 1,
+    ...overrides,
+  };
+}
+
+function input(overrides: Partial<ResourceInput> = {}): ResourceInput {
+  return {
+    resourceId: "RPS-CRANE",
+    name: "Tower Crane",
+    resourceType: "nonlabor",
+    parentResourceId: "RPS-CIVIL-CREW",
+    calendarId: null,
+    defaultUnitsPerTime: "4.5",
+    unitOfMeasure: null,
+    email: "crew@example.test",
+    isActive: false,
+    ...overrides,
+  };
+}
+
 function capacityDto(capacity: ResourceCapacitySegment, kind = "resource_capacity_segment") {
   return {
     contract_version: "p6-resource-capacity-read-api.v1",
@@ -101,6 +139,30 @@ function rateDto(fact: ResourceRateFact) {
     effective_to: fact.effectiveTo,
     source: fact.source,
   };
+}
+
+function resourceDto(record: ResourceMasterRecord) {
+  return {
+    contract_version: RESOURCE_API_VERSION,
+    kind: "p6_resource",
+    scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+    resource: {
+      resource_id: record.resourceId,
+      name: record.name,
+      resource_type: record.resourceType,
+      parent_resource_id: record.parentResourceId,
+      calendar_id: record.calendarId,
+      default_units_per_time: record.defaultUnitsPerTime,
+      unit_of_measure: record.unitOfMeasure,
+      email: record.email,
+      is_active: record.isActive,
+      record_revision: record.recordRevision,
+    },
+  };
+}
+
+function resourceList(...records: ResourceMasterRecord[]) {
+  return { contract_version: RESOURCE_API_VERSION, resources: records.map(resourceDto) };
 }
 
 const ASSIGNMENT_DTO = {
@@ -158,13 +220,18 @@ test("sumDecimal keeps exact decimal addition instead of float rounding", () => 
   assert.equal(sumDecimal([null, null]), null);
 });
 
-test("capacity and rate parsers keep the stored contract fields", () => {
+test("capacity, rate and resource master parsers keep the stored contract fields", () => {
   assert.deepEqual(parseCapacitySegment(capacityDto(segment())), segment());
   assert.deepEqual(parseRateFact(rateDto(rate())), rate());
+  assert.deepEqual(parseResourceMaster(resourceDto(master()).resource), master());
 
   assert.throws(() => parseCapacitySegment(capacityDto(segment(), "resource_capacity_profile")), /INVALID_RESOURCE_CAPACITY/);
   assert.throws(() => parseCapacitySegment({ kind: "resource_capacity_segment" }), /INVALID_RESOURCE_CAPACITY/);
   assert.throws(() => parseRateFact({ ...rateDto(rate()), rate: "free" }), /INVALID_RESOURCE_RATE/);
+  assert.throws(() => parseResourceMaster({ ...resourceDto(master()).resource, resource_type: "equipment" }), /INVALID_RESOURCE_RECORD/);
+  assert.throws(() => parseResourceMaster({ ...resourceDto(master()).resource, is_active: "yes" }), /INVALID_RESOURCE_RECORD/);
+  assert.throws(() => parseResourceMaster({ ...resourceDto(master()).resource, record_revision: -1 }), /INVALID_RESOURCE_RECORD/);
+  assert.throws(() => parseResourceMaster({ ...resourceDto(master()).resource, default_units_per_time: "many" }), /INVALID_RESOURCE_RECORD/);
 });
 
 test("buildResourceRows groups facts per resource and reports the latest stored capacity segment", () => {
@@ -193,6 +260,9 @@ test("buildResourceRows groups facts per resource and reports the latest stored 
   assert.equal(crew.actualCost, "300");
   assert.equal(crew.latestMaxUnits, "12");
   assert.equal(crew.latestEffectiveFrom, "2026-10-15");
+  assert.equal(crew.master, null);
+  assert.equal(crew.name, null);
+  assert.equal(crew.depth, 0);
   assert.deepEqual(crew.capacities.map((item) => item.effectiveFrom), ["2026-09-21", "2026-10-15"]);
   assert.deepEqual(crew.rates.map((item) => item.rate), ["480.00", "525.00"]);
 
@@ -202,7 +272,48 @@ test("buildResourceRows groups facts per resource and reports the latest stored 
   assert.equal(design.rates.length, 0);
 });
 
-test("loadResourceWorkspace reads assignments, capacity and rates from their own endpoints", async () => {
+test("buildResourceRows merges master records into a parents-first hierarchy with fact-only rows", () => {
+  const rows = buildResourceRows(
+    [
+      assignment({ assignmentId: "AS-1", resourceId: "R-CREW-A", units: "3" }),
+      assignment({ assignmentId: "AS-2", resourceId: "R-FACT-ONLY", units: "2" }),
+    ],
+    [segment({ resourceId: "R-CREW", identity: "R-CREW", maxUnits: "6" })],
+    [],
+    [
+      master({ resourceId: "R-CREW-B", name: "Crew B", parentResourceId: "R-CREW" }),
+      master({ resourceId: "R-CREW-A-1", name: "Crew A1", parentResourceId: "R-CREW-A" }),
+      master({ resourceId: "R-CREW", name: "Civil Crew", defaultUnitsPerTime: "6" }),
+      master({ resourceId: "R-CREW-A", name: "Crew A", parentResourceId: "R-CREW" }),
+      master({ resourceId: "R-LEGACY", name: "Legacy Resource", calendarId: null, defaultUnitsPerTime: null, unitOfMeasure: null }),
+    ],
+  );
+
+  assert.deepEqual(rows.map((row) => [row.resourceId, row.depth, row.hasChildren]), [
+    ["R-CREW", 0, true],
+    ["R-CREW-A", 1, true],
+    ["R-CREW-A-1", 2, false],
+    ["R-CREW-B", 1, false],
+    ["R-FACT-ONLY", 0, false],
+    ["R-LEGACY", 0, false],
+  ]);
+  assert.equal(rows[1].name, "Crew A");
+  assert.equal(rows[1].master?.recordRevision, 1);
+  assert.equal(rows[1].budgetedUnits, "3");
+  assert.equal(rows[0].latestMaxUnits, "6");
+  assert.equal(rows[4].master, null);
+  assert.equal(rows[4].budgetedUnits, "2");
+  assert.equal(rows[5].name, "Legacy Resource");
+  assert.equal(rows[5].assignments.length, 0);
+
+  const cyclic = buildResourceRows([], [], [], [
+    master({ resourceId: "R-A", name: "A", parentResourceId: "R-B" }),
+    master({ resourceId: "R-B", name: "B", parentResourceId: "R-A" }),
+  ]);
+  assert.deepEqual(cyclic.map((row) => row.resourceId).sort(), ["R-A", "R-B"]);
+});
+
+test("loadResourceWorkspace reads assignments, capacity, rates and the resource master from their own endpoints", async () => {
   const gets: string[] = [];
   const transport = transportWith({
     "/api/projects/project-1/p6/resource-assignments": {
@@ -217,6 +328,7 @@ test("loadResourceWorkspace reads assignments, capacity and rates from their own
       ok: true,
       data: { contract_version: "p6-resource-rate-read-api.v1", rates: [rateDto(rate())] },
     },
+    [RESOURCES_PATH]: { ok: true, data: resourceList(master()) },
   }, gets);
 
   const result = await loadResourceWorkspace(transport, CONTEXT);
@@ -225,14 +337,16 @@ test("loadResourceWorkspace reads assignments, capacity and rates from their own
   assert.equal(result.data.assignments.length, 1);
   assert.deepEqual(result.data.capacities, [segment()]);
   assert.deepEqual(result.data.rates, [rate()]);
+  assert.deepEqual(result.data.resources, [master()]);
   assert.deepEqual(gets.sort(), [
     "/api/projects/project-1/p6/resource-assignments",
     "/api/projects/project-1/p6/resource-capacities",
     "/api/projects/project-1/p6/resource-rates",
+    "/api/projects/project-1/p6/resources",
   ]);
 });
 
-test("loadResourceWorkspace fails closed on a foreign contract or unreadable assignment list", async () => {
+test("loadResourceWorkspace fails closed on a foreign contract or unreadable list", async () => {
   const foreignCapacity = await loadResourceWorkspace(transportWith({
     "/api/projects/project-1/p6/resource-assignments": {
       ok: true,
@@ -246,9 +360,28 @@ test("loadResourceWorkspace fails closed on a foreign contract or unreadable ass
       ok: true,
       data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
     },
+    [RESOURCES_PATH]: { ok: true, data: resourceList() },
   }), CONTEXT);
   assert.equal(foreignCapacity.ok, false);
   if (!foreignCapacity.ok) assert.equal(foreignCapacity.error.code, "INVALID_RESOURCE_CAPACITY_LIST");
+
+  const foreignResources = await loadResourceWorkspace(transportWith({
+    "/api/projects/project-1/p6/resource-assignments": {
+      ok: true,
+      data: { contract_version: "p6-resource-read-api.v1", assignments: [] },
+    },
+    "/api/projects/project-1/p6/resource-capacities": {
+      ok: true,
+      data: { contract_version: "p6-resource-capacity-read-api.v1", capacities: [] },
+    },
+    "/api/projects/project-1/p6/resource-rates": {
+      ok: true,
+      data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
+    },
+    [RESOURCES_PATH]: { ok: true, data: { contract_version: "p6-resource-api.v0", resources: [] } },
+  }), CONTEXT);
+  assert.equal(foreignResources.ok, false);
+  if (!foreignResources.ok) assert.equal(foreignResources.error.code, "INVALID_RESOURCE_LIST");
 
   const assignmentFailure = await loadResourceWorkspace(transportWith({
     "/api/projects/project-1/p6/resource-assignments": {
@@ -263,7 +396,123 @@ test("loadResourceWorkspace fails closed on a foreign contract or unreadable ass
       ok: true,
       data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
     },
+    [RESOURCES_PATH]: { ok: true, data: resourceList() },
   }), CONTEXT);
   assert.equal(assignmentFailure.ok, false);
   if (!assignmentFailure.ok) assert.equal(assignmentFailure.error.code, "RESOURCE_READ_NOT_AUTHORIZED");
+});
+
+test("createResource posts the trimmed master payload with an idempotency key", async () => {
+  const posts: { path: string; body: Record<string, unknown>; key: string }[] = [];
+  const expected = master({
+    resourceId: "RPS-CRANE",
+    name: "Tower Crane",
+    resourceType: "nonlabor",
+    parentResourceId: "RPS-CIVIL-CREW",
+    calendarId: null,
+    defaultUnitsPerTime: "4.5",
+    unitOfMeasure: null,
+    email: "crew@example.test",
+    isActive: false,
+    recordRevision: 1,
+  });
+  const transport: ApiTransport = {
+    async get<T>(): Promise<ApiResult<T>> {
+      throw new Error("create must not read");
+    },
+    async post<TRequest, TResponse>(path: string, request: TRequest, _context: ProjectContext, key?: string): Promise<ApiResult<TResponse>> {
+      posts.push({ path, body: request as Record<string, unknown>, key: key ?? "" });
+      return { ok: true, data: resourceDto(expected) } as ApiResult<TResponse>;
+    },
+  };
+
+  const result = await createResource(transport, CONTEXT, input({
+    parentResourceId: " RPS-CIVIL-CREW ",
+    email: " crew@example.test ",
+  }));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.data, expected);
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].path, RESOURCES_PATH);
+  assert.ok(posts[0].key.length > 0);
+  assert.deepEqual(posts[0].body, {
+    resource_id: "RPS-CRANE",
+    name: "Tower Crane",
+    resource_type: "nonlabor",
+    parent_resource_id: "RPS-CIVIL-CREW",
+    calendar_id: null,
+    default_units_per_time: "4.5",
+    unit_of_measure: null,
+    email: "crew@example.test",
+    is_active: false,
+  });
+
+  const missing = await createResource(transport, CONTEXT, input({ resourceId: " " }));
+  assert.equal(missing.ok, false);
+  if (!missing.ok) assert.equal(missing.error.code, "RESOURCE_FIELDS_REQUIRED");
+  assert.equal(posts.length, 1);
+});
+
+test("updateResource patches with expected_revision and refuses missing or stale revisions", async () => {
+  const patches: { path: string; body: Record<string, unknown> }[] = [];
+  const transport: ApiTransport = {
+    async get<T>(): Promise<ApiResult<T>> {
+      throw new Error("update must not read");
+    },
+    async post<TRequest, TResponse>(): Promise<ApiResult<TResponse>> {
+      throw new Error("update must not create");
+    },
+    async patch<TRequest, TResponse>(path: string, request: TRequest): Promise<ApiResult<TResponse>> {
+      patches.push({ path, body: request as Record<string, unknown> });
+      if ((request as { expected_revision?: number }).expected_revision === 1) {
+        return { ok: true, data: resourceDto(master({ name: "Renamed Crew", recordRevision: 2 })) } as ApiResult<TResponse>;
+      }
+      return {
+        ok: false,
+        error: { code: "REVISION_CONFLICT", retryable: false, message_key: "error.p6.resource.conflict", available_actions: [] },
+      } as ApiResult<TResponse>;
+    },
+  };
+
+  const updated = await updateResource(transport, CONTEXT, master({ recordRevision: 1 }), input({
+    resourceId: "IGNORED",
+    name: "Renamed Crew",
+    resourceType: "labor",
+    parentResourceId: null,
+    calendarId: "CUBI-RPS-CAL",
+    defaultUnitsPerTime: "8",
+    unitOfMeasure: "crew",
+    email: null,
+    isActive: true,
+  }));
+  assert.equal(updated.ok, true);
+  if (updated.ok) {
+    assert.equal(updated.data.name, "Renamed Crew");
+    assert.equal(updated.data.recordRevision, 2);
+  }
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].path, `${RESOURCES_PATH}/RPS-CIVIL-CREW`);
+  assert.deepEqual(patches[0].body, {
+    resource_id: "RPS-CIVIL-CREW",
+    name: "Renamed Crew",
+    resource_type: "labor",
+    parent_resource_id: null,
+    calendar_id: "CUBI-RPS-CAL",
+    default_units_per_time: "8",
+    unit_of_measure: "crew",
+    email: null,
+    is_active: true,
+    expected_revision: 1,
+  });
+
+  const stale = await updateResource(transport, CONTEXT, master({ recordRevision: 99 }), input());
+  assert.equal(stale.ok, false);
+  if (!stale.ok) assert.equal(stale.error.code, "REVISION_CONFLICT");
+  assert.equal(patches.length, 2);
+
+  const unpersisted = await updateResource(transport, CONTEXT, master({ recordRevision: 0 }), input());
+  assert.equal(unpersisted.ok, false);
+  if (!unpersisted.ok) assert.equal(unpersisted.error.code, "RESOURCE_REVISION_REQUIRED");
+  assert.equal(patches.length, 2);
 });
