@@ -429,3 +429,112 @@ into this branch, both the nine layout scenarios and the 98-check preview regres
 
 Stage D2 (Resource Master, Resource Assignments, Roles, full Calendar management), then the
 remaining Activities Details/Gantt/Network/Trace Logic/WBS slices and Stages E–G.
+
+---
+
+## Stage D2a — Authoritative Resource Master, hierarchy and revision-guarded editor
+
+Status: **in review**. Independent PR
+[#1745](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1745), branch
+`codex/jalal/cubi-v26-stage-d2-20261111`, based on `main` @ `71ca85cf`. This is the first slice of
+macro Stage D2: the Resources window now reads and writes an authoritative stored resource master
+instead of aggregating assignment, capacity and rate facts only. Resource Assignments grouping,
+Role management and full Calendar management remain open.
+
+Help topics used: the Version 26 Resources window sections on resource types (labor, non-labor,
+material), resource hierarchy, adding and editing a resource, the General/Capacity/Rates/
+Assignments detail tabs, and the calendar reference on a resource. The attached 815-page PDF has no
+extractable text in this environment, so topic filenames and printed page numbers are recorded as
+`VERIFY` rather than guessed.
+
+### What shipped
+
+1. **Stored resource master with revisions**: new `P6Resource` frozen dataclass and
+   `P6ResourceRepository` (SQLite table plus the PostgreSQL mirror) keyed by tenant, project,
+   project revision and resource id. Every update writes a new `record_revision`, and a write
+   accepts only the `expected_revision` that matches the stored one; a stale writer receives
+   `REVISION_CONFLICT` instead of overwriting newer data.
+2. **Create never overwrites**: `POST` on an existing resource id returns
+   `RESOURCE_ALREADY_EXISTS` (HTTP 409). Before this guard, a duplicate create silently replaced
+   the stored record; a dedicated test now proves the stored name and revision stay unchanged.
+   Creation validates the parent reference (`RESOURCE_PARENT_NOT_FOUND`) and rejects hierarchy
+   cycles (`RESOURCE_HIERARCHY_CYCLE`), both mapped to 409.
+3. **Real HTTP surface under `p6-resource-api.v1`**: `GET .../p6/resources` (list),
+   `GET .../p6/resources/{id}`, `POST .../p6/resources` and `PATCH .../p6/resources/{id}` with a
+   required `expected_revision`. The DTO envelope carries contract version, kind, scope and the
+   resource. Write routes require the project write permission and answer 403 otherwise.
+4. **Preview runtime wiring**: `PreviewRepositories.resources`, `seed_resource_master` and
+   `p6_resource_api` are composed into the managed preview; `/preview/health` now reports
+   `resource_count` (2 seeded masters: `RPS-CIVIL-CREW` and `NSE-DESIGN-TEAM`).
+5. **Resources window reads the master**: the register shows resource id, name, type, parent,
+   calendar, assignment count, budgeted units, planned/actual cost and rate count. Rows are ordered
+   parents-first and each child is indented by hierarchy depth; the tree is cycle-safe. The
+   register no longer invents rows for ids that only appear in fixtures.
+6. **Real create and edit**: the window exposes a create form and a revision-aware edit form. Both
+   write through the API, show the returned record revision, report conflicts instead of claiming
+   success, and keep the General/Capacity/Rates/Assignments tabs bound to the same stored record.
+   The type filter and the expand/collapse control operate on the real rows.
+7. **Honest disabled states**: write controls state the missing permission reason when the session
+   cannot write; read-only personas keep a working register, detail tabs and refresh.
+
+### Defects found by reviewing the rendered evidence and fixed
+
+- The eight-column register was clipped at 1440×900; a Resources-specific grid override now gives
+  the register `minmax(380px, 1.4fr)` and the editor the remaining column, collapsing to one column
+  below 900 px in both CSS copies.
+- The editor tab strip rendered half-cut text because `overflow-x:auto` turned it into a vertical
+  scroll container; it now wraps (`flex-wrap:wrap`) and all four tabs render fully.
+- The edit scenario asserted before the asynchronous reload finished; the harness now waits for the
+  reloaded row and the General panel before asserting, and the whole suite was re-run on the final
+  code SHA.
+
+### Honest limits (definite, not planned)
+
+- **Delete/archive** of a resource does not exist; the UI exposes no delete control.
+- The Assignments tab remains a **read-only** view of stored assignment facts. Creating, editing and
+  deleting assignments, assignment grouping/spreadsheet/profile views and the Resource Assignments
+  window belong to the next Stage D2 slice.
+- Resource **types are the closed set** `labor | nonlabor | material`; there is no user-defined type
+  catalogue.
+- `calendar_id` is stored as supplied; it is not yet validated against the calendar service, and the
+  Calendars window still has no management actions beyond the verified read surface.
+- **Roles** are untouched in this slice.
+- `default_units_per_time` is stored as text and is not yet consumed by scheduling or cost math.
+- No bulk select, copy, rename wizard, resource code/description fields, or import.
+- The new create/edit forms are English-only; the nine-locale pass for these strings is pending.
+- Hierarchy depth is bounded only by data; the tree ordering is parents-first and cycle-safe, but
+  there is no drag-and-drop reparenting.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `npx tsc --noEmit` (apps/web) | clean |
+| Test build | `npx tsc -p tsconfig.test.json` | clean |
+| Unit/integration | `npm test` | 747 `tsx` tests + 14 `node --test` tests pass |
+| Web unit suite | `workspace-resources.test.ts` | 8 tests: master parsing, hierarchy ordering, revision guard, create/edit paths, filter and error handling |
+| Python suites | `python -m pytest` | 3328 passed, 139 skipped (includes 8 API, 3 HTTP and the preview round-trip test) |
+| Build | `npm run build` | bundles written to `dist/web/src` |
+| Resources v26 scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4183 node e2e/resources-v26.mjs` | 11/11 scenarios pass, 12 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout regression at 1280×720 | scenario 11 of the same suite | toolbar `1178×37`, register `682×259`, 2 rows, no clipping |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/resources-v26-2026-11-11/` | `resources-v26.json` + 12 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `4c3d034813a6019e21f9604f428b1ee2025327f0` |
+| Evidence commit | `825981fe384d38566b57b7759796130b64a51f68` |
+| Code commit | `37748b7a81a1e132a91555b420a84192286597aa` |
+| Harness timing fix | `4c3d034813a6019e21f9604f428b1ee2025327f0` |
+| Branch head at merge | pending PR #1745 |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
+ran on `4c3d0348`, and the screenshots plus report were committed afterwards as `825981fe`.
+
+### Next stage
+
+Stage D2b — Resource Assignments grouping, spreadsheet and profile views with real assignment
+writes; then Role management (hierarchy, proficiency, rates, limits), full Calendar management
+(global/project/resource calendars, split shifts, exceptions, Jalali), and Stages E–G.
