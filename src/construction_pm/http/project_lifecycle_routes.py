@@ -16,6 +16,8 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_learning_memory_application import AILearningMemoryApplicationService
+from .ai_learning_memory_routes import AILearningMemoryHttpRoutes
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -242,6 +244,7 @@ class ProjectLifecycleHttpRoutes:
         schedule_query_api: ScheduleQueryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
+        ai_learning_memory_service: AILearningMemoryApplicationService | None = None,
         form_builder_api: object | None = None,
     ) -> None:
         self._api = api
@@ -285,6 +288,11 @@ class ProjectLifecycleHttpRoutes:
         self._schedule_query_api = schedule_query_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
+        self._ai_learning_memory_routes = (
+            AILearningMemoryHttpRoutes(api, ai_learning_memory_service)
+            if ai_learning_memory_service is not None
+            else None
+        )
         self._form_builder_routes = (
             FormBuilderHttpRoutes(form_builder_api)  # type: ignore[arg-type]
             if form_builder_api is not None
@@ -307,6 +315,12 @@ class ProjectLifecycleHttpRoutes:
 
         try:
             now = self._clock.now()
+            if self._ai_learning_memory_routes is not None:
+                memory_response = self._ai_learning_memory_routes.handle(
+                    method, path, session_id=session_id, now=now, body=body
+                )
+                if memory_response is not None:
+                    return memory_response
             if self._form_builder_routes is not None:
                 form_path = urlsplit(path).path
                 if form_path.startswith(ORGANIZATION_ROUTE) or (

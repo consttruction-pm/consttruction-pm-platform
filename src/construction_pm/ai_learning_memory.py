@@ -43,13 +43,26 @@ class LearningRetrievalScope:
     user_id: str
     tenant_id: str | None = None
     project_id: str | None = None
+    user_private_access_granted: bool = False
+    project_private_access_granted: bool = False
     tenant_shared_access_granted: bool = False
+    general_candidate_access_granted: bool = False
+    general_published_access_granted: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.user_id, str) or not self.user_id.strip():
             raise AILearningMemoryError("AI_LEARNING_AUTHENTICATED_USER_REQUIRED")
         for name, value in (("tenant_id", self.tenant_id), ("project_id", self.project_id)):
             if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise AILearningMemoryError(f"INVALID_AI_LEARNING_SCOPE_{name.upper()}")
+        for name, value in (
+            ("user_private_access_granted", self.user_private_access_granted),
+            ("project_private_access_granted", self.project_private_access_granted),
+            ("tenant_shared_access_granted", self.tenant_shared_access_granted),
+            ("general_candidate_access_granted", self.general_candidate_access_granted),
+            ("general_published_access_granted", self.general_published_access_granted),
+        ):
+            if not isinstance(value, bool):
                 raise AILearningMemoryError(f"INVALID_AI_LEARNING_SCOPE_{name.upper()}")
 
 
@@ -161,8 +174,13 @@ class AILearningMemoryRecord:
                 raise AILearningMemoryError("GENERAL_LEARNING_VALIDATION_EVIDENCE_REQUIRED")
             if not self.approved_by or self.approved_at is None:
                 raise AILearningMemoryError("GENERAL_LEARNING_ADMIN_APPROVAL_REQUIRED")
-        if self.scope is LearningScope.GENERAL_PUBLISHED and self.status is not LearningStatus.PUBLISHED:
-            raise AILearningMemoryError("GENERAL_PUBLISHED_SCOPE_REQUIRES_PUBLISHED_STATUS")
+        if self.scope is LearningScope.GENERAL_PUBLISHED and self.status not in {
+            LearningStatus.PUBLISHED,
+            LearningStatus.RETIRED,
+        }:
+            raise AILearningMemoryError(
+                "GENERAL_PUBLISHED_SCOPE_REQUIRES_PUBLISHED_OR_RETIRED_STATUS"
+            )
         if self.scope is LearningScope.GENERAL_CANDIDATE and self.status is LearningStatus.PUBLISHED:
             raise AILearningMemoryError("GENERAL_CANDIDATE_CANNOT_BE_PUBLISHED")
 
@@ -183,14 +201,17 @@ class AILearningMemoryRecord:
         if not isinstance(scope, LearningRetrievalScope):
             raise AILearningMemoryError("TRUSTED_AI_LEARNING_RETRIEVAL_SCOPE_REQUIRED")
         if self.is_general_retrieval_eligible():
-            return True
+            return scope.general_published_access_granted
         if self.status in {LearningStatus.REJECTED, LearningStatus.RETIRED}:
             return False
         if self.scope is LearningScope.USER_PRIVATE:
-            return self.owner_user_id == scope.user_id
+            return scope.user_private_access_granted and self.owner_user_id == scope.user_id
         if self.scope is LearningScope.PROJECT_PRIVATE:
+            # owner_user_id records who captured the lesson; project membership
+            # controls retrieval. It must not make a valid project lesson invisible
+            # to another explicitly authorized member of that same project.
             return (
-                self.owner_user_id == scope.user_id
+                scope.project_private_access_granted
                 and self.tenant_id == scope.tenant_id
                 and self.project_id == scope.project_id
             )
@@ -200,5 +221,14 @@ class AILearningMemoryRecord:
                 and bool(scope.tenant_id)
                 and self.tenant_id == scope.tenant_id
                 and self.status in {LearningStatus.VALIDATED, LearningStatus.PUBLISHED}
+            )
+        if self.scope is LearningScope.GENERAL_CANDIDATE:
+            return (
+                scope.general_candidate_access_granted
+                and self.status in {
+                    LearningStatus.CAPTURED,
+                    LearningStatus.CANDIDATE,
+                    LearningStatus.VALIDATED,
+                }
             )
         return False

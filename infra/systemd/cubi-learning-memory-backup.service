@@ -1,0 +1,22 @@
+[Unit]
+Description=CUBI encrypted AI learning-memory backup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cubi-backup
+Group=cubi-backup
+WorkingDirectory=/opt/cubi/current
+EnvironmentFile=/etc/cubi/learning-memory-backup.env
+ExecStart=/opt/cubi/venv/bin/python -m construction_pm.ai_learning_memory_backup backup
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/cubi-encrypted-backups
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+PrivateDevices=true
+LockPersonality=true
+MemoryDenyWriteExecute=true

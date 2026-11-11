@@ -29,9 +29,11 @@ from construction_pm.ai_action_activity_tools import (
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
 from construction_pm.ai_assistant_orchestration import OpenAICompatibleChatProvider
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
+    Permission,
     default_project_policy,
 )
 from construction_pm.application.project_lifecycle import (
@@ -1209,7 +1211,28 @@ def open_preview_runtime(
     )
     seed_organization_library(form_repository, PREVIEW_TENANT_ID, "preview-admin")
     sessions = PreviewSessionRepository()
-    policy = default_project_policy()
+    base_policy = default_project_policy()
+    # Preview-only curator grants are explicit and do not alter the product's
+    # default role policy. Only the demo project administrator receives them.
+    preview_admin_learning_grants = frozenset({
+        Permission.AI_LEARNING_USER_READ,
+        Permission.AI_LEARNING_USER_WRITE,
+        Permission.AI_LEARNING_PROJECT_READ,
+        Permission.AI_LEARNING_PROJECT_WRITE,
+        Permission.AI_LEARNING_TENANT_READ,
+        Permission.AI_LEARNING_TENANT_WRITE,
+        Permission.AI_LEARNING_GENERAL_READ,
+        Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
+        Permission.AI_LEARNING_GENERAL_VALIDATE,
+    })
+    policy = RoleBasedAuthorizationPolicy({
+        "viewer": base_policy.permissions_for_role("viewer"),
+        "planner": base_policy.permissions_for_role("planner"),
+        "project_admin": (
+            base_policy.permissions_for_role("project_admin")
+            | preview_admin_learning_grants
+        ),
+    })
     public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
         "1", "true", "yes",
     }
@@ -1347,6 +1370,8 @@ def open_preview_runtime(
         ),
         policy,
     )
+
+    ai_learning_memory_repository = SQLiteAILearningMemoryRepository(connection)
 
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes",
@@ -1498,6 +1523,7 @@ def open_preview_runtime(
         clock=PreviewClock(),
         ai_action_runtime=ai_action_runtime,
         ai_assistant_provider=ai_assistant_provider,
+        ai_learning_memory_repository=ai_learning_memory_repository,
         form_builder_api=form_builder_api,
     )
     return PreviewRuntime(
