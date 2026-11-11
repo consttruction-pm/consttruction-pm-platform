@@ -618,10 +618,20 @@ class ProjectLifecycleHttpRoutes:
                         if method == "GET":
                             if resource == "exceptions":
                                 return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "exceptions": list(self._p6_calendar_api.list_exceptions(scope, calendar_id, calendar_version, auth_context=auth))})
+                            # A GET cannot carry a JSON body, so listing without a
+                            # kind returns every stored work-hour contract; the
+                            # client groups the flat rows by their kind field.
                             kind = str(payload.get("kind", "")) if payload else ""
-                            if not kind:
-                                raise ValueError("kind required")
-                            return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "work_hours": list(self._p6_calendar_api.list_work_hours(scope, calendar_id, calendar_version, kind, auth_context=auth))})
+                            kinds = (kind,) if kind else (
+                                "standard_work_week", "standard_detailed_work_hours",
+                                "detailed_work_hours", "total_work_hours",
+                            )
+                            rules = [
+                                rule
+                                for current in kinds
+                                for rule in self._p6_calendar_api.list_work_hours(scope, calendar_id, calendar_version, current, auth_context=auth)
+                            ]
+                            return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "work_hours": rules})
                         if method == "POST" and resource == "exceptions":
                             raw_intervals = payload.get("intervals", [])
                             if not isinstance(raw_intervals, list): raise ValueError("invalid intervals")
@@ -652,7 +662,21 @@ class ProjectLifecycleHttpRoutes:
                                 payload.get("weekday"), payload.get("is_working_day"),
                                 None if payload.get("total_work_hours") is None else Decimal(str(payload.get("total_work_hours"))), intervals,
                             )
+                            if payload.get("replace") is True:
+                                expected_revision = payload.get("expected_revision")
+                                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int):
+                                    raise ValueError("expected_revision required")
+                                return self._json(200, self._p6_calendar_api.replace_work_hours(
+                                    rule, expected_revision=expected_revision, auth_context=auth
+                                ))
                             return self._json(200, self._p6_calendar_api.save_work_hours(rule, auth_context=auth))
+                    if len(parts) == 4 and parts[2] == "exceptions" and method == "DELETE":
+                        calendar_id, calendar_version, _, raw_date = parts
+                        exception_date = date.fromisoformat(unquote(raw_date))
+                        deleted = self._p6_calendar_api.delete_exception(
+                            scope, calendar_id, calendar_version, exception_date, auth_context=auth
+                        )
+                        return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "deleted": deleted})
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/calendars"):

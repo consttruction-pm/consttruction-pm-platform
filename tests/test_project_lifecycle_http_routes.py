@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 import json
 
@@ -175,8 +175,16 @@ class FakeP6CalendarAPI:
         self.calls.append(("list_exceptions", scope, calendar_id, calendar_version, auth_context))
         return ()
 
+    def delete_exception(self, scope, calendar_id, calendar_version, exception_date, *, auth_context):
+        self.calls.append(("delete_exception", scope, calendar_id, calendar_version, exception_date, auth_context))
+        return True
+
     def save_work_hours(self, rule, *, auth_context):
         self.calls.append(("save_work_hours", rule, auth_context))
+        return rule.canonical_snapshot()
+
+    def replace_work_hours(self, rule, *, expected_revision, auth_context):
+        self.calls.append(("replace_work_hours", rule, expected_revision, auth_context))
         return rule.canonical_snapshot()
 
     def list_work_hours(self, scope, calendar_id, calendar_version, kind, *, auth_context):
@@ -309,6 +317,47 @@ def test_p6_calendar_http_copy_replace_exception_and_work_hours_contracts():
     assert status == 200
     assert api.calls[-1][0] == "save_work_hours"
     assert json.loads(body)["kind"] == "standard_work_week"
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/work-hours",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({**work_hours_payload, "replace": True, "expected_revision": 3}).encode(),
+    )
+    assert status == 200
+    assert api.calls[-1][0] == "replace_work_hours"
+    assert api.calls[-1][2] == 3
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/work-hours",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({**work_hours_payload, "replace": True}).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_CALENDAR_REQUEST_INVALID"
+
+    # A browser GET carries no JSON body; the route must still return every
+    # stored work-hour contract so the window can render the workweek.
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/calendars/CAL-1/1/work-hours",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["work_hours"] == []
+    listed_kinds = [call[4] for call in api.calls if call[0] == "list_work_hours"]
+    assert listed_kinds[-4:] == [
+        "standard_work_week", "standard_detailed_work_hours",
+        "detailed_work_hours", "total_work_hours",
+    ]
+
+    status, _, body = r.handle(
+        "DELETE", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions/2026-10-01",
+        cookies={"cp_session": "s1"}, body=b"{}",
+    )
+    assert status == 200
+    assert json.loads(body)["deleted"] is True
+    assert api.calls[-1][0] == "delete_exception"
+    assert api.calls[-1][4] == date(2026, 10, 1)
+    assert api.calls[-1][5].project_id == "p1"
 
 
 class WorkspaceReadAPI:

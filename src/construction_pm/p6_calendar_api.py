@@ -63,6 +63,19 @@ class P6CalendarAPI:
     def create(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        base: CalendarMaster | None = None
+        if request.base_calendar_id is not None or request.base_calendar_version is not None:
+            if not request.base_calendar_id or not request.base_calendar_version:
+                raise P6CalendarAPIError("INCOMPLETE_BASE_CALENDAR_REFERENCE")
+            base = self.calendar_repository.get(
+                scope, request.base_calendar_id, request.base_calendar_version
+            )
+            if base is None:
+                raise CalendarPersistenceError("BASE_CALENDAR_NOT_FOUND")
+            if base.kind != request.kind:
+                raise P6CalendarAPIError("BASE_CALENDAR_KIND_MISMATCH")
+            if self.snapshot_repository.get(base) is None:
+                raise CalendarPersistenceError("BASE_CALENDAR_SNAPSHOT_NOT_FOUND")
         calendar = CalendarMaster(
             scope=scope,
             calendar_id=request.calendar_id,
@@ -73,7 +86,16 @@ class P6CalendarAPI:
             base_calendar_version=request.base_calendar_version,
             calendar_type=request.calendar_type,
         )
-        return self._calendar_dto(self.calendar_repository.save(calendar, request.expected_revision))
+        if base is None:
+            return self._calendar_dto(self.calendar_repository.save(calendar, request.expected_revision))
+        # A new calendar must be resolvable immediately. When a base is chosen
+        # the stored definition, work-hour rules and exceptions are copied in
+        # the same application transaction so the schedule resolver never sees
+        # a master without a snapshot.
+        with self._transaction():
+            stored = self.calendar_repository.save(calendar, request.expected_revision)
+            self._copy_calendar_facts(scope, stored, base)
+        return self._calendar_dto(stored)
 
     def update(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
@@ -125,21 +147,7 @@ class P6CalendarAPI:
                 base_calendar_version=source.base_calendar_version, calendar_type=source.calendar_type,
             )
             stored = self.calendar_repository.save(target, expected_revision=0)
-            snapshot = self.snapshot_repository.get(source)
-            if snapshot is not None:
-                self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
-            for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
-                self.exception_repository.save(CalendarException(
-                    scope, target_calendar_id, target_calendar_version, exception.exception_date,
-                    exception.mode, exception.total_work_hours, exception.intervals, exception.system,
-                ))
-            if self.work_hours_repository is not None:
-                for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
-                    for rule in self.work_hours_repository.list(scope, source_calendar_id, source_calendar_version, kind):
-                        self.work_hours_repository.save(CalendarWorkHourRule(
-                            scope, target_calendar_id, target_calendar_version, rule.kind,
-                            rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals,
-                        ))
+            self._copy_calendar_facts(scope, stored, source)
             return self._calendar_dto(stored)
 
     def replace(self, scope: BackendScope, target_calendar_id: str, target_calendar_version: str, source_calendar_id: str, source_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
@@ -188,6 +196,33 @@ class P6CalendarAPI:
         return tuple(item.canonical_snapshot() for item in self.exception_repository.list(scope, calendar_id, calendar_version))
 
 
+    def _copy_calendar_facts(self, scope: BackendScope, target: CalendarMaster, source: CalendarMaster) -> None:
+        """Copy the stored definition, exceptions and work-hour rules to a new master.
+
+        Callers validate the source and open a transaction first, so a partially
+        copied calendar is never committed.
+        """
+        snapshot = self.snapshot_repository.get(source)
+        if snapshot is None:
+            raise CalendarPersistenceError("SOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
+        self.snapshot_repository.save(target, _definition_from_snapshot(snapshot.snapshot, source.kind))
+        for exception in self.exception_repository.list(scope, source.calendar_id, source.calendar_version):
+            self.exception_repository.save(CalendarException(
+                scope, target.calendar_id, target.calendar_version, exception.exception_date,
+                exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+            ))
+        if self.work_hours_repository is not None:
+            for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+                for rule in self.work_hours_repository.list(scope, source.calendar_id, source.calendar_version, kind):
+                    self.work_hours_repository.save(CalendarWorkHourRule(
+                        scope, target.calendar_id, target.calendar_version, rule.kind,
+                        rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals,
+                    ))
+
+    def delete_exception(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: Any, *, auth_context: AuthorizationContext) -> bool:
+        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        return bool(self.exception_repository.delete(scope, calendar_id, calendar_version, exception_date))
+
     def _transaction(self):
         if self.transaction_manager is None:
             raise P6CalendarAPIError("TRANSACTION_MANAGER_REQUIRED")
@@ -206,6 +241,35 @@ class P6CalendarAPI:
     def list_work_hours(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str, *, auth_context: AuthorizationContext) -> tuple[dict[str, object], ...]:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
         return tuple(item.canonical_snapshot() for item in self._work_hours().list(scope, calendar_id, calendar_version, kind))
+
+    def replace_work_hours(self, rule: CalendarWorkHourRule, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, object]:
+        """Edit an existing weekday rule and bump the calendar master revision.
+
+        The master revision is the concurrency token for definition changes, so
+        a workweek edit is rejected by the same stale-write rule as any other
+        calendar update and the resolver's definition hash changes with it.
+        """
+        self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise P6CalendarAPIError("INVALID_EXPECTED_REVISION")
+        master = self.calendar_repository.get(rule.scope, rule.calendar_id, rule.calendar_version)
+        if master is None:
+            raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+        if master.record_revision != expected_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        with self._transaction():
+            stored = self._work_hours().replace(rule)
+            self.calendar_repository.save(CalendarMaster(
+                scope=master.scope,
+                calendar_id=master.calendar_id,
+                calendar_version=master.calendar_version,
+                kind=master.kind,
+                name=master.name,
+                base_calendar_id=master.base_calendar_id,
+                base_calendar_version=master.base_calendar_version,
+                calendar_type=master.calendar_type,
+            ), expected_revision)
+        return stored.canonical_snapshot()
 
     def _catalog(self, scope: BackendScope) -> dict[str, Any]:
         return {

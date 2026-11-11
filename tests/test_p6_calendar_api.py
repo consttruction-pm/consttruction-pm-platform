@@ -108,6 +108,77 @@ def test_update_rejects_kind_change_when_snapshot_exists():
     assert api.calendar_repository.get(_scope(), "CAL-K", "1").kind == "working-day"
 
 
+def test_create_from_base_copies_snapshot_exceptions_and_work_hours():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-BASE"), auth_context=_auth())
+    base = api.calendar_repository.get(_scope(), "CAL-BASE", "1")
+    api.snapshot_repository.save(base, _definition())
+    api.save_exception(
+        CalendarException(_scope(), "CAL-BASE", "1", date(2026, 3, 22), EXCEPTION_NONWORK),
+        auth_context=_auth(),
+    )
+    api.save_work_hours(
+        CalendarWorkHourRule(_scope(), "CAL-BASE", "1", "standard_work_week", 0, True, Decimal("8"), ()),
+        auth_context=_auth(),
+    )
+    request = P6CalendarCreateRequest(
+        P6_CALENDAR_API_VERSION, "CAL-NEW", "1", "resource", "working-day", "New Calendar", 0,
+        "CAL-BASE", "1",
+    )
+    created = api.create(_scope(), request, auth_context=_auth())
+    assert created["base_calendar_id"] == "CAL-BASE"
+    assert created["calendar_type"] == "resource"
+    target = api.calendar_repository.get(_scope(), "CAL-NEW", "1")
+    assert target is not None
+    assert api.snapshot_repository.get(target) is not None
+    assert len(api.list_exceptions(_scope(), "CAL-NEW", "1", auth_context=_auth())) == 1
+    assert len(api.list_work_hours(_scope(), "CAL-NEW", "1", "standard_work_week", auth_context=_auth())) == 1
+
+
+def test_create_from_base_rejects_unknown_mismatched_and_incomplete_references():
+    api, _ = _api()
+    with pytest.raises(ValueError, match="BASE_CALENDAR_NOT_FOUND"):
+        api.create(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-NEW", "1", "project", "working-day", "New", 0,
+            "CAL-MISSING", "1",
+        ), auth_context=_auth())
+
+    api.create(_scope(), _request("CAL-BASE"), auth_context=_auth())
+    base = api.calendar_repository.get(_scope(), "CAL-BASE", "1")
+    api.snapshot_repository.save(base, _definition())
+    with pytest.raises(ValueError, match="BASE_CALENDAR_KIND_MISMATCH"):
+        api.create(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-NEW", "1", "project", "working-time", "New", 0,
+            "CAL-BASE", "1",
+        ), auth_context=_auth())
+    with pytest.raises(ValueError, match="INCOMPLETE_BASE_CALENDAR_REFERENCE"):
+        api.create(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-NEW", "1", "project", "working-day", "New", 0,
+            "CAL-BASE", None,
+        ), auth_context=_auth())
+    assert api.calendar_repository.get(_scope(), "CAL-NEW", "1") is None
+
+
+def test_exception_delete_removes_the_exact_date_and_is_idempotent():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-X"), auth_context=_auth())
+    api.save_exception(
+        CalendarException(_scope(), "CAL-X", "1", date(2026, 3, 22), EXCEPTION_NONWORK),
+        auth_context=_auth(),
+    )
+    api.save_exception(
+        CalendarException(_scope(), "CAL-X", "1", date(2026, 3, 23), EXCEPTION_NONWORK),
+        auth_context=_auth(),
+    )
+    assert api.delete_exception(_scope(), "CAL-X", "1", date(2026, 3, 22), auth_context=_auth()) is True
+    remaining = api.list_exceptions(_scope(), "CAL-X", "1", auth_context=_auth())
+    assert [item["date"] for item in remaining] == ["2026-03-23"]
+    assert api.delete_exception(_scope(), "CAL-X", "1", date(2026, 3, 22), auth_context=_auth()) is False
+    with pytest.raises(ValueError, match="REVISION_CONFLICT"):
+        api.delete_exception(BackendScope("T-1", "P-1", 8), "CAL-X", "1", date(2026, 3, 23), auth_context=_auth())
+    assert len(api.list_exceptions(_scope(), "CAL-X", "1", auth_context=_auth())) == 1
+
+
 def test_copy_replays_snapshot_and_keeps_type():
     api, _ = _api()
     api.create(_scope(), _request("CAL-S", calendar_type="global"), auth_context=_auth())
@@ -276,6 +347,36 @@ def test_detailed_and_total_work_hours_are_first_class_contracts():
     assert api.save_work_hours(total, auth_context=_auth())["total_work_hours"] == "40"
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "detailed_work_hours", auth_context=_auth())) == 1
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "total_work_hours", auth_context=_auth())) == 1
+
+
+def test_replace_work_hours_uses_master_revision_and_bumps_it():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-RW"), auth_context=_auth())
+    rule = CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    api.save_work_hours(rule, auth_context=_auth())
+
+    changed = CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 0, True, Decimal("9"), ())
+    stored = api.replace_work_hours(changed, expected_revision=1, auth_context=_auth())
+    assert stored["total_work_hours"] == "9"
+    master = api.calendar_repository.get(_scope(), "CAL-RW", "1")
+    assert master.record_revision == 2
+    assert api.list_work_hours(_scope(), "CAL-RW", "1", "standard_work_week", auth_context=_auth())[0]["total_work_hours"] == "9"
+
+    with pytest.raises(ValueError, match="REVISION_CONFLICT"):
+        api.replace_work_hours(changed, expected_revision=1, auth_context=_auth())
+    with pytest.raises(ValueError, match="WORK_HOUR_RULE_NOT_FOUND"):
+        api.replace_work_hours(
+            CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 1, True, Decimal("9"), ()),
+            expected_revision=2, auth_context=_auth(),
+        )
+
+
+def test_replace_work_hours_requires_positive_revision():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-RV"), auth_context=_auth())
+    rule = CalendarWorkHourRule(_scope(), "CAL-RV", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    with pytest.raises(ValueError, match="INVALID_EXPECTED_REVISION"):
+        api.replace_work_hours(rule, expected_revision=0, auth_context=_auth())
 
 
 def test_sqlite_total_work_hours_is_idempotent_across_replay():

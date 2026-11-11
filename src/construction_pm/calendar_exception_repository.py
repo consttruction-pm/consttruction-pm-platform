@@ -116,6 +116,7 @@ class CalendarExceptionRepository(Protocol):
     def save(self, exception: CalendarException) -> CalendarException: ...
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]: ...
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> bool: ...
 
 
 def _canonical_json(value: dict[str, object]) -> str:
@@ -217,6 +218,27 @@ class SQLiteCalendarExceptionRepository:
             str(existing[0]), existing[1], existing[2], str(existing[3]), int(existing[4])
         ))
 
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> bool:
+        scope.validate()
+        if not isinstance(exception_date, date) or isinstance(exception_date, datetime):
+            raise CalendarPersistenceError("INVALID_EXCEPTION_DATE")
+        was_in_transaction = self.connection.in_transaction
+        row = self.connection.execute(
+            "SELECT project_revision FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND exception_date=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, exception_date.isoformat()),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[0]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND exception_date=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, exception_date.isoformat(), scope.project_revision),
+        )
+        if not was_in_transaction:
+            self.connection.commit()
+        return cursor.rowcount == 1
+
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
         row = self.connection.execute(
@@ -299,6 +321,24 @@ class PostgresCalendarExceptionRepository:
             tuple((time.fromisoformat(str(x[0])), time.fromisoformat(str(x[1]))) for x in interval_rows),
             CalendarSystem(str(existing[3])), int(existing[4])
         )
+
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> bool:
+        scope.validate()
+        if not isinstance(exception_date, date) or isinstance(exception_date, datetime):
+            raise CalendarPersistenceError("INVALID_EXCEPTION_DATE")
+        row = self.connection.execute(
+            "SELECT project_revision FROM calendar_exception WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND exception_date=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, exception_date),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[0]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND exception_date=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, exception_date, scope.project_revision),
+        )
+        return cursor.rowcount == 1
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
