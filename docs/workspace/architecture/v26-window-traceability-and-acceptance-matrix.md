@@ -34,7 +34,7 @@ The source-page column identifies the section or chapter in the Version 26 Help 
 | WS-004 | Window tabs, close, reorder, dirty state and lifecycle | Help: Using Main Windows | Window-tab manager | Duplicate-open, switch, close and unsaved-change tests | NOT_AUDITED |
 | WS-005 | Context/shortcut menus on selected records and blank surfaces | Help: Use Shortcut Menus | Context-menu engine | Context matrix across all windows and hit targets | NOT_AUDITED |
 | WS-006 | Multi-selection and keyboard selection behavior | Help: Select Multiple Items / Hot Keys | Selection manager | Mouse/keyboard selection, range, modifier and focus tests | NOT_AUDITED |
-| WS-007 | Layout save/open, top/bottom view and restore | Help: Customizing Activity Layouts / Tracking Layouts | Layout manager | Save, reopen, refresh, revision conflict and reset tests | NOT_AUDITED |
+| WS-007 | Layout save/open, top/bottom view and restore | Help: Customizing Activity Layouts / Tracking Layouts | Layout manager | Save, reopen, refresh, revision conflict and reset tests | WIRED_WRITE (Activities only; see §2.1) |
 | WS-008 | Full-screen and responsive workspace behavior | CUBI owner requirement | Workspace shell | 1280x720, 1366x768, 1920x1080 and landscape mobile evidence | NOT_AUDITED |
 | WS-009 | RTL/LTR and eight-language coverage | CUBI owner requirement | Localization/layout engine | All windows, menus, dialogs, context menus and empty/error states | NOT_AUDITED |
 | WS-010 | CUBI theme and state-color semantics | CUBI design system | Theme/token/icon registry | Light/dark contrast, status signal collision and consistency tests | NOT_AUDITED |
@@ -103,6 +103,12 @@ The source-page column identifies the section or chapter in the Version 26 Help 
 | CUBI-001 | Form Builder and organization/project libraries | CUBI product requirements | Forms window/tool | Template publish/copy/version/assign/approve/export tests | NOT_AUDITED |
 | CUBI-002 | Engineering Intelligence Assistant | CUBI AI requirements | On-page assistant | Propose → approve → execute → verify, permission and audit | NOT_AUDITED |
 | CUBI-003 | Project compare/difference | CUBI product requirements | Comparisons window | Immutable runs, field variance, WBS grouping and source revision | NOT_AUDITED |
+
+### 2.1 Status updates (evidence-backed, newest first)
+
+| Date | ID | New status | Evidence |
+|---|---|---|---|
+| 2026-11-11 | WS-007 | WIRED_WRITE | PR [#1743](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1743), tested code `4a9ccc8b`, evidence commit `490c6464`. Activities reads both stored layout scopes from the layout service, previews/applies/cancels in the real table and Gantt, saves with revision conflict surfaced, Save As writes user scope, restores after reload and keeps projects isolated; switching leaves activities, relationships, WBS and dates untouched. Remaining gap: Resource Assignments and Tracking layouts, share/import/export/delete, reset-to-default, and layouts are scoped by layout scope rather than user identity. Recorded in `docs/qa/CUBI_V26_EXECUTION_CHECKPOINT.md` (Stage D1b). |
 
 ## 3. Window completion checklist
 
