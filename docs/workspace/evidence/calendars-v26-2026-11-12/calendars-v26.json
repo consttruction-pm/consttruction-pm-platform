@@ -1,0 +1,140 @@
+{
+  "contract": "cubi-calendars-v26.v1",
+  "baseUrl": "http://127.0.0.1:4184",
+  "gitHead": "c95c1cd5e0b7028488c2b17b2cb7931c14f484eb",
+  "testedCodeSha": "c95c1cd5e0b7028488c2b17b2cb7931c14f484eb",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T21:36:11.497Z",
+  "newCalendarId": "RPS-E2E-CAL-MWCN25GL",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Calendars فهرست تقویم‌ها را از سرور می‌خواند و پنل Details مشترک را بازنمی‌گذارد",
+      "status": "pass",
+      "at": "2026-11-11T21:36:17.279Z",
+      "ids": [
+        "CUBI-RPS-CAL",
+        "CUBI-RPS-CAL-TIME"
+      ],
+      "caption": "CUBI-RPS-CAL / 1",
+      "collapsed": "true"
+    },
+    {
+      "id": "02",
+      "name": "ویرایش روز کاری، ذخیرهٔ قاعدهٔ هفته کاری و تغییر نتیجهٔ زمان‌بندی",
+      "status": "pass",
+      "at": "2026-11-11T21:36:18.518Z",
+      "fridayRule": {
+        "calendar_id": "CUBI-RPS-CAL",
+        "calendar_version": "1",
+        "kind": "standard_work_week",
+        "weekday": 4,
+        "is_working_day": false,
+        "total_work_hours": null,
+        "intervals": []
+      },
+      "revision": 2
+    },
+    {
+      "id": "03",
+      "name": "ویرایش شیفت‌های تفکیک‌شده روی تقویم زمان‌دار و ذخیرهٔ دقیق بازه‌ها",
+      "status": "pass",
+      "at": "2026-11-11T21:36:20.359Z",
+      "intervals": [
+        [
+          "08:00",
+          "12:00"
+        ],
+        [
+          "13:00",
+          "17:00"
+        ],
+        [
+          "18:00",
+          "20:00"
+        ]
+      ],
+      "total": "10",
+      "revision": 3
+    },
+    {
+      "id": "04",
+      "name": "بازه‌های هم‌پوشان پیش از ارسال رد می‌شوند و رکورد ذخیره‌شده تغییر نمی‌کند",
+      "status": "pass",
+      "at": "2026-11-11T21:36:21.224Z",
+      "notice": "Shifts must be non-overlapping HH:MM-HH:MM ranges.",
+      "storedIntervals": 3
+    },
+    {
+      "id": "05",
+      "name": "ایجاد تقویم جدید از تقویم پایه با تعریف، قواعد هفته کاری و تعطیلات کپی‌شده",
+      "status": "pass",
+      "at": "2026-11-11T21:36:22.329Z",
+      "newId": "RPS-E2E-CAL-MWCN25GL",
+      "revision": 1,
+      "copiedHolidays": [
+        "2026-10-28"
+      ],
+      "inheritedWorkHourRules": 1
+    },
+    {
+      "id": "06",
+      "name": "افزودن و حذف استثنا از جدول واقعی و تأیید از سرور",
+      "status": "pass",
+      "at": "2026-11-11T21:36:24.166Z",
+      "remaining": []
+    },
+    {
+      "id": "07",
+      "name": "پس از بارگذاری کامل صفحه، تقویم جدید، شیفت‌ها و اثر قاعدهٔ هفته کاری باقی می‌مانند",
+      "status": "pass",
+      "at": "2026-11-11T21:36:27.071Z",
+      "newId": "RPS-E2E-CAL-MWCN25GL",
+      "intervals": 3,
+      "fridayWorking": false,
+      "finish": "2026-11-05"
+    },
+    {
+      "id": "08",
+      "name": "پنجرهٔ Calendars در 1280×720 بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-11T21:36:28.399Z",
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "toolbar": {
+        "x": 56,
+        "y": 142,
+        "width": 1178,
+        "height": 37
+      },
+      "register": {
+        "x": 56,
+        "y": 187,
+        "width": 348,
+        "height": 465
+      },
+      "editor": {
+        "x": 412,
+        "y": 187,
+        "width": 822,
+        "height": 465
+      },
+      "overflow": false,
+      "collapsed": "true"
+    }
+  ],
+  "screenshots": [
+    "01-calendar-register.png",
+    "02-workweek-edited.png",
+    "03-split-shifts.png",
+    "04-overlap-rejected.png",
+    "05-calendar-created.png",
+    "06-exception-removed.png",
+    "07-persisted-after-reload.png",
+    "08-calendar-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-11T21:36:28.399Z"
+}
