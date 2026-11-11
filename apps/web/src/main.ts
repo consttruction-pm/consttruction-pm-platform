@@ -70,6 +70,7 @@ import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
+import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
 import { mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
@@ -2157,6 +2158,15 @@ function renderApp(
         code: activity.code,
         name: activity.name,
       })),
+    });
+  }
+
+  const resourcesPage = workspace.querySelector<HTMLElement>("[data-resources-page]");
+  if (resourcesPage) {
+    mountWorkspaceResourcesPage(resourcesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
     });
   }
 

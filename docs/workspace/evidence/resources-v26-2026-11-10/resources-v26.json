@@ -1,0 +1,182 @@
+{
+  "contract": "cubi-resources-v26.v1",
+  "baseUrl": "http://127.0.0.1:4301",
+  "gitHead": "9023efb39c490a3d4c75940c77d0c2fc4963fb32",
+  "testedCodeSha": "9023efb39c490a3d4c75940c77d0c2fc4963fb32",
+  "evidenceCommitSha": "6f0d433b9c1edd7f07679abd85410de9616e31af",
+  "capturedAt": "2026-11-10T14:19:05.253Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Resources دقیقاً منابعی را نشان می‌دهد که قراردادهای تخصیص، ظرفیت و نرخ برمی‌گردانند",
+      "status": "pass",
+      "at": "2026-11-10T14:19:10.320Z",
+      "rows": [
+        "RPS-CIVIL-CREW"
+      ],
+      "assignments": 0,
+      "latestMaxUnits": "12"
+    },
+    {
+      "id": "02",
+      "name": "تب General حقایق ذخیره‌شده را نشان می‌دهد و مرز رکورد مستر منبع را اعلام می‌کند",
+      "status": "pass",
+      "at": "2026-11-10T14:19:10.755Z",
+      "fields": [
+        {
+          "label": "Resource ID",
+          "value": "RPS-CIVIL-CREW"
+        },
+        {
+          "label": "Assignments",
+          "value": "0"
+        },
+        {
+          "label": "Budgeted Units",
+          "value": "Not provided"
+        },
+        {
+          "label": "Planned Cost",
+          "value": "Not provided"
+        },
+        {
+          "label": "Actual Cost",
+          "value": "Not provided"
+        },
+        {
+          "label": "Latest Max Units",
+          "value": "12"
+        },
+        {
+          "label": "Capacity Effective From",
+          "value": "2026-10-15"
+        },
+        {
+          "label": "Currencies",
+          "value": "Not provided"
+        },
+        {
+          "label": "Calendars",
+          "value": "Not provided"
+        }
+      ],
+      "hint": "Latest Max Units is the most recently effective stored capacity segment, not a data-date resolution. This server exposes assignment, capacity and rate facts per resource but no resource master record (display name, resource type, e-mail), so those fields stay absent instead of being invented."
+    },
+    {
+      "id": "03",
+      "name": "تب Capacity هر دو بازه ظرفیت مؤثر-تاریخ‌دار ذخیره‌شده را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T14:19:11.107Z",
+      "segments": [
+        [
+          "8",
+          "day",
+          "8",
+          "1",
+          "2026-09-21",
+          "2026-10-14"
+        ],
+        [
+          "12",
+          "day",
+          "8",
+          "1.5",
+          "2026-10-15",
+          "Open-ended"
+        ]
+      ]
+    },
+    {
+      "id": "04",
+      "name": "تب Rates هر دو نرخ مؤثر-تاریخ‌دار ذخیره‌شده را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-10T14:19:11.452Z",
+      "rates": [
+        [
+          "480",
+          "per_day",
+          "USD",
+          "crew-day",
+          "2026-09-21",
+          "2026-10-14"
+        ],
+        [
+          "525",
+          "per_day",
+          "USD",
+          "crew-day",
+          "2026-10-15",
+          "Open-ended"
+        ]
+      ]
+    },
+    {
+      "id": "05",
+      "name": "تب Assignments همان تخصیص‌های ذخیره‌شده را نشان می‌دهد و Refresh ثبت را دوباره از سرور می‌خواند",
+      "status": "pass",
+      "at": "2026-11-10T14:19:12.417Z",
+      "assignments": 0,
+      "rowsAfterRefresh": 1
+    },
+    {
+      "id": "06",
+      "name": "پنجرهٔ Calendars فهرست ذخیره‌شده را نشان می‌دهد و هفتهٔ کاری را از نسخهٔ واقعی تقویم می‌خواند",
+      "status": "pass",
+      "at": "2026-11-10T14:19:13.983Z",
+      "calendars": [
+        "CUBI-RPS-CAL/1"
+      ],
+      "workweek": [
+        [
+          "Monday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Tuesday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Wednesday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Thursday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Friday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Saturday",
+          "Non-working",
+          "—"
+        ],
+        [
+          "Sunday",
+          "Non-working",
+          "—"
+        ]
+      ],
+      "snapshotSystem": "gregorian"
+    }
+  ],
+  "screenshots": [
+    "01-resource-register.png",
+    "02-resource-general.png",
+    "03-resource-capacity.png",
+    "04-resource-rates.png",
+    "05-resource-assignments-refreshed.png",
+    "06-calendar-register.png",
+    "07-calendar-workweek.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-10T14:19:13.984Z"
+}

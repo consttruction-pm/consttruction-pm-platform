@@ -2499,13 +2499,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = `<div class="cp-register-window cp-roles-window" data-roles-page></div>`;
       break;
     case "resources":
-      body = `
-        <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
-        <div class="cp-p6-module-metrics">
-          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
-          ${metric(state.relationships.length, uiText(state.locale, "Assignments in logic", "تخصیص در منطق"))}
-        </div>
-        ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
+      body = `<div class="cp-register-window cp-resources-window" data-resources-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Resource Register", "فهرست منابع"))}"></div>`;
       break;
     case "expenses":
       body = `<div class="cp-register-window" data-expenses-page role="region" aria-label="${escapeHtml(uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"))}"></div>`;
