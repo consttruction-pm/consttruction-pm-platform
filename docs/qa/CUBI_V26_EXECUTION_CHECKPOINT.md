@@ -4,9 +4,10 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `a9cdc362` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Branch: `main` @ `03d61a39` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
 Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
-Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`, Stage D2c as `a9cdc362`).
+Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`, Stage D2c as `a9cdc362`,
+Stage D3a as `03d61a39`).
 
 ---
 
@@ -797,11 +798,18 @@ Changed files: `apps/web/src/workspace-roles.ts`,
 
 ## Stage D3a — Calendar create-from-base, workweek and split-shift editing, exception removal
 
-Status: **code complete and verified on the exact head `c95c1cd5`; evidence committed as
-`ec95b9ec`; PR open, merge pending.** Branch `feat/v26-stage-d3a-calendars`, created from
-`main` @ `a7e39e9e`. The Calendars window now creates real calendars from a stored base calendar,
-edits the workweek and split-shift intervals through the calendar API with revision guards, and
-deletes stored exceptions instead of only adding them.
+Status: **merged**. Independent PR
+[#1751](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1751), branch
+`feat/v26-stage-d3a-calendars`, squash-merged into `main` as `03d61a39` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T21:48:04Z`,
+`merge_commit_sha=03d61a39f929f7fee095a37bfb827ab1c852826c`, main ref at that SHA, 30 changed
+files). The PR was created from `main` @ `a7e39e9e` and all 8 required checks were green on the
+exact head `f93d08ac` before the merge. Post-merge CI on `03d61a39`: 11/11 checks succeeded after
+one rerun; the first `web` run was a runner flake (`CHROME_DID_NOT_START` in the assistant-avatar
+E2E, then the job timed out at 8 minutes) and the rerun passed without a code change.
+The Calendars window now creates real calendars from a stored base calendar, edits the workweek
+and split-shift intervals through the calendar API with revision guards, and deletes stored
+exceptions instead of only adding them.
 
 Help topics used: the Version 26 Calendars sections on global, project and resource calendars,
 base calendar inheritance, working-day versus working-time calendars, workweek and daily hours,
@@ -896,10 +904,10 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `c95c1cd5e0b7028488c2b17b2cb7931c14f484eb` |
 | Evidence commit | `ec95b9ec09a427773ed8ceb24bd2fb73ae476736` |
-| Branch head at merge | pending |
-| PR | pending |
-| Merge commit | pending |
-| Post-merge CI | pending |
+| Branch head at merge | `f93d08ac254c5a74098b765a66f4a4b6f8263e59` |
+| PR | [#1751](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1751) |
+| Merge commit | `03d61a39f929f7fee095a37bfb827ab1c852826c` |
+| Post-merge CI | 11/11 checks success on `03d61a39` after one rerun of the flaky `web` job |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
 scenarios ran on `c95c1cd5`, and the screenshots plus report were committed afterwards as
