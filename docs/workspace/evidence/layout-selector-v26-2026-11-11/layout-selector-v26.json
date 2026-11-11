@@ -1,0 +1,125 @@
+{
+  "contract": "cubi-layout-selector-v26.v1",
+  "baseUrl": "http://127.0.0.1:4313",
+  "gitHead": "4a9ccc8bc9e4379f45590ddd1cc1d032e12d6bd2",
+  "testedCodeSha": "4a9ccc8bc9e4379f45590ddd1cc1d032e12d6bd2",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T04:17:00.760Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Classic Schedule Layout",
+      "status": "pass",
+      "at": "2026-11-11T04:17:06.478Z",
+      "scope": "Project layout · r1",
+      "columns": 8
+    },
+    {
+      "id": "02",
+      "name": "گزینه‌های منو فقط از چیدمان‌های ذخیره‌شدهٔ همان پروژه می‌آیند",
+      "status": "pass",
+      "at": "2026-11-11T04:17:07.781Z",
+      "options": [
+        {
+          "scope": "project",
+          "name": "Classic Schedule Layout",
+          "meta": "Project layout · r1",
+          "checked": "true"
+        }
+      ],
+      "saveAs": "Save a copy under its own layout name"
+    },
+    {
+      "id": "03",
+      "name": "Field team view",
+      "status": "pass",
+      "at": "2026-11-11T04:17:10.176Z",
+      "revision": 0,
+      "columns": 8
+    },
+    {
+      "id": "04",
+      "name": "بازکردن چیدمان پروژه، جدول را پیش‌نمایش می‌دهد و Cancel آن را دقیقاً بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-11T04:17:17.031Z",
+      "hiddenColumnId": "activity.planned_duration",
+      "userColumns": 7,
+      "projectColumns": 8
+    },
+    {
+      "id": "05",
+      "name": "Apply و بازخوانی صفحه، چیدمان انتخاب‌شده را برای همان کاربر و پروژه بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-11T04:17:35.329Z",
+      "project": "Classic Schedule Layout",
+      "user": "Field team view"
+    },
+    {
+      "id": "06",
+      "name": "Save نسخهٔ ذخیره‌شده را واقعاً افزایش می‌دهد و دادهٔ زمان‌بندی را تغییر نمی‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T04:17:37.563Z",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "هر پروژه چیدمان و کاتالوگ خودش را دارد و انتخاب کاربر بین پروژه‌ها نشت نمی‌کند",
+      "status": "pass",
+      "at": "2026-11-11T04:17:46.529Z",
+      "projectBefore": "Field team view",
+      "nse": "Classic Schedule Layout",
+      "restored": "Field team view"
+    },
+    {
+      "id": "08",
+      "name": "رابط راست‌به‌چپ، انتخاب‌کننده را بدون شکستن چیدمان نمایش می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T04:17:49.745Z",
+      "direction": "rtl",
+      "options": 2
+    },
+    {
+      "0": {
+        "width": 1280,
+        "height": 720,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "1": {
+        "width": 1366,
+        "height": 768,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "2": {
+        "width": 1920,
+        "height": 1080,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "id": "09",
+      "name": "در سه وضوح 1280×720 و 1366×768 و 1920×1080 کنترل دیده می‌شود و منو داخل صفحه می‌ماند",
+      "status": "pass",
+      "at": "2026-11-11T04:17:55.388Z"
+    }
+  ],
+  "screenshots": [
+    "01-default-layout-selector.png",
+    "02-layout-catalogue.png",
+    "03-saved-user-layout.png",
+    "04-layout-preview.png",
+    "05-user-layout-after-reload.png",
+    "06-saved-revision.png",
+    "07-second-project.png",
+    "08-rtl-layout-selector.png",
+    "09-layout-selector-1280x720.png",
+    "09-layout-selector-1366x768.png",
+    "09-layout-selector-1920x1080.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-11T04:17:55.392Z"
+}
