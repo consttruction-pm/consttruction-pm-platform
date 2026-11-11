@@ -567,6 +567,8 @@ async function main() {
         `document.querySelector('[data-resource-notice][data-state="ok"]')?.textContent?.includes(${JSON.stringify(createdId)}) ?? false`,
         "edit success notice",
       );
+      await page.waitForSelector(`[data-resource-row][data-resource-id="${createdId}"]`, "edited register row");
+      await page.waitForSelector('[data-resource-panel="general"]', "edited general tab");
       await sleep(400);
       state = await page.evaluate(resourcesState);
       const row = state.rows.find((item) => item.id === createdId);
