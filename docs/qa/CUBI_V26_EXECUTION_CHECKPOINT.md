@@ -4,9 +4,8 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `4d0b5783` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`, Stage D1 as `4d0b5783`; the Activities layout selector on
-`feat/activities-layout-selector-v26`).
+Branch: `main` @ `71ca85cf` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`).
 
 ---
 
@@ -340,12 +339,16 @@ Issues/Risks/Thresholds/Control/Administration, the six-skin integration pass an
 
 ## Stage D1b — Activities Classic Schedule Layout selector
 
-Status: **in review** (independent PR
+Status: **merged**. Independent PR
 [#1743](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1743), branch
-`feat/activities-layout-selector-v26`). Stage D1 ([#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742))
-merged into `main` as `4d0b5783` on 2026-11-11, and this branch is synced with that `main`, so the
-PR diff is layout-only. Requirement implemented: the mandated Classic Schedule Layout dropdown at
-the top-left of Activities, above the table and Gantt.
+`feat/activities-layout-selector-v26`, squash-merged into `main` as `71ca85cf` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T05:35:54Z`, 24 changed
+files). Post-merge CI on `71ca85cf`: deploy, build, test 3.11/3.12/3.13, typecheck
+apps/web, apps/mobile, apps/desktop, apps/client-sync, postgres-sync and web all succeeded. Stage
+D1 ([#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742)) had merged
+as `4d0b5783`, and the branch was synced with that `main` first, so the merged diff was
+layout-only. Requirement implemented: the mandated Classic Schedule Layout dropdown at the
+top-left of Activities, above the table and Gantt.
 
 Help topics used: `open_a_layout.htm`,
 `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
@@ -413,7 +416,7 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `f585df0eb6fca95aa432a177fba0f97d5a23e846` (branch synced with `main` @ `4d0b5783`) |
 | Evidence commit | `cd0cd8338cbd0e776e9bfadfd02c311b88da6e2d` |
-| Branch head at merge | recorded in the follow-up commit once #1743 is squash-merged |
+| Branch head at merge | `1f56a56575f566e51c2e88fc1570ba0c7734d97a`, squash-merged as `71ca85cf` |
 
 The first evidence run on `b01f199b` failed scenario 03: after the catalogue load the mount
 replaced `host.innerHTML`, which detached the trigger that carried the click listener, so the menu
