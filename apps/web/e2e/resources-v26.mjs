@@ -2,15 +2,18 @@
 /**
  * Browser E2E for the Version 26 Resources and Calendars windows.
  *
- * It drives the real local full-stack preview on project preview-rps-01: the
- * Resource Register must list exactly the resources that the assignment,
- * capacity and rate read contracts expose, its tabs must show the stored
- * effective-dated facts, and the Calendar Register must list the persisted
- * catalogue and read a real workweek snapshot. Expected values are fetched from
- * the same session's API, so no fixture data is injected into the page.
+ * It drives the real local full-stack preview on project preview-rps-01. The
+ * Resource Register must list every resource master stored for the project plus
+ * every resource referenced only by assignment, capacity or rate facts. The
+ * General tab must expose the stored master fields, the fact tabs must show the
+ * stored effective-dated facts, and the Calendar Register must list the
+ * persisted catalogue and read a real workweek snapshot. Creating and editing a
+ * resource runs through the real POST/PATCH contracts with record revisions.
+ * Expected values are fetched from the same session's API, so no fixture data is
+ * injected into the page.
  *
  * Usage:
- *   CUBI_PREVIEW_URL=http://127.0.0.1:4186 node e2e/resources-v26.mjs
+ *   CUBI_PREVIEW_URL=http://127.0.0.1:4183 node e2e/resources-v26.mjs
  */
 
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
@@ -19,7 +22,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./preview-e2e.mjs";
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4174";
-const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-10";
+const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-11";
 // The commit under test and the commit that stores this report are different facts:
 // the bundle is built from the worktree before the evidence commit exists.
 const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
@@ -28,6 +31,9 @@ const outDir = join(artifactsDir, "resources-v26");
 const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", `resources-v26-${evidenceDate}`);
 mkdirSync(outDir, { recursive: true });
 mkdirSync(evidenceDir, { recursive: true });
+
+const PROJECT = "preview-rps-01";
+const createdId = `RPS-CIVIL-CREW-E2E-${Date.now().toString(36).toUpperCase()}`;
 
 const exceptions = [];
 const consoleErrors = [];
@@ -82,17 +88,34 @@ function exactSum(values) {
 
 const resourcesState = `(() => {
   const page = document.querySelector("[data-resources-page]");
-  const rows = [...document.querySelectorAll("[data-resource-row]")].map((row) => ({
-    id: row.dataset.resourceId,
-    cells: [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim()),
-    selected: row.getAttribute("aria-selected") === "true",
-  }));
+  const rows = [...document.querySelectorAll("[data-resource-row]")].map((row) => {
+    const cells = [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim());
+    const tree = row.querySelector(".cp-resource-tree-cell");
+    const toggle = row.querySelector("[data-resource-toggle]");
+    return {
+      id: row.dataset.resourceId,
+      name: row.querySelector(".cp-resource-tree-label strong")?.textContent?.trim() ?? null,
+      idText: row.querySelector(".cp-resource-tree-label span")?.textContent?.trim() ?? null,
+      type: cells[1],
+      assignments: cells[2],
+      budgetedUnits: cells[3],
+      plannedCost: cells[4],
+      actualCost: cells[5],
+      latestMaxUnits: cells[6],
+      rates: cells[7],
+      depth: tree ? (tree.style.paddingInlineStart || "0px") : null,
+      selected: row.getAttribute("aria-selected") === "true",
+      hasToggle: Boolean(toggle),
+      expanded: toggle ? toggle.getAttribute("aria-expanded") === "true" : null,
+    };
+  });
   const activeTab = document.querySelector('[data-resource-tab][aria-selected="true"]')?.dataset.resourceTab ?? null;
   const fields = [...document.querySelectorAll('[data-resource-panel="general"] .cp-calendar-fields label')].map((label) => ({
     label: (label.childNodes[0]?.textContent ?? "").trim(),
     value: label.querySelector("input")?.value ?? null,
   }));
   const table = (panel) => [...document.querySelectorAll('[data-resource-panel="' + panel + '"] tbody tr')].map((row) => [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim()));
+  const form = document.querySelector("[data-resource-create-form], [data-resource-edit-form]");
   return {
     activeMenu: document.querySelector(".cp-workspace")?.dataset.activeMenu ?? null,
     heading: page?.querySelector(".cp-calendar-window-toolbar strong")?.textContent?.trim() ?? null,
@@ -104,7 +127,19 @@ const resourcesState = `(() => {
     hint: page?.querySelector(".cp-calendar-hint")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
     panels: { assignments: table("assignments"), capacity: table("capacity"), rates: table("rates") },
     empty: page?.querySelector(".cp-calendar-empty")?.textContent?.trim() ?? null,
+    filter: page?.querySelector("[data-resource-filter]")?.value ?? null,
     refreshDisabled: Boolean(page?.querySelector("[data-resource-action=reload]")?.disabled),
+    notice: page?.querySelector("[data-resource-notice]")
+      ? {
+          kind: page.querySelector("[data-resource-notice]").dataset.state,
+          text: page.querySelector("[data-resource-notice]").textContent.trim(),
+        }
+      : null,
+    form: form ? {
+      kind: form.matches("[data-resource-edit-form]") ? "edit" : "create",
+      idReadonly: form.querySelector('input[readonly]')?.value ?? null,
+      parentOptions: [...form.querySelectorAll('select[name="resource-parent"] option')].map((option) => option.value),
+    } : null,
   };
 })()`;
 
@@ -170,25 +205,66 @@ async function openMenu(page, key, selector, label) {
 
 async function readApi(page) {
   return page.evaluate(`(async () => {
-    const base = "/api/projects/preview-rps-01/p6/";
-    const [assignments, capacities, rates, calendars] = await Promise.all([
+    const base = "/api/projects/${PROJECT}/p6/";
+    const [assignments, capacities, rates, calendars, resources] = await Promise.all([
       fetch(base + "resource-assignments").then((response) => response.json()),
       fetch(base + "resource-capacities").then((response) => response.json()),
       fetch(base + "resource-rates").then((response) => response.json()),
       fetch(base + "calendars").then((response) => response.json()),
+      fetch(base + "resources").then((response) => response.json()),
     ]);
     return {
       assignments: assignments.assignments ?? [],
       capacities: capacities.capacities ?? [],
       rates: rates.rates ?? [],
       calendars: calendars.calendars ?? [],
+      resources: resources.resources ?? [],
     };
+  })()`, { awaitPromise: true });
+}
+
+async function readResource(page, resourceId) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT}/p6/resources/" + encodeURIComponent(${JSON.stringify(resourceId)}));
+    return { status: response.status, body: await response.json() };
+  })()`, { awaitPromise: true });
+}
+
+async function postResource(page, payload) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT}/p6/resources", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": "cubi-preview-tenant",
+        "X-Project-Id": ${JSON.stringify(PROJECT)},
+        "X-Project-Revision": "7",
+      },
+      body: JSON.stringify(${JSON.stringify(payload)}),
+    });
+    return { status: response.status, body: await response.json() };
+  })()`, { awaitPromise: true });
+}
+
+async function patchResource(page, resourceId, payload) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT}/p6/resources/" + encodeURIComponent(${JSON.stringify(resourceId)}), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": "cubi-preview-tenant",
+        "X-Project-Id": ${JSON.stringify(PROJECT)},
+        "X-Project-Revision": "7",
+      },
+      body: JSON.stringify(${JSON.stringify(payload)}),
+    });
+    return { status: response.status, body: await response.json() };
   })()`, { awaitPromise: true });
 }
 
 async function readCalendarSnapshot(page, calendarId, calendarVersion) {
   return page.evaluate(`(async () => {
-    const response = await fetch("/api/projects/preview-rps-01/p6/calendars/" + encodeURIComponent(${JSON.stringify(calendarId)}) + "/" + encodeURIComponent(${JSON.stringify(calendarVersion)}) + "/snapshot");
+    const response = await fetch("/api/projects/${PROJECT}/p6/calendars/" + encodeURIComponent(${JSON.stringify(calendarId)}) + "/" + encodeURIComponent(${JSON.stringify(calendarVersion)}) + "/snapshot");
     return response.json();
   })()`, { awaitPromise: true });
 }
@@ -223,12 +299,13 @@ async function main() {
   });
 
   const report = {
-    contract: "cubi-resources-v26.v1",
+    contract: "cubi-resources-v26.v2",
     baseUrl,
     gitHead: gitHead(),
     testedCodeSha,
     evidenceCommitSha,
     capturedAt: new Date().toISOString(),
+    createdResourceId: createdId,
     scenarios,
     screenshots,
     exceptions,
@@ -256,9 +333,12 @@ async function main() {
     const crewAssignments = api.assignments.filter((item) => item.assignment?.resource_id === "RPS-CIVIL-CREW").map((item) => item.assignment);
     const crewCapacity = api.capacities.filter((item) => item.capacity?.resource_id === "RPS-CIVIL-CREW").map((item) => item.capacity);
     const crewRates = api.rates.filter((item) => item.resource_id === "RPS-CIVIL-CREW");
+    const crewMaster = api.resources.map((item) => item.resource).find((item) => item?.resource_id === "RPS-CIVIL-CREW");
+    assert(crewMaster, "the API did not expose the seeded RPS crew master");
     assert(crewCapacity.length === 2, `the RPS crew should have two capacity segments, got ${crewCapacity.length}`);
     assert(crewRates.length === 2, `the RPS crew should have two rate facts, got ${crewRates.length}`);
     const expectedIds = [...new Set([
+      ...api.resources.map((item) => item.resource?.resource_id),
       ...api.assignments.map((item) => item.assignment?.resource_id),
       ...api.capacities.map((item) => item.capacity?.resource_id),
       ...api.rates.map((item) => item.resource_id),
@@ -266,7 +346,7 @@ async function main() {
 
     await openMenu(page, "resources", "[data-resources-page] [data-resource-row]", "resource register");
 
-    await scenario("01", "پنجرهٔ Resources دقیقاً منابعی را نشان می‌دهد که قراردادهای تخصیص، ظرفیت و نرخ برمی‌گردانند", async () => {
+    await scenario("01", "پنجرهٔ Resources منابع ذخیره‌شده و ارجاع‌داده‌شده را با نام مستر، نوع و شمارندهٔ درست نشان می‌دهد", async () => {
       const state = await page.evaluate(resourcesState);
       assert(state.activeMenu === "resources", `active menu is ${state.activeMenu}`);
       assert(state.heading === "Resource Register", `window heading is ${state.heading}`);
@@ -275,26 +355,39 @@ async function main() {
       assert(state.count === String(expectedIds.length), `register counter shows ${state.count}`);
       const crew = state.rows.find((row) => row.id === "RPS-CIVIL-CREW");
       assert(crew, "the RPS crew row is missing");
-      assert(crew.cells[1] === String(crewAssignments.length), `assignment count ${crew.cells[1]} vs API ${crewAssignments.length}`);
-      assert(crew.cells[5] === "12", `latest max units ${crew.cells[5]} instead of the stored 12`);
-      assert(crew.cells[6] === String(crewRates.length), `rate count ${crew.cells[6]} vs API ${crewRates.length}`);
+      assert(crew.name === crewMaster.name, `crew name ${crew.name} vs API ${crewMaster.name}`);
+      assert(crew.idText === "RPS-CIVIL-CREW", `crew id text ${crew.idText}`);
+      assert(crew.type === "Labor", `crew type ${crew.type}`);
+      assert(crew.assignments === String(crewAssignments.length), `assignment count ${crew.assignments} vs API ${crewAssignments.length}`);
+      assert(crew.latestMaxUnits === "12", `latest max units ${crew.latestMaxUnits} instead of the stored 12`);
+      assert(crew.rates === String(crewRates.length), `rate count ${crew.rates} vs API ${crewRates.length}`);
       const expectedUnits = exactSum(crewAssignments.map((item) => item.units));
-      assert(crew.cells[2] === (expectedUnits ?? "—"), `budgeted units ${crew.cells[2]} vs API ${expectedUnits}`);
+      assert(crew.budgetedUnits === (expectedUnits ?? "—"), `budgeted units ${crew.budgetedUnits} vs API ${expectedUnits}`);
+      assert(crew.depth === "0px" || crew.depth === "", `crew tree depth ${crew.depth}`);
+      assert(crew.hasToggle === false, "a top-level resource without children must not render a collapse toggle");
       await capture(page, "01-resource-register");
-      return { rows: state.rows.map((row) => row.id), assignments: crewAssignments.length, latestMaxUnits: crew.cells[5] };
+      return { rows: state.rows.map((row) => row.id), masterName: crew.name, latestMaxUnits: crew.latestMaxUnits };
     });
 
-    await scenario("02", "تب General حقایق ذخیره‌شده را نشان می‌دهد و مرز رکورد مستر منبع را اعلام می‌کند", async () => {
+    await scenario("02", "تب General فیلدهای مستر ذخیره‌شده و تجمیع حقایق را از هم جدا نشان می‌دهد", async () => {
       await page.click('[data-resource-row][data-resource-id="RPS-CIVIL-CREW"]');
       await page.waitForSelector('[data-resource-panel="general"]', "resource general tab");
       await sleep(300);
       const state = await page.evaluate(resourcesState);
       assert(state.activeTab === "general", `active tab is ${state.activeTab}`);
       assert(field(state, "Resource ID") === "RPS-CIVIL-CREW", `Resource ID field ${field(state, "Resource ID")}`);
+      assert(field(state, "Resource Name") === crewMaster.name, `Resource Name field ${field(state, "Resource Name")}`);
+      assert(field(state, "Resource Type") === "Labor", `Resource Type field ${field(state, "Resource Type")}`);
+      assert(field(state, "Parent Resource") === "Not provided", `Parent Resource field ${field(state, "Parent Resource")}`);
+      assert(field(state, "Calendar") === crewMaster.calendar_id, `Calendar field ${field(state, "Calendar")}`);
+      assert(field(state, "Unit of Measure") === crewMaster.unit_of_measure, `Unit of Measure field ${field(state, "Unit of Measure")}`);
+      assert(field(state, "Record Revision") === String(crewMaster.record_revision), `Record Revision field ${field(state, "Record Revision")}`);
+      assert(field(state, "Active") === "Yes", `Active field ${field(state, "Active")}`);
       assert(field(state, "Latest Max Units") === "12", `Latest Max Units field ${field(state, "Latest Max Units")}`);
       assert(field(state, "Capacity Effective From") === "2026-10-15", `capacity effective date ${field(state, "Capacity Effective From")}`);
       assert(field(state, "Assignments") === String(crewAssignments.length), `assignments field ${field(state, "Assignments")}`);
-      assert(/no resource master record/.test(state.hint ?? ""), "the General tab does not state the resource master-record boundary");
+      assert(!/no resource master record is stored/i.test(state.hint ?? ""), "the General tab still reports a missing master");
+      assert(/not a data-date resolution/.test(state.hint ?? ""), `the General tab hint does not state the latest-max-units boundary: ${state.hint}`);
       assert(/\bUSD\b/.test(field(state, "Currencies") ?? "") || crewAssignments.length === 0, `Currencies field ${field(state, "Currencies")}`);
       await capture(page, "02-resource-general");
       return { fields: state.fields, hint: state.hint };
@@ -388,11 +481,189 @@ async function main() {
         assert(byDay.get(day) === "Non-working", `${day} is ${byDay.get(day)} but the stored calendar does not work that day`);
       }
       await capture(page, "07-calendar-workweek");
-      assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);
-      assert(consoleErrors.length === 0, `console errors: ${JSON.stringify(consoleErrors.slice(0, 3))}`);
-      assert(apiFailures.length === 0, `API 5xx responses: ${JSON.stringify(apiFailures.slice(0, 3))}`);
       return { calendars: shown, workweek: state.workweek, snapshotSystem: snapshotBody.system };
     });
+
+    const createdName = "E2E Night Shift Crew";
+    const editedName = "E2E Night Shift Crew (rev 2)";
+    await openMenu(page, "resources", "[data-resources-page] [data-resource-row]", "resource register");
+
+    await scenario("07", "ایجاد منبع فرزند از فرم واقعی، ذخیره در مستر و رد بازنویسی شناسهٔ موجود", async () => {
+      await page.click('[data-resource-action="new"]');
+      await page.waitForSelector("[data-resource-create-form]", "resource create form");
+      let state = await page.evaluate(resourcesState);
+      assert(state.form?.kind === "create", `form kind ${state.form?.kind}`);
+      assert(state.form.parentOptions.includes("RPS-CIVIL-CREW"), `parent options ${state.form.parentOptions}`);
+
+      await page.setInput('[data-resource-create-form] input[name="resource-id"]', createdId);
+      await page.setInput('[data-resource-create-form] input[name="resource-name"]', createdName);
+      await page.setSelect('[data-resource-create-form] select[name="resource-type"]', "labor");
+      await page.setSelect('[data-resource-create-form] select[name="resource-parent"]', "RPS-CIVIL-CREW");
+      await page.setInput('[data-resource-create-form] input[name="resource-calendar"]', crewMaster.calendar_id);
+      await page.setInput('[data-resource-create-form] input[name="resource-units"]', "6");
+      await page.setInput('[data-resource-create-form] input[name="resource-uom"]', "crew");
+      await page.setInput('[data-resource-create-form] input[name="resource-email"]', "night@example.com");
+      await page.click('[data-resource-create-form] button[type="submit"]');
+      await page.waitFor(
+        `document.querySelector('[data-resource-notice][data-state="ok"]')?.textContent?.includes(${JSON.stringify(createdId)}) ?? false`,
+        "create success notice",
+      );
+      await page.waitForSelector(`[data-resource-row][data-resource-id="${createdId}"]`, "created register row");
+      await sleep(300);
+      state = await page.evaluate(resourcesState);
+      const row = state.rows.find((item) => item.id === createdId);
+      assert(row, "the created resource is missing from the register");
+      assert(row.name === createdName, `created row name ${row.name}`);
+      assert(row.type === "Labor", `created row type ${row.type}`);
+      assert(row.depth === "14px", `created row depth ${row.depth} instead of one hierarchy level`);
+      assert(state.selectedId === createdId || state.detailsCaption === createdName, `details caption ${state.detailsCaption}`);
+      assert(field(state, "Resource Name") === createdName, `general Resource Name ${field(state, "Resource Name")}`);
+      assert(field(state, "Parent Resource") === "RPS-CIVIL-CREW", `general Parent Resource ${field(state, "Parent Resource")}`);
+      assert(field(state, "Record Revision") === "1", `general Record Revision ${field(state, "Record Revision")}`);
+      assert(field(state, "Default Units per Time") === "6", `general Default Units per Time ${field(state, "Default Units per Time")}`);
+      const order = state.rows.map((item) => item.id);
+      assert(order.indexOf(createdId) === order.indexOf("RPS-CIVIL-CREW") + 1, `child order ${order}`);
+
+      const stored = await readResource(page, createdId);
+      assert(stored.status === 200, `created resource GET status ${stored.status}`);
+      assert(stored.body.resource.parent_resource_id === "RPS-CIVIL-CREW", `stored parent ${stored.body.resource.parent_resource_id}`);
+      assert(stored.body.resource.record_revision === 1, `stored revision ${stored.body.resource.record_revision}`);
+      assert(stored.body.resource.email === "night@example.com", `stored email ${stored.body.resource.email}`);
+
+      const duplicate = await postResource(page, {
+        resource_id: createdId,
+        name: "Silent overwrite",
+        resource_type: "labor",
+      });
+      assert(duplicate.status === 409, `duplicate create status ${duplicate.status}`);
+      assert(duplicate.body.code === "RESOURCE_ALREADY_EXISTS", `duplicate create code ${duplicate.body.code}`);
+      const afterDuplicate = await readResource(page, createdId);
+      assert(afterDuplicate.body.resource.name === createdName, "a duplicate create overwrote the stored name");
+
+      await capture(page, "08-resource-created");
+      return { createdId, row, duplicateStatus: duplicate.status };
+    });
+
+    await scenario("08", "ویرایش منبع با نسخهٔ رکورد، افزایش Revision و رد PATCH با نسخهٔ کهنه", async () => {
+      await page.click('[data-resource-action="edit"]');
+      await page.waitForSelector("[data-resource-edit-form]", "resource edit form");
+      let state = await page.evaluate(resourcesState);
+      assert(state.form?.kind === "edit", `form kind ${state.form?.kind}`);
+      assert(state.form.idReadonly === createdId, `edit form id ${state.form.idReadonly}`);
+      assert(!state.form.parentOptions.includes(createdId), "the edit form offers the edited resource as its own parent");
+
+      await page.setInput('[data-resource-edit-form] input[name="resource-name"]', editedName);
+      await page.setInput('[data-resource-edit-form] input[name="resource-units"]', "7");
+      const unchecked = await page.evaluate(`(() => {
+        const input = document.querySelector('[data-resource-edit-form] input[name="resource-active"]');
+        if (!input) return false;
+        input.checked = false;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      })()`);
+      assert(unchecked, "the active checkbox is missing from the edit form");
+      await page.click('[data-resource-edit-form] button[type="submit"]');
+      await page.waitFor(
+        `document.querySelector('[data-resource-notice][data-state="ok"]')?.textContent?.includes(${JSON.stringify(createdId)}) ?? false`,
+        "edit success notice",
+      );
+      await page.waitForSelector(`[data-resource-row][data-resource-id="${createdId}"]`, "edited register row");
+      await page.waitForSelector('[data-resource-panel="general"]', "edited general tab");
+      await sleep(400);
+      state = await page.evaluate(resourcesState);
+      const row = state.rows.find((item) => item.id === createdId);
+      assert(row?.name === editedName, `edited row name ${row?.name}`);
+      assert(field(state, "Record Revision") === "2", `Record Revision ${field(state, "Record Revision")}`);
+      assert(field(state, "Active") === "No", `Active ${field(state, "Active")}`);
+      assert(field(state, "Default Units per Time") === "7", `Default Units per Time ${field(state, "Default Units per Time")}`);
+
+      const stored = await readResource(page, createdId);
+      assert(stored.body.resource.record_revision === 2, `stored revision ${stored.body.resource.record_revision}`);
+      assert(stored.body.resource.is_active === false, `stored active ${stored.body.resource.is_active}`);
+
+      const stale = await patchResource(page, createdId, {
+        name: "Stale write",
+        resource_type: "labor",
+        expected_revision: 1,
+      });
+      assert(stale.status === 409, `stale PATCH status ${stale.status}`);
+      assert(stale.body.code === "REVISION_CONFLICT", `stale PATCH code ${stale.body.code}`);
+      const afterStale = await readResource(page, createdId);
+      assert(afterStale.body.resource.name === editedName, "a stale PATCH changed the stored name");
+
+      await capture(page, "09-resource-edited");
+      return { revision: stored.body.resource.record_revision, staleStatus: stale.status };
+    });
+
+    await scenario("09", "فیلتر نوع منبع سطرها را واقعاً محدود می‌کند و با «همه» بازمی‌گردد", async () => {
+      await page.setSelect("[data-resource-filter]", "material");
+      await sleep(300);
+      let state = await page.evaluate(resourcesState);
+      assert(state.filter === "material", `filter value ${state.filter}`);
+      assert(state.rows.length === 0, `material filter still shows ${state.rows.length} rows`);
+      assert(/No resource matches/.test(state.empty ?? ""), "the empty filter state is missing");
+
+      await page.setSelect("[data-resource-filter]", "labor");
+      await sleep(300);
+      state = await page.evaluate(resourcesState);
+      assert(state.filter === "labor", `filter value ${state.filter}`);
+      assert(state.rows.length === 2, `labor filter shows ${state.rows.length} rows`);
+      assert(state.rows.every((row) => row.type === "Labor"), `labor filter rows ${state.rows.map((row) => row.type)}`);
+      await capture(page, "10-resource-filter");
+
+      await page.setSelect("[data-resource-filter]", "all");
+      await sleep(300);
+      state = await page.evaluate(resourcesState);
+      assert(state.filter === "all", `filter value ${state.filter}`);
+      assert(state.rows.length === expectedIds.length + 1, `all filter shows ${state.rows.length} rows`);
+      return { materialRows: 0, laborRows: 2, allRows: state.rows.length };
+    });
+
+    await scenario("10", "جمع و باز کردن شاخهٔ درخت منبع، فرزند را واقعاً پنهان و آشکار می‌کند", async () => {
+      await page.click('[data-resource-toggle="RPS-CIVIL-CREW"]');
+      await sleep(300);
+      let state = await page.evaluate(resourcesState);
+      const parent = state.rows.find((row) => row.id === "RPS-CIVIL-CREW");
+      assert(parent?.hasToggle === true, "the parent resource does not expose a collapse toggle");
+      assert(parent.expanded === false, `parent expanded after collapse ${parent.expanded}`);
+      assert(!state.rows.some((row) => row.id === createdId), "the child row stayed visible after collapse");
+      await capture(page, "11-resource-collapsed");
+
+      await page.click('[data-resource-toggle="RPS-CIVIL-CREW"]');
+      await sleep(300);
+      state = await page.evaluate(resourcesState);
+      assert(state.rows.some((row) => row.id === createdId), "the child row did not return after expand");
+      return { collapsedRows: 1, expandedRows: state.rows.length };
+    });
+
+    await scenario("11", "پنجرهٔ Resources در 1280×720 بدون بریدگی چیدمان رندر می‌شود", async () => {
+      await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+      await sleep(500);
+      const layout = await page.evaluate(`(() => {
+        const rect = (element) => {
+          if (!element) return null;
+          const bounds = element.getBoundingClientRect();
+          return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+        };
+        return {
+          innerWidth,
+          innerHeight,
+          toolbar: rect(document.querySelector("[data-resources-page] .cp-calendar-window-toolbar")),
+          register: rect(document.querySelector("[data-resources-page] .cp-calendar-register")),
+          rowCount: document.querySelectorAll("[data-resource-row]").length,
+        };
+      })()`);
+      assert(layout.toolbar && layout.toolbar.width > 0, "the toolbar has no layout box at 1280x720");
+      assert(layout.register && layout.register.height > 0, "the register has no layout box at 1280x720");
+      assert(layout.rowCount === 2, `register rows at 1280x720: ${layout.rowCount}`);
+      assert(layout.toolbar.x >= 0 && layout.toolbar.x + layout.toolbar.width <= layout.innerWidth + 1, `toolbar overflows: ${JSON.stringify(layout.toolbar)}`);
+      await capture(page, "12-resource-1280x720");
+      return layout;
+    });
+
+    assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);
+    assert(consoleErrors.length === 0, `console errors: ${JSON.stringify(consoleErrors.slice(0, 3))}`);
+    assert(apiFailures.length === 0, `API 5xx responses: ${JSON.stringify(apiFailures.slice(0, 3))}`);
   } finally {
     report.finishedAt = new Date().toISOString();
     writeFileSync(join(outDir, "resources-v26.json"), JSON.stringify(report, null, 2));

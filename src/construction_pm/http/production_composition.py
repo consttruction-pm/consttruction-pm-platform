@@ -38,6 +38,7 @@ from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_role_api import P6RoleAPI
+from construction_pm.p6_resource_master_api import P6ResourceAPI
 from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
@@ -93,6 +94,7 @@ def build_project_lifecycle_wsgi_app(
     p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
     p6_interchange_api: P6InterchangeAPI | None = None,
     p6_role_api: P6RoleAPI | None = None,
+    p6_resource_api: P6ResourceAPI | None = None,
     p6_expense_api: P6ExpenseAPI | None = None,
     p6_cost_account_api: P6CostAccountAPI | None = None,
     p6_financial_period_api: P6FinancialPeriodAPI | None = None,
@@ -254,6 +256,7 @@ def build_project_lifecycle_wsgi_app(
         p6_earned_value_read_api=p6_earned_value_read_api,
         p6_interchange_api=p6_interchange_api,
         p6_role_api=p6_role_api,
+        p6_resource_api=p6_resource_api,
         p6_expense_api=p6_expense_api,
         p6_cost_account_api=p6_cost_account_api,
         p6_financial_period_api=p6_financial_period_api,

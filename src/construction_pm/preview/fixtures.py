@@ -158,6 +158,19 @@ class DemoRateFact:
 
 
 @dataclass(frozen=True)
+class DemoResource:
+    """A reproducible resource master identity for the facts seeded below."""
+
+    resource_id: str
+    name: str
+    resource_type: str = "labor"
+    parent_resource_id: str | None = None
+    calendar_id: str | None = None
+    default_units_per_time: str | None = None
+    unit_of_measure: str | None = None
+
+
+@dataclass(frozen=True)
 class DemoWbsNode:
     """Explicit WBS fixture node; never derived from activity rows at read time."""
 
@@ -189,6 +202,7 @@ class DemoProjectFixture:
     data_date: date | None = None
     capacities: tuple[DemoCapacitySegment, ...] = ()
     rates: tuple[DemoRateFact, ...] = ()
+    resources: tuple[DemoResource, ...] = ()
 
 
 RPS_CALENDAR_ID = "CUBI-RPS-CAL"
@@ -393,6 +407,14 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
                 source="preview-fixture:RPS-rev7-rate-2",
             ),
         ),
+        resources=(
+            DemoResource(
+                resource_id="RPS-CIVIL-CREW",
+                name="Riverside Civil Crew",
+                calendar_id=RPS_CALENDAR_ID,
+                unit_of_measure="crew",
+            ),
+        ),
     ),
     DemoProjectFixture(
         project_id="preview-nse-02",
@@ -430,6 +452,14 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
                 effective_from=date(2027, 2, 2),
                 effective_to=None,
                 source="preview-fixture:NSE-rev2-rate-1",
+            ),
+        ),
+        resources=(
+            DemoResource(
+                resource_id="NSE-DESIGN-TEAM",
+                name="NSE Design Team",
+                calendar_id=NSE_CALENDAR_ID,
+                unit_of_measure="team",
             ),
         ),
     ),

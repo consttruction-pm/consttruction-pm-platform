@@ -7303,7 +7303,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-calendar-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-calendar-section-head span{color:#718096;font-size:9px}
 .cp-p6 .cp-calendar-empty{display:grid;place-items:center;min-height:100px;padding:12px;color:#77869a;font-size:10px;text-align:center}
-.cp-p6 .cp-calendar-editor-tabs{display:flex;gap:2px;overflow-x:auto;padding:4px 5px 0;border-bottom:1px solid #bdc9d7;background:#edf1f6}
+.cp-p6 .cp-calendar-editor-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:4px 5px 0;border-bottom:1px solid #bdc9d7;background:#edf1f6}
 .cp-p6 .cp-calendar-editor-tabs button{flex:0 0 auto;border:1px solid transparent;border-bottom:0;background:transparent;white-space:nowrap}
 .cp-p6 .cp-calendar-editor-tabs button.is-active{border-color:#bdc9d7;background:#fff;color:#173d68;font-weight:700}
 .cp-p6 .cp-calendar-editor-content{min-height:0;flex:1 1 auto;overflow:auto;padding:8px}
@@ -7336,6 +7336,18 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-resources-window .cp-calendar-register tbody tr[data-resource-row]:hover{background:#f4f8fd}
 .cp-p6 .cp-resources-window .cp-calendar-register tbody tr[data-resource-row]:focus-visible{outline:2px solid #173d68;outline-offset:-2px}
 .cp-p6 .cp-resources-window .cp-calendar-register tbody tr.is-selected{background:#e8f0fa;box-shadow:inset 3px 0 0 #173d68}
+.cp-p6 .cp-resources-window .cp-resource-filter{display:inline-flex;align-items:center;gap:5px;color:#52657a;font-size:9px}
+.cp-p6 .cp-resources-window .cp-resource-filter select{min-height:25px;padding:2px 6px;border:1px solid #b9c6d5;background:#fff;color:#38536f;font:inherit;font-size:9px}
+.cp-p6 .cp-resources-window .cp-resource-tree-cell{display:flex;align-items:center;gap:4px;min-width:0}
+.cp-p6 .cp-resources-window .cp-resource-tree-toggle{flex:0 0 auto;min-width:18px;width:18px;height:18px;padding:0;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:10px;line-height:1;cursor:pointer}
+.cp-p6 .cp-resources-window .cp-resource-tree-spacer{flex:0 0 auto;display:inline-block;width:18px;height:18px}
+.cp-p6 .cp-resources-window .cp-resource-tree-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cp-p6 .cp-resources-window .cp-resource-tree-label span{color:#718096;font-size:8px}
+.cp-p6 .cp-resources-window .cp-resource-active{flex-direction:row!important;align-items:center;gap:6px!important;grid-column:1/-1;color:#31465e}
+.cp-p6 .cp-resources-window .cp-resource-active input{width:auto!important;min-height:0!important}
+/* The resource register carries eight columns, so it needs more width than the calendar register. */
+.cp-p6 .cp-resources-window .cp-calendar-window-layout{grid-template-columns:minmax(380px,1.4fr) minmax(0,1fr)}
+@media(max-width:900px){.cp-p6 .cp-resources-window .cp-calendar-window-layout{grid-template-columns:minmax(0,1fr)}}
 
 
 /* Roles Register and Tracking window shells. */
