@@ -13,7 +13,7 @@ import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Mapping
@@ -75,6 +75,9 @@ from construction_pm.calendar_snapshot_repository import (
 )
 from construction_pm.calendar_work_hours_repository import (
     SQLiteCalendarWorkHourRepository,
+)
+from construction_pm.p6_versioned_resource_calendar_resolver import (
+    apply_weekly_work_hour_rules,
 )
 from construction_pm.constraint_master_repository import (
     SQLiteConstraintMasterRepository,
@@ -229,6 +232,7 @@ from construction_pm.schedule_snapshot_publisher import (
     AuthoritativeScheduleSnapshotPublisher,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
@@ -718,6 +722,48 @@ def seed_default_calendar(
     return calendar
 
 
+def seed_working_time_calendar(
+    repositories: PreviewRepositories,
+    *,
+    scope: BackendScope,
+    calendar_id: str,
+    name: str,
+    working_weekdays: frozenset[int],
+    system: CalendarSystem,
+    holidays: tuple[date, ...] = (),
+) -> CalendarMaster:
+    """Seed a split-shift calendar so the window has a real working-time target.
+
+    The intervals are an explicit demo definition (morning and afternoon
+    shifts), not a computed value, and the calendar is independent of the
+    project calendar used by the schedule.
+    """
+    calendar = repositories.calendars.save(
+        CalendarMaster(
+            scope=scope,
+            calendar_id=calendar_id,
+            calendar_version=DEFAULT_CALENDAR_VERSION,
+            kind="working-time",
+            name=name,
+            calendar_type="project",
+        ),
+        expected_revision=0,
+    )
+    repositories.calendar_snapshots.save(
+        calendar,
+        WorkingTimeCalendar(
+            working_weekdays=working_weekdays,
+            holidays=frozenset(holidays),
+            daily_intervals={
+                weekday: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0)))
+                for weekday in working_weekdays
+            },
+            system=system,
+        ),
+    )
+    return calendar
+
+
 class PreviewProjectInitializer:
     """Initialise a newly-created project with real structured metadata."""
 
@@ -831,6 +877,15 @@ def seed_demo_project(
         raise PreviewRuntimeError("PREVIEW_FIXTURE_CALENDAR_SNAPSHOT_MISSING")
     if "system" not in snapshot.snapshot:
         raise PreviewRuntimeError("PREVIEW_FIXTURE_CALENDAR_SYSTEM_MISSING")
+    seed_working_time_calendar(
+        repositories,
+        scope=scope,
+        calendar_id=f"{fixture.calendar_id}-TIME",
+        name=f"{fixture.calendar_name} split shifts",
+        working_weekdays=fixture.working_weekdays,
+        system=fixture.calendar_system,
+        holidays=fixture.holiday_dates,
+    )
 
     settings = ProjectScheduleSettings(
         scope=scope,
@@ -905,29 +960,15 @@ def seed_database(connection: sqlite3.Connection) -> None:
 
 
 def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverRegistry:
-    """Read every persisted calendar snapshot into one fail-closed registry.
+    """Read every persisted calendar definition into one fail-closed registry.
 
-    Calendar exceptions persisted through the P6 calendar API become local
-    exception layers keyed by ``calendar_id@calendar_version``. The scheduling
-    core owns the overlay arithmetic; this function only binds stored records
-    to the same immutable calendar snapshot the schedule already references.
-    Work-hour rules remain explicitly unsupported instead of being ignored.
+    Calendar exceptions become local exception layers and persisted work-hour
+    rules are applied to the stored snapshot, so a workweek edit changes the
+    resolver the schedule actually uses. Working-day and working-time calendars
+    are both registered; base-calendar references are bound after every calendar
+    has been read so the order of rows cannot matter. Ambiguous or unsupported
+    rules still fail closed instead of being ignored.
     """
-
-    work_hour_table = connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-        ("calendar_work_hour_rule",),
-    ).fetchone()
-    if work_hour_table is not None:
-        count = connection.execute(
-            "SELECT COUNT(*) FROM calendar_work_hour_rule"
-        ).fetchone()
-        if count is not None and int(count[0]) > 0:
-            raise PreviewRuntimeError(
-                "PREVIEW_CALENDAR_WORK_HOURS_UNSUPPORTED",
-                "The preview registry does not silently ignore persisted "
-                "calendar work-hour rules.",
-            )
 
     exception_table = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
@@ -938,6 +979,15 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
         if exception_table is not None
         else None
     )
+    work_hour_table = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        ("calendar_work_hour_rule",),
+    ).fetchone()
+    work_hour_repository = (
+        SQLiteCalendarWorkHourRepository(connection)
+        if work_hour_table is not None
+        else None
+    )
 
     scopes = connection.execute(
         "SELECT DISTINCT tenant_id, project_id, project_revision FROM calendar_master "
@@ -946,23 +996,21 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
     master_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     day_resolvers: dict[str, WorkingTimeResolver] = {}
+    time_resolvers: dict[str, TimeAwareWorkingTimeResolver] = {}
     canonical_by_key: dict[str, dict[str, object]] = {}
     exception_layers: dict[str, CalendarExceptionLayers] = {}
     exception_signature_by_key: dict[str, tuple[dict[str, object], ...]] = {}
+    base_references: dict[str, CalendarReference] = {}
+    pending_bases: list[tuple[str, str, str, str]] = []
 
     for tenant_id, project_id, revision in scopes:
         scope = BackendScope(str(tenant_id), str(project_id), int(revision))
         for calendar in master_repository.list(scope):
-            if calendar.base_calendar_id is not None or calendar.base_calendar_version is not None:
-                raise PreviewRuntimeError(
-                    "PREVIEW_CALENDAR_INHERITANCE_UNSUPPORTED",
-                    f"Calendar inheritance is not previewed: {calendar.calendar_id}@"
-                    f"{calendar.calendar_version}.",
-                )
-            if calendar.kind != "working-day":
+            if calendar.kind not in {"working-day", "working-time"}:
                 raise PreviewRuntimeError(
                     "PREVIEW_CALENDAR_KIND_UNSUPPORTED",
-                    "The local preview currently supports working-day calendars only.",
+                    f"Unsupported calendar kind {calendar.kind} for "
+                    f"{calendar.calendar_id}@{calendar.calendar_version}.",
                 )
             record = snapshot_repository.get(calendar)
             if record is None:
@@ -972,14 +1020,40 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
                     f"{calendar.calendar_version}.",
                 )
             try:
-                working = WorkingCalendar.from_canonical_snapshot(record.snapshot)
+                definition = (
+                    WorkingTimeCalendar.from_canonical_snapshot(record.snapshot)
+                    if calendar.kind == "working-time"
+                    else WorkingCalendar.from_canonical_snapshot(record.snapshot)
+                )
             except (TypeError, ValueError) as exc:
                 raise PreviewRuntimeError(
                     "PREVIEW_CALENDAR_SNAPSHOT_INVALID",
                     f"Calendar snapshot for {calendar.calendar_id}@"
                     f"{calendar.calendar_version} is invalid.",
                 ) from exc
-            canonical = working.canonical_snapshot()
+            if work_hour_repository is not None:
+                rules = {
+                    kind: tuple(
+                        work_hour_repository.list(
+                            scope, calendar.calendar_id, calendar.calendar_version, kind
+                        )
+                    )
+                    for kind in (
+                        "standard_work_week",
+                        "standard_detailed_work_hours",
+                        "detailed_work_hours",
+                        "total_work_hours",
+                    )
+                }
+                try:
+                    definition, _ = apply_weekly_work_hour_rules(definition, rules)
+                except ValueError as exc:
+                    raise PreviewRuntimeError(
+                        "PREVIEW_CALENDAR_WORK_HOURS_INVALID",
+                        f"Calendar work hours for {calendar.calendar_id}@"
+                        f"{calendar.calendar_version} cannot be applied: {exc}.",
+                    ) from exc
+            canonical = definition.canonical_snapshot()
             key = f"{calendar.calendar_id}@{calendar.calendar_version}"
             existing = canonical_by_key.get(key)
             if existing is not None and existing != canonical:
@@ -988,7 +1062,19 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
                     f"Calendar key {key} resolves to different snapshots in two scopes.",
                 )
             canonical_by_key[key] = canonical
-            day_resolvers[key] = WorkingTimeResolver(working)
+            if calendar.kind == "working-time":
+                time_resolvers[key] = TimeAwareWorkingTimeResolver(definition)
+            else:
+                day_resolvers[key] = WorkingTimeResolver(definition)
+            if calendar.base_calendar_id is not None or calendar.base_calendar_version is not None:
+                if not calendar.base_calendar_id or not calendar.base_calendar_version:
+                    raise PreviewRuntimeError(
+                        "PREVIEW_CALENDAR_INHERITANCE_INVALID",
+                        f"Incomplete base reference on {key}.",
+                    )
+                pending_bases.append(
+                    (key, calendar.base_calendar_id, calendar.base_calendar_version, definition.system.value)
+                )
 
             if exception_repository is None:
                 continue
@@ -1016,9 +1102,26 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
             exception_signature_by_key[key] = signature
             exception_layers[key] = CalendarExceptionLayers(local=local_exceptions)
 
+    kinds_by_key = {
+        **{key: "working-time" for key in time_resolvers},
+        **{key: "working-day" for key in day_resolvers},
+    }
+    for key, base_id, base_version, system in pending_bases:
+        parent_key = f"{base_id}@{base_version}"
+        if parent_key not in kinds_by_key:
+            raise PreviewRuntimeError(
+                "PREVIEW_CALENDAR_BASE_NOT_FOUND",
+                f"Base calendar {parent_key} for {key} is not registered.",
+            )
+        base_references[key] = CalendarReference(
+            base_id, base_version, kinds_by_key[parent_key], CalendarSystem(system)
+        )
+
     return CalendarResolverRegistry(
         day_resolvers=day_resolvers,
+        time_resolvers=time_resolvers,
         exception_layers=exception_layers,
+        base_calendar_references=base_references,
     )
 
 

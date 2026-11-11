@@ -6,11 +6,17 @@ import { formatJalaliDateInput, parseJalaliDateInput } from "./workspace-jalali-
 import {
   buildExceptionRequest,
   copyCalendar,
+  createCalendar,
   deleteCalendar,
+  deleteCalendarException,
   loadCalendarCatalogue,
   loadCalendarExceptions,
   loadCalendarSnapshot,
+  formatWorkdayShifts,
+  loadCalendarWorkHours,
+  parseWorkdayShifts,
   saveCalendarException,
+  saveCalendarWorkHourRule,
   updateCalendar,
   type CalendarExceptionInput,
 } from "./workspace-calendars.js";
@@ -184,11 +190,125 @@ test("calendar update uses PATCH with the persisted revision and kind", async ()
     kind: "working-time",
     name: "Renamed",
     expected_revision: 3,
+    base_calendar_id: null,
+    base_calendar_version: null,
   });
 
   const missingName = await updateCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, calendar, { name: " ", calendarType: "project" });
   assert.equal(missingName.ok, false);
   if (!missingName.ok) assert.equal(missingName.error.code, "CALENDAR_NAME_REQUIRED");
+});
+
+test("split-shift parser accepts ordered ranges and rejects overlap or malformed input", () => {
+  assert.deepEqual(parseWorkdayShifts("08:00-12:00, 13:00-17:00"), [["08:00", "12:00"], ["13:00", "17:00"]]);
+  assert.equal(parseWorkdayShifts("08:00-12:00, 11:00-13:00"), null);
+  assert.equal(parseWorkdayShifts("8:00-12:00"), null);
+  assert.equal(parseWorkdayShifts("12:00-08:00"), null);
+  assert.equal(parseWorkdayShifts(""), null);
+  assert.equal(formatWorkdayShifts([["08:00", "12:00"], ["13:00", "17:00"]]), "08:00-12:00, 13:00-17:00");
+  assert.equal(formatWorkdayShifts([["08:00:00", "12:00:00"]]), "08:00-12:00");
+});
+
+test("calendar work hours read every stored contract and fail closed on bad rows", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], deletes: [] };
+  const result = await loadCalendarWorkHours(
+    transportWith({
+      ok: true,
+      data: {
+        contract_version: "p6-calendar.v1",
+        work_hours: [
+          { kind: "standard_work_week", weekday: 0, is_working_day: true, total_work_hours: "8", intervals: [] },
+          { kind: "standard_detailed_work_hours", weekday: 0, is_working_day: true, total_work_hours: null, intervals: [["08:00", "12:00"], ["13:00", "17:00"]] },
+        ],
+      },
+    }, calls),
+    CONTEXT,
+    "CAL-PRJ",
+    "1",
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(calls.gets[0].path, "/api/projects/project-1/p6/calendars/CAL-PRJ/1/work-hours");
+  assert.equal(result.data.length, 2);
+  assert.deepEqual(result.data[1].intervals, [["08:00", "12:00"], ["13:00", "17:00"]]);
+
+  const invalid = await loadCalendarWorkHours(
+    transportWith({ ok: true, data: { work_hours: [{ kind: "standard_work_week", weekday: 9 }] } }),
+    CONTEXT,
+    "CAL-PRJ",
+    "1",
+  );
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.equal(invalid.error.code, "INVALID_CALENDAR_WORK_HOURS");
+});
+
+test("work hour save posts the rule and uses the master revision for edits", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], deletes: [] };
+  const calendar = { calendarId: "CAL-PRJ", calendarVersion: "1", name: "Project calendar", kind: "working-time", calendarType: "project", recordRevision: 3 };
+  const rule = { kind: "standard_work_week" as const, weekday: 0, isWorkingDay: true, totalWorkHours: "8", intervals: [] as readonly (readonly string[])[] };
+  const saved = await saveCalendarWorkHourRule(
+    transportWith({ ok: true, data: { kind: "standard_work_week", weekday: 0, is_working_day: true, total_work_hours: "8", intervals: [] } }, calls),
+    CONTEXT,
+    calendar,
+    rule,
+    false,
+  );
+  assert.equal(saved.ok, true);
+  assert.deepEqual(calls.posts[0].request, {
+    kind: "standard_work_week",
+    weekday: 0,
+    is_working_day: true,
+    total_work_hours: "8",
+    intervals: [],
+  });
+
+  await saveCalendarWorkHourRule(transportWith({ ok: true, data: { kind: "standard_work_week", weekday: 0, is_working_day: true, total_work_hours: "9", intervals: [] } }, calls), CONTEXT, calendar, { ...rule, totalWorkHours: "9" }, true);
+  assert.equal((calls.posts[1].request as Record<string, unknown>).replace, true);
+  assert.equal((calls.posts[1].request as Record<string, unknown>).expected_revision, 3);
+
+  const missingWeekday = await saveCalendarWorkHourRule(transportWith({ ok: true, data: {} }), CONTEXT, calendar, { ...rule, weekday: null }, false);
+  assert.equal(missingWeekday.ok, false);
+  if (!missingWeekday.ok) assert.equal(missingWeekday.error.code, "WEEKDAY_REQUIRED");
+});
+
+test("calendar creation posts a base reference and refuses incomplete input", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], deletes: [] };
+  const input = { calendarId: "CAL-NEW", calendarVersion: "1", calendarType: "resource", kind: "working-day", name: "Crew calendar", baseCalendarId: "CAL-PRJ", baseCalendarVersion: "1" };
+  const created = await createCalendar(
+    transportWith({ ok: true, data: { ...CALENDAR, calendar_id: "CAL-NEW", calendar_type: "resource" } }, calls),
+    CONTEXT,
+    input,
+  );
+  assert.equal(created.ok, true);
+  assert.equal(calls.posts[0].path, "/api/projects/project-1/p6/calendars");
+  assert.deepEqual(calls.posts[0].request, {
+    contract_version: "p6-calendar.v1",
+    calendar_id: "CAL-NEW",
+    calendar_version: "1",
+    calendar_type: "resource",
+    kind: "working-day",
+    name: "Crew calendar",
+    expected_revision: 0,
+    base_calendar_id: "CAL-PRJ",
+    base_calendar_version: "1",
+  });
+  const noBase = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, { ...input, baseCalendarId: "" });
+  assert.equal(noBase.ok, false);
+  if (!noBase.ok) assert.equal(noBase.error.code, "CALENDAR_BASE_REQUIRED");
+  const badKind = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, { ...input, kind: "other" });
+  assert.equal(badKind.ok, false);
+  if (!badKind.ok) assert.equal(badKind.error.code, "INVALID_CALENDAR_KIND");
+});
+
+test("calendar exception deletion targets the exact stored date", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], deletes: [] };
+  const calendar = { calendarId: "CAL-PRJ", calendarVersion: "1", name: "Project calendar", kind: "working-time", calendarType: "project", recordRevision: 3 };
+  const result = await deleteCalendarException(transportWith({ ok: true, data: { deleted: true } }, calls), CONTEXT, calendar, "2026-01-02");
+  assert.equal(result.ok, true);
+  assert.equal(calls.deletes[0].path, "/api/projects/project-1/p6/calendars/CAL-PRJ/1/exceptions/2026-01-02");
+  const invalid = await deleteCalendarException(transportWith({ ok: true, data: { deleted: true } }), CONTEXT, calendar, "2026-13-01");
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.equal(invalid.error.code, "INVALID_EXCEPTION_DATE");
 });
 
 test("calendar copy refuses a self-target and posts the target reference", async () => {

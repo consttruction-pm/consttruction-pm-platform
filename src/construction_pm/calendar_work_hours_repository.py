@@ -84,6 +84,7 @@ class CalendarWorkHourRule:
 
 class CalendarWorkHourRepository(Protocol):
     def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule: ...
+    def replace(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]: ...
 
 
@@ -141,6 +142,49 @@ class SQLiteCalendarWorkHourRepository:
         if existing_rule.canonical_snapshot() != canonical:
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
+
+    def replace(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule:
+        """Rewrite an existing weekday rule under an explicit application revision.
+
+        ``save`` is append-only so replaying the same fact is idempotent and a
+        different fact is rejected. The calendar window needs an audited edit
+        path, so ``replace`` is a separate operation: the caller already checked
+        the calendar master revision, and this method bumps the rule revision.
+        """
+        was_in_transaction = self.connection.in_transaction
+        rule.validate()
+        import json
+        existing = self.connection.execute(
+            "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision "
+            "FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND weekday_key=?",
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, -1 if rule.weekday is None else rule.weekday),
+        ).fetchone()
+        if existing is None:
+            raise CalendarPersistenceError("WORK_HOUR_RULE_NOT_FOUND")
+        if int(existing[4]) != rule.scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        existing_rule = _row_to_rule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday, existing)
+        if existing_rule.canonical_snapshot() == rule.canonical_snapshot():
+            return existing_rule
+        revision = int(existing[3]) + 1
+        intervals_json = json.dumps([list(pair) for pair in rule.intervals], separators=(",", ":"), sort_keys=True)
+        self.connection.execute(
+            "UPDATE calendar_work_hour_rule SET is_working_day=?, total_work_hours=?, intervals_json=?, record_revision=? "
+            "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND weekday_key=? AND record_revision=?",
+            (
+                None if rule.is_working_day is None else int(rule.is_working_day),
+                None if rule.total_work_hours is None else str(rule.total_work_hours),
+                intervals_json, revision,
+                rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version,
+                rule.kind, -1 if rule.weekday is None else rule.weekday, int(existing[3]),
+            ),
+        )
+        if not was_in_transaction:
+            self.connection.commit()
+        return CalendarWorkHourRule(
+            rule.scope, rule.calendar_id, rule.calendar_version, rule.kind,
+            rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals, revision,
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()
@@ -208,6 +252,38 @@ class PostgresCalendarWorkHourRepository:
         if existing_rule.canonical_snapshot() != rule.canonical_snapshot():
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
+
+    def replace(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule:
+        rule.validate()
+        import json
+        existing = self.connection.execute(
+            "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision FROM calendar_work_hour_rule "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND weekday_key=%s FOR UPDATE",
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, -1 if rule.weekday is None else rule.weekday),
+        ).fetchone()
+        if existing is None:
+            raise CalendarPersistenceError("WORK_HOUR_RULE_NOT_FOUND")
+        if int(existing[4]) != rule.scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        existing_rule = _row_to_rule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday, existing)
+        if existing_rule.canonical_snapshot() == rule.canonical_snapshot():
+            return existing_rule
+        revision = int(existing[3]) + 1
+        self.connection.execute(
+            "UPDATE calendar_work_hour_rule SET is_working_day=%s, total_work_hours=%s, intervals_json=%s::jsonb, record_revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND weekday_key=%s AND record_revision=%s",
+            (
+                rule.is_working_day,
+                None if rule.total_work_hours is None else str(rule.total_work_hours),
+                json.dumps([list(pair) for pair in rule.intervals], separators=(",", ":"), sort_keys=True), revision,
+                rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version,
+                rule.kind, -1 if rule.weekday is None else rule.weekday, int(existing[3]),
+            ),
+        )
+        return CalendarWorkHourRule(
+            rule.scope, rule.calendar_id, rule.calendar_version, rule.kind,
+            rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals, revision,
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()

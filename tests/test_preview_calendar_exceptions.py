@@ -83,6 +83,61 @@ def _save_holiday(runtime, cookie: str, date: str, **extra):
     )
 
 
+def test_persisted_work_week_rule_changes_the_authoritative_cpm_result(tmp_path: Path) -> None:
+    database = tmp_path / "preview.sqlite3"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        before = _activity_facts(runtime, planner.session_id)
+        assert before["A140"]["cells"]["activity.early_finish"] == "2026-11-02"
+
+        status, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/p6/calendars/{RPS_CALENDAR}/1/work-hours",
+            body=json.dumps({
+                "kind": "standard_work_week",
+                "weekday": 4,
+                "is_working_day": False,
+                "total_work_hours": None,
+                "intervals": [],
+            }).encode("utf-8"),
+            cookie=planner.session_id,
+            headers=_headers(),
+        )
+        assert status == 200, body[:300]
+
+        # Friday 2026-10-23 falls inside the predecessor window. Removing it
+        # from the stored workweek shifts A140's start by one working day and
+        # moves the authoritative finish, proving the registry applies rules
+        # instead of ignoring them.
+        after = _activity_facts(runtime, planner.session_id)
+        assert after["A140"]["cells"]["activity.early_start"] == "2026-10-20"
+        assert after["A140"]["cells"]["activity.early_finish"] == "2026-11-05"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        again = _activity_facts(reopened, planner.session_id)
+        assert again["A140"]["cells"]["activity.early_finish"] == "2026-11-05"
+        status, body = _request(
+            reopened.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/p6/calendars/{RPS_CALENDAR}/1/work-hours",
+            cookie=planner.session_id,
+            headers=_headers(),
+        )
+        assert status == 200
+        rules = json.loads(body)["work_hours"]
+        assert [(item["kind"], item["weekday"], item["is_working_day"]) for item in rules] == [
+            ("standard_work_week", 4, False)
+        ]
+    finally:
+        reopened.close()
+
+
 def test_persisted_holiday_changes_the_authoritative_cpm_result(tmp_path: Path) -> None:
     database = tmp_path / "preview.sqlite3"
     runtime = open_preview_runtime(database, reset=True)
@@ -218,6 +273,6 @@ def test_calendar_copy_and_delete_are_persisted_through_the_preview_api(tmp_path
         )
         assert status == 200
         calendars = json.loads(body)["calendars"]
-        assert [item["calendar_id"] for item in calendars] == [RPS_CALENDAR]
+        assert [item["calendar_id"] for item in calendars] == [RPS_CALENDAR, f"{RPS_CALENDAR}-TIME"]
     finally:
         runtime.close()

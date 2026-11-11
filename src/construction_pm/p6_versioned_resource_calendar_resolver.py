@@ -82,7 +82,7 @@ def _load_work_rules(
     }
 
 
-def _apply_weekly_rules(
+def apply_weekly_work_hour_rules(
     definition: CalendarDefinition,
     rules: dict[str, tuple[CalendarWorkHourRule, ...]],
 ) -> tuple[CalendarDefinition, dict[int, Decimal]]:
@@ -288,7 +288,7 @@ def resolve_p6_resource_calendar(
 
         rules = _load_work_rules(scope, master.calendar_id, master.calendar_version, work_hours_repository)
         try:
-            definition, hours_by_weekday = _apply_weekly_rules(definition, rules)
+            definition, hours_by_weekday = apply_weekly_work_hour_rules(definition, rules)
         except P6ResourceCalendarResolutionError:
             raise
         except ValueError as exc:
