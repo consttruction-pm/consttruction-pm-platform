@@ -4,9 +4,9 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `6f5af025` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Branch: `main` @ `f959a7dc` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
 Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
-Stage D2a as `9cfd4813`).
+Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`).
 
 ---
 
@@ -546,13 +546,17 @@ ran on `4c3d0348`, and the screenshots plus report were committed afterwards as 
 
 ## Stage D2b — Resource Assignments grouping, spreadsheet, profile and revision workflow
 
-Status: **open** in independent PR
+Status: **merged**. Independent PR
 [#1747](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1747), branch
-`codex/jalal/cubi-v26-stage-d2b-20261111`, based on `main` @ `6f5af025`. The merge commit and
-post-merge CI are recorded in the follow-up checkpoint update after the merge is confirmed by the
-GitHub API. This slice is the second part of macro Stage D2: the Resource Assignments window now
-reads and writes stored assignment and period facts instead of showing a read-only aggregate.
-Role management and full Calendar management remain open.
+`codex/jalal/cubi-v26-stage-d2b-20261111`, squash-merged into `main` as `f959a7dc` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T11:11:41Z`,
+`merge_commit_sha=f959a7dc0dd83c327ac7cacd94098119ac6032a8`, main ref at that SHA, 24 changed
+files). The PR was created from `main` @ `6f5af025` and every required check was green on the
+exact head `bc655d3d` before the merge. Post-merge CI on `f959a7dc`: all 11 checks succeeded
+(deploy, build, web, postgres-sync, test 3.11/3.12/3.13, typecheck apps/web, apps/mobile,
+apps/desktop, apps/client-sync). This slice is the second part of macro Stage D2: the Resource
+Assignments window now reads and writes stored assignment and period facts instead of showing a
+read-only aggregate. Role management and full Calendar management remain open.
 
 Help topics used: the Version 26 Resource Assignments sections on grouping assignments by resource
 and role, the assignment table columns (budgeted units, unit, planned/actual cost, currency),
@@ -643,8 +647,10 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `de89d44c8c4b520acbd84cebd532a06a264359c2` |
 | Evidence commit | `50e351127f4bae2a144d95dbde52602ede340737` |
-| Branch head at PR creation | `f8b1b2661334a3b0bc5d11e9e2c6fae3a8e3f1f9` |
+| Branch head at merge | `bc655d3d7e6c5dda92b8e946b9297910afafeb9a` |
 | PR | [#1747](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1747) |
+| Merge commit | `f959a7dc0dd83c327ac7cacd94098119ac6032a8` |
+| Post-merge CI | 11/11 checks success on `f959a7dc` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
 ran on `de89d44c`, and the report plus screenshots were committed afterwards as `50e35112`.
