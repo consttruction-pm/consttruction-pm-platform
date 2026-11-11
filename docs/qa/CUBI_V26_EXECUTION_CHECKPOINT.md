@@ -4,9 +4,9 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `f959a7dc` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Branch: `main` @ `a9cdc362` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
 Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
-Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`).
+Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`, Stage D2c as `a9cdc362`).
 
 ---
 
@@ -664,10 +664,16 @@ management (global/project/resource calendars, split shifts, exceptions, Jalali)
 
 ## Stage D2c — Role hierarchy, proficiency, effective-dated rates and limits
 
-Status: **implemented, verified and committed on the stage branch; PR open**. Branch
-`feat/v26-stage-d2c-roles` from `main` @ `90abd873`. The Roles window now reads and writes the
-stored role dictionary instead of a read-only register: hierarchy, revision-guarded general facts,
-resource proficiency with exactly one primary role, and effective-dated rates and limits.
+Status: **merged**. Independent PR
+[#1749](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1749), branch
+`feat/v26-stage-d2c-roles`, squash-merged into `main` as `a9cdc362` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T19:48:04Z`,
+`merge_commit_sha=a9cdc362b1b5ffdca81b15737e0525be33253c67`, main ref at that SHA, 31 changed
+files). The PR was created from `main` @ `90abd873` and every required check was green on the
+exact head `78b4ddfc` before the merge. Post-merge CI on `a9cdc362`: all 11 checks succeeded.
+The Roles window now reads and writes the stored role dictionary instead of a read-only register:
+hierarchy, revision-guarded general facts, resource proficiency with exactly one primary role,
+and effective-dated rates and limits.
 
 Help topics used: the Version 26 Roles sections on role hierarchy and assigning a parent role,
 the five proficiency levels (Master, Expert, Skilled, Proficient, Inexperienced), role prices per
@@ -763,13 +769,18 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `adec57fe30bc2b3c9f023332e0582f6faacffffa` |
 | Evidence commit | `e06a69dcb60fc230364b29adb5342d0577ac7edd` |
-| Branch head at merge | pending |
-| PR | pending |
-| Merge commit | pending |
-| Post-merge CI | pending |
+| Branch head at merge | `78b4ddfc5ce27c09f3d774983cecd2955f968642` |
+| PR | [#1749](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1749) |
+| Merge commit | `a9cdc362b1b5ffdca81b15737e0525be33253c67` |
+| Post-merge CI | 11/11 checks success on `a9cdc362` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
 ran on `adec57fe`, and the screenshots plus report were committed afterwards as `e06a69dc`.
+
+### Next stage
+
+Full Calendar management (global/project/resource calendars, split shifts, exceptions, Jalali),
+then Stages E–G.
 
 Changed files: `apps/web/src/workspace-roles.ts`,
 `apps/web/src/workspace-roles.test.ts`, `apps/web/src/workspace-view.ts`,
