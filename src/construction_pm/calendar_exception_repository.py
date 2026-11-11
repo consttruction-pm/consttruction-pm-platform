@@ -115,6 +115,7 @@ class CalendarException:
 class CalendarExceptionRepository(Protocol):
     def save(self, exception: CalendarException) -> CalendarException: ...
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None: ...
+    def revise(self, exception: CalendarException, *, expected_revision: int) -> CalendarException: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]: ...
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> bool: ...
 
@@ -252,6 +253,52 @@ class SQLiteCalendarExceptionRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         return _row_to_exception(scope, row)
 
+    def revise(self, exception: CalendarException, *, expected_revision: int) -> CalendarException:
+        """Replace one stored exception behind an explicit record revision.
+
+        Stored exceptions are otherwise immutable: a plain ``save`` of the same
+        date with different content is rejected. Editing therefore needs this
+        deliberately separate path, which increments the record revision and
+        rejects a stale edit instead of silently overwriting it.
+        """
+        scope = exception.scope
+        scope.validate()
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise CalendarPersistenceError("EXPECTED_EXCEPTION_REVISION_REQUIRED")
+        was_in_transaction = self.connection.in_transaction
+        row = self.connection.execute(
+            "SELECT project_revision, record_revision FROM calendar_exception "
+            "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND exception_date=?",
+            (scope.tenant_id, scope.project_id, exception.calendar_id, exception.calendar_version, exception.exception_date.isoformat()),
+        ).fetchone()
+        if row is None:
+            raise CalendarPersistenceError("EXCEPTION_NOT_FOUND")
+        if int(row[0]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        if int(row[1]) != expected_revision:
+            raise CalendarPersistenceError("EXCEPTION_REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "UPDATE calendar_exception SET mode=?, total_work_hours=?, intervals_json=?, system=?, record_revision=record_revision+1 "
+            "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND exception_date=? AND record_revision=?",
+            (
+                exception.mode,
+                None if exception.total_work_hours is None else str(exception.total_work_hours),
+                _canonical_json({"intervals": [[s.isoformat(), e.isoformat()] for s, e in exception.intervals]}),
+                exception.system.value,
+                scope.tenant_id, scope.project_id, exception.calendar_id, exception.calendar_version,
+                exception.exception_date.isoformat(), expected_revision,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise CalendarPersistenceError("EXCEPTION_REVISION_CONFLICT")
+        if not was_in_transaction:
+            self.connection.commit()
+        return CalendarException(
+            scope, exception.calendar_id, exception.calendar_version, exception.exception_date,
+            exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+            expected_revision + 1,
+        )
+
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]:
         scope.validate()
         rows = self.connection.execute(
@@ -352,6 +399,42 @@ class PostgresCalendarExceptionRepository:
         if int(row[8]) != scope.project_revision:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         return _row_to_exception(scope, row)
+
+    def revise(self, exception: CalendarException, *, expected_revision: int) -> CalendarException:
+        scope = exception.scope
+        scope.validate()
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise CalendarPersistenceError("EXPECTED_EXCEPTION_REVISION_REQUIRED")
+        row = self.connection.execute(
+            "SELECT project_revision, record_revision FROM calendar_exception "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND exception_date=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, exception.calendar_id, exception.calendar_version, exception.exception_date),
+        ).fetchone()
+        if row is None:
+            raise CalendarPersistenceError("EXCEPTION_NOT_FOUND")
+        if int(row[0]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        if int(row[1]) != expected_revision:
+            raise CalendarPersistenceError("EXCEPTION_REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "UPDATE calendar_exception SET mode=%s, total_work_hours=%s, intervals_json=%s::jsonb, system=%s, record_revision=record_revision+1 "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND exception_date=%s AND record_revision=%s",
+            (
+                exception.mode,
+                None if exception.total_work_hours is None else str(exception.total_work_hours),
+                _canonical_json({"intervals": [[s.isoformat(), e.isoformat()] for s, e in exception.intervals]}),
+                exception.system.value,
+                scope.tenant_id, scope.project_id, exception.calendar_id, exception.calendar_version,
+                exception.exception_date, expected_revision,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise CalendarPersistenceError("EXCEPTION_REVISION_CONFLICT")
+        return CalendarException(
+            scope, exception.calendar_id, exception.calendar_version, exception.exception_date,
+            exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+            expected_revision + 1,
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]:
         scope.validate()

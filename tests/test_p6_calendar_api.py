@@ -454,3 +454,89 @@ def test_delete_rolls_back_calendar_children_when_repository_cleanup_fails(monke
 
     assert api.calendar_repository.get(_scope(), "CAL-DEL-ROLLBACK", "1") == stored
     assert api.snapshot_repository.get(stored) is not None
+
+
+def test_create_from_base_can_switch_the_date_system_explicitly():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-BASE"), auth_context=_auth())
+    base = api.calendar_repository.get(_scope(), "CAL-BASE", "1")
+    api.snapshot_repository.save(base, _definition())
+    request = P6CalendarCreateRequest(
+        P6_CALENDAR_API_VERSION, "CAL-GREG", "1", "resource", "working-day", "Gregorian", 0,
+        "CAL-BASE", "1", "gregorian",
+    )
+    created = api.create(_scope(), request, auth_context=_auth())
+    assert created["base_calendar_id"] == "CAL-BASE"
+    target = api.calendar_repository.get(_scope(), "CAL-GREG", "1")
+    snapshot = api.snapshot_repository.get(target)
+    assert snapshot is not None and snapshot.snapshot["system"] == "gregorian"
+
+    with pytest.raises(ValueError, match="INVALID_CALENDAR_SYSTEM"):
+        api.create(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-BAD", "1", "resource", "working-day", "Bad", 0,
+            "CAL-BASE", "1", "hijri",
+        ), auth_context=_auth())
+    with pytest.raises(ValueError, match="CALENDAR_SYSTEM_REQUIRES_BASE_DEFINITION"):
+        api.create(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-NO-BASE", "1", "resource", "working-day", "No base", 0,
+            None, None, "jalali",
+        ), auth_context=_auth())
+
+
+def test_update_cannot_silently_change_the_date_system():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-SYS"), auth_context=_auth())
+    master = api.calendar_repository.get(_scope(), "CAL-SYS", "1")
+    api.snapshot_repository.save(master, _definition())
+    with pytest.raises(ValueError, match="CALENDAR_SYSTEM_IMMUTABLE"):
+        api.update(_scope(), P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-SYS", "1", "project", "working-day", "Renamed", 1,
+            None, None, "gregorian",
+        ), auth_context=_auth())
+    updated = api.update(_scope(), P6CalendarCreateRequest(
+        P6_CALENDAR_API_VERSION, "CAL-SYS", "1", "project", "working-day", "Renamed", 1,
+        None, None, "jalali",
+    ), auth_context=_auth())
+    assert updated["record_revision"] == 2
+
+
+def test_exception_revision_increments_and_rejects_stale_edits():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-REV"), auth_context=_auth())
+    master = api.calendar_repository.get(_scope(), "CAL-REV", "1")
+    api.snapshot_repository.save(master, _definition())
+    saved = api.save_exception(
+        CalendarException(_scope(), "CAL-REV", "1", date(2026, 3, 23), EXCEPTION_NONWORK),
+        auth_context=_auth(),
+    )
+    assert saved["record_revision"] == 1
+    listed = api.list_exceptions(_scope(), "CAL-REV", "1", auth_context=_auth())
+    assert listed[0]["record_revision"] == 1
+
+    revised = api.revise_exception(
+        _scope(), "CAL-REV", "1", date(2026, 3, 23),
+        mode="total-work-hours", total_work_hours="6", intervals=(), expected_revision=1,
+        auth_context=_auth(),
+    )
+    assert revised["mode"] == "total-work-hours"
+    assert revised["total_work_hours"] == "6"
+    assert revised["record_revision"] == 2
+    assert revised["system"] == "gregorian"
+    with pytest.raises(ValueError, match="EXCEPTION_REVISION_CONFLICT"):
+        api.revise_exception(
+            _scope(), "CAL-REV", "1", date(2026, 3, 23),
+            mode="nonwork", total_work_hours=None, intervals=(), expected_revision=1,
+            auth_context=_auth(),
+        )
+    with pytest.raises(ValueError, match="EXCEPTION_NOT_FOUND"):
+        api.revise_exception(
+            _scope(), "CAL-REV", "1", date(2026, 3, 24),
+            mode="nonwork", total_work_hours=None, intervals=(), expected_revision=1,
+            auth_context=_auth(),
+        )
+    with pytest.raises(ValueError, match="EXPECTED_EXCEPTION_REVISION_REQUIRED"):
+        api.revise_exception(
+            _scope(), "CAL-REV", "1", date(2026, 3, 23),
+            mode="nonwork", total_work_hours=None, intervals=(), expected_revision=0,
+            auth_context=_auth(),
+        )

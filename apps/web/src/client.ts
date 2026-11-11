@@ -26,6 +26,7 @@ export interface ApiTransport {
     idempotencyKey?: string,
   ): Promise<ApiResult<TResponse>>;
   patch?<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext): Promise<ApiResult<TResponse>>;
+  put?<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext): Promise<ApiResult<TResponse>>;
   delete?<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext): Promise<ApiResult<TResponse>>;
   /** Post a non-JSON body, such as an interchange document, verbatim. */
   postRaw?<TResponse>(
@@ -67,6 +68,14 @@ export class FetchApiTransport implements ApiTransport {
   async patch<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext): Promise<ApiResult<TResponse>> {
     return this.request<TResponse>(path, {
       method: "PATCH",
+      headers: { ...this.contextHeaders(context), "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
+
+  async put<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext): Promise<ApiResult<TResponse>> {
+    return this.request<TResponse>(path, {
+      method: "PUT",
       headers: { ...this.contextHeaders(context), "Content-Type": "application/json" },
       body: JSON.stringify(request),
     });

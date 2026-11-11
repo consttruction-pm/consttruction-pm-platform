@@ -42,6 +42,7 @@ export type CalendarException = {
   system: string;
   totalWorkHours: string | null;
   intervals: readonly (readonly string[])[];
+  recordRevision: number;
 };
 
 export type CalendarPageOptions = {
@@ -299,6 +300,9 @@ export async function loadCalendarExceptions(
         system: typeof item.system === "string" ? item.system : "gregorian",
         totalWorkHours: typeof item.total_work_hours === "string" ? item.total_work_hours : null,
         intervals,
+        recordRevision: Number.isInteger(item.record_revision) && Number(item.record_revision) >= 1
+          ? Number(item.record_revision)
+          : 1,
       };
     });
     return { ok: true, data: exceptions };
@@ -415,6 +419,7 @@ export type CalendarCreateInput = {
   name: string;
   baseCalendarId: string;
   baseCalendarVersion: string;
+  system: "gregorian" | "jalali";
 };
 
 function parseWorkHourRule(value: unknown): CalendarWorkHourRule {
@@ -512,6 +517,7 @@ export async function createCalendar(
   if (!CALENDAR_TYPES.includes(input.calendarType as (typeof CALENDAR_TYPES)[number])) return localError("INVALID_CALENDAR_TYPE");
   if (input.kind !== "working-day" && input.kind !== "working-time") return localError("INVALID_CALENDAR_KIND");
   if (!input.baseCalendarId || !input.baseCalendarVersion) return localError("CALENDAR_BASE_REQUIRED");
+  if (input.system !== "gregorian" && input.system !== "jalali") return localError("INVALID_CALENDAR_SYSTEM");
   const request = {
     contract_version: CALENDAR_API_CONTRACT,
     calendar_id: id,
@@ -522,6 +528,7 @@ export async function createCalendar(
     expected_revision: 0,
     base_calendar_id: input.baseCalendarId,
     base_calendar_version: input.baseCalendarVersion,
+    system: input.system,
   };
   const result = await transport.post<typeof request, unknown>(
     calendarPath(context),
@@ -623,6 +630,52 @@ export async function saveCalendarException(
       intervals: Array.isArray(payload.intervals)
         ? payload.intervals.filter((pair): pair is string[] => Array.isArray(pair) && pair.every((item) => typeof item === "string")).map((pair) => pair as string[])
         : [],
+      recordRevision: Number.isInteger(payload.record_revision) && Number(payload.record_revision) >= 1
+        ? Number(payload.record_revision)
+        : 1,
+    },
+  };
+}
+
+export async function reviseCalendarException(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendar: WorkspaceCalendarRecord,
+  exception: CalendarException,
+  input: CalendarExceptionInput,
+): Promise<ApiResult<CalendarException>> {
+  if (!transport.put) return localError("CALENDAR_UPDATE_TRANSPORT_UNAVAILABLE");
+  if (exception.recordRevision < 1) return localError("EXCEPTION_REVISION_REQUIRED");
+  const system = exception.system === "jalali" ? "jalali" : "gregorian";
+  const request = buildExceptionRequest({ ...input, date: exception.date }, system);
+  if (!request) return localError("CALENDAR_EXCEPTION_INVALID");
+  const result = await transport.put<Record<string, unknown>, unknown>(
+    calendarPath(context, calendar.calendarId, calendar.calendarVersion, `exceptions/${encodeURIComponent(exception.date)}`),
+    {
+      contract_version: CALENDAR_API_CONTRACT,
+      mode: request.mode,
+      total_work_hours: request.total_work_hours,
+      intervals: request.intervals,
+      expected_revision: exception.recordRevision,
+    },
+    context,
+  );
+  if (!result.ok) return result;
+  const payload = result.data;
+  if (!isRecord(payload) || !Number.isInteger(payload.record_revision)) return localError("INVALID_CALENDAR_EXCEPTION_RESPONSE");
+  return {
+    ok: true,
+    data: {
+      calendarId: calendar.calendarId,
+      calendarVersion: calendar.calendarVersion,
+      date: typeof payload.date === "string" ? payload.date : exception.date,
+      mode: typeof payload.mode === "string" ? payload.mode : input.mode,
+      system: typeof payload.system === "string" ? payload.system : system,
+      totalWorkHours: typeof payload.total_work_hours === "string" ? payload.total_work_hours : null,
+      intervals: Array.isArray(payload.intervals)
+        ? payload.intervals.filter((pair): pair is string[] => Array.isArray(pair) && pair.every((item) => typeof item === "string")).map((pair) => pair as string[])
+        : [],
+      recordRevision: Number(payload.record_revision),
     },
   };
 }
@@ -637,6 +690,7 @@ type PageState = {
   snapshotLoading: boolean;
   exceptions: readonly CalendarException[];
   exceptionsError: string | null;
+  editingException: CalendarException | null;
   workHours: readonly CalendarWorkHourRule[];
   workHoursError: string | null;
   workHoursLoading: boolean;
@@ -667,6 +721,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     snapshotLoading: false,
     exceptions: [],
     exceptionsError: null,
+    editingException: null,
     workHours: [],
     workHoursError: null,
     workHoursLoading: false,
@@ -766,25 +821,46 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     </section>`;
   }
 
+  function exceptionDateLabel(item: CalendarException): string {
+    // The stored date is always canonical ISO; a Jalali calendar shows the
+    // equivalent Jalali date next to it so entry and display agree.
+    return item.system === "jalali" ? formatJalaliDateInput(item.date) : item.date;
+  }
+
   function renderExceptions(record: WorkspaceCalendarRecord): string {
     if (state.exceptionsError) {
       return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Calendar exceptions could not be read", "خواندن استثناهای تقویم ناموفق بود"))} (${escapeHtml(state.exceptionsError)})</div>`;
     }
+    const edit = state.editingException;
+    const rows = state.exceptions.map((item) => {
+      const active = edit?.date === item.date;
+      return `<li class="${active ? "is-editing" : ""}"><span class="cp-calendar-holiday-date">${escapeHtml(exceptionDateLabel(item))}${item.system === "jalali" ? ` <small>(${escapeHtml(item.date)})</small>` : ""}</span><span class="cp-calendar-holiday-mode">${escapeHtml(item.mode)}${item.totalWorkHours ? ` · ${escapeHtml(item.totalWorkHours)} h` : ""}${item.intervals.length ? ` · ${item.intervals.map((pair) => `${pair[0]}–${pair[1]}`).join(", ")}` : ""} · r${item.recordRevision}</span><button type="button" data-calendar-exception-edit="${escapeAttribute(item.date)}" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Edit", "ویرایش"))}</button><button type="button" data-calendar-exception-delete="${escapeAttribute(item.date)}" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Remove", "حذف"))}</button></li>`;
+    }).join("");
     const list = state.exceptions.length
-      ? `<ul class="cp-calendar-holiday-list">${state.exceptions.map((item) => `<li><span class="cp-calendar-holiday-date">${escapeHtml(item.date)}</span><span class="cp-calendar-holiday-mode">${escapeHtml(item.mode)}${item.totalWorkHours ? ` · ${escapeHtml(item.totalWorkHours)} h` : ""}${item.intervals.length ? ` · ${item.intervals.map((pair) => `${pair[0]}–${pair[1]}`).join(", ")}` : ""}</span><button type="button" data-calendar-exception-delete="${escapeAttribute(item.date)}" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Remove", "حذف"))}</button></li>`).join("")}</ul>`
+      ? `<ul class="cp-calendar-holiday-list">${rows}</ul>`
       : `<div class="cp-calendar-empty">${escapeHtml(say("No exceptions are stored for this calendar.", "هیچ استثنایی برای این تقویم ذخیره نشده است."))}</div>`;
-    const modeOptions = EXCEPTION_MODE_LABELS.map((mode) => `<option value="${mode.value}">${escapeHtml(say(mode.en, mode.fa))}</option>`).join("");
+    const modeOptions = EXCEPTION_MODE_LABELS.map((mode) => `<option value="${mode.value}" ${edit?.mode === mode.value ? "selected" : ""}>${escapeHtml(say(mode.en, mode.fa))}</option>`).join("");
+    const detailInterval = edit?.intervals[0] ?? null;
+    const jalaliHint = edit && edit.system === "jalali"
+      ? `<p class="cp-calendar-hint" data-calendar-exception-jalali>${escapeHtml(say("Jalali date", "تاریخ جلالی"))}: ${escapeHtml(formatJalaliDateInput(edit.date))}</p>`
+      : "";
+    const jalaliSystem = state.snapshot?.system === "jalali";
+    const dateControl = jalaliSystem
+      ? `<input type="text" name="date" required inputmode="numeric" placeholder="1405/10/01" value="${escapeAttribute(edit ? formatJalaliDateInput(edit.date) : "")}" ${edit ? "readonly" : ""}>`
+      : `<input type="date" name="date" required value="${escapeAttribute(edit?.date ?? "")}" ${edit ? "readonly" : ""}>`;
     return `<section class="cp-calendar-editor-panel" data-calendar-panel="exceptions">
       ${list}
-      <form data-calendar-exception-form>
-        <label>${escapeHtml(say("Date", "تاریخ"))}<input type="date" name="date" required></label>
+      <form data-calendar-exception-form data-editing="${edit ? "true" : "false"}">
+        <label>${escapeHtml(say("Date", "تاریخ"))}${dateControl}</label>
         <label>${escapeHtml(say("Mode", "حالت"))}<select name="mode">${modeOptions}</select></label>
-        <label data-calendar-exception-hours hidden>${escapeHtml(say("Total hours", "مجموع ساعات"))}<input type="number" name="hours" min="0" step="0.25"></label>
-        <label data-calendar-exception-interval hidden>${escapeHtml(say("Start", "شروع"))}<input type="time" name="start"></label>
-        <label data-calendar-exception-interval hidden>${escapeHtml(say("Finish", "پایان"))}<input type="time" name="end"></label>
-        <button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Add exception", "افزودن استثنا"))}</button>
+        <label data-calendar-exception-hours ${edit?.mode === "total-work-hours" ? "" : "hidden"}>${escapeHtml(say("Total hours", "مجموع ساعات"))}<input type="number" name="hours" min="0" step="0.25" value="${escapeAttribute(edit?.mode === "total-work-hours" ? edit.totalWorkHours ?? "" : "")}"></label>
+        <label data-calendar-exception-interval ${edit?.mode === "detailed-work-hours" ? "" : "hidden"}>${escapeHtml(say("Start", "شروع"))}<input type="time" name="start" value="${escapeAttribute(detailInterval?.[0] ?? "")}"></label>
+        <label data-calendar-exception-interval ${edit?.mode === "detailed-work-hours" ? "" : "hidden"}>${escapeHtml(say("Finish", "پایان"))}<input type="time" name="end" value="${escapeAttribute(detailInterval?.[1] ?? "")}"></label>
+        <button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(edit ? say("Save changes", "ذخیره تغییرات") : say("Add exception", "افزودن استثنا"))}</button>
+        ${edit ? `<button type="button" data-calendar-exception-cancel>${escapeHtml(say("Cancel", "لغو"))}</button>` : ""}
       </form>
-      <p class="cp-calendar-hint">${escapeHtml(say("Exceptions are persisted through the calendar API. A saved exception invalidates the previous schedule result; run the schedule again to see authoritative dates.", "استثناها از طریق API تقویم ذخیره می‌شوند. استثنای ذخیره‌شده نتیجه زمان‌بندی قبلی را باطل می‌کند؛ برای مشاهده تاریخ‌های مرجع، زمان‌بندی را دوباره اجرا کنید."))}</p>
+      ${jalaliHint}
+      <p class="cp-calendar-hint">${escapeHtml(say("Exceptions are persisted through the calendar API. Editing keeps the stored date and raises the exception record revision; a saved exception invalidates the previous schedule result, so run the schedule again to see authoritative dates.", "استثناها از طریق API تقویم ذخیره می‌شوند. ویرایش، تاریخ ذخیره‌شده را حفظ و ویرایش رکورد استثنا را افزایش می‌دهد؛ استثنای ذخیره‌شده نتیجه زمان‌بندی قبلی را باطل می‌کند؛ برای مشاهده تاریخ‌های مرجع، زمان‌بندی را دوباره اجرا کنید."))}</p>
       <input type="hidden" data-calendar-exception-calendar value="${escapeHtml(record.calendarId)}">
     </section>`;
   }
@@ -821,7 +897,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
           <label>${escapeHtml(say("Version", "نسخه"))}<input data-calendar-new-version value="1" required maxlength="40" autocomplete="off"></label>
           <label>${escapeHtml(say("Calendar Name", "نام تقویم"))}<input data-calendar-new-name required maxlength="180" autocomplete="off"></label>
           <label>${escapeHtml(say("Calendar Type", "نوع تقویم"))}<select data-calendar-new-type>${CALENDAR_TYPES.map((value) => `<option value="${value}">${value}</option>`).join("")}</select></label>
+          <label>${escapeHtml(say("Date System", "مبنای تاریخ"))}<select data-calendar-new-system><option value="gregorian">gregorian</option><option value="jalali">jalali</option></select></label>
         </div>
+        <p>${escapeHtml(say("A Jalali calendar keeps ISO Gregorian dates in storage and uses Jalali values for exception entry and display.", "تقویم جلالی تاریخ‌ها را به‌صورت ISO میلادی ذخیره می‌کند و برای ورود و نمایش استثناها از مقدار جلالی استفاده می‌کند."))}</p>
         <div class="cp-calendar-panel-actions"><button type="button" data-calendar-action="new-submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Create calendar", "ایجاد تقویم"))}</button><button type="button" data-calendar-action="dialog-cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
       </div>`;
     }
@@ -877,6 +955,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     state.snapshotError = null;
     state.exceptions = [];
     state.exceptionsError = null;
+    state.editingException = null;
     state.workHours = [];
     state.workHoursError = null;
     state.tab = tab;
@@ -1012,6 +1091,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       return;
     }
     state.notice = { kind: "ok", message: say("Exception removed. Run the schedule again to use it.", "استثنا حذف شد. برای استفاده، زمان‌بندی را دوباره اجرا کنید.") };
+    if (state.editingException?.date === exceptionDate) state.editingException = null;
     const refreshed = await loadCalendarExceptions(transport, context, record.calendarId, record.calendarVersion);
     if (refreshed.ok) state.exceptions = refreshed.data;
     state.tab = "exceptions";
@@ -1024,6 +1104,22 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     if (workdayButton?.dataset.workdaySave) {
       const record = selectedRecord(state);
       if (record && !state.busy) void saveWorkday(record, Number(workdayButton.dataset.workdaySave));
+      return;
+    }
+    const exceptionEdit = target.closest<HTMLElement>("[data-calendar-exception-edit]");
+    if (exceptionEdit?.dataset.calendarExceptionEdit) {
+      const item = state.exceptions.find((entry) => entry.date === exceptionEdit.dataset.calendarExceptionEdit) ?? null;
+      if (item) {
+        state.editingException = item;
+        state.tab = "exceptions";
+        state.notice = null;
+        render();
+      }
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-calendar-exception-cancel]")) {
+      state.editingException = null;
+      render();
       return;
     }
     const exceptionDelete = target.closest<HTMLElement>("[data-calendar-exception-delete]");
@@ -1078,6 +1174,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
         name: host.querySelector<HTMLInputElement>("[data-calendar-new-name]")?.value ?? "",
         baseCalendarId: base.calendarId,
         baseCalendarVersion: base.calendarVersion,
+        system: (host.querySelector<HTMLSelectElement>("[data-calendar-new-system]")?.value === "jalali" ? "jalali" : "gregorian") as "gregorian" | "jalali",
       };
       void (async () => {
         state.busy = true;
@@ -1218,8 +1315,17 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     const record = selectedRecord(state);
     if (!record || state.busy) return;
     const fields = findExceptionFields(form);
+    const editing = state.editingException;
+    const jalaliSystem = state.snapshot?.system === "jalali";
+    const rawDate = fields.date?.value ?? "";
+    const canonicalDate = jalaliSystem && !editing ? parseJalaliDateInput(rawDate) : rawDate;
+    if (!canonicalDate) {
+      state.notice = { kind: "error", message: say("Enter a valid Jalali date such as 1405/10/01.", "یک تاریخ جلالی معتبر مانند 1405/10/01 وارد کنید.") };
+      render();
+      return;
+    }
     const input: CalendarExceptionInput = {
-      date: fields.date?.value ?? "",
+      date: canonicalDate,
       mode: fields.mode?.value ?? "nonwork",
       totalWorkHours: fields.hours?.value || null,
       start: fields.start?.value || null,
@@ -1228,14 +1334,22 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     void (async () => {
       state.busy = true;
       render();
-      const result = await saveCalendarException(transport, context, record, state.snapshot?.system ?? null, input);
+      const result = editing
+        ? await reviseCalendarException(transport, context, record, editing, input)
+        : await saveCalendarException(transport, context, record, state.snapshot?.system ?? null, input);
       state.busy = false;
       if (!result.ok) {
         state.notice = { kind: "error", message: `${say("Exception was not saved", "استثنا ذخیره نشد")} (${result.error.code})` };
         render();
         return;
       }
-      state.notice = { kind: "ok", message: say("Exception saved. Run the schedule again to use it.", "استثنا ذخیره شد. برای استفاده از آن، زمان‌بندی را دوباره اجرا کنید.") };
+      state.editingException = null;
+      state.notice = {
+        kind: "ok",
+        message: editing
+          ? say("Exception updated at record revision " + result.data.recordRevision + ". Run the schedule again to use it.", "استثنا در ویرایش رکورد " + result.data.recordRevision + " به‌روزرسانی شد. برای استفاده، زمان‌بندی را دوباره اجرا کنید.")
+          : say("Exception saved. Run the schedule again to use it.", "استثنا ذخیره شد. برای استفاده از آن، زمان‌بندی را دوباره اجرا کنید."),
+      };
       const refreshed = await loadCalendarExceptions(transport, context, record.calendarId, record.calendarVersion);
       if (refreshed.ok) state.exceptions = refreshed.data;
       state.tab = "exceptions";

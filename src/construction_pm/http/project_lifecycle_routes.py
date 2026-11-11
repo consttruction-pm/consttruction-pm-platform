@@ -579,6 +579,7 @@ class ProjectLifecycleHttpRoutes:
                             expected_revision=payload.get("expected_revision"),
                             base_calendar_id=payload.get("base_calendar_id"),
                             base_calendar_version=payload.get("base_calendar_version"),
+                            system=payload.get("system"),
                         )
                         return self._json(200, self._p6_calendar_api.create(scope, request, auth_context=auth))
                     if len(parts) == 2 and method in {"PATCH", "DELETE"}:
@@ -670,13 +671,35 @@ class ProjectLifecycleHttpRoutes:
                                     rule, expected_revision=expected_revision, auth_context=auth
                                 ))
                             return self._json(200, self._p6_calendar_api.save_work_hours(rule, auth_context=auth))
-                    if len(parts) == 4 and parts[2] == "exceptions" and method == "DELETE":
+                    if len(parts) == 4 and parts[2] == "exceptions" and method in {"DELETE", "PUT"}:
                         calendar_id, calendar_version, _, raw_date = parts
                         exception_date = date.fromisoformat(unquote(raw_date))
-                        deleted = self._p6_calendar_api.delete_exception(
-                            scope, calendar_id, calendar_version, exception_date, auth_context=auth
+                        if method == "DELETE":
+                            deleted = self._p6_calendar_api.delete_exception(
+                                scope, calendar_id, calendar_version, exception_date, auth_context=auth
+                            )
+                            return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "deleted": deleted})
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int):
+                            raise ValueError("expected_revision required")
+                        raw_intervals = payload.get("intervals", [])
+                        if not isinstance(raw_intervals, list):
+                            raise ValueError("invalid intervals")
+                        intervals = tuple(
+                            (time.fromisoformat(str(item[0])), time.fromisoformat(str(item[1])))
+                            for item in raw_intervals
+                            if isinstance(item, (list, tuple)) and len(item) == 2
                         )
-                        return self._json(200, {"contract_version": P6_CALENDAR_API_VERSION, "deleted": deleted})
+                        if len(intervals) != len(raw_intervals):
+                            raise ValueError("invalid intervals")
+                        return self._json(200, self._p6_calendar_api.revise_exception(
+                            scope, calendar_id, calendar_version, exception_date,
+                            mode=str(payload.get("mode", "")),
+                            total_work_hours=payload.get("total_work_hours"),
+                            intervals=intervals,
+                            expected_revision=expected_revision,
+                            auth_context=auth,
+                        ))
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/calendars"):
