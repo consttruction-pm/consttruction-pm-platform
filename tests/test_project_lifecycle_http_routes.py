@@ -179,6 +179,20 @@ class FakeP6CalendarAPI:
         self.calls.append(("delete_exception", scope, calendar_id, calendar_version, exception_date, auth_context))
         return True
 
+    def revise_exception(self, scope, calendar_id, calendar_version, exception_date, *, mode, total_work_hours, intervals, expected_revision, auth_context):
+        self.calls.append(("revise_exception", scope, calendar_id, calendar_version, exception_date, mode, total_work_hours, intervals, expected_revision, auth_context))
+        return {
+            "contract_version": "p6-calendar.v1",
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "date": exception_date.isoformat(),
+            "mode": mode,
+            "system": "gregorian",
+            "total_work_hours": total_work_hours,
+            "intervals": [],
+            "record_revision": expected_revision + 1,
+        }
+
     def save_work_hours(self, rule, *, auth_context):
         self.calls.append(("save_work_hours", rule, auth_context))
         return rule.canonical_snapshot()
@@ -358,6 +372,31 @@ def test_p6_calendar_http_copy_replace_exception_and_work_hours_contracts():
     assert api.calls[-1][0] == "delete_exception"
     assert api.calls[-1][4] == date(2026, 10, 1)
     assert api.calls[-1][5].project_id == "p1"
+
+    status, _, body = r.handle(
+        "PUT", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions/2026-10-01",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "mode": "total-work-hours", "total_work_hours": "6",
+            "intervals": [], "expected_revision": 2,
+        }).encode(),
+    )
+    assert status == 200
+    revised = json.loads(body)
+    assert revised["record_revision"] == 3
+    assert api.calls[-1][0] == "revise_exception"
+    assert api.calls[-1][4] == date(2026, 10, 1)
+    assert api.calls[-1][5] == "total-work-hours"
+    assert api.calls[-1][6] == "6"
+    assert api.calls[-1][8] == 2
+
+    status, _, body = r.handle(
+        "PUT", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions/2026-10-01",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"mode": "nonwork", "intervals": []}).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_CALENDAR_REQUEST_INVALID"
 
 
 class WorkspaceReadAPI:

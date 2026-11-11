@@ -10,9 +10,13 @@ from .calendar_exception_repository import CalendarException, CalendarExceptionR
 from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
 from .calendar_snapshot_repository import CalendarSnapshotRepository
 from .calendar_work_hours_repository import CalendarWorkHourRepository, CalendarWorkHourRule
+from .scheduling.calendar import WorkingCalendar
+from .scheduling.calendar_system import CalendarSystem
+from .scheduling.time_calendar import WorkingTimeCalendar
 
 P6_CALENDAR_API_VERSION = "p6-calendar.v1"
 P6_CALENDAR_TYPES = frozenset({"global", "resource", "project"})
+_CALENDAR_SYSTEMS = frozenset({"gregorian", "jalali"})
 
 
 class P6CalendarAPIError(ValueError):
@@ -30,6 +34,7 @@ class P6CalendarCreateRequest:
     expected_revision: int | None = None
     base_calendar_id: str | None = None
     base_calendar_version: str | None = None
+    system: str | None = None
 
     def validate(self) -> None:
         if self.contract_version != P6_CALENDAR_API_VERSION:
@@ -40,6 +45,8 @@ class P6CalendarCreateRequest:
             isinstance(self.expected_revision, bool) or self.expected_revision < 0
         ):
             raise P6CalendarAPIError("INVALID_EXPECTED_REVISION")
+        if self.system is not None and self.system not in _CALENDAR_SYSTEMS:
+            raise P6CalendarAPIError("INVALID_CALENDAR_SYSTEM")
 
 
 @dataclass(frozen=True)
@@ -87,6 +94,10 @@ class P6CalendarAPI:
             calendar_type=request.calendar_type,
         )
         if base is None:
+            if request.system is not None:
+                # A date system belongs to a calendar definition. Creating a
+                # bare master without a definition cannot honour the choice.
+                raise P6CalendarAPIError("CALENDAR_SYSTEM_REQUIRES_BASE_DEFINITION")
             return self._calendar_dto(self.calendar_repository.save(calendar, request.expected_revision))
         # A new calendar must be resolvable immediately. When a base is chosen
         # the stored definition, work-hour rules and exceptions are copied in
@@ -94,7 +105,7 @@ class P6CalendarAPI:
         # a master without a snapshot.
         with self._transaction():
             stored = self.calendar_repository.save(calendar, request.expected_revision)
-            self._copy_calendar_facts(scope, stored, base)
+            self._copy_calendar_facts(scope, stored, base, system=request.system)
         return self._calendar_dto(stored)
 
     def update(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
@@ -108,6 +119,12 @@ class P6CalendarAPI:
         existing_snapshot = self.snapshot_repository.get(existing)
         if existing_snapshot is not None and existing_snapshot.kind != request.kind:
             raise P6CalendarAPIError("CALENDAR_SNAPSHOT_KIND_CONFLICT")
+        if request.system is not None and existing_snapshot is not None:
+            stored_system = str(existing_snapshot.snapshot.get("system", "gregorian"))
+            if stored_system != request.system:
+                # The date system changes how typed dates are interpreted, so a
+                # stored definition cannot silently switch it during a rename.
+                raise P6CalendarAPIError("CALENDAR_SYSTEM_IMMUTABLE")
         calendar = CalendarMaster(
             scope=scope,
             calendar_id=request.calendar_id,
@@ -189,23 +206,74 @@ class P6CalendarAPI:
     def save_exception(self, exception: CalendarException, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(exception.scope, auth_context, Permission.PROJECT_WRITE)
         stored = self.exception_repository.save(exception)
-        return stored.canonical_snapshot()
+        return _exception_dto(stored)
+
+    def revise_exception(
+        self,
+        scope: BackendScope,
+        calendar_id: str,
+        calendar_version: str,
+        exception_date: Any,
+        *,
+        mode: str,
+        total_work_hours: Any,
+        intervals: tuple[tuple[Any, Any], ...],
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Edit one stored exception behind its record revision.
+
+        The system is taken from the stored row: a Jalali calendar keeps Jalali
+        entry semantics, while the canonical date stays ISO Gregorian.
+        """
+        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise P6CalendarAPIError("EXPECTED_EXCEPTION_REVISION_REQUIRED")
+        existing = self.exception_repository.get(scope, calendar_id, calendar_version, exception_date)
+        if existing is None:
+            raise CalendarPersistenceError("EXCEPTION_NOT_FOUND")
+        revised = CalendarException(
+            scope, calendar_id, calendar_version, existing.exception_date, mode,
+            total_work_hours, intervals, existing.system,
+        )
+        stored = self.exception_repository.revise(revised, expected_revision=expected_revision)
+        return _exception_dto(stored)
 
     def list_exceptions(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, auth_context: AuthorizationContext) -> tuple[dict[str, Any], ...]:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
-        return tuple(item.canonical_snapshot() for item in self.exception_repository.list(scope, calendar_id, calendar_version))
+        return tuple(_exception_dto(item) for item in self.exception_repository.list(scope, calendar_id, calendar_version))
 
 
-    def _copy_calendar_facts(self, scope: BackendScope, target: CalendarMaster, source: CalendarMaster) -> None:
+    def _copy_calendar_facts(self, scope: BackendScope, target: CalendarMaster, source: CalendarMaster, *, system: str | None = None) -> None:
         """Copy the stored definition, exceptions and work-hour rules to a new master.
 
         Callers validate the source and open a transaction first, so a partially
-        copied calendar is never committed.
+        copied calendar is never committed. ``system`` switches the copied
+        definition's date system (Gregorian/Jalali); the stored exception dates
+        stay canonical ISO dates and only their entry/display interpretation
+        changes.
         """
         snapshot = self.snapshot_repository.get(source)
         if snapshot is None:
             raise CalendarPersistenceError("SOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
-        self.snapshot_repository.save(target, _definition_from_snapshot(snapshot.snapshot, source.kind))
+        definition = _definition_from_snapshot(snapshot.snapshot, source.kind)
+        if system is not None:
+            requested = CalendarSystem(system)
+            if definition.system is not requested:
+                if isinstance(definition, WorkingTimeCalendar):
+                    definition = WorkingTimeCalendar(
+                        working_weekdays=definition.working_weekdays,
+                        holidays=definition.holidays,
+                        daily_intervals=definition.daily_intervals,
+                        system=requested,
+                    )
+                else:
+                    definition = WorkingCalendar(
+                        working_weekdays=definition.working_weekdays,
+                        holidays=definition.holidays,
+                        system=requested,
+                    )
+        self.snapshot_repository.save(target, definition)
         for exception in self.exception_repository.list(scope, source.calendar_id, source.calendar_version):
             self.exception_repository.save(CalendarException(
                 scope, target.calendar_id, target.calendar_version, exception.exception_date,
@@ -321,6 +389,13 @@ class P6CalendarAPI:
         if scope.tenant_id != auth_context.tenant_id or scope.project_id != auth_context.project_id:
             raise AuthorizationError("CROSS_SCOPE_ACCESS")
         self.authorization_policy.require(auth_context, permission)
+
+
+def _exception_dto(exception: CalendarException) -> dict[str, Any]:
+    """Stored exception payload plus its record revision for guarded edits."""
+    payload = exception.canonical_snapshot()
+    payload["record_revision"] = exception.record_revision
+    return payload
 
 
 def _definition_from_snapshot(snapshot: dict[str, object], kind: str) -> Any:

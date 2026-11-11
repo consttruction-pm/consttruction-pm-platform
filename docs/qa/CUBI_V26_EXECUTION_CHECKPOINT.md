@@ -926,3 +926,109 @@ Changed files: `apps/web/src/workspace-calendars.ts`,
 `src/construction_pm/p6_versioned_resource_calendar_resolver.py`,
 `src/construction_pm/preview/runtime.py`, `tests/test_p6_calendar_api.py`,
 `tests/test_preview_calendar_exceptions.py`.
+
+---
+
+## Stage D3b — Jalali calendar system and revision-guarded exception editing
+
+Status: **code complete and verified on the exact head `418425d3`; evidence committed as
+`8e65ca20`; PR open, merge pending.** Branch `feat/v26-stage-d3b-calendar-jalali`, created from
+`main` @ `f3b90e0e`.
+
+Help topics used: the Version 26 Calendars sections on the Gregorian/Jalali date system, typed
+calendar dates, exceptions and holidays, and editing stored exception facts. The attached 815-page
+PDF has no extractable text in this environment, so topic filenames and printed page numbers are
+recorded as `VERIFY` rather than guessed.
+
+### What shipped
+
+1. **Date system on creation**: `POST .../p6/calendars` accepts `system` (`gregorian`|`jalali`,
+   validated; anything else returns `INVALID_CALENDAR_SYSTEM`). Create-from-base applies the
+   requested system to the copied definition while preserving the base weekdays, holidays,
+   exceptions and work-hour rules; a system choice without a base definition is rejected with
+   `CALENDAR_SYSTEM_REQUIRES_BASE_DEFINITION` because there is no definition to carry it.
+2. **Immutable system on edit**: `PATCH` rejects a system change with `CALENDAR_SYSTEM_IMMUTABLE`;
+   renaming a calendar cannot silently reinterpret previously typed dates.
+3. **Jalali exception entry and display**: a Jalali calendar renders the exception date input as
+   Jalali text (`1405/10/01`), converts it locally with the shared `parseJalaliDateInput` and
+   stores the canonical ISO date (`2026-12-22`). The stored row is displayed as the Jalali date
+   with the ISO date beside it, so entry and display agree without shifting the date.
+4. **Revision-guarded exception editing**: stored exceptions remain immutable through a plain
+   save; editing uses a separate `PUT .../exceptions/{date}` with `expected_revision`. The
+   repository updates the row and raises `record_revision` (1 → 2 in evidence); a stale revision
+   returns `EXCEPTION_REVISION_CONFLICT`, a missing row `EXCEPTION_NOT_FOUND`, and an invalid
+   expected revision `EXPECTED_EXCEPTION_REVISION_REQUIRED`. The response and list DTOs now carry
+   `record_revision`.
+5. **Real UI edit path**: exception rows have an Edit action that loads the stored mode, hours or
+   interval into the form, locks the date, saves through the PUT and shows the new revision
+   (`r2` in evidence); Remove and Add keep their existing paths.
+6. **Browser evidence**: five scenarios drive the real window: create a Jalali calendar from the
+   stored base, add an exception typed in Jalali, edit it to total work hours with the record
+   revision, reload the page and confirm persistence, and render at 1280×720.
+
+### Defects found while building the evidence and fixed
+
+- The harness first queried a schedule-panel holiday list instead of the calendar window's own
+  list; the selector is now scoped to the Calendars exceptions panel.
+- The first harness exit called a close method that the shared launcher does not expose; it now
+  stops the launched Chrome through the supported `stop()` API, so a scenario failure reports
+  its real assertion instead of a teardown error.
+- The exception date control was a Gregorian `type=date` input even for Jalali calendars, so a
+  Jalali date could not actually be typed. It is now a Jalali text control for Jalali definitions.
+
+### Honest limits (definite, not planned)
+
+- The Jalali choice changes entry and display; storage and scheduling stay canonical Gregorian.
+  There is no Jalali-formatted read of activity dates in this window and no Hijri or other
+  calendar system.
+- Exception editing supports one detailed interval per exception (the form's existing shape);
+  multiple intervals and recurring exceptions remain unsupported.
+- The preview's day-based CPM still consumes the working-day flag, not per-day hours/split-shift
+  capacity; dated detailed and total-hours work-hour rules fail closed.
+- No calendar delete/replace from the window beyond the existing toolbar actions, no scoped
+  assignment editor from Project Details/Resources, and no Postgres mirror for the new exception
+  revision path.
+- Calendar labels and notices are inline English/Persian; nine-locale catalogs are pending.
+- Provider-specific product names are not shown in the UI or Help text.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Unit/integration | `cd apps/web && npm test` | 773 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Calendars web suite | `workspace-calendars.test.ts` | 16 tests: Jalali system payload, invalid system, revision PUT payload and stale guard, plus the D3a parser/create/update coverage |
+| Backend calendar suites | `pytest tests/test_p6_calendar_api.py tests/test_project_lifecycle_http_routes.py tests/test_calendar_exception_repository.py` | 131 passed |
+| Full Python suite | `pytest tests` | 3353 passed, 139 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Jalali scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4184 CUBI_TESTED_CODE_SHA=418425d3 node e2e/calendars-jalali-v26.mjs` | 5/5 scenarios pass, 5 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 05 of the same suite | register, Jalali exception panel and shared pane fit; shared bottom pane collapsed |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/calendars-jalali-v26-2026-11-12/` | `calendars-jalali-v26.json` + 5 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `418425d3065171ab0131a555aaf7e47585dbcf03` |
+| Evidence commit | `8e65ca20ca3c2354b548be9fb5aa8358f6a40806` |
+| Branch head at merge | pending |
+| PR | pending |
+| Merge commit | pending |
+| Post-merge CI | pending |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
+scenarios ran on `418425d3`, and the screenshots plus report were committed afterwards as
+`8e65ca20`.
+
+### Next stage
+
+Scoped calendar assignments (project and resource selectors from stored calendars), multi-view
+calendar rendering and recurring exceptions, then Stages E–G.
+
+Changed files: `apps/web/src/client.ts`, `apps/web/src/workspace-calendars.ts`,
+`apps/web/src/workspace-calendars.test.ts`, `apps/web/e2e/calendars-jalali-v26.mjs`,
+`src/construction_pm/calendar_exception_repository.py`,
+`src/construction_pm/p6_calendar_api.py`,
+`src/construction_pm/http/project_lifecycle_routes.py`, `tests/test_p6_calendar_api.py`,
+`tests/test_project_lifecycle_http_routes.py`.
