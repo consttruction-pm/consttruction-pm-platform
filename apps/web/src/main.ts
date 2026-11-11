@@ -71,6 +71,17 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
 import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
+import {
+  LAYOUT_SELECTION_STORAGE_PREFIX,
+  layoutDisplayName,
+  loadLayoutCatalog,
+  mountWorkspaceLayoutSelector,
+  parseLayoutSelections,
+  readLayoutSelection,
+  writeLayoutSelection,
+  type LayoutSelection,
+  type StoredLayoutScope,
+} from "./workspace-layout-selector.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
 import { mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
@@ -249,6 +260,50 @@ function presentationMetadata(layout: LayoutDefinition): LayoutDefinition {
       presentationUpdatedAt: visualPreferences.updatedAt,
     },
   };
+}
+
+/**
+ * Activities layout selection.
+ *
+ * The window shows one stored layout at a time. Choosing another one previews
+ * it in place; nothing is written until Save, and Cancel puts the previous
+ * stored definition back. The selection itself is a per-user preference keyed
+ * by project, which is how a reload returns to the layout the user last used.
+ */
+let layoutPreviewBase: LayoutDefinition | null = null;
+let layoutPreviewScope: StoredLayoutScope | null = null;
+let layoutPreviewContextKey: string | null = null;
+
+function layoutSelectionStorageKey(): string | null {
+  return activeWorkspaceUserId ? `${LAYOUT_SELECTION_STORAGE_PREFIX}:${activeWorkspaceUserId}` : null;
+}
+
+function readStoredLayoutSelection(context: ProjectContext): LayoutSelection | null {
+  const key = layoutSelectionStorageKey();
+  if (!key) return null;
+  try {
+    return readLayoutSelection(parseLayoutSelections(window.localStorage.getItem(key)), context.tenant_id, context.project_id);
+  } catch {
+    return null;
+  }
+}
+
+function rememberStoredLayoutSelection(context: ProjectContext, layout: LayoutDefinition): void {
+  const key = layoutSelectionStorageKey();
+  if (!key) return;
+  try {
+    const store = parseLayoutSelections(window.localStorage.getItem(key));
+    window.localStorage.setItem(
+      key,
+      writeLayoutSelection(store, context.tenant_id, context.project_id, {
+        scope: layout.scope === "user" ? "user" : "project",
+        viewId: layout.view_id,
+        revision: layout.revision,
+      }),
+    );
+  } catch {
+    // A browser that refuses storage simply keeps the layout for this render.
+  }
 }
 
 function getOpenWindows(): WorkspaceMenuKey[] {
@@ -1229,7 +1284,7 @@ function renderApp(
     baseline: "—",
     user: "—",
     database: t("Preview", "پیش‌نمایش"),
-    layout: t("CUBI Classic Schedule Layout", "چیدمان کلاسیک زمان‌بندی CUBI"),
+    layout: layoutDisplayName(state.p6Layout, state.locale),
     filter: state.activityFilter.trim() || t("All Activities", "همهٔ فعالیت‌ها"),
   };
   const chromeLayout = {
@@ -1491,7 +1546,89 @@ function renderApp(
         presentationUpdatedAt: visualPreferences.updatedAt,
       },
     };
-    await commitLayout(setP6Presentation(state, state.p6FieldRegistry, bumped));
+    const saved = await commitLayout(setP6Presentation(state, state.p6FieldRegistry, bumped));
+    if (saved) {
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(state.context, saved);
+    }
+  };
+
+  /**
+   * Save As copies the current columns and presentation into the user layout
+   * scope under a new name, so the project layout is never overwritten. It is a
+   * real write: the server assigns the next revision. The store keys layouts by
+   * project and scope, so "user" names the scope, not a per-user partition.
+   */
+  const saveLayoutAs = async (name: string): Promise<void> => {
+    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+    const registry = currentWorkspaceState?.p6FieldRegistry ?? state.p6FieldRegistry;
+    if (!base || !registry) return;
+    const targetScope: StoredLayoutScope = "user";
+    try {
+      const catalog = await loadLayoutCatalog(aiTransport, state.context, base.view_id);
+      const existing = catalog[targetScope];
+      const saved = await persistence.save({
+        schema_version: base.schema_version,
+        scope: targetScope,
+        view_id: base.view_id,
+        revision: existing ? existing.revision + 1 : 0,
+        columns: base.columns,
+        metadata: {
+          ...(base.metadata ?? {}),
+          layoutName: name,
+          presentation: visualPreferences.presentation,
+          presentationUpdatedAt: visualPreferences.updatedAt,
+        },
+      });
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(state.context, saved);
+      const latest = currentWorkspaceState ?? state;
+      renderApp(container, setP6Presentation(latest, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const reloadStoredLayout = async (scope: StoredLayoutScope): Promise<void> => {
+    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+    const registry = currentWorkspaceState?.p6FieldRegistry ?? state.p6FieldRegistry;
+    if (!base || !registry) return;
+    try {
+      const layout = await persistence.load(scope, base.view_id);
+      if (!layout) return;
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(state.context, layout);
+      renderApp(container, setP6Presentation(currentWorkspaceState ?? state, registry, layout), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  /**
+   * A stored user-layout selection survives a reload and a project switch. The
+   * project layout loads first, so this read restores the user layout without
+   * a second stored pointer on the server. An open preview owns the window,
+   * and a layout that is already the user layout needs no second render, so
+   * neither case can loop.
+   */
+  const restoreStoredLayoutSelection = (): void => {
+    if (!activeWorkspaceUserId) return;
+    if (layoutPreviewScope !== null) return;
+    const selection = readStoredLayoutSelection(state.context);
+    if (!selection || selection.scope !== "user" || selection.viewId !== "activity") return;
+    if (state.p6Layout?.scope === "user") return;
+    void persistence.load("user", selection.viewId).then((layout) => {
+      const latest = currentWorkspaceState;
+      if (!layout || !latest || !latest.p6FieldRegistry) return;
+      if (latest.context.project_id !== state.context.project_id) return;
+      renderApp(container, setP6Presentation(latest, latest.p6FieldRegistry, layout), persistence);
+    }).catch((error: unknown) => console.error("Stored layout selection could not be restored", error));
   };
 
   const mutateLayout = (mutate: () => WorkspaceState): void => {
@@ -2145,6 +2282,64 @@ function renderApp(
       context: state.context,
       locale: state.locale,
     });
+  }
+
+  // A layout preview belongs to the project it was opened in. Switching project
+  // must not carry the preview (or its Cancel target) into the new workspace.
+  const layoutContextKey = `${state.context.tenant_id}:${state.context.project_id}`;
+  if (layoutPreviewContextKey && layoutPreviewContextKey !== layoutContextKey) {
+    layoutPreviewBase = null;
+    layoutPreviewScope = null;
+    layoutPreviewContextKey = null;
+  }
+  const layoutSelectorHost = workspace.querySelector<HTMLElement>("[data-layout-selector-host]");
+  if (layoutSelectorHost && state.activeMenu === "schedule") {
+    mountWorkspaceLayoutSelector(layoutSelectorHost, {
+      locale: state.locale,
+      current: state.p6Layout,
+      previewScope: layoutPreviewScope,
+      // The default policy grants layout writes (PROJECT_WRITE) to these roles
+      // and to none else, so the control mirrors the server gate.
+      canSave: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      loadCatalog: () => loadLayoutCatalog(aiTransport, state.context, "activity"),
+      onPreview: (entry) => {
+        if (!state.p6FieldRegistry) return;
+        if (!layoutPreviewBase) {
+          layoutPreviewBase = state.p6Layout;
+          layoutPreviewContextKey = layoutContextKey;
+        }
+        layoutPreviewScope = entry.scope;
+        renderApp(container, setP6Presentation(state, state.p6FieldRegistry, entry.layout), persistence);
+      },
+      onApply: () => {
+        if (state.p6Layout) rememberStoredLayoutSelection(state.context, state.p6Layout);
+        layoutPreviewBase = null;
+        layoutPreviewScope = null;
+        layoutPreviewContextKey = null;
+        renderApp(container, state, persistence);
+      },
+      onCancel: () => {
+        const base = layoutPreviewBase;
+        layoutPreviewBase = null;
+        layoutPreviewScope = null;
+        layoutPreviewContextKey = null;
+        if (base && state.p6FieldRegistry) {
+          renderApp(container, setP6Presentation(state, state.p6FieldRegistry, base), persistence);
+        } else {
+          renderApp(container, state, persistence);
+        }
+      },
+      onSave: () => {
+        void saveCurrentLayout();
+      },
+      onSaveAs: (name) => {
+        void saveLayoutAs(name);
+      },
+      onReload: (scope) => {
+        void reloadStoredLayout(scope);
+      },
+    });
+    restoreStoredLayoutSelection();
   }
 
   const assignmentsPage = workspace.querySelector<HTMLElement>("[data-assignments-page]");

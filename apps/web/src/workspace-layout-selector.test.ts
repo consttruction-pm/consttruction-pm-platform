@@ -1,0 +1,216 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
+import {
+  LAYOUT_SELECTION_STORAGE_PREFIX,
+  layoutCatalogEntries,
+  layoutDisplayName,
+  layoutScopeLabel,
+  loadLayoutCatalog,
+  parseLayoutSelections,
+  readLayoutSelection,
+  renderLayoutSelectorMarkup,
+  writeLayoutSelection,
+} from "./workspace-layout-selector.js";
+
+const context: ProjectContext = { tenant_id: "tenant-a", project_id: "project-a" } as ProjectContext;
+
+function layout(scope: LayoutDefinition["scope"], revision: number, name?: string): LayoutDefinition {
+  return {
+    schema_version: "p6-layout.v1",
+    scope,
+    view_id: "activity",
+    revision,
+    columns: [
+      { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+    ],
+    ...(name ? { metadata: { layoutName: name } } : {}),
+  };
+}
+
+function transportReturning(values: Record<string, LayoutDefinition | null | "error">): ApiTransport {
+  return {
+    async get<T>(path: string): Promise<ApiResult<T>> {
+      const scope = path.includes("/layouts/user/") ? "user" : "project";
+      const value = values[scope];
+      if (value === "error") {
+        return { ok: false, error: { code: "P6_LAYOUT_READ_FAILED", message: "boom" } } as unknown as ApiResult<T>;
+      }
+      if (value == null) {
+        return { ok: false, error: { code: "P6_LAYOUT_NOT_FOUND", message: "missing" } } as unknown as ApiResult<T>;
+      }
+      return { ok: true, data: value as unknown as T };
+    },
+    async post(): Promise<ApiResult<never>> {
+      throw new Error("read-only test transport");
+    },
+  };
+}
+
+describe("layout display naming", () => {
+  it("uses the stored layout name and never invents one", () => {
+    assert.equal(layoutDisplayName(layout("project", 3, "Classic Schedule Layout"), "en"), "Classic Schedule Layout");
+    assert.equal(layoutDisplayName(layout("project", 3, "   "), "en"), layoutScopeLabel("project", "en"));
+    assert.equal(layoutDisplayName(layout("user", 1), "en"), "User layout");
+    assert.equal(layoutDisplayName(null, "fa"), "بدون چیدمان");
+  });
+
+  it("labels scopes in both interface languages", () => {
+    assert.equal(layoutScopeLabel("project", "en"), "Project layout");
+    assert.equal(layoutScopeLabel("user", "fa"), "چیدمان کاربر");
+  });
+});
+
+describe("layout catalogue", () => {
+  it("lists only stored scopes in project then user order", () => {
+    const entries = layoutCatalogEntries(
+      { project: layout("project", 4, "Classic Schedule Layout"), user: layout("user", 2, "My columns") },
+      "en",
+    );
+    assert.deepEqual(
+      entries.map((entry) => [entry.scope, entry.name, entry.revision]),
+      [
+        ["project", "Classic Schedule Layout", 4],
+        ["user", "My columns", 2],
+      ],
+    );
+  });
+
+  it("omits a scope that has no stored layout instead of faking one", () => {
+    const entries = layoutCatalogEntries({ project: null, user: layout("user", 1) }, "en");
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].scope, "user");
+  });
+
+  it("drops a stored layout whose scope does not match its slot", () => {
+    const entries = layoutCatalogEntries({ project: layout("user", 1), user: null }, "en");
+    assert.deepEqual(entries, []);
+  });
+
+  it("loads both scopes from the layout contract and maps not-found to null", async () => {
+    const catalog = await loadLayoutCatalog(
+      transportReturning({ project: layout("project", 5, "Classic Schedule Layout"), user: null }),
+      context,
+      "activity",
+    );
+    assert.equal(catalog.project?.revision, 5);
+    assert.equal(catalog.user, null);
+  });
+
+  it("surfaces a read failure instead of pretending the catalogue is empty", async () => {
+    await assert.rejects(
+      () => loadLayoutCatalog(transportReturning({ project: "error", user: null }), context, "activity"),
+      /P6_LAYOUT_READ_FAILED/,
+    );
+  });
+});
+
+describe("layout selection storage", () => {
+  it("keeps one selection per tenant and project", () => {
+    const empty = parseLayoutSelections(null);
+    const first = writeLayoutSelection(empty, "tenant-a", "project-a", {
+      scope: "user",
+      viewId: "activity",
+      revision: 2,
+    });
+    const second = writeLayoutSelection(parseLayoutSelections(first), "tenant-a", "project-b", {
+      scope: "project",
+      viewId: "activity",
+      revision: 7,
+    });
+    const store = parseLayoutSelections(second);
+    assert.deepEqual(readLayoutSelection(store, "tenant-a", "project-a"), {
+      scope: "user",
+      viewId: "activity",
+      revision: 2,
+    });
+    assert.deepEqual(readLayoutSelection(store, "tenant-a", "project-b"), {
+      scope: "project",
+      viewId: "activity",
+      revision: 7,
+    });
+    assert.equal(readLayoutSelection(store, "tenant-a", "project-c"), null);
+  });
+
+  it("ignores malformed or out-of-contract entries", () => {
+    assert.deepEqual(parseLayoutSelections("not json"), {});
+    assert.deepEqual(parseLayoutSelections("[]"), {});
+    const store = parseLayoutSelections(
+      JSON.stringify({
+        "t:p": { scope: "global", viewId: "activity", revision: 1 },
+        "t:q": { scope: "project", viewId: "", revision: 1 },
+        "t:r": { scope: "project", viewId: "activity", revision: -2 },
+        "t:s": { scope: "project", viewId: "activity", revision: 3 },
+      }),
+    );
+    assert.deepEqual(Object.keys(store), ["t:s"]);
+  });
+
+  it("is namespaced so unrelated workspace state cannot collide", () => {
+    assert.equal(LAYOUT_SELECTION_STORAGE_PREFIX, "cubi:workspace-layout-selection");
+  });
+});
+
+describe("layout selector markup", () => {
+  const base = {
+    locale: "en",
+    current: layout("project", 4, "Classic Schedule Layout"),
+    previewScope: null,
+    canSave: true,
+    entries: [
+      {
+        scope: "project" as const,
+        layout: layout("project", 4, "Classic Schedule Layout"),
+        name: "Classic Schedule Layout",
+        revision: 4,
+      },
+    ],
+    loaded: true,
+    error: null,
+  };
+
+  it("shows the stored layout name and revision in the trigger", () => {
+    const markup = renderLayoutSelectorMarkup(base);
+    assert.match(markup, /data-layout-trigger/);
+    assert.match(markup, /Classic Schedule Layout/);
+    assert.match(markup, /Project layout · r4/);
+  });
+
+  it("offers only the stored entries as menu options", () => {
+    const markup = renderLayoutSelectorMarkup(base);
+    assert.equal((markup.match(/data-layout-option=/g) ?? []).length, 1);
+    assert.match(markup, /role="menuitemradio"/);
+    assert.doesNotMatch(markup, /No stored layout is available/);
+  });
+
+  it("states the loading and empty states honestly", () => {
+    const loading = renderLayoutSelectorMarkup({ ...base, entries: [], loaded: false });
+    assert.match(loading, /Reading stored layouts/);
+    assert.equal((loading.match(/data-layout-option=/g) ?? []).length, 0);
+    const empty = renderLayoutSelectorMarkup({ ...base, entries: [], loaded: true });
+    assert.match(empty, /No stored layout is available for this project/);
+  });
+
+  it("disables Apply and Cancel until a preview exists", () => {
+    const markup = renderLayoutSelectorMarkup(base);
+    assert.match(markup, /data-layout-action="apply" disabled/);
+    assert.match(markup, /data-layout-action="cancel" disabled/);
+    const previewing = renderLayoutSelectorMarkup({ ...base, previewScope: "user" });
+    assert.match(previewing, /data-layout-action="apply"\s+title=/);
+    assert.match(previewing, /data-layout-action="cancel"\s+title=/);
+    assert.match(previewing, /Preview — not saved/);
+  });
+
+  it("disables saving with a stated reason when the role cannot write", () => {
+    const markup = renderLayoutSelectorMarkup({ ...base, canSave: false });
+    assert.match(markup, /data-layout-action="save" disabled/);
+    assert.match(markup, /Your role cannot save layouts/);
+  });
+
+  it("never claims a layout switch mutates schedule data", () => {
+    const markup = renderLayoutSelectorMarkup(base);
+    assert.match(markup, /Switching never changes activities, relationships, WBS or dates/);
+    assert.doesNotMatch(markup, /Oracle|Primavera|P6/);
+  });
+});

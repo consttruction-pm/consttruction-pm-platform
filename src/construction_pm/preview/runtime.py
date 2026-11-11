@@ -478,6 +478,7 @@ def seed_presentation(repositories: PreviewRepositories, scope: BackendScope) ->
             metadata={
                 "source": "cubi-local-preview",
                 "seed_version": PREVIEW_SEED_VERSION,
+                "layoutName": "Classic Schedule Layout",
             },
         )
     )
