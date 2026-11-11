@@ -1,0 +1,64 @@
+{
+  "contract": "cubi-calendars-jalali-v26.v1",
+  "baseUrl": "http://127.0.0.1:4184",
+  "gitHead": "418425d3065171ab0131a555aaf7e47585dbcf03",
+  "testedCodeSha": "418425d3065171ab0131a555aaf7e47585dbcf03",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T23:07:53.779Z",
+  "newCalendarId": "RPS-E2E-JAL-MWCQC2YI",
+  "jalaliDate": "1405/10/01",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "ایجاد تقویم با مبنای تاریخ جلالی از تقویم پایه",
+      "status": "pass",
+      "at": "2026-11-11T23:07:59.877Z",
+      "revision": 1,
+      "system": "jalali"
+    },
+    {
+      "id": "02",
+      "name": "ثبت استثنا با تاریخ جلالی و ذخیرهٔ تاریخ ISO معیار",
+      "status": "pass",
+      "at": "2026-11-11T23:08:01.699Z",
+      "storedDate": "2026-12-22",
+      "label": "1405/10/01 (2026-12-22)nonwork · r1EditRemove"
+    },
+    {
+      "id": "03",
+      "name": "ویرایش استثنا با revision رکورد و تغییر به ساعت کل",
+      "status": "pass",
+      "at": "2026-11-11T23:08:02.473Z",
+      "mode": "total-work-hours",
+      "hours": "6",
+      "revision": 2
+    },
+    {
+      "id": "04",
+      "name": "ویرایش و تاریخ جلالی پس از بارگذاری کامل صفحه باقی می‌مانند",
+      "status": "pass",
+      "at": "2026-11-11T23:08:06.348Z",
+      "storedDate": "2026-12-22",
+      "revision": 2
+    },
+    {
+      "id": "05",
+      "name": "پنجرهٔ Jalali در 1280×720 بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-11T23:08:06.963Z",
+      "overflow": 0,
+      "registerWidth": 348.09375,
+      "editorWidth": 821.90625
+    }
+  ],
+  "screenshots": [
+    "01-jalali-calendar-created.png",
+    "02-jalali-exception-saved.png",
+    "03-jalali-exception-revised.png",
+    "04-jalali-persisted.png",
+    "05-jalali-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}
