@@ -4,8 +4,9 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `71ca85cf` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`).
+Branch: `main` @ `9cfd4813` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
+Stage D2a as `9cfd4813`).
 
 ---
 
@@ -434,12 +435,18 @@ remaining Activities Details/Gantt/Network/Trace Logic/WBS slices and Stages Eâ€
 
 ## Stage D2a â€” Authoritative Resource Master, hierarchy and revision-guarded editor
 
-Status: **in review**. Independent PR
+Status: **merged**. Independent PR
 [#1745](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1745), branch
-`codex/jalal/cubi-v26-stage-d2-20261111`, based on `main` @ `71ca85cf`. This is the first slice of
-macro Stage D2: the Resources window now reads and writes an authoritative stored resource master
-instead of aggregating assignment, capacity and rate facts only. Resource Assignments grouping,
-Role management and full Calendar management remain open.
+`codex/jalal/cubi-v26-stage-d2-20261111`, squash-merged into `main` as `9cfd4813` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T09:04:31Z`,
+`merge_commit_sha=9cfd4813e14d8713a7848d27b95aa998d14aaae5`, main ref at that SHA, 31 changed
+files). The PR was created from `main` @ `5df9c0a5` and every required check was green on the
+exact head `c82f8e43` before the merge. Post-merge CI on `9cfd4813`: all 11 checks succeeded
+(deploy, web, test 3.11/3.12/3.13, build, typecheck apps/web, apps/desktop, apps/client-sync,
+apps/mobile, postgres-sync). This is the first slice of macro Stage D2: the Resources window now
+reads and writes an authoritative stored resource master instead of aggregating assignment,
+capacity and rate facts only. Resource Assignments grouping, Role management and full Calendar
+management remain open.
 
 Help topics used: the Version 26 Resources window sections on resource types (labor, non-labor,
 material), resource hierarchy, adding and editing a resource, the General/Capacity/Rates/
@@ -528,7 +535,9 @@ Recorded provenance (two independent facts):
 | Evidence commit | `825981fe384d38566b57b7759796130b64a51f68` |
 | Code commit | `37748b7a81a1e132a91555b420a84192286597aa` |
 | Harness timing fix | `4c3d034813a6019e21f9604f428b1ee2025327f0` |
-| Branch head at merge | pending PR #1745 |
+| Branch head at merge | `c82f8e436dd4e276165f647c3738d14404e30345`, squash-merged as `9cfd4813` |
+| Merge commit | `9cfd4813e14d8713a7848d27b95aa998d14aaae5` |
+| Post-merge CI | 11/11 checks success on `9cfd4813` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
 ran on `4c3d0348`, and the screenshots plus report were committed afterwards as `825981fe`.
