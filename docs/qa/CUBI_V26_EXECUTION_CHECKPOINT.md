@@ -4,9 +4,9 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `cecce5fd` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`; Stage D1 on `codex/jalal/cubi-v26-stage-d-resources-20261110`;
-the Activities layout selector on `feat/activities-layout-selector-v26`).
+Branch: `main` @ `4d0b5783` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Stage C as `cb9cc002`, Stage D1 as `4d0b5783`; the Activities layout selector on
+`feat/activities-layout-selector-v26`).
 
 ---
 
@@ -339,10 +339,10 @@ Issues/Risks/Thresholds/Control/Administration, the six-skin integration pass an
 
 Status: **in review** (independent PR
 [#1743](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1743), branch
-`feat/activities-layout-selector-v26`, based on the Stage D1 head `3305aa8c` and therefore stacked
-on [#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742); the branch is
-synced with `main` once D1 merges so the diff is layout-only). Requirement implemented: the
-mandated Classic Schedule Layout dropdown at the top-left of Activities, above the table and Gantt.
+`feat/activities-layout-selector-v26`). Stage D1 ([#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742))
+merged into `main` as `4d0b5783` on 2026-11-11, and this branch is synced with that `main`, so the
+PR diff is layout-only. Requirement implemented: the mandated Classic Schedule Layout dropdown at
+the top-left of Activities, above the table and Gantt.
 
 Help topics used: `open_a_layout.htm`,
 `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
