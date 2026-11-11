@@ -349,3 +349,86 @@ def test_delete_rolls_back_calendar_children_when_repository_cleanup_fails(monke
 
     assert api.calendar_repository.get(_scope(), "CAL-DEL-ROLLBACK", "1") == stored
     assert api.snapshot_repository.get(stored) is not None
+
+
+def test_revise_work_week_creates_immutable_version_and_reconciles_weekly_rules():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-WEEK"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-WEEK", "1")
+    api.snapshot_repository.save(source, _definition())
+    api.save_exception(
+        CalendarException(_scope(), "CAL-WEEK", "1", date(2026, 4, 3), EXCEPTION_NONWORK, None, ()),
+        auth_context=_auth(),
+    )
+    for weekday in range(7):
+        api.save_work_hours(
+            CalendarWorkHourRule(
+                _scope(), "CAL-WEEK", "1", "standard_work_week",
+                weekday, weekday < 5, Decimal("8") if weekday < 5 else Decimal("0"), (),
+            ),
+            auth_context=_auth(),
+        )
+
+    revised = api.revise_work_week(
+        _scope(), "CAL-WEEK", "1", "2", (0, 1, 2, 3, 4, 5),
+        expected_revision=source.record_revision, auth_context=_auth(),
+    )
+
+    assert revised["calendar_version"] == "2"
+    assert revised["source_calendar_version"] == "1"
+    assert revised["working_weekdays"] == [0, 1, 2, 3, 4, 5]
+    original = api.snapshot_repository.get(source)
+    target = api.calendar_repository.get(_scope(), "CAL-WEEK", "2")
+    snapshot = api.snapshot_repository.get(target)
+    assert original.snapshot["working_weekdays"] == [0, 1, 2, 3, 4]
+    assert snapshot.snapshot["working_weekdays"] == [0, 1, 2, 3, 4, 5]
+    assert len(api.list_exceptions(_scope(), "CAL-WEEK", "1", auth_context=_auth())) == 1
+    assert len(api.list_exceptions(_scope(), "CAL-WEEK", "2", auth_context=_auth())) == 1
+    copied_week = api.list_work_hours(_scope(), "CAL-WEEK", "2", "standard_work_week", auth_context=_auth())
+    saturday = next(rule for rule in copied_week if rule["weekday"] == 5)
+    assert saturday["is_working_day"] is True
+    assert saturday["total_work_hours"] is None
+    sunday = next(rule for rule in copied_week if rule["weekday"] == 6)
+    assert sunday["is_working_day"] is False
+    assert sunday["total_work_hours"] == "0"
+
+
+def test_revise_work_week_fails_closed_for_invalid_or_stale_request():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-WEEK-INVALID"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-WEEK-INVALID", "1")
+    api.snapshot_repository.save(source, _definition())
+
+    with pytest.raises(ValueError, match="WORKING_WEEKDAYS_REQUIRED"):
+        api.revise_work_week(
+            _scope(), "CAL-WEEK-INVALID", "1", "2", (),
+            expected_revision=source.record_revision, auth_context=_auth(),
+        )
+    with pytest.raises(ValueError, match="INVALID_WORKING_WEEKDAY"):
+        api.revise_work_week(
+            _scope(), "CAL-WEEK-INVALID", "1", "2", (0, True),
+            expected_revision=source.record_revision, auth_context=_auth(),
+        )
+    with pytest.raises(ValueError, match="REVISION_CONFLICT"):
+        api.revise_work_week(
+            _scope(), "CAL-WEEK-INVALID", "1", "2", (0, 1, 2, 3, 4),
+            expected_revision=source.record_revision + 1, auth_context=_auth(),
+        )
+    assert api.calendar_repository.get(_scope(), "CAL-WEEK-INVALID", "2") is None
+
+
+def test_revise_work_week_requires_application_owned_transaction():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-WEEK-UNSAFE"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-WEEK-UNSAFE", "1")
+    api.snapshot_repository.save(source, _definition())
+    unsafe_api = P6CalendarAPI(
+        api.calendar_repository, api.snapshot_repository, api.exception_repository,
+        api.authorization_policy, api.work_hours_repository,
+    )
+    with pytest.raises(ValueError, match="TRANSACTION_MANAGER_REQUIRED"):
+        unsafe_api.revise_work_week(
+            _scope(), "CAL-WEEK-UNSAFE", "1", "2", (0, 1, 2, 3, 4),
+            expected_revision=source.record_revision, auth_context=_auth(),
+        )
+    assert api.calendar_repository.get(_scope(), "CAL-WEEK-UNSAFE", "2") is None
