@@ -4432,6 +4432,11 @@ async function main() {
     const mainBeforeFullscreen = await page.evaluate(
       `JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null)`,
     );
+    // Chrome denies a fullscreen request from an unfocused window with
+    // "TypeError: not granted" even under a trusted click, and this machine can
+    // keep other browser windows in front. Focus the test page first.
+    await page.cdp.send("Page.bringToFront");
+    await sleep(400);
     await page.realClick("[data-fullscreen-toggle]");
     await page.waitFor(`Boolean(document.fullscreenElement)`, "workspace enters full screen", 6000);
     // The fullscreen element appears before the toolbar reacts to the

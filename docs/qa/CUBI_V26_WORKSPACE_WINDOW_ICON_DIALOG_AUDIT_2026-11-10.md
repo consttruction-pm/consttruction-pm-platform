@@ -132,7 +132,31 @@ Help برای هر پنجره Layout/Display Options bar با نام Layout و F
 - وضعیت ذخیره/همگام‌سازی، revision و Data Date فقط از منبع واقعی بیاید؛
 - کنترل‌های Layout هر پنجره، گزینه‌های مجاز همان پنجره را ارائه کند و گزینهٔ متعلق به Activities بی‌دلیل به تمام پنجره‌ها تعمیم نیابد.
 
-**وضعیت:** ناقص؛ نیازمند آزمون پنجره به پنجره.
+**وضعیت:** ناقص؛ نیازمند آزمون پنجره به پنجره. استثنا: انتخاب‌کنندهٔ Layout پنجرهٔ Activities در 2026-11-11 با سرویس واقعی پیاده‌سازی و آزمون شد (بند 3.5.1)؛ سایر پنجره‌ها هنوز چنین کنترلی ندارند.
+
+### 3.5.1 انتخاب‌کنندهٔ Classic Schedule Layout در Activities (پیاده‌سازی‌شده)
+
+وضعیت: **WIRED_WRITE** — PR جداگانهٔ
+[#1743](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1743)، کد تحت آزمون
+`4a9ccc8b`، شاهد `490c6464`، گزارش کامل در `docs/qa/CUBI_V26_EXECUTION_CHECKPOINT.md` (Stage D1b).
+
+- کنترل واقعی بالای جدول/Gantt قرار دارد و نام، scope و revision را از سرویس
+  `GET /api/projects/:id/p6/layouts/{scope}/activity` می‌خواند؛ چیدمان seed‌شده
+  `Classic Schedule Layout` r1 است و scope غایب (404) به‌جای ساختن گزینهٔ ساختگی حذف می‌شود.
+- Preview/Apply/Cancel روی جدول و Gantt واقعی اثر می‌گذارد؛ Cancel چیدمان ذخیره‌شده را دقیقاً
+  بازمی‌گرداند. Save با revision guard می‌نویسد و `REVISION_CONFLICT` /
+  `IMMUTABLE_LAYOUT_REVISION` را پنهان نمی‌کند؛ Save As فقط در scope `user` می‌نویسد و چیدمان
+  مشترک پروژه را بازنویسی نمی‌کند. کنترل‌های نوشتن تابع مجوز `PROJECT_WRITE` سرور هستند.
+- انتخاب برای همان tenant/project ذخیره و پس از reload بازگردانده می‌شود؛ تغییر پروژه کاتالوگ
+  همان پروژه را می‌خواند و انتخاب قبلی نشت نمی‌کند.
+- تغییر چیدمان فقط ستون/عرض/نمایش را عوض می‌کند و فعالیت‌ها، روابط، WBS یا تاریخ‌ها را تغییر
+  نمی‌دهد؛ این نکته در تست واحد و E2E با مقایسهٔ rowId/عرض/فهرست ستون‌ها اثبات شده است.
+- محدودیت صادقانه: scope چیدمان با هویت کاربر یکی نیست (کلید جدول user id ندارد)، پس «User
+  layout» خصوصی نامیده نمی‌شود؛ این کنترل فقط در Activities وجود دارد و share/import/export،
+  reset-to-default و layout پنجره‌های Resource Assignments/Tracking هنوز غایب‌اند.
+- شاهد مرورگر: 9/9 سناریو (نمایش پیش‌فرض بالای جدول/Gantt، کاتالوگ واقعی، Save As،
+  preview/cancel، apply و restore پس از reload، افزایش revision بدون تغییر دادهٔ زمان‌بندی،
+  جداسازی دو پروژه، RTL، سه وضوح 1280×720/1366×768/1920×1080) و 11 اسکرین‌شات.
 
 ## 4. ماتریس پنجره به پنجره
 

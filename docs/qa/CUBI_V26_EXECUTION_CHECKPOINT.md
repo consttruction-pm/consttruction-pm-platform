@@ -4,8 +4,9 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `cb9cc002` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`; Stage D1 on `codex/jalal/cubi-v26-stage-d-resources-20261110`).
+Branch: `main` @ `4d0b5783` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Stage C as `cb9cc002`, Stage D1 as `4d0b5783`; the Activities layout selector on
+`feat/activities-layout-selector-v26`).
 
 ---
 
@@ -248,11 +249,14 @@ integration pass, and the final full matrix. Stage D starts from `main` @ `cb9cc
 
 ## Stage D1 — Resource read register and Calendar verification
 
-Status: **in review** (independent PR
+Status: **merged**. Independent PR
 [#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742), branch
-`codex/jalal/cubi-v26-stage-d-resources-20261110`, based on `main` @ `cecce5fd`). This is a
-partial slice of the macro Stage D: it completes the stored Resource read surface and verifies one
-calendar end to end. It does **not** complete the Resources or Calendars windows.
+`codex/jalal/cubi-v26-stage-d-resources-20261110`, squash-merged into `main` as `4d0b5783` on
+2026-11-11 (merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T05:13:57Z`).
+Post-merge CI on `4d0b5783`: test 3.11/3.12/3.13, typecheck apps/web, apps/mobile, apps/desktop,
+apps/client-sync, build and postgres-sync all succeeded. This is a partial slice of the macro
+Stage D: it completes the stored Resource read surface and verifies one calendar end to end. It
+does **not** complete the Resources or Calendars windows.
 
 Help topics used: `activities_window.htm`, `using_main_windows.htm`, `layout_toolbar.htm`,
 `open_a_layout.htm`, `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
@@ -315,7 +319,7 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `9023efb39c490a3d4c75940c77d0c2fc4963fb32` |
 | Evidence commit | `6f0d433b9c1edd7f07679abd85410de9616e31af` |
-| Branch head at merge | recorded in the follow-up commit once #1742 is squash-merged |
+| Branch head at merge | `3305aa8ceb8f4ee205e556a43e796c71475e5ab0`, squash-merged as `4d0b5783` |
 
 The stored report previously claimed `gitHead cecce5fd`, which was the base commit at capture time
 rather than the code that ran. The bundle now carries `testedCodeSha` and `evidenceCommitSha` as
@@ -331,3 +335,94 @@ the out-of-contract reuse — not a code change — explains that attempt.
 Stage D2 — Resource Master, Resource Assignments, Roles and full Calendar management, then
 Progress/Cost/Expenses, Documents/Reports/Tracking,
 Issues/Risks/Thresholds/Control/Administration, the six-skin integration pass and the final matrix.
+
+---
+
+## Stage D1b — Activities Classic Schedule Layout selector
+
+Status: **in review** (independent PR
+[#1743](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1743), branch
+`feat/activities-layout-selector-v26`). Stage D1 ([#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742))
+merged into `main` as `4d0b5783` on 2026-11-11, and this branch is synced with that `main`, so the
+PR diff is layout-only. Requirement implemented: the mandated Classic Schedule Layout dropdown at
+the top-left of Activities, above the table and Gantt.
+
+Help topics used: `open_a_layout.htm`,
+`save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
+`create_a_new_activity_layout.htm`, `layout_toolbar.htm`, `activities_window.htm`. Printed PDF
+pages are recorded as `VERIFY` where the page could not be matched in the attached 815-page PDF.
+
+### What shipped
+
+1. **A real selector row above the split** inside `.cp-p6-primary`, rendered by the workspace shell
+   and mounted from `main.ts`. It is not the static `chromeProject.layout` label, not the demo bar,
+   and not the View menu, skin selector, Show on Top/Bottom toggle, Layout Options dialog or
+   Timescale control; those keep their own meaning.
+2. **Catalogue read from the layout service**: both stored scopes (`project`, `user`) are read with
+   `createP6LayoutPersistence` against `GET /api/projects/:id/p6/layouts/{scope}/activity` and its
+   `revisions` route. The trigger shows the real name, scope label and revision the server returned;
+   the seeded project layout is `Classic Schedule Layout` r1. A scope that answers 404 is omitted
+   rather than replaced with a fabricated entry, and a read failure is reported as an error.
+3. **Preview, Apply and Cancel**: choosing a stored layout previews it in the real table and Gantt
+   and shows a visible preview badge. Cancel restores the saved layout exactly; Apply keeps the
+   preview in the window and records it as the selection for that tenant and project.
+4. **Save, Save As and Reload with real write semantics**: Save posts a new revision of the loaded
+   scope using the optimistic guard, surfacing `REVISION_CONFLICT` and
+   `IMMUTABLE_LAYOUT_REVISION` instead of reporting success. Save As writes a `user`-scope revision
+   under the typed name and never overwrites the shared project layout. Reload re-reads the stored
+   revision from the server. Write controls mirror the server `PROJECT_WRITE` permission
+   (planner / project_admin) and state the reason when disabled.
+5. **Persistence and isolation**: the selection is stored per tenant and project and re-applied
+   after reload; switching projects reads that project's own catalogue and does not leak the
+   previous selection. A stored layout holds columns, widths and presentation only: switching never
+   mutates activities, relationships, WBS or dates, which the tests assert by comparing row ids,
+   widths and column lists before and after each switch.
+6. **Layout and accessibility**: LTR and RTL, 1280×720, 1366×768 and 1920×1080, `aria-haspopup`,
+   `aria-expanded`, `role="menu"`, `role="menuitemradio"`, Escape closes and returns focus, and the
+   menu wraps instead of hiding on narrow viewports.
+7. Unit tests: `workspace-layout-selector.test.ts` (16 tests: naming, catalogue, selection store,
+   load paths, markup states). Browser E2E: `e2e/layout-selector-v26.mjs` (9 scenarios).
+
+### Honest limits (definite, not planned)
+
+- Persistence is scoped by **layout scope**, not by user identity: `p6_layout_definition_revisions`
+  is keyed by tenant, project, project revision, scope, view and revision and has no user id, so a
+  `user` layout is shared inside that scope. The UI says "User layout", never "My/private layout".
+- Only the Activities window has this selector. Resource Assignments and Tracking layouts —
+  including share, import, export and delete — remain absent.
+- Save As targets the `user` scope only; it does not rename or delete existing layouts.
+- No reset-to-default action; Reload re-reads the stored revision.
+- Filter, group and timescale remain separate commands and are not stored inside this layout
+  revision.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `npx tsc --noEmit` (apps/web) | clean |
+| Test build | `npx tsc -p tsconfig.test.json` | clean |
+| Unit/integration | `npm test` | 744 `tsx` tests + 14 `node --test` tests pass |
+| Build | `npm run build` | bundles written to `dist/web/src` |
+| Layout selector E2E | `CUBI_PREVIEW_URL=http://127.0.0.1:4315 node e2e/layout-selector-v26.mjs` | 9/9 scenarios, 11 screenshots, 0 exceptions, 0 console errors, 0 API failures (run on the synced head `f585df0e`) |
+| Full preview regression | `node e2e/preview-e2e.mjs` (managed runtime) | 98 checks, 53 screenshots, status passed; 0 exceptions, 0 API failures, 2 expected layout-conflict console probes |
+| Evidence bundle | `docs/workspace/evidence/layout-selector-v26-2026-11-11/` | `layout-selector-v26.json` + 11 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `f585df0eb6fca95aa432a177fba0f97d5a23e846` (branch synced with `main` @ `4d0b5783`) |
+| Evidence commit | `cd0cd8338cbd0e776e9bfadfd02c311b88da6e2d` |
+| Branch head at merge | recorded in the follow-up commit once #1743 is squash-merged |
+
+The first evidence run on `b01f199b` failed scenario 03: after the catalogue load the mount
+replaced `host.innerHTML`, which detached the trigger that carried the click listener, so the menu
+could not be reopened. The fix delegates every listener on the stable host and tracks the open
+state. The suite then ran on `4a9ccc8b`, and after Stage D1 was squash-merged and `main` was merged
+into this branch, both the nine layout scenarios and the 98-check preview regression were re-run on
+`f585df0e`; this table records that final run.
+
+### Next stage
+
+Stage D2 (Resource Master, Resource Assignments, Roles, full Calendar management), then the
+remaining Activities Details/Gantt/Network/Trace Logic/WBS slices and Stages E–G.
