@@ -1,0 +1,377 @@
+{
+  "contract": "cubi-assignments-v26.v1",
+  "baseUrl": "http://127.0.0.1:4184",
+  "gitHead": "de89d44c8c4b520acbd84cebd532a06a264359c2",
+  "testedCodeSha": "de89d44c8c4b520acbd84cebd532a06a264359c2",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T10:35:04.776Z",
+  "createdAssignmentIds": [
+    "AS-D2B-MWBZFY9E-A",
+    "AS-D2B-MWBZFY9E-B",
+    "AS-D2B-MWBZFY9E-C"
+  ],
+  "scenarios": [
+    {
+      "columns": [
+        "assignment",
+        "activity",
+        "resource",
+        "role",
+        "units",
+        "unit",
+        "plannedCost",
+        "currency"
+      ],
+      "id": "01",
+      "name": "پنجرهٔ تخصیص‌ها ثبت خالی، هشت ستون پیش‌فرض و گروه‌بندی «هیچ» را از API نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:10.239Z"
+    },
+    {
+      "activityId": "A100",
+      "stored": {
+        "assignment_id": "AS-D2B-MWBZFY9E-A",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "role_id": "RPS-ROLE-CIVIL",
+        "units": "8",
+        "actual_units": null,
+        "remaining_units": null,
+        "planned_cost": "1200.50",
+        "actual_cost": null,
+        "remaining_cost": null,
+        "unit": "hour",
+        "currency": "USD",
+        "calendar_id": null,
+        "note": "E2E crew assignment",
+        "calendar_version": null,
+        "is_driving": null,
+        "units_per_time": null,
+        "units_per_time_period": null,
+        "hours_per_units_time_period": null
+      },
+      "id": "02",
+      "name": "ایجاد تخصیص از فرم واقعی، خواندن دوباره از API و انتخاب پایدار سطر",
+      "status": "pass",
+      "at": "2026-11-11T10:35:11.141Z"
+    },
+    {
+      "duplicateStatus": 409,
+      "code": "IMMUTABLE_RESOURCE_ASSIGNMENT",
+      "id": "03",
+      "name": "ایجاد دوبارهٔ همان شناسه با 409 رد می‌شود و سطر ذخیره‌شده را بازنویسی نمی‌کند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:12.169Z"
+    },
+    {
+      "ids": [
+        "AS-D2B-MWBZFY9E-A",
+        "AS-D2B-MWBZFY9E-B",
+        "AS-D2B-MWBZFY9E-C"
+      ],
+      "activities": [
+        [
+          "AS-D2B-MWBZFY9E-A",
+          "A100"
+        ],
+        [
+          "AS-D2B-MWBZFY9E-B",
+          "A110"
+        ],
+        [
+          "AS-D2B-MWBZFY9E-C",
+          "A100"
+        ]
+      ],
+      "id": "04",
+      "name": "ایجاد دو تخصیص دیگر با فعالیت، منبع و نقش متفاوت برای گروه‌بندی واقعی",
+      "status": "pass",
+      "at": "2026-11-11T10:35:13.843Z"
+    },
+    {
+      "groups": [
+        {
+          "key": "RPS-ROLE-CIVIL",
+          "label": "RPS-ROLE-CIVIL",
+          "count": "(2)",
+          "totals": "Units: 12.5 · Planned Cost: 1800.75 · Actual Cost: —",
+          "expanded": true
+        },
+        {
+          "key": "",
+          "label": "Unassigned",
+          "count": "(1)",
+          "totals": "Units: 2 · Planned Cost: 100 · Actual Cost: —",
+          "expanded": true
+        }
+      ],
+      "id": "05",
+      "name": "گروه‌بندی بر اساس نقش، جمع دقیق واحد و هزینه، و بدون نقش را جدا می‌کند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:14.807Z"
+    },
+    {
+      "totals": "Units: 14.5 · Planned Cost: 1900.75 · Actual Cost: —",
+      "id": "06",
+      "name": "گروه‌بندی بر اساس منبع یک گروه با جمع کل 14.5 واحد و 1900.75 هزینه می‌سازد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:15.265Z"
+    },
+    {
+      "ascending": [
+        "AS-D2B-MWBZFY9E-C",
+        "AS-D2B-MWBZFY9E-B",
+        "AS-D2B-MWBZFY9E-A"
+      ],
+      "descending": [
+        "AS-D2B-MWBZFY9E-A",
+        "AS-D2B-MWBZFY9E-B",
+        "AS-D2B-MWBZFY9E-C"
+      ],
+      "id": "07",
+      "name": "مرتب‌سازی عددی ستون واحد صعودی و نزولی با نشانگر aria-sort واقعی کار می‌کند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:16.256Z"
+    },
+    {
+      "queryRows": 1,
+      "resourceRows": 3,
+      "activityRows": 2,
+      "id": "08",
+      "name": "جستجو و فیلتر منبع و فعالیت سطرها را واقعاً محدود و سپس بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:17.362Z"
+    },
+    {
+      "hiddenStorage": "{\"groupBy\":\"none\",\"sort\":{\"column\":\"units\",\"dir\":\"desc\"},\"columns\":[\"assignment\",\"activity\",\"resource\",\"role\",\"units\",\"unit\",\"plannedCost\",\"currency\"]}",
+      "id": "09",
+      "name": "انتخاب ستون‌ها هدر را پنهان می‌کند و پس از رفت‌وبرگشت پنجره پایدار می‌ماند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:19.422Z"
+    },
+    {
+      "periods": [
+        [
+          "2026-12-01",
+          "8",
+          "640.75"
+        ],
+        [
+          "2027-01-01",
+          "4",
+          "320.25"
+        ]
+      ],
+      "id": "10",
+      "name": "صفحه‌گسترده دو دورهٔ زمان‌محور را با POST واقعی ذخیره و جمع دقیق را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:21.148Z"
+    },
+    {
+      "notice": "Period was not saved (P6_RESOURCE_REQUEST_INVALID)",
+      "units": "8",
+      "id": "11",
+      "name": "دورهٔ تکراری با مقدار دیگر رد می‌شود و ردیف ذخیره‌شده را تغییر نمی‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:21.712Z"
+    },
+    {
+      "summary": "Units 12 · Cost 961 · Peak 8 over 2 period(s)",
+      "bars": [
+        {
+          "start": "2026-12-01",
+          "units": "8",
+          "height": "100%"
+        },
+        {
+          "start": "2027-01-01",
+          "units": "4",
+          "height": "50%"
+        }
+      ],
+      "id": "12",
+      "name": "تب Profile مجموع و اوج دوره‌های ذخیره‌شده را با میله‌های متناسب نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:22.077Z"
+    },
+    {
+      "revisionId": "AS-D2B-MWBZFY9E-A-R2",
+      "nextRevisionId": "AS-D2B-MWBZFY9E-A-R3",
+      "id": "13",
+      "name": "بازنگری، تخصیص را با شناسهٔ جدید -R2 ذخیره می‌کند و رکورد اصلی را دست‌نخورده نگه می‌دارد",
+      "status": "pass",
+      "at": "2026-11-11T10:35:24.208Z"
+    },
+    {
+      "assignments": 4,
+      "periods": 2,
+      "id": "14",
+      "name": "Refresh و رفت‌وبرگشت پنجره، ثبت و دوره‌های ذخیره‌شده را از سرور بازمی‌خوانند",
+      "status": "pass",
+      "at": "2026-11-11T10:35:25.025Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "host": {
+        "x": 56,
+        "y": 165.9375,
+        "width": 1178,
+        "height": 317.15625
+      },
+      "toolbar": {
+        "x": 56,
+        "y": 165.9375,
+        "width": 1178,
+        "height": 39
+      },
+      "register": {
+        "x": 56,
+        "y": 212.9375,
+        "width": 1178,
+        "height": 100
+      },
+      "details": {
+        "x": 56,
+        "y": 320.9375,
+        "width": 1178,
+        "height": 162.15625
+      },
+      "rows": 4,
+      "id": "15",
+      "name": "پنجرهٔ تخصیص‌ها در 1280×720 بدون سرریز چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-11T10:35:25.683Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created-assignment.png",
+    "03-duplicate-rejected.png",
+    "04-three-assignments.png",
+    "05-role-group-collapsed.png",
+    "06-resource-group.png",
+    "07-sorted-units-desc.png",
+    "08-search-filter.png",
+    "09-column-hidden.png",
+    "10-spreadsheet-periods.png",
+    "11-duplicate-period-rejected.png",
+    "12-profile.png",
+    "13-revision-created.png",
+    "14-reloaded-from-server.png",
+    "15-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finalApi": {
+    "assignments": [
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-A",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "role_id": "RPS-ROLE-CIVIL",
+        "units": "8",
+        "actual_units": null,
+        "remaining_units": null,
+        "planned_cost": "1200.50",
+        "actual_cost": null,
+        "remaining_cost": null,
+        "unit": "hour",
+        "currency": "USD",
+        "calendar_id": null,
+        "note": "E2E crew assignment",
+        "calendar_version": null,
+        "is_driving": null,
+        "units_per_time": null,
+        "units_per_time_period": null,
+        "hours_per_units_time_period": null
+      },
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-A-R2",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "role_id": "RPS-ROLE-CIVIL",
+        "units": "8",
+        "actual_units": null,
+        "remaining_units": null,
+        "planned_cost": "1200.50",
+        "actual_cost": null,
+        "remaining_cost": null,
+        "unit": "hour",
+        "currency": "USD",
+        "calendar_id": null,
+        "note": "E2E crew assignment",
+        "calendar_version": null,
+        "is_driving": null,
+        "units_per_time": null,
+        "units_per_time_period": null,
+        "hours_per_units_time_period": null
+      },
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-B",
+        "activity_id": "A110",
+        "resource_id": "RPS-CIVIL-CREW",
+        "role_id": "RPS-ROLE-CIVIL",
+        "units": "4.5",
+        "actual_units": null,
+        "remaining_units": null,
+        "planned_cost": "600.25",
+        "actual_cost": null,
+        "remaining_cost": null,
+        "unit": "hour",
+        "currency": "USD",
+        "calendar_id": null,
+        "note": "Second crew assignment",
+        "calendar_version": null,
+        "is_driving": null,
+        "units_per_time": null,
+        "units_per_time_period": null,
+        "hours_per_units_time_period": null
+      },
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-C",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "role_id": null,
+        "units": "2",
+        "actual_units": null,
+        "remaining_units": null,
+        "planned_cost": "100",
+        "actual_cost": null,
+        "remaining_cost": null,
+        "unit": "hour",
+        "currency": "USD",
+        "calendar_id": null,
+        "note": "Unassigned role assignment",
+        "calendar_version": null,
+        "is_driving": null,
+        "units_per_time": null,
+        "units_per_time_period": null,
+        "hours_per_units_time_period": null
+      }
+    ],
+    "periods": [
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-A",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "period_start": "2026-12-01",
+        "units": "8",
+        "cost": "640.75"
+      },
+      {
+        "assignment_id": "AS-D2B-MWBZFY9E-A",
+        "activity_id": "A100",
+        "resource_id": "RPS-CIVIL-CREW",
+        "period_start": "2027-01-01",
+        "units": "4",
+        "cost": "320.25"
+      }
+    ],
+    "resources": [
+      "RPS-CIVIL-CREW"
+    ]
+  },
+  "finishedAt": "2026-11-11T10:35:25.703Z"
+}
