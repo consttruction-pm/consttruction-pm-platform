@@ -1,0 +1,200 @@
+{
+  "contract": "cubi-roles-v26.v1",
+  "baseUrl": "http://127.0.0.1:4184",
+  "gitHead": "adec57fe30bc2b3c9f023332e0582f6faacffffa",
+  "testedCodeSha": "adec57fe30bc2b3c9f023332e0582f6faacffffa",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T19:22:42.990Z",
+  "parentRoleId": "RPS-E2E-ROLE-MWCIAI50",
+  "childRoleId": "RPS-E2E-ROLE-MWCIAI50-SUP",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Roles ابتدا فهرست خالی و نوار ابزار واقعی نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T19:22:47.880Z",
+      "rows": 0,
+      "heading": "Role Register",
+      "bottomDisplay": "none",
+      "collapsed": "true"
+    },
+    {
+      "id": "02",
+      "name": "ایجاد نقش والد از فرم واقعی، ذخیرهٔ سلسله‌مراتب و رد بازنویسی شناسهٔ موجود",
+      "status": "pass",
+      "at": "2026-11-11T19:22:48.522Z",
+      "parentId": "RPS-E2E-ROLE-MWCIAI50",
+      "duplicateStatus": 409,
+      "row": {
+        "id": "RPS-E2E-ROLE-MWCIAI50",
+        "name": "E2E Civil Role",
+        "parent": "—",
+        "revision": "1",
+        "depth": "0px",
+        "selected": true
+      }
+    },
+    {
+      "id": "03",
+      "name": "ایجاد نقش فرزند با والد، ترتیب والد-قبل-فرزند و رد چرخهٔ سلسله‌مراتب",
+      "status": "pass",
+      "at": "2026-11-11T19:22:49.262Z",
+      "childId": "RPS-E2E-ROLE-MWCIAI50-SUP",
+      "order": [
+        "RPS-E2E-ROLE-MWCIAI50",
+        "RPS-E2E-ROLE-MWCIAI50-SUP"
+      ],
+      "depth": "14px",
+      "cycleStatus": 409
+    },
+    {
+      "id": "04",
+      "name": "ویرایش نقش با نسخهٔ رکورد، افزایش Revision و رد PATCH با نسخهٔ کهنه",
+      "status": "pass",
+      "at": "2026-11-11T19:22:50.258Z",
+      "revision": 2,
+      "staleStatus": 409
+    },
+    {
+      "id": "05",
+      "name": "تب Resources یک منبع ذخیره‌شده را با سطح تخصص و نقش اصلی تخصیص می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T19:22:50.911Z",
+      "resourceRows": [
+        [
+          "RPS-CIVIL-CREW",
+          "Skilled",
+          "Yes",
+          "1",
+          "Edit Unassign"
+        ]
+      ],
+      "stored": {
+        "role_id": "RPS-E2E-ROLE-MWCIAI50",
+        "resource_id": "RPS-CIVIL-CREW",
+        "proficiency": "skilled",
+        "is_primary": true,
+        "record_revision": 1
+      }
+    },
+    {
+      "id": "06",
+      "name": "تخصیص نقش اصلی دوم همان منبع، نقش اصلی قبلی را در نقش دیگر تنزل می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T19:22:51.952Z",
+      "parent": {
+        "role_id": "RPS-E2E-ROLE-MWCIAI50",
+        "resource_id": "RPS-CIVIL-CREW",
+        "proficiency": "skilled",
+        "is_primary": false,
+        "record_revision": 2
+      },
+      "child": {
+        "role_id": "RPS-E2E-ROLE-MWCIAI50-SUP",
+        "resource_id": "RPS-CIVIL-CREW",
+        "proficiency": "expert",
+        "is_primary": true,
+        "record_revision": 1
+      }
+    },
+    {
+      "id": "07",
+      "name": "ویرایش سطح تخصص و حذف تخصیص از جدول واقعی، رکورد را از سرور پاک می‌کند",
+      "status": "pass",
+      "at": "2026-11-11T19:22:53.214Z",
+      "childAssignments": 0,
+      "parentAssignments": 1
+    },
+    {
+      "id": "08",
+      "name": "نرخ‌های تاریخ‌دار: افزودن، سقف پنج نرخ در هر تاریخ، و ویرایش با Revision",
+      "status": "pass",
+      "at": "2026-11-11T19:22:55.009Z",
+      "storedRates": 6,
+      "sameDateRates": 5,
+      "sixthStatus": 409,
+      "edited": {
+        "role_id": "RPS-E2E-ROLE-MWCIAI50",
+        "effective_from": "2027-01-01",
+        "rate_type": "Standard",
+        "rate": "32.5",
+        "unit": "d",
+        "currency": "USD",
+        "source": "manual-entry:preview-planner",
+        "record_revision": 2
+      }
+    },
+    {
+      "id": "09",
+      "name": "محدودیت‌های نقش: واحد و درصد، یک محدودیت در هر تاریخ، و ویرایش با Revision",
+      "status": "pass",
+      "at": "2026-11-11T19:22:56.445Z",
+      "storedLimits": 2,
+      "edited": {
+        "role_id": "RPS-E2E-ROLE-MWCIAI50",
+        "effective_from": "2026-12-01",
+        "max_units": "10",
+        "unit_basis": "units",
+        "record_revision": 2
+      }
+    },
+    {
+      "id": "10",
+      "name": "پس از بارگذاری کامل صفحه، نقش‌ها، تخصص، نرخ‌ها و محدودیت‌ها از سرور بازمی‌گردند",
+      "status": "pass",
+      "at": "2026-11-11T19:23:00.146Z",
+      "rows": [
+        "RPS-E2E-ROLE-MWCIAI50",
+        "RPS-E2E-ROLE-MWCIAI50-SUP"
+      ],
+      "rates": 6,
+      "limits": 2
+    },
+    {
+      "id": "11",
+      "name": "پنجرهٔ Roles در 1280×720 بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-11T19:23:00.847Z",
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "toolbar": {
+        "x": 56,
+        "y": 142,
+        "width": 1178,
+        "height": 39
+      },
+      "register": {
+        "x": 56,
+        "y": 189,
+        "width": 1178,
+        "height": 100
+      },
+      "window": {
+        "x": 56,
+        "y": 142,
+        "width": 1178,
+        "height": 510
+      },
+      "bottomDisplay": "none",
+      "collapsed": "true",
+      "rowCount": 2
+    }
+  ],
+  "screenshots": [
+    "01-role-register-empty.png",
+    "02-role-parent-created.png",
+    "03-role-hierarchy.png",
+    "04-role-edited.png",
+    "05-role-resource-assigned.png",
+    "06-role-primary-demoted.png",
+    "07-role-resource-unassigned.png",
+    "08-role-rates.png",
+    "09-role-limits.png",
+    "10-role-persisted.png",
+    "11-role-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-11T19:23:00.848Z"
+}
