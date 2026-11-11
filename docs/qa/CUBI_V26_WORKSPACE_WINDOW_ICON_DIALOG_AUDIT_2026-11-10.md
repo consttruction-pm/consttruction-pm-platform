@@ -304,7 +304,7 @@ Help صریحاً می‌گوید shortcut menu با راست‌کلیک روی 
 | P2 | WINDOW-PROGRESS-01 | Progress log و نمودارهای تحلیلی ناقص‌اند | تاریخچه، out-of-sequence و time-phased reports |
 | P2 | WINDOW-COST-01 | Cash flow/forecast/baseline capture ناقص | baseline lifecycle، forecast و variance charts |
 | P2 | WINDOW-ISSUE-01 | Issue register و history/notification کامل نیست | owner/priority/status/links/history/notify |
-| P2 | WINDOW-ROLE-01 | Role rates/limits/proficiency ناقص | effective-dated rate/limit editor و assignments |
+| P2 | WINDOW-ROLE-01 | Role hierarchy/proficiency/rates/limits در Stage D2c واقعی شد: ثبت/ویرایش با revision، سلسله‌مراتب cycle-safe، تخصیص منبع با proficiency و primary، نرخ‌های تاریخ‌دار با سقف پنج نرخ در هر تاریخ، محدودیت واحد/درصد | delete/copy/org chart، اعمال محدودیت در leveling، مصرف «Calculate Costs from Units» در هزینهٔ تخصیص، Postgres mirror و i18n |
 | P2 | WINDOW-EXP-01 | Expense model fields و update/delete محدودند | فقط پس از وجود مدل/API معتبر؛ داده جعلی ممنوع |
 
 ## 9. شواهد قبلی و مواردی که نباید دوباره ادعای تکمیل شوند
