@@ -249,11 +249,14 @@ integration pass, and the final full matrix. Stage D starts from `main` @ `cb9cc
 
 ## Stage D1 — Resource read register and Calendar verification
 
-Status: **in review** (independent PR
+Status: **merged**. Independent PR
 [#1742](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1742), branch
-`codex/jalal/cubi-v26-stage-d-resources-20261110`, based on `main` @ `cecce5fd`). This is a
-partial slice of the macro Stage D: it completes the stored Resource read surface and verifies one
-calendar end to end. It does **not** complete the Resources or Calendars windows.
+`codex/jalal/cubi-v26-stage-d-resources-20261110`, squash-merged into `main` as `4d0b5783` on
+2026-11-11 (merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T05:13:57Z`).
+Post-merge CI on `4d0b5783`: test 3.11/3.12/3.13, typecheck apps/web, apps/mobile, apps/desktop,
+apps/client-sync, build and postgres-sync all succeeded. This is a partial slice of the macro
+Stage D: it completes the stored Resource read surface and verifies one calendar end to end. It
+does **not** complete the Resources or Calendars windows.
 
 Help topics used: `activities_window.htm`, `using_main_windows.htm`, `layout_toolbar.htm`,
 `open_a_layout.htm`, `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
@@ -316,7 +319,7 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `9023efb39c490a3d4c75940c77d0c2fc4963fb32` |
 | Evidence commit | `6f0d433b9c1edd7f07679abd85410de9616e31af` |
-| Branch head at merge | recorded in the follow-up commit once #1742 is squash-merged |
+| Branch head at merge | `3305aa8ceb8f4ee205e556a43e796c71475e5ab0`, squash-merged as `4d0b5783` |
 
 The stored report previously claimed `gitHead cecce5fd`, which was the base commit at capture time
 rather than the code that ran. The bundle now carries `testedCodeSha` and `evidenceCommitSha` as
@@ -400,22 +403,24 @@ pages are recorded as `VERIFY` where the page could not be matched in the attach
 | Test build | `npx tsc -p tsconfig.test.json` | clean |
 | Unit/integration | `npm test` | 744 `tsx` tests + 14 `node --test` tests pass |
 | Build | `npm run build` | bundles written to `dist/web/src` |
-| Layout selector E2E | `CUBI_PREVIEW_URL=http://127.0.0.1:4313 node e2e/layout-selector-v26.mjs` | 9/9 scenarios, 11 screenshots, 0 exceptions, 0 console errors, 0 API failures |
-| Full preview regression | `node e2e/preview-e2e.mjs` (managed runtime) | 98 checks, 53 screenshots, status passed (two logged layout-conflict console messages are the suite's own negative-path probes) |
+| Layout selector E2E | `CUBI_PREVIEW_URL=http://127.0.0.1:4315 node e2e/layout-selector-v26.mjs` | 9/9 scenarios, 11 screenshots, 0 exceptions, 0 console errors, 0 API failures (run on the synced head `f585df0e`) |
+| Full preview regression | `node e2e/preview-e2e.mjs` (managed runtime) | 98 checks, 53 screenshots, status passed; 0 exceptions, 0 API failures, 2 expected layout-conflict console probes |
 | Evidence bundle | `docs/workspace/evidence/layout-selector-v26-2026-11-11/` | `layout-selector-v26.json` + 11 screenshots |
 
 Recorded provenance (two independent facts):
 
 | Field | Value |
 | --- | --- |
-| Tested code SHA | `4a9ccc8bc9e4379f45590ddd1cc1d032e12d6bd2` |
-| Evidence commit | `490c6464fa010b3a135ace46beaa61bb088ef0c8` |
+| Tested code SHA | `f585df0eb6fca95aa432a177fba0f97d5a23e846` (branch synced with `main` @ `4d0b5783`) |
+| Evidence commit | `cd0cd8338cbd0e776e9bfadfd02c311b88da6e2d` |
 | Branch head at merge | recorded in the follow-up commit once #1743 is squash-merged |
 
 The first evidence run on `b01f199b` failed scenario 03: after the catalogue load the mount
 replaced `host.innerHTML`, which detached the trigger that carried the click listener, so the menu
 could not be reopened. The fix delegates every listener on the stable host and tracks the open
-state, and the whole suite was re-run from a clean preview on `4a9ccc8b`.
+state. The suite then ran on `4a9ccc8b`, and after Stage D1 was squash-merged and `main` was merged
+into this branch, both the nine layout scenarios and the 98-check preview regression were re-run on
+`f585df0e`; this table records that final run.
 
 ### Next stage
 
