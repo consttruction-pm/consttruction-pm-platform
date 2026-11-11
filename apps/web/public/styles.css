@@ -7385,6 +7385,40 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-assignment-fields .cp-assignment-note,.cp-p6 .cp-assignment-fields .cp-calendar-panel-actions{grid-column:1/-1;margin-top:0}
 @media(max-width:900px){.cp-p6 .cp-assignment-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-p6 .cp-assignment-fields{grid-template-columns:minmax(0,1fr)}}
+.cp-p6 .cp-assignment-toolbar-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cp-p6 .cp-assignment-toolbar-controls label{display:flex;align-items:center;gap:4px;color:#52657a;font-size:9px}
+.cp-p6 .cp-assignment-toolbar-controls select,.cp-p6 .cp-assignment-toolbar-controls input[type=search]{min-height:25px;padding:2px 6px;border:1px solid #b9c6d5;background:#fff;color:#38536f;font:inherit;font-size:9px}
+.cp-p6 .cp-assignment-toolbar-controls input[type=search]{width:150px}
+.cp-p6 .cp-assignment-columns{position:relative}
+.cp-p6 .cp-assignment-columns summary{min-height:25px;padding:4px 8px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font-size:9px;line-height:1.4;cursor:pointer;list-style:none}
+.cp-p6 .cp-assignment-columns summary::-webkit-details-marker{display:none}
+.cp-p6 .cp-assignment-columns[open] summary{border-color:#173d68;color:#173d68}
+.cp-p6 .cp-assignment-columns-panel{position:absolute;z-index:20;top:calc(100% + 4px);inset-inline-start:0;display:grid;grid-template-columns:repeat(2,minmax(140px,1fr));gap:4px 10px;min-width:330px;max-height:240px;overflow:auto;padding:8px;border:1px solid #b9c6d5;background:#fff;box-shadow:0 6px 18px rgba(23,61,104,.18)}
+.cp-p6 .cp-assignment-columns-panel label{display:flex;align-items:center;gap:5px;color:#31465e;font-size:9px;white-space:nowrap}
+.cp-p6 .cp-register-table-wrap th[data-assignment-sort]{cursor:pointer;user-select:none}
+.cp-p6 .cp-register-table-wrap th[data-assignment-sort]:hover{background:#e4ebf4}
+.cp-p6 .cp-register-table-wrap th[data-assignment-sort]:focus-visible{outline:2px solid #173d68;outline-offset:-2px}
+.cp-p6 .cp-register-table-wrap tbody tr[data-assignment-row]{cursor:pointer}
+.cp-p6 .cp-register-table-wrap tbody tr[data-assignment-row]:hover{background:#f4f8fd}
+.cp-p6 .cp-register-table-wrap tbody tr[data-assignment-row]:focus-visible{outline:2px solid #173d68;outline-offset:-2px}
+.cp-p6 .cp-register-table-wrap tbody tr[data-assignment-row].is-selected{background:#e8f0fa;box-shadow:inset 3px 0 0 #173d68}
+.cp-p6 .cp-register-table-wrap tbody tr.cp-assignment-group-row td{height:auto;text-align:start;padding:5px 8px;background:#e9eef5;color:#244463;font-weight:700}
+.cp-p6 .cp-register-details>header{flex:0 0 auto}
+.cp-p6 .cp-register-detail-tabs{flex:0 0 auto}
+.cp-p6 .cp-register-details .cp-register-detail-content{flex:1 1 auto;min-height:48px}
+.cp-p6 .cp-assignment-group-toggle{min-width:18px;height:18px;padding:0;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:10px;line-height:1;cursor:pointer}
+.cp-p6 .cp-assignment-group-totals{margin-inline-start:10px;color:#52657a;font-weight:400}
+.cp-p6 .cp-assignment-period-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px;align-items:end}
+.cp-p6 .cp-assignment-period-fields label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#52657a;font-size:9px}
+.cp-p6 .cp-assignment-period-fields input{width:100%;min-width:0;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#f7f9fc;color:#31465e;font:inherit}
+.cp-p6 .cp-assignment-period-fields .cp-calendar-panel-actions{grid-column:auto;margin-top:0}
+.cp-p6 .cp-assignment-profile-summary{margin:0 0 8px}
+.cp-p6 .cp-assignment-profile-bars{display:flex;align-items:flex-end;gap:8px;height:130px;padding:8px;border:1px solid #d8e0e9;background:#f7f9fc}
+.cp-p6 .cp-assignment-profile-bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;flex:1 1 0;min-width:18px;height:100%}
+.cp-p6 .cp-assignment-profile-bar b{display:block;width:100%;max-width:38px;background:#2f6ba4;border-radius:2px 2px 0 0}
+.cp-p6 .cp-assignment-profile-bar em{font-style:normal;color:#52657a;font-size:8px;white-space:nowrap}
+@media(max-width:900px){.cp-p6 .cp-assignment-period-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.cp-p6 .cp-assignment-period-fields{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-assignment-columns-panel{min-width:240px}}
 .cp-p6 .cp-register-table-wrap tbody tr[data-expense-row],.cp-p6 .cp-register-table-wrap tbody tr[data-cost-account-row],.cp-p6 .cp-register-table-wrap tbody tr[data-progress-row]{cursor:pointer}
 .cp-p6 .cp-register-table-wrap tbody tr[data-expense-row].is-selected,.cp-p6 .cp-register-table-wrap tbody tr[data-cost-account-row].is-selected,.cp-p6 .cp-register-table-wrap tbody tr[data-progress-row].is-selected{background:#e8f0fa;box-shadow:inset 3px 0 0 #173d68}
 .cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

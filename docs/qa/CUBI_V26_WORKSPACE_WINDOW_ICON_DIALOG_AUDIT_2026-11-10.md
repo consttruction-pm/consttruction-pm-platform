@@ -296,7 +296,7 @@ Help صریحاً می‌گوید shortcut menu با راست‌کلیک روی 
 | P1 | ACT-USAGE-01 | Usage Spreadsheet/Profile و Trace Logic اثبات نشده‌اند | داده زمان‌محور، bucketها، legend، navigation |
 | P1 | ACT-DETAILS-01 | محتوای بسیاری از ۱۷ تب رسمی empty state است | field binding، controls، permission و persistence هر تب |
 | P1 | WINDOW-RES-01 | Resources dictionary تا Stage D2a دارای master/hierarchy/create/edit است؛ باقی نماها ناقص‌اند | delete/archive، organizational chart/table views، Move toolbar، drag reparent، shifts/curves/codes، calendar_id validation و i18n |
-| P1 | WINDOW-ASN-01 | Resource Assignments فاقد full spread/profile/editor | units/time، costs، bucket، histogram و revise flow |
+| P1 | WINDOW-ASN-01 | Resource Assignments در Stage D2b دارای grouping بر اساس منبع/نقش/فعالیت، جمع دقیق decimal، sort/filter، column chooser، spreadsheet دوره‌ای، profile و revise با شناسهٔ `-R2` شد؛ باقی: in-place edit/delete (به‌دلیل append-only بودن)، import/bulk، drill-through از پنجرهٔ Resources و i18n | units/time، costs، bucket، histogram و revise flow |
 | P1 | WINDOW-CAL-01 | Calendar scope/editor/exception lifecycle ناقص | global/project/resource، shifts و recurring exceptions |
 | P1 | WINDOW-PRJ-01 | Project register/EPS hierarchy چندپروژه‌ای ناقص | authorized tree، filter/group/layout و project details |
 | P1 | WINDOW-WBS-01 | WBS move/reorder و جزئیات کامل نمودار/ویژگی‌ها ناقص | Move toolbar، weighted milestones، links، chart export |
