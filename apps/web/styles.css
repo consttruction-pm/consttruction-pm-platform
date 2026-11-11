@@ -7378,7 +7378,28 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-role-fields label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#52657a;font-size:9px}
 .cp-p6 .cp-role-fields input{width:100%;min-width:0;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#f7f9fc;color:#31465e;font:inherit}
 .cp-p6 .cp-role-fields .cp-calendar-panel-actions{grid-column:1/-1;margin-top:0}
+.cp-p6 .cp-role-fields select{width:100%;min-width:0;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#f7f9fc;color:#31465e;font:inherit}
+.cp-p6 .cp-role-fields label.cp-role-check{flex-direction:row;align-items:center;gap:6px}
+.cp-p6 .cp-role-fields label.cp-role-check input{width:auto;min-height:0}
 @media(max-width:560px){.cp-p6 .cp-role-fields{grid-template-columns:minmax(0,1fr)}}
+.cp-p6 .cp-role-tree-cell{display:flex;align-items:center;gap:4px;min-width:0}
+.cp-p6 .cp-role-tree-spacer{display:inline-block;width:10px;flex:0 0 10px}
+.cp-p6 .cp-role-tree-branch{display:inline-block;width:10px;flex:0 0 10px;color:#8aa0b8;text-align:center}
+.cp-p6 .cp-role-price-section{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.cp-p6 .cp-role-price-section>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 7px;border:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:9px}
+.cp-p6 .cp-role-price-section>header span{color:#718096}
+.cp-p6 .cp-role-rate-form,.cp-p6 .cp-role-limit-form,.cp-p6 .cp-role-resource-form{display:grid;gap:6px;padding:7px;border:1px solid #d8e0e9;background:#f8fafc}
+.cp-p6 .cp-role-rate-form{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cp-p6 .cp-role-limit-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cp-p6 .cp-role-resource-form{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px}
+.cp-p6 .cp-role-rate-form label,.cp-p6 .cp-role-limit-form label,.cp-p6 .cp-role-resource-form label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#52657a;font-size:9px}
+.cp-p6 .cp-role-rate-form input,.cp-p6 .cp-role-rate-form select,.cp-p6 .cp-role-limit-form input,.cp-p6 .cp-role-limit-form select,.cp-p6 .cp-role-resource-form input,.cp-p6 .cp-role-resource-form select{width:100%;min-width:0;min-height:26px;padding:3px 6px;border:1px solid #cbd5e1;background:#fff;color:#31465e;font:inherit}
+.cp-p6 .cp-role-rate-form label.cp-role-check,.cp-p6 .cp-role-limit-form label.cp-role-check,.cp-p6 .cp-role-resource-form label.cp-role-check{flex-direction:row;align-items:center;gap:6px}
+.cp-p6 .cp-role-rate-form label.cp-role-check input,.cp-p6 .cp-role-limit-form label.cp-role-check input,.cp-p6 .cp-role-resource-form label.cp-role-check input{width:auto;min-height:0}
+.cp-p6 .cp-role-rate-form .cp-calendar-panel-actions,.cp-p6 .cp-role-limit-form .cp-calendar-panel-actions,.cp-p6 .cp-role-resource-form .cp-calendar-panel-actions{grid-column:1/-1;margin-top:0}
+.cp-p6 .cp-role-price-section table button,.cp-p6 [data-role-panel="resources"] table button{min-height:23px;padding:2px 7px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:9px}
+@media(max-width:900px){.cp-p6 .cp-role-rate-form{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-p6 .cp-role-limit-form,.cp-p6 .cp-role-resource-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.cp-p6 .cp-role-rate-form,.cp-p6 .cp-role-limit-form,.cp-p6 .cp-role-resource-form{grid-template-columns:minmax(0,1fr)}}
 .cp-p6 .cp-assignment-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cp-p6 .cp-assignment-fields label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#52657a;font-size:9px}
 .cp-p6 .cp-assignment-fields input,.cp-p6 .cp-assignment-fields select{width:100%;min-width:0;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#f7f9fc;color:#31465e;font:inherit}

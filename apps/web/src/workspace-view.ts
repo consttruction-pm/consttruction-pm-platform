@@ -1810,10 +1810,26 @@ function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState):
  * other window keeps its own details panel.
  */
 function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement, options: WorkspaceRendererOptions = {}): string {
+  // The Roles window renders its own detail tabs, so the shared pane stays
+  // empty instead of carrying the generic "detail tabs are not implemented"
+  // fallback, which would be false for this window even while hidden.
+  if (state.activeMenu === "roles") return "";
   const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   return layout === "trace-logic"
     ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
     : renderWindowDetailsPanel(state, t, container, options);
+}
+
+/**
+ * Whether the shared bottom pane should occupy layout space. The Roles window
+ * owns its own General / Resources / Units & Prices detail tabs inside the
+ * window, and the shared surface has no role reader, so it would only repeat
+ * facts or claim those tabs do not exist. The initial render, the layout-only
+ * re-render and the incremental window switch all call this helper so they
+ * cannot disagree and resurrect the pane after a menu change.
+ */
+function bottomDetailsVisible(state: WorkspaceState, layout: WorkspaceBottomLayout): boolean {
+  return state.visiblePanels.details && layout !== "none" && state.activeMenu !== "roles";
 }
 
 /**
@@ -1826,7 +1842,7 @@ function renderBottomSurface(container: HTMLElement, state: WorkspaceState, opti
   const main = container.querySelector<HTMLElement>(".cp-main[data-details-split]");
   const aside = container.querySelector<HTMLElement>("#cp-details");
   if (!main || !aside) return;
-  const visible = state.visiblePanels.details && layout !== "none";
+  const visible = bottomDetailsVisible(state, layout);
   main.dataset.detailsCollapsed = visible ? "false" : "true";
   main.dataset.bottomLayout = layout;
   aside.hidden = !visible;
@@ -1866,8 +1882,18 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
     const details = container.querySelector<HTMLElement>("#cp-details");
     if (details) {
+      const nextLayout: WorkspaceBottomLayout = next.activeMenu === "schedule" ? readWorkspaceBottomLayout(next) : "details";
+      const nextMain = container.querySelector<HTMLElement>(".cp-main[data-details-split]");
+      const nextVisible = bottomDetailsVisible(next, nextLayout);
+      details.hidden = !nextVisible;
+      details.dataset.bottomSurface = nextLayout;
+      details.setAttribute("aria-labelledby", nextLayout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading");
+      if (nextMain) {
+        nextMain.dataset.detailsCollapsed = nextVisible ? "false" : "true";
+        nextMain.dataset.bottomLayout = nextLayout;
+      }
       details.innerHTML = renderBottomPaneContent(next, labels, container, options);
-      options.enhanceActivityDetails?.(details, next);
+      if (nextLayout === "details") options.enhanceActivityDetails?.(details, next);
     }
     return true;
   }
@@ -2120,7 +2146,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const detailsSplit = Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, readStoredSplit(detailsSplitKey, DEFAULT_DETAILS_SPLIT)));
   const topLayout: WorkspaceTopLayout = state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : "table-gantt";
   const bottomLayout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
-  const detailsVisible = state.visiblePanels.details && bottomLayout !== "none";
+  const detailsVisible = bottomDetailsVisible(state, bottomLayout);
   // The session list already carries the authoritative name, so the title bar
   // keeps it on first paint instead of flashing the id until the record loads.
   const headerProject =

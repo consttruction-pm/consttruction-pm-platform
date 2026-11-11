@@ -62,6 +62,8 @@ def test_preview_roles_are_composed_and_persisted(tmp_path: Path) -> None:
             "role_id": "RPS-ROLE-CIVIL",
             "name": "Civil Engineer",
             "description": "Site civil engineering role",
+            "parent_role_id": None,
+            "calculate_costs_from_units": True,
             "record_revision": 1,
         }
 
@@ -144,7 +146,68 @@ def test_preview_role_writes_are_authorized_and_revision_checked(tmp_path: Path)
                 {"name": "Role v2", "expected_revision": 5}
             ).encode(),
         )
-        assert status == 400
-        assert json.loads(body)["code"] == "P6_ROLE_REQUEST_INVALID"
+        assert status == 409
+        assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    finally:
+        runtime.close()
+
+
+def test_preview_role_rates_limits_and_proficiency_persist_across_reopen(tmp_path: Path) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _ = _request(
+            runtime.app, "POST", _path(), cookie=planner.session_id,
+            body=json.dumps({"role_id": "ROLE-CIVIL", "name": "Civil"}).encode(),
+        )
+        assert status == 200
+        status, body = _request(
+            runtime.app, "POST", _path("ROLE-CIVIL") + "/rates",
+            cookie=planner.session_id,
+            body=json.dumps({
+                "effective_from": "2026-12-01", "rate_type": "Standard",
+                "rate": "25.5", "unit": "h", "currency": "USD",
+            }).encode(),
+        )
+        assert status == 200, body[:300]
+        status, body = _request(
+            runtime.app, "POST", _path("ROLE-CIVIL") + "/limits",
+            cookie=planner.session_id,
+            body=json.dumps({
+                "effective_from": "2026-12-01", "max_units": "8", "unit_basis": "units",
+            }).encode(),
+        )
+        assert status == 200, body[:300]
+        status, body = _request(
+            runtime.app, "POST", _path("ROLE-CIVIL") + "/resources",
+            cookie=planner.session_id,
+            body=json.dumps({
+                "resource_id": "RPS-CIVIL-CREW", "proficiency": "Expert", "is_primary": True,
+            }).encode(),
+        )
+        assert status == 200, body[:300]
+        assert json.loads(body)["resource"]["proficiency"] == "expert"
+
+        reopened = open_preview_runtime(tmp_path / "preview.sqlite3")
+        try:
+            reader = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+            status, body = _request(reopened.app, "GET", _path("ROLE-CIVIL") + "/rates", cookie=reader.session_id)
+            assert status == 200
+            rates = json.loads(body)["rates"]
+            assert [(item["effective_from"], item["rate_type"], item["rate"]) for item in rates] == [
+                ("2026-12-01", "Standard", "25.5")
+            ]
+            status, body = _request(reopened.app, "GET", _path("ROLE-CIVIL") + "/limits", cookie=reader.session_id)
+            assert status == 200
+            limits = json.loads(body)["limits"]
+            assert [(item["effective_from"], item["max_units"]) for item in limits] == [("2026-12-01", "8")]
+            status, body = _request(reopened.app, "GET", _path("ROLE-CIVIL") + "/resources", cookie=reader.session_id)
+            assert status == 200
+            resources = json.loads(body)["resources"]
+            assert [(item["resource_id"], item["proficiency"], item["is_primary"]) for item in resources] == [
+                ("RPS-CIVIL-CREW", "expert", True)
+            ]
+        finally:
+            reopened.close()
     finally:
         runtime.close()

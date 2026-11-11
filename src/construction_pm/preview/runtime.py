@@ -181,6 +181,10 @@ from construction_pm.p6_resource_rate_repository import (
 from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_role_api import P6RoleAPI
+from construction_pm.p6_role_details_api import P6RoleDetailsAPI
+from construction_pm.p6_role_dictionary_repository import (
+    SQLiteP6RoleDictionaryRepository,
+)
 from construction_pm.p6_role_repository import SQLiteP6RoleRepository
 from construction_pm.p6_resource_master_api import P6ResourceAPI
 from construction_pm.p6_resource_master_repository import (
@@ -322,6 +326,7 @@ class PreviewRepositories:
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     roles: SQLiteP6RoleRepository
+    role_dictionary: SQLiteP6RoleDictionaryRepository
     resources: SQLiteP6ResourceRepository
     expenses: SQLiteP6ExpenseRepository
     expense_service: P6ExpenseApplicationService
@@ -387,6 +392,7 @@ class PreviewRepositories:
             current_activity_values, transaction_manager
         )
         roles = SQLiteP6RoleRepository(connection)
+        role_dictionary = SQLiteP6RoleDictionaryRepository(connection)
         resources = SQLiteP6ResourceRepository(connection)
         expenses = SQLiteP6ExpenseRepository(connection)
         expense_service = P6ExpenseApplicationService(expenses, transaction_manager)
@@ -436,6 +442,7 @@ class PreviewRepositories:
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             roles=roles,
+            role_dictionary=role_dictionary,
             resources=resources,
             expenses=expenses,
             expense_service=expense_service,
@@ -1453,6 +1460,12 @@ def open_preview_runtime(
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
+        p6_role_details_api=P6RoleDetailsAPI(
+            repositories.roles,
+            repositories.resources,
+            repositories.role_dictionary,
+            policy,
+        ),
         p6_resource_api=P6ResourceAPI(repositories.resources, policy),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
         p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
