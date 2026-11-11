@@ -3,7 +3,7 @@
   "baseUrl": "http://127.0.0.1:4184",
   "gitHead": "adec57fe30bc2b3c9f023332e0582f6faacffffa",
   "testedCodeSha": "adec57fe30bc2b3c9f023332e0582f6faacffffa",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "e06a69dcb60fc230364b29adb5342d0577ac7edd",
   "capturedAt": "2026-11-11T19:22:42.990Z",
   "parentRoleId": "RPS-E2E-ROLE-MWCIAI50",
   "childRoleId": "RPS-E2E-ROLE-MWCIAI50-SUP",

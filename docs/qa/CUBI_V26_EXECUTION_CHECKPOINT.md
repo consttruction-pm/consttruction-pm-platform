@@ -659,3 +659,125 @@ ran on `de89d44c`, and the report plus screenshots were committed afterwards as 
 
 Role management (hierarchy, proficiency, effective-dated rates, limits) and full Calendar
 management (global/project/resource calendars, split shifts, exceptions, Jalali), then Stages E–G.
+
+---
+
+## Stage D2c — Role hierarchy, proficiency, effective-dated rates and limits
+
+Status: **implemented, verified and committed on the stage branch; PR open**. Branch
+`feat/v26-stage-d2c-roles` from `main` @ `90abd873`. The Roles window now reads and writes the
+stored role dictionary instead of a read-only register: hierarchy, revision-guarded general facts,
+resource proficiency with exactly one primary role, and effective-dated rates and limits.
+
+Help topics used: the Version 26 Roles sections on role hierarchy and assigning a parent role,
+the five proficiency levels (Master, Expert, Skilled, Proficient, Inexperienced), role prices per
+unit with effective dates and units (m/h/d/w/mo/y), role limits per effective date (units or
+percentage), assigning a role to a resource with proficiency and primary-role status, and
+"Calculate Costs from Units". The attached 815-page PDF has no extractable text in this
+environment, so topic filenames and printed page numbers are recorded as `VERIFY` rather than
+guessed.
+
+### What shipped
+
+1. **Hierarchy register from stored rows**: `GET .../p6/roles` returns `role_tree_order`, so parents
+   always precede children; the register indents by depth (14 px at level one), shows the parent
+   column and keeps the stored list authoritative. Create offers only stored roles as parents.
+2. **Duplicate-safe create and revision-guarded edit**: creating an existing identifier returns
+   HTTP 409 `ROLE_ALREADY_EXISTS` and leaves the stored row unchanged. `PATCH` requires
+   `expected_revision >= 1`; a stale revision returns 409 `REVISION_CONFLICT`, and a successful
+   edit returns the incremented revision (1 → 2 in the evidence run).
+3. **Cycle-safe hierarchy**: the edit form never offers the edited role as its own parent, and the
+   server rejects a cycle with 409 `ROLE_HIERARCHY_CYCLE` (`ROLE_PARENT_NOT_FOUND` for an unknown
+   parent).
+4. **Resources tab with real assignment**: stored resources from the resource master can be
+   assigned to a role with one of the five proficiency levels and an `is_primary` flag. Making an
+   assignment primary demotes the previous primary for the same resource on another role
+   (`record_revision` 1 → 2 in the evidence run), so a resource never has two primary roles.
+   Editing changes proficiency and primary state; unassigning calls the real `DELETE` and the row
+   disappears from the server list.
+5. **Units & Prices tab**: effective-dated price/unit rates with rate type, amount, unit
+   (m/h/d/w/mo/y) and currency; at most five rates per effective date (a sixth returns 409
+   `ROLE_RATE_LIMIT_EXCEEDED`). Limits are one per effective date, expressed in units or percent;
+   a duplicate date returns 409 `ROLE_LIMIT_ALREADY_EXISTS`. Both tabs support editing with record
+   revisions, and the effective date of an existing fact is preserved.
+6. **"Calculate Costs from Units" round-trips**: the checkbox is stored in the role record, shows
+   the stored value, and changes survive the API re-read (`true` → `false` in the evidence run).
+7. **Real transport, no fixtures**: new SQLite tables `p6_role_rate`, `p6_role_limit` and
+   `p6_role_resource` behind `P6RoleDictionaryRepository`; the extracted `P6RoleDetailsAPI` is
+   injected by the preview runtime and production composition. Routes under
+   `/api/projects/{project}/p6/roles` (list/get/create/update plus `/rates`, `/limits`, `/resources`
+   list/save/edit/delete) map domain codes to 409/404/400 and refuse unknown writes with
+   `P6_ROLE_REQUEST_INVALID`; every write records `manual-entry:<user>` as its source.
+8. **Window layout**: the Roles window owns its General / Resources / Units & Prices detail tabs,
+   so the shared bottom Details pane is retired for this window. One visibility helper is used by
+   the initial render, the bottom-layout re-render and the incremental window switch, and the
+   shared pane's generic fallback text is not rendered for Roles even while hidden.
+9. **Browser evidence**: an 11-scenario harness drives the window through the real UI, verifies
+   the stored facts through the same session's API, and keeps screenshots at 1440×900 and
+   1280×720.
+
+### Defects found by reviewing the rendered evidence and fixed
+
+- The resource assignment select visually preselected the first stored resource while the draft
+  was still empty; submitting then failed with "select a resource" although the control looked
+  filled. The select now has an explicit empty placeholder bound to the draft.
+- The shared bottom Details pane came back after switching windows or re-applying a bottom layout:
+  the menu-switch and layout-only paths recomputed visibility without the Roles rule. All three
+  paths now call one helper, and the pane is also emptied for Roles so the false "detail tabs are
+  not implemented yet" text cannot remain in the DOM.
+- The E2E create/edit classifier treated the readonly identifier in the edit form as a create
+  field; it now distinguishes the two forms by the presence of the editable `role-id` input.
+- The rate-row expectation first counted seven rows; the correct count is six because the sixth
+  same-date rate must be rejected rather than rendered. The assertion now encodes the cap.
+
+### Honest limits (definite, not planned)
+
+- Role rates, limits and resource assignments persist in SQLite only; the role master has a
+  Postgres mirror, these new dictionary facts do not yet.
+- There is no role delete, copy, replace/merge or organizational chart view.
+- Limits are stored facts only: neither resource leveling nor availability enforcement consumes
+  them yet.
+- "Calculate Costs from Units" is persisted but not yet consumed by assignment cost calculation;
+  assignment-level role cost and drill-through from assignments are open.
+- Role window labels and notices are inline English/Persian; the nine-locale catalogs are pending.
+- No bulk assignment, import or "assign all resources" path; resources are assigned one at a time.
+- Provider-specific product names are not shown in the UI or Help text.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Unit/integration | `cd apps/web && npm test` | 766 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Roles web suite | `workspace-roles.test.ts` | 14 tests: hierarchy fields, fail-closed contracts, create/update payloads and revisions, rates/limits/resources parsing and mutations |
+| Python role suites | `pytest tests/test_p6_role_dictionary.py tests/test_p6_role_http_routes.py tests/test_preview_roles.py tests/test_p6_role_api.py` | 23 passed |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Roles v26 scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4184 node e2e/roles-v26.mjs` | 11/11 scenarios pass, 11 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout regression at 1280×720 | scenario 11 of the same suite | register, detail tabs and rates table fit; shared bottom pane collapsed (`display:none`, `data-details-collapsed="true"`) |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/roles-v26-2026-11-11/` | `roles-v26.json` + 11 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `adec57fe30bc2b3c9f023332e0582f6faacffffa` |
+| Evidence commit | `e06a69dcb60fc230364b29adb5342d0577ac7edd` |
+| Branch head at merge | pending |
+| PR | pending |
+| Merge commit | pending |
+| Post-merge CI | pending |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
+ran on `adec57fe`, and the screenshots plus report were committed afterwards as `e06a69dc`.
+
+Changed files: `apps/web/src/workspace-roles.ts`,
+`apps/web/src/workspace-roles.test.ts`, `apps/web/src/workspace-view.ts`,
+`apps/web/styles.css`, `apps/web/public/styles.css`, `apps/web/e2e/roles-v26.mjs`,
+`src/construction_pm/p6_role_dictionary_repository.py`,
+`src/construction_pm/p6_role_details_api.py`, `src/construction_pm/p6_role_api.py`,
+`src/construction_pm/p6_role_repository.py`,
+`src/construction_pm/http/project_lifecycle_routes.py`,
+`src/construction_pm/http/production_composition.py`, `src/construction_pm/preview/runtime.py`,
+`tests/test_p6_role_dictionary.py`, `tests/test_p6_role_http_routes.py`,
+`tests/test_preview_roles.py`.
