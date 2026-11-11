@@ -4,7 +4,7 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `9cfd4813` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Branch: `main` @ `6f5af025` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
 Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
 Stage D2a as `9cfd4813`).
 
@@ -542,8 +542,114 @@ Recorded provenance (two independent facts):
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
 ran on `4c3d0348`, and the screenshots plus report were committed afterwards as `825981fe`.
 
+---
+
+## Stage D2b — Resource Assignments grouping, spreadsheet, profile and revision workflow
+
+Status: **open** in independent PR
+[#1747](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1747), branch
+`codex/jalal/cubi-v26-stage-d2b-20261111`, based on `main` @ `6f5af025`. The merge commit and
+post-merge CI are recorded in the follow-up checkpoint update after the merge is confirmed by the
+GitHub API. This slice is the second part of macro Stage D2: the Resource Assignments window now
+reads and writes stored assignment and period facts instead of showing a read-only aggregate.
+Role management and full Calendar management remain open.
+
+Help topics used: the Version 26 Resource Assignments sections on grouping assignments by resource
+and role, the assignment table columns (budgeted units, unit, planned/actual cost, currency),
+assignment details, time-phased spreadsheets and resource usage profiles. The attached 815-page PDF
+has no extractable text in this environment, so topic filenames and printed page numbers are
+recorded as `VERIFY` rather than guessed.
+
+### What shipped
+
+1. **Register bound to stored facts**: the register reads
+   `GET .../p6/resource-assignments` and renders the stored decimal strings; fixture-only rows are
+   gone. Empty state, column chooser defaults and the canonical eight columns are real.
+2. **Real create with duplicate protection**: the create form POSTs a new assignment under
+   `p6-resource-write-api.v1`, re-reads the list and keeps the new row selected. Creating an
+   existing id returns HTTP 409 `IMMUTABLE_RESOURCE_ASSIGNMENT` and leaves the stored row intact.
+3. **Grouping with exact subtotals**: group by resource, role or activity; totals are summed from
+   stored strings with BigInt-scaled decimal parts (no floating point), empty roles/activities get a
+   stable label, each group collapses independently, and the group-by choice persists per project.
+4. **Sorting, search and filters**: numeric sort on units and costs with `aria-sort` and nulls last;
+   case-insensitive text search plus exact resource and activity filters. Filtering hides rows only;
+   stored facts are never rewritten by a view operation.
+5. **Column chooser**: hide/show columns through real checkboxes; the selection persists per project
+   in `cubi.assignments.view.v1` and survives window switches and remounts.
+6. **Spreadsheet writes period facts**: the Spreadsheet tab POSTs period facts to
+   `resource-assignment-periods`, then re-reads and renders the stored buckets and exact totals
+   (for example `12` units / `961` cost). A duplicate period with different values is rejected with
+   HTTP 400 `P6_RESOURCE_REQUEST_INVALID` and the stored period keeps its units. The period parser
+   reports `INVALID_ASSIGNMENT_PERIOD_RECORD` for malformed records instead of a generic error.
+7. **Profile derives from stored periods only**: the summary reports units, cost, peak and the
+   number of periods, and each bar's height is proportional to the stored peak; no synthetic
+   histogram is invented.
+8. **Auditable revision flow**: stored assignment facts are append-only, so "Revise" creates a new
+   `-R2`/`-R3` assignment through the real create API, leaves the original untouched and states the
+   immutability rule in the UI. The submit label always reads "Create assignment"; it never claims
+   to save an in-place revision that the platform cannot perform.
+9. **Layout fixes found in the rendered evidence**: group bands no longer inherit the global
+   `td[colspan]` height of 76 px (which hid the second group), and the detail tab strip no longer
+   flex-shrinks and clips when the panel content is tall.
+10. **Browser evidence**: a 15-scenario harness creates every fixture through the window and
+   verifies the same session's API afterwards, including the duplicate paths, reload and the
+   1280×720 layout.
+
+### Defects found by reviewing the rendered evidence and fixed
+
+- Group subtotal rows rendered 76 px tall and centred because of the global `td[colspan]` rule; the
+  second group fell outside the visible register. Scoped assignment rules now restore compact
+  start-aligned bands.
+- The detail tab row was flex-shrunk and clipped when the General panel grew; the tabs and content
+  now have explicit `flex` bases.
+- Period parsing surfaced `INVALID_ASSIGNMENT_RECORD` for a malformed period; it now reports the
+  period-specific code (two unit tests failed before the fix and pass after).
+- Changing the group-by select back to "None" was ignored because the empty `data-assignment-group`
+  value is falsy; the handler now matches the select element instead of the dataset value.
+- A misleading "Save revision" submit label was shown when the draft id already existed; the label
+  is always "Create assignment" because the flow is a create, not an in-place update.
+- The E2E recorder let scenario details override the status field, producing a false "1 failed"
+  summary; record ordering is now fixed and the duplicate status is stored under its own key.
+
+### Honest limits (definite, not planned)
+
+- Stored assignments are **append-only**: there is no in-place edit or delete. "Revise" creates a
+  new `-R2` id; the original fact is never mutated.
+- Period facts are immutable per assignment + period start; there is no period edit or delete.
+- No assignment import, bulk create, copy-down, or automatic resource-curve distribution.
+- The assignment form labels and notices are English-only; the nine-locale pass is pending.
+- The Profile is derived from stored assignment periods; availability, overallocation and limits
+  are not enforced in this window.
+- Role management (effective-dated rates, proficiency, limits) and full Calendar management remain
+  open in Stage D2.
+- Drill-through from the Resources register into a filtered assignments view is not wired yet.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Unit/integration | `cd apps/web && npm test` | 759 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Web unit suite | `workspace-assignments.test.ts` | exact decimal totals, grouping, sort/filter, profile, revision ids, period parse/payload and view-preference persistence |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Assignments v26 scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4184 node e2e/assignments-v26.mjs` | 15/15 scenarios pass, 15 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout regression at 1280×720 | scenario 15 of the same suite | no horizontal overflow, register and tabs visible |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/assignments-v26-2026-11-11/` | `assignments-v26.json` + 15 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `de89d44c8c4b520acbd84cebd532a06a264359c2` |
+| Evidence commit | `50e351127f4bae2a144d95dbde52602ede340737` |
+| Branch head at PR creation | `f8b1b2661334a3b0bc5d11e9e2c6fae3a8e3f1f9` |
+| PR | [#1747](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1747) |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the scenarios
+ran on `de89d44c`, and the report plus screenshots were committed afterwards as `50e35112`.
+
 ### Next stage
 
-Stage D2b — Resource Assignments grouping, spreadsheet and profile views with real assignment
-writes; then Role management (hierarchy, proficiency, rates, limits), full Calendar management
-(global/project/resource calendars, split shifts, exceptions, Jalali), and Stages E–G.
+Role management (hierarchy, proficiency, effective-dated rates, limits) and full Calendar
+management (global/project/resource calendars, split shifts, exceptions, Jalali), then Stages E–G.
