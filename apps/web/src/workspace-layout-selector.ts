@@ -232,42 +232,48 @@ export function renderLayoutSelectorMarkup(options: {
  * render, so the menu is rebuilt from the current stored state every time.
  */
 export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutSelectorOptions): void {
-  const rerender = (state: {
-    entries: LayoutCatalogEntry[];
-    loaded: boolean;
-    error: string | null;
-  }): void => {
+  let entries: LayoutCatalogEntry[] = [];
+  let loaded = false;
+  let error: string | null = null;
+  let requested = false;
+  let open = false;
+
+  // Every rerender replaces the host's children, so elements are looked up on
+  // demand and all listeners live on the host itself.
+  const rerender = (): void => {
     host.innerHTML = renderLayoutSelectorMarkup({
       locale: options.locale,
       current: options.current,
       previewScope: options.previewScope,
       canSave: options.canSave,
       saveReason: options.saveReason,
-      entries: state.entries,
-      loaded: state.loaded,
-      error: state.error,
+      entries,
+      loaded,
+      error,
     });
+    const trigger = host.querySelector<HTMLButtonElement>("[data-layout-trigger]");
+    const menu = host.querySelector<HTMLElement>("[data-layout-menu]");
+    if (!trigger || !menu) return;
+    menu.hidden = !open;
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
   };
 
-  rerender({ entries: [], loaded: false, error: null });
-
-  const trigger = host.querySelector<HTMLButtonElement>("[data-layout-trigger]");
-  const menu = host.querySelector<HTMLElement>("[data-layout-menu]");
-  if (!trigger || !menu) return;
-
-  let entries: LayoutCatalogEntry[] = [];
-  let loaded = false;
-  let error: string | null = null;
-  let requested = false;
+  rerender();
 
   const closeMenu = (): void => {
-    menu.hidden = true;
-    trigger.setAttribute("aria-expanded", "false");
+    open = false;
+    const trigger = host.querySelector<HTMLButtonElement>("[data-layout-trigger]");
+    const menu = host.querySelector<HTMLElement>("[data-layout-menu]");
+    if (menu) menu.hidden = true;
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
   };
 
   const openMenu = async (): Promise<void> => {
-    menu.hidden = false;
-    trigger.setAttribute("aria-expanded", "true");
+    open = true;
+    const trigger = host.querySelector<HTMLButtonElement>("[data-layout-trigger]");
+    const menu = host.querySelector<HTMLElement>("[data-layout-menu]");
+    if (menu) menu.hidden = false;
+    if (trigger) trigger.setAttribute("aria-expanded", "true");
     if (requested) return;
     requested = true;
     try {
@@ -283,26 +289,17 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
       }`;
       options.onError?.(error);
     }
-    const wasOpen = !menu.hidden;
-    rerender({ entries, loaded, error });
-    if (wasOpen) {
-      const nextTrigger = host.querySelector<HTMLButtonElement>("[data-layout-trigger]");
-      const nextMenu = host.querySelector<HTMLElement>("[data-layout-menu]");
-      if (nextTrigger && nextMenu) {
-        nextMenu.hidden = false;
-        nextTrigger.setAttribute("aria-expanded", "true");
-      }
-    }
+    rerender();
   };
-
-  trigger.addEventListener("click", () => {
-    if (menu.hidden) void openMenu();
-    else closeMenu();
-  });
 
   host.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
+    if (target.closest("[data-layout-trigger]")) {
+      if (open) closeMenu();
+      else void openMenu();
+      return;
+    }
     const option = target.closest<HTMLElement>("[data-layout-option]");
     if (option) {
       const scope = option.dataset.layoutOption as StoredLayoutScope | undefined;
@@ -330,12 +327,11 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
     } else if (action === "reload") options.onReload(currentScope(options.current));
   });
 
-  menu.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeMenu();
-      trigger.focus();
-    }
+  host.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    closeMenu();
+    host.querySelector<HTMLButtonElement>("[data-layout-trigger]")?.focus();
   });
   host.addEventListener("focusout", (event) => {
     const next = event.relatedTarget as Node | null;
