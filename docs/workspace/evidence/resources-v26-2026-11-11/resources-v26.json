@@ -1,0 +1,290 @@
+{
+  "contract": "cubi-resources-v26.v2",
+  "baseUrl": "http://127.0.0.1:4183",
+  "gitHead": "4c3d034813a6019e21f9604f428b1ee2025327f0",
+  "testedCodeSha": "4c3d034813a6019e21f9604f428b1ee2025327f0",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-11T07:38:04.270Z",
+  "createdResourceId": "RPS-CIVIL-CREW-E2E-MWBT4BF3",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Resources منابع ذخیره‌شده و ارجاع‌داده‌شده را با نام مستر، نوع و شمارندهٔ درست نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T07:38:09.179Z",
+      "rows": [
+        "RPS-CIVIL-CREW"
+      ],
+      "masterName": "Riverside Civil Crew",
+      "latestMaxUnits": "12"
+    },
+    {
+      "id": "02",
+      "name": "تب General فیلدهای مستر ذخیره‌شده و تجمیع حقایق را از هم جدا نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T07:38:09.602Z",
+      "fields": [
+        {
+          "label": "Resource ID",
+          "value": "RPS-CIVIL-CREW"
+        },
+        {
+          "label": "Resource Name",
+          "value": "Riverside Civil Crew"
+        },
+        {
+          "label": "Resource Type",
+          "value": "Labor"
+        },
+        {
+          "label": "Parent Resource",
+          "value": "Not provided"
+        },
+        {
+          "label": "Calendar",
+          "value": "CUBI-RPS-CAL"
+        },
+        {
+          "label": "Default Units per Time",
+          "value": "Not provided"
+        },
+        {
+          "label": "Unit of Measure",
+          "value": "crew"
+        },
+        {
+          "label": "E-mail",
+          "value": "Not provided"
+        },
+        {
+          "label": "Active",
+          "value": "Yes"
+        },
+        {
+          "label": "Record Revision",
+          "value": "1"
+        },
+        {
+          "label": "Assignments",
+          "value": "0"
+        },
+        {
+          "label": "Budgeted Units",
+          "value": "Not provided"
+        },
+        {
+          "label": "Planned Cost",
+          "value": "Not provided"
+        },
+        {
+          "label": "Actual Cost",
+          "value": "Not provided"
+        },
+        {
+          "label": "Latest Max Units",
+          "value": "12"
+        },
+        {
+          "label": "Capacity Effective From",
+          "value": "2026-10-15"
+        },
+        {
+          "label": "Currencies",
+          "value": "Not provided"
+        }
+      ],
+      "hint": "Master fields come from the stored resource record; assignments, capacity and rates are separate stored facts. Latest Max Units is the most recently effective stored capacity segment, not a data-date resolution."
+    },
+    {
+      "id": "03",
+      "name": "تب Capacity هر دو بازه ظرفیت مؤثر-تاریخ‌دار ذخیره‌شده را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T07:38:09.952Z",
+      "segments": [
+        [
+          "8",
+          "day",
+          "8",
+          "1",
+          "2026-09-21",
+          "2026-10-14"
+        ],
+        [
+          "12",
+          "day",
+          "8",
+          "1.5",
+          "2026-10-15",
+          "Open-ended"
+        ]
+      ]
+    },
+    {
+      "id": "04",
+      "name": "تب Rates هر دو نرخ مؤثر-تاریخ‌دار ذخیره‌شده را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-11T07:38:10.301Z",
+      "rates": [
+        [
+          "480",
+          "per_day",
+          "USD",
+          "crew-day",
+          "2026-09-21",
+          "2026-10-14"
+        ],
+        [
+          "525",
+          "per_day",
+          "USD",
+          "crew-day",
+          "2026-10-15",
+          "Open-ended"
+        ]
+      ]
+    },
+    {
+      "id": "05",
+      "name": "تب Assignments همان تخصیص‌های ذخیره‌شده را نشان می‌دهد و Refresh ثبت را دوباره از سرور می‌خواند",
+      "status": "pass",
+      "at": "2026-11-11T07:38:11.361Z",
+      "assignments": 0,
+      "rowsAfterRefresh": 1
+    },
+    {
+      "id": "06",
+      "name": "پنجرهٔ Calendars فهرست ذخیره‌شده را نشان می‌دهد و هفتهٔ کاری را از نسخهٔ واقعی تقویم می‌خواند",
+      "status": "pass",
+      "at": "2026-11-11T07:38:13.070Z",
+      "calendars": [
+        "CUBI-RPS-CAL/1"
+      ],
+      "workweek": [
+        [
+          "Monday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Tuesday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Wednesday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Thursday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Friday",
+          "Working",
+          "Standard day"
+        ],
+        [
+          "Saturday",
+          "Non-working",
+          "—"
+        ],
+        [
+          "Sunday",
+          "Non-working",
+          "—"
+        ]
+      ],
+      "snapshotSystem": "gregorian"
+    },
+    {
+      "id": "07",
+      "name": "ایجاد منبع فرزند از فرم واقعی، ذخیره در مستر و رد بازنویسی شناسهٔ موجود",
+      "status": "pass",
+      "at": "2026-11-11T07:38:14.503Z",
+      "createdId": "RPS-CIVIL-CREW-E2E-MWBT4BF3",
+      "row": {
+        "id": "RPS-CIVIL-CREW-E2E-MWBT4BF3",
+        "name": "E2E Night Shift Crew",
+        "idText": "RPS-CIVIL-CREW-E2E-MWBT4BF3",
+        "type": "Labor",
+        "assignments": "0",
+        "budgetedUnits": "—",
+        "plannedCost": "—",
+        "actualCost": "—",
+        "latestMaxUnits": "—",
+        "rates": "0",
+        "depth": "14px",
+        "selected": true,
+        "hasToggle": false,
+        "expanded": null
+      },
+      "duplicateStatus": 409
+    },
+    {
+      "id": "08",
+      "name": "ویرایش منبع با نسخهٔ رکورد، افزایش Revision و رد PATCH با نسخهٔ کهنه",
+      "status": "pass",
+      "at": "2026-11-11T07:38:15.212Z",
+      "revision": 2,
+      "staleStatus": 409
+    },
+    {
+      "id": "09",
+      "name": "فیلتر نوع منبع سطرها را واقعاً محدود می‌کند و با «همه» بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-11T07:38:16.263Z",
+      "materialRows": 0,
+      "laborRows": 2,
+      "allRows": 2
+    },
+    {
+      "id": "10",
+      "name": "جمع و باز کردن شاخهٔ درخت منبع، فرزند را واقعاً پنهان و آشکار می‌کند",
+      "status": "pass",
+      "at": "2026-11-11T07:38:17.064Z",
+      "collapsedRows": 1,
+      "expandedRows": 2
+    },
+    {
+      "id": "11",
+      "name": "پنجرهٔ Resources در 1280×720 بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-11T07:38:17.749Z",
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "toolbar": {
+        "x": 56,
+        "y": 133,
+        "width": 1178,
+        "height": 37
+      },
+      "register": {
+        "x": 56,
+        "y": 178,
+        "width": 682.484375,
+        "height": 259.59375
+      },
+      "rowCount": 2
+    }
+  ],
+  "screenshots": [
+    "01-resource-register.png",
+    "02-resource-general.png",
+    "03-resource-capacity.png",
+    "04-resource-rates.png",
+    "05-resource-assignments-refreshed.png",
+    "06-calendar-register.png",
+    "07-calendar-workweek.png",
+    "08-resource-created.png",
+    "09-resource-edited.png",
+    "10-resource-filter.png",
+    "11-resource-collapsed.png",
+    "12-resource-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-11T07:38:17.749Z"
+}
