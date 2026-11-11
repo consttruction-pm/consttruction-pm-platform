@@ -70,6 +70,52 @@ const EXCEPTION_MODE_LABELS: readonly { value: string; en: string; fa: string }[
 
 const CALENDAR_TYPES = ["global", "project", "resource"] as const;
 
+const SHIFT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * Parses a comma-separated split-shift list such as "08:00-12:00, 13:00-17:00".
+ * Returns null for malformed, overlapping or empty shifts so the caller can
+ * refuse the write instead of storing a workweek the resolver would reject.
+ */
+export function parseWorkdayShifts(value: string): readonly (readonly string[])[] | null {
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const intervals: string[][] = [];
+  for (const part of parts) {
+    const match = SHIFT_PATTERN.exec(part);
+    if (!match) return null;
+    const start = `${match[1]}:${match[2]}`;
+    const end = `${match[3]}:${match[4]}`;
+    if (start >= end) return null;
+    intervals.push([start, end]);
+  }
+  const ordered = [...intervals].sort((left, right) => (left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0));
+  for (let index = 1; index < ordered.length; index += 1) {
+    if (ordered[index][0] < ordered[index - 1][1]) return null;
+  }
+  return intervals;
+}
+
+function clockText(value: string): string {
+  // Snapshots serialize times with seconds; the editor and the API contract
+  // use HH:MM, so the display is normalized instead of rejected.
+  return value.slice(0, 5);
+}
+
+export function formatWorkdayShifts(intervals: readonly (readonly string[])[]): string {
+  return intervals.map((pair) => `${clockText(pair[0])}-${clockText(pair[1])}`).join(", ");
+}
+
+function shiftHours(intervals: readonly (readonly string[])[]): string {
+  let minutes = 0;
+  for (const pair of intervals) {
+    const [startHour, startMinute] = clockText(pair[0]).split(":").map(Number);
+    const [endHour, endMinute] = clockText(pair[1]).split(":").map(Number);
+    minutes += (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+  }
+  return (minutes / 60).toFixed(2).replace(/\.?0+$/, "");
+}
+
 function text(locale: string, en: string, fa: string): string {
   return locale.split("-")[0] === "fa" ? fa : en;
 }
@@ -81,6 +127,10 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -181,6 +231,8 @@ function parseCalendarRecord(value: unknown): WorkspaceCalendarRecord {
     kind,
     calendarType: calendar_type,
     recordRevision: record_revision,
+    ...(typeof value.base_calendar_id === "string" ? { baseCalendarId: value.base_calendar_id } : {}),
+    ...(typeof value.base_calendar_version === "string" ? { baseCalendarVersion: value.base_calendar_version } : {}),
   };
 }
 
@@ -276,6 +328,8 @@ export async function updateCalendar(
     kind: calendar.kind,
     name: input.name.trim(),
     expected_revision: calendar.recordRevision,
+    base_calendar_id: calendar.baseCalendarId ?? null,
+    base_calendar_version: calendar.baseCalendarVersion ?? null,
   };
   if (!transport.patch) return localError("CALENDAR_UPDATE_TRANSPORT_UNAVAILABLE");
   const result = await transport.patch<typeof request, unknown>(
@@ -330,6 +384,175 @@ export async function copyCalendar(
   } catch (error) {
     return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_RECORD");
   }
+}
+
+export type CalendarWorkHourKind =
+  | "standard_work_week"
+  | "standard_detailed_work_hours"
+  | "detailed_work_hours"
+  | "total_work_hours";
+
+const WORK_HOUR_KINDS: readonly CalendarWorkHourKind[] = [
+  "standard_work_week",
+  "standard_detailed_work_hours",
+  "detailed_work_hours",
+  "total_work_hours",
+];
+
+export type CalendarWorkHourRule = {
+  kind: CalendarWorkHourKind;
+  weekday: number | null;
+  isWorkingDay: boolean | null;
+  totalWorkHours: string | null;
+  intervals: readonly (readonly string[])[];
+};
+
+export type CalendarCreateInput = {
+  calendarId: string;
+  calendarVersion: string;
+  calendarType: string;
+  kind: string;
+  name: string;
+  baseCalendarId: string;
+  baseCalendarVersion: string;
+};
+
+function parseWorkHourRule(value: unknown): CalendarWorkHourRule {
+  if (!isRecord(value) || typeof value.kind !== "string" || !WORK_HOUR_KINDS.includes(value.kind as CalendarWorkHourKind)) {
+    throw new Error("INVALID_CALENDAR_WORK_HOURS");
+  }
+  const weekday = value.weekday;
+  if (weekday !== null && weekday !== undefined && (!Number.isInteger(weekday) || (weekday as number) < 0 || (weekday as number) > 6)) {
+    throw new Error("INVALID_CALENDAR_WORK_HOURS");
+  }
+  if (value.is_working_day !== null && value.is_working_day !== undefined && typeof value.is_working_day !== "boolean") {
+    throw new Error("INVALID_CALENDAR_WORK_HOURS");
+  }
+  if (value.total_work_hours !== null && value.total_work_hours !== undefined && typeof value.total_work_hours !== "string") {
+    throw new Error("INVALID_CALENDAR_WORK_HOURS");
+  }
+  const intervals = Array.isArray(value.intervals)
+    ? value.intervals.map((pair) => {
+        if (!Array.isArray(pair) || pair.length !== 2 || pair.some((item) => typeof item !== "string")) {
+          throw new Error("INVALID_CALENDAR_WORK_HOURS");
+        }
+        return pair as string[];
+      })
+    : [];
+  return {
+    kind: value.kind as CalendarWorkHourKind,
+    weekday: weekday === undefined ? null : (weekday as number | null),
+    isWorkingDay: value.is_working_day === undefined ? null : (value.is_working_day as boolean | null),
+    totalWorkHours: value.total_work_hours === undefined ? null : (value.total_work_hours as string | null),
+    intervals,
+  };
+}
+
+export async function loadCalendarWorkHours(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendarId: string,
+  calendarVersion: string,
+): Promise<ApiResult<readonly CalendarWorkHourRule[]>> {
+  if (!calendarId || !calendarVersion) return localError("CALENDAR_REFERENCE_REQUIRED");
+  const result = await transport.get<unknown>(calendarPath(context, calendarId, calendarVersion, "work-hours"), context);
+  if (!result.ok) return result;
+  const payload = result.data;
+  if (!isRecord(payload) || !Array.isArray(payload.work_hours)) return localError("INVALID_CALENDAR_WORK_HOURS");
+  try {
+    return { ok: true, data: payload.work_hours.map((item) => parseWorkHourRule(item)) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_WORK_HOURS");
+  }
+}
+
+export async function saveCalendarWorkHourRule(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendar: WorkspaceCalendarRecord,
+  rule: CalendarWorkHourRule,
+  replace: boolean,
+): Promise<ApiResult<CalendarWorkHourRule>> {
+  if (!WORK_HOUR_KINDS.includes(rule.kind)) return localError("INVALID_WORK_HOUR_KIND");
+  if (rule.kind !== "total_work_hours" && rule.weekday === null) return localError("WEEKDAY_REQUIRED");
+  const request: Record<string, unknown> = {
+    kind: rule.kind,
+    weekday: rule.weekday,
+    is_working_day: rule.isWorkingDay,
+    total_work_hours: rule.totalWorkHours,
+    intervals: rule.intervals,
+  };
+  if (replace) {
+    request.replace = true;
+    request.expected_revision = calendar.recordRevision;
+  }
+  const result = await transport.post<Record<string, unknown>, unknown>(
+    calendarPath(context, calendar.calendarId, calendar.calendarVersion, "work-hours"),
+    request,
+    context,
+    crypto.randomUUID(),
+  );
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseWorkHourRule(result.data) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_WORK_HOURS");
+  }
+}
+
+export async function createCalendar(
+  transport: ApiTransport,
+  context: ProjectContext,
+  input: CalendarCreateInput,
+): Promise<ApiResult<WorkspaceCalendarRecord>> {
+  const id = input.calendarId.trim();
+  const version = input.calendarVersion.trim();
+  if (!id || !version) return localError("CALENDAR_REFERENCE_REQUIRED");
+  if (!input.name.trim()) return localError("CALENDAR_NAME_REQUIRED");
+  if (!CALENDAR_TYPES.includes(input.calendarType as (typeof CALENDAR_TYPES)[number])) return localError("INVALID_CALENDAR_TYPE");
+  if (input.kind !== "working-day" && input.kind !== "working-time") return localError("INVALID_CALENDAR_KIND");
+  if (!input.baseCalendarId || !input.baseCalendarVersion) return localError("CALENDAR_BASE_REQUIRED");
+  const request = {
+    contract_version: CALENDAR_API_CONTRACT,
+    calendar_id: id,
+    calendar_version: version,
+    calendar_type: input.calendarType,
+    kind: input.kind,
+    name: input.name.trim(),
+    expected_revision: 0,
+    base_calendar_id: input.baseCalendarId,
+    base_calendar_version: input.baseCalendarVersion,
+  };
+  const result = await transport.post<typeof request, unknown>(
+    calendarPath(context),
+    request,
+    context,
+    crypto.randomUUID(),
+  );
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseCalendarRecord(result.data) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_RECORD");
+  }
+}
+
+export async function deleteCalendarException(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendar: WorkspaceCalendarRecord,
+  exceptionDate: string,
+): Promise<ApiResult<{ deleted: boolean }>> {
+  if (!isValidCanonicalIsoDate(exceptionDate)) return localError("INVALID_EXCEPTION_DATE");
+  if (!transport.delete) return localError("CALENDAR_DELETE_TRANSPORT_UNAVAILABLE");
+  const result = await transport.delete<Record<string, never>, unknown>(
+    calendarPath(context, calendar.calendarId, calendar.calendarVersion, `exceptions/${encodeURIComponent(exceptionDate)}`),
+    {},
+    context,
+  );
+  if (!result.ok) return result;
+  if (!isRecord(result.data) || typeof result.data.deleted !== "boolean") return localError("INVALID_CALENDAR_DELETE_RESPONSE");
+  return { ok: true, data: { deleted: result.data.deleted } };
 }
 
 export type CalendarExceptionInput = {
@@ -414,8 +637,11 @@ type PageState = {
   snapshotLoading: boolean;
   exceptions: readonly CalendarException[];
   exceptionsError: string | null;
+  workHours: readonly CalendarWorkHourRule[];
+  workHoursError: string | null;
+  workHoursLoading: boolean;
   tab: "general" | "workweek" | "exceptions";
-  dialog: "none" | "copy" | "delete";
+  dialog: "none" | "copy" | "delete" | "new";
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
   draftName: string | null;
@@ -441,6 +667,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     snapshotLoading: false,
     exceptions: [],
     exceptionsError: null,
+    workHours: [],
+    workHoursError: null,
+    workHoursLoading: false,
     tab: "general",
     dialog: "none",
     busy: false,
@@ -502,26 +731,38 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     </section>`;
   }
 
-  function renderWorkweek(): string {
+  function renderWorkweek(record: WorkspaceCalendarRecord): string {
     const snapshot = state.snapshot;
     if (!snapshot) {
       return `<div class="cp-calendar-empty">${escapeHtml(say("Select a calendar to read its working time.", "برای خواندن ساعات کاری، یک تقویم انتخاب کنید."))}</div>`;
     }
+    if (state.workHoursError) {
+      return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Calendar work hours could not be read", "خواندن ساعات کاری تقویم ناموفق بود"))} (${escapeHtml(state.workHoursError)})</div>`;
+    }
+    const showShifts = record.kind === "working-time";
+    const standardFor = (weekday: number) => state.workHours.find((item) => item.kind === "standard_work_week" && item.weekday === weekday) ?? null;
+    const detailedFor = (weekday: number) => state.workHours.find((item) => item.kind === "standard_detailed_work_hours" && item.weekday === weekday) ?? null;
     const rows = WEEKDAYS.map((day) => {
-      const working = snapshot.workingWeekdays.includes(day.index);
-      const intervals = snapshot.dailyIntervals[String(day.index)] ?? [];
-      const intervalsText = intervals.length
-        ? intervals.map((pair) => `${pair[0]}–${pair[1]}`).join(", ")
-        : working ? say("Standard day", "روز استاندارد") : "—";
-      return `<tr><th>${escapeHtml(say(day.en, day.fa))}</th><td>${escapeHtml(working ? say("Working", "کاری") : say("Non-working", "غیرکاری"))}</td><td>${escapeHtml(intervalsText)}</td></tr>`;
+      const standard = standardFor(day.index);
+      const detailed = detailedFor(day.index);
+      const working = standard?.isWorkingDay ?? snapshot.workingWeekdays.includes(day.index);
+      const intervals = detailed?.intervals.length ? detailed.intervals : snapshot.dailyIntervals[String(day.index)] ?? [];
+      const hours = standard?.totalWorkHours ?? snapshot.factors.hours_per_day ?? "";
+      return `<tr data-calendar-workday="${day.index}">
+        <th>${escapeHtml(say(day.en, day.fa))}</th>
+        <td><input type="checkbox" data-workday-working ${working ? "checked" : ""} aria-label="${escapeAttribute(`${say(day.en, day.fa)} ${say("working day", "روز کاری")}`)}"></td>
+        <td><input type="text" inputmode="decimal" data-workday-hours value="${escapeAttribute(hours)}" ${showShifts ? "" : "readonly"} title="${escapeAttribute(showShifts ? say("Hours derived from the shift ranges are stored with the day.", "ساعت از بازه‌های شیفت محاسبه و با روز ذخیره می‌شود.") : say("A working-day calendar uses one hours-per-day factor; only the working-day flag is stored per weekday.", "تقویم روزکاری یک ضریب ساعت در روز دارد؛ برای هر روز فقط وضعیت کاری ذخیره می‌شود."))}" aria-label="${escapeAttribute(`${say(day.en, day.fa)} ${say("hours", "ساعت")}`)}"></td>
+        ${showShifts ? `<td><input type="text" data-workday-shifts value="${escapeAttribute(formatWorkdayShifts(intervals))}" placeholder="08:00-12:00, 13:00-17:00" aria-label="${escapeAttribute(`${say(day.en, day.fa)} ${say("shifts", "بازه‌های کاری")}`)}"></td>` : ""}
+        <td><button type="button" data-workday-save="${day.index}">${escapeHtml(say("Save day", "ذخیره روز"))}</button></td>
+      </tr>`;
     }).join("");
     const holidays = snapshot.holidays.length
       ? `<ul class="cp-calendar-holiday-list">${snapshot.holidays.map((day) => `<li><span class="cp-calendar-holiday-date">${escapeHtml(day)}</span></li>`).join("")}</ul>`
       : `<p class="cp-calendar-hint">${escapeHtml(say("No non-working days are stored in this calendar snapshot.", "هیچ روز غیرکاری در این نسخه تقویم ذخیره نشده است."))}</p>`;
     return `<section class="cp-calendar-editor-panel" data-calendar-panel="workweek">
-      <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(say("Day", "روز"))}</th><th>${escapeHtml(say("Working Day", "روز کاری"))}</th><th>${escapeHtml(say("Intervals", "بازه‌ها"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="cp-calendar-table-wrap"><table class="cp-calendar-workweek"><thead><tr><th>${escapeHtml(say("Day", "روز"))}</th><th>${escapeHtml(say("Working Day", "روز کاری"))}</th><th>${escapeHtml(say("Hours per Day", "ساعت در روز"))}</th>${showShifts ? `<th>${escapeHtml(say("Shifts", "بازه‌های کاری"))}</th>` : ""}<th>${escapeHtml(say("Action", "اقدام"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div class="cp-calendar-section-head"><strong>${escapeHtml(say("Stored non-working days", "روزهای غیرکاری ذخیره‌شده"))}</strong></div>${holidays}
-      <p class="cp-calendar-hint">${escapeHtml(say("Working time is read from the persisted calendar snapshot. Changes to the workweek are made through the calendar copy contract until a workweek write route is exposed; this page does not invent hours.", "ساعات کاری از نسخه تقویم ذخیره‌شده خوانده می‌شود. تغییر هفته کاری از طریق قرارداد کپی تقویم انجام می‌شود تا مسیر نوشتن هفته کاری ارائه شود؛ این صفحه ساعتی نمی‌سازد."))}</p>
+      <p class="cp-calendar-hint">${escapeHtml(say("Saved days are written as calendar work-hour rules and the calendar revision is increased. Split shifts must not overlap; run the schedule again to use the edited capacity. Stored non-working days come from the calendar snapshot and are changed through Exceptions.", "روزهای ذخیره‌شده به‌صورت قواعد ساعات کاری تقویم نوشته می‌شوند و ویرایش تقویم افزایش می‌یابد. بازه‌های شیفتی نباید هم‌پوشانی داشته باشند؛ برای استفاده از ظرفیت ویرایش‌شده، زمان‌بندی را دوباره اجرا کنید. روزهای غیرکاری از نسخه تقویم خوانده می‌شوند و از طریق استثناها تغییر می‌کنند."))}</p>
     </section>`;
   }
 
@@ -530,7 +771,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Calendar exceptions could not be read", "خواندن استثناهای تقویم ناموفق بود"))} (${escapeHtml(state.exceptionsError)})</div>`;
     }
     const list = state.exceptions.length
-      ? `<ul class="cp-calendar-holiday-list">${state.exceptions.map((item) => `<li><span class="cp-calendar-holiday-date">${escapeHtml(item.date)}</span><span class="cp-calendar-holiday-mode">${escapeHtml(item.mode)}${item.totalWorkHours ? ` · ${escapeHtml(item.totalWorkHours)} h` : ""}${item.intervals.length ? ` · ${item.intervals.map((pair) => `${pair[0]}–${pair[1]}`).join(", ")}` : ""}</span></li>`).join("")}</ul>`
+      ? `<ul class="cp-calendar-holiday-list">${state.exceptions.map((item) => `<li><span class="cp-calendar-holiday-date">${escapeHtml(item.date)}</span><span class="cp-calendar-holiday-mode">${escapeHtml(item.mode)}${item.totalWorkHours ? ` · ${escapeHtml(item.totalWorkHours)} h` : ""}${item.intervals.length ? ` · ${item.intervals.map((pair) => `${pair[0]}–${pair[1]}`).join(", ")}` : ""}</span><button type="button" data-calendar-exception-delete="${escapeAttribute(item.date)}" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Remove", "حذف"))}</button></li>`).join("")}</ul>`
       : `<div class="cp-calendar-empty">${escapeHtml(say("No exceptions are stored for this calendar.", "هیچ استثنایی برای این تقویم ذخیره نشده است."))}</div>`;
     const modeOptions = EXCEPTION_MODE_LABELS.map((mode) => `<option value="${mode.value}">${escapeHtml(say(mode.en, mode.fa))}</option>`).join("");
     return `<section class="cp-calendar-editor-panel" data-calendar-panel="exceptions">
@@ -561,7 +802,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       ["workweek", say("Workweek", "هفته کاری")],
       ["exceptions", say("Exceptions", "استثناها")],
     ].map(([key, label]) => `<button type="button" role="tab" data-calendar-tab="${key}" aria-selected="${state.tab === key}" class="${state.tab === key ? "is-active" : ""}">${escapeHtml(label)}</button>`).join("");
-    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek() : renderExceptions(record);
+    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek(record) : renderExceptions(record);
     const snapshotFailure = state.snapshotError
       ? `<p class="cp-calendar-notice" role="alert">${escapeHtml(say("Calendar snapshot could not be read", "خواندن نسخه تقویم ناموفق بود"))} (${escapeHtml(state.snapshotError)}). ${escapeHtml(say("Dates and durations must not be inferred without it.", "بدون آن، تاریخ و مدت نباید استنتاج شود."))}</p>`
       : "";
@@ -569,6 +810,21 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
   }
 
   function renderDialog(record: WorkspaceCalendarRecord | null): string {
+    if (state.dialog === "new") {
+      const bases = state.catalog.map((item) => `<option value="${escapeAttribute(`${item.calendarId}|${item.calendarVersion}`)}">${escapeHtml(`${item.calendarId} @ ${item.calendarVersion} — ${item.kind} (${item.calendarType})`)}</option>`).join("");
+      return `<div class="cp-calendar-dialog" role="dialog" aria-label="${escapeHtml(say("New calendar", "تقویم جدید"))}">
+        <strong>${escapeHtml(say("Create a calendar from a base", "ایجاد تقویم از یک تقویم پایه"))}</strong>
+        <p>${escapeHtml(say("The new calendar receives the base definition, work-hour rules and exceptions in one transaction, so it is usable immediately.", "تقویم جدید تعریف، قواعد ساعات کاری و استثناهای تقویم پایه را در یک تراکنش دریافت می‌کند و بلافاصله قابل استفاده است."))}</p>
+        <div class="cp-calendar-fields">
+          <label>${escapeHtml(say("Base calendar", "تقویم پایه"))}<select data-calendar-new-base required>${bases}</select></label>
+          <label>${escapeHtml(say("Calendar ID", "شناسه تقویم"))}<input data-calendar-new-id required maxlength="80" autocomplete="off"></label>
+          <label>${escapeHtml(say("Version", "نسخه"))}<input data-calendar-new-version value="1" required maxlength="40" autocomplete="off"></label>
+          <label>${escapeHtml(say("Calendar Name", "نام تقویم"))}<input data-calendar-new-name required maxlength="180" autocomplete="off"></label>
+          <label>${escapeHtml(say("Calendar Type", "نوع تقویم"))}<select data-calendar-new-type>${CALENDAR_TYPES.map((value) => `<option value="${value}">${value}</option>`).join("")}</select></label>
+        </div>
+        <div class="cp-calendar-panel-actions"><button type="button" data-calendar-action="new-submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Create calendar", "ایجاد تقویم"))}</button><button type="button" data-calendar-action="dialog-cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
+      </div>`;
+    }
     if (state.dialog === "copy" && record) {
       return `<div class="cp-calendar-dialog" role="dialog" aria-label="${escapeHtml(say("Copy calendar", "کپی تقویم"))}">
         <strong>${escapeHtml(say("Copy calendar definition", "کپی تعریف تقویم"))}</strong>
@@ -595,6 +851,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     host.innerHTML = `<div class="cp-calendar-window-toolbar">
         <strong>${escapeHtml(say("Calendar Register", "فهرست تقویم‌ها"))}</strong>
         <div>
+          <button type="button" data-calendar-action="new" ${state.catalog.length ? "" : "disabled"} title="${escapeAttribute(say("Create a calendar from a base calendar", "ایجاد تقویم از یک تقویم پایه"))}">${escapeHtml(say("New", "جدید"))}</button>
           <button type="button" data-calendar-action="copy" ${record ? "" : "disabled"}>${escapeHtml(say("Copy", "کپی"))}</button>
           <button type="button" data-calendar-action="delete" ${record ? "" : "disabled"}>${escapeHtml(say("Delete", "حذف"))}</button>
           <button type="button" data-calendar-action="reload" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Refresh", "به‌روزرسانی"))}</button>
@@ -614,25 +871,30 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       </div>`;
   }
 
-  async function selectCalendar(id: string, version: string): Promise<void> {
+  async function selectCalendar(id: string, version: string, tab: PageState["tab"] = "general"): Promise<void> {
     state.selected = { id, version };
     state.snapshot = null;
     state.snapshotError = null;
     state.exceptions = [];
     state.exceptionsError = null;
-    state.tab = "general";
+    state.workHours = [];
+    state.workHoursError = null;
+    state.tab = tab;
     state.dialog = "none";
     state.draftName = null;
     state.draftType = null;
     state.notice = null;
     state.snapshotLoading = true;
+    state.workHoursLoading = true;
     render();
-    const [snapshotResult, exceptionResult] = await Promise.all([
+    const [snapshotResult, exceptionResult, workHourResult] = await Promise.all([
       loadCalendarSnapshot(transport, context, id, version),
       loadCalendarExceptions(transport, context, id, version),
+      loadCalendarWorkHours(transport, context, id, version),
     ]);
     if (state.selected?.id !== id || state.selected?.version !== version) return;
     state.snapshotLoading = false;
+    state.workHoursLoading = false;
     if (snapshotResult.ok) {
       state.snapshot = snapshotResult.data.snapshot;
     } else {
@@ -642,6 +904,11 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       state.exceptions = exceptionResult.data;
     } else {
       state.exceptionsError = exceptionResult.error.code;
+    }
+    if (workHourResult.ok) {
+      state.workHours = workHourResult.data;
+    } else {
+      state.workHoursError = workHourResult.error.code;
     }
     render();
   }
@@ -658,6 +925,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
         state.selected = null;
         state.snapshot = null;
         state.exceptions = [];
+        state.workHours = [];
         state.tab = "general";
       }
     } else {
@@ -677,8 +945,93 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     };
   }
 
+  async function saveWorkday(record: WorkspaceCalendarRecord, weekday: number): Promise<void> {
+    const row = host.querySelector<HTMLElement>(`[data-calendar-workday="${weekday}"]`);
+    if (!row) return;
+    const working = row.querySelector<HTMLInputElement>("[data-workday-working]")?.checked ?? false;
+    const hoursText = record.kind === "working-time"
+      ? (row.querySelector<HTMLInputElement>("[data-workday-hours]")?.value ?? "").trim()
+      : "";
+    if (hoursText && !/^\d+(?:\.\d+)?$/.test(hoursText)) {
+      state.notice = { kind: "error", message: say("Hours must be a non-negative number.", "ساعت باید عددی نامنفی باشد.") };
+      render();
+      return;
+    }
+    let intervals: readonly (readonly string[])[] = [];
+    let hours = hoursText;
+    if (record.kind === "working-time" && working) {
+      const parsed = parseWorkdayShifts(row.querySelector<HTMLInputElement>("[data-workday-shifts]")?.value ?? "");
+      if (!parsed) {
+        state.notice = { kind: "error", message: say("Shifts must be non-overlapping HH:MM-HH:MM ranges.", "بازه‌ها باید به شکل HH:MM-HH:MM و بدون هم‌پوشانی باشند.") };
+        render();
+        return;
+      }
+      intervals = parsed;
+      hours = shiftHours(parsed);
+    }
+    if (!working) hours = "";
+    let revision = record.recordRevision;
+    const standardExists = state.workHours.some((item) => item.kind === "standard_work_week" && item.weekday === weekday);
+    state.busy = true;
+    render();
+    const standard: CalendarWorkHourRule = {
+      kind: "standard_work_week", weekday, isWorkingDay: working,
+      totalWorkHours: hours || null, intervals: [],
+    };
+    let result = await saveCalendarWorkHourRule(transport, context, record, standard, standardExists);
+    if (result.ok && standardExists) revision += 1;
+    if (result.ok && record.kind === "working-time" && working) {
+      const detailedExists = state.workHours.some((item) => item.kind === "standard_detailed_work_hours" && item.weekday === weekday);
+      const detailed: CalendarWorkHourRule = {
+        kind: "standard_detailed_work_hours", weekday, isWorkingDay: working,
+        totalWorkHours: null, intervals,
+      };
+      result = await saveCalendarWorkHourRule(transport, context, { ...record, recordRevision: revision }, detailed, detailedExists);
+      if (result.ok && detailedExists) revision += 1;
+    }
+    state.busy = false;
+    if (!result.ok) {
+      state.notice = { kind: "error", message: `${say("Workday was not saved", "روز کاری ذخیره نشد")} (${result.error.code})` };
+      render();
+      return;
+    }
+    await reloadCatalogue({ id: record.calendarId, version: record.calendarVersion });
+    await selectCalendar(record.calendarId, record.calendarVersion, "workweek");
+    state.notice = { kind: "ok", message: say("Workday saved. Run the schedule again to use it.", "روز کاری ذخیره شد. برای استفاده، زمان‌بندی را دوباره اجرا کنید.") };
+    render();
+  }
+
+  async function removeException(record: WorkspaceCalendarRecord, exceptionDate: string): Promise<void> {
+    state.busy = true;
+    render();
+    const result = await deleteCalendarException(transport, context, record, exceptionDate);
+    state.busy = false;
+    if (!result.ok) {
+      state.notice = { kind: "error", message: `${say("Exception was not removed", "استثنا حذف نشد")} (${result.error.code})` };
+      render();
+      return;
+    }
+    state.notice = { kind: "ok", message: say("Exception removed. Run the schedule again to use it.", "استثنا حذف شد. برای استفاده، زمان‌بندی را دوباره اجرا کنید.") };
+    const refreshed = await loadCalendarExceptions(transport, context, record.calendarId, record.calendarVersion);
+    if (refreshed.ok) state.exceptions = refreshed.data;
+    state.tab = "exceptions";
+    render();
+  }
+
   host.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    const workdayButton = target.closest<HTMLElement>("[data-workday-save]");
+    if (workdayButton?.dataset.workdaySave) {
+      const record = selectedRecord(state);
+      if (record && !state.busy) void saveWorkday(record, Number(workdayButton.dataset.workdaySave));
+      return;
+    }
+    const exceptionDelete = target.closest<HTMLElement>("[data-calendar-exception-delete]");
+    if (exceptionDelete?.dataset.calendarExceptionDelete) {
+      const record = selectedRecord(state);
+      if (record && !state.busy) void removeException(record, exceptionDelete.dataset.calendarExceptionDelete);
+      return;
+    }
     const row = target.closest<HTMLElement>("[data-calendar-row]");
     if (row) {
       const id = row.dataset.calendarId;
@@ -705,6 +1058,42 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       state.draftName = null;
       state.draftType = null;
       render();
+      return;
+    }
+    if (action === "new") {
+      state.dialog = "new";
+      state.notice = null;
+      render();
+      return;
+    }
+    if (action === "new-submit") {
+      const baseValue = host.querySelector<HTMLSelectElement>("[data-calendar-new-base]")?.value ?? "";
+      const base = state.catalog.find((item) => `${item.calendarId}|${item.calendarVersion}` === baseValue);
+      if (!base) return;
+      const input = {
+        calendarId: host.querySelector<HTMLInputElement>("[data-calendar-new-id]")?.value ?? "",
+        calendarVersion: host.querySelector<HTMLInputElement>("[data-calendar-new-version]")?.value ?? "",
+        calendarType: host.querySelector<HTMLSelectElement>("[data-calendar-new-type]")?.value ?? "project",
+        kind: base.kind,
+        name: host.querySelector<HTMLInputElement>("[data-calendar-new-name]")?.value ?? "",
+        baseCalendarId: base.calendarId,
+        baseCalendarVersion: base.calendarVersion,
+      };
+      void (async () => {
+        state.busy = true;
+        render();
+        const result = await createCalendar(transport, context, input);
+        state.busy = false;
+        if (!result.ok) {
+          state.notice = { kind: "error", message: `${say("Calendar was not created", "ایجاد تقویم ناموفق بود")} (${result.error.code})` };
+          render();
+          return;
+        }
+        state.dialog = "none";
+        state.notice = { kind: "ok", message: say("Calendar created from the base definition.", "تقویم از تعریف پایه ایجاد شد.") };
+        await reloadCatalogue({ id: result.data.calendarId, version: result.data.calendarVersion });
+        await selectCalendar(result.data.calendarId, result.data.calendarVersion);
+      })();
       return;
     }
     if (action === "copy" && record) {

@@ -193,6 +193,8 @@ export class WorkspaceReadClient {
           calendar_type: string;
           name: string;
           record_revision: number;
+          base_calendar_id?: string | null;
+          base_calendar_version?: string | null;
         }[];
       }>(`/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`, context);
       if (calendarResult.ok) {
@@ -224,6 +226,8 @@ export class WorkspaceReadClient {
               calendarType: item.calendar_type,
               name: item.name,
               recordRevision: item.record_revision,
+              ...(typeof item.base_calendar_id === "string" ? { baseCalendarId: item.base_calendar_id } : {}),
+              ...(typeof item.base_calendar_version === "string" ? { baseCalendarVersion: item.base_calendar_version } : {}),
             };
           });
           state = {

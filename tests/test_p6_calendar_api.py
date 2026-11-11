@@ -354,20 +354,23 @@ def test_replace_work_hours_uses_master_revision_and_bumps_it():
     api.create(_scope(), _request("CAL-RW"), auth_context=_auth())
     rule = CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 0, True, Decimal("8"), ())
     api.save_work_hours(rule, auth_context=_auth())
+    # The first declaration bumps the master: the definition now differs from
+    # the seeded snapshot.
+    assert api.calendar_repository.get(_scope(), "CAL-RW", "1").record_revision == 2
 
     changed = CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 0, True, Decimal("9"), ())
-    stored = api.replace_work_hours(changed, expected_revision=1, auth_context=_auth())
+    stored = api.replace_work_hours(changed, expected_revision=2, auth_context=_auth())
     assert stored["total_work_hours"] == "9"
     master = api.calendar_repository.get(_scope(), "CAL-RW", "1")
-    assert master.record_revision == 2
+    assert master.record_revision == 3
     assert api.list_work_hours(_scope(), "CAL-RW", "1", "standard_work_week", auth_context=_auth())[0]["total_work_hours"] == "9"
 
     with pytest.raises(ValueError, match="REVISION_CONFLICT"):
-        api.replace_work_hours(changed, expected_revision=1, auth_context=_auth())
+        api.replace_work_hours(changed, expected_revision=2, auth_context=_auth())
     with pytest.raises(ValueError, match="WORK_HOUR_RULE_NOT_FOUND"):
         api.replace_work_hours(
             CalendarWorkHourRule(_scope(), "CAL-RW", "1", "standard_work_week", 1, True, Decimal("9"), ()),
-            expected_revision=2, auth_context=_auth(),
+            expected_revision=3, auth_context=_auth(),
         )
 
 
@@ -403,10 +406,11 @@ def test_sqlite_work_hours_list_preserves_weekday_identity():
 
 def test_calendar_delete_removes_persisted_work_hours():
     api, _ = _api()
-    created = api.create(_scope(), _request("CAL-DEL"), auth_context=_auth())
+    api.create(_scope(), _request("CAL-DEL"), auth_context=_auth())
     rule = CalendarWorkHourRule(_scope(), "CAL-DEL", "1", "standard_work_week", 0, True, Decimal("8"), ())
     api.save_work_hours(rule, auth_context=_auth())
-    assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=created["record_revision"], auth_context=_auth())
+    current = api.calendar_repository.get(_scope(), "CAL-DEL", "1")
+    assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=current.record_revision, auth_context=_auth())
     assert api.calendar_repository.get(_scope(), "CAL-DEL", "1") is None
 
 

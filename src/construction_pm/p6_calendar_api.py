@@ -235,7 +235,29 @@ class P6CalendarAPI:
 
     def save_work_hours(self, rule: CalendarWorkHourRule, *, auth_context: AuthorizationContext) -> dict[str, object]:
         self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
-        stored = self._work_hours().save(rule)
+        existing = [
+            item for item in self._work_hours().list(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind)
+            if item.weekday == rule.weekday
+        ]
+        with self._transaction():
+            stored = self._work_hours().save(rule)
+            if not existing:
+                # A new work-hour declaration changes the calendar definition;
+                # bump the master revision so the definition hash moves and the
+                # window can detect the change.
+                master = self.calendar_repository.get(rule.scope, rule.calendar_id, rule.calendar_version)
+                if master is None:
+                    raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+                self.calendar_repository.save(CalendarMaster(
+                    scope=master.scope,
+                    calendar_id=master.calendar_id,
+                    calendar_version=master.calendar_version,
+                    kind=master.kind,
+                    name=master.name,
+                    base_calendar_id=master.base_calendar_id,
+                    base_calendar_version=master.base_calendar_version,
+                    calendar_type=master.calendar_type,
+                ), master.record_revision)
         return stored.canonical_snapshot()
 
     def list_work_hours(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str, *, auth_context: AuthorizationContext) -> tuple[dict[str, object], ...]:

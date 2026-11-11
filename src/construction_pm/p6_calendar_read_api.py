@@ -88,6 +88,8 @@ def _calendar_dto(calendar: CalendarMaster) -> dict[str, object]:
         "calendar_type": calendar.calendar_type,
         "name": calendar.name,
         "record_revision": calendar.record_revision,
+        "base_calendar_id": calendar.base_calendar_id,
+        "base_calendar_version": calendar.base_calendar_version,
     }
 
 

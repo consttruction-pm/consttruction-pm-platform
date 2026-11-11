@@ -22,6 +22,8 @@ export type WorkspaceCalendarRecord = {
   calendarType: string;
   name: string;
   recordRevision: number;
+  baseCalendarId?: string | null;
+  baseCalendarVersion?: string | null;
 };
 
 export type WorkspaceCalendarCatalog = {

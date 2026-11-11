@@ -1813,7 +1813,7 @@ function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, cont
   // The Roles window renders its own detail tabs, so the shared pane stays
   // empty instead of carrying the generic "detail tabs are not implemented"
   // fallback, which would be false for this window even while hidden.
-  if (state.activeMenu === "roles") return "";
+  if (state.activeMenu === "roles" || state.activeMenu === "calendars") return "";
   const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   return layout === "trace-logic"
     ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
@@ -1829,7 +1829,10 @@ function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, cont
  * cannot disagree and resurrect the pane after a menu change.
  */
 function bottomDetailsVisible(state: WorkspaceState, layout: WorkspaceBottomLayout): boolean {
-  return state.visiblePanels.details && layout !== "none" && state.activeMenu !== "roles";
+  // Roles and Calendars render a complete detail surface inside their own
+  // window; the shared pane has no reader for them and would only show the
+  // generic "tabs are not implemented" fallback.
+  return state.visiblePanels.details && layout !== "none" && state.activeMenu !== "roles" && state.activeMenu !== "calendars";
 }
 
 /**
