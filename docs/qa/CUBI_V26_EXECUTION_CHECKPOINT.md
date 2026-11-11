@@ -4,10 +4,10 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `03d61a39` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
+Branch: `main` @ `1ba5c9ef` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
 Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
 Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`, Stage D2c as `a9cdc362`,
-Stage D3a as `03d61a39`).
+Stage D3a as `03d61a39`, Stage D3b as `1ba5c9ef`).
 
 ---
 
@@ -931,9 +931,13 @@ Changed files: `apps/web/src/workspace-calendars.ts`,
 
 ## Stage D3b — Jalali calendar system and revision-guarded exception editing
 
-Status: **code complete and verified on the exact head `418425d3`; evidence committed as
-`8e65ca20`; PR open, merge pending.** Branch `feat/v26-stage-d3b-calendar-jalali`, created from
-`main` @ `f3b90e0e`.
+Status: **merged**. Independent PR
+[#1753](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1753), branch
+`feat/v26-stage-d3b-calendar-jalali`, squash-merged into `main` as `1ba5c9ef` on 2026-11-11
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-11T23:19:14Z`,
+`merge_commit_sha=1ba5c9ef326dda316ca5a6686f703e918075c905`, main ref at that SHA, 18 changed
+files). The PR was created from `main` @ `f3b90e0e`, all 8 required checks were green on the exact
+head `4e37b6f1`, and post-merge CI on `1ba5c9ef` succeeded 11/11 without a rerun.
 
 Help topics used: the Version 26 Calendars sections on the Gregorian/Jalali date system, typed
 calendar dates, exceptions and holidays, and editing stored exception facts. The attached 815-page
@@ -1012,10 +1016,10 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `418425d3065171ab0131a555aaf7e47585dbcf03` |
 | Evidence commit | `8e65ca20ca3c2354b548be9fb5aa8358f6a40806` |
-| Branch head at merge | pending |
-| PR | pending |
-| Merge commit | pending |
-| Post-merge CI | pending |
+| Branch head at merge | `4e37b6f19f31c860555a22d596b0af320f9f6082` |
+| PR | [#1753](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1753) |
+| Merge commit | `1ba5c9ef326dda316ca5a6686f703e918075c905` |
+| Post-merge CI | 11/11 checks success on `1ba5c9ef` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
 scenarios ran on `418425d3`, and the screenshots plus report were committed afterwards as
