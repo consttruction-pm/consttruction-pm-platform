@@ -792,3 +792,129 @@ Changed files: `apps/web/src/workspace-roles.ts`,
 `src/construction_pm/http/production_composition.py`, `src/construction_pm/preview/runtime.py`,
 `tests/test_p6_role_dictionary.py`, `tests/test_p6_role_http_routes.py`,
 `tests/test_preview_roles.py`.
+
+---
+
+## Stage D3a — Calendar create-from-base, workweek and split-shift editing, exception removal
+
+Status: **code complete and verified on the exact head `c95c1cd5`; evidence committed as
+`ec95b9ec`; PR open, merge pending.** Branch `feat/v26-stage-d3a-calendars`, created from
+`main` @ `a7e39e9e`. The Calendars window now creates real calendars from a stored base calendar,
+edits the workweek and split-shift intervals through the calendar API with revision guards, and
+deletes stored exceptions instead of only adding them.
+
+Help topics used: the Version 26 Calendars sections on global, project and resource calendars,
+base calendar inheritance, working-day versus working-time calendars, workweek and daily hours,
+split shifts, exceptions and holidays, and the Gregorian/Jalali date system. The attached 815-page
+PDF has no extractable text in this environment, so topic filenames and printed page numbers are
+recorded as `VERIFY` rather than guessed.
+
+### What shipped
+
+1. **Create from base with copied facts**: `POST .../p6/calendars` accepts
+   `base_calendar_id`/`base_calendar_version`; the server validates completeness, existence, kind
+   and snapshot (`INCOMPLETE_BASE_CALENDAR_REFERENCE`, `BASE_CALENDAR_NOT_FOUND`,
+   `BASE_CALENDAR_KIND_MISMATCH`, `BASE_CALENDAR_SNAPSHOT_NOT_FOUND`) and, inside one
+   transaction, stores the new master and copies the base snapshot, exceptions and all four
+   work-hour kinds. The read contract now returns `base_calendar_id`/`base_calendar_version`.
+2. **New-calendar dialog**: the window toolbar New action opens a real dialog with base calendar,
+   id, version, name and type; it creates a stored calendar and selects it in the register.
+   The copy action was refactored onto the same `_copy_calendar_facts` path.
+3. **Workweek editor**: each weekday has a working checkbox, an hours field and (working-time
+   only) a shifts field. Saving writes `standard_work_week` and `standard_detailed_work_hours`
+   rules through the API; working-day hours are read-only with an explanatory title because the
+   day-based scheduler consumes the weekday flag, not per-day hours. Changing Friday to
+   non-working in the evidence run changes the authoritative CPM result and survives a restart.
+4. **Split shifts**: strict `HH:MM-HH:MM` parsing, sorted non-overlapping intervals, hours derived
+   from the intervals; overlapping intervals are rejected in the browser and never reach the
+   server. The seeded working-time calendar carries morning/afternoon shifts; the evidence run
+   saves a third interval and re-reads three intervals with total 10 hours.
+5. **Revision-guarded work-hour writes**: new rules bump the calendar master revision; replacing
+   an existing rule requires `expected_revision` and a stale revision is rejected. Work-hour GET
+   returns every kind without a body (a GET cannot carry JSON); an optional `kind` filter remains.
+6. **Exception removal**: `DELETE .../exceptions/{date}` validates an ISO date, deletes the stored
+   exception scoped by project revision, and returns `{contract_version, deleted}`. Exception rows
+   in the window now have a real Remove action with a success notice.
+7. **Preview runtime parity**: the preview registry no longer fails closed on work-hour rules or
+   working-time calendars. It loads persisted rules, applies standard workweek and standard
+   detailed hours through the shared resolver, registers day and time resolvers plus exception
+   overlays, validates base references after all calendars, and keeps dated detailed/total hours
+   explicitly unsupported. A seeded `CUBI-RPS-CAL-TIME` working-time calendar provides a real
+   split-shift target independent of the project calendar used by CPM.
+8. **Window layout**: Calendars owns its General / Workweek / Exceptions detail surface, and the
+   shared bottom Details pane is retired for this window through the same visibility rule used by
+   Roles, including the layout-only and incremental menu paths.
+
+### Defects found by reviewing the rendered evidence and fixed
+
+- The created calendar's read record had no base reference, so the API could not prove
+  inheritance. The read DTO, TS model, workspace mapping and PATCH payload now carry both base
+  fields.
+- Snapshots serialize clock values with seconds (`08:00:00`); the editor showed that raw text.
+  Display now normalizes to `HH:MM` while parsing and saving keep the strict form.
+- Saving two first-time work-hour rules did not bump the calendar revision, so the register
+  revision was stale. A new rule now bumps the master revision, and the evidence run records
+  revision 2 (Friday rule) and 3 (standard + detailed split shifts).
+- The E2E harness hung after a failed assertion because the CDP socket kept the event loop alive;
+  it now exits explicitly after `main()`, and the preview database is reset before every run to
+  avoid edits leaking between runs.
+
+### Honest limits (definite, not planned)
+
+- The preview's day-based CPM consumes the working-day flag; per-day hours and split-shift
+  intervals are stored and shown, and the time-aware resolver exists, but the project schedule
+  does not yet consume working-time capacity.
+- Dated detailed work hours and total-hours rules are stored but not consumed by the resolver and
+  fail closed instead of being silently ignored.
+- No calendar delete, replace, versioned "Copy as", or scoped assignment editor from Project
+  Details/Resources yet; the seeded calendars are project-type.
+- Jalali display is exposed by the date-system field and the existing Jalali toggle, but the
+  window's Jalali browser evidence is pending.
+- Recurring exceptions, exception editing (delete + recreate is the current path) and detailed
+  hours per exception are not implemented.
+- Calendar labels and notices are inline English/Persian; the nine-locale catalogs are pending.
+- Provider-specific product names are not shown in the UI or Help text.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Unit/integration | `cd apps/web && npm test` | 771 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Calendars web suite | `workspace-calendars.test.ts` | 14 tests: fail-closed parsing, split-shift parsing/formatting, create/update payloads, revision tracking |
+| Python calendar suites | `pytest` calendar, exception, API, HTTP and preview suites | 159 passed |
+| Full Python suite | `pytest tests` | 3350 passed, 139 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Calendars v26 scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4184 CUBI_TESTED_CODE_SHA=c95c1cd5 node e2e/calendars-v26.mjs` | 8/8 scenarios pass, 8 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout regression at 1280×720 | scenario 08 of the same suite | register, workweek and detail surface fit without horizontal clipping; shared bottom pane collapsed |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/calendars-v26-2026-11-12/` | `calendars-v26.json` + 8 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `c95c1cd5e0b7028488c2b17b2cb7931c14f484eb` |
+| Evidence commit | `ec95b9ec09a427773ed8ceb24bd2fb73ae476736` |
+| Branch head at merge | pending |
+| PR | pending |
+| Merge commit | pending |
+| Post-merge CI | pending |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
+scenarios ran on `c95c1cd5`, and the screenshots plus report were committed afterwards as
+`ec95b9ec`.
+
+### Next stage
+
+Remaining Calendar scope (Jalali browser evidence, resource/project calendar assignments,
+exception editing, multi-view), then Stages E–G.
+
+Changed files: `apps/web/src/workspace-calendars.ts`,
+`apps/web/src/workspace-calendars.test.ts`, `apps/web/src/workspace-model.ts`,
+`apps/web/src/workspace-read-api.ts`, `apps/web/src/workspace-view.ts`, `apps/web/styles.css`,
+`apps/web/public/styles.css`, `apps/web/e2e/calendars-v26.mjs`,
+`src/construction_pm/p6_calendar_api.py`, `src/construction_pm/p6_calendar_read_api.py`,
+`src/construction_pm/p6_versioned_resource_calendar_resolver.py`,
+`src/construction_pm/preview/runtime.py`, `tests/test_p6_calendar_api.py`,
+`tests/test_preview_calendar_exceptions.py`.
