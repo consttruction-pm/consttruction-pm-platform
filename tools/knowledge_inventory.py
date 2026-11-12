@@ -103,7 +103,7 @@ def measure(path: Path) -> dict[str, object]:
             "cards": {
                 "total": total_cards,
                 "published": cards.get("published", 0),
-                "validated": cards.get("validated", 0),
+                "validated": validation.get("validated", 0),
                 "draft": cards.get("draft", 0),
                 "rejected": cards.get("rejected", 0),
                 "retired": cards.get("retired", 0),

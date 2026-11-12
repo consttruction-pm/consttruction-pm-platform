@@ -141,6 +141,31 @@ def test_failed_page_is_retried_on_the_next_run(store, clock) -> None:
     assert store.get_topic_by_key("p6-26-help", "schedule.html")["status"] == "converted"
 
 
+def test_partial_ingest_never_reports_success(store, clock) -> None:
+    """C: a run with a failed page is partial, never success."""
+
+    fetcher = FakeFetcher(
+        pages(), failures={BASE + "schedule.html": "KNOWLEDGE_HTTP_500"}
+    )
+    pipeline = IngestionPipeline(store=store, fetcher=fetcher, clock=clock)
+
+    report = pipeline.run(P6_26_HELP)
+
+    assert report.discovered == 2
+    assert report.converted == 1
+    assert report.failed == 1
+    assert report.failures == (
+        {"topic_key": "schedule.html", "error": "KNOWLEDGE_HTTP_500"},
+    )
+    assert store.get_source(P6_26_HELP.source_id)["status"] == "partial"
+    outcomes = [
+        row["outcome"]
+        for row in store.list_audit(tenant_id=None, limit=50)
+        if row["action"] == "ingest_run"
+    ]
+    assert outcomes == ["partial"]
+
+
 def test_max_pages_limits_the_queue_without_losing_discovery(store, clock) -> None:
     pipeline = IngestionPipeline(store=store, fetcher=FakeFetcher(pages()), clock=clock)
 
