@@ -82,6 +82,7 @@ class FakeRelationshipAPI:
             "successor_id": master.successor_id,
             "relationship_type": master.relationship_type.value,
             "lag_value": master.lag_value,
+            "lag_unit": master.lag_unit.value,
             "record_revision": 0,
         }
 
@@ -312,6 +313,68 @@ def test_schedule_validates_relationships_and_is_idempotent(apis, context) -> No
         port.apply_schedule(
             context, edges, data_date="2026-03-01", calendar=calendar, idempotency_key="run-1"
         )
+
+
+def test_relationship_types_lag_and_lead_reach_authoritative_records(apis, context) -> None:
+    """FS/SS/FF/SF, lag and lead survive the port with working-day units."""
+
+    wbs, activities, relationships, settings = apis
+    port = MasterDataPlanPort(wbs, activities, relationships, settings)
+    port.apply_wbs(context, _nodes(), idempotency_key="run-1")
+    port.apply_activities(context, _activities(), idempotency_key="run-1")
+
+    edges = [
+        {"predecessor_id": "A1", "successor_id": "A2", "relationship_type": "FS"},
+        {"predecessor_id": "A1", "successor_id": "A2", "relationship_type": "ss", "lag_days": 3},
+        {"predecessor_id": "A1", "successor_id": "A2", "relationship_type": "FF", "lag_days": -2},
+        {"predecessor_id": "A1", "successor_id": "A2", "relationship_type": "SF", "lag_days": 5},
+    ]
+    calendar = {
+        "calendar_id": "CAL-1",
+        "calendar_version": "2",
+        "working_weekdays": [6, 0, 1, 2, 3],
+    }
+    result = port.apply_schedule(
+        context, edges, data_date="2026-03-21", calendar=calendar, idempotency_key="run-1"
+    )
+
+    assert result["created"] == 4
+    assert [row["relationship_type"] for row in result["relationships"]] == [
+        "FS",
+        "SS",
+        "FF",
+        "SF",
+    ]
+    assert [row["lag_days"] for row in result["relationships"]] == [0, 3, -2, 5]
+
+    for relationship_type, lag in (("FS", 0), ("SS", 3), ("FF", -2), ("SF", 5)):
+        row = relationships.rows[f"R-A1-A2-{relationship_type}"]
+        assert row["predecessor_id"] == "A1"
+        assert row["successor_id"] == "A2"
+        assert row["relationship_type"] == relationship_type
+        assert row["lag_value"] == Decimal(lag)
+        # Lag and lead are expressed in working days, never calendar days.
+        assert row["lag_unit"] == "working-day"
+
+    # The schedule settings and calendar actually reach the persistence port.
+    assert settings.applied[-1]["data_date"] == "2026-03-21"
+    assert settings.applied[-1]["calendar"]["calendar_id"] == "CAL-1"
+    assert settings.applied[-1]["calendar"]["working_weekdays"] == [6, 0, 1, 2, 3]
+
+    replay = port.apply_schedule(
+        context, edges, data_date="2026-03-21", calendar=calendar, idempotency_key="run-1"
+    )
+    assert (replay["created"], replay["unchanged"]) == (0, 4)
+
+    for bad in ({"lag_days": 366}, {"lag_days": -366}, {"lag_days": True}, {"lag_days": 1.5}):
+        with pytest.raises(ProjectPlanError, match="PROJECT_PLAN_LAG_INVALID"):
+            port.apply_schedule(
+                context,
+                [{"predecessor_id": "A1", "successor_id": "A2", **bad}],
+                data_date="2026-03-21",
+                calendar=calendar,
+                idempotency_key="run-1",
+            )
 
 
 def test_verify_reports_missing_records(apis, context) -> None:
