@@ -97,6 +97,29 @@ test("full homepage keeps bilingual control and the six capability areas", () =>
   ]) assert.match(landing, pattern);
 });
 
+test("homepage messaging covers oil and gas, EPC and the nine requested locales without overstating assistant autonomy", () => {
+  for (const locale of ["en", "fa", "de", "fr", "zh", "ja", "ko", "ru", "ar"]) {
+    assert.match(landing, new RegExp("\\n  " + locale + ": \\{"));
+  }
+  for (const phrase of [
+    "oil, gas, petrochemical",
+    "pipelines",
+    "refineries",
+    "EPC",
+    "Engineering Intelligence",
+    "permission-aware",
+    "industriesEyebrow",
+    "cubi-exact-industries",
+  ]) assert.ok(landing.includes(phrase), "Expected homepage messaging marker: " + phrase);
+  assert.match(landing, /request your approval before changing project records|request your approval before changing project records/i);
+  // Do not advertise a locale until its translated homepage AND every public
+  // marketing route, metadata and reciprocal language links are shipped.
+  assert.deepEqual(
+    landing.match(/LANDING_LANGUAGE_ROUTES:[\\s\\S]*?Object\\.freeze\\(\\[([^\\]]+)/)?.[1]?.match(/"[a-z-]+"/g),
+    ['"en"', '"fa"'],
+  );
+});
+
 test("Persian homepage mirrors dashboard and technology layout in RTL mode", () => {
   assert.match(styles, /\[dir="rtl"\] \.cubi-exact-dashboard\s*\{[^}]*margin-right:\s*-1\.5rem/);
   assert.match(styles, /\[dir="rtl"\] \.cubi-tech-node\.n1,[\s\S]*?right:\s*0/);
