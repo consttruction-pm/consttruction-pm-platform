@@ -10,10 +10,25 @@
  */
 import type { ApiTransport, ProjectContext } from "./client.js";
 import { createP6LayoutPersistence } from "./p6-api.js";
-import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
+import { normalizeLayout, validateLayout } from "./p6-field-layout-foundation.js";
+import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 
 export const LAYOUT_SELECTION_STORAGE_PREFIX = "cubi:workspace-layout-selection";
+
+/** File format for Layout > Export / Import. Presentation only, never project data. */
+export const LAYOUT_EXCHANGE_FORMAT = "cubi-layout.v1";
+
+export type LayoutExchangeDocument = {
+  format: typeof LAYOUT_EXCHANGE_FORMAT;
+  name: string;
+  layout: {
+    schema_version: string;
+    view_id: string;
+    columns: LayoutDefinition["columns"];
+    metadata: Readonly<Record<string, unknown>>;
+  };
+};
 
 export type StoredLayoutScope = "project" | "user";
 
@@ -125,6 +140,62 @@ export function writeLayoutSelection(
   return JSON.stringify({ ...store, [selectionKey(tenantId, projectId)]: selection });
 }
 
+
+function exchangeName(layout: LayoutDefinition | null, locale: Locale): string {
+  return layoutDisplayName(layout, locale);
+}
+
+/** Serializes the stored layout for download; scope and revision stay server-owned. */
+export function serializeLayoutDocument(layout: LayoutDefinition, name: string): string {
+  const document: LayoutExchangeDocument = {
+    format: LAYOUT_EXCHANGE_FORMAT,
+    name: name.trim(),
+    layout: {
+      schema_version: layout.schema_version,
+      view_id: layout.view_id,
+      columns: layout.columns,
+      metadata: layout.metadata ?? {},
+    },
+  };
+  return JSON.stringify(document, null, 2);
+}
+
+/**
+ * Parses an exported layout into a user-scope draft. The target revision is
+ * left at zero because the catalog decides the next revision on save; an
+ * imported file can never overwrite a project layout or pin a revision.
+ */
+export function parseLayoutDocument(
+  text: string,
+  registry?: FieldRegistry,
+): { name: string; layout: LayoutDefinition } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("INVALID_LAYOUT_DOCUMENT");
+  }
+  if (!parsed || typeof parsed !== "object") throw new Error("INVALID_LAYOUT_DOCUMENT");
+  const document = parsed as Partial<LayoutExchangeDocument>;
+  if (document.format !== LAYOUT_EXCHANGE_FORMAT) throw new Error("INVALID_LAYOUT_DOCUMENT");
+  const name = typeof document.name === "string" ? document.name.trim() : "";
+  if (!name) throw new Error("INVALID_LAYOUT_DOCUMENT_NAME");
+  const raw = document.layout;
+  if (!raw || typeof raw !== "object") throw new Error("INVALID_LAYOUT_DOCUMENT");
+  const layout = validateLayout(
+    {
+      schema_version: raw.schema_version as LayoutDefinition["schema_version"],
+      scope: "user",
+      view_id: String(raw.view_id ?? ""),
+      revision: 0,
+      columns: Array.isArray(raw.columns) ? raw.columns : [],
+      metadata: raw.metadata && typeof raw.metadata === "object" ? raw.metadata : {},
+    },
+    registry,
+  );
+  return { name, layout: normalizeLayout(layout) };
+}
+
 export type LayoutSelectorOptions = {
   locale: Locale;
   current: LayoutDefinition | null;
@@ -138,6 +209,9 @@ export type LayoutSelectorOptions = {
   onCancel: () => void;
   onSave: () => void;
   onSaveAs: (name: string) => void;
+  onRename: (name: string) => void;
+  onExport: () => void;
+  onImport: (text: string) => void;
   onReload: (scope: StoredLayoutScope) => void;
   onError?: (message: string) => void;
 };
@@ -213,6 +287,10 @@ export function renderLayoutSelectorMarkup(options: {
         <button type="button" data-layout-action="cancel" ${previewing ? "" : "disabled"} title="${escapeHtml(t(locale, "Discard the preview and restore the saved layout", "دور ریختن پیش‌نمایش و بازگردانی چیدمان ذخیره‌شده"))}">${escapeHtml(t(locale, "Cancel", "انصراف"))}</button>
         <button type="button" data-layout-action="save" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Write this layout to the server", "نوشتن این چیدمان روی سرور") : saveReason)}">${escapeHtml(t(locale, "Save", "ذخیره"))}</button>
         <button type="button" data-layout-action="save-as" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Save a copy under its own layout name", "ذخیرهٔ نسخه‌ای با نام چیدمان خودش") : saveReason)}">${escapeHtml(t(locale, "Save As…", "ذخیره با نام…"))}</button>
+        <button type="button" data-layout-action="rename" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Rename this stored layout", "تغییر نام این چیدمان ذخیره‌شده") : saveReason)}">${escapeHtml(t(locale, "Rename…", "تغییر نام…"))}</button>
+        <button type="button" data-layout-action="export" ${current ? "" : "disabled"} title="${escapeHtml(t(locale, "Download this layout as a file", "بارگیری این چیدمان به‌صورت پرونده"))}">${escapeHtml(t(locale, "Export…", "برون‌بری…"))}</button>
+        <button type="button" data-layout-action="import" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Save an exported layout file into the user scope", "ذخیرهٔ پروندهٔ چیدمان برون‌بری‌شده در دامنهٔ کاربر") : saveReason)}">${escapeHtml(t(locale, "Import…", "درون‌ریزی…"))}</button>
+        <input type="file" accept="application/json,.json" data-layout-import hidden aria-hidden="true" tabindex="-1">
         <button type="button" data-layout-action="reload" ${current ? "" : "disabled"} title="${escapeHtml(t(locale, "Re-read the stored layout from the server", "خواندن دوبارهٔ چیدمان ذخیره‌شده از سرور"))}">${escapeHtml(t(locale, "Reload", "بازخوانی"))}</button>
       </div>
       ${options.error ? `<p class="cp-layout-error" role="alert">${escapeHtml(options.error)}</p>` : ""}
@@ -317,14 +395,35 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
     else if (action === "cancel") options.onCancel();
     else if (action === "save") options.onSave();
     else if (action === "save-as") {
-      const suggested = options.current ? layoutDisplayName(options.current, options.locale) : "";
+      const suggested = exchangeName(options.current, options.locale);
       const name = window.prompt(
         translateWorkspaceUiText(options.locale, "Name for the saved layout", "نام چیدمان ذخیره‌شده"),
         suggested,
       );
       const trimmed = name?.trim();
       if (trimmed) options.onSaveAs(trimmed);
+    } else if (action === "rename") {
+      const suggested = exchangeName(options.current, options.locale);
+      const name = window.prompt(
+        translateWorkspaceUiText(options.locale, "New name for this layout", "نام تازه برای این چیدمان"),
+        suggested,
+      );
+      const trimmed = name?.trim();
+      if (trimmed && trimmed !== suggested) options.onRename(trimmed);
+    } else if (action === "export") {
+      options.onExport();
+    } else if (action === "import") {
+      host.querySelector<HTMLInputElement>("[data-layout-import]")?.click();
     } else if (action === "reload") options.onReload(currentScope(options.current));
+  });
+
+  host.addEventListener("change", (event) => {
+    const input = (event.target as HTMLElement | null)?.closest<HTMLInputElement>("[data-layout-import]");
+    if (!input) return;
+    const file = input.files?.[0];
+    if (!file) return;
+    void file.text().then((text) => options.onImport(text)).catch(() => options.onError?.(translateWorkspaceUiText(options.locale, "The layout file could not be read", "خواندن پروندهٔ چیدمان انجام نشد")));
+    input.value = "";
   });
 
   host.addEventListener("keydown", (event) => {

@@ -83,8 +83,10 @@ import {
   layoutDisplayName,
   loadLayoutCatalog,
   mountWorkspaceLayoutSelector,
+  parseLayoutDocument,
   parseLayoutSelections,
   readLayoutSelection,
+  serializeLayoutDocument,
   writeLayoutSelection,
   type LayoutSelection,
   type StoredLayoutScope,
@@ -1852,6 +1854,66 @@ function renderApp(
     }
   };
 
+  const layoutFileName = (name: string): string => {
+    const slug = name.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
+    return `${slug || "layout"}.cubi-layout.json`;
+  };
+
+  /** Downloads presentation only; the file can never carry project data. */
+  const exportCurrentLayout = (): void => {
+    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+    if (!base) return;
+    const text = serializeLayoutDocument(base, layoutDisplayName(base, state.locale));
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = layoutFileName(layoutDisplayName(base, state.locale));
+    anchor.rel = "noopener";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  /**
+   * Imports an exported layout into the user scope. The catalog supplies the
+   * next revision, the registry rejects columns this project does not have,
+   * and the project layout is never overwritten.
+   */
+  const importLayout = async (text: string): Promise<void> => {
+    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+    const registry = currentWorkspaceState?.p6FieldRegistry ?? state.p6FieldRegistry;
+    if (!base || !registry) return;
+    let document: ReturnType<typeof parseLayoutDocument>;
+    try {
+      document = parseLayoutDocument(text, registry);
+    } catch (error) {
+      await reportLayoutFailure(error);
+      return;
+    }
+    try {
+      const catalog = await loadLayoutCatalog(aiTransport, state.context, document.layout.view_id);
+      const existing = catalog.user;
+      const saved = await persistence.save({
+        ...document.layout,
+        scope: "user",
+        revision: existing ? existing.revision + 1 : 0,
+        metadata: {
+          ...document.layout.metadata,
+          layoutName: document.name,
+          presentation: visualPreferences.presentation,
+          presentationUpdatedAt: visualPreferences.updatedAt,
+        },
+      });
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(state.context, saved);
+      const latest = currentWorkspaceState ?? state;
+      renderApp(container, setP6Presentation(latest, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
   const reloadStoredLayout = async (scope: StoredLayoutScope): Promise<void> => {
     const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
     const registry = currentWorkspaceState?.p6FieldRegistry ?? state.p6FieldRegistry;
@@ -2606,6 +2668,13 @@ function renderApp(
       },
       onSaveAs: (name) => {
         void saveLayoutAs(name);
+      },
+      onRename: (name) => {
+        void saveCurrentLayout(name);
+      },
+      onExport: exportCurrentLayout,
+      onImport: (text) => {
+        void importLayout(text);
       },
       onReload: (scope) => {
         void reloadStoredLayout(scope);

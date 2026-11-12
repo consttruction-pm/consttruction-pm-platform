@@ -580,6 +580,104 @@ async function main() {
       return results;
     });
 
+    await scenario("10", "Rename، Export و Import یک پروندهٔ چیدمان واقعی می‌سازند و دادهٔ پروژه را تغییر نمی‌دهند", async () => {
+      const beforeRows = (await page.evaluate(gridState)).rowIds;
+
+      await openSelector(page);
+      await waitForCatalogue(page);
+      await acceptPrompt(page, "Field crew layout");
+      await triggerAction(page, "rename");
+      let renamed = null;
+      const renameStarted = Date.now();
+      while (Date.now() - renameStarted < 15000) {
+        const read = await readLayout(page, "preview-rps-01", "user");
+        if (read.status === 200) {
+          const definition = read.body.layout ?? read.body;
+          if (definition.metadata?.layoutName === "Field crew layout") {
+            renamed = definition;
+            break;
+          }
+        }
+        await sleep(400);
+      }
+      assert(renamed, "Rename did not write the new name to the user layout");
+      const renamedGrid = await page.evaluate(gridState);
+      assert(renamedGrid.triggerName === "Field crew layout", `trigger name after rename is ${renamedGrid.triggerName}`);
+
+      await openSelector(page);
+      await waitForCatalogue(page);
+      const exported = await page.evaluate(`(async () => {
+        const originalCreate = URL.createObjectURL.bind(URL);
+        const originalClick = HTMLAnchorElement.prototype.click;
+        window.__cubiExportBlob = null;
+        window.__cubiDownload = null;
+        URL.createObjectURL = (blob) => { window.__cubiExportBlob = blob; return "blob:cubi-layout-export"; };
+        HTMLAnchorElement.prototype.click = function () { window.__cubiDownload = this.download; };
+        const button = document.querySelector('[data-layout-action="export"]');
+        if (!button || button.disabled) return { ok: false, reason: "export disabled" };
+        button.click();
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        const text = window.__cubiExportBlob ? await window.__cubiExportBlob.text() : null;
+        HTMLAnchorElement.prototype.click = originalClick;
+        URL.createObjectURL = originalCreate;
+        return { ok: true, text, download: window.__cubiDownload };
+      })()`, { awaitPromise: true });
+      assert(exported.ok, `export could not run: ${exported.reason ?? "unknown"}`);
+      assert(exported.text, "export produced no file content");
+      assert((exported.download ?? "").endsWith(".cubi-layout.json"), `download name is ${exported.download}`);
+      const document = JSON.parse(exported.text);
+      assert(document.format === "cubi-layout.v1", `export format is ${document.format}`);
+      assert(document.name === "Field crew layout", `export name is ${document.name}`);
+      assert(document.layout.columns.length === renamed.columns.length, "export dropped columns");
+      assert(!("scope" in document.layout) && !("revision" in document.layout), "export pinned a scope or revision");
+      assert(!exported.text.includes("preview-rps-01") && !exported.text.includes("cubi-preview-tenant"), "export leaked project or tenant identity");
+      await capture(page, "10-layout-export");
+
+      const importedName = "Imported crew layout";
+      const importDocument = JSON.parse(exported.text);
+      importDocument.name = importedName;
+      await openSelector(page);
+      await waitForCatalogue(page);
+      const imported = await page.evaluate(`(async () => {
+        const input = document.querySelector("[data-layout-import]");
+        if (!input) return { ok: false, reason: "import input missing" };
+        const file = new File([${JSON.stringify(JSON.stringify(importDocument))}], "crew.cubi-layout.json", { type: "application/json" });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return { ok: true };
+      })()`, { awaitPromise: true });
+      assert(imported.ok, `import could not run: ${imported.reason ?? "unknown"}`);
+      let importedLayout = null;
+      const importStarted = Date.now();
+      while (Date.now() - importStarted < 15000) {
+        const read = await readLayout(page, "preview-rps-01", "user");
+        if (read.status === 200) {
+          const definition = read.body.layout ?? read.body;
+          if (definition.metadata?.layoutName === importedName) {
+            importedLayout = definition;
+            break;
+          }
+        }
+        await sleep(400);
+      }
+      assert(importedLayout, "Import did not write the user layout");
+      assert(importedLayout.revision > renamed.revision, `import revision ${importedLayout.revision} did not advance past ${renamed.revision}`);
+      assert(JSON.stringify(importedLayout.columns) === JSON.stringify(renamed.columns), "Import changed the column presentation");
+      const importedGrid = await page.evaluate(gridState);
+      assert(importedGrid.triggerName === importedName, `trigger name after import is ${importedGrid.triggerName}`);
+      assert(JSON.stringify(importedGrid.rowIds) === JSON.stringify(beforeRows), "layout exchange changed the activity rows");
+      await capture(page, "11-layout-import");
+      return {
+        renamed: renamed.metadata.layoutName,
+        download: exported.download,
+        imported: importedLayout.metadata.layoutName,
+        revision: importedLayout.revision,
+        rows: importedGrid.rowIds.length,
+      };
+    });
+
     const finalState = await page.evaluate(gridState);
     assert(finalState.columns.length > 0, "the activity table ended without columns");
     assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);
