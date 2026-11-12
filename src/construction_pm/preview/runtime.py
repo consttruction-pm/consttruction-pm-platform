@@ -121,6 +121,9 @@ from construction_pm.document_persistence import (
 from construction_pm.budget_api import BudgetAPI
 from construction_pm.budget_application import BudgetApplicationService
 from construction_pm.budget_persistence import SQLiteBudgetStore
+from construction_pm.cost_api import CostAPI
+from construction_pm.cost_application import CostApplicationService
+from construction_pm.cost_persistence import SQLiteCostStore
 from construction_pm.p6_financial_period_repository import (
     P6FinancialPeriodApplicationService,
     SQLiteP6FinancialPeriodRepository,
@@ -352,6 +355,7 @@ class PreviewRepositories:
     issues: SQLiteP6IssueRepository
     documents: SQLiteDocumentStore
     budget: SQLiteBudgetStore
+    cost: SQLiteCostStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -427,6 +431,8 @@ class PreviewRepositories:
         documents.initialize()
         budget = SQLiteBudgetStore(connection)
         budget.initialize()
+        cost = SQLiteCostStore(connection)
+        cost.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -476,6 +482,7 @@ class PreviewRepositories:
             issues=issues,
             documents=documents,
             budget=budget,
+            cost=cost,
             transaction_manager=transaction_manager,
         )
 
@@ -1614,6 +1621,13 @@ def open_preview_runtime(
         budget_api=BudgetAPI(
             BudgetApplicationService(
                 repositories.budget,
+                policy,
+                repositories.transaction_manager,
+            )
+        ),
+        cost_api=CostAPI(
+            CostApplicationService(
+                repositories.cost,
                 policy,
                 repositories.transaction_manager,
             )
