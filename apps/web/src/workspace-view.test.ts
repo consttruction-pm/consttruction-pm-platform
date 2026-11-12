@@ -996,6 +996,77 @@ test("P6 chooser exposes hidden authoritative fields", () => {  const state = { 
 });
 
 
+test("P6 field chooser offers Add all only while fields are available", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" },
+      { field_id: "activity.duration", subject_area: "activity", p6_field: "Duration", display_name: "Duration", data_type: "duration", writable: false, computed: true, disposition: "supported" },
+    ],
+  } as const;
+  const layout = {
+    schema_version: "p6-layout.v1",
+    scope: "project",
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+  } as const;
+  const partial = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), p6FieldRegistry: registry, p6Layout: layout };
+  const partialContainer: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(partialContainer as unknown as HTMLElement, partial);
+  assert.match(partialContainer.innerHTML, /data-p6-field-add-all/);
+  assert.match(partialContainer.innerHTML, /aria-label="Add all"/);
+  assert.match(partialContainer.innerHTML, /data-p6-field-add="activity\.duration"/);
+
+  const complete = {
+    ...partial,
+    p6Layout: { ...layout, revision: 2, columns: [...layout.columns, { field_id: "activity.duration", visible: true, order: 1, width: 120, alignment: "start" as const, pinned: false, frozen: false }] },
+  };
+  const completeContainer: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(completeContainer as unknown as HTMLElement, complete);
+  assert.doesNotMatch(completeContainer.innerHTML, /data-p6-field-add-all/);
+});
+
+test("P6 field chooser Add all forwards only fields missing from the layout", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" },
+      { field_id: "activity.duration", subject_area: "activity", p6_field: "Duration", display_name: "Duration", data_type: "duration", writable: false, computed: true, disposition: "supported" },
+      { field_id: "activity.status", subject_area: "activity", p6_field: "Status", display_name: "Status", data_type: "string", writable: false, computed: false, disposition: "supported" },
+    ],
+  } as const;
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: registry,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 1,
+      columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as const,
+  };
+  const added: string[][] = [];
+  let clickListener: ((event: Event) => void) | undefined;
+  const target = { dataset: { p6FieldAddAll: "" }, closest: () => target };
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onP6FieldAddMany: (fieldIds) => added.push([...fieldIds]) });
+  clickListener?.({ target } as unknown as Event);
+  assert.deepEqual(added, [["activity.duration", "activity.status"]]);
+});
+
+
 test("P6 chooser rename control forwards the persisted presentation label", () => {
   const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), p6FieldRegistry: { registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "26", status: "active", fields: [{ field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" }] } as const, p6Layout: { schema_version: "p6-layout.v1", scope: "project", view_id: "activity-grid", revision: 1, columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }] } as const };
   const changes: Array<{ fieldId: string; label: string }> = [];

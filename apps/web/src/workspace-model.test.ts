@@ -26,6 +26,7 @@ import {
   withRelationships,
   setP6Presentation,
   addP6Field,
+  addP6Fields,
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
@@ -654,6 +655,36 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
   assert.equal(state.columns[0]?.alignment, "start");
   assert.equal(state.columns[0]?.pinned, false);
   assert.equal(state.columns[0]?.frozen, false);
+});
+
+test("P6 field chooser adds every available field without duplicating columns", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "activity_code", subject_area: "activity", p6_field: "ActivityId", display_name: "Activity Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+      { field_id: "status", subject_area: "activity", p6_field: "Status", display_name: "Status", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [
+      { field_id: "activity_code", visible: true, order: 0, width: 140, alignment: "start" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  state = addP6Fields(state, ["duration", "status", "duration"]);
+  assert.deepEqual(state.columns.map((column) => column.id), ["activity_code", "duration", "status"]);
+  // Duplicate ids are collapsed, so two real additions advance the revision twice.
+  assert.equal(state.p6Layout?.revision, 3);
+  assert.throws(() => addP6Fields(state, ["duration"]), /FIELD_ALREADY_IN_LAYOUT/);
+  assert.throws(() => addP6Fields(state, ["unknown"]), /P6_FIELD_NOT_FOUND/);
 });
 
 test("P6 registry projects persisted formula columns as computed metadata", () => {
