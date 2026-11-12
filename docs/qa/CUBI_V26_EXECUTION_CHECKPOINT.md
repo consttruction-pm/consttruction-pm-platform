@@ -1457,5 +1457,93 @@ Recorded provenance (two independent facts):
 
 ### Next stage
 
-Stage E Risk register (categories, scoring matrix, response and history), remaining Calendar
-work, then Stage F (Reports; Administration; Import/Export; Backup/Recovery).
+Stage E Risk register (delivered as Stage E5 below), remaining Calendar work, then Stage F
+(Reports; Administration; Import/Export; Backup/Recovery).
+
+## Stage E5 — Project risk register, scoring matrix and response history
+
+PR [#1767](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1767) squash-merged
+into `main` as `1342b60a` on 2026-11-12. Post-merge CI on `1342b60a`: ConstructionPM CI, Client
+Typecheck, PostgreSQL Sync State Integration, the Pages deploy and ConstructionPM Web CI all
+succeeded on the first run.
+
+### What shipped
+
+1. **Persistent risk domain** (`risk_persistence.py`): `SQLiteRiskStore` owns `project_risk` and
+   the immutable `project_risk_audit` trail. A risk carries a title, description, one of nine
+   categories (`technical|commercial|schedule|cost|quality|safety|resource|external|other`), one
+   of four statuses (`open|monitoring|mitigating|closed`), integer probability and impact in
+   `1..5` (booleans and floats rejected), one of five response strategies
+   (`avoid|transfer|mitigate|accept|escalate`), owner, optional response owner, response due date,
+   responsible manager, identification date and closure note. Score is derived as `p × i`; the
+   exposure band is `low ≤ 4`, `medium ≤ 9`, `high ≤ 16`, `critical` otherwise. The status graph
+   allows movement among `open`, `monitoring` and `mitigating`, `closed → open` only, same-status
+   writes as no-ops, and requires a closure note whenever the target status is `closed`
+   (`RISK_CLOSURE_NOTE_REQUIRED`).
+2. **Revision and idempotency guards**: creates require an idempotency key
+   (`RISK_IDEMPOTENCY_KEY_REUSE` on reuse with a different payload), duplicate ids fail with
+   `RISK_ALREADY_EXISTS`, edits and deletes require `expected_revision`
+   (`RISK_REVISION_CONFLICT`), illegal transitions fail with `RISK_STATUS_TRANSITION_INVALID`, and
+   every accepted write appends an immutable event (`created`, `updated`, `status_changed`,
+   `deleted`) with actor, timestamp and revision.
+3. **Versioned API and HTTP surface** (`risk_api.py`, `p6-risk-api.v1`): flat DTOs for risks,
+   history and errors; project-scoped behind `PROJECT_READ`/`PROJECT_WRITE` with actor identity
+   checked against the principal. Routes: `GET/POST /api/projects/{id}/risks`, `GET/PUT/PATCH/
+   DELETE /risks/{id}`, `GET /risks/{id}/history`, with server-side category, status, response
+   strategy, exposure and search filters and score-descending ordering. Not-found maps to 404,
+   conflicts to 409, validation to 400; WSGI carries the risk query strings.
+4. **Preview, production and workspace wiring**: the preview runtime composes
+   `SQLiteRiskStore` → `RiskApplicationService` → `RiskAPI` against the shared authorization
+   policy and transaction manager and persists across restarts; production composition accepts an
+   optional `RiskAPI`. The Risks window (`workspace-risks.ts`) mounts a real register with
+   toolbar create/refresh, five filters, a register table, a 5×5 exposure matrix whose cells show
+   counts by band and outline the selected risk, a create/edit form with closure-note validation,
+   a details panel and an audit history list. A stale write reloads the authoritative record
+   after a 409; planner/admin see write controls while viewer is read-only in the UI and receives
+   server 403s.
+
+### Honest limits
+
+- Risks are project-level records; they are not assigned to activities, WBS nodes, resources or
+  owners as tracked assignments, and there is no risk-response action plan or residual-risk
+  tracking.
+- No notification, escalation, review cadence, risk-report export or risk-to-issue conversion
+  exists. The register records response strategy and due date but does not enforce or remind.
+- The 5×5 matrix is a live count of stored risks by band; it has no time dimension, no history
+  snapshots and no per-category or per-strategy breakdown.
+- Deleting a risk removes the row and leaves its audit trail unreachable through the API; there
+  is no archive or restore.
+- Risk facts are SQLite only; there is no Postgres mirror, and new register labels are inline
+  English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 830 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Risk web suite | `apps/web/src/workspace-risks.test.ts` | 11 tests: exposure bands, strict parsers, payload normalization, save/delete paths, history envelope |
+| Workspace view suite | `apps/web/src/workspace-view.test.ts` | 90 tests, including the first-class Risks window |
+| Risk backend suites | `pytest tests/test_risk_sqlite_store.py tests/test_risk_application.py tests/test_risk_api.py tests/test_risk_http_routes.py tests/test_preview_risks.py` | 18 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3490 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=97826cd node e2e/risks-v26.mjs` | 11/11 scenarios pass, 12 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Scoring and matrix readback | scenarios 02–04 of the same suite | `3×4` stored as score 12 / high, matrix cell `3-4` counts 1, edit to `4×5` gives 20 / critical, stale PATCH returns 409 |
+| Closure and history readback | scenarios 05–06 of the same suite | closing without a note returns `RISK_CLOSURE_NOTE_REQUIRED`, closing with a note records revision 3, and history returns `created` + two `status_changed` events |
+| Layout at 1280×720 | scenario 10 of the same suite | Persian RTL, toolbar, table and matrix fit without clipping |
+| Evidence bundle | `docs/workspace/evidence/risks-v26-2026-11-12/` | `risks-v26.json` + 12 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `97826cda5f349ba885ec9b33cdea29be4d05bf20` |
+| Evidence commit | `a6466b2c26596d8bfb6d51efaa22bd72f95c0f05` |
+| Branch | `feat/v26-stage-e-risks` |
+| PR | [#1767](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1767) |
+| Merge commit | `1342b60a0ec97e19528541bf68cdc5169f21d6f6` |
+| Post-merge CI | 5/5 workflows success on `1342b60a` |
+
+### Next stage
+
+Remaining Calendar work, then Stage F (Reports; Administration; Import/Export; Backup/Recovery).
