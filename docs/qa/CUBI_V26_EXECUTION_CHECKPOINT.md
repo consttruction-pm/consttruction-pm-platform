@@ -2863,3 +2863,31 @@ Evidence: `docs/workspace/evidence/activity-scale-v26-2026-11-12/` (`activity-sc
 Remaining gaps: no 250+ scroll-sync stress, no multi-project population test, and the grid
 renders every row rather than windowing, which is correct at this scale but may need
 virtualisation for much larger projects.
+
+## Context menu focus restore and dismissal (2026-11-12)
+
+HTML Help topic: [Use shortcut menus](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_shortcut_menus.htm).
+Implementation `5d21ebb5`; test surface `apps/web/e2e/context-menus-v26.mjs`.
+
+- The viewport portal already opened every menu at the pointer, flipped and clamped it at the
+  viewport edges, and kept it open while the grid scrolled. The new assertions found that
+  **Escape did not return focus** after a pointer invocation: right-clicking an activity row
+  selects it, the selection re-renders the grid, and the element the menu was anchored to was
+  already detached, so `focus()` hit a disconnected node and focus fell to `document.body`.
+- `close(restoreFocus)` now re-resolves the same logical object from stable identity
+  attributes (`data-activity-id`, `data-gantt-activity-id`, `data-column-id`, `data-wbs-row`,
+  `data-gantt-wbs-id`, `id`) and focuses the live element. Column headers, Gantt group rows,
+  the timescale axis and both panes are programmatically focusable (`tabindex="-1"`), and a
+  relationship menu anchors to its successor row instead of an SVG path that cannot take
+  focus.
+- The browser matrix now asserts outside-click dismissal, and Escape focus restore for a
+  pointer-opened row, a keyboard-opened row (Shift+F10), a column header and the timescale in
+  en/LTR and fa/RTL.
+
+Evidence: `docs/workspace/evidence/context-menus-v26-2026-11-12/` (`context-menus-v26.json`,
+92/92 checks, 0 failed, `build.git_head` `5d21ebb51b779609cad7109bc23fbe1dd3c6b489`,
+screenshots 01–04). Web suite at the same code: 940 + 14 tests pass, `tsc --noEmit` and
+`npm run build` pass. Remaining gaps: enabled command side effects are exercised only for
+Columns, Add and Customize Details; permission enforcement is inherited from each command's
+action; cut/copy/paste/fill-down/export/assign stay truthfully disabled with no write/export
+route; the Activity Network has no context menu and there is no touch long-press path.
