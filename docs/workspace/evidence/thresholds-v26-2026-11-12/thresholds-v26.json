@@ -3,7 +3,7 @@
   "baseUrl": "http://127.0.0.1:4193",
   "gitHead": "47ab370ae6dc706c9175f7069d0f440bcfcac714",
   "testedCodeSha": "47ab370",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "a2ab8c2",
   "capturedAt": "2026-11-12T02:49:19.492Z",
   "thresholdId": "E2E-TH-MWCY8UXL",
   "expenseWarningId": "E2E-THEXP-MWCY8UXL-WARN",
