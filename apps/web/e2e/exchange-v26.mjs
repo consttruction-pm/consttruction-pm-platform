@@ -302,13 +302,13 @@ async function main() {
       const exported = await page.evaluate(pageState);
       assert(exported.exportColumns[0] === "resource_id", `columns ${exported.exportColumns.join(",")}`);
       assert(exported.exportRows > 0, `exported rows ${exported.exportRows}`);
-      assert(/\\bRows: \\d+/.test(exported.exportMeta) || /Rows/.test(exported.exportMeta), `meta ${exported.exportMeta}`);
+      assert(/\bRows: \d+/.test(exported.exportMeta) || /Rows/.test(exported.exportMeta), `meta ${exported.exportMeta}`);
       assert(exported.hasDownload, "download button missing");
       await capture(page, "01-resource-export");
 
       const direct = await api(page, "GET", exchangeUrl("/export?dataset=resources"));
       assert(direct.status === 200 && direct.body.contract_version === "p6-exchange-api.v1", `export api ${JSON.stringify(direct).slice(0, 300)}`);
-      assert(direct.body.row_count === direct.body.content.split("\\n").length - 2, `export row count ${direct.body.row_count}`);
+      assert(direct.body.row_count === direct.body.content.split("\n").length - 2, `export row count ${direct.body.row_count}`);
       return { datasets: state.exportOptions, rowCount: direct.body.row_count };
     });
 
