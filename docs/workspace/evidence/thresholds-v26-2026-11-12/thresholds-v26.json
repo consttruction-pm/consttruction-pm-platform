@@ -1,0 +1,251 @@
+{
+  "contract": "cubi-thresholds-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "47ab370ae6dc706c9175f7069d0f440bcfcac714",
+  "testedCodeSha": "47ab370",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T02:49:19.492Z",
+  "thresholdId": "E2E-TH-MWCY8UXL",
+  "expenseWarningId": "E2E-THEXP-MWCY8UXL-WARN",
+  "expenseIssueId": "E2E-THEXP-MWCY8UXL-ISSUE",
+  "scenarios": [
+    {
+      "thresholds": 0,
+      "id": "01",
+      "name": "فهرست آستانهٔ خالی و کنترل ساخت برای Planner نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:49:23.703Z"
+    },
+    {
+      "row": {
+        "id": "E2E-TH-MWCY8UXL",
+        "name": "E2E expense ceiling",
+        "subject": "Cost",
+        "parameter": "Actual expenses (USD)",
+        "bounds": "— / 100",
+        "levels": "10 / 50",
+        "manager": "preview-planner",
+        "status": "active",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "stored": {
+        "contract_version": "p6-threshold-api.v1",
+        "threshold_id": "E2E-TH-MWCY8UXL",
+        "name": "E2E expense ceiling",
+        "monitoring_subject": "cost",
+        "parameter": "expense_actual_total",
+        "currency": "USD",
+        "lower_threshold": null,
+        "upper_threshold": "100",
+        "warning_level": "10",
+        "issue_level": "50",
+        "responsible_manager": "preview-planner",
+        "status": "active",
+        "revision": 1
+      },
+      "id": "02",
+      "name": "آستانهٔ هزینه با کران بالا، سطوح هشدار و مسئله و نسخهٔ ۱ ساخته می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:49:24.324Z"
+    },
+    {
+      "runs": [
+        {
+          "sequence": 1,
+          "observed": "0 USD",
+          "level": "Normal",
+          "issue": "—",
+          "occurred": "2026-11-12T02:49:24.742418+00:00"
+        }
+      ],
+      "id": "03",
+      "name": "پایش اول مقدار واقعی صفر را عادی ثبت می‌کند و اجرای شمارهٔ ۱ را می‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T02:49:25.524Z"
+    },
+    {
+      "run": {
+        "sequence": 2,
+        "observed": "120 USD",
+        "level": "Warning",
+        "issue": "—",
+        "occurred": "2026-11-12T02:49:25.531077+00:00"
+      },
+      "id": "04",
+      "name": "هزینهٔ ۱۲۰ دلاری با عبور از کران بالا سطح هشدار ایجاد می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T02:49:26.206Z"
+    },
+    {
+      "run": {
+        "sequence": 3,
+        "observed": "320 USD",
+        "level": "Issue",
+        "issue": "THR-E2E-TH-MWCY8UXL-R3",
+        "occurred": "2026-11-12T02:49:26.214260+00:00"
+      },
+      "issue": {
+        "issue_id": "THR-E2E-TH-MWCY8UXL-R3",
+        "title": "Threshold breached: E2E expense ceiling",
+        "description": "Threshold E2E-TH-MWCY8UXL (expense_actual_total) observed 320 against upper 100; level issue.",
+        "issue_type": "cost",
+        "status": "open",
+        "priority": "high",
+        "owner": "preview-planner",
+        "responsible_manager": "preview-planner",
+        "date_identified": "2026-11-12",
+        "due_date": null,
+        "wbs_id": null,
+        "activity_id": null,
+        "document_refs": [],
+        "resolution_note": null,
+        "record_revision": 1,
+        "created_at": "2026-11-12T02:49:26.214260+00:00",
+        "updated_at": "2026-11-12T02:49:26.214260+00:00"
+      },
+      "id": "05",
+      "name": "هزینهٔ ۲۰۰ دلاری سطح مسئله را عبور می‌دهد و یک مسئلهٔ واقعی با شناسهٔ اجرا می‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T02:49:26.907Z"
+    },
+    {
+      "run": {
+        "sequence": 4,
+        "observed": "320 USD",
+        "level": "Issue",
+        "issue": "—",
+        "occurred": "2026-11-12T02:49:26.910284+00:00"
+      },
+      "id": "06",
+      "name": "پایش تکراری در همان سطح مسئله، مسئلهٔ تکراری نمی‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T02:49:27.590Z"
+    },
+    {
+      "runs": 4,
+      "history": [
+        "created · revision 1 · preview-planner · 2026-11-12T02:49:23.738817+00:00"
+      ],
+      "id": "07",
+      "name": "اجراهای تغییرناپذیر و تاریخچهٔ تعریف در پنل جزئیات خوانده می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T02:49:28.073Z"
+    },
+    {
+      "row": {
+        "id": "E2E-TH-MWCY8UXL",
+        "name": "E2E expense ceiling",
+        "subject": "Cost",
+        "parameter": "Actual expenses (USD)",
+        "bounds": "— / 2000",
+        "levels": "10 / 50",
+        "manager": "preview-planner",
+        "status": "active",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "staleStatus": 409,
+      "id": "08",
+      "name": "ویرایش با نسخهٔ جاری ذخیره می‌شود و نوشتن کهنه ۴۰۹ برمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-12T02:49:28.873Z"
+    },
+    {
+      "filtered": 1,
+      "empty": 0,
+      "id": "09",
+      "name": "صافی‌های موضوع، پارامتر، وضعیت و جستجو روی فهرست اعمال می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T02:49:31.183Z"
+    },
+    {
+      "row": {
+        "id": "E2E-TH-MWCY8UXL",
+        "name": "E2E expense ceiling",
+        "subject": "Cost",
+        "parameter": "Actual expenses (USD)",
+        "bounds": "— / 2000",
+        "levels": "10 / 50",
+        "manager": "preview-planner",
+        "status": "active",
+        "selected": false,
+        "edit": true,
+        "remove": true
+      },
+      "runs": 4,
+      "history": 2,
+      "id": "10",
+      "name": "پس از بارگذاری کامل صفحه، تعریف، اجراها و نسخه حفظ می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T02:49:34.107Z"
+    },
+    {
+      "createStatus": 403,
+      "monitorStatus": 403,
+      "id": "11",
+      "name": "نقش Viewer فقط می‌خواند: بدون کنترل نوشتن و پاسخ مستقیم 403",
+      "status": "pass",
+      "at": "2026-11-12T02:49:38.245Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "direction": "rtl",
+      "heading": "آستانه‌های پروژه",
+      "toolbar": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 39
+      },
+      "panel": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 341.09375
+      },
+      "table": {
+        "x": 46,
+        "y": 218.21875,
+        "width": 1178,
+        "height": 78.09375
+      },
+      "rows": 1,
+      "runs": 4,
+      "id": "12",
+      "name": "فهرست آستانه در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:49:43.159Z"
+    },
+    {
+      "remaining": 0,
+      "readStatus": 404,
+      "id": "13",
+      "name": "حذف آستانه با نسخهٔ جاری انجام می‌شود و خواندن بعدی ۴۰۴ است",
+      "status": "pass",
+      "at": "2026-11-12T02:49:45.960Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created-threshold.png",
+    "03-normal-run.png",
+    "04-warning-run.png",
+    "05-issue-run.png",
+    "06-repeat-issue-run.png",
+    "07-runs-and-history.png",
+    "08-edited-and-stale-conflict.png",
+    "09-filtered-register.png",
+    "10-persisted-after-reload.png",
+    "11-viewer-denied.png",
+    "12-thresholds-1280x720-fa.png",
+    "13-deleted-threshold.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T02:49:45.960Z"
+}
