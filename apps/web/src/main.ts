@@ -91,6 +91,7 @@ import {
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
 import { mountWorkspaceRisksPage } from "./workspace-risks.js";
 import { mountWorkspaceReportsPage } from "./workspace-reports.js";
+import { mountWorkspaceTrackingPage } from "./workspace-tracking.js";
 import { mountWorkspaceAdministrationPage } from "./workspace-administration.js";
 import { mountWorkspaceExchangePage } from "./workspace-exchange.js";
 import { mountWorkspaceBackupPage } from "./workspace-backup.js";
@@ -2682,6 +2683,15 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+    });
+  }
+
+  const trackingPage = workspace.querySelector<HTMLElement>("[data-tracking-page]");
+  if (trackingPage) {
+    mountWorkspaceTrackingPage(trackingPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
     });
   }
 

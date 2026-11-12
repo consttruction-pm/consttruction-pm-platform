@@ -1120,15 +1120,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       renderBottomSurface(container, record.state, record.options);
       return;
     }
-    if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
-      const value = (element as HTMLSelectElement).value;
-      const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
-      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
-      if (surface) surface.dataset.trackingSurface = value;
-      const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
-      if (heading) heading.textContent = label;
-      return;
-    }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
       const mode = (element as HTMLSelectElement).value;
       if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") {
@@ -2499,12 +2490,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = `<div class="cp-register-window cp-thresholds-window" data-thresholds-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Thresholds", "آستانه‌های پروژه"))}"></div>`;
       break;
     case "tracking":
-      body = `
-        <div class="cp-tracking-window">
-          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
-          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
-          <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
-        </div>`;
+      body = `<div class="cp-register-window cp-tracking-window" data-tracking-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Tracking", "رهگیری پروژه"))}"></div>`;
       break;
     case "settings":
       body = `

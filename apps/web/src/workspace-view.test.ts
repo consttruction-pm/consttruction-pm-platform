@@ -1918,12 +1918,10 @@ test("Roles is a first-class window mounted on the real role register", () => {
   assert.doesNotMatch(roles, /data-register-tab="roles:rates"/);
   assert.doesNotMatch(roles, /Role management is a visual shell only/);
   const tracking = render("en", "tracking");
-  assert.match(tracking, /Tracking Layout/);
-  assert.match(tracking, /Project Table/);
-  assert.match(tracking, /Project Bar Chart/);
-  assert.match(tracking, /Project Gantt \/ Profile/);
-  assert.match(tracking, /Resource Analysis/);
-  assert.match(tracking, /data-tracking-layout/);
+  assert.match(tracking, /data-tracking-page/);
+  assert.match(tracking, /aria-label="Project Tracking"/);
+  assert.doesNotMatch(tracking, /data-tracking-layout/);
+  assert.doesNotMatch(tracking, /not connected yet/);
 });
 
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
