@@ -140,12 +140,12 @@ The following reflects the code traceability matrix inspected on 2026-11-05. Re-
 | Assignments | Wired / partial | No edit/delete, period/spread editor or usage profile; resource IDs remain free text |
 | Roles | Wired / partial | No delete route, rates/limits or role-assignment tabs |
 | Calendars | Wired / partial | No blank-calendar snapshot creation or exception deletion; workweek update uses copy contract |
-| Cost | Wired / partial | No baseline capture route (GAP-BAS-03), cash flow, forecast, change/claim or variance-to-baseline view; EVM result is not stored |
+| Cost | Wired / partial | Baseline capture from the calculated schedule (GAP-BAS-03 resolved 2026-11-12); no cash flow, forecast, change/claim or variance-to-baseline view; EVM result is not stored |
 | Expenses | Wired / partial | No update/delete; no authoritative vendor/accrual/status or cost-account reference fields |
-| Documents | Wired-read only | No HTTP document write route or preview storage boundary (GAP-DOC-01) |
-| Reports | SHELL / preview | No report dataset HTTP route, selection, filter/group/layout/print/export (GAP-RPT-01/02) |
+| Documents | Wired / partial | Metadata create/edit/status/history over the versioned document API; binary upload/download remains GAP-DOC-02 |
+| Reports | Wired / partial | Versioned report register, stored runs and history; no scheduling, parameters, grouping, charts, print or CSV/PDF/XLSX export |
 | Tracking | SHELL / preview | No tracking read model, charts, profiles or project set (GAP-TRK-01) |
-| Issues | SHELL / preview | P6-style register does not show loaded field issues (GAP-ISS-01) |
+| Issues | Wired / partial | Versioned issue register with filters, create/edit/status graph, comments and history; no attachment upload or user-directory assignment |
 | Risks | GAP-CORE | No authoritative risk register/read-write model (GAP-RSK-01) |
 | Thresholds | GAP-CORE | No authoritative threshold register/monitoring model (GAP-THR-01) |
 | Control | Wired-read / partial | Control-room summary is read-backed; browser-side analysis is not implemented; Changes/Claims remains a separate in-shell surface |

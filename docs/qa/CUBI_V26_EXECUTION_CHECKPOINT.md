@@ -2413,3 +2413,92 @@ Recorded provenance:
   free mouse pan is not implemented.
 - Activity Details tab content, context-menu completeness, multi-select and the server capability
   gaps remain on the priority-zero queue.
+
+## Priority Zero — baseline capture and the Cost → EVM journey (2026-11-12)
+
+### Capability
+
+`POST /api/projects/{project_id}/p6/baselines/capture`
+(`p6-baseline-capture-api.v1`, permission `PROJECT_WRITE`) closes `GAP-BAS-03`. The service
+`P6BaselineCaptureService` reads the latest published schedule snapshot through
+`PublishedScheduleCaptureSource` **before** opening the write transaction (calendar and snapshot
+adapters commit on their own, which would destroy the outer savepoint), then inside one
+transaction resolves activity masters, rolls up stored `planned_cost`/`currency` from resource
+assignments and expenses, and writes baseline metadata plus immutable `p6_baseline_activity` rows.
+
+Honest boundaries, all returned in the response instead of being hidden:
+
+- Schedule facts come only from the calculated snapshot; the request body supplies identity,
+  type, notes and an optional currency. Dates, durations and costs are never accepted from the UI.
+- One-day calculated windows (milestones) are excluded and listed in `excluded_activity_ids`.
+  Completed multi-day activities remain measurable.
+- WBS/project-level expenses have no activity to attribute to, so they are listed in
+  `unattributed_expense_ids` rather than being absorbed into an activity row.
+- An explicit currency must match every detected cost currency; otherwise capture fails with
+  `BASELINE_CAPTURE_CURRENCY_MISMATCH` or `BASELINE_CAPTURE_CURRENCY_AMBIGUOUS`.
+- Replaying the same identity with identical metadata and rows returns `replayed: true` and the
+  stored rows; different metadata or rows return 409 `BASELINE_CAPTURE_TARGET_EXISTS`.
+- A stale `expected_revision` returns 409 `BASELINE_CAPTURE_STALE_REVISION`; writes are
+  revision-scoped through `P6Baseline(scope, ..., scope.project_revision, ...)`.
+
+The Cost Overview window adds a capture form (baseline id, name, type, currency, notes), reloads
+the baseline list, selects the new baseline and clears any stale measurement. Nothing is computed
+in the browser.
+
+### Help and tests
+
+- Help: [Add New Baseline dialog box](https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_new_baseline_dialog_box.htm)
+  (save the current project as a baseline / convert another project) and
+  [Assign Baselines dialog box](https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_baselines_dialog_box.htm)
+  (project, primary, secondary, tertiary assignment).
+- Python: `tests/test_p6_baseline_capture.py` — 16 tests covering cost rollup, explicit currency,
+  mixed-currency rejection, one-day exclusion, all-unmeasurable rejection, idempotent replay,
+  target-exists conflict, missing snapshot, WBS and technique projection, permission/cross-scope,
+  stale revision/contract, API provenance, HTTP 201/200 replay, unknown fields 400 and missing
+  snapshot 404; `test_preview_capture_feeds_the_evm_read_model` proves capture → EVM in the real
+  preview runtime (BAC `1000`, non-empty PV).
+- Web: `apps/web/src/workspace-cost.test.ts` — payload trimming, optional fields, invalid type and
+  revision, POST request shape, fail-closed response kind and the 409 passthrough.
+- Browser: `apps/web/e2e/cost-capture-v26.mjs` (contract `cubi-cost-capture-v26.v1`) — 9/9
+  scenarios: empty register, stored expense rollup, UI capture, idempotent replay, stale 409,
+  EVM from the captured baseline (PV `500.000`, BAC `1000.00`), full reload, viewer read-only 403,
+  and a 1280×720 Persian capture-form cell; 4 viewport/locale cells, 8 screenshots, zero
+  exceptions/console errors/5xx.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3528 passed, 109 skipped |
+| Capture tests | `PYTHONPATH=src python3 -m pytest tests/test_p6_baseline_capture.py -q` | 16 passed |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 882 `tsx` + 14 `node --test` tests pass, 0 fail |
+| Web bundle | `cd apps/web && npm run build` | three bundles written |
+| Browser suite | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=2a1c6b3 node e2e/cost-capture-v26.mjs` | 9/9 scenarios, 8 screenshots, 0 exceptions/console errors/5xx |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Implementation commit | `b04d851` |
+| Browser-tested code SHA | `2a1c6b3c7d1a2bfebb590e101cd031059316c42d` |
+| Evidence commit | `1b367ba` |
+| Evidence bundle | `docs/workspace/evidence/cost-capture-v26-2026-11-12/` |
+| Branch | `feat/v26-baseline-capture` (merged via PR) |
+
+### Post-merge CI for the preceding increments
+
+| Merge | Workflows |
+| --- | --- |
+| `4be217e` (PR #1786, sticky headers + scroll sync) | 5/5 success: ConstructionPM CI, Web CI, Client Typecheck, PostgreSQL Sync State Integration, Deploy CUBI Web to GitHub Pages |
+| `f7a5560` (PR #1785, pane-aware Fit) | 5/5 success on the same workflow set |
+
+### Status after this increment
+
+- GAP-BAS-03: resolved (`WIRED_WRITE`); BASE-001 and PRO-003 updated in the window matrix.
+- Remaining honest gap: no baseline delete route, WBS/project expenses are reported as
+  unattributed rather than allocated, EVM measurements are per request and not stored, and the
+  Cost page offers no copy/update-from-current-project action.
+- Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
+  context menus, duplicated text command bands and the remaining server capabilities
+  (GAP-PRG-02, GAP-TRK-01, GAP-PRJ-02, GAP-DOC-02).
