@@ -432,6 +432,15 @@ async function main() {
       assert(state.baselines.includes(baselineId), `baseline missing after reload: ${JSON.stringify(state.baselines)}`);
       assert(state.captureNew && !state.captureForm, "capture entry point missing after reload");
       await capture(page, "07-after-reload-1920");
+      cells.push({
+        viewport: { width: 1920, height: 1080 },
+        locale: "en",
+        role: "planner",
+        baselines: state.baselines.length,
+        direction: await page.evaluate('document.documentElement.getAttribute("dir")'),
+        documentScrollWidth: await page.evaluate("document.documentElement.scrollWidth"),
+        viewportWidth: await page.evaluate("window.innerWidth"),
+      });
       return { baselines: state.baselines };
     });
 
@@ -468,6 +477,45 @@ async function main() {
         viewportWidth: await page.evaluate("window.innerWidth"),
       });
       return { status: denied.status, baselines: settled.baselines.length, direction };
+    });
+
+    await scenario("09", "the capture form stays inside a 1280x720 Persian right-to-left workspace", async () => {
+      await loginAs(page, "Planner");
+      await openCost(page);
+      await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+      await sleep(700);
+      await setLanguage(page, "fa");
+      await page.click('[data-cost-capture-action="new"]');
+      await page.waitForSelector("[data-cost-capture-form]", "Persian capture form");
+      await sleep(400);
+      const direction = await page.evaluate('document.documentElement.getAttribute("dir")');
+      assert(direction === "rtl", `document direction ${direction}`);
+      const metrics = await page.evaluate(`(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        formVisible: Boolean(document.querySelector("[data-cost-capture-form]")),
+        currency: document.querySelector('[data-cost-capture-form] input[name="capture-currency"]')?.value ?? null,
+        type: document.querySelector('[data-cost-capture-form] select[name="capture-type"]')?.value ?? null,
+      }))()`);
+      assert(metrics.formVisible, "the capture form is not visible in the Persian layout");
+      assert(metrics.scrollWidth <= metrics.viewportWidth + 1, `Persian layout overflows (${metrics.scrollWidth} > ${metrics.viewportWidth})`);
+      assert(metrics.type === "PRIMARY", `default baseline type ${metrics.type}`);
+      await capture(page, "09-fa-rtl-1280x720-capture-form");
+      await page.click('[data-cost-capture-action="cancel"]');
+      await page.waitFor(
+        `!document.querySelector("[data-cost-capture-form]")`,
+        "capture form cancelled",
+      );
+      cells.push({
+        viewport: { width: 1280, height: 720 },
+        locale: "fa",
+        role: "planner",
+        direction,
+        currencyDefault: metrics.currency,
+        documentScrollWidth: metrics.scrollWidth,
+        viewportWidth: metrics.viewportWidth,
+      });
+      return { direction, currencyDefault: metrics.currency };
     });
 
     assert(exceptions.length === 0, `runtime exceptions: ${exceptions.join(" | ")}`);
