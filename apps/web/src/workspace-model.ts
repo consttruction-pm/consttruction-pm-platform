@@ -50,7 +50,8 @@ export type WorkspaceMenuKey =
   | "risks"
   | "thresholds"
   | "control"
-  | "settings";
+  | "settings"
+  | "administration";
 
 export type WorkspaceColumnDataType =
   | "text"

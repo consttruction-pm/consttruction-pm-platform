@@ -11,7 +11,7 @@ import { createWorkspaceState } from "./workspace-model.js";
 test("workspace navigation exposes every V1 main menu surface", () => {
   assert.deepEqual(
     WORKSPACE_NAVIGATION.map((item) => item.key),
-    ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings"],
+    ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings", "administration"],
   );
 });
 
@@ -56,6 +56,7 @@ test("unsupported V1 surfaces are explicitly marked preview instead of being pre
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
   assert.equal(getWorkspaceNavigation("cost").status, "partial");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
+  assert.equal(getWorkspaceNavigation("administration").status, "preview");
   assert.equal(getWorkspaceNavigation("issues").status, "partial");
 });
 

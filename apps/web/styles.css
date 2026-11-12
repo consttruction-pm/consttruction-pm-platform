@@ -8891,3 +8891,18 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-report-run-history button:hover { background: #eef4fb; }
 .cp-p6 .cp-report-run-history span { color: #66788c; }
 @media(max-width:900px){.cp-p6 .cp-report-body{grid-template-columns:minmax(0,1fr)}}
+.cp-p6 .cp-administration-window .cp-register-filters { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; padding: 4px 8px; border: 1px solid #dbe3ec; background: #f8fafc; }
+.cp-p6 .cp-administration-window .cp-register-filters label { display: flex; flex-direction: column; gap: 3px; min-width: 0; color: #52657a; font-size: 9px; }
+.cp-p6 .cp-administration-window .cp-register-filters input,.cp-p6 .cp-administration-window .cp-register-filters select { min-height: 26px; min-width: 140px; padding: 3px 6px; border: 1px solid #cbd5e1; background: #fff; color: #31465e; font: inherit; font-size: 9px; }
+.cp-p6 .cp-administration-window .cp-register-filters button { min-height: 26px; padding: 3px 8px; border: 1px solid #b9c6d5; border-radius: 2px; background: #fff; color: #38536f; font: inherit; font-size: 9px; cursor: pointer; }
+.cp-p6 .cp-register-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px; border: 1px solid #dbe3ec; border-bottom: 0; background: #eef2f7; }
+.cp-p6 .cp-register-tabs button { min-height: 26px; padding: 3px 10px; border: 1px solid #c2cfdd; border-radius: 2px 2px 0 0; background: #f8fafc; color: #38536f; font: inherit; font-size: 9px; cursor: pointer; }
+.cp-p6 .cp-register-tabs button[aria-selected="true"] { background: #fff; color: #173d68; border-color: #173d68; font-weight: 700; }
+.cp-p6 .cp-admin-body { display: grid; gap: 8px; padding: 8px; border: 1px solid #dbe3ec; background: #fff; }
+.cp-p6 .cp-admin-body .cp-table-scroll { max-height: 420px; overflow: auto; border: 1px solid #cbd5e1; background: #fff; }
+.cp-p6 .cp-admin-body .cp-register-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+.cp-p6 .cp-admin-body .cp-register-table th,.cp-p6 .cp-admin-body .cp-register-table td { padding: 5px 7px; border: 1px solid #e1e7ee; text-align: start; }
+.cp-p6 .cp-admin-body .cp-register-table thead th { position: sticky; top: 0; z-index: 1; background: #f1f4f8; color: #52657a; white-space: nowrap; }
+.cp-p6 .cp-admin-body .cp-register-table button { min-height: 22px; padding: 2px 6px; margin-inline-end: 3px; border: 1px solid #b9c6d5; border-radius: 2px; background: #fff; color: #38536f; font: inherit; font-size: 9px; cursor: pointer; }
+.cp-p6 .cp-admin-body [data-admin-matrix] td { text-align: center; font-variant-numeric: tabular-nums; }
+.cp-p6 .cp-admin-body [data-admin-matrix] th[scope="row"] { white-space: nowrap; text-align: start; }

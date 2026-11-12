@@ -82,12 +82,13 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
   ".cp-control-summary",
   "[data-workspace-language]",
   "[data-workspace-menu]",
+  "[data-administration-page]",
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
   "project", "wbs", "schedule", "progress", "resources", "assignments", "roles",
   "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues",
-  "risks", "thresholds", "control", "settings",
+  "risks", "thresholds", "control", "settings", "administration",
 ]);
 
 export function isWorkspaceMenuKey(value: string | undefined): value is WorkspaceMenuKey {
@@ -675,6 +676,35 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
     action: {
       label: { en: "Open the language control", fa: "باز کردن کنترل زبان" },
       target: "[data-workspace-language]",
+    },
+  },
+
+  administration: {
+    purpose: {
+      en: "Project administration: preferences, reference dictionaries, the role permission matrix and financial periods.",
+      fa: "مدیریت پروژه: ترجیحات، فهرست‌های مرجع، ماتریس دسترسی نقش‌ها و دوره‌های مالی.",
+    },
+    steps: [
+      {
+        en: "Open the Preferences tab to review currency, units, calendar and decimal settings with their saved revision.",
+        fa: "زبانهٔ ترجیحات را باز کنید تا واحد پول، واحدها، تقویم و اعشار را همراه نسخهٔ ذخیره‌شده ببینید.",
+      },
+      {
+        en: "Dictionary entries are scoped to this project; duplicate IDs are rejected with a conflict, not overwritten.",
+        fa: "ورودی‌های فهرست به این پروژه محدودند؛ شناسهٔ تکراری با تعارض رد می‌شود و بازنویسی نمی‌شود.",
+      },
+      {
+        en: "The permission matrix is derived from the authoritative role policy and read-only here.",
+        fa: "ماتریس دسترسی از سیاست مرجع نقش‌ها مشتق می‌شود و در اینجا فقط خواندنی است.",
+      },
+    ],
+    commonError: {
+      en: "Project administrators can write; viewers receive a read-only surface and a denied write returns 403.",
+      fa: "مدیران پروژه می‌توانند بنویسند؛ سایر نقش‌ها سطح فقط‌خواندنی می‌بینند و نوشتن ردشده ۴۰۳ برمی‌گرداند.",
+    },
+    action: {
+      label: { en: "Open project administration", fa: "باز کردن مدیریت پروژه" },
+      target: "[data-administration-page]",
     },
   },
 };

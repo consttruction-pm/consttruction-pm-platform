@@ -199,7 +199,8 @@ export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
   risks: { en: "Risks", fa: "ریسک‌ها" },
   thresholds: { en: "Thresholds", fa: "آستانه‌ها" },
   control: { en: "Control", fa: "کنترل" },
-  settings: { en: "Administration", fa: "مدیریت" },
+  settings: { en: "Settings", fa: "تنظیمات" },
+  administration: { en: "Administration", fa: "مدیریت" },
 };
 
 function language(locale: string): "en" | "fa" {

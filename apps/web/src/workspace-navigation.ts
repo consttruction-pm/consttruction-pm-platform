@@ -30,6 +30,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceNavigationItem[] = [
   { key: "thresholds", status: "preview", label: { en: "Thresholds", fa: "آستانه‌ها" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Threshold Register", fa: "فهرست آستانه‌ها" }, { en: "Monitoring Rules", fa: "قواعد پایش" }, { en: "Threshold Details", fa: "جزئیات آستانه" }] },
   { key: "control", status: "partial", label: { en: "Control", fa: "کنترل" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Control Summary", fa: "خلاصه کنترل" }, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }] },
   { key: "settings", status: "partial", label: { en: "Settings", fa: "تنظیمات" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Language", fa: "زبان" }, { en: "Workspace", fa: "محیط کار" }] },
+  { key: "administration", status: "preview", label: { en: "Administration", fa: "مدیریت" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Project Preferences", fa: "ترجیحات پروژه" }, { en: "Dictionaries", fa: "فهرست‌های مرجع" }, { en: "Permission Matrix", fa: "ماتریس دسترسی" }, { en: "Financial Periods", fa: "دوره‌های مالی" }] },
 ];
 
 export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceNavigationItem {

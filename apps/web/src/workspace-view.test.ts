@@ -31,7 +31,7 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
 }
 
 test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
-  for (const menu of ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings"] as const) {
+  for (const menu of ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings", "administration"] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
     assert.ok(html.includes('class="cp-brand-logo"'));
@@ -1903,13 +1903,13 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
-  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 19);
   assert.match(html, /data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true"/);
   const flyoutStart = html.indexOf('<div class="cp-p6-flyout" data-nav-flyout hidden>');
   assert.ok(flyoutStart > -1, "the full navigation flyout must be rendered");
   const flyoutEnd = html.indexOf('<div class="cp-p6-drawer', flyoutStart);
   const flyoutMarkup = html.slice(flyoutStart, flyoutEnd);
-  assert.equal((flyoutMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.equal((flyoutMarkup.match(/data-menu=/g) ?? []).length, 19);
   assert.match(flyoutMarkup, /class="cp-p6-flyout-tree"/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
