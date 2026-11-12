@@ -79,7 +79,7 @@ test("the landing language follows its route and persists the accepted preferenc
   assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
   // Homepage-only locales persist in place; complete subpage locales use their own route.
   assert.match(landing, /window\.location\.replace\(preferredLanguageRoute\)/);
-  assert.match(landing, /window\.location\.assign\(languageHref\)/);
+  assert.match(landing, /window\.location\.assign\(targetHome\)/);
 });
 
 test("full homepage keeps bilingual control and the six capability areas", () => {
