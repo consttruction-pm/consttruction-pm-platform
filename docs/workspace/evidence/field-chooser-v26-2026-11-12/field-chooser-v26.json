@@ -1,0 +1,54 @@
+{
+  "contract": "cubi-field-chooser-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "b638c98a7000ecd436efb5562794e6f9c8f78f4a",
+  "testedCodeSha": "b638c98a7000ecd436efb5562794e6f9c8f78f4a",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T15:01:25.259Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پس از حذف یک فیلد، دکمهٔ افزودن همه با برچسب فارسی و در جهت RTL دیده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T15:01:30.691Z",
+      "removed": "activity.id",
+      "available": 1,
+      "visible": 7,
+      "label": "افزودن همه"
+    },
+    {
+      "id": "02",
+      "name": "افزودن همه، همهٔ فیلدهای موجود را در یک گذار چیدمان اضافه می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T15:01:32.106Z",
+      "added": 1,
+      "columns": 20,
+      "revision": 3
+    },
+    {
+      "id": "03",
+      "name": "پس از بارگذاری کامل، ستون‌ها از سرور بازمی‌گردند و دکمهٔ افزودن همه دیگر وجود ندارد",
+      "status": "pass",
+      "at": "2026-11-12T15:01:34.414Z",
+      "visible": 8
+    },
+    {
+      "id": "04",
+      "name": "در چیدمان انگلیسی و 1920×1080 انتخاب‌گر فیلد بدون سرریز افقی نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T15:01:36.381Z",
+      "heading": "Fields",
+      "visible": 8,
+      "direction": "ltr"
+    }
+  ],
+  "screenshots": [
+    "01-chooser-before-fa-1280x720.png",
+    "02-chooser-after-fa-1280x720.png",
+    "03-chooser-en-1920x1080.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T15:01:36.381Z"
+}

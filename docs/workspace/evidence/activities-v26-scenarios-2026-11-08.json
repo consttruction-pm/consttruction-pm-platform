@@ -1,14 +1,14 @@
 {
   "contract": "cubi-activities-v26-scenarios.v1",
-  "baseUrl": "http://127.0.0.1:4174",
-  "gitHead": "94ad233036b71d196679d234dc731a4b13f26e40",
-  "capturedAt": "2026-11-10T03:14:49.776Z",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "b638c98a7000ecd436efb5562794e6f9c8f78f4a",
+  "capturedAt": "2026-11-12T15:01:45.716Z",
   "scenarios": [
     {
       "id": "01",
       "name": "بازکردن پنجره Activities",
       "status": "pass",
-      "at": "2026-11-10T03:14:55.314Z",
+      "at": "2026-11-12T15:01:50.254Z",
       "rowIds": [
         "A100",
         "A110",
@@ -32,18 +32,17 @@
         "resources",
         "predecessors",
         "successors",
+        "relationships",
         "codes",
-        "tasks",
-        "discussion",
         "notebook",
         "steps",
-        "feedback",
         "wps-docs",
         "expenses",
-        "summary",
-        "relationships",
+        "issues",
         "risks",
+        "summary",
         "udfs",
+        "update-history",
         "calendar"
       ],
       "bars": 17
@@ -52,7 +51,7 @@
       "id": "02",
       "name": "انتخاب فعالیت و بررسی هماهنگی جدول، Gantt و Details",
       "status": "pass",
-      "at": "2026-11-10T03:14:56.365Z",
+      "at": "2026-11-12T15:01:51.254Z",
       "selectedRow": "A130",
       "selectedGantt": "A130",
       "detailsText": "A130"
@@ -61,7 +60,7 @@
       "id": "03",
       "name": "باز و بسته کردن Activity Details",
       "status": "pass",
-      "at": "2026-11-10T03:14:59.218Z",
+      "at": "2026-11-12T15:01:53.920Z",
       "before": true,
       "closed": false,
       "reopened": true
@@ -70,23 +69,23 @@
       "id": "04",
       "name": "تغییر ارتفاع و عرض نواحی",
       "status": "pass",
-      "at": "2026-11-10T03:15:00.710Z",
+      "at": "2026-11-12T15:01:55.371Z",
       "before": {
         "table": "50.00%",
         "details": "70.00%"
       },
       "after": {
-        "table": "60.18%",
-        "details": "75.15%"
+        "table": "60.23%",
+        "details": "75.23%"
       },
       "drag": {
         "table": {
-          "x": 767,
-          "y": 294.046875
+          "x": 766,
+          "y": 315.71875
         },
         "details": {
-          "x": 645,
-          "y": 520.09375
+          "x": 644,
+          "y": 522.5
         }
       }
     },
@@ -94,16 +93,16 @@
       "id": "05",
       "name": "Refresh و بررسی پایداری Layout",
       "status": "pass",
-      "at": "2026-11-10T03:15:02.751Z",
-      "table": "60.18%",
-      "details": "75.15%",
+      "at": "2026-11-12T15:01:57.221Z",
+      "table": "60.23%",
+      "details": "75.23%",
       "selected": null
     },
     {
       "id": "06",
       "name": "تغییر عرض ستون‌ها و جابه‌جایی ستون‌ها",
       "status": "pass",
-      "at": "2026-11-10T03:15:08.120Z",
+      "at": "2026-11-12T15:02:02.038Z",
       "moved": {
         "id": "activity.name",
         "title": "Activity Name (Name)\n      Activity\n      ◌"
@@ -120,7 +119,7 @@
         "Original Duration",
         "Remaining Duration"
       ],
-      "width": 210,
+      "width": 241,
       "persisted": [
         "Activity Name",
         "Activity ID",
@@ -132,7 +131,7 @@
       "id": "07",
       "name": "اعمال فیلتر و ترکیب چند فیلتر",
       "status": "pass",
-      "at": "2026-11-10T03:15:13.043Z",
+      "at": "2026-11-12T15:02:06.118Z",
       "inProgress": [
         "A130"
       ],
@@ -161,7 +160,7 @@
       "id": "08",
       "name": "ایجاد و ویرایش فیلتر",
       "status": "pass",
-      "at": "2026-11-10T03:15:17.518Z",
+      "at": "2026-11-12T15:02:09.962Z",
       "created": [
         "A130",
         "A140",
@@ -179,7 +178,7 @@
       "id": "09",
       "name": "Group و Sort",
       "status": "pass",
-      "at": "2026-11-10T03:15:21.477Z",
+      "at": "2026-11-12T15:02:13.412Z",
       "group": "wbs",
       "statusField": "activity.name",
       "bands": 2,
@@ -187,30 +186,29 @@
     },
     {
       "id": "10",
-      "name": "بازکردن تمام ۱۷ تب Activity Details",
+      "name": "بازکردن تمام ۱۶ تب Activity Details",
       "status": "pass",
-      "at": "2026-11-10T03:15:28.755Z",
+      "at": "2026-11-12T15:02:19.853Z",
       "tabs": [
         "general",
         "status",
         "resources",
         "predecessors",
         "successors",
+        "relationships",
         "codes",
-        "tasks",
-        "discussion",
         "notebook",
         "steps",
-        "feedback",
         "wps-docs",
         "expenses",
-        "summary",
-        "relationships",
+        "issues",
         "risks",
+        "summary",
         "udfs",
+        "update-history",
         "calendar"
       ],
-      "officialCount": 17,
+      "officialCount": 16,
       "rendered": [
         {
           "id": "general",
@@ -222,7 +220,7 @@
         },
         {
           "id": "resources",
-          "text": "ResourceRoleUnits/TimeBudgeted UnitsActual UnitsRemaining UnitsCostNo resource assignments are returned for this activity. Assignments are read from the project service; this pane "
+          "text": "ResourceRoleUnits/TimeBudgeted UnitsActual UnitsRemaining UnitsCostNo resource assignments are stored for this activity. Resource IDRole IDBudgeted unitsPlanned costCurrencyNote Ad"
         },
         {
           "id": "predecessors",
@@ -233,56 +231,52 @@
           "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action preview-rps-01 1 A110 Mobilization FS 0 d Completed — Go To AssignRemove"
         },
         {
+          "id": "relationships",
+          "text": "Predecessors Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove Succ"
+        },
+        {
           "id": "codes",
           "text": "Activity IDA100 WBS code1 — Project management Project codepreview-rps-01 Activity CodeCode ValueDescriptionNo activity code assignments are returned by the project read model. Ass"
         },
         {
-          "id": "tasks",
-          "text": "In Version 26 the Tasks tab is available only with P6 EPPM and reads tasks from Oracle Primavera Cloud. A desktop-style project has no EPPM task source, so the documented columns a"
-        },
-        {
-          "id": "discussion",
-          "text": "ShowNot available SortNot available Show All messages Messages from the last week Sort Newest to oldest Oldest to newest No project discussion messages are returned for this activi"
-        },
-        {
           "id": "notebook",
-          "text": "Notebook TopicDescriptionNo notebook topics are stored by the project read model for this activity. ModifyCopyPrintAddDelete Browser-local notes for this activity remain available "
+          "text": "Notebook TopicDescriptionNo browser-local notes have been recorded for this activity. ModifyCopyPrintAddDelete These notes are stored in this browser only. They are not project dat"
         },
         {
           "id": "steps",
-          "text": "Step NameCompletedStep DescriptionStep % CompleteStep WeightStep Weight PercentThis activity has no steps in the current project data. Steps are not synthesised here. AddAdd from t"
-        },
-        {
-          "id": "feedback",
-          "text": "Notes to ResourcesNo notes to resources are returned by the project read model. Add Feedback from ResourcesNo feedback from resources is returned by the project read model. New Add"
+          "text": "SequenceStep NameStep WeightStartFinishStep UDFsNo steps are stored for this activity. AddAdd from templateDeleteModifyReload Steps are read from the project service in stored sequ"
         },
         {
           "id": "wps-docs",
-          "text": "TitleStatus CodeWork ProductNo project document is linked to this activity. Project documents are managed on the Documents page. AssignRemove"
+          "text": "TitleStatus CodeTypeRevisionNo project document is linked to this activity. Project documents are managed on the Documents page. Uploading, downloading and verifying file bytes hap"
         },
         {
           "id": "expenses",
-          "text": "Expense ItemCost AccountExpense CategoryAccrual TypeBudgeted or Planned CostActual CostRemaining CostAt Completion CostVendorAuto Compute ActualsNo activity expense records are ret"
+          "text": "Expense ItemCost AccountExpense CategoryAccrual TypeBudgeted or Planned CostActual CostRemaining CostAt Completion CostVendorAuto Compute ActualsNo expense records are stored for t"
+        },
+        {
+          "id": "issues",
+          "text": "Issue IDTitleCategorySeverityStatusReported byUpdatedNo issue records are linked to this activity. TitleDescriptionIssue typecostschedulequalitysafetyscoperesourceotherStatusopenin"
+        },
+        {
+          "id": "risks",
+          "text": "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity. Risk IDRisk Name"
         },
         {
           "id": "summary",
           "text": "Display Units Display Cost Display Dates ValueBudgeted or PlannedActualRemaining% CompleteAt CompletionComplete VarianceLabor——————Nonlabor——————Material——————Duration———100—— Valu"
         },
         {
-          "id": "relationships",
-          "text": "Predecessors Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove Succ"
-        },
-        {
-          "id": "risks",
-          "text": "In Version 26 the Risks tab is available when connected to a P6 Professional database. This workspace has no risk store, so the documented columns are shown without rows. Risk IDRi"
-        },
-        {
           "id": "udfs",
-          "text": "User Defined FieldData TypeValueNo user-defined fields are returned for this activity. Customize User Defined Fields"
+          "text": "User Defined FieldData TypeValueNo activity user-defined fields are defined by the project registry. Customize User Defined FieldsReload Field names and data types come from the pr"
+        },
+        {
+          "id": "update-history",
+          "text": "RecordedActorRecord revisionChangesSequence reviewNo progress update history is stored for this activity. Reload History events are append-only records written by the authoritative"
         },
         {
           "id": "calendar",
-          "text": "Activity calendarNot available Project calendarGregorian display Data dateNot available Calendar is a CUBI addition. It sits after the seventeen Version 26 tabs and does not replac"
+          "text": "Activity calendarNot available Project calendarGregorian display Data dateNot available Calendar is a CUBI addition. It follows the sixteen Version 26 activity-details tabs and doe"
         }
       ]
     },
@@ -290,7 +284,7 @@
       "id": "11",
       "name": "راست‌کلیک در تمام نواحی",
       "status": "pass",
-      "at": "2026-11-10T03:15:36.203Z",
+      "at": "2026-11-12T15:02:26.984Z",
       "areas": [
         {
           "label": "activity row",
@@ -416,7 +410,7 @@
       "id": "12",
       "name": "آزمون میانبرهای تأییدشده",
       "status": "pass",
-      "at": "2026-11-10T03:15:40.507Z",
+      "at": "2026-11-12T15:02:30.845Z",
       "focusInside": true,
       "shortcutsOpen": true,
       "shortcutRows": [
@@ -438,6 +432,7 @@
         "Delete activityDel Unavailable — Deleting activities is not available in this workspace yet",
         "Insert activityIns",
         "Find activitiesCtrl+F",
+        "Select all visible activitiesCtrl+A",
         "Find nextF3 Unavailable — Find Next needs a result set from the current filter",
         "Schedule activitiesF9",
         "Schedule optionsShift+F9",
@@ -456,7 +451,7 @@
       "id": "13",
       "name": "نمایش و مخفی‌سازی Data Date Line و Progress Line",
       "status": "pass",
-      "at": "2026-11-10T03:15:43.949Z",
+      "at": "2026-11-12T15:02:33.712Z",
       "dataDate": {
         "disabled": true,
         "note": "This project's read model exposes no Data Date, so the line is not drawn. The saved line settings will apply as soon as an authoritative date exists. A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.",
@@ -477,7 +472,7 @@
       "id": "14",
       "name": "بررسی هر چهار نوع رابطه FS/SS/FF/SF",
       "status": "pass",
-      "at": "2026-11-10T03:15:48.121Z",
+      "at": "2026-11-12T15:02:37.315Z",
       "before": {
         "FS": 14,
         "SS": 1
@@ -521,7 +516,7 @@
       "id": "15",
       "name": "Zoom و Scroll در Gantt",
       "status": "pass",
-      "at": "2026-11-10T03:15:51.479Z",
+      "at": "2026-11-12T15:02:40.507Z",
       "before": "month",
       "zoomedIn": "week",
       "zoomedOut": "month",
@@ -534,29 +529,29 @@
         "className": "cp-gantt-chart",
         "before": 0,
         "after": 240,
-        "max": 353
+        "max": 330
       }
     },
     {
       "id": "16",
       "name": "تغییر اندازه Splitterها در چند اندازه صفحه",
       "status": "pass",
-      "at": "2026-11-10T03:15:58.126Z",
+      "at": "2026-11-12T15:02:46.953Z",
       "results": [
         {
           "width": 1024,
           "height": 768,
           "before": {
-            "table": "60.18%",
-            "details": "75.15%"
+            "table": "60.23%",
+            "details": "75.23%"
           },
           "after": {
             "table": "52.96%",
-            "details": "72.69%"
+            "details": "72.74%"
           },
           "overflow": {
-            "tableRight": 545,
-            "ganttRight": 988,
+            "tableRight": 544,
+            "ganttRight": 984,
             "viewport": 1024,
             "fits": true
           }
@@ -566,15 +561,15 @@
           "height": 720,
           "before": {
             "table": "52.96%",
-            "details": "72.69%"
+            "details": "72.74%"
           },
           "after": {
-            "table": "47.28%",
-            "details": "70.02%"
+            "table": "47.26%",
+            "details": "70.04%"
           },
           "overflow": {
-            "tableRight": 612,
-            "ganttRight": 1244,
+            "tableRight": 611,
+            "ganttRight": 1240,
             "viewport": 1280,
             "fits": true
           }
@@ -583,16 +578,16 @@
           "width": 1440,
           "height": 900,
           "before": {
-            "table": "47.28%",
-            "details": "70.02%"
+            "table": "47.26%",
+            "details": "70.04%"
           },
           "after": {
-            "table": "42.27%",
+            "table": "42.23%",
             "details": "68.00%"
           },
           "overflow": {
-            "tableRight": 620,
-            "ganttRight": 1404,
+            "tableRight": 619,
+            "ganttRight": 1400,
             "viewport": 1440,
             "fits": true
           }
@@ -601,16 +596,16 @@
           "width": 1920,
           "height": 1080,
           "before": {
-            "table": "42.27%",
+            "table": "42.23%",
             "details": "68.00%"
           },
           "after": {
-            "table": "38.57%",
-            "details": "66.37%"
+            "table": "38.52%",
+            "details": "66.36%"
           },
           "overflow": {
-            "tableRight": 755,
-            "ganttRight": 1884,
+            "tableRight": 754,
+            "ganttRight": 1880,
             "viewport": 1920,
             "fits": true
           }
@@ -621,7 +616,7 @@
       "id": "17",
       "name": "بررسی حالت RTL و LTR",
       "status": "pass",
-      "at": "2026-11-10T03:16:00.410Z",
+      "at": "2026-11-12T15:02:49.035Z",
       "rtl": {
         "dir": "rtl",
         "lang": "fa",
@@ -636,7 +631,7 @@
       "id": "18",
       "name": "بررسی عدم وجود خطای Console و Runtime",
       "status": "pass",
-      "at": "2026-11-10T03:16:03.045Z",
+      "at": "2026-11-12T15:02:51.585Z",
       "exceptions": 0,
       "consoleErrors": 0,
       "apiFailures": 0,
@@ -663,7 +658,7 @@
     "activities-v26/13-details-general-en-1280.png",
     "activities-v26/14-details-status-en-1280.png",
     "activities-v26/15-details-resources-en-1280.png",
-    "activities-v26/16-details-feedback-en-1280.png",
+    "activities-v26/16-details-steps-en-1280.png",
     "activities-v26/17-context-menu-table-en-1280.png",
     "activities-v26/18-context-menu-gantt-en-1280.png",
     "activities-v26/19-shortcuts-dialog-en-1280.png",
@@ -680,5 +675,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-10T03:16:03.045Z"
+  "finishedAt": "2026-11-12T15:02:51.585Z"
 }
