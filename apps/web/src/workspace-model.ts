@@ -52,7 +52,8 @@ export type WorkspaceMenuKey =
   | "control"
   | "settings"
   | "administration"
-  | "exchange";
+  | "exchange"
+  | "backup";
 
 export type WorkspaceColumnDataType =
   | "text"

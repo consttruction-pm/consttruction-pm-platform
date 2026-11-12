@@ -61,6 +61,7 @@ class ProjectLifecycleWsgiApp:
             or (path.startswith("/api/projects/") and "/reports" in path)
             or (path.startswith("/api/projects/") and "/administration" in path)
             or (path.startswith("/api/projects/") and "/exchange" in path)
+            or (path.startswith("/api/projects/") and "/backup" in path)
         ):
             # Form and issue endpoints read filters and locale from the query
             # string; carry it on the routed path so the shared handler sees it.
