@@ -79,6 +79,14 @@ async function capture(page, name) {
   return file;
 }
 
+async function revealHistory(page) {
+  await page.evaluate(`(() => {
+    document.querySelector("[data-project-status-history]")?.scrollIntoView({ block: "nearest" });
+    return true;
+  })()`);
+  await sleep(300);
+}
+
 async function setLanguage(page, locale) {
   const changed = await page.evaluate(`(() => {
     const select = document.querySelector("[data-workspace-language]");
@@ -263,6 +271,7 @@ async function main() {
       assert(api.events.length === 1, `API events ${api.events.length}`);
       assert(api.events[0].from_status === "active" && api.events[0].to_status === "planned", "API event transition");
       assert(api.events[0].actor_user_id === "preview-admin", `API actor ${api.events[0].actor_user_id}`);
+      await revealHistory(page);
       await capture(page, "02-status-saved");
       return { status: api.project.status, eventId: api.events[0].event_id };
     });
@@ -324,6 +333,7 @@ async function main() {
         { awaitPromise: true },
       );
       assert(direct.status === 403, `direct viewer write status ${direct.status}`);
+      await revealHistory(page);
       await capture(page, "05-status-viewer");
       return { viewerEvents: state.historyRows.length, directStatus: direct.status };
     });
@@ -352,6 +362,7 @@ async function main() {
       assert(rtl.direction === "rtl", `panel direction ${rtl.direction}`);
       assert(rtl.right <= rtl.width && rtl.bottom <= rtl.height, `panel outside the viewport ${JSON.stringify(rtl)}`);
       assert(rtl.historyVisible, "status history is not visible in the Persian layout");
+      await revealHistory(page);
       await capture(page, "06-status-fa-1280");
       return { locale: "fa", status: state.statusValue };
     });
