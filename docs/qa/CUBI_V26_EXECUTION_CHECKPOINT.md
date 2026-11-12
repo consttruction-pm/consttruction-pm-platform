@@ -2403,7 +2403,7 @@ Recorded provenance:
 | Acceptance harness | `ddd7889` |
 | Evidence commit | `4156d22aeee448c2cb8b8694bc433e117ad97fc5` |
 | Branch | `feat/v26-gantt-scroll-sync` |
-| PR | recorded after opening |
+| PR | [#1786](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1786) |
 
 ### Status after this increment
 
