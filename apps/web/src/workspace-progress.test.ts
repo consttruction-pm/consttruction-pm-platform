@@ -5,7 +5,9 @@ import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import {
   buildProgressPayload,
   loadProgressActivities,
+  loadProgressHistory,
   parseProgressActivity,
+  parseProgressHistory,
   saveProgress,
   type ProgressActivity,
 } from "./workspace-progress.js";
@@ -333,4 +335,119 @@ test("saveProgress refuses an invalid draft or a transport without PATCH and wri
   assert.equal(unsupported.ok, false);
   if (!unsupported.ok) assert.equal(unsupported.error.code, "PROGRESS_TRANSPORT_UNAVAILABLE");
   assert.deepEqual(calls.patches, []);
+});
+
+const HISTORY = {
+  contract_version: "p6-activity-progress-history-api.v1",
+  kind: "p6_activity_progress_history",
+  scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+  activity_id: "A140",
+  events: [
+    {
+      event_id: "A140@4",
+      activity_id: "A140",
+      recorded_at: "2026-11-12T08:30:00+00:00",
+      actor_user_id: "preview-planner",
+      from_record_revision: 3,
+      to_record_revision: 4,
+      changes: [
+        { field: "actual_start", before: null, after: "2026-10-07" },
+        { field: "percent_complete", before: null, after: "20.0" },
+      ],
+      out_of_sequence: {
+        is_out_of_sequence: true,
+        findings: [
+          {
+            code: "FS_PREDECESSOR_NOT_FINISHED",
+            relationship_id: "REL-RPS-130",
+            predecessor_id: "A130",
+            relationship_type: "FS",
+          },
+        ],
+      },
+    },
+  ],
+  percent_complete_trend: [
+    { to_record_revision: 4, recorded_at: "2026-11-12T08:30:00+00:00", percent_complete: "20.0" },
+  ],
+  out_of_sequence_review: {
+    evaluated_event_id: "A140@4",
+    evaluated_at: "2026-11-12T08:30:00+00:00",
+    is_out_of_sequence: true,
+    findings: [
+      {
+        code: "FS_PREDECESSOR_NOT_FINISHED",
+        relationship_id: "REL-RPS-130",
+        predecessor_id: "A130",
+        relationship_type: "FS",
+      },
+    ],
+  },
+};
+
+test("progress history reads the append-only event contract", async () => {
+  const calls: Calls = { gets: [], patches: [] };
+  const result = await loadProgressHistory(
+    transportWith({ ok: true, data: HISTORY }, calls),
+    CONTEXT,
+    "A140",
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.data.events.length, 1);
+  const event = result.data.events[0];
+  assert.equal(event.eventId, "A140@4");
+  assert.equal(event.fromRecordRevision, 3);
+  assert.equal(event.toRecordRevision, 4);
+  assert.equal(event.outOfSequence, true);
+  assert.equal(event.findings[0].code, "FS_PREDECESSOR_NOT_FINISHED");
+  assert.equal(event.findings[0].predecessorId, "A130");
+  assert.deepEqual(event.changes, [
+    { field: "actual_start", before: null, after: "2026-10-07" },
+    { field: "percent_complete", before: null, after: "20.0" },
+  ]);
+  assert.deepEqual(result.data.trend, [
+    { toRecordRevision: 4, percentComplete: "20.0" },
+  ]);
+  assert.equal(result.data.review?.isOutOfSequence, true);
+  assert.deepEqual(calls.gets, [
+    { path: "/api/projects/project-1/p6/activities/A140/progress-history" },
+  ]);
+});
+
+test("progress history fails closed on a foreign contract or malformed events", async () => {
+  const malformed: unknown[] = [
+    { ...HISTORY, contract_version: "other-api.v1" },
+    { ...HISTORY, kind: "p6_activity_master" },
+    { ...HISTORY, events: [{ ...HISTORY.events[0], event_id: "" }] },
+    { ...HISTORY, events: [{ ...HISTORY.events[0], from_record_revision: 0 }] },
+    { ...HISTORY, events: [{ ...HISTORY.events[0], out_of_sequence: null }] },
+    { ...HISTORY, percent_complete_trend: [{ to_record_revision: 0, percent_complete: "1" }] },
+    { ...HISTORY, out_of_sequence_review: { evaluated_event_id: "", is_out_of_sequence: true, findings: [] } },
+  ];
+  for (const data of malformed) {
+    const result = await loadProgressHistory(
+      transportWith({ ok: true, data }),
+      CONTEXT,
+      "A140",
+    );
+    assert.equal(result.ok, false, JSON.stringify(data));
+  }
+  assert.throws(() => parseProgressHistory(null), /INVALID_PROGRESS_HISTORY/);
+});
+
+test("progress history accepts an empty register and a null review", async () => {
+  const result = await loadProgressHistory(
+    transportWith({
+      ok: true,
+      data: { ...HISTORY, events: [], percent_complete_trend: [], out_of_sequence_review: null },
+    }),
+    CONTEXT,
+    "A140",
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.data.events, []);
+  assert.deepEqual(result.data.trend, []);
+  assert.equal(result.data.review, null);
 });

@@ -2,6 +2,7 @@ import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { translateUiString } from "./workspace-ui-translations.js";
 
 export const ACTIVITY_API_VERSION = "p6-activity-master-api.v1";
+export const PROGRESS_HISTORY_API_VERSION = "p6-activity-progress-history-api.v1";
 
 export const PROGRESS_STATUSES = ["Not Started", "In Progress", "Completed"] as const;
 export type ProgressStatus = (typeof PROGRESS_STATUSES)[number];
@@ -24,6 +25,48 @@ export type ProgressInput = {
   actualFinish: string;
   remainingDuration: string;
   status: string;
+};
+
+export type ProgressFieldChange = {
+  field: string;
+  before: string | null;
+  after: string | null;
+};
+
+export type ProgressOutOfSequenceFinding = {
+  code: string;
+  relationshipId: string;
+  predecessorId: string;
+  relationshipType: string;
+};
+
+export type ProgressHistoryEvent = {
+  eventId: string;
+  activityId: string;
+  recordedAt: string;
+  actorUserId: string;
+  fromRecordRevision: number;
+  toRecordRevision: number;
+  changes: readonly ProgressFieldChange[];
+  outOfSequence: boolean;
+  findings: readonly ProgressOutOfSequenceFinding[];
+};
+
+export type ProgressHistoryPoint = {
+  toRecordRevision: number;
+  percentComplete: string | null;
+};
+
+export type ProgressHistoryReview = {
+  evaluatedEventId: string;
+  isOutOfSequence: boolean;
+  findings: readonly ProgressOutOfSequenceFinding[];
+};
+
+export type ProgressHistory = {
+  events: readonly ProgressHistoryEvent[];
+  trend: readonly ProgressHistoryPoint[];
+  review: ProgressHistoryReview | null;
 };
 
 export type ProgressPageOptions = {
@@ -236,15 +279,172 @@ export async function saveProgress(
   }
 }
 
+function historyPath(context: ProjectContext, activityId: string): string {
+  return `${activitiesPath(context, activityId)}/progress-history`;
+}
+
+function historyText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new Error("INVALID_PROGRESS_HISTORY");
+  return value;
+}
+
+function historyRevision(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return value;
+}
+
+function parseFieldChange(value: unknown): ProgressFieldChange {
+  if (!isRecord(value) || typeof value.field !== "string" || !value.field.trim()) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return {
+    field: value.field,
+    before: historyText(value.before),
+    after: historyText(value.after),
+  };
+}
+
+function parseFinding(value: unknown): ProgressOutOfSequenceFinding {
+  if (
+    !isRecord(value) ||
+    typeof value.code !== "string" || !value.code.trim() ||
+    typeof value.relationship_id !== "string" || !value.relationship_id.trim() ||
+    typeof value.predecessor_id !== "string" || !value.predecessor_id.trim() ||
+    typeof value.relationship_type !== "string" || !value.relationship_type.trim()
+  ) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return {
+    code: value.code,
+    relationshipId: value.relationship_id,
+    predecessorId: value.predecessor_id,
+    relationshipType: value.relationship_type,
+  };
+}
+
+function parseFindings(value: unknown): readonly ProgressOutOfSequenceFinding[] {
+  if (!Array.isArray(value)) throw new Error("INVALID_PROGRESS_HISTORY");
+  return value.map((item) => parseFinding(item));
+}
+
+function parseHistoryEvent(value: unknown): ProgressHistoryEvent {
+  if (!isRecord(value)) throw new Error("INVALID_PROGRESS_HISTORY");
+  const sequence = value.out_of_sequence;
+  if (
+    typeof value.event_id !== "string" || !value.event_id.trim() ||
+    typeof value.activity_id !== "string" || !value.activity_id.trim() ||
+    typeof value.recorded_at !== "string" || !value.recorded_at.trim() ||
+    typeof value.actor_user_id !== "string" || !value.actor_user_id.trim() ||
+    !Array.isArray(value.changes) ||
+    !isRecord(sequence) ||
+    typeof sequence.is_out_of_sequence !== "boolean"
+  ) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return {
+    eventId: value.event_id,
+    activityId: value.activity_id,
+    recordedAt: value.recorded_at,
+    actorUserId: value.actor_user_id,
+    fromRecordRevision: historyRevision(value.from_record_revision),
+    toRecordRevision: historyRevision(value.to_record_revision),
+    changes: value.changes.map((item) => parseFieldChange(item)),
+    outOfSequence: sequence.is_out_of_sequence,
+    findings: parseFindings(sequence.findings),
+  };
+}
+
+function parseHistoryReview(value: unknown): ProgressHistoryReview | null {
+  if (value === null || value === undefined) return null;
+  if (
+    !isRecord(value) ||
+    typeof value.evaluated_event_id !== "string" || !value.evaluated_event_id.trim() ||
+    typeof value.is_out_of_sequence !== "boolean"
+  ) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return {
+    evaluatedEventId: value.evaluated_event_id,
+    isOutOfSequence: value.is_out_of_sequence,
+    findings: parseFindings(value.findings),
+  };
+}
+
+export function parseProgressHistory(value: unknown): ProgressHistory {
+  if (
+    !isRecord(value) ||
+    value.contract_version !== PROGRESS_HISTORY_API_VERSION ||
+    value.kind !== "p6_activity_progress_history" ||
+    !Array.isArray(value.events) ||
+    !Array.isArray(value.percent_complete_trend)
+  ) {
+    throw new Error("INVALID_PROGRESS_HISTORY");
+  }
+  return {
+    events: value.events.map((item) => parseHistoryEvent(item)),
+    trend: value.percent_complete_trend.map((item) => {
+      if (!isRecord(item)) throw new Error("INVALID_PROGRESS_HISTORY");
+      return {
+        toRecordRevision: historyRevision(item.to_record_revision),
+        percentComplete: historyText(item.percent_complete),
+      };
+    }),
+    review: parseHistoryReview(value.out_of_sequence_review),
+  };
+}
+
+export async function loadProgressHistory(
+  transport: ApiTransport,
+  context: ProjectContext,
+  activityId: string,
+): Promise<ApiResult<ProgressHistory>> {
+  const result = await transport.get<unknown>(historyPath(context, activityId), context);
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseProgressHistory(result.data) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_PROGRESS_HISTORY");
+  }
+}
+
 type PageState = {
   status: "loading" | "loaded" | "error";
   errorCode: string | null;
   activities: readonly ProgressActivity[];
   selectedActivityId: string | null;
   origin: { actualStart: string | null; actualFinish: string | null };
+  historyStatus: "idle" | "loading" | "loaded" | "error";
+  history: ProgressHistory | null;
+  historyError: string | null;
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
 };
+
+function progressFieldLabel(locale: string, field: string): string {
+  const base = locale.split("-")[0];
+  const labels: Record<string, [string, string]> = {
+    percent_complete: ["% Complete", "درصد پیشرفت"],
+    actual_start: ["Actual Start", "شروع واقعی"],
+    actual_finish: ["Actual Finish", "پایان واقعی"],
+    remaining_duration: ["Remaining Duration", "مدت باقی‌مانده"],
+    remaining_start: ["Remaining Start", "شروع باقی‌مانده"],
+    expected_finish: ["Expected Finish", "پایان پیش‌بینی‌شده"],
+    status: ["Status", "وضعیت"],
+    status_code: ["Status Code", "کد وضعیت"],
+  };
+  const entry = labels[field];
+  if (!entry) return field;
+  return base === "fa" ? entry[1] : entry[0];
+}
+
+function findingLabels(findings: readonly ProgressOutOfSequenceFinding[]): string {
+  return findings
+    .map((finding) => `${finding.code} (${finding.predecessorId})`)
+    .join(", ");
+}
 
 function statusLabel(locale: string, status: string): string {
   const base = locale.split("-")[0];
@@ -271,6 +471,9 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     activities: [],
     selectedActivityId: null,
     origin: { actualStart: null, actualFinish: null },
+    historyStatus: "idle",
+    history: null,
+    historyError: null,
     busy: false,
     notice: null,
   };
@@ -283,6 +486,97 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     state.selectedActivityId = activity.activityId;
     state.origin = { actualStart: activity.actualStart, actualFinish: activity.actualFinish };
     state.notice = null;
+  }
+
+  async function loadHistory(activityId: string | null): Promise<void> {
+    if (!activityId) {
+      state.historyStatus = "idle";
+      state.history = null;
+      state.historyError = null;
+      render();
+      return;
+    }
+    const selection = state.selectedActivityId;
+    state.historyStatus = "loading";
+    state.history = null;
+    state.historyError = null;
+    render();
+    const result = await loadProgressHistory(transport, context, activityId);
+    // A different row may have been selected while the request was in flight.
+    if (state.selectedActivityId !== selection) return;
+    if (result.ok) {
+      state.historyStatus = "loaded";
+      state.history = result.data;
+    } else {
+      state.historyStatus = "error";
+      state.historyError = result.error.code;
+    }
+    render();
+  }
+
+  function renderTrend(history: ProgressHistory): string {
+    const points = history.trend
+      .map((point) => ({
+        revision: point.toRecordRevision,
+        value: point.percentComplete === null ? null : Number(point.percentComplete),
+      }))
+      .filter((point): point is { revision: number; value: number } =>
+        point.value !== null && Number.isFinite(point.value),
+      );
+    if (!points.length) {
+      return `<p class="cp-register-notice">${escapeHtml(say("No percent-complete updates recorded yet.", "هنوز به‌روزرسانی درصد پیشرفت ثبت نشده است."))}</p>`;
+    }
+    const width = 160;
+    const height = 40;
+    const pad = 3;
+    const x = (index: number): number =>
+      points.length === 1 ? width / 2 : pad + (index * (width - 2 * pad)) / (points.length - 1);
+    const y = (value: number): number =>
+      height - pad - (Math.min(100, Math.max(0, value)) / 100) * (height - 2 * pad);
+    const coords = points
+      .map((point, index) => `${x(index).toFixed(1)},${y(point.value).toFixed(1)}`)
+      .join(" ");
+    const dots = points
+      .map((point, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(point.value).toFixed(1)}" r="2" />`)
+      .join("");
+    const labels = points.map((point) => `r${point.revision}: ${point.value}%`).join(" · ");
+    return `<div class="cp-progress-trend" data-progress-trend><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(say("Percent complete trend", "روند درصد پیشرفت"))}"><polyline fill="none" stroke="currentColor" stroke-width="1.5" points="${coords}" />${dots}</svg><span>${escapeHtml(labels)}</span></div>`;
+  }
+
+  function renderHistory(): string {
+    if (!state.selectedActivityId) {
+      return `<p>${escapeHtml(say("Select an activity to review its recorded progress updates.", "برای مرور به‌روزرسانی‌های ثبت‌شده، یک فعالیت را انتخاب کنید."))}</p>`;
+    }
+    if (state.historyStatus === "loading") {
+      return `<div class="cp-calendar-empty" role="status">${escapeHtml(say("Reading progress history…", "در حال خواندن تاریخچهٔ پیشرفت…"))}</div>`;
+    }
+    if (state.historyStatus === "error") {
+      return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Progress history could not be read", "خواندن تاریخچهٔ پیشرفت ناموفق بود"))} (${escapeHtml(state.historyError ?? "unknown")})</div>`;
+    }
+    const history = state.history;
+    if (!history || history.events.length === 0) {
+      return `<div class="cp-calendar-empty">${escapeHtml(say("No progress updates are recorded for this activity yet.", "هنوز به‌روزرسانی پیشرفتی برای این فعالیت ثبت نشده است."))}</div>`;
+    }
+    const rows = history.events
+      .map((event) => {
+        const changes = event.changes
+          .map((change) =>
+            `${escapeHtml(progressFieldLabel(locale, change.field))}: ${escapeHtml(change.before ?? "—")} → ${escapeHtml(change.after ?? "—")}`,
+          )
+          .join("<br>");
+        const sequence = event.outOfSequence
+          ? `<span class="cp-progress-sequence-flag" data-progress-sequence="out" title="${escapeHtml(findingLabels(event.findings))}">${escapeHtml(say("Out of sequence", "خارج از توالی"))}</span>`
+          : `<span data-progress-sequence="in">${escapeHtml(say("In sequence", "در توالی"))}</span>`;
+        return `<tr data-progress-history-row data-event-id="${escapeHtml(event.eventId)}"><td>${event.toRecordRevision}</td><td>${escapeHtml(event.recordedAt)}</td><td>${escapeHtml(event.actorUserId)}</td><td>${changes}</td><td>${sequence}</td></tr>`;
+      })
+      .join("");
+    const review = history.review;
+    const reviewLine = review
+      ? review.isOutOfSequence
+        ? `<p class="cp-calendar-notice" data-progress-sequence-review data-state="warning">${escapeHtml(say("Out of sequence", "خارج از توالی"))}: ${escapeHtml(findingLabels(review.findings))}</p>`
+        : `<p class="cp-register-notice" data-progress-sequence-review data-state="ok">${escapeHtml(say("Latest update is in sequence with stored predecessor logic.", "آخرین به‌روزرسانی با منطق پیش‌نیاز ذخیره‌شده در توالی است."))}</p>`
+      : "";
+    return `${renderTrend(history)}${reviewLine}<div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Revision", "ویرایش"))}</th><th>${escapeHtml(say("Recorded", "زمان ثبت"))}</th><th>${escapeHtml(say("Actor", "ثبت‌کننده"))}</th><th>${escapeHtml(say("Changes", "تغییرات"))}</th><th>${escapeHtml(say("Sequence", "توالی"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
   function renderRegister(): string {
@@ -324,9 +618,17 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
   function render(): void {
     host.innerHTML = `<div class="cp-register-toolbar"><strong>${escapeHtml(say("Activity Progress", "پیشرفت فعالیت‌ها"))}</strong><div><button type="button" data-progress-action="refresh" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Refresh", "به‌روزرسانی"))}</button><button type="button" data-rail-action="activities">${escapeHtml(say("Open Schedule", "بازکردن زمان‌بندی"))}</button></div></div>
       ${renderRegister()}
-      <section class="cp-register-details"><header><strong>${escapeHtml(say("Progress Details", "جزئیات پیشرفت"))}</strong><span>${escapeHtml(state.selectedActivityId ?? say("No selection", "بدون انتخاب"))}</span></header><div class="cp-register-detail-content">${renderEditor()}</div></section>
+      <div class="cp-progress-details-grid">
+        <section class="cp-register-details"><header><strong>${escapeHtml(say("Progress Details", "جزئیات پیشرفت"))}</strong><span>${escapeHtml(state.selectedActivityId ?? say("No selection", "بدون انتخاب"))}</span></header><div class="cp-register-detail-content">${renderEditor()}</div></section>
+        <section class="cp-register-details" data-progress-history><header><strong>${escapeHtml(say("Update History", "تاریخچهٔ به‌روزرسانی"))}</strong><span>${escapeHtml(state.history ? String(state.history.events.length) : say("No selection", "بدون انتخاب"))}</span></header><div class="cp-register-detail-content">${renderHistory()}</div></section>
+      </div>
       <p class="cp-register-notice">${escapeHtml(say("Progress values are validated and stored by the shared activity service. Schedule dates are recalculated only by Run Schedule on the Schedule page; this page does not compute dates.", "مقادیر پیشرفت توسط سرویس مشترک فعالیت اعتبارسنجی و ذخیره می‌شوند. تاریخ‌های زمان‌بندی فقط با اجرای زمان‌بندی در صفحهٔ زمان‌بندی بازمحاسبه می‌شوند؛ این صفحه تاریخ محاسبه نمی‌کند."))}</p>
       ${state.notice ? `<p class="cp-calendar-notice" data-progress-notice data-state="${state.notice.kind}" role="status">${escapeHtml(state.notice.message)}</p>` : ""}`;
+    // Keep the selected register row visible after an in-place re-render.
+    const activeRow = host.querySelector<HTMLElement>("[data-progress-row].is-selected");
+    if (activeRow && typeof activeRow.scrollIntoView === "function") {
+      activeRow.scrollIntoView({ block: "nearest" });
+    }
   }
 
   function readForm(form: HTMLFormElement): ProgressInput {
@@ -362,6 +664,7 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
       state.errorCode = result.error.code;
     }
     render();
+    void loadHistory(state.selectedActivityId);
   }
 
   host.addEventListener("click", (event) => {
@@ -371,7 +674,7 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
       const activity = state.activities.find((item) => item.activityId === row.dataset.activityId);
       if (activity) {
         select(activity);
-        render();
+        void loadHistory(activity.activityId);
       }
       return;
     }
@@ -396,7 +699,7 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     const activity = state.activities.find((item) => item.activityId === row.dataset.activityId);
     if (activity) {
       select(activity);
-      render();
+      void loadHistory(activity.activityId);
     }
   });
 

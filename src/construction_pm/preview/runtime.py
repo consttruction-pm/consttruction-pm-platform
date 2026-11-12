@@ -151,6 +151,10 @@ from construction_pm.p6_financial_period_repository import (
     SQLiteP6FinancialPeriodRepository,
 )
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.activity_progress_history import (
+    SQLiteActivityProgressHistoryRepository,
+)
+from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
 )
@@ -336,6 +340,7 @@ class PreviewClock:
 @dataclass
 class PreviewRepositories:
     activities: SQLiteActivityMasterRepository
+    progress_history: SQLiteActivityProgressHistoryRepository
     wbs: SQLiteWBSMasterRepository
     relationships: SQLiteRelationshipMasterRepository
     constraints: SQLiteConstraintMasterRepository
@@ -396,6 +401,7 @@ class PreviewRepositories:
     def create(cls, connection: sqlite3.Connection) -> "PreviewRepositories":
         transaction_manager = SQLiteTransactionManager(connection)
         activities = SQLiteActivityMasterRepository(connection)
+        progress_history = SQLiteActivityProgressHistoryRepository(connection)
         wbs = SQLiteWBSMasterRepository(connection)
         relationships = SQLiteRelationshipMasterRepository(connection)
         constraints = SQLiteConstraintMasterRepository(connection)
@@ -480,6 +486,7 @@ class PreviewRepositories:
         backup = SQLiteBackupStore(connection)
         return cls(
             activities=activities,
+            progress_history=progress_history,
             wbs=wbs,
             relationships=relationships,
             constraints=constraints,
@@ -1680,6 +1687,8 @@ def open_preview_runtime(
         calculation_context_repository=repositories.contexts,
         authorization_policy=policy,
         activity_master_repository=repositories.activities,
+        activity_progress_history_repository=repositories.progress_history,
+        activity_progress_transaction_manager=repositories.transaction_manager,
         wbs_master_repository=repositories.wbs,
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
