@@ -8807,3 +8807,17 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-issue-documents { margin: 4px 0; padding-left: 16px; font-size: 11px; }
 .cp-p6 .cp-issue-comment { display: flex; gap: 6px; align-items: flex-end; margin-top: 8px; font-size: 10px; }
 .cp-p6 .cp-issue-detail-body { padding: 4px 0; }
+.cp-p6 .cp-document-status {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-size: 10px;
+  text-transform: capitalize;
+  background: #eef2f7;
+  border: 1px solid #c9d4e1;
+}
+.cp-p6 .cp-document-status[data-status="draft"] { background: #f0f2f5; border-color: #c2c9d2; color: #5a6673; }
+.cp-p6 .cp-document-status[data-status="submitted"] { background: #fdf6e3; border-color: #e2c98a; }
+.cp-p6 .cp-document-status[data-status="approved"] { background: #eefaf0; border-color: #9fcfae; }
+.cp-p6 .cp-document-status[data-status="rejected"] { background: #fdecec; border-color: #dda3a3; color: #8d2020; }
+.cp-p6 .cp-document-status[data-status="superseded"] { background: #f0f2f5; border-color: #c2c9d2; color: #8a6d3b; }

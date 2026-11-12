@@ -7,7 +7,9 @@ from typing import Any
 from .application.authorization import AuthorizationContext
 from .api_errors import APIError
 from .document_application import DocumentApplicationService
-from .document_persistence import DocumentRecord
+from .document_persistence import DocumentAuditEvent, DocumentRecord, StoredDocument
+
+DOCUMENT_API_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,54 @@ class DocumentAPI:
                 document_id=document_id,
                 context=context,
             ))
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def list(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        context: AuthorizationContext,
+        resource_type: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            documents = self.service.list(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                context=context,
+                resource_type=resource_type,
+                status=status,
+                search=search,
+            )
+            return {
+                "contract_version": DOCUMENT_API_VERSION,
+                "documents": [_resource(item) for item in documents],
+            }
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def history(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        try:
+            events = self.service.history(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                context=context,
+            )
+            return {
+                "contract_version": DOCUMENT_API_VERSION,
+                "events": [_event(event) for event in events],
+            }
         except Exception as exc:
             return _error(self.service.error_dto(exc))
 
@@ -101,16 +151,27 @@ class DocumentAPI:
             return _error(self.service.error_dto(exc))
 
 
-def _resource(stored) -> dict[str, Any]:
+def _resource(stored: StoredDocument) -> dict[str, Any]:
     payload = stored.document.as_dict()
-    payload.update({"contract_version": "1.0", "revision": stored.revision})
+    payload.update({"contract_version": DOCUMENT_API_VERSION, "revision": stored.revision})
     return payload
+
+
+def _event(event: DocumentAuditEvent) -> dict[str, Any]:
+    return {
+        "document_id": event.document_id,
+        "revision": event.revision,
+        "event_type": event.event_type,
+        "actor_id": event.actor_id,
+        "occurred_at": event.occurred_at.isoformat(),
+        "reason": event.reason,
+    }
 
 
 def _error(error: APIError) -> dict[str, Any]:
     error.validate()
     return {
-        "contract_version": "1.0",
+        "contract_version": DOCUMENT_API_VERSION,
         "category": error.category.value,
         "code": error.code,
         "message": error.message,

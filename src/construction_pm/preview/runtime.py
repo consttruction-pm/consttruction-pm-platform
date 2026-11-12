@@ -112,6 +112,12 @@ from construction_pm.p6_expense_repository import (
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_issue_repository import SQLiteP6IssueRepository
+from construction_pm.document_api import DocumentAPI
+from construction_pm.document_application import DocumentApplicationService
+from construction_pm.document_persistence import (
+    RolePermissionDocumentLifecycleAuthorizer,
+    SQLiteDocumentStore,
+)
 from construction_pm.p6_financial_period_repository import (
     P6FinancialPeriodApplicationService,
     SQLiteP6FinancialPeriodRepository,
@@ -341,6 +347,7 @@ class PreviewRepositories:
     financial_periods: SQLiteP6FinancialPeriodRepository
     financial_period_service: P6FinancialPeriodApplicationService
     issues: SQLiteP6IssueRepository
+    documents: SQLiteDocumentStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -412,6 +419,8 @@ class PreviewRepositories:
             financial_periods, transaction_manager
         )
         issues = SQLiteP6IssueRepository(connection)
+        documents = SQLiteDocumentStore(connection)
+        documents.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -459,6 +468,7 @@ class PreviewRepositories:
             financial_periods=financial_periods,
             financial_period_service=financial_period_service,
             issues=issues,
+            documents=documents,
             transaction_manager=transaction_manager,
         )
 
@@ -1586,6 +1596,14 @@ def open_preview_runtime(
             repositories.financial_period_service, policy
         ),
         p6_issue_api=P6IssueAPI(repositories.issues, policy, repositories.transaction_manager),
+        document_api=DocumentAPI(
+            DocumentApplicationService(
+                repositories.documents,
+                policy,
+                RolePermissionDocumentLifecycleAuthorizer(),
+                repositories.transaction_manager,
+            )
+        ),
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

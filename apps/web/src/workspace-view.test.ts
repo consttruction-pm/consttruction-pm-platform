@@ -3,9 +3,8 @@ import test from "node:test";
 
 import { isWorkspaceTopLayoutAvailable, isWorkspaceTraceLogicAvailable, readWorkspaceBottomLayout, renderMainWorkspace, workspaceMenuItems } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
-import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 import { normalizePresentation } from "./workspace-presentation.js";
 import type { ProjectSummary } from "./session-api.js";
 import { setCollapsedWbsIds } from "./workspace-wbs-display.js";
@@ -162,75 +161,12 @@ test("WBS chart view draws the loaded hierarchy and keeps selection on the same 
   assert.match(hierarchy.innerHTML, /data-wbs-id="WBS-2"/);
 });
 
-function documentRecord(overrides: Partial<WorkspaceDocument> & Pick<WorkspaceDocument, "documentId" | "title">): WorkspaceDocument {
-  return {
-    resourceType: "rfi",
-    status: "submitted",
-    revision: 1,
-    contentHash: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    linkedEntityRefs: [],
-    hasStorageRef: true,
-    ...overrides,
-  };
-}
-
-test("Documents register and evidence read the authoritative workspace records", () => {
-  const state = setDocuments(
-    { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "documents" as const },
-    [
-      documentRecord({ documentId: "DOC-EVID-1", title: "Poured concrete record", resourceType: "evidence", status: "approved", revision: 4, linkedEntityRefs: ["A-101"] }),
-      documentRecord({ documentId: "DOC-RFI-1", title: "Request for information", linkedEntityRefs: ["A-130"] }),
-    ],
-  );
-  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
-  renderMainWorkspace(container as unknown as HTMLElement, state);
-  const html = container.innerHTML;
-  assert.match(html, /id="cp-documents-register"/);
-  assert.match(html, /id="cp-documents-evidence"/);
-  assert.match(html, /data-document-row="DOC-EVID-1"/);
-  assert.match(html, /data-document-row="DOC-RFI-1"/);
-  assert.match(html, /Document Details/);
-  assert.match(html, /sha256:0123456789abcdef/);
-  assert.doesNotMatch(html, /data-document-create/);
-  assert.match(html, /does not expose yet/);
-
-  const evidenceStart = html.indexOf('id="cp-documents-evidence"');
-  const evidenceEnd = html.indexOf("</section>", evidenceStart);
-  const evidence = html.slice(evidenceStart, evidenceEnd);
-  assert.match(evidence, /DOC-EVID-1/);
-  assert.doesNotMatch(evidence, /DOC-RFI-1/);
-});
-
-test("selecting a document keeps the same authoritative record in the details panel", () => {
-  const listeners = new Map<string, (event: Event) => void>();
-  const details = { innerHTML: "" };
-  const container = {
-    innerHTML: "",
-    querySelector: (selector: string) => (selector === "[data-document-details]" ? details : null),
-    querySelectorAll: () => [],
-    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
-  };
-  const state = setDocuments(
-    { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "documents" as const },
-    [
-      documentRecord({ documentId: "DOC-EVID-1", title: "Poured concrete record", resourceType: "evidence", status: "approved", revision: 4 }),
-      documentRecord({ documentId: "DOC-RFI-1", title: "Request for information", status: "submitted", revision: 2 }),
-    ],
-  );
-  renderMainWorkspace(container as unknown as HTMLElement, state);
-  const clickTarget = {
-    dataset: { documentRow: "DOC-RFI-1" },
-    closest: (selector: string) => (selector.includes("[data-document-row]") ? clickTarget : null),
-  };
-  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
-  assert.match(details.innerHTML, /DOC-RFI-1/);
-  assert.match(details.innerHTML, /Request for information/);
-  assert.match(details.innerHTML, /submitted/);
-  assert.match(details.innerHTML, /R2/);
-  assert.doesNotMatch(details.innerHTML, /DOC-EVID-1/);
-  assert.match(details.innerHTML, /data-document-detail-panel="files"/);
-  assert.match(details.innerHTML, /No upload or download route/);
-  assert.match(details.innerHTML, /only the current revision/);
+test("Documents surface is a live register page instead of a static read-model table", () => {
+  const html = render("en", "documents");
+  assert.match(html, /data-documents-page/);
+  assert.match(html, /Project Documents/);
+  assert.doesNotMatch(html, /id="cp-documents-register"/);
+  assert.doesNotMatch(html, /data-document-detail-tab/);
 });
 
 test("Control page states honestly when no control-intelligence snapshot is loaded", () => {
@@ -1948,7 +1884,7 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   assert.match(progress, /پیشرفت هر فعالیت از سرویس مشترک فعالیت/);
 
   const documents = render("en", "documents");
-  assert.match(documents, /No project documents have been added or linked yet/);
+  assert.match(documents, /data-documents-page/);
 
   const settings = render("en", "settings");
   assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
