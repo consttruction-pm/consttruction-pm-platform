@@ -714,7 +714,7 @@ export function mountWorkspaceAdministrationPage(
     host.innerHTML = `<div class="cp-register-toolbar"><strong>${escapeHtml(say("Administration", "مدیریت"))}</strong><div><button type="button" data-admin-action="reload">${escapeHtml(say("Refresh", "به‌روزرسانی"))}</button></div></div>
       ${state.tab === "dictionaries" ? `<div class="cp-register-filters"><label>${escapeHtml(say("Dictionary", "فهرست"))}<select name="admin-dictionary-filter"><option value="">${escapeHtml(say("All dictionaries", "همهٔ فهرست‌ها"))}</option>${state.codes.map((code) => `<option value="${code}" ${state.filters.code === code ? "selected" : ""}>${escapeHtml(code)}</option>`).join("")}</select></label><label>${escapeHtml(say("Search", "جستجو"))}<input type="search" name="admin-dict-search" value="${escapeHtml(state.filters.search)}" placeholder="${escapeHtml(say("ID or label", "شناسه یا برچسب"))}"></label>${canAdmin ? `<button type="button" data-admin-action="new-dict">${escapeHtml(say("New entry", "ورودی جدید"))}</button>` : ""}</div>` : ""}
       ${renderTabs()}
-      <div class="cp-admin-body" data-admin-body data-admin-tab="${state.tab}">${body}</div>
+      <div class="cp-admin-body" data-admin-body data-admin-active-tab="${state.tab}">${body}</div>
       ${state.notice ? `<p class="cp-calendar-notice" data-admin-notice data-state="${state.notice.kind}" role="status">${escapeHtml(state.notice.message)}</p>` : ""}`;
   }
 
