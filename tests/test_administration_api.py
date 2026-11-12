@@ -82,12 +82,12 @@ def test_administration_defaults_matrix_and_viewer_read(tmp_path: Path) -> None:
         matrix = json.loads(body)
         roles = {entry["role"]: entry["permissions"] for entry in matrix["roles"]}
         assert set(roles) == {"planner", "project_admin", "viewer"}
-        assert roles["viewer"] == ["form.read", "project.read"]
+        assert roles["viewer"] == ["form.read", "knowledge.read", "project.read"]
         assert "project.admin" in roles["project_admin"]
         assert "project.admin" not in roles["planner"]
         assert "form.approve" in roles["project_admin"]
         assert matrix["permissions"] == sorted(matrix["permissions"])
-        assert len(matrix["permissions"]) == 14
+        assert len(matrix["permissions"]) == 19
     finally:
         runtime.close()
 

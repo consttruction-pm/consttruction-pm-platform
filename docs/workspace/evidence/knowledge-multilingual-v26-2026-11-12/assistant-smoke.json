@@ -1,0 +1,879 @@
+{
+  "contract": "cubi-multilingual-assistant-smoke.v1",
+  "database": "disposable copy with one published card and one published Russian translation",
+  "card_id": "KC-ed2b800ec5d611065c0faa19",
+  "published_translation_locales": [
+    "ru"
+  ],
+  "locales": [
+    {
+      "locale": "fa",
+      "language_code": "fa",
+      "display_name": "فارسی",
+      "english_name": "Persian",
+      "direction": "rtl",
+      "script": "Arabic",
+      "aliases": [
+        "fa-ir",
+        "prs",
+        "persian",
+        "farsi"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "en",
+      "language_code": "en",
+      "display_name": "English",
+      "english_name": "English",
+      "direction": "ltr",
+      "script": "Latin",
+      "aliases": [
+        "en-us",
+        "en-gb",
+        "english"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "de",
+      "language_code": "de",
+      "display_name": "Deutsch",
+      "english_name": "German",
+      "direction": "ltr",
+      "script": "Latin",
+      "aliases": [
+        "de-de",
+        "german"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "zh-CN",
+      "language_code": "zh",
+      "display_name": "简体中文",
+      "english_name": "Simplified Chinese",
+      "direction": "ltr",
+      "script": "Han-Simplified",
+      "aliases": [
+        "zh",
+        "zh-hans",
+        "zh-sg",
+        "chinese-simplified"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "zh-TW",
+      "language_code": "zh",
+      "display_name": "繁體中文",
+      "english_name": "Traditional Chinese",
+      "direction": "ltr",
+      "script": "Han-Traditional",
+      "aliases": [
+        "zh-hant",
+        "zh-hk",
+        "zh-mo",
+        "chinese-traditional"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "ar",
+      "language_code": "ar",
+      "display_name": "العربية",
+      "english_name": "Arabic",
+      "direction": "rtl",
+      "script": "Arabic",
+      "aliases": [
+        "ar-sa",
+        "ar-ae",
+        "arabic"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "fr",
+      "language_code": "fr",
+      "display_name": "Français",
+      "english_name": "French",
+      "direction": "ltr",
+      "script": "Latin",
+      "aliases": [
+        "fr-fr",
+        "french"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "ja",
+      "language_code": "ja",
+      "display_name": "日本語",
+      "english_name": "Japanese",
+      "direction": "ltr",
+      "script": "Japanese",
+      "aliases": [
+        "ja-jp",
+        "japanese"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "ko",
+      "language_code": "ko",
+      "display_name": "한국어",
+      "english_name": "Korean",
+      "direction": "ltr",
+      "script": "Hangul",
+      "aliases": [
+        "ko-kr",
+        "korean"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    },
+    {
+      "locale": "ru",
+      "language_code": "ru",
+      "display_name": "Русский",
+      "english_name": "Russian",
+      "direction": "ltr",
+      "script": "Cyrillic",
+      "aliases": [
+        "ru-ru",
+        "russian"
+      ],
+      "source_language": "en",
+      "default_language": "en",
+      "fallback_language": "en"
+    }
+  ],
+  "asks": [
+    {
+      "question_locale": "fa",
+      "kind": "answer",
+      "language": "fa",
+      "source_language": "en",
+      "response_language": "fa",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "ترجمه فارسی این کارت هنوز تأیید نشده است؛ متن رسمی انگلیسی با نشانه‌گذاری نمایش داده می‌شود. «Create a project»: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "en",
+      "kind": "answer",
+      "language": "en",
+      "source_language": "en",
+      "response_language": "en",
+      "content_language": "en",
+      "translation_status": "published",
+      "fallback_used": false,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "Based on the official Version 26 reference, Create a project: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "de",
+      "kind": "answer",
+      "language": "de",
+      "source_language": "en",
+      "response_language": "de",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "Die deutsche Übersetzung dieser Karte ist noch nicht freigegeben; daher wird die offizielle englische Quelle gekennzeichnet angezeigt. Create a project: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "zh-CN",
+      "kind": "answer",
+      "language": "zh-CN",
+      "source_language": "en",
+      "response_language": "zh-CN",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "此卡片的简体中文译文尚未批准，因此显示官方英文原文并加以标注。Create a project：Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "zh-TW",
+      "kind": "answer",
+      "language": "zh-TW",
+      "source_language": "en",
+      "response_language": "zh-TW",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "此卡片的繁體中文譯文尚未核准，因此顯示官方英文原文並加以標註。Create a project：Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "ar",
+      "kind": "answer",
+      "language": "ar",
+      "source_language": "en",
+      "response_language": "ar",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "لم تتم الموافقة على الترجمة العربية لهذه البطاقة بعد، لذلك يُعرض المصدر الإنجليزي الرسمي مع وضع علامة عليه. Create a project: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "fr",
+      "kind": "answer",
+      "language": "fr",
+      "source_language": "en",
+      "response_language": "fr",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "La traduction française de cette fiche n'est pas encore approuvée ; la source officielle anglaise est affichée et signalée. Create a project : Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "ja",
+      "kind": "answer",
+      "language": "ja",
+      "source_language": "en",
+      "response_language": "ja",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "このカードの日本語訳はまだ承認されていないため、公式の英語原文を明示して表示します。Create a project: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "ko",
+      "kind": "answer",
+      "language": "ko",
+      "source_language": "en",
+      "response_language": "ko",
+      "content_language": "en",
+      "translation_status": "translated",
+      "fallback_used": true,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "이 카드의 한국어 번역은 아직 승인되지 않았으므로 공식 영어 원문을 표시하고 명시합니다. Create a project: Getting Started > Working with Projects"
+    },
+    {
+      "question_locale": "ru",
+      "kind": "answer",
+      "language": "ru",
+      "source_language": "en",
+      "response_language": "ru",
+      "content_language": "ru",
+      "translation_status": "published",
+      "fallback_used": false,
+      "card_ids": [
+        "KC-ed2b800ec5d611065c0faa19"
+      ],
+      "citations": [
+        {
+          "card_id": "KC-ed2b800ec5d611065c0faa19",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm"
+        }
+      ],
+      "message": "На основании официального справочника версии 26, Создание проекта: Официальная процедура создания нового проекта в CUBI."
+    }
+  ],
+  "guide": {
+    "language": "ru",
+    "fallback_used": false,
+    "translation_status": "published",
+    "message": "Шаг 1 из 7 — Создание проекта: Выберите «Файл», затем «Создать», чтобы запустить мастер создания нового проекта.",
+    "next_message": "Шаг 2 из 7 — Создание проекта: Выберите узел EPS, в который нужно добавить новый проект.",
+    "next_step": "next"
+  },
+  "workflow_starts": [
+    {
+      "locale": "ru",
+      "language_code": "ru",
+      "direction": "ltr",
+      "first_step_title": "Организация и EPS",
+      "guidance_items": 13,
+      "guidance": [
+        {
+          "key": "organization_eps",
+          "title": "Организация и EPS",
+          "complete": false
+        },
+        {
+          "key": "discipline",
+          "title": "Дисциплина и тип проекта",
+          "complete": false
+        },
+        {
+          "key": "name",
+          "title": "Название и уникальный идентификатор проекта",
+          "complete": false
+        },
+        {
+          "key": "identifier",
+          "title": "Название и уникальный идентификатор проекта",
+          "complete": false
+        },
+        {
+          "key": "uniqueness",
+          "title": "Название и уникальный идентификатор проекта",
+          "complete": false
+        },
+        {
+          "key": "calendar",
+          "title": "Базовые настройки проекта",
+          "complete": false
+        },
+        {
+          "key": "timezone",
+          "title": "Базовые настройки проекта",
+          "complete": false
+        },
+        {
+          "key": "locale",
+          "title": "Базовые настройки проекта",
+          "complete": false
+        },
+        {
+          "key": "permissions",
+          "title": "Название и уникальный идентификатор проекта",
+          "complete": false
+        },
+        {
+          "key": "summary",
+          "title": "Проверка и подтверждение",
+          "complete": false
+        },
+        {
+          "key": "approval",
+          "title": "Проверка и подтверждение",
+          "complete": false
+        },
+        {
+          "key": "real_creation",
+          "title": "Создание проекта",
+          "complete": false
+        },
+        {
+          "key": "audit",
+          "title": "Финальный контроль и проверка",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "language_code": "fa",
+      "direction": "rtl",
+      "first_step_title": "سازمان و ساختار EPS",
+      "guidance_items": 13,
+      "guidance": [
+        {
+          "key": "organization_eps",
+          "title": "سازمان و ساختار EPS",
+          "complete": false
+        },
+        {
+          "key": "discipline",
+          "title": "رشته و نوع پروژه",
+          "complete": false
+        },
+        {
+          "key": "name",
+          "title": "نام و شناسه یکتای پروژه",
+          "complete": false
+        },
+        {
+          "key": "identifier",
+          "title": "نام و شناسه یکتای پروژه",
+          "complete": false
+        },
+        {
+          "key": "uniqueness",
+          "title": "نام و شناسه یکتای پروژه",
+          "complete": false
+        },
+        {
+          "key": "calendar",
+          "title": "تنظیمات پایه پروژه",
+          "complete": false
+        },
+        {
+          "key": "timezone",
+          "title": "تنظیمات پایه پروژه",
+          "complete": false
+        },
+        {
+          "key": "locale",
+          "title": "تنظیمات پایه پروژه",
+          "complete": false
+        },
+        {
+          "key": "permissions",
+          "title": "نام و شناسه یکتای پروژه",
+          "complete": false
+        },
+        {
+          "key": "summary",
+          "title": "بازبینی و تأیید",
+          "complete": false
+        },
+        {
+          "key": "approval",
+          "title": "بازبینی و تأیید",
+          "complete": false
+        },
+        {
+          "key": "real_creation",
+          "title": "ایجاد پروژه",
+          "complete": false
+        },
+        {
+          "key": "audit",
+          "title": "کنترل و راستی‌آزمایی نهایی",
+          "complete": false
+        }
+      ]
+    }
+  ],
+  "searches": [
+    {
+      "locale": "fa",
+      "query_locale": "fa",
+      "response_locale": "fa",
+      "hits": 1,
+      "top_title": "ایجاد یک پروژه",
+      "top_language": "fa",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "fa",
+        "requested_locale": "fa",
+        "content_language": "fa",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "ایجاد",
+          "پروژه",
+          "یک"
+        ],
+        "filters": {
+          "locale": "fa",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "en",
+      "query_locale": "en",
+      "response_locale": "en",
+      "hits": 1,
+      "top_title": "Create a project",
+      "top_language": "en",
+      "top_translation_status": "official_source",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "en",
+        "requested_locale": "en",
+        "content_language": "en",
+        "source_language": "en",
+        "translation_status": "official_source",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project"
+        ],
+        "filters": {
+          "locale": "en",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "de",
+      "query_locale": "de",
+      "response_locale": "de",
+      "hits": 1,
+      "top_title": "Ein Projekt anlegen",
+      "top_language": "de",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "de",
+        "requested_locale": "de",
+        "content_language": "de",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "projekt"
+        ],
+        "filters": {
+          "locale": "de",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "query_locale": "zh-CN",
+      "response_locale": "zh-CN",
+      "hits": 1,
+      "top_title": "创建项目",
+      "top_language": "zh-CN",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "zh-CN",
+        "requested_locale": "zh-CN",
+        "content_language": "zh-CN",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "创",
+          "创建",
+          "建",
+          "建项",
+          "目",
+          "项",
+          "项目"
+        ],
+        "filters": {
+          "locale": "zh-CN",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "zh-TW",
+      "query_locale": "zh-TW",
+      "response_locale": "zh-TW",
+      "hits": 1,
+      "top_title": "建立專案",
+      "top_language": "zh-TW",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "zh-TW",
+        "requested_locale": "zh-TW",
+        "content_language": "zh-TW",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "專",
+          "專案",
+          "建",
+          "建立",
+          "案",
+          "立",
+          "立專"
+        ],
+        "filters": {
+          "locale": "zh-TW",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "ar",
+      "query_locale": "ar",
+      "response_locale": "ar",
+      "hits": 1,
+      "top_title": "إنشاء مشروع",
+      "top_language": "ar",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "ar",
+        "requested_locale": "ar",
+        "content_language": "ar",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "مشروع"
+        ],
+        "filters": {
+          "locale": "ar",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "fr",
+      "query_locale": "fr",
+      "response_locale": "fr",
+      "hits": 1,
+      "top_title": "Créer un projet",
+      "top_language": "fr",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "fr",
+        "requested_locale": "fr",
+        "content_language": "fr",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "créer",
+          "project",
+          "projet"
+        ],
+        "filters": {
+          "locale": "fr",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "ja",
+      "query_locale": "ja",
+      "response_locale": "ja",
+      "hits": 1,
+      "top_title": "プロジェクトを作成する",
+      "top_language": "ja",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "ja",
+        "requested_locale": "ja",
+        "content_language": "ja",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "プロジェクト",
+          "作",
+          "作成",
+          "成"
+        ],
+        "filters": {
+          "locale": "ja",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "ko",
+      "query_locale": "ko",
+      "response_locale": "ko",
+      "hits": 1,
+      "top_title": "프로젝트 생성",
+      "top_language": "ko",
+      "top_translation_status": "translated",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "ko",
+        "requested_locale": "ko",
+        "content_language": "ko",
+        "source_language": "en",
+        "translation_status": "translated",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "생성",
+          "프로젝트"
+        ],
+        "filters": {
+          "locale": "ko",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    },
+    {
+      "locale": "ru",
+      "query_locale": "ru",
+      "response_locale": "ru",
+      "hits": 1,
+      "top_title": "Создание проекта",
+      "top_language": "ru",
+      "top_translation_status": "published",
+      "top_fallback_used": false,
+      "evidence": {
+        "query_locale": "ru",
+        "requested_locale": "ru",
+        "content_language": "ru",
+        "source_language": "en",
+        "translation_status": "published",
+        "translation_available": true,
+        "fallback_used": false,
+        "matched_terms": [
+          "create",
+          "project",
+          "проект",
+          "созда"
+        ],
+        "filters": {
+          "locale": "ru",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        }
+      }
+    }
+  ]
+}
