@@ -1725,9 +1725,9 @@ test("summary bars consume the configured summary style", () => {
   assert.match(container.innerHTML, /--cp-bar-body:#0b5fa5/);
   assert.match(container.innerHTML, /cp-gantt-endpoint is-start is-diamond/);
   assert.match(container.innerHTML, /cp-gantt-endpoint is-finish is-diamond/);
-  // The summary spans the whole plotted range, so its label mirrors left and
-  // stays inside the scrollable chart.
-  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-left" data-gantt-label-position="left">Civil works</);
+  // The summary spans the whole plotted range, so it has no room for an
+  // outside label and keeps it inside the finish edge.
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-inside-right" data-gantt-label-position="inside-right">Civil works</);
 });
 
 test("actual and baseline bars are drawn only from persisted date facts", () => {

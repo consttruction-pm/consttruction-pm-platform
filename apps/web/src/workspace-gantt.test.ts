@@ -213,8 +213,13 @@ test("bar labels keep their configured side unless the bar reaches the plotted e
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: 60, widthPercent: 20 }), "left");
   assert.equal(resolveGanttLabelPosition("above", { leftPercent: 60, widthPercent: 20 }), "left");
   assert.equal(resolveGanttLabelPosition("below", { leftPercent: 90, widthPercent: 10 }), "left");
+  // A bar that also starts at the left edge has no room outside, so the label
+  // moves inside its finish edge rather than being mirrored off the content.
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: 0, widthPercent: 100 }), "inside-right");
+  assert.equal(resolveGanttLabelPosition("above", { leftPercent: 10, widthPercent: 85 }), "inside-right");
   // A custom threshold is honoured and non-finite geometry does not flip.
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: 40, widthPercent: 10 }, 45), "left");
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: 10, widthPercent: 80 }, 78, 5), "left");
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: Number.NaN, widthPercent: 10 }), "right");
 });
 
