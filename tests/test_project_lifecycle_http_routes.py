@@ -1955,6 +1955,38 @@ def test_p6_udf_route_returns_authoritative_allowed_values():
     }]
 
 
+def test_p6_udf_route_lists_seeded_lowercase_activity_definitions():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_udf(
+        P6UserDefinedFieldDefinition(
+            scope=scope,
+            registry_version="p6-field-registry.v1",
+            udf_id="activity.seeded_status",
+            subject_area="activity",
+            display_name="Seeded Status",
+            data_type=P6FieldType.STRING,
+            writable=True,
+            nullable=True,
+            unit=None,
+            allowed_values=(),
+        ),
+        auth_context=auth,
+    )
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+
+    assert status == 200
+    assert [item["udf_id"] for item in json.loads(body)["udfs"]] == [
+        "activity.seeded_status"
+    ]
+
+
 def test_p6_udf_route_rejects_cross_scope_project_context():
     r, _, _ = p6_routes()
     status, _, body = r.handle(

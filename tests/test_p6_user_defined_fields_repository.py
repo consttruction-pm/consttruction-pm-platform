@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 
 import pytest
 
@@ -141,3 +142,22 @@ def test_udf_subject_listing_is_deterministic() -> None:
     assert [item.udf_id for item in repository.list_definitions(
         scope, "p6-field-registry.v1", "Activity"
     )] == ["udf.activity.a", "udf.activity.z"]
+
+
+def test_udf_subject_listing_matches_seeded_lowercase_activity_area() -> None:
+    repository = SQLiteP6UserDefinedFieldRepository(sqlite3.connect(":memory:"))
+    scope = BackendScope("tenant-a", "project-a", 1)
+    repository.upsert_definition(
+        replace(_definition(scope), subject_area="activity", udf_id="udf.activity.seeded")
+    )
+    repository.upsert_definition(
+        replace(_definition(scope), subject_area="Resource", udf_id="udf.resource.code")
+    )
+
+    assert [
+        item.udf_id
+        for item in repository.list_definitions(scope, "p6-field-registry.v1", "Activity")
+    ] == ["udf.activity.seeded"]
+    assert repository.list_definitions(
+        scope, "p6-field-registry.v1", "ACTIVITY"
+    )[0].subject_area == "activity"

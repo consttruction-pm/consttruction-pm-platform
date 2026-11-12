@@ -197,7 +197,10 @@ class SQLiteP6UserDefinedFieldRepository:
             scope.project_revision,
         )
         if subject_area is not None:
-            query += " AND subject_area=?"
+            # Subject areas are presentation labels (``Activity`` in P6 help,
+            # ``activity`` in interchange seeds); filter case-insensitively so
+            # one canonical caller still finds every activity definition.
+            query += " AND LOWER(subject_area)=LOWER(?)"
             params += (subject_area,)
         query += " ORDER BY udf_id"
         rows = self.connection.execute(query, params).fetchall()
@@ -368,7 +371,7 @@ class PostgresP6UserDefinedFieldRepository:
         )
         params: tuple[object, ...] = (scope.tenant_id, scope.project_id, registry_version, scope.project_revision)
         if subject_area is not None:
-            query += " AND subject_area=%s"
+            query += " AND LOWER(subject_area)=LOWER(%s)"
             params += (subject_area,)
         rows = self.connection.execute(query + " ORDER BY udf_id", params).fetchall()
         return tuple(_definition_from_row(scope, registry_version, row) for row in rows)
