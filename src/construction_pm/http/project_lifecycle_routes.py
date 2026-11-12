@@ -1241,6 +1241,10 @@ class ProjectLifecycleHttpRoutes:
                         "RESOURCE_ALREADY_EXISTS",
                     }:
                         return self._error(409, code, "error.p6.resource.conflict")
+                    if code == "RESOURCE_CALENDAR_NOT_FOUND":
+                        return self._error(
+                            409, code, "error.p6.resource.calendar_not_found"
+                        )
                     return self._error(400, code if code.startswith(("INVALID_", "RESOURCE_")) else "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/cost-accounts" in path and self._p6_cost_account_api is not None:
                 prefix = "/p6/cost-accounts"

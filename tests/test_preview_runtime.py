@@ -2017,3 +2017,70 @@ def test_preview_earned_value_route_uses_persisted_baseline_and_project_calendar
         assert measurement["earned_value"]["etc_method"] == "PF_ONE"
     finally:
         runtime.close()
+
+
+def test_preview_resource_calendar_assignment_is_validated_in_the_service(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview-calendar-assignment.sqlite3"
+    list_path = f"/api/projects/{RPS_PROJECT}/p6/resources"
+
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        payload = {
+            "resource_id": "RPS-CAL-GUARD",
+            "name": "Calendar guard crew",
+            "resource_type": "labor",
+            "calendar_id": "CAL-NOT-STORED",
+            "is_active": True,
+        }
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            list_path,
+            body=json.dumps(payload).encode(),
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "RESOURCE_CALENDAR_NOT_FOUND"
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            list_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        stored_ids = [item["resource"]["resource_id"] for item in json.loads(body)["resources"]]
+        assert "RPS-CAL-GUARD" not in stored_ids
+
+        payload["calendar_id"] = "CUBI-RPS-CAL"
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            list_path,
+            body=json.dumps(payload).encode(),
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        assert json.loads(body)["resource"]["calendar_id"] == "CUBI-RPS-CAL"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            f"{list_path}/RPS-CAL-GUARD",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        assert json.loads(body)["resource"]["calendar_id"] == "CUBI-RPS-CAL"
+    finally:
+        reopened.close()

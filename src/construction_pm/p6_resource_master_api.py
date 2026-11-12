@@ -9,6 +9,8 @@ from .application.authorization import (
     AuthorizationPolicy,
     Permission,
 )
+from .backend_p0.models import BackendScope
+from .calendar_master_repository import CalendarMasterRepository
 from .p6_resource_master_repository import (
     P6Resource,
     P6ResourceRepository,
@@ -61,10 +63,32 @@ def _dto(resource: P6Resource) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class P6ResourceAPI:
-    """Read/write boundary over the authoritative resource master."""
+    """Read/write boundary over the authoritative resource master.
+
+    Resource calendar assignment is enforced here, not only in the editor: a
+    stored ``calendar_id`` must name a calendar that exists in the same
+    tenant/project/revision scope. The resource master stores only the calendar
+    identity; version binding stays with the persisted calendar and assignment
+    facts that already carry it.
+    """
 
     repository: P6ResourceRepository
     authorization_policy: AuthorizationPolicy
+    calendar_repository: CalendarMasterRepository
+
+    def _validate_calendar(self, resource: P6Resource) -> None:
+        if resource.calendar_id is None:
+            # No explicit calendar: the project calendar resolves capacity at
+            # scheduling time. This is a defined default, not a silent bypass.
+            return
+        scope = BackendScope(
+            resource.tenant_id, resource.project_id, resource.project_revision
+        )
+        calendars = self.calendar_repository.list(scope)
+        if not any(
+            calendar.calendar_id == resource.calendar_id for calendar in calendars
+        ):
+            raise ValueError("RESOURCE_CALENDAR_NOT_FOUND")
 
     def _validate_parent(self, resource: P6Resource) -> None:
         if resource.parent_resource_id is None:
@@ -99,6 +123,7 @@ class P6ResourceAPI:
             # Create must never silently overwrite a stored master. The editor
             # uses PATCH with the expected revision for every change.
             raise ValueError("RESOURCE_ALREADY_EXISTS")
+        self._validate_calendar(resource)
         self._validate_parent(resource)
         return _dto(self.repository.save(resource))
 
@@ -116,6 +141,7 @@ class P6ResourceAPI:
         if expected_revision < 1:
             raise ValueError("RESOURCE_REVISION_REQUIRED")
         resource.validate()
+        self._validate_calendar(resource)
         self._validate_parent(resource)
         return _dto(
             self.repository.save(resource, expected_revision=expected_revision)

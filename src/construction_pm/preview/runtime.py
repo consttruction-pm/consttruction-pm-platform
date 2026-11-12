@@ -1569,7 +1569,11 @@ def open_preview_runtime(
             repositories.role_dictionary,
             policy,
         ),
-        p6_resource_api=P6ResourceAPI(repositories.resources, policy),
+        p6_resource_api=P6ResourceAPI(
+            repositories.resources,
+            policy,
+            repositories.calendars,
+        ),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
         p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
         p6_financial_period_api=P6FinancialPeriodAPI(

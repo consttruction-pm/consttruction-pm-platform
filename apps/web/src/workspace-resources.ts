@@ -1,5 +1,7 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
+import { loadCalendarCatalogue } from "./workspace-calendars.js";
+import type { WorkspaceCalendarRecord } from "./workspace-model.js";
 
 export const RESOURCE_API_VERSION = "p6-resource-api.v1";
 export const RESOURCE_CAPACITY_READ_API_VERSION = "p6-resource-capacity-read-api.v1";
@@ -94,6 +96,25 @@ export type ResourcePageOptions = {
 
 function text(locale: string, en: string, fa: string): string {
   return locale.split("-")[0] === "fa" ? fa : en;
+}
+
+/**
+ * Stable editor message for a rejected master save. The domain code is always
+ * shown so a calendar reference rejected by the service is distinguishable
+ * from transport or revision failures.
+ */
+export function resourceSaveErrorNotice(code: string, creating: boolean, locale: string): string {
+  if (code === "RESOURCE_CALENDAR_NOT_FOUND") {
+    return text(
+      locale,
+      "The selected calendar is not stored in this project. Choose a stored calendar or the project default.",
+      "تقویم انتخاب‌شده در این پروژه ذخیره نشده است. یک تقویم ذخیره‌شده یا تقویم پیش‌فرض پروژه را انتخاب کنید.",
+    ) + ` (${code})`;
+  }
+  const prefix = creating
+    ? text(locale, "Resource was not created", "منبع ایجاد نشد")
+    : text(locale, "Save failed", "ذخیره ناموفق بود");
+  return `${prefix} (${code})`;
 }
 
 function escapeHtml(value: string): string {
@@ -430,6 +451,9 @@ type PageState = {
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
   draft: ResourceInput;
+  /** Stored calendars in this project scope; the resource editor assigns by id. */
+  calendars: readonly WorkspaceCalendarRecord[];
+  calendarError: string | null;
 };
 
 function emptyDraft(): ResourceInput {
@@ -476,6 +500,8 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     busy: false,
     notice: null,
     draft: emptyDraft(),
+    calendars: [],
+    calendarError: null,
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -546,6 +572,53 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     return state.rows.filter((row) => !descendants.has(row.resourceId));
   }
 
+  function calendarGroups(): readonly { id: string; name: string; versions: readonly string[]; kind: string }[] {
+    const groups = new Map<string, { id: string; name: string; versions: string[]; kind: string }>();
+    for (const calendar of state.calendars) {
+      const existing = groups.get(calendar.calendarId);
+      if (existing) {
+        existing.versions.push(calendar.calendarVersion);
+        continue;
+      }
+      groups.set(calendar.calendarId, {
+        id: calendar.calendarId,
+        name: calendar.name,
+        versions: [calendar.calendarVersion],
+        kind: calendar.kind,
+      });
+    }
+    return [...groups.values()]
+      .map((group) => ({ ...group, versions: [...group.versions].sort() }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  function calendarLabel(calendarId: string): string {
+    const group = calendarGroups().find((item) => item.id === calendarId);
+    return group ? `${group.name} — ${group.id}` : calendarId;
+  }
+
+  function calendarInput(draft: ResourceInput): string {
+    const groups = calendarGroups();
+    if (!groups.length) {
+      const hint = state.calendarError
+        ? say(`Stored calendars could not be read (${state.calendarError}); enter an existing calendar id.`, `خواندن تقویم‌های ذخیره‌شده ناموفق بود (${state.calendarError})؛ شناسهٔ تقویم موجود را وارد کنید.`)
+        : say("No calendar is stored in this project yet. The resource will use the project calendar until a calendar is assigned.", "هنوز تقویمی در این پروژه ذخیره نشده است. تا زمانی که تقویمی انتساب نیابد، منبع از تقویم پروژه استفاده می‌کند.");
+      return `<label>${escapeHtml(say("Calendar", "تقویم"))}<input name="resource-calendar" value="${escapeHtml(draft.calendarId ?? "")}" list="cp-resource-calendar-ids" autocomplete="off"><datalist id="cp-resource-calendar-ids"></datalist></label><p class="cp-calendar-hint">${escapeHtml(hint)}</p>`;
+    }
+    const seen = new Set<string>();
+    const options: string[] = [`<option value="">${escapeHtml(say("Project calendar (default)", "تقویم پروژه (پیش‌فرض)"))}</option>`];
+    for (const group of groups) {
+      seen.add(group.id);
+      const selected = draft.calendarId === group.id ? " selected" : "";
+      const versions = group.versions.join(", ");
+      options.push(`<option value="${escapeHtml(group.id)}"${selected}>${escapeHtml(`${group.name} — ${group.id} (${versions})`)}</option>`);
+    }
+    if (draft.calendarId && !seen.has(draft.calendarId)) {
+      options.push(`<option value="${escapeHtml(draft.calendarId)}" selected>${escapeHtml(`${draft.calendarId} (${say("not stored", "ذخیره نشده")})`)}</option>`);
+    }
+    return `<label>${escapeHtml(say("Calendar", "تقویم"))}<select name="resource-calendar">${options.join("")}</select></label><p class="cp-calendar-hint">${escapeHtml(say("Capacity follows the assigned calendar id; calendar versions are bound by the stored calendar facts and schedule runs.", "ظرفیت از شناسهٔ تقویم منتسب پیروی می‌کند؛ نسخه‌های تقویم توسط حقایق تقویم ذخیره‌شده و اجرای زمان‌بندی تعیین می‌شوند."))}</p>`;
+  }
+
   function renderForm(editing: ResourceRow | null): string {
     const draft = state.draft;
     const parents = parentCandidates(editing?.resourceId ?? null);
@@ -561,7 +634,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
       <label>${escapeHtml(say("Resource Name", "نام منبع"))}<input name="resource-name" value="${escapeHtml(draft.name)}" required></label>
       <label>${escapeHtml(say("Resource Type", "نوع منبع"))}<select name="resource-type">${typeOptions}</select></label>
       <label>${escapeHtml(say("Parent Resource", "منبع والد"))}<select name="resource-parent">${options}</select></label>
-      <label>${escapeHtml(say("Calendar", "تقویم"))}<input name="resource-calendar" value="${escapeHtml(draft.calendarId ?? "")}"></label>
+      ${calendarInput(draft)}
       <label>${escapeHtml(say("Default Units per Time", "واحد پیش‌فرض در دوره"))}<input name="resource-units" value="${escapeHtml(draft.defaultUnitsPerTime ?? "")}" inputmode="decimal"></label>
       <label>${escapeHtml(say("Unit of Measure", "واحد اندازه‌گیری"))}<input name="resource-uom" value="${escapeHtml(draft.unitOfMeasure ?? "")}"></label>
       <label>${escapeHtml(say("E-mail", "ایمیل"))}<input name="resource-email" type="email" value="${escapeHtml(draft.email ?? "")}"></label>
@@ -596,7 +669,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
         ${field(say("Resource Name", "نام منبع"), master.name)}
         ${field(say("Resource Type", "نوع منبع"), typeLabel(master.resourceType))}
         ${field(say("Parent Resource", "منبع والد"), master.parentResourceId)}
-        ${field(say("Calendar", "تقویم"), master.calendarId)}
+        ${field(say("Calendar", "تقویم"), master.calendarId ? calendarLabel(master.calendarId) : say("Project calendar (default)", "تقویم پروژه (پیش‌فرض)"))}
         ${field(say("Default Units per Time", "واحد پیش‌فرض در دوره"), master.defaultUnitsPerTime)}
         ${field(say("Unit of Measure", "واحد اندازه‌گیری"), master.unitOfMeasure)}
         ${field(say("E-mail", "ایمیل"), master.email)}
@@ -689,7 +762,17 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
   async function reload(keepSelection: string | null): Promise<void> {
     state.status = "loading";
     render();
-    const result = await loadResourceWorkspace(transport, context);
+    const [result, calendarResult] = await Promise.all([
+      loadResourceWorkspace(transport, context),
+      loadCalendarCatalogue(transport, context),
+    ]);
+    if (calendarResult.ok) {
+      state.calendars = calendarResult.data;
+      state.calendarError = null;
+    } else {
+      state.calendars = [];
+      state.calendarError = calendarResult.error.code;
+    }
     if (result.ok) {
       state.status = "loaded";
       state.errorCode = null;
@@ -845,7 +928,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
         state.mode = creating ? "create" : "edit";
         state.notice = {
           kind: "error",
-          message: `${creating ? say("Resource was not created", "منبع ایجاد نشد") : say("Save failed", "ذخیره ناموفق بود")} (${result.error.code})`,
+          message: resourceSaveErrorNotice(result.error.code, creating, locale),
         };
         render();
         return;

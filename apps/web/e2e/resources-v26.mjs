@@ -22,7 +22,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./preview-e2e.mjs";
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4174";
-const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-11";
+const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-12";
 // The commit under test and the commit that stores this report are different facts:
 // the bundle is built from the worktree before the evidence commit exists.
 const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
@@ -139,6 +139,9 @@ const resourcesState = `(() => {
       kind: form.matches("[data-resource-edit-form]") ? "edit" : "create",
       idReadonly: form.querySelector('input[readonly]')?.value ?? null,
       parentOptions: [...form.querySelectorAll('select[name="resource-parent"] option')].map((option) => option.value),
+      calendarControl: form.querySelector('[name="resource-calendar"]')?.tagName?.toLowerCase() ?? null,
+      calendarValue: form.querySelector('[name="resource-calendar"]')?.value ?? null,
+      calendarOptions: [...form.querySelectorAll('select[name="resource-calendar"] option')].map((option) => option.value),
     } : null,
   };
 })()`;
@@ -156,7 +159,15 @@ const calendarsState = `(() => {
     label: (label.childNodes[0]?.textContent ?? "").trim(),
     value: label.querySelector("input")?.value ?? label.querySelector("select")?.value ?? null,
   }));
-  const workweek = [...document.querySelectorAll('[data-calendar-panel="workweek"] tbody tr')].map((row) => [...row.querySelectorAll("th,td")].map((cell) => (cell.textContent || "").trim()));
+  const workweek = [...document.querySelectorAll('[data-calendar-panel="workweek"] tbody tr')].map((row) => {
+    const cells = [...row.querySelectorAll("th,td")];
+    const working = row.querySelector("input[data-workday-working]");
+    return [
+      (cells[0]?.textContent || "").trim(),
+      working ? (working.checked ? "Working" : "Non-working") : (cells[1]?.textContent || "").trim(),
+      row.querySelector("input[data-workday-hours]")?.value ?? (cells[2]?.textContent || "").trim(),
+    ];
+  });
   return {
     activeMenu: document.querySelector(".cp-workspace")?.dataset.activeMenu ?? null,
     heading: page?.querySelector(".cp-calendar-window-toolbar strong")?.textContent?.trim() ?? null,
@@ -335,6 +346,8 @@ async function main() {
     const crewRates = api.rates.filter((item) => item.resource_id === "RPS-CIVIL-CREW");
     const crewMaster = api.resources.map((item) => item.resource).find((item) => item?.resource_id === "RPS-CIVIL-CREW");
     assert(crewMaster, "the API did not expose the seeded RPS crew master");
+    const crewCalendar = api.calendars.find((item) => item.calendar_id === crewMaster.calendar_id);
+    assert(crewCalendar, `the API did not expose the calendar ${crewMaster.calendar_id} assigned to the crew`);
     assert(crewCapacity.length === 2, `the RPS crew should have two capacity segments, got ${crewCapacity.length}`);
     assert(crewRates.length === 2, `the RPS crew should have two rate facts, got ${crewRates.length}`);
     const expectedIds = [...new Set([
@@ -379,7 +392,14 @@ async function main() {
       assert(field(state, "Resource Name") === crewMaster.name, `Resource Name field ${field(state, "Resource Name")}`);
       assert(field(state, "Resource Type") === "Labor", `Resource Type field ${field(state, "Resource Type")}`);
       assert(field(state, "Parent Resource") === "Not provided", `Parent Resource field ${field(state, "Parent Resource")}`);
-      assert(field(state, "Calendar") === crewMaster.calendar_id, `Calendar field ${field(state, "Calendar")}`);
+      assert(
+        (field(state, "Calendar") ?? "").includes(crewMaster.calendar_id),
+        `Calendar field ${field(state, "Calendar")} does not name the stored calendar ${crewMaster.calendar_id}`,
+      );
+      assert(
+        (field(state, "Calendar") ?? "").includes(crewCalendar.name),
+        `Calendar field ${field(state, "Calendar")} does not show the stored calendar name ${crewCalendar.name}`,
+      );
       assert(field(state, "Unit of Measure") === crewMaster.unit_of_measure, `Unit of Measure field ${field(state, "Unit of Measure")}`);
       assert(field(state, "Record Revision") === String(crewMaster.record_revision), `Record Revision field ${field(state, "Record Revision")}`);
       assert(field(state, "Active") === "Yes", `Active field ${field(state, "Active")}`);
@@ -499,7 +519,13 @@ async function main() {
       await page.setInput('[data-resource-create-form] input[name="resource-name"]', createdName);
       await page.setSelect('[data-resource-create-form] select[name="resource-type"]', "labor");
       await page.setSelect('[data-resource-create-form] select[name="resource-parent"]', "RPS-CIVIL-CREW");
-      await page.setInput('[data-resource-create-form] input[name="resource-calendar"]', crewMaster.calendar_id);
+      const createState = await page.evaluate(resourcesState);
+      assert(createState.form?.calendarControl === "select", `calendar control ${createState.form?.calendarControl} instead of a stored-calendar selector`);
+      assert(
+        createState.form?.calendarOptions?.includes(crewMaster.calendar_id),
+        `calendar options ${createState.form?.calendarOptions} do not include ${crewMaster.calendar_id}`,
+      );
+      await page.setSelect('[data-resource-create-form] select[name="resource-calendar"]', crewMaster.calendar_id);
       await page.setInput('[data-resource-create-form] input[name="resource-units"]', "6");
       await page.setInput('[data-resource-create-form] input[name="resource-uom"]', "crew");
       await page.setInput('[data-resource-create-form] input[name="resource-email"]', "night@example.com");
@@ -529,6 +555,23 @@ async function main() {
       assert(stored.body.resource.parent_resource_id === "RPS-CIVIL-CREW", `stored parent ${stored.body.resource.parent_resource_id}`);
       assert(stored.body.resource.record_revision === 1, `stored revision ${stored.body.resource.record_revision}`);
       assert(stored.body.resource.email === "night@example.com", `stored email ${stored.body.resource.email}`);
+      assert(
+        stored.body.resource.calendar_id === crewMaster.calendar_id,
+        `stored calendar ${stored.body.resource.calendar_id} instead of the selected ${crewMaster.calendar_id}`,
+      );
+
+      // The selected calendar is a stored reference, so the edit form and the
+      // General tab must both read it back from the persisted master.
+      await page.click('[data-resource-action="edit"]');
+      await page.waitForSelector("[data-resource-edit-form]", "resource edit form after reload");
+      const editState = await page.evaluate(resourcesState);
+      assert(editState.form?.calendarControl === "select", `edit calendar control ${editState.form?.calendarControl}`);
+      assert(
+        editState.form?.calendarValue === crewMaster.calendar_id,
+        `edit calendar value ${editState.form?.calendarValue} instead of ${crewMaster.calendar_id}`,
+      );
+      await page.click('[data-resource-action="cancel"]');
+      await page.waitForSelector("[data-resource-panel=\"general\"]", "general tab after cancel");
 
       const duplicate = await postResource(page, {
         resource_id: createdId,
