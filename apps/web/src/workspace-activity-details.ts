@@ -361,6 +361,31 @@ function udfInputName(udfId: string): string {
   return `udf:${udfId}`;
 }
 
+const UDF_DURATION_UNITS = ["hour", "day", "week", "month", "year"] as const;
+
+/** Splits a stored duration (`{value, unit}`) into the two editor fields. */
+function udfDurationParts(value: unknown): { amount: string; unit: string } {
+  if (value && typeof value === "object") {
+    const record = value as { value?: unknown; unit?: unknown };
+    const amount = record.value === undefined || record.value === null ? "" : String(record.value).trim();
+    const unit = typeof record.unit === "string" && record.unit.trim() ? record.unit.trim() : "day";
+    return { amount, unit };
+  }
+  if (typeof value === "number" || (typeof value === "string" && value.trim())) {
+    return { amount: String(value).trim(), unit: "day" };
+  }
+  return { amount: "", unit: "day" };
+}
+
+/** Formats a stored ISO datetime for a `datetime-local` input in the viewer's zone. */
+function udfDateTimeInputValue(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const pad = (part: number): string => String(part).padStart(2, "0");
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+}
+
 function udfValueInput(udf: P6UdfEditorMetadata | P6ActivityUdfValue, value: unknown): string {
   const name = udfInputName(udf.udf_id);
   const raw = udfDisplayValue(value);
@@ -375,6 +400,19 @@ function udfValueInput(udf: P6UdfEditorMetadata | P6ActivityUdfValue, value: unk
       .join("");
     return `<select ${attribute}>${options}</select>`;
   }
+  if (udf.data_type === "datetime") {
+    const inputValue = udfDateTimeInputValue(value);
+    return `<input type="datetime-local" ${attribute} value="${esc(inputValue)}"${udf.nullable ? "" : " required"}>`;
+  }
+  if (udf.data_type === "duration") {
+    const duration = udfDurationParts(value);
+    const unitName = `${name}.unit`;
+    const units = UDF_DURATION_UNITS.includes(duration.unit as (typeof UDF_DURATION_UNITS)[number])
+      ? UDF_DURATION_UNITS
+      : [duration.unit, ...UDF_DURATION_UNITS];
+    const options = units.map((unit) => `<option value="${esc(unit)}"${unit === duration.unit ? " selected" : ""}>${esc(unit)}</option>`).join("");
+    return `<span class="cp-udf-duration"><input type="number" step="any" ${attribute} value="${esc(duration.amount)}"${udf.nullable ? "" : " required"} aria-label="${esc(udf.display_name)}"><select name="${esc(unitName)}" data-udf-duration-unit="${esc(udf.udf_id)}" aria-label="${esc(udf.display_name)} unit"${udf.nullable ? "" : " required"}>${options}</select></span>`;
+  }
   const numeric = udf.data_type === "integer"
     || udf.data_type === "decimal"
     || udf.data_type === "double"
@@ -382,17 +420,12 @@ function udfValueInput(udf: P6UdfEditorMetadata | P6ActivityUdfValue, value: unk
     || udf.data_type === "percentage";
   const type = udf.data_type === "date" ? "date" : numeric ? "number" : "text";
   const step = udf.data_type === "integer" ? ' step="1"' : numeric ? ' step="any"' : "";
-  const placeholder = udf.data_type === "duration"
-    ? ` placeholder="5 ${esc(udf.unit ?? "day")}"`
-    : udf.data_type === "datetime"
-      ? ` placeholder="2026-11-12T00:00:00+00:00"`
-      : "";
-  return `<input type="${type}" ${attribute} value="${esc(raw)}"${step}${placeholder}${udf.nullable ? "" : " required"}>`;
+  return `<input type="${type}" ${attribute} value="${esc(raw)}"${step}${udf.nullable ? "" : " required"}>`;
 }
 
 type UdfFormParse = { skip: true } | { error: string } | { value: unknown };
 
-function parseUdfFormValue(
+export function parseUdfFormValue(
   form: FormData,
   udf: P6UdfEditorMetadata | P6ActivityUdfValue,
   original: unknown,
@@ -412,8 +445,12 @@ function parseUdfFormValue(
       return raw === "true" || raw === "false" ? { value: raw === "true" } : { error: "INVALID_BOOLEAN_VALUE" };
     case "date":
       return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? { value: raw } : { error: "INVALID_DATE_VALUE" };
-    case "datetime":
-      return { value: raw };
+    case "datetime": {
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) return { error: "INVALID_DATETIME_VALUE" };
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return { error: "INVALID_DATETIME_VALUE" };
+      return { value: parsed.toISOString() };
+    }
     case "integer":
       return /^-?\d+$/.test(raw) ? { value: Number(raw) } : { error: "INVALID_INTEGER_VALUE" };
     case "decimal":
@@ -422,9 +459,10 @@ function parseUdfFormValue(
     case "percentage":
       return /^-?\d+(\.\d+)?$/.test(raw) ? { value: raw } : { error: "INVALID_DECIMAL_VALUE" };
     case "duration": {
-      const match = /^(-?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z-]*)?$/.exec(raw);
-      if (!match) return { error: "INVALID_DURATION_VALUE" };
-      return { value: { value: match[1], unit: match[2] ?? udf.unit ?? "day" } };
+      if (!/^-?\d+(?:\.\d+)?$/.test(raw)) return { error: "INVALID_DURATION_VALUE" };
+      const unit = String(form.get(`${udfInputName(udf.udf_id)}.unit`) ?? "").trim() || udf.unit || "day";
+      if (!/^[A-Za-z][A-Za-z-]*$/.test(unit)) return { error: "INVALID_DURATION_UNIT" };
+      return { value: { value: raw, unit } };
     }
     default:
       return { error: "UNSUPPORTED_TYPED_UDF_VALUE" };

@@ -7,6 +7,7 @@ import {
   ACTIVITY_DETAILS_TABS,
   ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY,
   parseActivityProgressHistory,
+  parseUdfFormValue,
   readActivityDetailsVisibleTabs,
   renderActivityDetailsPanel,
 } from "./workspace-activity-details.js";
@@ -288,6 +289,80 @@ test("UDF tab shows stored values and edits only writable definitions for a writ
   assert.doesNotMatch(writable, /data-udf-value-input="activity\.audit_ref"/);
   assert.match(writable, /Audit Reference[\s\S]*AUD-7/);
   assert.match(writable, /Save values/);
+});
+
+test("UDF datetime and duration definitions render typed controls", () => {
+  const base = {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian" as const,
+    canWrite: true,
+    visibleTabs: ["udfs"] as ActivityDetailsTabId[],
+    data: {
+      udfValues: {
+        status: "loaded" as const,
+        errorCode: null,
+        records: [
+          {
+            udf_id: "activity.review_at", subject_area: "Activity", display_name: "Review At",
+            data_type: "datetime" as const, writable: true, nullable: true, unit: null,
+            allowed_values: null, value: "2026-11-12T10:30:00+00:00",
+          },
+          {
+            udf_id: "activity.cure_time", subject_area: "Activity", display_name: "Cure Time",
+            data_type: "duration" as const, writable: true, nullable: false, unit: "day",
+            allowed_values: null, value: { value: "7", unit: "day" },
+          },
+        ],
+      },
+    },
+  };
+  const html = renderActivityDetailsPanel(base);
+  assert.match(html, /<input type="datetime-local" name="udf:activity\.review_at"/);
+  assert.match(html, /data-udf-duration-unit="activity\.cure_time"/);
+  assert.match(html, /name="udf:activity\.cure_time\.unit"/);
+  assert.match(html, /<option value="day" selected>day<\/option>/);
+  assert.match(html, /value="7"/);
+  assert.doesNotMatch(html, /placeholder="2026-11-12T00:00:00\+00:00"/);
+});
+
+test("UDF datetime and duration form values are converted to the typed wire shape", () => {
+  const datetime = {
+    udf_id: "activity.review_at", subject_area: "Activity", display_name: "Review At",
+    data_type: "datetime" as const, writable: true, nullable: true, unit: null,
+    allowed_values: null, value: null,
+  };
+  const form = new FormData();
+  form.set("udf:activity.review_at", "2026-11-12T10:30");
+  const parsed = parseUdfFormValue(form, datetime, null);
+  assert.ok("value" in parsed);
+  assert.equal(parsed.value, new Date("2026-11-12T10:30").toISOString());
+
+  form.set("udf:activity.review_at", "2026-11-12 10:30");
+  assert.deepEqual(parseUdfFormValue(form, datetime, null), { error: "INVALID_DATETIME_VALUE" });
+
+  const duration = {
+    udf_id: "activity.cure_time", subject_area: "Activity", display_name: "Cure Time",
+    data_type: "duration" as const, writable: true, nullable: false, unit: "day",
+    allowed_values: null, value: { value: "7", unit: "day" },
+  };
+  const durationForm = new FormData();
+  durationForm.set("udf:activity.cure_time", "10");
+  durationForm.set("udf:activity.cure_time.unit", "hour");
+  assert.deepEqual(parseUdfFormValue(durationForm, duration, { value: "7", unit: "day" }), {
+    value: { value: "10", unit: "hour" },
+  });
+
+  durationForm.set("udf:activity.cure_time", "ten");
+  assert.deepEqual(parseUdfFormValue(durationForm, duration, { value: "7", unit: "day" }), {
+    error: "INVALID_DURATION_VALUE",
+  });
+
+  durationForm.set("udf:activity.cure_time", "10");
+  durationForm.set("udf:activity.cure_time.unit", "3");
+  assert.deepEqual(parseUdfFormValue(durationForm, duration, { value: "7", unit: "day" }), {
+    error: "INVALID_DURATION_UNIT",
+  });
 });
 
 test("Steps render stored child records for the activity and omit completion columns", () => {
