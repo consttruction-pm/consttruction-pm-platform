@@ -106,6 +106,8 @@ from ..p6_formula_column import (
 )
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
+from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
+from ..p6_issue_repository import P6Issue, P6IssuePersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
@@ -219,6 +221,7 @@ class ProjectLifecycleHttpRoutes:
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
+        p6_issue_api: P6IssueAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -263,6 +266,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
+        self._p6_issue_api = p6_issue_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -1903,6 +1907,142 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+            if self._p6_issue_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/p6/issues" in split.path:
+                    prefix = "/p6/issues"
+                    issue_project_id = split.path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                    issue_suffix = split.path[
+                        len("/api/projects/") + len(issue_project_id) + len(prefix):
+                    ]
+                    if not issue_project_id:
+                        return self._error(400, "P6_ISSUE_REQUEST_INVALID", "error.request.invalid")
+                    try:
+                        context = self._api.open_project(session_id, issue_project_id, now=now).context
+                    except ProjectLifecycleError as exc:
+                        if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                            return self._error(403, str(exc), "error.authorization.denied")
+                        raise
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                    occurred_at = now.isoformat()
+                    parts = [part for part in issue_suffix.strip("/").split("/") if part]
+                    query = {
+                        key: values[-1]
+                        for key, values in parse_qs(split.query, keep_blank_values=True).items()
+                    }
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                        if not isinstance(payload, dict):
+                            raise ValueError("invalid payload")
+                        if method == "GET" and not parts:
+                            result = self._p6_issue_api.list(
+                                scope,
+                                status=query.get("status") or payload.get("status"),
+                                priority=query.get("priority") or payload.get("priority"),
+                                owner=query.get("owner") or payload.get("owner"),
+                                issue_type=query.get("issue_type") or payload.get("issue_type"),
+                                wbs_id=query.get("wbs_id") or payload.get("wbs_id"),
+                                activity_id=query.get("activity_id") or payload.get("activity_id"),
+                                search=query.get("search") or payload.get("search"),
+                                auth_context=auth,
+                            )
+                            return self._json(200, {
+                                "contract_version": P6_ISSUE_API_VERSION,
+                                "issues": list(result),
+                            })
+                        if method == "GET" and len(parts) == 1:
+                            result = self._p6_issue_api.get(
+                                scope, parts[0], auth_context=auth
+                            )
+                            if result is None:
+                                return self._error(
+                                    404, "P6_ISSUE_NOT_FOUND", "error.p6.issue.not_found"
+                                )
+                            return self._json(200, result)
+                        if method == "GET" and len(parts) == 2 and parts[1] == "history":
+                            result = self._p6_issue_api.history(
+                                scope, parts[0], auth_context=auth
+                            )
+                            return self._json(200, {
+                                "contract_version": P6_ISSUE_API_VERSION,
+                                "events": list(result),
+                            })
+                        if method == "POST" and not parts:
+                            issue = P6Issue(
+                                scope=scope,
+                                issue_id=payload.get("issue_id", ""),
+                                title=payload.get("title", ""),
+                                description=payload.get("description", ""),
+                                issue_type=payload.get("issue_type", ""),
+                                status=payload.get("status", "open"),
+                                priority=payload.get("priority", "normal"),
+                                owner=payload.get("owner", ""),
+                                responsible_manager=payload.get("responsible_manager"),
+                                date_identified=payload.get("date_identified", ""),
+                                due_date=payload.get("due_date"),
+                                wbs_id=payload.get("wbs_id"),
+                                activity_id=payload.get("activity_id"),
+                                document_refs=tuple(payload.get("document_refs") or ()),
+                                resolution_note=payload.get("resolution_note"),
+                            )
+                            return self._json(200, self._p6_issue_api.create(
+                                issue, auth_context=auth, occurred_at=occurred_at
+                            ))
+                        if method in {"PUT", "PATCH"} and len(parts) == 1:
+                            issue = P6Issue(
+                                scope=scope,
+                                issue_id=parts[0],
+                                title=payload.get("title", ""),
+                                description=payload.get("description", ""),
+                                issue_type=payload.get("issue_type", ""),
+                                status=payload.get("status", ""),
+                                priority=payload.get("priority", ""),
+                                owner=payload.get("owner", ""),
+                                responsible_manager=payload.get("responsible_manager"),
+                                date_identified=payload.get("date_identified", ""),
+                                due_date=payload.get("due_date"),
+                                wbs_id=payload.get("wbs_id"),
+                                activity_id=payload.get("activity_id"),
+                                document_refs=tuple(payload.get("document_refs") or ()),
+                                resolution_note=payload.get("resolution_note"),
+                            )
+                            return self._json(200, self._p6_issue_api.update(
+                                issue,
+                                expected_revision=payload.get("expected_revision"),
+                                auth_context=auth,
+                                occurred_at=occurred_at,
+                            ))
+                        if method == "POST" and len(parts) == 2 and parts[1] == "comments":
+                            return self._json(200, self._p6_issue_api.add_comment(
+                                scope,
+                                parts[0],
+                                comment=payload.get("comment", ""),
+                                expected_revision=payload.get("expected_revision"),
+                                auth_context=auth,
+                                occurred_at=occurred_at,
+                            ))
+                        if method == "DELETE" and len(parts) == 1:
+                            expected = payload.get("expected_revision", query.get("expected_revision"))
+                            return self._json(200, self._p6_issue_api.delete(
+                                scope,
+                                parts[0],
+                                expected_revision=int(expected) if expected is not None else None,
+                                auth_context=auth,
+                                occurred_at=occurred_at,
+                            ))
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    except P6IssuePersistenceError as exc:
+                        code = str(exc)
+                        if code == "ISSUE_NOT_FOUND":
+                            return self._error(404, "P6_ISSUE_NOT_FOUND", "error.p6.issue.not_found")
+                        if code in {"ISSUE_ALREADY_EXISTS", "ISSUE_REVISION_CONFLICT"}:
+                            return self._error(409, code, "error.p6.issue.conflict")
+                        return self._error(400, code, "error.request.invalid")
+                    except (TypeError, ValueError, ArithmeticError):
+                        return self._error(400, "P6_ISSUE_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
                 prefix = "/p6/expenses"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")

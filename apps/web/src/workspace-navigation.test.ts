@@ -56,7 +56,7 @@ test("unsupported V1 surfaces are explicitly marked preview instead of being pre
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
   assert.equal(getWorkspaceNavigation("cost").status, "partial");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
-  assert.equal(getWorkspaceNavigation("issues").status, "preview");
+  assert.equal(getWorkspaceNavigation("issues").status, "partial");
 });
 
 test("navigation status follows the workspace active menu", () => {
