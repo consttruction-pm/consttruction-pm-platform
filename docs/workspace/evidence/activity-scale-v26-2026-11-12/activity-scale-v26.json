@@ -1,0 +1,92 @@
+{
+  "contract": "cubi-activity-scale-v26.v1",
+  "baseUrl": "http://127.0.0.1:4196",
+  "gitHead": "2b9bec966b3c4cfaf57baf4e4be1ed1cdda51771",
+  "testedCodeSha": "2b9bec966b3c4cfaf57baf4e4be1ed1cdda51771",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T16:26:20.863Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "The seeded population is persisted and readable without a row cap",
+      "status": "pass",
+      "at": "2026-11-12T16:26:23.451Z",
+      "baseline": 14,
+      "seeded": 240,
+      "total": 254
+    },
+    {
+      "id": "02",
+      "name": "The table draws every persisted activity and the last row is reachable",
+      "status": "pass",
+      "at": "2026-11-12T16:26:25.584Z",
+      "rows": 254,
+      "lastId": "A200",
+      "total": 254
+    },
+    {
+      "id": "03",
+      "name": "The Gantt renders one bar per visible activity in the same population",
+      "status": "pass",
+      "at": "2026-11-12T16:26:25.585Z",
+      "rows": 254,
+      "bars": 254
+    },
+    {
+      "id": "04",
+      "name": "A quick filter narrows the rows while the authoritative snapshot keeps every activity",
+      "status": "pass",
+      "at": "2026-11-12T16:26:27.599Z",
+      "filteredRows": 240,
+      "total": 254,
+      "snapshotCount": 254
+    },
+    {
+      "id": "05",
+      "name": "Collapsing every WBS branch hides rows without changing the authoritative snapshot",
+      "status": "pass",
+      "at": "2026-11-12T16:26:29.430Z",
+      "collapsedRows": 0,
+      "restoredRows": 254,
+      "snapshotCount": 254
+    },
+    {
+      "id": "06",
+      "name": "Hiding a column keeps every row and the schedule facts intact",
+      "status": "pass",
+      "at": "2026-11-12T16:26:31.836Z",
+      "hiddenField": "activity.name",
+      "rows": 254
+    },
+    {
+      "id": "07",
+      "name": "A reload returns the whole population from the server",
+      "status": "pass",
+      "at": "2026-11-12T16:26:33.918Z",
+      "rows": 254,
+      "total": 254,
+      "snapshotCount": 254
+    },
+    {
+      "id": "08",
+      "name": "The full population renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-12T16:26:36.458Z",
+      "rows": 254,
+      "direction": "rtl",
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-full-population.png",
+    "02-filter-narrows.png",
+    "03-collapsed-wbs.png",
+    "04-hidden-column.png",
+    "05-after-reload.png",
+    "06-rtl-1366x768.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T16:26:36.458Z"
+}
