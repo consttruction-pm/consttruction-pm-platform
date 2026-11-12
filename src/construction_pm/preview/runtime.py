@@ -161,7 +161,7 @@ from construction_pm.p6_financial_period_repository import (
 )
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
-from construction_pm.knowledge.plan import MasterDataPlanPort
+from construction_pm.knowledge.plan import MasterDataPlanPort, RealScheduleSettingsWriter
 from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
@@ -1779,6 +1779,13 @@ def open_preview_runtime(
         relationship_api=P6RelationshipAPI(
             repositories.relationships, policy, repositories.activities
         ),
+        settings_port=RealScheduleSettingsWriter(
+            publication_api=snapshot_api,
+            calendar_repository=repositories.calendars,
+            calendar_snapshot_repository=repositories.calendar_snapshots,
+            settings_repository=repositories.settings,
+        ),
+        snapshot_api=snapshot_api,
     )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,

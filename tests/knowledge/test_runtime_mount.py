@@ -278,6 +278,102 @@ def test_preview_composition_serves_knowledge_beside_the_real_lifecycle_app(tmp_
         preview.close()
 
 
+def test_preview_creation_persists_plan_and_settings_through_real_services(tmp_path) -> None:
+    from construction_pm.preview.runtime import open_preview_runtime
+    from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
+
+    preview = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        session = preview.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+
+        def send(method, path, body=None, query=""):
+            return call(preview.app, method, path, session=session.session_id, body=body, query=query)
+
+        status, run = send("POST", "/api/knowledge/assistant/workflows", body={})
+        assert status == "201", run
+        run_id = run["run_id"]
+        version = run["version"]
+
+        def apply(step, payload):
+            nonlocal version
+            status, result = send(
+                "POST",
+                f"/api/knowledge/assistant/workflows/{run_id}/steps/{step}",
+                body={"payload": payload, "expected_version": version},
+            )
+            assert status == "200", (step, result)
+            version = result["version"]
+            return result
+
+        apply(
+            "organization",
+            {"organization": "CUBI", "eps": {"code": "EPS-PRV", "name": "Engineering"}, "discipline": "Engineering"},
+        )
+        apply("discipline", {"discipline": "Engineering", "project_type": "EPC"})
+        apply(
+            "identity",
+            {"name": "Preview Workflow Project", "project_id": "PRJ-PREVIEW-WF", "timezone": "UTC"},
+        )
+        apply("review", {"confirm": True})
+        status, approval = send(
+            "POST",
+            f"/api/knowledge/assistant/workflows/{run_id}/approve",
+            body={"expected_version": version},
+        )
+        assert status == "200", approval
+        version = approval["version"]
+        apply("create", {"approval_token": approval["approval_token"]})
+        apply(
+            "settings",
+            {"start_date": "2026-04-01", "date_system": "gregorian", "primary_calendar_id": "CAL-PRV"},
+        )
+        apply(
+            "wbs",
+            {
+                "nodes": [
+                    {
+                        "wbs_id": "W1",
+                        "code": "1.1",
+                        "name": "Engineering",
+                        "parent_wbs_id": "WBS-PRJ-PREVIEW-WF",
+                        "sequence_number": 1,
+                    }
+                ]
+            },
+        )
+        apply(
+            "activities",
+            {"activities": [{"activity_id": "A1", "name": "Design", "wbs_id": "W1", "duration_days": 5}]},
+        )
+        apply(
+            "schedule",
+            {
+                "data_date": "2026-04-01",
+                "calendar": {
+                    "calendar_id": "CAL-PRV",
+                    "name": "Preview calendar",
+                    "calendar_system": "gregorian",
+                    "working_weekdays": [0, 1, 2, 3, 4],
+                    "timezone": "UTC",
+                },
+                "relationships": [],
+            },
+        )
+        result = apply("control", {})
+        control = {step["key"]: step for step in result["steps"]}["control"]
+        assert control["data"]["verified"] is True, result
+        assert control["data"]["gaps"] == []
+
+        status, payload = send("GET", "/api/projects")
+        assert status == "200", payload
+        created = {project["project_id"]: project for project in payload["projects"]}["PRJ-PREVIEW-WF"]
+        assert created["name"] == "Preview Workflow Project"
+        assert created["primary_calendar_id"] == "CAL-PRV"
+        assert (tmp_path / "knowledge.sqlite3").exists()
+    finally:
+        preview.close()
+
+
 def test_each_request_uses_its_own_session_for_project_reads(stack) -> None:
     lifecycle: FakeLifecycle = stack.lifecycle
     status, run = call(stack.runtime.app, "POST", "/api/knowledge/assistant/workflows", body={}, session="planner-session")
