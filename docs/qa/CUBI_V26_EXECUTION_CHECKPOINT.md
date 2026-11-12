@@ -1122,5 +1122,88 @@ scenarios ran on `f7ff537d`, and the screenshots plus report were committed afte
 
 ### Next stage
 
-Stage E Documents (expose the existing document service through a real persistence and HTTP
-boundary), then Thresholds and the Risk register.
+Stage E2 Documents (shipped below), then Thresholds and the Risk register.
+
+## Stage E2 — Project document register, audited status graph and history
+
+Status: **in review** on branch `feat/v26-stage-e-documents`, code commit
+`b22c7955`. PR and merge commit are recorded in the post-merge update below.
+
+### What shipped
+
+1. **Authoritative document register** (`document_persistence.py`): `SQLiteDocumentStore`
+   mirrors the existing `PostgresDocumentStore` metadata boundary. Documents keep
+   `contract|drawing|correspondence|rfi|submittal|delay_claim|evidence` types and
+   `draft|submitted|approved|rejected|superseded` statuses, an explicit
+   `sha256:` 64-hex content hash and a `storage_ref`; bytes are never stored here.
+   Create records an idempotency fingerprint (`DOCUMENT_IDEMPOTENCY_KEY_REUSE` on reuse,
+   `DOCUMENT_ALREADY_EXISTS` on a duplicate id), list supports type/status/search filters with
+   project isolation, updates are revision-guarded and every create, update and status
+   transition appends an immutable `project_document_audit` row.
+2. **Application boundary** (`document_application.py`): `list` and `history` require
+   `PROJECT_READ` and confirm the document exists inside the project. `update` now refuses any
+   status change (`DOCUMENT_STATUS_REQUIRES_TRANSITION`) so a metadata edit cannot bypass the
+   approval endpoint; the transition call passes the authenticated roles to the authorizer.
+   `RolePermissionDocumentLifecycleAuthorizer` gates `approved`/`rejected` on
+   `project_admin` without hard-coding a user id.
+3. **Versioned API and HTTP routes** (`DocumentAPI` v1.0): `GET/POST /api/projects/{id}/documents`,
+   `GET /documents/{id}`, `GET /documents/{id}/history`, `PUT/PATCH /documents/{id}` and
+   `POST /documents/{id}/status`, with project read/write authorization and honest
+   `404 DOCUMENT_NOT_FOUND`, `409 DOCUMENT_REVISION_CONFLICT`,
+   `400 DOCUMENT_INVALID_STATUS_TRANSITION` and `403` authorization DTOs. The status endpoint
+   rebuilds the record from the stored row so a caller cannot smuggle other fields. WSGI carries
+   the list query string in preview and production.
+4. **Documents window** (`workspace-documents.ts`): replaces the static register shell. The page
+   reads the server with type/status/search filters, creates drafts, edits metadata with
+   `expected_revision`, offers only the declared status transitions with a reason, renders
+   general/history tabs and the append-only trail, and reloads the authoritative record after a
+   409. The content hash input is validated as a real SHA-256 and never generated. `canWrite`
+   mirrors `PROJECT_WRITE` (planner/project_admin) and `canApprove` mirrors the approval role, so
+   read-only users see disabled actions rather than decorative ones.
+5. **Bottom-pane parity and cleanup**: Documents owns its detail pane, so the shared bottom
+   surface stays collapsed, matching Roles, Calendars and Issues. The legacy static document
+   renderer, its tab/selection caches and the unused documents empty-state branch were removed.
+
+### Honest limits
+
+- The register is metadata-only. Binary upload/download is not exposed; callers must supply an
+  existing `storage_ref` and the hash computed by the upload source (`GAP-DOC-02`).
+- No document links to WBS/activity records beyond stored free-text references, no categories
+  dictionary, no revision file history and no bulk import/export.
+- Approval is role-gated but there is no multi-step workflow, delegation or notification.
+- The Postgres store gains `list` and timestamp coercion but is not exercised by the default
+  test suite.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc -p tsconfig.json --noEmit` | clean |
+| Unit/integration (web) | `cd apps/web && npm test` | 795 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Documents web suite | `apps/web/src/workspace-documents.test.ts` | 11 tests: parsing, contract, transition graph, payload/hash validation, filter/history paths, create/update/status envelopes |
+| Backend document suites | `pytest tests/test_document_sqlite_store.py tests/test_document_application_reads.py tests/test_document_api_v1.py tests/test_document_http_routes.py tests/test_preview_documents.py` | 25 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3403 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_PREVIEW_URL=… CUBI_CHROME_NO_SANDBOX=1 node e2e/documents-v26.mjs` | 13/13 scenarios pass, 11 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 13 of the same suite | Persian RTL, toolbar/filters/register/window fit, shared bottom pane collapsed |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/documents-v26-2026-11-12/` | `documents-v26.json` + 11 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `b22c795581d8773f890b12915ed0e078c4153f09` |
+| Evidence commit | `cbd783b28a140d85447c978721786e389c7c1ee9` |
+| Branch | `feat/v26-stage-e-documents` |
+| PR | TBD |
+| Merge commit | TBD |
+| Post-merge CI | TBD |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
+scenarios ran on `b22c7955`, and the screenshots plus report were committed afterwards.
+
+### Next stage
+
+Stage E3 Expenses/Cost Accounts/Budget verification, then Thresholds and the Risk register.
+
