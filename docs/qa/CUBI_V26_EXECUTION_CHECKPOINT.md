@@ -1108,7 +1108,7 @@ Recorded provenance (two independent facts):
 | Field | Value |
 | --- | --- |
 | Tested code SHA | `f7ff537d4d3d124e5fc58b4ca304974eec54fd84` |
-| Evidence commit | PENDING |
+| Evidence commit | `545ed4a5371d9c85cd6e36b34163a1a6745be3ae` |
 | Branch head at merge | PENDING |
 | PR | PENDING |
 | Merge commit | PENDING |
