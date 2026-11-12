@@ -244,11 +244,16 @@ class LifecycleProjectGateway:
 
     def get_project(self, project_id: str) -> Mapping[str, object] | None:
         try:
-            return _summary(self.api.get_project(self.session_id, project_id, now=self._now()))
+            found = self.api.get_project(self.session_id, project_id, now=self._now())
         except Exception as exc:  # noqa: BLE001 - boundary translation
             if "NOT_FOUND" in str(exc):
                 return None
             raise _gateway_error(exc) from exc
+        # A lifecycle implementation may answer "not found" with ``None``
+        # instead of raising; both shapes mean the same thing to the workflow.
+        if found is None:
+            return None
+        return _summary(found)
 
     def create_project(self, *, project_id, name, description, start_date, date_system, primary_calendar_id):
         try:

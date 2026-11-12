@@ -40,11 +40,13 @@ class KnowledgeHttpMiddleware:
         lifecycle_api: object,
         *,
         clock=None,
+        session_hook: Callable[[str], None] | None = None,
     ) -> None:
         self._app = app
         self._api = api
         self._lifecycle = lifecycle_api
         self._clock = clock or UtcClock()
+        self._session_hook = session_hook
 
     def __call__(self, environ: Mapping[str, object], start_response: Callable):
         method = str(environ.get("REQUEST_METHOD", "GET")).upper()
@@ -85,6 +87,8 @@ class KnowledgeHttpMiddleware:
             return _error(401, "SESSION_REQUIRED")
         now = self._clock.now()
         session = self._lifecycle.get_session(session_id, now=now)
+        if self._session_hook is not None:
+            self._session_hook(session_id)
         principal = AssistantPrincipal(
             user_id=session.user_id,
             tenant_id=session.tenant_id,
