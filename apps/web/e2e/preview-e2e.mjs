@@ -1146,10 +1146,11 @@ class Page {
     if (selector) await this.waitForSelector(selector, label);
   }
 
-  async screenshot(name) {
+  async screenshot(name, clip = null) {
     const result = await this.cdp.send("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
+      ...(clip ? { clip: { ...clip, scale: clip.scale ?? 1 } } : {}),
     });
     const file = join(artifactsDir, name);
     writeFileSync(file, Buffer.from(result.data, "base64"));

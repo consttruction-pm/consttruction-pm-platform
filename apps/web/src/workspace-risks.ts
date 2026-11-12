@@ -545,6 +545,8 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       const key = `${item.probability}-${item.impact}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
+    const selected = state.risks.find((item) => item.riskId === state.selectedId);
+    const selectedKey = selected ? `${selected.probability}-${selected.impact}` : null;
     const head = [1, 2, 3, 4, 5]
       .map((impact) => `<th scope="col">${impact}</th>`)
       .join("");
@@ -552,9 +554,11 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       .map((probability) => {
         const cells = [1, 2, 3, 4, 5]
           .map((impact) => {
-            const count = counts.get(`${probability}-${impact}`) ?? 0;
+            const key = `${probability}-${impact}`;
+            const count = counts.get(key) ?? 0;
             const level = riskExposureLevel(probability, impact);
-            return `<td data-risk-matrix-cell="${probability}-${impact}" data-exposure="${level}" class="cp-risk-cell cp-risk-cell-${level}">${count || ""}</td>`;
+            const active = key === selectedKey;
+            return `<td data-risk-matrix-cell="${key}" data-exposure="${level}" aria-selected="${active}" class="cp-risk-cell cp-risk-cell-${level}${active ? " is-selected" : ""}">${count || ""}</td>`;
           })
           .join("");
         return `<tr><th scope="row">${probability}</th>${cells}</tr>`;

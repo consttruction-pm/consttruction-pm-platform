@@ -100,6 +100,7 @@ const registerState = `(() => {
     key: cell.dataset.riskMatrixCell,
     exposure: cell.dataset.exposure,
     count: Number((cell.textContent || "").trim() || "0"),
+    selected: cell.classList.contains("is-selected"),
   }));
   const history = [...page?.querySelectorAll(".cp-risk-history li") ?? []].map((item) => item.textContent.trim());
   const form = page?.querySelector("[data-risk-form]");
@@ -130,9 +131,9 @@ const registerState = `(() => {
   };
 })()`;
 
-async function capture(page, name) {
+async function capture(page, name, clip = null) {
   const file = `risks-v26/${name}.png`;
-  await page.screenshot(file);
+  await page.screenshot(file, clip);
   copyFileSync(join(artifactsDir, file), join(evidenceDir, `${name}.png`));
   screenshots.push(`${name}.png`);
   return file;
@@ -349,9 +350,18 @@ async function main() {
       const cell = state.matrix.find((item) => item.key === "3-4");
       assert(cell, `matrix cell 3-4 missing`);
       assert(cell.exposure === "high" && cell.count === 1, `matrix cell ${JSON.stringify(cell)}`);
+      assert(cell.selected, "matrix cell 3-4 does not mark the selected risk");
+      assert(state.matrix.filter((item) => item.selected).length === 1, "matrix marks more than one cell");
       assert(state.matrix.find((item) => item.key === "5-5").exposure === "critical", "matrix 5-5 is not critical");
       assert(state.matrix.find((item) => item.key === "1-1").exposure === "low", "matrix 1-1 is not low");
-      await capture(page, "03-scoring-matrix");
+      const panel = await page.evaluate(`(() => {
+        const element = document.querySelector(".cp-risk-matrix-panel");
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { x: Math.max(0, rect.x - 6), y: Math.max(0, rect.y - 6), width: rect.width + 12, height: rect.height + 12 };
+      })()`);
+      assert(panel && panel.width > 120 && panel.height > 120, `matrix panel box ${JSON.stringify(panel)}`);
+      await capture(page, "03-scoring-matrix", panel);
       return { cell };
     });
 
@@ -431,6 +441,8 @@ async function main() {
       assert(state.history[2].includes("status_changed"), `history close ${JSON.stringify(state.history)}`);
       const server = await api(page, "GET", riskUrl(`/${encodeURIComponent(riskId)}/history`));
       assert(server.status === 200 && server.body.events.length === 3, `server history ${JSON.stringify(server.body)}`);
+      await page.evaluate(`document.querySelector(".cp-risk-history")?.scrollIntoView({ block: "nearest" })`);
+      await sleep(400);
       await capture(page, "07-history");
       return { events: server.body.events.length };
     });
