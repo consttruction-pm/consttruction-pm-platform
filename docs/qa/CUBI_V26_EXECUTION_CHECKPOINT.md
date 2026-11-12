@@ -2833,3 +2833,33 @@ code — no product change was needed.
 Remaining WS-007 gaps: delete with confirmation, dirty-state save/discard/cancel,
 reset-to-default, Resource Assignments and Tracking layouts, and layouts are still scoped by
 layout scope rather than by user identity.
+
+## Activities scale and presentation-free schedule input (2026-11-12)
+
+Status: **branch-ready** on `feat/activity-scale-invariants-20261112`, implementation
+`2b9bec96`.
+
+The Activities window now has a real 250+ population proof instead of an assertion that
+"the code looks uncapped":
+
+- The browser suite seeds 240 activities through the authenticated Activity Master API on
+  top of the 14 seeded masters, so the read model, the table and the Gantt all hold **254**
+  rows. The table renders 254 data rows and the Gantt 254 bars, the scroll container reaches
+  its clamped bottom with the last row visible, and a reload returns the same population.
+- A quick filter narrows the drawn rows to the 240 seeds, collapsing every WBS branch draws
+  zero activity rows, and hiding `activity.name` keeps 254 rows — while the authoritative
+  run is identical each time: the published snapshot and `/api/v1/schedule/query` report
+  `activity_count: 254`.
+- `AuthoritativeScheduleInputComposer.compose(scope, *, snapshot_id)` accepts no filter,
+  collapse, column or selection argument. A test pins the signature so a future change
+  cannot add presentation state to schedule input, and a 260-activity composition test
+  proves the input carries every persisted activity and is identical across fresh reads.
+- Web unit tests render 300 activities and check 300 table rows plus 300 Gantt bars,
+  deterministic markup, filter narrowing without mutation, collapse without data loss and
+  hidden columns without row or cell loss.
+
+Evidence: `docs/workspace/evidence/activity-scale-v26-2026-11-12/` (`activity-scale-v26.json`,
+8/8 scenarios, zero exceptions/console errors/5xx) at `2b9bec966b3c4cfaf57baf4e4be1ed1cdda51771`.
+Remaining gaps: no 250+ scroll-sync stress, no multi-project population test, and the grid
+renders every row rather than windowing, which is correct at this scale but may need
+virtualisation for much larger projects.
