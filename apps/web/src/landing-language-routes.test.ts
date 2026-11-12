@@ -22,6 +22,8 @@ const SHIPPED_ROUTES = new Set([
   "/solutions/",
   "/resources/",
   "/contact/",
+  "/about/",
+  "/fa/about/",
   "/pricing/",
   "/fa/pricing/",
   "/fa/platform/",
@@ -31,7 +33,7 @@ const SHIPPED_ROUTES = new Set([
   "/app/",
 ]);
 
-const MARKETING_ROUTES = ["platform", "solutions", "resources", "contact", "pricing"] as const;
+const MARKETING_ROUTES = ["platform", "solutions", "resources", "contact", "about", "pricing"] as const;
 
 function readDoc(relativePath: string): string {
   return readFileSync(join(root, relativePath), "utf8");
