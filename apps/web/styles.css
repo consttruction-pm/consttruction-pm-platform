@@ -3762,6 +3762,9 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-detail-form-field.is-wide { grid-column: 1 / -1; }
 .cp-detail-form-field input,
 .cp-detail-form-field select { min-height: 24px; padding: 2px 6px; border: 1px solid var(--cp-ui-border); border-radius: 3px; background: #fff; font: inherit; color: #26333f; }
+.cp-udf-duration { display: inline-flex; align-items: center; gap: 4px; }
+.cp-udf-duration input[type="number"] { width: 6.5em; }
+.cp-udf-duration select { min-height: 24px; padding: 2px 4px; border: 1px solid var(--cp-ui-border); border-radius: 3px; background: #fff; font: inherit; color: #26333f; }
 .cp-detail-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
 .cp-detail-form-message { font-size: 11px; color: #4b5b6d; }
 .cp-detail-form-message[data-state="error"] { color: #a12626; }

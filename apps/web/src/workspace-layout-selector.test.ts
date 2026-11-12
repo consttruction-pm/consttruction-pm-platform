@@ -3,14 +3,17 @@ import assert from "node:assert/strict";
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import {
+  LAYOUT_EXCHANGE_FORMAT,
   LAYOUT_SELECTION_STORAGE_PREFIX,
   layoutCatalogEntries,
   layoutDisplayName,
   layoutScopeLabel,
   loadLayoutCatalog,
+  parseLayoutDocument,
   parseLayoutSelections,
   readLayoutSelection,
   renderLayoutSelectorMarkup,
+  serializeLayoutDocument,
   writeLayoutSelection,
 } from "./workspace-layout-selector.js";
 
@@ -212,5 +215,95 @@ describe("layout selector markup", () => {
     const markup = renderLayoutSelectorMarkup(base);
     assert.match(markup, /Switching never changes activities, relationships, WBS or dates/);
     assert.doesNotMatch(markup, /Oracle|Primavera|P6/);
+  });
+});
+
+describe("layout exchange", () => {
+  it("exports presentation only under a versioned format", () => {
+    const text = serializeLayoutDocument(layout("project", 4, "Classic Schedule Layout"), "Classic Schedule Layout");
+    const parsed = JSON.parse(text);
+    assert.equal(parsed.format, LAYOUT_EXCHANGE_FORMAT);
+    assert.equal(parsed.name, "Classic Schedule Layout");
+    assert.equal(parsed.layout.view_id, "activity");
+    assert.equal(parsed.layout.columns.length, 1);
+    assert.equal("scope" in parsed.layout, false);
+    assert.equal("revision" in parsed.layout, false);
+    assert.doesNotMatch(text, /project-a|tenant-a/);
+  });
+
+  it("imports into a user-scope draft at revision zero", () => {
+    const text = serializeLayoutDocument(layout("project", 9, "Road"), "Road");
+    const imported = parseLayoutDocument(text);
+    assert.equal(imported.name, "Road");
+    assert.equal(imported.layout.scope, "user");
+    assert.equal(imported.layout.revision, 0);
+    assert.equal(imported.layout.columns[0].field_id, "activity_id");
+  });
+
+  it("rejects malformed, foreign and unnamed documents", () => {
+    assert.throws(() => parseLayoutDocument("{"), /INVALID_LAYOUT_DOCUMENT/);
+    assert.throws(() => parseLayoutDocument(JSON.stringify({ format: "other" })), /INVALID_LAYOUT_DOCUMENT/);
+    const unnamed = JSON.parse(serializeLayoutDocument(layout("project", 1), "x"));
+    unnamed.name = " ";
+    assert.throws(() => parseLayoutDocument(JSON.stringify(unnamed)), /INVALID_LAYOUT_DOCUMENT_NAME/);
+  });
+
+  it("rejects columns the current registry does not define", () => {
+    const registry = {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26.0",
+      status: "authoritative",
+      fields: [
+        {
+          field_id: "activity_id",
+          subject_area: "Activity",
+          p6_field: "id",
+          display_name: "Activity ID",
+          data_type: "string",
+          writable: false,
+          computed: false,
+          disposition: "native",
+        },
+      ],
+    } as const;
+    const imported = parseLayoutDocument(
+      serializeLayoutDocument(layout("project", 2, "Known"), "Known"),
+      registry as never,
+    );
+    assert.equal(imported.layout.columns[0].field_id, "activity_id");
+    const foreign = JSON.parse(serializeLayoutDocument(layout("project", 2, "Unknown"), "Unknown"));
+    foreign.layout.columns[0].field_id = "not_in_registry";
+    assert.throws(() => parseLayoutDocument(JSON.stringify(foreign), registry as never), /P6_COLUMN_FIELD_NOT_IN_REGISTRY/);
+  });
+});
+
+describe("layout selector exchange actions", () => {
+  const markupOptions = {
+    locale: "en" as const,
+    current: layout("project", 4, "Classic Schedule Layout"),
+    previewScope: null,
+    canSave: true,
+    entries: [
+      {
+        scope: "project" as const,
+        layout: layout("project", 4, "Classic Schedule Layout"),
+        name: "Classic Schedule Layout",
+        revision: 4,
+      },
+    ],
+    loaded: true,
+    error: null,
+  };
+
+  it("offers rename, export and import with honest disabled states", () => {
+    const markup = renderLayoutSelectorMarkup({ ...markupOptions, canSave: false });
+    assert.match(markup, /data-layout-action="rename" disabled/);
+    assert.match(markup, /data-layout-action="import" disabled/);
+    assert.match(markup, /data-layout-import/);
+    const writable = renderLayoutSelectorMarkup(markupOptions);
+    assert.match(writable, /data-layout-action="rename"\s+title=/);
+    assert.match(writable, /data-layout-action="export"\s+title=/);
+    assert.match(writable, /data-layout-action="import"\s+title=/);
   });
 });

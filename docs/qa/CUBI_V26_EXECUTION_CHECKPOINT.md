@@ -2780,3 +2780,56 @@ following comparisons need that evidence before any row may move from
 
 Without an authorized dataset these remain explicitly unverified; CUBI persists and re-reads
 its own values but does not assert equality with P6 outputs.
+
+## Typed datetime and duration UDF controls (2026-11-12)
+
+Status: **branch-ready** on `feat/activity-udf-value-editing-20261112`, implementation
+`4f76241b`. Note: the feature commits were later rebased onto origin/main and re-verified at `4f76241b93266693e150bb6a5948ba9b073aa171`.
+
+The Activity Details UDFs tab previously asked for datetime and duration values as free
+text. A datetime definition now renders a `datetime-local` control and saves a
+timezone-aware ISO instant; a duration definition renders a number amount plus a unit
+selector, rejects a non-token unit before writing, and reads both back after a reload.
+The five-scenario browser suite records the typed journey alongside the existing enum,
+clearance and viewer checks at `4f76241b` (Web 935 + 14 pass, typecheck and build clean;
+evidence `docs/workspace/evidence/activity-udf-values-v26-2026-11-12/`).
+
+Remaining UDF gaps are unchanged: no definition search or subject filter, definition
+lifecycle is not exposed, values stay revision-scoped, and the other Activity Details
+tabs remain read-only.
+
+## Classic Schedule Layout: rename, export and import (2026-11-12)
+
+Status: **branch-ready** on `feat/activity-udf-typed-controls-20261112`, implementation
+`4f76241b`.
+
+The layout selector already opened, previewed, applied, cancelled and saved stored layouts.
+It now also renames, exports and imports them, still through the append-only layout service:
+
+- **Rename** reuses `saveCurrentLayout(name)`, so it appends a revision in the same scope and
+  never rewrites history.
+- **Export** writes `cubi-layout.v1` JSON containing only the format, name, columns and
+  metadata; tenant, project, scope and revision are deliberately absent so a shared file
+  cannot leak or overwrite another project's state.
+- **Import** parses the file, rejects malformed, foreign-format and unnamed documents, validates
+  every column against the live `FieldRegistry`, and always writes **user** scope at
+  `existing.revision + 1`. Importing therefore never touches the project layout, and a column
+  that no longer exists in the registry is refused instead of being silently dropped.
+
+The browser suite `apps/web/e2e/layout-selector-v26.mjs` records 10/10 scenarios at
+`4f76241b93266693e150bb6a5948ba9b073aa171` across 1280×720, 1366×768, 1920×1080 and a
+Persian RTL cell, including the rename → export → import round trip with the revision
+advancing, columns preserved and activity rows unchanged. The typed-UDF suite is re-recorded
+at the same head (5/5). Evidence: `docs/workspace/evidence/layout-selector-v26-2026-11-12/`
+and `docs/workspace/evidence/activity-udf-values-v26-2026-11-12/`.
+
+An earlier run of the layout suite failed scenario 03 with `attempt to write a readonly
+database`. The cause was environmental: a second `--reset` server had replaced
+`/tmp/layout-e2e.sqlite3` while the listening process still held the unlinked inode
+(`/proc/<pid>/fd/4 -> ... (deleted)`). After stopping the stray process and verifying the
+listening PID's descriptor points at the on-disk inode, the suite passed 10/10 on the same
+code — no product change was needed.
+
+Remaining WS-007 gaps: delete with confirmation, dirty-state save/discard/cancel,
+reset-to-default, Resource Assignments and Tracking layouts, and layouts are still scoped by
+layout scope rather than by user identity.
