@@ -2344,7 +2344,7 @@ Recorded provenance:
 | Acceptance harness | `ca7cc4f` |
 | Evidence commit | `f2523c1a342c0e6a5a2533de0f547b297dc31321` |
 | Branch | `feat/v26-gantt-fit` |
-| PR | opened after this record; see the next checkpoint entry for the merge SHA |
+| PR | [#1785](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1785); merge SHA recorded in the next checkpoint entry |
 
 ### Status after this increment
 
