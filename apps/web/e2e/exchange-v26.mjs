@@ -105,7 +105,12 @@ const pageState = `(() => {
     hasDownload: Boolean(page?.querySelector('[data-exchange-action="download"]')),
     content: page?.querySelector("[data-exchange-content]")?.value ?? null,
     contentDisabled: Boolean(page?.querySelector("[data-exchange-content]")?.disabled),
-    summary: page?.querySelector("[data-exchange-import-summary]")?.dataset ?? null,
+    summary: (() => {
+      const node = page?.querySelector("[data-exchange-import-summary]");
+      return node
+        ? { valid: node.dataset.valid, accepted: node.dataset.accepted, rejected: node.dataset.rejected }
+        : null;
+    })(),
     summaryText: text(page?.querySelector("[data-exchange-import-summary]")),
     errors: [...page?.querySelectorAll("[data-exchange-error-row]") ?? []].map((row) => ({
       row: row.dataset.row,
