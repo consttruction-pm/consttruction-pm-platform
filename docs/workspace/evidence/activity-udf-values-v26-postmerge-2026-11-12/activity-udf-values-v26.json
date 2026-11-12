@@ -1,0 +1,51 @@
+{
+  "contract": "cubi-activity-udf-values-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "c9c9d1a6dd91699d10d86987d7992ddc3fa11ed3",
+  "testedCodeSha": "c9c9d1a6dd91699d10d86987d7992ddc3fa11ed3",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T15:34:28.958Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "an administrator edits a typed UDF and the value survives a full reload",
+      "status": "pass",
+      "at": "2026-11-12T15:34:41.147Z",
+      "activityId": "A100",
+      "value": "signed"
+    },
+    {
+      "id": "02",
+      "name": "the Persian details pane shows the localized UDF editor in RTL at 1366x768",
+      "status": "pass",
+      "at": "2026-11-12T15:34:43.316Z",
+      "submitLabel": "ذخیره مقادیر",
+      "direction": "rtl"
+    },
+    {
+      "id": "03",
+      "name": "a nullable UDF can be cleared and the cleared value survives a reload at 1920x1080",
+      "status": "pass",
+      "at": "2026-11-12T15:34:50.676Z",
+      "value": null
+    },
+    {
+      "id": "04",
+      "name": "a viewer sees stored UDF values without an editor and cannot write",
+      "status": "pass",
+      "at": "2026-11-12T15:34:57.540Z",
+      "httpStatus": 403
+    }
+  ],
+  "screenshots": [
+    "01-udf-form-en-1280x720.png",
+    "02-udf-saved-en-1280x720.png",
+    "03-udf-form-fa-1366x768.png",
+    "04-udf-cleared-en-1920x1080.png",
+    "05-udf-viewer-en-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T15:34:57.540Z"
+}
