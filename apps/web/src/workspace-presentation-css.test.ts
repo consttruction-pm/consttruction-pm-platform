@@ -46,3 +46,13 @@ test("WBS level colour fills the row band and the solid hierarchy spines", () =>
   assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band > td\.cp-p6-wbs-cell-td/);
   assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band:hover > td\.cp-p6-wbs-cell-td/);
 });
+
+test("activity grid headers stay sticky while the rows scroll", () => {
+  const headerRule = /\.cp-p6 #cp-activity-grid thead th \{([^}]*)\}/.exec(sourceCss);
+  assert.ok(headerRule, "the activity grid header rule must exist");
+  assert.match(headerRule[1], /position: sticky/);
+  assert.match(headerRule[1], /top: 0/);
+  // A later `position: relative` override would scroll every data column
+  // header away with the rows while the sync keeps both panes moving.
+  assert.doesNotMatch(sourceCss, /thead th\[data-column-id\] \{ position: relative; \}/);
+});
