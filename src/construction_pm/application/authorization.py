@@ -69,41 +69,44 @@ class RoleBasedAuthorizationPolicy:
             )
 
 
+def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
+    """Return the authoritative role-to-permission grants of the default policy."""
+    return {
+        "viewer": frozenset({Permission.PROJECT_READ, Permission.FORM_READ}),
+        "planner": frozenset(
+            {
+                Permission.PROJECT_READ,
+                Permission.PROJECT_WRITE,
+                Permission.PROJECT_SCHEDULE,
+                Permission.FORM_READ,
+                Permission.FORM_CREATE,
+                Permission.FORM_DESIGN,
+                Permission.FORM_FILL,
+                Permission.FORM_SUBMIT,
+                Permission.FORM_REVIEW,
+                Permission.FORM_EXPORT,
+            }
+        ),
+        "project_admin": frozenset(
+            {
+                Permission.PROJECT_READ,
+                Permission.PROJECT_WRITE,
+                Permission.PROJECT_SCHEDULE,
+                Permission.PROJECT_ADMIN,
+                Permission.FORM_READ,
+                Permission.FORM_CREATE,
+                Permission.FORM_DESIGN,
+                Permission.FORM_FILL,
+                Permission.FORM_SUBMIT,
+                Permission.FORM_REVIEW,
+                Permission.FORM_APPROVE,
+                Permission.FORM_PUBLISH,
+                Permission.FORM_EXPORT,
+                Permission.FORM_LIBRARY_ADMIN,
+            }
+        ),
+    }
+
+
 def default_project_policy() -> RoleBasedAuthorizationPolicy:
-    return RoleBasedAuthorizationPolicy(
-        {
-            "viewer": frozenset({Permission.PROJECT_READ, Permission.FORM_READ}),
-            "planner": frozenset(
-                {
-                    Permission.PROJECT_READ,
-                    Permission.PROJECT_WRITE,
-                    Permission.PROJECT_SCHEDULE,
-                    Permission.FORM_READ,
-                    Permission.FORM_CREATE,
-                    Permission.FORM_DESIGN,
-                    Permission.FORM_FILL,
-                    Permission.FORM_SUBMIT,
-                    Permission.FORM_REVIEW,
-                    Permission.FORM_EXPORT,
-                }
-            ),
-            "project_admin": frozenset(
-                {
-                    Permission.PROJECT_READ,
-                    Permission.PROJECT_WRITE,
-                    Permission.PROJECT_SCHEDULE,
-                    Permission.PROJECT_ADMIN,
-                    Permission.FORM_READ,
-                    Permission.FORM_CREATE,
-                    Permission.FORM_DESIGN,
-                    Permission.FORM_FILL,
-                    Permission.FORM_SUBMIT,
-                    Permission.FORM_REVIEW,
-                    Permission.FORM_APPROVE,
-                    Permission.FORM_PUBLISH,
-                    Permission.FORM_EXPORT,
-                    Permission.FORM_LIBRARY_ADMIN,
-                }
-            ),
-        }
-    )
+    return RoleBasedAuthorizationPolicy(default_role_permissions())

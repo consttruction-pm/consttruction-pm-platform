@@ -118,6 +118,9 @@ from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
 )
+from construction_pm.administration_api import AdministrationAPI
+from construction_pm.administration_application import AdministrationApplicationService
+from construction_pm.administration_persistence import SQLiteAdministrationStore
 from construction_pm.budget_api import BudgetAPI
 from construction_pm.budget_application import BudgetApplicationService
 from construction_pm.budget_persistence import SQLiteBudgetStore
@@ -373,6 +376,7 @@ class PreviewRepositories:
     thresholds: SQLiteThresholdStore
     risks: SQLiteRiskStore
     reports: SQLiteReportStore
+    administration: SQLiteAdministrationStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -456,6 +460,8 @@ class PreviewRepositories:
         risks.initialize()
         reports = SQLiteReportStore(connection)
         reports.initialize()
+        administration = SQLiteAdministrationStore(connection)
+        administration.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -509,6 +515,7 @@ class PreviewRepositories:
             thresholds=thresholds,
             risks=risks,
             reports=reports,
+            administration=administration,
             transaction_manager=transaction_manager,
         )
 
@@ -1601,6 +1608,11 @@ def open_preview_runtime(
             repositories.transaction_manager,
         )
     )
+    administration_api = AdministrationAPI(
+        AdministrationApplicationService(
+            repositories.administration, policy, repositories.transaction_manager
+        )
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1702,6 +1714,7 @@ def open_preview_runtime(
         threshold_api=threshold_api,
         risk_api=risk_api,
         report_api=report_api,
+        administration_api=administration_api,
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

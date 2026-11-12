@@ -1,0 +1,113 @@
+{
+  "contract": "cubi-administration-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "99f4a308822dd3b6e367170a87d00df3776afdfe",
+  "testedCodeSha": "99f4a308822dd3b6e367170a87d00df3776afdfe",
+  "evidenceCommitSha": "aeed0efa6e8f2ec5ee310fd5a4148ebfe80cd9d8",
+  "capturedAt": "2026-11-12T04:37:51.209Z",
+  "categoryEntry": "E2E-CAT-MWD24FEM",
+  "idempotentEntry": "E2E-IDEM-MWD24FEM",
+  "periodId": "E2E-PERIOD-MWD24FEM",
+  "scenarios": [
+    {
+      "tabs": [
+        "preferences",
+        "dictionaries",
+        "matrix",
+        "periods"
+      ],
+      "permissions": 14,
+      "id": "01",
+      "name": "ترجیحات پیش‌فرض، چهار زبانه و ماتریس مشتق‌شده از سیاست مرجع خوانده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:37:55.126Z"
+    },
+    {
+      "revision": 1,
+      "staleStatus": 409,
+      "id": "02",
+      "name": "ذخیرهٔ ترجیحات با نسخه محافظت می‌شود و درخواست کهنه ۴۰۹ می‌گیرد",
+      "status": "pass",
+      "at": "2026-11-12T04:37:55.626Z"
+    },
+    {
+      "entry": "E2E-CAT-MWD24FEM",
+      "duplicateStatus": 409,
+      "reuseStatus": 409,
+      "id": "03",
+      "name": "ورودی فهرست ساخته می‌شود و تکرار شناسه و استفادهٔ دوبارهٔ کلید ایدمپوتنسی کنترل می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:37:56.426Z"
+    },
+    {
+      "filtered": 1,
+      "sequence": 30,
+      "id": "04",
+      "name": "ویرایش با نسخه و پالایهٔ سرور و رابط کاربری هم‌خوان است",
+      "status": "pass",
+      "at": "2026-11-12T04:37:56.943Z"
+    },
+    {
+      "deleteStatus": 200,
+      "readAfterDelete": 404,
+      "id": "05",
+      "name": "حذف با نسخه انجام می‌شود و بازخوانی بعدی ۴۰۴ است",
+      "status": "pass",
+      "at": "2026-11-12T04:37:57.426Z"
+    },
+    {
+      "periodId": "E2E-PERIOD-MWD24FEM",
+      "startDate": "2026-03-01",
+      "id": "06",
+      "name": "دورهٔ مالی در ثبت مشترک p6 ساخته و فهرست می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:37:58.226Z"
+    },
+    {
+      "preferenceStatus": 403,
+      "createStatus": 403,
+      "deleteStatus": 403,
+      "id": "07",
+      "name": "بازبین فقط می‌خواند و نوشتن مستقیم ۴۰۳ می‌گیرد",
+      "status": "pass",
+      "at": "2026-11-12T04:38:01.944Z"
+    },
+    {
+      "events": 5,
+      "kinds": [
+        "dictionary:created",
+        "dictionary:deleted",
+        "dictionary:updated",
+        "preferences:updated"
+      ],
+      "id": "08",
+      "name": "تاریخچهٔ ممیزی همهٔ نوشتن‌ها را با بازیگر ثبت می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T04:38:05.565Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "مدیریت",
+      "id": "09",
+      "name": "چیدمان فارسی راست‌به‌چپ در ۱۲۸۰×۷۲۰ بدون نشان تجاری بیرونی",
+      "status": "pass",
+      "at": "2026-11-12T04:38:07.564Z"
+    }
+  ],
+  "screenshots": [
+    "01-preferences-and-matrix.png",
+    "02-preferences-saved.png",
+    "03-dictionary-created.png",
+    "04-dictionary-filtered.png",
+    "05-dictionary-deleted.png",
+    "06-financial-period.png",
+    "07-viewer-read-only.png",
+    "08-audited-writes.png",
+    "09-persian-rtl.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "status": "pass",
+  "scenarioCount": 9
+}

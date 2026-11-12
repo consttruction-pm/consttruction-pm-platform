@@ -2010,6 +2010,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     thresholds: "network",
     control: "network",
     settings: "settings",
+    administration: "administration",
   };
   const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
   const activeFilterName = appliedFilterName
@@ -2083,6 +2084,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
             ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
             ${menuButton("settings", t.settings, state, railMenuIcons.settings)}
+            ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, railMenuIcons.administration)}
             ${railActionButton("tools", rail.tools, "tools")}
           </div>
         </nav>
@@ -2442,6 +2444,9 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     case "reports":
       body = `<div class="cp-register-window cp-reports-window" data-reports-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Reports", "گزارش‌های پروژه"))}"></div>`;
       break;
+    case "administration":
+      body = `<div class="cp-register-window cp-administration-window" data-administration-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Administration", "مدیریت پروژه"))}"></div>`;
+      break;
     case "issues":
       body = `<div class="cp-register-window cp-issues-window" data-issues-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Issues", "مسائل پروژه"))}"></div>`;
       break;
@@ -2550,6 +2555,7 @@ function renderFullNavigationMenu(state: WorkspaceState, icons: Record<Workspace
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
       ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
       ${menuButton("settings", t.settings, state, icons.settings)}
+      ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, icons.administration)}
       ${railActionButton("tools", uiText(state.locale, "Tools", "ابزارها"), "tools")}
     </div>
   </nav>`;
@@ -2599,6 +2605,8 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "cost":
       return ["#cp-cost-overview", "#cp-cost-registers"];
     case "reports":
+      return [];
+    case "administration":
       return [];
     case "control":
       return ["#cp-control-summary", "#cp-change-claim"];

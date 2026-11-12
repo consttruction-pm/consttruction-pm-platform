@@ -55,6 +55,7 @@ test that exercises the real path, and verified in a browser.
 | `thresholds` | Thresholds | preview | `renderRegisterWindow` shell | Static empty table | None | None | Whole register is decorative | `GAP-CORE` | GAP-THR-01 | `workspace-view.test.ts` |
 | `control` | Control | partial | `workspace-view.ts` `renderControlStage` + `case "control"` | Field assurance/quality/safety/punch counts; `state.controlSummary` from `/api/v2/workspace/control-room/read` (`workspace-control-room-read.v2`) | Workspace control-room read HTTP; form builder and field-operations APIs | Control summary metrics, findings and proposed actions; forms/workflows and control-record tools | Changes/claims stay on their separate rail surface; no browser-side analysis | `WIRED-READ` | GAP-CTL-01 (resolved) | `workspace-view.test.ts`, `workspace-control-intelligence.test.ts` |
 | `settings` | Settings | partial | `workspace-view.ts` `case "settings"` + `renderSettingsLayoutAdministration` | Locale and preferences; `state.p6Layout` and `options.layoutHistory` from `/p6/layouts` | Project settings HTTP; layout save/list-revisions HTTP; locale registry (8 locales, en/fa authored strings) | Project settings dialog, language/workspace preferences, activity-grid layout facts, field visibility/order/width/presentation, undo/redo and restore-by-revision | Only the activity-grid layout is exposed (no other per-surface layout record exists); translated-string coverage for de/zh/ar/fr/ja/ko depends on activated language packs and is not audited | `WIRED` | GAP-I18N-01 | `workspace-preferences.test.ts`, `workspace-localization.test.ts`, `workspace-view.test.ts` |
+| `administration` | Administration | preview | `workspace-view.ts` `case "administration"` + `workspace-administration.ts` | Project preferences, reference dictionaries, derived permission matrix and `/p6/financial-periods` | `p6-administration-api.v1` preferences/dictionary HTTP and `p6-financial-period-api.v1` register | Revision-guarded preference save, dictionary create/edit/delete with idempotency, read-only permission matrix, financial period create/list | User, team and security-profile administration plus audit export are not connected; financial periods are create/list only | `WIRED` | GAP-ADM-01 | `workspace-administration.test.ts`, `test_administration_api.py` |
 
 ## 2. Submenu inventory (58 entries)
 
@@ -122,6 +123,10 @@ kept in sync by `apps/web/src/workspace-surface-matrix.test.ts`.
 | control | 2 | Changes & Claims | Change/claim rail surface | WIRED |
 | settings | 1 | Language | Locale selector (8 registered locales) | WIRED |
 | settings | 2 | Workspace | Project settings and preferences | WIRED-READ |
+| administration | 1 | Project Preferences | Revision-guarded preference form over `p6-administration-api.v1` | WIRED |
+| administration | 2 | Dictionaries | Filterable dictionary register with create/edit/delete | WIRED |
+| administration | 3 | Permission Matrix | Read-only matrix derived from the enforced authorization policy | WIRED-READ |
+| administration | 4 | Financial Periods | List and create against `/p6/financial-periods` | WIRED |
 
 ## 3. Gap register
 

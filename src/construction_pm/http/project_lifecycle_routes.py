@@ -116,6 +116,8 @@ from ..risk_api import RiskAPI
 from ..risk_persistence import Risk
 from ..report_api import ReportAPI
 from ..report_persistence import ReportDefinition
+from ..administration_api import AdministrationAPI
+from ..administration_persistence import AdministrationPreferences, DictionaryEntry
 from ..threshold_api import ThresholdAPI
 from ..threshold_persistence import Threshold, parse_threshold_number
 from ..cost_persistence import (
@@ -251,6 +253,7 @@ class ProjectLifecycleHttpRoutes:
         threshold_api: ThresholdAPI | None = None,
         risk_api: RiskAPI | None = None,
         report_api: ReportAPI | None = None,
+        administration_api: AdministrationAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -303,6 +306,7 @@ class ProjectLifecycleHttpRoutes:
         self._threshold_api = threshold_api
         self._risk_api = risk_api
         self._report_api = report_api
+        self._administration_api = administration_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -3267,6 +3271,204 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._administration_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/administration" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    admin_project_id, marker, admin_suffix = rest.partition("/administration")
+                    if (
+                        marker
+                        and admin_project_id
+                        and (not admin_suffix or admin_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, admin_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [
+                            part
+                            for part in admin_suffix.strip("/").split("/")
+                            if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _admin_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.admin.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.admin.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _entry_from_payload(
+                            dictionary_code: str, entry_id: str, revision: int = 1
+                        ) -> DictionaryEntry:
+                            return DictionaryEntry(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                dictionary_code=dictionary_code,
+                                entry_id=entry_id,
+                                label=str(payload.get("label", "")),
+                                sequence=payload.get("sequence", 0),
+                                is_active=payload.get("is_active", True),
+                                revision=revision,
+                            )
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and parts == ["permission-matrix"]:
+                                return self._json(
+                                    200, self._administration_api.permission_matrix()
+                                )
+                            if method == "GET" and parts == ["preferences"]:
+                                return _admin_reply(
+                                    self._administration_api.preferences(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                    )
+                                )
+                            if method in {"PUT", "PATCH"} and parts == ["preferences"]:
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError("INVALID_ADMIN_REVISION")
+                                preferences = AdministrationPreferences(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    currency=str(payload.get("currency", "")),
+                                    unit_of_measure=str(
+                                        payload.get("unit_of_measure", "")
+                                    ),
+                                    date_display=str(payload.get("date_display", "")),
+                                    decimal_places=payload.get("decimal_places"),
+                                    fiscal_year_start_month=payload.get(
+                                        "fiscal_year_start_month"
+                                    ),
+                                    revision=expected,
+                                )
+                                return _admin_reply(
+                                    self._administration_api.update_preferences(
+                                        preferences,
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if parts == ["dictionaries"]:
+                                if method == "GET":
+                                    return _admin_reply(
+                                        self._administration_api.dictionary(
+                                            tenant_id=context.tenant_id,
+                                            project_id=context.project_id,
+                                            context=auth,
+                                            dictionary_code=query.get(
+                                                "dictionary_code"
+                                            ),
+                                            search=query.get("search"),
+                                        )
+                                    )
+                                if method == "POST":
+                                    idempotency_key = (
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    )
+                                    return _admin_reply(
+                                        self._administration_api.create_dictionary_entry(
+                                            _entry_from_payload(
+                                                str(payload.get("dictionary_code", "")),
+                                                str(payload.get("entry_id", "")),
+                                            ),
+                                            idempotency_key=str(idempotency_key),
+                                            context=auth,
+                                            actor_id=session.user_id,
+                                            occurred_at=now,
+                                        )
+                                    )
+                            if len(parts) == 3 and parts[0] == "dictionaries":
+                                dictionary_code, entry_id = parts[1], parts[2]
+                                if method == "GET":
+                                    return _admin_reply(
+                                        self._administration_api.dictionary_entry(
+                                            tenant_id=context.tenant_id,
+                                            project_id=context.project_id,
+                                            dictionary_code=dictionary_code,
+                                            entry_id=entry_id,
+                                            context=auth,
+                                        )
+                                    )
+                                expected = payload.get(
+                                    "expected_revision"
+                                ) or query.get("expected_revision")
+                                if isinstance(expected, str) and expected.isdigit():
+                                    expected = int(expected)
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError("INVALID_ADMIN_REVISION")
+                                if method in {"PUT", "PATCH"}:
+                                    return _admin_reply(
+                                        self._administration_api.update_dictionary_entry(
+                                            _entry_from_payload(
+                                                dictionary_code, entry_id, expected
+                                            ),
+                                            expected_revision=expected,
+                                            context=auth,
+                                            actor_id=session.user_id,
+                                            occurred_at=now,
+                                        )
+                                    )
+                                if method == "DELETE":
+                                    return _admin_reply(
+                                        self._administration_api.delete_dictionary_entry(
+                                            tenant_id=context.tenant_id,
+                                            project_id=context.project_id,
+                                            dictionary_code=dictionary_code,
+                                            entry_id=entry_id,
+                                            expected_revision=expected,
+                                            context=auth,
+                                            actor_id=session.user_id,
+                                            occurred_at=now,
+                                        )
+                                    )
+                            if method == "GET" and parts == ["history"]:
+                                return _admin_reply(
+                                    self._administration_api.history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                    )
+                                )
+                            return self._error(
+                                400, "ADMIN_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "ADMIN_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
