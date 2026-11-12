@@ -1761,3 +1761,104 @@ Recorded provenance (two independent facts):
 
 Stage F2 (Administration: users/security profiles/permission matrix, preferences and dictionaries,
 currency/units/financial periods), then Import/Export, Backup/Recovery and Stage G integration.
+
+## Stage F2 — Project administration preferences, dictionaries and permission matrix
+
+PR [#1773](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1773) squash-merged
+into `main` as `0337a7ad` on 2026-11-12. Post-merge CI on `0337a7ad`: ConstructionPM CI,
+ConstructionPM Web CI, Client Typecheck, PostgreSQL Integration, PostgreSQL Sync State Integration
+and the Pages deploy all succeeded on the first run.
+
+### What shipped
+
+1. **Persistent preferences and dictionaries** (`administration_persistence.py`): one
+   revision-guarded `project_administration_preferences` record per project (currency, unit of
+   measure, date display, decimal places, fiscal year start month) with explicit defaults
+   (`USD`, `day`, `gregorian`, `2`, `1`). Validation is typed and bounded: a three-letter
+   uppercase currency, a unit of measure up to 20 characters, `gregorian` or `jalali` date
+   display, 0–4 decimal places and a fiscal month in `1..12`. A code-namespaced
+   `project_administration_dictionary` covers five fixed codes (`cost_category`,
+   `risk_category`, `issue_type`, `document_type`, `expense_category`); entries carry an id
+   (≤32 alphanumeric/`_`/`-`), a label (≤80), a sequence `0..9999`, an active flag and their own
+   revision. `project_administration_audit` is append-only and `project_administration_idempotency`
+   stores request hashes. Creates are idempotent, duplicate entry ids fail with
+   `ADMIN_DICTIONARY_ENTRY_ALREADY_EXISTS`, edits and deletes require `expected_revision`
+   (`ADMIN_DICTIONARY_REVISION_CONFLICT`, `ADMIN_PREFERENCES_REVISION_CONFLICT`), and reusing a
+   key for different content fails with `ADMIN_IDEMPOTENCY_KEY_REUSE`.
+2. **Project-scoped application service** (`administration_application.py`): every call validates
+   the tenant/project scope (`CROSS_SCOPE_ACCESS`), reads require `PROJECT_READ`, writes require
+   `PROJECT_ADMIN`, and the acting principal must equal the payload actor
+   (`ADMIN_ACTOR_MISMATCH`). Writes go through the shared transaction manager and append the
+   audit event in the same unit of work.
+3. **Derived permission matrix** (`administration_api.py`, `p6-administration-api.v1`): role
+   grants are not stored in the administration tables. `permission_matrix()` derives the three
+   default roles (viewer, planner, project_admin) against all 14 `Permission` values from the
+   single `default_role_permissions()` policy, so the screen cannot drift from enforcement. Endpoints: `GET .../administration/permission-matrix`,
+   `GET`/`PUT .../preferences` (revision-pinned), `GET .../dictionaries` (server-side code and
+   search filters), `POST .../dictionaries` (idempotency key), `GET`/`PATCH`/`DELETE
+   .../dictionaries/{code}/{entry}` and `GET .../history`. Authorization maps to 403,
+   `_NOT_FOUND` to 404, conflicts/duplicates/idempotency reuse to 409, everything else to 400.
+   The WSGI boundary now carries `/administration` query strings so filters reach the route.
+4. **Financial periods tab over the existing contract**: the window lists and creates periods
+   through `p6-financial-periods` (`OPEN`/`CLOSED`, start before end) rather than inventing a
+   second store; the tab is a read/create projection of the already-persisted period metadata.
+5. **Preview, production and workspace wiring**: the preview runtime composes
+   `SQLiteAdministrationStore` → `AdministrationApplicationService` → `AdministrationAPI` against
+   the shared authorization policy and transaction manager, and production composition accepts an
+   optional `AdministrationAPI`. The Administration window (`workspace-administration.ts`, menu key
+   `administration`, the 19th workspace menu) has four tabs: Preferences (validated form with
+   client-visible revision), Dictionaries (create, edit, delete, server and UI filters), Permission
+   Matrix (read-only roles × permissions) and Financial Periods (create and list). A stale write
+   returns a 409 and reloads the authoritative record, and the audit history is visible per
+   dictionary entry. Viewer sees the data with no write controls; a direct write receives a server
+   403 `ADMIN_PERMISSION_DENIED`.
+
+### Honest limits
+
+- Preferences are stored, validated and displayed but are not yet consumed by other windows:
+  currency/decimal precision, Jalali date display and the fiscal calendar do not change formatting
+  or calculations elsewhere.
+- The permission matrix is derived read-only. There is no user directory, no security-profile
+  editor, no role-to-user assignment, no custom roles and no per-project grant overrides.
+- Dictionaries are limited to five fixed codes and are not yet used as pickers by the document,
+  cost, risk or issue windows; there is no bulk import/export, merge or reordering UI.
+- Financial periods support list and create only: no close/reopen action, no overlapping-period
+  detection across periods, and period boundaries do not gate cost or budget postings.
+- Administration facts are SQLite-only with no Postgres mirror; deleting a dictionary entry hides
+  its audit trail from the API, and the history route reads one entry at a time.
+- New labels are inline English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 852 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Administration web suite | `apps/web/src/workspace-administration.test.ts` | 10 tests: fail-closed preferences/matrix/dictionary/period parsers, filter and URL construction, revision-pinned save/edit/delete, idempotent create, period create, viewer/admin mounting |
+| Administration backend suites | `pytest tests/test_administration_api.py` | 4 HTTP-level tests: defaults + derived matrix + viewer read, admin-only revision-guarded preferences, dictionary CRUD/idempotency/history, validation and idempotency reuse |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3501 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=99f4a308 node e2e/administration-v26.mjs` | 9/9 scenarios pass, 9 distinct screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Preferences and matrix | scenarios 01–02 of the same suite | four tabs render, 14 permissions across three roles match the policy, save bumps to revision 1 and a stale second save returns 409 |
+| Dictionaries | scenarios 03–05 of the same suite | create returns 201, duplicate id and reused key return 409, server filter and UI filter agree, edit bumps the revision, delete returns 200 and a read afterwards is 404 |
+| Financial periods | scenario 06 of the same suite | `E2E-PERIOD-*` is created and appears in the list with its start date |
+| Authorization | scenario 07 of the same suite | viewer renders no create/edit/delete controls and a direct `POST` returns 403 `ADMIN_PERMISSION_DENIED` |
+| Audit history | scenario 08 of the same suite | `created`, `updated` and `deleted` events are read back for the dictionary entry |
+| Layout at 1280×720 | scenario 09 of the same suite | Persian RTL heading `مدیریت`, four tabs and tables fit without overflow, no external product branding |
+| Evidence bundle | `docs/workspace/evidence/administration-v26-2026-11-12/` | `administration-v26.json` + 9 screenshots, 0 duplicate checksums |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `99f4a308822dd3b6e367170a87d00df3776afdfe` |
+| Evidence commit | `aeed0efa6e8f2ec5ee310fd5a4148ebfe80cd9d8` |
+| Branch | `feat/v26-stage-f2-administration` |
+| PR | [#1773](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1773) |
+| Merge commit | `0337a7ad827d83277910edeb2be543eae4ecb129` |
+| Post-merge CI | 6/6 workflows success on `0337a7ad` |
+
+### Next stage
+
+Stage F3 (Import/Export: search, remote/data exchange and round-trip validation), Stage F4
+(Backup/Recovery), then Stage G canonical workspace integration and the final review report.
