@@ -102,27 +102,6 @@ export function renderTitleBar(state: ChromeState): string {
   </div>`;
 }
 
-function layoutButton(command: string, icon: WorkspaceIconName, label: string): string {
-  return `<button type="button" class="cp-layoutbar-button" data-desktop-command="${esc(command)}" title="${esc(label)}">${workspaceIcon(icon)}<span>${esc(label)}</span></button>`;
-}
-
-export function renderLayoutBar(state: ChromeState): string {
-  const locale = state.locale;
-  const layoutName = state.project?.layout ?? "";
-  const filterName = state.project?.filter ?? "";
-  return `<div class="cp-layoutbar" data-layoutbar>
-    <span class="cp-layoutbar-field"><span class="cp-layoutbar-key">${esc(pick(L.layout, locale))}:</span><strong>${esc(layoutName)}</strong></span>
-    <span class="cp-layoutbar-field"><span class="cp-layoutbar-key">${esc(pick(L.filter, locale))}:</span><strong>${esc(filterName)}</strong></span>
-    <span class="cp-layoutbar-spacer"></span>
-    ${layoutButton("view.fields", "columns", pick(L.columns, locale))}
-    ${layoutButton("edit.find", "filter", pick(L.filters, locale))}
-    ${layoutButton("dialog.group-sort", "sort", pick(L.groupSort, locale))}
-    ${layoutButton("dialog.timescale", "clock", pick(L.timescale, locale))}
-    ${layoutButton("dialog.bars", "bars", pick(L.bars, locale))}
-    ${layoutButton("dialog.font-row", "table", pick(L.fontRow, locale))}
-  </div>`;
-}
-
 export function renderStatusBar(state: ChromeState): string {
   const locale = state.locale;
   const project = state.project;
