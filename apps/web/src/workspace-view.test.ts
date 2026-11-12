@@ -1653,6 +1653,37 @@ test("bar labels mirror to the left of bars that reach the plotted right edge", 
   assert.match(container.innerHTML, /class="cp-gantt-bar-label is-left" data-gantt-label-position="left">Concrete</);
 });
 
+test("Gantt shades non-working periods from the persisted project calendar", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const base = scheduledGanttState();
+  const state = {
+    ...base,
+    // The helper's timeline ends on Saturday 5 Sep, so move the milestone to
+    // Tuesday 8 Sep to expose the full weekend inside the plotted range.
+    activities: base.activities.map((activity) => activity.id === "M-1"
+      ? { ...activity, gantt: { ...activity.gantt!, start: "2026-09-08T00:00:00Z", finish: "2026-09-08T00:00:00Z" } }
+      : activity),
+    projectCalendar: {
+      status: "loaded" as const,
+      calendarId: "CAL-1",
+      calendarVersion: "1",
+      workingWeekdays: [0, 1, 2, 3, 4],
+      holidays: ["2026-09-03"],
+      errorCode: null,
+    },
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-gantt-nonworking"/);
+  assert.match(container.innerHTML, /data-gantt-nonworking="holiday" data-nonworking-from="2026-09-03" data-nonworking-to="2026-09-03"/);
+  assert.match(container.innerHTML, /data-gantt-nonworking="weekend" data-nonworking-from="2026-09-05" data-nonworking-to="2026-09-06"/);
+});
+
+test("Gantt does not shade any day without loaded calendar facts", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState());
+  assert.doesNotMatch(container.innerHTML, /data-gantt-nonworking=/);
+});
+
 test("Gantt chart options drive labels, legend, sight lines and the progress line", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   const state = {

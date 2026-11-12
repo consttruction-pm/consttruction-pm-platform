@@ -317,6 +317,97 @@ export function createGanttPeriodGroups(
   return Object.freeze(groups);
 }
 
+export type GanttNonWorkingBand = {
+  key: string;
+  kind: "weekend" | "holiday";
+  /** First non-working day in the band, canonical ISO Gregorian. */
+  fromDate: string;
+  /** Last non-working day in the band, canonical ISO Gregorian. */
+  toDate: string;
+  days: number;
+  leftPercent: number;
+  widthPercent: number;
+};
+
+export type GanttCalendarFacts = {
+  /** Python weekday numbers: Monday = 0 ... Sunday = 6. */
+  workingWeekdays: readonly number[];
+  /** Canonical ISO Gregorian holiday dates. */
+  holidays: readonly string[];
+};
+
+/**
+ * Days the persisted project calendar marks as non-working, grouped into
+ * contiguous bands so a weekend or holiday run paints as one block instead of
+ * one element per day. Weekdays and holidays come from the version-bound
+ * calendar snapshot; no workweek is inferred from the schedule dates.
+ *
+ * A calendar with no declared working weekday cannot be interpreted, so it
+ * produces no bands rather than shading the entire chart.
+ */
+export function createGanttNonWorkingBands(
+  scale: GanttScale,
+  calendar: GanttCalendarFacts,
+  maxDays = 20000,
+): readonly GanttNonWorkingBand[] {
+  if (
+    !Number.isFinite(scale.startMs) || !Number.isFinite(scale.endMs) ||
+    !Number.isFinite(scale.rangeMs) || scale.rangeMs <= 0 || scale.endMs < scale.startMs
+  ) {
+    return [];
+  }
+  const workingWeekdays = new Set(calendar.workingWeekdays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6));
+  if (!workingWeekdays.size) return [];
+  const holidays = new Set(calendar.holidays.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+
+  const firstDay = Math.floor(scale.startMs / DAY_MS) * DAY_MS;
+  const lastDay = Math.floor(scale.endMs / DAY_MS) * DAY_MS;
+  const dayCount = Math.floor((lastDay - firstDay) / DAY_MS) + 1;
+  if (!Number.isFinite(dayCount) || dayCount < 1 || dayCount > maxDays) return [];
+
+  const bands: GanttNonWorkingBand[] = [];
+  let open: { kind: "weekend" | "holiday"; fromMs: number; toMs: number; days: number } | null = null;
+  const flush = (): void => {
+    if (!open) return;
+    const fromMs = Math.max(open.fromMs, scale.startMs);
+    const toMs = Math.min(open.toMs, scale.endMs);
+    if (toMs > fromMs) {
+      const fromDate = new Date(open.fromMs).toISOString().slice(0, 10);
+      const toDate = new Date(open.toMs - DAY_MS).toISOString().slice(0, 10);
+      bands.push(Object.freeze({
+        key: `${open.kind}:${fromDate}`,
+        kind: open.kind,
+        fromDate,
+        toDate,
+        days: open.days,
+        leftPercent: clampPercent(((fromMs - scale.startMs) / scale.rangeMs) * 100),
+        widthPercent: Math.max(0.05, clampPercent(((toMs - scale.startMs) / scale.rangeMs) * 100) - clampPercent(((fromMs - scale.startMs) / scale.rangeMs) * 100)),
+      }));
+    }
+    open = null;
+  };
+
+  for (let at = firstDay; at <= lastDay; at += DAY_MS) {
+    const date = new Date(at).toISOString().slice(0, 10);
+    // Python's date.weekday() runs Monday = 0 ... Sunday = 6.
+    const weekday = (new Date(at).getUTCDay() + 6) % 7;
+    const kind = holidays.has(date) ? "holiday" : workingWeekdays.has(weekday) ? null : "weekend";
+    if (!kind) {
+      flush();
+      continue;
+    }
+    if (open && open.kind === kind) {
+      open.toMs = at + DAY_MS;
+      open.days += 1;
+    } else {
+      flush();
+      open = { kind, fromMs: at, toMs: at + DAY_MS, days: 1 };
+    }
+  }
+  flush();
+  return Object.freeze(bands);
+}
+
 /** ISO-8601 week number for a date, used by the "Week of Year" timescale type. */
 export function isoWeekNumber(dateMs: number): number {
   const date = new Date(dateMs);

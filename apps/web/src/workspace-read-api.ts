@@ -1,11 +1,12 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceCalendarRecord, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceCalendarRecord, type WorkspaceLocale, type WorkspaceProjectCalendar, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, workspaceRelationshipsFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { localizeWorkspaceLabel } from "./workspace-localization.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
+import { loadCalendarSnapshot } from "./workspace-calendars.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
 import { projectDocument, type DocumentSnapshot } from "./workspace-document.js";
 import { projectProcurementRFQ, projectProcurementQuote, projectProcurementBidComparison, projectPurchaseOrder, projectProcurementCommitment, projectProcurementDelivery, type ProcurementRFQSnapshot, type ProcurementQuoteSnapshot, type ProcurementBidComparisonSnapshot, type PurchaseOrderSnapshot, type ProcurementCommitmentSnapshot, type ProcurementDeliverySnapshot } from "./workspace-procurement.js";
@@ -53,6 +54,12 @@ export type WorkspaceControlRoomReadSnapshot = {
 export type WorkspaceReadOptions = {
   locale?: WorkspaceLocale;
   calendarMode?: WorkspaceCalendarMode;
+  /**
+   * Project summary's `primary_calendar_id`. The read model resolves its
+   * version-bound snapshot so the Gantt can shade non-working days from
+   * persisted calendar facts instead of inferring a workweek.
+   */
+  primaryCalendarId?: string | null;
   path?: string;
 };
 
@@ -197,6 +204,7 @@ export class WorkspaceReadClient {
           base_calendar_version?: string | null;
         }[];
       }>(`/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`, context);
+      let calendarRecords: readonly WorkspaceCalendarRecord[] = [];
       if (calendarResult.ok) {
         const payload = calendarResult.data;
         if (
@@ -234,6 +242,7 @@ export class WorkspaceReadClient {
             ...state,
             calendarCatalog: { status: "loaded", calendars, errorCode: null },
           };
+          calendarRecords = calendars;
         }
       } else {
         state = {
@@ -245,6 +254,8 @@ export class WorkspaceReadClient {
           },
         };
       }
+
+      state = { ...state, projectCalendar: await this.readProjectCalendar(context, calendarRecords, options.primaryCalendarId) };
 
       return { ok: true, data: state };
     } catch (error) {
@@ -259,6 +270,60 @@ export class WorkspaceReadClient {
         },
       };
     }
+  }
+
+  private async readProjectCalendar(
+    context: ProjectContext,
+    calendars: readonly WorkspaceCalendarRecord[],
+    primaryCalendarId: string | null | undefined,
+  ): Promise<WorkspaceProjectCalendar> {
+    const calendarId = typeof primaryCalendarId === "string" ? primaryCalendarId.trim() : "";
+    if (!calendarId) {
+      return { status: "not-loaded", calendarId: null, calendarVersion: null, workingWeekdays: [], holidays: [], errorCode: null };
+    }
+    const record = calendars.find((calendar) => calendar.calendarId === calendarId);
+    if (!record) {
+      return {
+        status: "unavailable",
+        calendarId,
+        calendarVersion: null,
+        workingWeekdays: [],
+        holidays: [],
+        errorCode: "CALENDAR_NOT_FOUND",
+      };
+    }
+    const snapshotResult = await loadCalendarSnapshot(this.transport, context, record.calendarId, record.calendarVersion);
+    if (!snapshotResult.ok) {
+      return {
+        status: "unavailable",
+        calendarId: record.calendarId,
+        calendarVersion: record.calendarVersion,
+        workingWeekdays: [],
+        holidays: [],
+        errorCode: snapshotResult.error.code,
+      };
+    }
+    const snapshot = snapshotResult.data.snapshot;
+    if (!snapshot.workingWeekdays.length) {
+      // Without a declared workweek there is no honest way to tell a weekend
+      // from a weekday, so the Gantt draws no non-working shading at all.
+      return {
+        status: "unavailable",
+        calendarId: record.calendarId,
+        calendarVersion: record.calendarVersion,
+        workingWeekdays: [],
+        holidays: [],
+        errorCode: "CALENDAR_WORKWEEK_MISSING",
+      };
+    }
+    return {
+      status: "loaded",
+      calendarId: record.calendarId,
+      calendarVersion: record.calendarVersion,
+      workingWeekdays: Object.freeze([...snapshot.workingWeekdays]),
+      holidays: Object.freeze([...snapshot.holidays]),
+      errorCode: null,
+    };
   }
 }
 

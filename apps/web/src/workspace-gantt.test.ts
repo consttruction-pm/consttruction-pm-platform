@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -253,4 +253,54 @@ test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", (
   const year = createGanttAxisTicks(longScale, "year");
   assert.deepEqual(year.map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2028-01-01"]);
   assert.ok(year[2].leftPercent > 50 && year[2].leftPercent < 75);
+});
+
+test("non-working bands follow the persisted workweek and holidays", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-12T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [0, 1, 2, 3, 4], holidays: ["2026-10-07"] },
+  );
+  assert.deepEqual(bands.map((band) => [band.kind, band.fromDate, band.toDate, band.days]), [
+    ["weekend", "2026-10-03", "2026-10-04", 2],
+    ["holiday", "2026-10-07", "2026-10-07", 1],
+    ["weekend", "2026-10-10", "2026-10-11", 2],
+  ]);
+  assert.ok(Math.abs(bands[0].leftPercent - (5 / 14) * 100) < 1e-9);
+  assert.ok(Math.abs(bands[0].widthPercent - (2 / 14) * 100) < 1e-9);
+});
+
+test("a holiday on an already non-working weekday stays a distinct holiday band", () => {
+  const startMs = Date.parse("2026-10-03T00:00:00Z");
+  const endMs = Date.parse("2026-10-05T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [0, 1, 2, 3, 4], holidays: ["2026-10-04"] },
+  );
+  assert.deepEqual(bands.map((band) => [band.kind, band.fromDate, band.toDate, band.days]), [
+    ["weekend", "2026-10-03", "2026-10-03", 1],
+    ["holiday", "2026-10-04", "2026-10-04", 1],
+  ]);
+});
+
+test("a Saturday-to-Wednesday workweek shades its Thursday and Friday weekend", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-05T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [5, 6, 0, 1, 2], holidays: [] },
+  );
+  assert.deepEqual(bands.map((band) => [band.fromDate, band.toDate, band.days]), [
+    ["2026-10-01", "2026-10-02", 2],
+  ]);
+});
+
+test("non-working bands refuse to invent a workweek or read an absurd range", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-12T00:00:00Z");
+  const scale = { startMs, endMs, rangeMs: endMs - startMs };
+  assert.deepEqual(createGanttNonWorkingBands(scale, { workingWeekdays: [], holidays: [] }), []);
+  assert.deepEqual(createGanttNonWorkingBands(scale, { workingWeekdays: [0, 1, 2, 3, 4], holidays: [] }, 5), []);
+  assert.deepEqual(createGanttNonWorkingBands({ startMs: Number.NaN, endMs, rangeMs: 1 }, { workingWeekdays: [0], holidays: [] }), []);
 });

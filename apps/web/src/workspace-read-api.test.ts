@@ -352,3 +352,139 @@ test("workspace read client rejects document revision drift", async () => {
   if (result.ok) throw new Error("expected stale document scope error");
   assert.equal(result.error.code, "STALE_DOCUMENT_SCOPE");
 });
+
+class PathTransport implements ApiTransport {
+  public readonly paths: string[] = [];
+
+  constructor(private readonly responses: Readonly<Record<string, ApiResult<unknown>>>) {}
+
+  async get<T>(path: string): Promise<ApiResult<T>> {
+    this.paths.push(path);
+    const result = this.responses[path];
+    if (!result) throw new Error(`UNEXPECTED_PATH:${path}`);
+    return result as ApiResult<T>;
+  }
+
+  async post<TRequest, TResponse>(): Promise<ApiResult<TResponse>> {
+    throw new Error("POST_NOT_EXPECTED");
+  }
+}
+
+const READ_PATH = WORKSPACE_CONTROL_ROOM_READ_PATH;
+const CALENDARS_PATH = `/api/projects/${context.project_id}/p6/calendars`;
+
+function calendarCatalogue(): ApiResult<unknown> {
+  return {
+    ok: true,
+    data: {
+      contract_version: "p6-calendar-read-api.v1",
+      kind: "calendar_catalog",
+      scope: { tenant_id: context.tenant_id, project_id: context.project_id, project_revision: context.revision },
+      calendars: [{
+        calendar_id: "CAL-1",
+        calendar_version: "1",
+        kind: "working-day",
+        calendar_type: "project",
+        name: "Project calendar",
+        record_revision: 3,
+        base_calendar_id: null,
+        base_calendar_version: null,
+      }],
+    },
+  };
+}
+
+function calendarSnapshot(workingWeekdays: unknown, holidays: unknown): ApiResult<unknown> {
+  return {
+    ok: true,
+    data: {
+      contract_version: "p6-calendar-read-api.v1",
+      kind: "calendar_snapshot",
+      scope: { tenant_id: context.tenant_id, project_id: context.project_id, project_revision: context.revision },
+      calendar: {
+        calendar_id: "CAL-1",
+        calendar_version: "1",
+        kind: "working-day",
+        calendar_type: "project",
+        name: "Project calendar",
+        record_revision: 3,
+        base_calendar_id: null,
+        base_calendar_version: null,
+      },
+      snapshot: { system: "gregorian", working_weekdays: workingWeekdays, holidays },
+    },
+  };
+}
+
+test("workspace read resolves the primary calendar's version-bound non-working facts", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+    [`${CALENDARS_PATH}/CAL-1/1/snapshot`]: calendarSnapshot([0, 1, 2, 3, 4], ["2026-10-28"]),
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-1" });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.deepEqual(result.data.projectCalendar, {
+    status: "loaded",
+    calendarId: "CAL-1",
+    calendarVersion: "1",
+    workingWeekdays: [0, 1, 2, 3, 4],
+    holidays: ["2026-10-28"],
+    errorCode: null,
+  });
+  assert.deepEqual(transport.paths, [READ_PATH, CALENDARS_PATH, `${CALENDARS_PATH}/CAL-1/1/snapshot`]);
+});
+
+test("workspace read reports an unknown primary calendar without inventing a workweek", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-9" });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.deepEqual(result.data.projectCalendar, {
+    status: "unavailable",
+    calendarId: "CAL-9",
+    calendarVersion: null,
+    workingWeekdays: [],
+    holidays: [],
+    errorCode: "CALENDAR_NOT_FOUND",
+  });
+});
+
+test("workspace read stays unshaded when no primary calendar is configured", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.equal(result.data.projectCalendar.status, "not-loaded");
+  assert.equal(result.data.projectCalendar.errorCode, null);
+  assert.deepEqual(transport.paths, [READ_PATH, CALENDARS_PATH]);
+});
+
+test("workspace read refuses a calendar snapshot without a declared workweek", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+    [`${CALENDARS_PATH}/CAL-1/1/snapshot`]: calendarSnapshot([], []),
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-1" });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.equal(result.data.projectCalendar.status, "unavailable");
+  assert.equal(result.data.projectCalendar.errorCode, "CALENDAR_WORKWEEK_MISSING");
+  assert.deepEqual(result.data.projectCalendar.workingWeekdays, []);
+});

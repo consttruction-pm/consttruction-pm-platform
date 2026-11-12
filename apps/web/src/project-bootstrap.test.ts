@@ -37,11 +37,11 @@ function deps(overrides: Partial<SessionApi> = {}): {
   dependencies: ProjectBootstrapDependencies;
   opened: string[];
   runtimeContexts: ProjectContext[];
-  loadOptions: Array<{ locale?: string } | undefined>;
+  loadOptions: Array<{ locale?: string; primaryCalendarId?: string | null } | undefined>;
 } {
   const opened: string[] = [];
   const runtimeContexts: ProjectContext[] = [];
-  const loadOptions: Array<{ locale?: string } | undefined> = [];
+  const loadOptions: Array<{ locale?: string; primaryCalendarId?: string | null } | undefined> = [];
 
   const sessionApi: SessionApi = {
     getSession: async () => ok(session),
@@ -76,7 +76,7 @@ function deps(overrides: Partial<SessionApi> = {}): {
   } as ProjectBootstrapDependencies["syncRuntime"];
 
   const workspaceReadClient = {
-    load: async (context: ProjectContext, options?: { locale?: string }) => {
+    load: async (context: ProjectContext, options?: { locale?: string; primaryCalendarId?: string | null }) => {
       loadOptions.push(options);
       return ok({
         context,
@@ -113,11 +113,27 @@ test("the chosen language is applied when the project is read", async () => {
 
   const opened = await bootstrap.start(null, "fa");
   assert.equal(opened?.status, "ready");
-  assert.deepEqual(setup.loadOptions, [{ locale: "fa" }]);
+  assert.deepEqual(setup.loadOptions, [{ locale: "fa", primaryCalendarId: null }]);
 
   const created = await bootstrap.createProject("new-project", "پروژه تازه", "fa");
   assert.equal(created?.status, "ready");
-  assert.deepEqual(setup.loadOptions[1], { locale: "fa" });
+  assert.deepEqual(setup.loadOptions[1], { locale: "fa", primaryCalendarId: null });
+});
+
+test("the project's primary calendar reference travels with the workspace read", async () => {
+  const summary = { ...projects[0], primary_calendar_id: "CAL-1" };
+  const setup = deps({
+    listProjects: async () => ok({ projects: [summary] }),
+    openProject: async () => ok({
+      context: { tenant_id: "t1", project_id: "p1", revision: 1, user_id: "u1" },
+    }),
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "ready");
+  assert.deepEqual(setup.loadOptions, [{ locale: "en", primaryCalendarId: "CAL-1" }]);
 });
 
 test("multiple projects stop at selection", async () => {
