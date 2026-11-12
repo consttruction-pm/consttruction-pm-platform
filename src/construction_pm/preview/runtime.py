@@ -124,6 +124,9 @@ from construction_pm.budget_persistence import SQLiteBudgetStore
 from construction_pm.cost_api import CostAPI
 from construction_pm.cost_application import CostApplicationService
 from construction_pm.cost_persistence import SQLiteCostStore
+from construction_pm.risk_api import RiskAPI
+from construction_pm.risk_application import RiskApplicationService
+from construction_pm.risk_persistence import SQLiteRiskStore
 from construction_pm.threshold_api import ThresholdAPI
 from construction_pm.threshold_application import ThresholdApplicationService
 from construction_pm.threshold_metrics import ProjectMetricReader
@@ -361,6 +364,7 @@ class PreviewRepositories:
     budget: SQLiteBudgetStore
     cost: SQLiteCostStore
     thresholds: SQLiteThresholdStore
+    risks: SQLiteRiskStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -440,6 +444,8 @@ class PreviewRepositories:
         cost.initialize()
         thresholds = SQLiteThresholdStore(connection)
         thresholds.initialize()
+        risks = SQLiteRiskStore(connection)
+        risks.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -491,6 +497,7 @@ class PreviewRepositories:
             budget=budget,
             cost=cost,
             thresholds=thresholds,
+            risks=risks,
             transaction_manager=transaction_manager,
         )
 
@@ -1566,6 +1573,11 @@ def open_preview_runtime(
             _threshold_issue_writer,
         )
     )
+    risk_api = RiskAPI(
+        RiskApplicationService(
+            repositories.risks, policy, repositories.transaction_manager
+        )
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1658,6 +1670,7 @@ def open_preview_runtime(
             )
         ),
         threshold_api=threshold_api,
+        risk_api=risk_api,
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,
