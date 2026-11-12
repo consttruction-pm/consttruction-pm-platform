@@ -6,8 +6,9 @@ dataset or recomputes a column. Two formats are produced here:
 
 * ``csv``  — UTF-8 (with BOM) so spreadsheet tools read Persian text correctly.
 * ``xlsx`` — a single typed sheet built with the declared field data types.
+* ``pdf``  — a deterministic, paginated document rendered from the same rows.
 
-Both formats carry the same column order and the catalogue display labels, so a
+All formats carry the same column order and the catalogue display labels, so a
 downloaded run matches the report definition the user saved.
 """
 
@@ -20,13 +21,21 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from .report_persistence import ReportRun, subject_fields
+from .report_pdf import (
+    PDF_CONTENT_TYPE,
+    REPORT_PDF_LOCALES,
+    ReportPdfError,
+    build_report_pdf,
+)
+from .report_persistence import SUBJECT_LABELS, ReportRun, subject_fields
 
-REPORT_EXPORT_FORMATS = ("csv", "xlsx")
+REPORT_EXPORT_FORMATS = ("csv", "xlsx", "pdf")
+REPORT_EXPORT_LOCALES = REPORT_PDF_LOCALES
 
 _CONTENT_TYPES = {
     "csv": "text/csv; charset=utf-8",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "pdf": PDF_CONTENT_TYPE,
 }
 _CSV_BOM = "\ufeff"
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -189,14 +198,32 @@ def _xlsx_document(
     return output.getvalue()
 
 
-def build_report_export(run: ReportRun, export_format: str) -> ReportExportDocument:
+def build_report_export(
+    run: ReportRun, export_format: str, *, locale: str = "en"
+) -> ReportExportDocument:
     if not isinstance(export_format, str) or export_format not in REPORT_EXPORT_FORMATS:
         raise ReportExportError("REPORT_EXPORT_FORMAT_UNSUPPORTED")
+    if not isinstance(locale, str) or locale not in REPORT_EXPORT_LOCALES:
+        raise ReportExportError("REPORT_EXPORT_LOCALE_UNSUPPORTED")
     labels = _labels(run)
     if export_format == "csv":
         data = _csv_document(run, labels)
-    else:
+    elif export_format == "xlsx":
         data = _xlsx_document(run, labels)
+    else:
+        field_types = {field.key: field.data_type for field in subject_fields(run.subject)}
+        try:
+            data = build_report_pdf(
+                run,
+                labels,
+                field_types,
+                SUBJECT_LABELS[run.subject],
+                locale,
+            )
+        except ReportPdfError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - bounded rendering boundary
+            raise ReportExportError("REPORT_EXPORT_PDF_RENDER_FAILED") from exc
     filename = (
         f"{_safe_name(run.subject)}-{_safe_name(run.report_id)}-"
         f"{_safe_name(run.run_id)}.{export_format}"
@@ -215,6 +242,7 @@ def build_report_export(run: ReportRun, export_format: str) -> ReportExportDocum
 
 __all__ = [
     "REPORT_EXPORT_FORMATS",
+    "REPORT_EXPORT_LOCALES",
     "ReportExportDocument",
     "ReportExportError",
     "build_report_export",

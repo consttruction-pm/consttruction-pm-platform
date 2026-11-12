@@ -3517,6 +3517,7 @@ class ProjectLifecycleHttpRoutes:
                                 and parts[3] == "export"
                             ):
                                 export_format = query.get("format") or "csv"
+                                locale = query.get("locale") or "en"
                                 document = self._report_api.export_run(
                                     tenant_id=context.tenant_id,
                                     project_id=context.project_id,
@@ -3524,6 +3525,7 @@ class ProjectLifecycleHttpRoutes:
                                     run_id=parts[2],
                                     export_format=export_format,
                                     context=auth,
+                                    locale=locale,
                                 )
                                 if isinstance(document, dict):
                                     return _report_reply(document)
