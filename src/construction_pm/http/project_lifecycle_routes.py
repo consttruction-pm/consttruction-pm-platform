@@ -2170,6 +2170,10 @@ class ProjectLifecycleHttpRoutes:
                                 return self._error(
                                     409, code, "error.document.conflict"
                                 )
+                            if code == "DOCUMENT_RETENTION_NOT_FOUND":
+                                return self._error(
+                                    404, code, "error.document.not_found"
+                                )
                             if code == "DOCUMENT_CONTENT_TOO_LARGE":
                                 return self._error(
                                     413, code, "error.document.content.too_large"
@@ -2196,6 +2200,19 @@ class ProjectLifecycleHttpRoutes:
                             if code == "DOCUMENT_CONTENT_QUARANTINED":
                                 return self._error(
                                     409, code, "error.document.content.quarantined"
+                                )
+                            if code == "DOCUMENT_CONTENT_DISPOSED":
+                                return self._error(
+                                    409, code, "error.document.content.disposed"
+                                )
+                            if code in {
+                                "DOCUMENT_RETENTION_REVISION_CONFLICT",
+                                "DOCUMENT_RETENTION_LEGAL_HOLD",
+                                "DOCUMENT_RETENTION_NOT_ELIGIBLE",
+                                "DOCUMENT_CONTENT_ALREADY_DISPOSED",
+                            }:
+                                return self._error(
+                                    409, code, "error.document.conflict"
                                 )
                             if code in {
                                 "DOCUMENT_SCAN_UNAVAILABLE",
@@ -2384,6 +2401,76 @@ class ProjectLifecycleHttpRoutes:
                                     context=auth,
                                 )
                                 if "jobs" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if len(parts) == 2 and parts[1] == "retention":
+                                if method == "GET":
+                                    result = self._document_api.read_retention(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        document_id=parts[0],
+                                        context=auth,
+                                        now=now,
+                                    )
+                                    if "retention" in result:
+                                        return self._json(200, result)
+                                    return _document_reply(result)
+                                if method in {"PUT", "PATCH"}:
+                                    retain_days = payload.get("retain_days")
+                                    legal_hold = payload.get("legal_hold", False)
+                                    expected = payload.get("expected_revision", 0)
+                                    if isinstance(retain_days, bool) or isinstance(
+                                        expected, bool
+                                    ):
+                                        raise ValueError(
+                                            "INVALID_DOCUMENT_RETENTION_REVISION"
+                                        )
+                                    result = self._document_api.set_retention(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        document_id=parts[0],
+                                        retain_days=int(retain_days),
+                                        legal_hold=bool(legal_hold),
+                                        reason=str(payload.get("reason") or ""),
+                                        expected_revision=int(expected),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                    if "policy" in result:
+                                        return self._json(200, result)
+                                    return _document_reply(result)
+                                return self._error(
+                                    400,
+                                    "DOCUMENT_REQUEST_INVALID",
+                                    "error.request.invalid",
+                                )
+                            if (
+                                method == "POST"
+                                and len(parts) == 4
+                                and parts[1] == "content"
+                                and parts[3] == "dispose"
+                            ):
+                                try:
+                                    dispose_version = int(parts[2])
+                                except (TypeError, ValueError):
+                                    return self._error(
+                                        400,
+                                        "INVALID_DOCUMENT_CONTENT_VERSION",
+                                        "error.request.invalid",
+                                    )
+                                result = self._document_api.dispose_content(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    version=dispose_version,
+                                    confirm=str(payload.get("confirm") or ""),
+                                    reason=str(payload.get("reason") or ""),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                )
+                                if "disposition" in result:
                                     return self._json(200, result)
                                 return _document_reply(result)
                             if method == "GET" and len(parts) >= 2 and parts[1] == "content":

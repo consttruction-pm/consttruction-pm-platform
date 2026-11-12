@@ -125,6 +125,10 @@ from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
 )
+from construction_pm.document_retention import (
+    DocumentRetentionService,
+    SQLiteDocumentRetentionStore,
+)
 from construction_pm.document_scan import ReferenceDocumentScanner
 from construction_pm.document_storage import LocalDocumentStorage
 from construction_pm.administration_api import AdministrationAPI
@@ -422,6 +426,7 @@ class PreviewRepositories:
     documents: SQLiteDocumentStore
     document_content: SQLiteDocumentContentRepository
     document_ocr: SQLiteDocumentOcrRepository
+    document_retention: SQLiteDocumentRetentionStore
     budget: SQLiteBudgetStore
     cost: SQLiteCostStore
     thresholds: SQLiteThresholdStore
@@ -513,6 +518,8 @@ class PreviewRepositories:
         document_content.initialize()
         document_ocr = SQLiteDocumentOcrRepository(connection)
         document_ocr.initialize()
+        document_retention = SQLiteDocumentRetentionStore(connection)
+        document_retention.initialize()
         budget = SQLiteBudgetStore(connection)
         budget.initialize()
         cost = SQLiteCostStore(connection)
@@ -583,6 +590,7 @@ class PreviewRepositories:
             documents=documents,
             document_content=document_content,
             document_ocr=document_ocr,
+            document_retention=document_retention,
             budget=budget,
             cost=cost,
             thresholds=thresholds,
@@ -1869,10 +1877,18 @@ def open_preview_runtime(
                 scanner=ReferenceDocumentScanner(),
                 require_scanned_content=True,
                 ocr_store=repositories.document_ocr,
+                disposition_repository=repositories.document_retention,
             ),
             ocr=DocumentOcrService(
                 repositories.document_ocr,
                 repositories.document_content,
+                policy,
+            ),
+            retention=DocumentRetentionService(
+                repositories.document_retention,
+                repositories.document_content,
+                repositories.documents,
+                LocalDocumentStorage(database.parent / "document-store"),
                 policy,
             ),
         ),

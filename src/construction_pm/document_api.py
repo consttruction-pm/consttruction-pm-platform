@@ -12,10 +12,12 @@ from .document_application import (
 )
 from .document_ocr import DocumentOcrService
 from .document_persistence import DocumentAuditEvent, DocumentRecord, StoredDocument
+from .document_retention import DocumentRetentionService
 
 DOCUMENT_API_VERSION = "1.0"
 DOCUMENT_CONTENT_API_VERSION = "1.0"
 DOCUMENT_OCR_API_VERSION = "1.0"
+DOCUMENT_RETENTION_API_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
@@ -24,6 +26,7 @@ class DocumentAPI:
 
     service: DocumentApplicationService
     ocr: DocumentOcrService | None = None
+    retention: DocumentRetentionService | None = None
 
     def create(
         self,
@@ -358,6 +361,111 @@ class DocumentAPI:
             }
         except Exception as exc:
             return _error(self.ocr.error_dto(exc))
+
+    def read_retention(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        if self.retention is None:
+            return _error(persistence_error(
+                "DOCUMENT_RETENTION_UNAVAILABLE", "DOCUMENT_RETENTION_UNAVAILABLE"
+            ))
+        try:
+            summary = self.retention.read(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                context=context,
+                now=now,
+            )
+            return {
+                "contract_version": DOCUMENT_RETENTION_API_VERSION,
+                "document_id": document_id,
+                "retention": summary,
+            }
+        except Exception as exc:
+            return _error(self.retention.error_dto(exc))
+
+    def set_retention(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        retain_days: int,
+        legal_hold: bool,
+        reason: str,
+        expected_revision: int,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        if self.retention is None:
+            return _error(persistence_error(
+                "DOCUMENT_RETENTION_UNAVAILABLE", "DOCUMENT_RETENTION_UNAVAILABLE"
+            ))
+        try:
+            policy = self.retention.set_policy(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                retain_days=retain_days,
+                legal_hold=legal_hold,
+                reason=reason,
+                expected_revision=expected_revision,
+                context=context,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+            return {
+                "contract_version": DOCUMENT_RETENTION_API_VERSION,
+                "document_id": document_id,
+                "policy": policy.as_dict(),
+            }
+        except Exception as exc:
+            return _error(self.retention.error_dto(exc))
+
+    def dispose_content(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        version: int,
+        confirm: str,
+        reason: str,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        if self.retention is None:
+            return _error(persistence_error(
+                "DOCUMENT_RETENTION_UNAVAILABLE", "DOCUMENT_RETENTION_UNAVAILABLE"
+            ))
+        try:
+            disposition = self.retention.dispose(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                version=version,
+                confirm=confirm,
+                reason=reason,
+                context=context,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+            return {
+                "contract_version": DOCUMENT_RETENTION_API_VERSION,
+                "document_id": document_id,
+                "disposition": disposition.as_dict(),
+            }
+        except Exception as exc:
+            return _error(self.retention.error_dto(exc))
 
 
 def _resource(stored: StoredDocument) -> dict[str, Any]:
