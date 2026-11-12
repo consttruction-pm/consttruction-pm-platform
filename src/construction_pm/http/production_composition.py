@@ -24,6 +24,7 @@ from construction_pm.p6_baseline_api import P6BaselineAPI
 from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_baseline_assignment_api import P6BaselineAssignmentAPI
 from construction_pm.p6_baseline_conversion_api import P6BaselineConversionAPI
+from construction_pm.p6_baseline_capture_api import P6BaselineCaptureAPI
 from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
@@ -104,6 +105,7 @@ def build_project_lifecycle_wsgi_app(
     p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
     p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
     p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
+    p6_baseline_capture_api: P6BaselineCaptureAPI | None = None,
     p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
     p6_interchange_api: P6InterchangeAPI | None = None,
     p6_role_api: P6RoleAPI | None = None,
@@ -278,6 +280,7 @@ def build_project_lifecycle_wsgi_app(
         p6_baseline_update_api=p6_baseline_update_api,
         p6_baseline_assignment_api=p6_baseline_assignment_api,
         p6_baseline_conversion_api=p6_baseline_conversion_api,
+        p6_baseline_capture_api=p6_baseline_capture_api,
         p6_earned_value_read_api=p6_earned_value_read_api,
         p6_interchange_api=p6_interchange_api,
         p6_role_api=p6_role_api,

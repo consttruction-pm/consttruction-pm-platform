@@ -3,8 +3,10 @@ import test from "node:test";
 
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import {
+  buildBaselineCapturePayload,
   buildEarnedValuePayload,
   buildFinancialPeriodPayload,
+  captureBaseline,
   createFinancialPeriod,
   loadBaselines,
   loadFinancialPeriods,
@@ -390,4 +392,136 @@ test("measure earned value posts the selection and returns the authoritative res
   );
   assert.equal(failed.ok, false);
   assert.equal(failed.ok ? "" : failed.error.code, "EVM_BASELINE_ACTIVITIES_EMPTY:BL-1");
+});
+
+function captureEnvelope(overrides: Record<string, unknown> = {}) {
+  return {
+    contract_version: "p6-baseline-capture-api.v1",
+    kind: "p6_baseline_capture",
+    scope: { tenant_id: "t1", project_id: "project-1", project_revision: 7 },
+    baseline: {
+      baseline_id: "BL-CAP",
+      name: "Captured",
+      baseline_type: "USER_SELECTED",
+      source_revision: 7,
+      created_at: "2026-11-12T00:00:00+00:00",
+      notes: null,
+      ...overrides,
+    },
+    snapshot: {
+      snapshot_id: "snap-1",
+      calculation_run_identity: "run-1",
+      project_finish: "2026-12-31",
+      activity_count: 3,
+    },
+    currency: "USD",
+    counts: { activities: 3, budgeted_cost: "1700" },
+    excluded_activity_ids: [],
+    unattributed_expense_ids: [],
+    replayed: false,
+  };
+}
+
+test("baseline capture payload carries the selection, never calculated schedule facts", () => {
+  assert.deepEqual(
+    buildBaselineCapturePayload(
+      {
+        baselineId: " BL-CAP ",
+        name: " Captured ",
+        baselineType: "SECONDARY",
+        notes: "  ",
+        currency: " USD ",
+      },
+      7,
+    ),
+    {
+      contract_version: "p6-baseline-capture-api.v1",
+      expected_revision: 7,
+      baseline_id: "BL-CAP",
+      name: "Captured",
+      baseline_type: "SECONDARY",
+      currency: "USD",
+    },
+  );
+  const minimal = buildBaselineCapturePayload(
+    { baselineId: "BL-CAP", name: "Captured", baselineType: "PRIMARY", notes: "n", currency: "" },
+    0,
+  );
+  assert.equal("currency" in minimal, false);
+  assert.equal(minimal.notes, "n");
+  assert.throws(
+    () => buildBaselineCapturePayload({ baselineId: "", name: "x", baselineType: "PRIMARY", notes: "", currency: "" }, 7),
+    /BASELINE_ID_REQUIRED/,
+  );
+  assert.throws(
+    () => buildBaselineCapturePayload({ baselineId: "B", name: " ", baselineType: "PRIMARY", notes: "", currency: "" }, 7),
+    /BASELINE_NAME_REQUIRED/,
+  );
+  assert.throws(
+    () => buildBaselineCapturePayload({ baselineId: "B", name: "n", baselineType: "GUESS" as never, notes: "", currency: "" }, 7),
+    /INVALID_BASELINE_TYPE/,
+  );
+  assert.throws(
+    () => buildBaselineCapturePayload({ baselineId: "B", name: "n", baselineType: "PRIMARY", notes: "", currency: "" }, 1.5),
+    /INVALID_EXPECTED_REVISION/,
+  );
+});
+
+test("capture baseline posts the revision and returns the stored baseline record", async () => {
+  const calls = { gets: [] as { path: string }[], posts: [] as { path: string; request: unknown }[] };
+  const result = await captureBaseline(
+    transportWith(
+      { "POST /api/projects/project-1/p6/baselines/capture": { ok: true, data: captureEnvelope() } },
+      calls,
+    ),
+    CONTEXT,
+    { baselineId: "BL-CAP", name: "Captured", baselineType: "USER_SELECTED", notes: "", currency: "USD" },
+  );
+  assert.ok(result.ok);
+  assert.deepEqual(result.data, {
+    baselineId: "BL-CAP",
+    name: "Captured",
+    baselineType: "USER_SELECTED",
+    sourceRevision: 7,
+    createdAt: "2026-11-12T00:00:00+00:00",
+  });
+  assert.deepEqual(calls.posts, [
+    {
+      path: "/api/projects/project-1/p6/baselines/capture",
+      request: {
+        contract_version: "p6-baseline-capture-api.v1",
+        expected_revision: 7,
+        baseline_id: "BL-CAP",
+        name: "Captured",
+        baseline_type: "USER_SELECTED",
+        currency: "USD",
+      },
+    },
+  ]);
+
+  const wrongKind = await captureBaseline(
+    transportWith(
+      { "POST /api/projects/project-1/p6/baselines/capture": { ok: true, data: { ...captureEnvelope(), kind: "p6_baseline" } } },
+      { gets: [], posts: [] },
+    ),
+    CONTEXT,
+    { baselineId: "BL-CAP", name: "Captured", baselineType: "USER_SELECTED", notes: "", currency: "" },
+  );
+  assert.equal(wrongKind.ok, false);
+  assert.equal(wrongKind.ok ? "" : wrongKind.error.code, "INVALID_BASELINE_CAPTURE_RESPONSE");
+
+  const conflict = await captureBaseline(
+    transportWith(
+      {
+        "POST /api/projects/project-1/p6/baselines/capture": {
+          ok: false,
+          error: { code: "BASELINE_CAPTURE_TARGET_EXISTS", retryable: false, message_key: "error.p6.baseline.exists", available_actions: [] },
+        },
+      },
+      { gets: [], posts: [] },
+    ),
+    CONTEXT,
+    { baselineId: "BL-CAP", name: "Captured", baselineType: "USER_SELECTED", notes: "", currency: "" },
+  );
+  assert.equal(conflict.ok ? "" : conflict.error.code, "BASELINE_CAPTURE_TARGET_EXISTS");
 });
