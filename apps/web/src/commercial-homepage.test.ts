@@ -99,7 +99,7 @@ test("full homepage keeps bilingual control and the six capability areas", () =>
 
 test("homepage messaging covers oil and gas, EPC and the nine requested locales without overstating assistant autonomy", () => {
   for (const locale of ["en", "fa", "de", "fr", "zh", "ja", "ko", "ru", "ar"]) {
-    assert.match(landing, new RegExp("\\n  " + locale + ": \\{"));
+    assert.ok(landing.includes("  " + locale + ": {"), "Missing homepage locale copy: " + locale);
   }
   for (const phrase of [
     "oil, gas, petrochemical",
@@ -111,13 +111,10 @@ test("homepage messaging covers oil and gas, EPC and the nine requested locales 
     "industriesEyebrow",
     "cubi-exact-industries",
   ]) assert.ok(landing.includes(phrase), "Expected homepage messaging marker: " + phrase);
-  assert.match(landing, /request your approval before changing project records|request your approval before changing project records/i);
+  assert.ok(landing.includes("request your approval before changing project records"));
   // Do not advertise a locale until its translated homepage AND every public
   // marketing route, metadata and reciprocal language links are shipped.
-  assert.deepEqual(
-    landing.match(/LANDING_LANGUAGE_ROUTES:[\\s\\S]*?Object\\.freeze\\(\\[([^\\]]+)/)?.[1]?.match(/"[a-z-]+"/g),
-    ['"en"', '"fa"'],
-  );
+  assert.ok(landing.includes('Object.freeze(["en", "fa"])'));
 });
 
 test("Persian homepage mirrors dashboard and technology layout in RTL mode", () => {
