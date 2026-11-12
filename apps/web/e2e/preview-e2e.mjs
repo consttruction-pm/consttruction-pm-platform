@@ -1187,6 +1187,7 @@ async function launchChrome() {
       "--disable-features=Translate,MediaRouter",
       "--window-size=1440,900",
       "--hide-scrollbars",
+      ...(process.env.CUBI_CHROME_NO_SANDBOX === "1" ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
       "about:blank",
     ],
     { stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" },

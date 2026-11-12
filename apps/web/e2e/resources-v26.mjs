@@ -159,7 +159,15 @@ const calendarsState = `(() => {
     label: (label.childNodes[0]?.textContent ?? "").trim(),
     value: label.querySelector("input")?.value ?? label.querySelector("select")?.value ?? null,
   }));
-  const workweek = [...document.querySelectorAll('[data-calendar-panel="workweek"] tbody tr')].map((row) => [...row.querySelectorAll("th,td")].map((cell) => (cell.textContent || "").trim()));
+  const workweek = [...document.querySelectorAll('[data-calendar-panel="workweek"] tbody tr')].map((row) => {
+    const cells = [...row.querySelectorAll("th,td")];
+    const working = row.querySelector("input[data-workday-working]");
+    return [
+      (cells[0]?.textContent || "").trim(),
+      working ? (working.checked ? "Working" : "Non-working") : (cells[1]?.textContent || "").trim(),
+      row.querySelector("input[data-workday-hours]")?.value ?? (cells[2]?.textContent || "").trim(),
+    ];
+  });
   return {
     activeMenu: document.querySelector(".cp-workspace")?.dataset.activeMenu ?? null,
     heading: page?.querySelector(".cp-calendar-window-toolbar strong")?.textContent?.trim() ?? null,

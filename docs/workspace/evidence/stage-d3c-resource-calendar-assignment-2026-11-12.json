@@ -1,0 +1,79 @@
+{
+  "stage": "D3c",
+  "title": "Resource calendar assignment and project calendar visibility",
+  "contract": "cubi-stage-d3c-resource-calendar.v1",
+  "testedCodeSha": "85b959d0e8a2e096f9c15de387bc9ca923096760",
+  "evidenceCommitSha": null,
+  "evidenceCommitNote": "This file is stored by the evidence commit that follows testedCodeSha; see the branch history for the exact commit id.",
+  "scope": {
+    "service": "src/construction_pm/p6_resource_master_api.py",
+    "preview_wiring": "src/construction_pm/preview/runtime.py",
+    "http_mapping": "src/construction_pm/http/project_lifecycle_routes.py",
+    "editor": "apps/web/src/workspace-resources.ts"
+  },
+  "contract_changes": {
+    "domain_error": "RESOURCE_CALENDAR_NOT_FOUND",
+    "http_status": 409,
+    "enforced_on": [
+      "create",
+      "update"
+    ],
+    "default_calendar": "calendar_id=null keeps the project calendar default",
+    "version_binding": "the resource master stores calendar identity only; versions stay with persisted calendar and assignment facts"
+  },
+  "commands": [
+    {
+      "command": "PYTHONPATH=src python3 -m pytest tests -q --ignore=tests/integration",
+      "result": "3104 passed, 19 skipped"
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m pytest tests/test_preview_runtime.py tests/test_p6_resource_master_api.py tests/test_p6_resource_http_routes.py tests/test_p6_versioned_resource_calendar_resolver.py tests/resources -q",
+      "result": "140 passed"
+    },
+    {
+      "command": "cd apps/web && npm run typecheck",
+      "result": "passed (no diagnostics)"
+    },
+    {
+      "command": "cd apps/web && npm test",
+      "result": "passed (src/*.test.ts plus preview-server tests)"
+    },
+    {
+      "command": "cd apps/web && npm run build",
+      "result": "passed (tsc build config plus esbuild bundles)"
+    },
+    {
+      "command": "CUBI_PREVIEW_URL=http://127.0.0.1:4174 CUBI_CHROME_NO_SANDBOX=1 node e2e/resources-v26.mjs",
+      "result": "11 scenarios passed, 0 failed; consoleErrors=[], apiFailures=[]"
+    }
+  ],
+  "scenarios": {
+    "service": [
+      "create rejects a calendar id missing from the tenant/project/revision scope",
+      "create accepts a stored calendar id",
+      "update rejects switching to a missing calendar without changing the stored value",
+      "a calendar stored in another revision does not satisfy the reference",
+      "calendar_id=null keeps the project default"
+    ],
+    "http": [
+      "POST /p6/resources returns 409 RESOURCE_CALENDAR_NOT_FOUND for an unknown calendar",
+      "the same payload succeeds once the calendar is stored"
+    ],
+    "preview": [
+      "POST /p6/resources on the live preview runtime rejects an unknown calendar and leaves the register unchanged",
+      "the accepted assignment survives a runtime reopen"
+    ],
+    "browser": [
+      "the resource editor renders a stored-calendar selector instead of free text",
+      "the selector lists name, calendar id and stored versions with a project-default option",
+      "the created resource stores the selected calendar id and the edit form reads it back after reload",
+      "the General tab shows the stored calendar name and id",
+      "the Calendars window still reads the persisted register and workweek"
+    ]
+  },
+  "browser_evidence": "docs/workspace/evidence/resources-v26-2026-11-12/resources-v26.json",
+  "limitations": [
+    "Calendar versions are not bound on the resource master; schedule and capacity resolution keep using the versioned calendar facts that already carry versions.",
+    "The project calendar selector in the schedule cycle is the D3b surface; this stage verifies it reads the stored catalogue, and full calendar lifecycle work continues in D3d."
+  ]
+}
