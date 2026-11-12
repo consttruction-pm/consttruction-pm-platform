@@ -1671,3 +1671,93 @@ Recorded provenance (two independent facts):
 ### Next stage
 
 Remaining Calendar work, then Stage F (Reports; Administration; Import/Export; Backup/Recovery).
+
+## Stage F1 — Project report register, stored runs and report window
+
+PR [#1771](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1771) squash-merged
+into `main` as `09022f87` on 2026-11-12. Post-merge CI on `09022f87`: ConstructionPM CI, Client
+Typecheck, PostgreSQL Sync State Integration, the Pages deploy and ConstructionPM Web CI all
+succeeded on the first run.
+
+### What shipped
+
+1. **Persistent report register** (`report_persistence.py`): a `REPORT_CATALOGUE` fixes three
+   authoritative subjects and their typed fields — activities (`activity_id`, name, type, status,
+   actual start, expected finish, duration, percent complete), resources (`resource_id`, name,
+   type, parent, calendar, unit of measure, active) and risks (`risk_id`, title, category, status,
+   probability, impact, score, exposure). A definition stores one subject and an ordered,
+   duplicate-free subset of that subject's columns. `SQLiteReportStore` owns
+   `project_report_definition`, `project_report_audit`, `project_report_idempotency` and the
+   immutable `project_report_run` tables. Creates require an idempotency key
+   (`REPORT_IDEMPOTENCY_KEY_REQUIRED`, `REPORT_IDEMPOTENCY_KEY_REUSE`), duplicate ids fail with
+   `REPORT_ID_ALREADY_EXISTS`, edits and deletes require `expected_revision`
+   (`REPORT_REVISION_CONFLICT`), and every accepted write appends a `created`, `updated` or
+   `deleted` audit event.
+2. **Authoritative runs** (`report_application.py`): `AuthoritativeReportDataset` materializes
+   activity rows from the activity repository, resource rows from `ResourceRepository.list` and
+   risk rows from the risk store at the caller's project revision. `run_report` composes only the
+   selected columns in definition order and stores the rows verbatim with the definition revision,
+   project revision, subject, timestamp and actor. `RUN-<report_id>-<n>` ids are monotonic;
+   re-running never mutates an earlier run, and a definition edit cannot rewrite stored output.
+3. **Versioned API and HTTP surface** (`report_api.py`, `p6-report-api.v1`): list (with catalogue),
+   catalogue, read, history, create, update, delete, run, run summaries and stored-run readback.
+   All definition writes are project-scoped behind `PROJECT_WRITE` with actor identity pinned to
+   the principal; reads and runs require `PROJECT_READ`. Not-found maps to 404, conflicts to 409
+   and validation to 400. The WSGI boundary now carries `/reports` query strings so subject and
+   search filters reach the route.
+4. **Preview, production and workspace wiring**: the preview runtime composes `SQLiteReportStore`
+   → `ReportApplicationService` → `ReportAPI` against the shared authorization policy, transaction
+   manager and authoritative repositories; production composition accepts an optional
+   `ReportAPI`. The Reports window (`workspace-reports.ts`) replaces the placeholder with a real
+   register: toolbar create/refresh, subject and search filters, a definition table, a create/edit
+   form driven by the server catalogue (subject switch re-renders the column set), details with
+   selected columns, run, immutable run history and an output table with exact row count and meta
+   (`run id · rows · definition revision · project revision`). A stale write reloads the
+   authoritative record after a 409; viewer sees no create/edit/delete controls but can run and
+   read output, and direct writes receive server 403s.
+
+### Honest limits
+
+- Reports are definition-and-run only: there is no scheduled/batch execution, no parameter
+  prompts, no grouping/subtotals/sorting/aggregates, no charts, no page layout or print pipeline,
+  and no file export (CSV/PDF/XLSX).
+- The catalogue is fixed to three subjects and their stored fields; project, WBS, assignment,
+  calendar, expense, budget, issue, document and threshold subjects are not reportable.
+- Runs are snapshots of the current authoritative rows at one project revision; there is no
+  delta/variance run, no cross-project or portfolio run, and no retention or run deletion.
+- Deletes hide the definition and its runs from the API; the audit trail remains in SQLite but is
+  unreachable. Report facts are SQLite only with no Postgres mirror.
+- The window's new labels are inline English/Persian rather than part of the eight-locale
+  dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 842 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Report web suite | `apps/web/src/workspace-reports.test.ts` | 10 tests: fail-closed catalogue/definition/list/run parsers, subject+search URL, idempotent create with catalogue re-read, revision-pinned PATCH, run and stored-run paths, delete body |
+| Report backend suites | `pytest tests/test_report_api.py tests/test_project_lifecycle_wsgi.py` | 8 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3497 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=bb30ec9 node e2e/reports-v26.mjs` | 9/9 scenarios pass, 9 distinct screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Run materialization | scenarios 03–05 of the same suite | activity run stores exactly 14 rows and the four selected columns, run 1 readback is unchanged after run 2, edited columns apply to revision 2 with `definition revision 2` stored |
+| Filters and authorization | scenarios 06–08 of the same suite | subject `resources` and search `Activity Status` reduce the server and UI lists, resource run returns `RPS-CIVIL-CREW`, viewer runs/reads but the UI has no write controls and a direct POST returns 403 `REPORT_PERMISSION_DENIED` |
+| Layout at 1280×720 | scenario 09 of the same suite | Persian RTL heading `گزارش‌های پروژه`, toolbar/register/detail fit without overflow, no external product branding |
+| Evidence bundle | `docs/workspace/evidence/reports-v26-2026-11-12/` | `reports-v26.json` + 9 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `bb30ec913f2905eeef6b7c4be5324ca071e1f33e` |
+| Evidence commit | `861c69a3f79ede269a9cd5fb0b2ca2f51232e1aa` |
+| Branch | `feat/v26-stage-f1-reports` |
+| PR | [#1771](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1771) |
+| Merge commit | `09022f870e91d515d180d2ce6ee5ff9a0b600448` |
+| Post-merge CI | 5/5 workflows success on `09022f87` |
+
+### Next stage
+
+Stage F2 (Administration: users/security profiles/permission matrix, preferences and dictionaries,
+currency/units/financial periods), then Import/Export, Backup/Recovery and Stage G integration.
