@@ -9,6 +9,9 @@ from .p6_mapping_registry import P6MappingFormat
 class P6MsProjectXmlCodecError(ValueError):
     pass
 
+MAX_XML_BYTES = 10_000_000
+
+
 NS="http://schemas.microsoft.com/project/2007"
 EXT="https://constructionpm.example/p6-interchange"
 COLLECTIONS={"Tasks","Resources","Assignments","Calendars","ExtendedAttributes","OutlineCodes","WBSMasks"}
@@ -24,6 +27,7 @@ class P6MsProjectXmlCodec:
                 payload=payload.decode("utf-8-sig")
             except UnicodeDecodeError as exc:
                 raise P6MsProjectXmlCodecError("INVALID_UTF8") from exc
+        self._guard_payload(payload)
         try: root=ET.fromstring(payload)
         except ET.ParseError as exc: raise P6MsProjectXmlCodecError("INVALID_XML") from exc
         if self._local(root.tag)!="Project":
@@ -72,6 +76,15 @@ class P6MsProjectXmlCodec:
                     x=ET.SubElement(element,"{"+EXT+"}Extensions")
                     for key,value in sorted(preserved): ET.SubElement(x,"{"+EXT+"}Field",{"key":key}).text=self._stringify(value)
         return ET.tostring(root,encoding="unicode",short_empty_elements=True)+"\n"
+
+
+    @staticmethod
+    def _guard_payload(payload: str) -> None:
+        if len(payload) > MAX_XML_BYTES:
+            raise P6MsProjectXmlCodecError("XML_PAYLOAD_TOO_LARGE")
+        head = payload[:4096].upper()
+        if "<!DOCTYPE" in head or "<!ENTITY" in head:
+            raise P6MsProjectXmlCodecError("XML_DECLARATION_REJECTED")
 
     @staticmethod
     def _local(tag:str)->str:

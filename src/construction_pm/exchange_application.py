@@ -11,6 +11,7 @@ rolls the whole batch back.
 from __future__ import annotations
 
 import base64
+import zipfile
 import binascii
 import csv
 import hashlib
@@ -127,6 +128,8 @@ EXCHANGE_DATASETS: dict[str, dict[str, Any]] = {
     "costs": {"columns": COST_COLUMNS, "importable": True},
 }
 MAX_IMPORT_CHARS = 1_000_000
+MAX_XLSX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_XLSX_ROWS = 50_000
 PREVIEW_ROWS = 20
 EXCHANGE_EXPORT_FORMATS = ("csv", "xlsx")
 _XLSX_CONTENT_TYPE = (
@@ -333,19 +336,48 @@ def _xlsx(
 
 
 def _decode_xlsx(content: str) -> tuple[list[str], list[dict[str, Any]]]:
-    """Decode a base64 XLSX payload into headers and DictReader-shaped rows."""
+    """Decode a base64 XLSX payload into headers and DictReader-shaped rows.
+
+    The archive is inspected before openpyxl loads it: a workbook whose
+    uncompressed payload exceeds the bound is refused, macro projects are
+    refused, and row iteration stops at a fixed limit. This keeps a small
+    compressed payload from expanding without bound in memory.
+    """
     try:
         payload = base64.b64decode(content, validate=True)
     except (binascii.Error, ValueError) as exc:
         raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
     try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            infos = archive.infolist()
+            if any(
+                info.filename.lower().endswith("vbaproject.bin")
+                for info in infos
+            ):
+                raise ExchangeError("EXCHANGE_XLSX_MACROS_REJECTED")
+            if sum(info.file_size for info in infos) > MAX_XLSX_UNCOMPRESSED_BYTES:
+                raise ExchangeError("EXCHANGE_XLSX_TOO_LARGE")
+    except ExchangeError:
+        raise
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
+    try:
         from openpyxl import load_workbook
 
-        workbook = load_workbook(io.BytesIO(payload), data_only=True)
+        workbook = load_workbook(
+            io.BytesIO(payload),
+            data_only=True,
+            read_only=True,
+            keep_links=False,
+        )
     except Exception as exc:  # noqa: BLE001 - bounded file boundary
         raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
     sheet = workbook.active
-    values = list(sheet.iter_rows(values_only=True))
+    values: list[tuple[Any, ...]] = []
+    for row in sheet.iter_rows(values_only=True):
+        if len(values) >= MAX_XLSX_ROWS:
+            raise ExchangeError("EXCHANGE_XLSX_TOO_MANY_ROWS")
+        values.append(row)
     if not values:
         return [], []
     headers = [_cell_text(value).strip() for value in values[0]]

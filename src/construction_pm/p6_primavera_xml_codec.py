@@ -9,6 +9,9 @@ from .p6_mapping_registry import P6MappingFormat
 class P6PrimaveraXmlCodecError(ValueError):
     """Raised when a Primavera P6 XML document violates the XML grammar boundary."""
 
+MAX_XML_BYTES = 10_000_000
+
+
 P6_XML_ROOT = "APIBusinessObjects"
 EXTENSION_NAMESPACE = "https://constructionpm.example/p6-interchange"
 OBJECT_EXTENSION = "p6.primavera.xml.object"
@@ -26,6 +29,7 @@ class P6PrimaveraXmlCodec:
                 payload = payload.decode("utf-8-sig")
             except UnicodeDecodeError as exc:
                 raise P6PrimaveraXmlCodecError("INVALID_UTF8") from exc
+        self._guard_payload(payload)
         try:
             root = ET.fromstring(payload)
         except ET.ParseError as exc:
@@ -69,6 +73,15 @@ class P6PrimaveraXmlCodec:
                 for key, value in sorted(preserved, key=lambda item: item[0]):
                     ET.SubElement(container, UNKNOWN_EXTENSION_FIELD, {"key": key}).text = self._stringify(value)
         return ET.tostring(root, encoding="unicode", short_empty_elements=True) + "\n"
+
+
+    @staticmethod
+    def _guard_payload(payload: str) -> None:
+        if len(payload) > MAX_XML_BYTES:
+            raise P6PrimaveraXmlCodecError("XML_PAYLOAD_TOO_LARGE")
+        head = payload[:4096].upper()
+        if "<!DOCTYPE" in head or "<!ENTITY" in head:
+            raise P6PrimaveraXmlCodecError("XML_DECLARATION_REJECTED")
 
     @staticmethod
     def _local_name(tag: str) -> str:
