@@ -1959,8 +1959,8 @@ report.
 
 ## Stage F4 — Project and layout backup/recovery
 
-Status: merged. Stage F4 completes the Administration/Utilities block; Stage G (canonical
-workspace integration) and the final review report remain.
+Status: merged. Stage F4 completes the Administration/Utilities block. Stage G canonical
+workspace integration is complete; the final review, regression and blocker report remains.
 
 ### What shipped
 
@@ -2034,5 +2034,75 @@ Recorded provenance (two independent facts):
 
 ### Next stage
 
-Stage G canonical workspace integration, then the final full review, regression and blocker
-report.
+Stage G canonical workspace integration (complete — see below), then the final full review,
+regression and blocker report.
+
+## Stage G — Canonical workspace integration
+
+Status: merged. All Version 26 implementation stages are complete; the final review, regression
+and blocker report remains.
+
+### What shipped
+
+1. **Tools menu reaches the exchange and backup windows**: `Project CSV Import / Export…` opens
+   `exchange` and `Project Backup / Recovery…` opens `backup`, next to the existing Reports entry.
+   The three Stage F/G windows are now reachable from the canonical menu bar rather than only from
+   the left navigation rail or a direct URL.
+2. **Administration menu rewired to real windows**: a new `Permission matrix…` entry opens
+   `administration`; `Categories…` and `Financial period calendars…` open `administration`; and
+   `Recovery…` opens `backup`. The previous "not available in this workspace yet" reasons were
+   removed from those four entries because the surfaces now exist.
+3. **Truthful remaining gaps**: `Users…`, `Security profiles…`, `Currencies…` and
+   `Audit history…` keep an explicit disabled reason because no user directory, security-profile
+   editor, currency administration or audit viewer ships. The existing invariant that every menu
+   entry opens a window, runs a command or states why it is unavailable still holds in both locales,
+   and no entry advertises a window it cannot open.
+4. **Regression pinning**: `workspace-desktop-shell.test.ts` now asserts each canonical entry against
+   its window in English and Persian, keeps the role-gated Administration menu out of a
+   non-administrator's menu bar while leaving the project-level Tools entries visible, and covers the
+   non-administrator path explicitly.
+5. **Browser proof**: the new workspace E2E drives the real preview through headless Chrome and
+   reaches Reports, Import / Export, Backup / Recovery and Administration only through
+   `[data-desktop-menu]` triggers and `[data-desktop-item]` entries — never a direct URL or the rail.
+
+### Honest limits
+
+- Menu entries do not carry a per-entry permission column; the Administration menu is gated as a
+  whole by `project_admin`, and window-level write controls remain the enforcement point.
+- Active-window adaptation of the menu bar is still per window only; entries are not dynamically
+  hidden or renamed per active surface.
+- Several legacy commands still resolve to dialogs or explicit disabled reasons; Stage G wires the
+  Stage F windows, it does not audit every legacy menu command.
+- No Python or API contract changed in this stage.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 863 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Canonical menu invariants | `apps/web/src/workspace-desktop-shell.test.ts` | reports/exchange/backup/administration entries pinned per locale, disabled reasons preserved, administrator gate and every-entry-has-an-effect invariant |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=60370c4 node e2e/workspace-canonical-v26.mjs` | 7/7 scenarios pass, 11 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| Tools menu | scenario 01 of the same suite | Reports/Import-Export/Backup entries enabled, mapped to their windows and opened from the menu bar |
+| Exchange and backup | scenarios 02–03 | real `Import / Export` and `Backup / Recovery` windows with their dataset/snapshot tabs |
+| Administration menu | scenario 04 | permission matrix, categories, periods and recovery reach real windows; Users/Security/Currencies/Audit stay disabled with reasons; no duplicate tab |
+| Window lifecycle | scenario 05 | all four windows survive tab switching with their surfaces mounted |
+| Role gate | scenario 06 | a viewer has no Administration menu but opens read-only backup/reports windows |
+| Layout at 1280×720 | scenario 07 | Persian RTL menu bar and headings, CUBI names only |
+| Evidence bundle | `docs/workspace/evidence/workspace-canonical-v26-2026-11-12/` | `workspace-canonical-v26.json` + 11 screenshots, contract `cubi-workspace-canonical-v26.v1` |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `60370c40d5e93c5268b17e19471d6da1c2aec994` |
+| Evidence commit | `13610e4eeebf1868afccda862a054f9f3f5255f8` |
+| Branch | `feat/v26-stage-g-canonical-workspace` |
+| PR | [#1779](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1779) |
+| Merge commit | `85e24df939a0ea8af6b5977cd561550899bbedcb` |
+| Post-merge CI | 5/5 triggered workflows success on `85e24df` (ConstructionPM CI, Web CI, Client Typecheck, PostgreSQL Sync State Integration, Pages deploy) |
+
+### Next stage
+
+Final full review, regression sweep and blocker report across the whole Version 26 workspace.
