@@ -4,10 +4,11 @@ Source of record: the official Version 26 Help (`p6-professional-help.pdf`, 815 
 CUBI product identity rules. Every stage below records what shipped, the evidence that it runs,
 and what is still honestly unavailable.
 
-Branch: `main` @ `1ba5c9ef` (Stage A merged as `e3ce8ef8`, Stage B as `b241699b`,
-Stage C as `cb9cc002`, Stage D1 as `4d0b5783`, the Activities layout selector as `71ca85cf`,
-Stage D2a as `9cfd4813`, Stage D2b as `f959a7dc`, Stage D2c as `a9cdc362`,
-Stage D3a as `03d61a39`, Stage D3b as `1ba5c9ef`).
+Branch: `main` @ `66e106a` (Stage G merged as `85e24df`, recorded in `66e106a`). Earlier
+merges: Stage A `e3ce8ef8`, Stage B `b241699b`, Stage C `cb9cc002`, Stage D1 `4d0b5783`, the
+Activities layout selector `71ca85cf`, Stage D2a `9cfd4813`, Stage D2b `f959a7dc`,
+Stage D2c `a9cdc362`, Stage D3a `03d61a39`, Stage D3b `1ba5c9ef`; Stage D3c–G merges are
+recorded in their own sections below.
 
 ---
 
@@ -2105,4 +2106,5 @@ Recorded provenance (two independent facts):
 
 ### Next stage
 
-Final full review, regression sweep and blocker report across the whole Version 26 workspace.
+Final full review, regression sweep and blocker report — complete in
+[`CUBI_V26_FINAL_REVIEW.md`](CUBI_V26_FINAL_REVIEW.md).
