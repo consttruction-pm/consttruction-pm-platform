@@ -253,7 +253,7 @@ test("About Us is a first-class bilingual public route with approved founder fac
     assert.match(html, /hreflang="en"/);
     assert.match(html, /hreflang="fa"/);
     assert.match(html, /property="og:locale"/);
-    assert.match(html, /global-assistant-launcher\\.bundle\\.js/);
+    assert.ok(html.includes("global-assistant-launcher.bundle.js"));
     assert.match(html, /Founders and development team|بنیان‌گذاران و تیم توسعه/);
   }
   for (const name of ["Jalal Foroughi Fard", "Javad Foroughi Fard", "Mohammad Foroughi Fard", "Sam Foroughi Fard"]) {
