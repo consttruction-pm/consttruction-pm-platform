@@ -68,13 +68,13 @@ function preferences(overrides: Record<string, unknown> = {}): Record<string, un
 
 const matrix = {
   contract_version: ADMIN_API_VERSION,
-  permissions: ["project.read", "project.write", "form.read", "form.write"],
+  permissions: ["project.read", "project.write", "form.read", "form.create"],
   roles: [
     { role: "viewer", permissions: ["project.read", "form.read"] },
-    { role: "planner", permissions: ["project.read", "form.read", "form.write"] },
+    { role: "planner", permissions: ["project.read", "form.read", "form.create"] },
     {
       role: "project_admin",
-      permissions: ["project.read", "project.write", "form.read", "form.write"],
+      permissions: ["project.read", "project.write", "form.read", "form.create"],
     },
   ],
 };

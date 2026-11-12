@@ -124,7 +124,7 @@ const pageState = `(() => {
       permissions: [...page.querySelectorAll("[data-admin-permission]")].map((row) => row.dataset.adminPermission),
       roles: [...page.querySelectorAll("[data-admin-matrix] thead th")].slice(1).map((cell) => text(cell)),
       adminProjectWrite: text(page.querySelector('[data-admin-permission="project.write"] [data-admin-grant="project_admin"]')),
-      viewerFormWrite: text(page.querySelector('[data-admin-permission="form.write"] [data-admin-grant="viewer"]')),
+      viewerProjectWrite: text(page.querySelector('[data-admin-permission="project.write"] [data-admin-grant="viewer"]')),
     } : null,
     periods: periodForm ? {
       rows: [...page.querySelectorAll("[data-admin-period-row]")].map((row) => ({
@@ -338,7 +338,8 @@ async function main() {
       const adminRole = matrix.body.roles.find((role) => role.role === "project_admin");
       const viewerRole = matrix.body.roles.find((role) => role.role === "viewer");
       assert(adminRole.permissions.includes("project.admin"), "administrator role lost project.admin");
-      assert(!viewerRole.permissions.includes("form.write"), "viewer role unexpectedly writes forms");
+      assert(!viewerRole.permissions.includes("project.write"), "viewer role unexpectedly writes projects");
+      assert(!viewerRole.permissions.includes("form.create"), "viewer role unexpectedly creates forms");
       await capture(page, "01-preferences-and-matrix");
       return { tabs: state.tabs.map((tab) => tab.key), permissions: matrix.body.permissions.length };
     });
@@ -502,7 +503,7 @@ async function main() {
       await openTab(page, "matrix");
       const matrix = await page.evaluate(pageState);
       assert(matrix.matrix?.permissions.length === 14, `viewer matrix rows ${matrix.matrix?.permissions.length}`);
-      assert(matrix.matrix?.viewerFormWrite === "—", `viewer form.write grant ${matrix.matrix?.viewerFormWrite}`);
+      assert(matrix.matrix?.viewerProjectWrite === "—", `viewer project.write grant ${matrix.matrix?.viewerProjectWrite}`);
       await capture(page, "07-viewer-read-only");
       return { preferenceStatus: deniedPreferences.status, createStatus: deniedCreate.status, deleteStatus: deniedDelete.status };
     });
