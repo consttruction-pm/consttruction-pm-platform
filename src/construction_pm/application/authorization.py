@@ -25,6 +25,14 @@ class Permission(str, Enum):
     FORM_PUBLISH = "form.publish"
     FORM_EXPORT = "form.export"
     FORM_LIBRARY_ADMIN = "form.library.admin"
+    # Knowledge base and assistant capabilities are separate grants. Reading
+    # approved knowledge is not permission to contribute, review or publish it,
+    # and assistant action approval is never implied by project write access.
+    KNOWLEDGE_READ = "knowledge.read"
+    KNOWLEDGE_CONTRIBUTE = "knowledge.contribute"
+    KNOWLEDGE_REVIEW = "knowledge.review"
+    KNOWLEDGE_PUBLISH = "knowledge.publish"
+    ASSISTANT_ACTION = "assistant.action"
 
 
 @dataclass(frozen=True)
@@ -72,7 +80,13 @@ class RoleBasedAuthorizationPolicy:
 def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
     """Return the authoritative role-to-permission grants of the default policy."""
     return {
-        "viewer": frozenset({Permission.PROJECT_READ, Permission.FORM_READ}),
+        "viewer": frozenset(
+            {
+                Permission.PROJECT_READ,
+                Permission.FORM_READ,
+                Permission.KNOWLEDGE_READ,
+            }
+        ),
         "planner": frozenset(
             {
                 Permission.PROJECT_READ,
@@ -85,6 +99,9 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.FORM_SUBMIT,
                 Permission.FORM_REVIEW,
                 Permission.FORM_EXPORT,
+                Permission.KNOWLEDGE_READ,
+                Permission.KNOWLEDGE_CONTRIBUTE,
+                Permission.ASSISTANT_ACTION,
             }
         ),
         "project_admin": frozenset(
@@ -103,6 +120,11 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.FORM_PUBLISH,
                 Permission.FORM_EXPORT,
                 Permission.FORM_LIBRARY_ADMIN,
+                Permission.KNOWLEDGE_READ,
+                Permission.KNOWLEDGE_CONTRIBUTE,
+                Permission.KNOWLEDGE_REVIEW,
+                Permission.KNOWLEDGE_PUBLISH,
+                Permission.ASSISTANT_ACTION,
             }
         ),
     }

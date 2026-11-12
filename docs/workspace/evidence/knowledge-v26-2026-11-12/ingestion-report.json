@@ -1,0 +1,1047 @@
+[
+  {
+    "source_id": "p6-26-help",
+    "discovered": 988,
+    "newly_discovered": 0,
+    "processed": 0,
+    "converted": 0,
+    "skipped": 0,
+    "failed": 0,
+    "failures": [],
+    "coverage": [
+      {
+        "area": "Workspace Basics",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "workspace basics"
+        ]
+      },
+      {
+        "area": "Working with Toolbars and Menus",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "working with toolbars and menus",
+          "reset toolbars and menus to factory defaults"
+        ]
+      },
+      {
+        "area": "Setting User Preferences",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "setting user preferences",
+          "define user preferences"
+        ]
+      },
+      {
+        "area": "Working with Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "working with projects"
+        ]
+      },
+      {
+        "area": "Creating Projects",
+        "covered": true,
+        "match_count": 10,
+        "examples": [
+          "create a project",
+          "create project codes",
+          "create project code values",
+          "create project-level activity codes",
+          "create project-level activity code values"
+        ]
+      },
+      {
+        "area": "Working with EPS",
+        "covered": true,
+        "match_count": 29,
+        "examples": [
+          "setting up and starting to work with the eps",
+          "set up the eps structure",
+          "add a project to the eps hierarchy",
+          "show or hide details in the eps hierarchy",
+          "delete an eps node or project"
+        ]
+      },
+      {
+        "area": "Developing Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "developing projects"
+        ]
+      },
+      {
+        "area": "Work Breakdown Structure",
+        "covered": true,
+        "match_count": 34,
+        "examples": [
+          "defining the wbs",
+          "work breakdown structure",
+          "using a wbs for top-down planning",
+          "using weighted milestones in the work breakdown structure",
+          "wbs status types"
+        ]
+      },
+      {
+        "area": "Activities",
+        "covered": true,
+        "match_count": 188,
+        "examples": [
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "assign activity codes and values to activities",
+          "change activity code value assignments"
+        ]
+      },
+      {
+        "area": "Linking Activities with Relationships",
+        "covered": true,
+        "match_count": 23,
+        "examples": [
+          "linking activities with relationships",
+          "relationships",
+          "adding relationships between activities",
+          "add predecessor relationships",
+          "add successor relationships"
+        ]
+      },
+      {
+        "area": "Calendars",
+        "covered": true,
+        "match_count": 29,
+        "examples": [
+          "defining calendars",
+          "calendars",
+          "defining default hours per time period in calendars",
+          "project calendars",
+          "create a project calendar"
+        ]
+      },
+      {
+        "area": "Resources",
+        "covered": true,
+        "match_count": 136,
+        "examples": [
+          "load resource summary data at startup",
+          "select calculation options for resource and role assignments",
+          "defining project, resource, and activity codes",
+          "resource codes",
+          "resource codes"
+        ]
+      },
+      {
+        "area": "Roles",
+        "covered": true,
+        "match_count": 34,
+        "examples": [
+          "select calculation options for resource and role assignments",
+          "role codes",
+          "role codes",
+          "create role codes",
+          "create role code values"
+        ]
+      },
+      {
+        "area": "Managing Projects",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Creating Baselines",
+        "covered": true,
+        "match_count": 16,
+        "examples": [
+          "creating baselines",
+          "baselines",
+          "create a baseline",
+          "create a baseline type",
+          "assign a baseline type"
+        ]
+      },
+      {
+        "area": "Updating Projects",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "updating projects - future period bucket planning faq",
+          "updating projects"
+        ]
+      },
+      {
+        "area": "Scheduling Projects",
+        "covered": true,
+        "match_count": 10,
+        "examples": [
+          "updating the schedule",
+          "scheduling projects",
+          "scheduling projects",
+          "analyzing the schedule using multiple critical float paths",
+          "schedule a project"
+        ]
+      },
+      {
+        "area": "Checking Schedules",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "checking schedules",
+          "checking schedules"
+        ]
+      },
+      {
+        "area": "Leveling Resources",
+        "covered": true,
+        "match_count": 7,
+        "examples": [
+          "change the project leveling priority",
+          "leveling resources",
+          "leveling resources",
+          "leveling priority definitions",
+          "specify leveling priorities"
+        ]
+      },
+      {
+        "area": "Customizing Activity Layouts",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "customizing activity layouts",
+          "create a new activity layout",
+          "publish activity layouts"
+        ]
+      },
+      {
+        "area": "Activity Table",
+        "covered": true,
+        "match_count": 11,
+        "examples": [
+          "add activities in the activity table",
+          "copy and paste activities in the activity table",
+          "cut and paste activities in the activity table",
+          "renumber activity ids in the activity table",
+          "view activity relationships in the activity table"
+        ]
+      },
+      {
+        "area": "Gantt Chart",
+        "covered": true,
+        "match_count": 48,
+        "examples": [
+          "create relationships in the gantt chart",
+          "edit relationships in the gantt chart",
+          "delete relationships in the gantt chart",
+          "view activity relationships in the gantt chart",
+          "gantt chart"
+        ]
+      },
+      {
+        "area": "Grouping, Filtering, and Summarizing Data",
+        "covered": true,
+        "match_count": 37,
+        "examples": [
+          "select startup filters",
+          "change a gantt chart bar's filter - under gantt chart",
+          "filter activities according to the resource usage profile",
+          "filter activities according to the resource usage spreadsheet",
+          "filter a tracking layout"
+        ]
+      },
+      {
+        "area": "Reports",
+        "covered": true,
+        "match_count": 8,
+        "examples": [
+          "reports toolbar",
+          "specify how resources report hours",
+          "print budget reports",
+          "printing a reflection difference report",
+          "publish reports on a project website"
+        ]
+      },
+      {
+        "area": "Project Management",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Project Codes",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "project codes",
+          "project codes and values",
+          "create project codes",
+          "create project code values",
+          "assign project codes and values"
+        ]
+      },
+      {
+        "area": "Activity Codes",
+        "covered": true,
+        "match_count": 40,
+        "examples": [
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "assign activity codes and values to activities",
+          "change activity code value assignments"
+        ]
+      },
+      {
+        "area": "User Defined Fields",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "user-defined fields",
+          "choosing data types for user-defined fields",
+          "indicator user-defined fields"
+        ]
+      },
+      {
+        "area": "Global Change",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "global change",
+          "global change",
+          "global change conditions",
+          "rearrange global change statements",
+          "preview global change in a report"
+        ]
+      },
+      {
+        "area": "Earned Value",
+        "covered": true,
+        "match_count": 4,
+        "examples": [
+          "define earned value settings for a specific work breakdown structure element",
+          "earned value",
+          "calculating earned value using resource curves or manual future period buckets",
+          "define default earned value settings (p6 professional only)"
+        ]
+      },
+      {
+        "area": "Project Progress",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "update progress for all activities",
+          "update progress for individual activities",
+          "progress spotlight",
+          "update progress for spotlighted activities",
+          "update progress for the project"
+        ]
+      }
+    ],
+    "started_at": "2026-11-12T12:41:38.104272+00:00",
+    "finished_at": "2026-11-12T12:41:38.628815+00:00"
+  },
+  {
+    "source_id": "p6-26-user-guide",
+    "discovered": 527,
+    "newly_discovered": 0,
+    "processed": 0,
+    "converted": 0,
+    "skipped": 0,
+    "failed": 0,
+    "failures": [],
+    "coverage": [
+      {
+        "area": "Workspace Basics",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "workspace basics"
+        ]
+      },
+      {
+        "area": "Working with Toolbars and Menus",
+        "covered": false,
+        "match_count": 0,
+        "examples": []
+      },
+      {
+        "area": "Setting User Preferences",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "setting user preferences",
+          "define user preferences"
+        ]
+      },
+      {
+        "area": "Working with Projects",
+        "covered": false,
+        "match_count": 0,
+        "examples": []
+      },
+      {
+        "area": "Creating Projects",
+        "covered": true,
+        "match_count": 4,
+        "examples": [
+          "create project codes",
+          "create project code values",
+          "create project-level activity codes",
+          "create project-level activity code values"
+        ]
+      },
+      {
+        "area": "Working with EPS",
+        "covered": true,
+        "match_count": 18,
+        "examples": [
+          "set up the eps structure",
+          "add a project to the eps hierarchy",
+          "show or hide details in the eps hierarchy",
+          "use status for filtering projects in the eps",
+          "delete an eps node or project"
+        ]
+      },
+      {
+        "area": "Developing Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "developing projects"
+        ]
+      },
+      {
+        "area": "Work Breakdown Structure",
+        "covered": true,
+        "match_count": 18,
+        "examples": [
+          "assign an obs element to a wbs element",
+          "defining the wbs",
+          "work breakdown structure",
+          "using a wbs for top-down planning",
+          "using weighted milestones in the work breakdown structure"
+        ]
+      },
+      {
+        "area": "Activities",
+        "covered": true,
+        "match_count": 109,
+        "examples": [
+          "assign roles to activities",
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "create global activity codes"
+        ]
+      },
+      {
+        "area": "Linking Activities with Relationships",
+        "covered": true,
+        "match_count": 11,
+        "examples": [
+          "linking activities with relationships",
+          "relationships",
+          "add predecessor relationships",
+          "add successor relationships",
+          "create relationships in the activity network"
+        ]
+      },
+      {
+        "area": "Calendars",
+        "covered": true,
+        "match_count": 20,
+        "examples": [
+          "defining calendars",
+          "calendars",
+          "defining default hours per time period in calendars",
+          "project calendars",
+          "edit a project calendar"
+        ]
+      },
+      {
+        "area": "Resources",
+        "covered": true,
+        "match_count": 67,
+        "examples": [
+          "set resource analysis options",
+          "load resource summary data at startup",
+          "select calculation options for resource and role assignments",
+          "defining resources and roles",
+          "resources"
+        ]
+      },
+      {
+        "area": "Roles",
+        "covered": true,
+        "match_count": 19,
+        "examples": [
+          "your role in the organization",
+          "select calculation options for resource and role assignments",
+          "defining resources and roles",
+          "roles",
+          "roles"
+        ]
+      },
+      {
+        "area": "Managing Projects",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "planning, controlling, and managing projects",
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Creating Baselines",
+        "covered": true,
+        "match_count": 13,
+        "examples": [
+          "creating baselines",
+          "baselines",
+          "create a baseline",
+          "assign baselines to projects",
+          "assign the baseline to use for summarization or earned value"
+        ]
+      },
+      {
+        "area": "Updating Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "updating projects"
+        ]
+      },
+      {
+        "area": "Scheduling Projects",
+        "covered": true,
+        "match_count": 11,
+        "examples": [
+          "comparing current and baseline schedules",
+          "updating the schedule",
+          "scheduling projects",
+          "scheduling projects",
+          "schedule a project"
+        ]
+      },
+      {
+        "area": "Checking Schedules",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "checking schedules",
+          "checking schedules"
+        ]
+      },
+      {
+        "area": "Leveling Resources",
+        "covered": true,
+        "match_count": 5,
+        "examples": [
+          "change the project leveling priority",
+          "leveling resources",
+          "leveling resources",
+          "leveling priority definitions",
+          "specify leveling priorities"
+        ]
+      },
+      {
+        "area": "Customizing Activity Layouts",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "customizing activity layouts",
+          "create a new activity layout",
+          "publish activity layouts"
+        ]
+      },
+      {
+        "area": "Activity Table",
+        "covered": true,
+        "match_count": 10,
+        "examples": [
+          "add activities in the activity table",
+          "copy and paste activities in the activity table",
+          "renumber activity ids in the activity table",
+          "view activity relationships in the activity table",
+          "activity table"
+        ]
+      },
+      {
+        "area": "Gantt Chart",
+        "covered": true,
+        "match_count": 37,
+        "examples": [
+          "view activity relationships in the gantt chart",
+          "gantt chart",
+          "the gantt chart",
+          "display the gantt chart",
+          "move around a gantt chart"
+        ]
+      },
+      {
+        "area": "Grouping, Filtering, and Summarizing Data",
+        "covered": true,
+        "match_count": 27,
+        "examples": [
+          "select startup filters",
+          "use status for filtering projects in the eps",
+          "assign the baseline to use for summarization or earned value",
+          "change a gantt chart bar's filter - under gantt chart",
+          "grouping, sorting, and filtering tracking layouts"
+        ]
+      },
+      {
+        "area": "Reports",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "preview global change in a report",
+          "publish reports on a project website"
+        ]
+      },
+      {
+        "area": "Project Management",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "planning, controlling, and managing projects",
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Project Codes",
+        "covered": true,
+        "match_count": 5,
+        "examples": [
+          "project codes",
+          "project codes and values",
+          "create project codes",
+          "create project code values",
+          "assign project codes and values"
+        ]
+      },
+      {
+        "area": "Activity Codes",
+        "covered": true,
+        "match_count": 13,
+        "examples": [
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "create global activity codes",
+          "create global activity code values"
+        ]
+      },
+      {
+        "area": "User Defined Fields",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "user-defined fields",
+          "choosing data types for user-defined fields",
+          "indicator user-defined fields"
+        ]
+      },
+      {
+        "area": "Global Change",
+        "covered": true,
+        "match_count": 6,
+        "examples": [
+          "global change",
+          "global change",
+          "global change conditions",
+          "rearrange global change statements",
+          "preview global change in a report"
+        ]
+      },
+      {
+        "area": "Earned Value",
+        "covered": true,
+        "match_count": 4,
+        "examples": [
+          "define earned value settings for a specific work breakdown structure element",
+          "assign the baseline to use for summarization or earned value",
+          "earned value",
+          "calculating earned value using resource curves or manual future period buckets"
+        ]
+      },
+      {
+        "area": "Project Progress",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "update progress for all activities",
+          "update progress for individual activities",
+          "progress spotlight",
+          "update progress for spotlighted activities",
+          "estimate progress automatically"
+        ]
+      }
+    ],
+    "started_at": "2026-11-12T12:41:38.629867+00:00",
+    "finished_at": "2026-11-12T12:41:38.915695+00:00"
+  },
+  {
+    "source_id": "p6-26-html-help",
+    "discovered": 982,
+    "newly_discovered": 0,
+    "processed": 0,
+    "converted": 0,
+    "skipped": 0,
+    "failed": 0,
+    "failures": [],
+    "coverage": [
+      {
+        "area": "Workspace Basics",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "workspace basics"
+        ]
+      },
+      {
+        "area": "Working with Toolbars and Menus",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "working with toolbars and menus",
+          "reset toolbars and menus to factory defaults"
+        ]
+      },
+      {
+        "area": "Setting User Preferences",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "setting user preferences",
+          "define user preferences"
+        ]
+      },
+      {
+        "area": "Working with Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "working with projects"
+        ]
+      },
+      {
+        "area": "Creating Projects",
+        "covered": true,
+        "match_count": 10,
+        "examples": [
+          "create a project",
+          "create project codes",
+          "create project code values",
+          "create project-level activity codes",
+          "create project-level activity code values"
+        ]
+      },
+      {
+        "area": "Working with EPS",
+        "covered": true,
+        "match_count": 29,
+        "examples": [
+          "setting up and starting to work with the eps",
+          "set up the eps structure",
+          "add a project to the eps hierarchy",
+          "show or hide details in the eps hierarchy",
+          "delete an eps node or project"
+        ]
+      },
+      {
+        "area": "Developing Projects",
+        "covered": true,
+        "match_count": 1,
+        "examples": [
+          "developing projects"
+        ]
+      },
+      {
+        "area": "Work Breakdown Structure",
+        "covered": true,
+        "match_count": 34,
+        "examples": [
+          "defining the wbs",
+          "work breakdown structure",
+          "using a wbs for top-down planning",
+          "using weighted milestones in the work breakdown structure",
+          "wbs status types"
+        ]
+      },
+      {
+        "area": "Activities",
+        "covered": true,
+        "match_count": 187,
+        "examples": [
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "assign activity codes and values to activities",
+          "change activity code value assignments"
+        ]
+      },
+      {
+        "area": "Linking Activities with Relationships",
+        "covered": true,
+        "match_count": 23,
+        "examples": [
+          "linking activities with relationships",
+          "relationships",
+          "adding relationships between activities",
+          "add predecessor relationships",
+          "add successor relationships"
+        ]
+      },
+      {
+        "area": "Calendars",
+        "covered": true,
+        "match_count": 29,
+        "examples": [
+          "defining calendars",
+          "calendars",
+          "defining default hours per time period in calendars",
+          "project calendars",
+          "create a project calendar"
+        ]
+      },
+      {
+        "area": "Resources",
+        "covered": true,
+        "match_count": 136,
+        "examples": [
+          "load resource summary data at startup",
+          "select calculation options for resource and role assignments",
+          "defining project, resource, and activity codes",
+          "resource codes",
+          "resource codes"
+        ]
+      },
+      {
+        "area": "Roles",
+        "covered": true,
+        "match_count": 34,
+        "examples": [
+          "select calculation options for resource and role assignments",
+          "role codes",
+          "role codes",
+          "create role codes",
+          "create role code values"
+        ]
+      },
+      {
+        "area": "Managing Projects",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Creating Baselines",
+        "covered": true,
+        "match_count": 16,
+        "examples": [
+          "creating baselines",
+          "baselines",
+          "create a baseline",
+          "create a baseline type",
+          "assign a baseline type"
+        ]
+      },
+      {
+        "area": "Updating Projects",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "updating projects - future period bucket planning faq",
+          "updating projects"
+        ]
+      },
+      {
+        "area": "Scheduling Projects",
+        "covered": true,
+        "match_count": 10,
+        "examples": [
+          "updating the schedule",
+          "scheduling projects",
+          "scheduling projects",
+          "analyzing the schedule using multiple critical float paths",
+          "schedule a project"
+        ]
+      },
+      {
+        "area": "Checking Schedules",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "checking schedules",
+          "checking schedules"
+        ]
+      },
+      {
+        "area": "Leveling Resources",
+        "covered": true,
+        "match_count": 7,
+        "examples": [
+          "change the project leveling priority",
+          "leveling resources",
+          "leveling resources",
+          "leveling priority definitions",
+          "specify leveling priorities"
+        ]
+      },
+      {
+        "area": "Customizing Activity Layouts",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "customizing activity layouts",
+          "create a new activity layout",
+          "publish activity layouts"
+        ]
+      },
+      {
+        "area": "Activity Table",
+        "covered": true,
+        "match_count": 11,
+        "examples": [
+          "add activities in the activity table",
+          "copy and paste activities in the activity table",
+          "cut and paste activities in the activity table",
+          "renumber activity ids in the activity table",
+          "view activity relationships in the activity table"
+        ]
+      },
+      {
+        "area": "Gantt Chart",
+        "covered": true,
+        "match_count": 48,
+        "examples": [
+          "create relationships in the gantt chart",
+          "edit relationships in the gantt chart",
+          "delete relationships in the gantt chart",
+          "view activity relationships in the gantt chart",
+          "gantt chart"
+        ]
+      },
+      {
+        "area": "Grouping, Filtering, and Summarizing Data",
+        "covered": true,
+        "match_count": 37,
+        "examples": [
+          "select startup filters",
+          "change a gantt chart bar's filter - under gantt chart",
+          "filter activities according to the resource usage profile",
+          "filter activities according to the resource usage spreadsheet",
+          "filter a tracking layout"
+        ]
+      },
+      {
+        "area": "Reports",
+        "covered": true,
+        "match_count": 8,
+        "examples": [
+          "reports toolbar",
+          "specify how resources report hours",
+          "print budget reports",
+          "printing a reflection difference report",
+          "publish reports on a project website"
+        ]
+      },
+      {
+        "area": "Project Management",
+        "covered": true,
+        "match_count": 2,
+        "examples": [
+          "managing projects using the eps",
+          "managing projects"
+        ]
+      },
+      {
+        "area": "Project Codes",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "project codes",
+          "project codes and values",
+          "create project codes",
+          "create project code values",
+          "assign project codes and values"
+        ]
+      },
+      {
+        "area": "Activity Codes",
+        "covered": true,
+        "match_count": 40,
+        "examples": [
+          "defining project, resource, and activity codes",
+          "activity codes",
+          "activity codes and values",
+          "assign activity codes and values to activities",
+          "change activity code value assignments"
+        ]
+      },
+      {
+        "area": "User Defined Fields",
+        "covered": true,
+        "match_count": 3,
+        "examples": [
+          "user-defined fields",
+          "choosing data types for user-defined fields",
+          "indicator user-defined fields"
+        ]
+      },
+      {
+        "area": "Global Change",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "global change",
+          "global change",
+          "global change conditions",
+          "rearrange global change statements",
+          "preview global change in a report"
+        ]
+      },
+      {
+        "area": "Earned Value",
+        "covered": true,
+        "match_count": 4,
+        "examples": [
+          "define earned value settings for a specific work breakdown structure element",
+          "earned value",
+          "calculating earned value using resource curves or manual future period buckets",
+          "define default earned value settings (p6 professional only)"
+        ]
+      },
+      {
+        "area": "Project Progress",
+        "covered": true,
+        "match_count": 9,
+        "examples": [
+          "update progress for all activities",
+          "update progress for individual activities",
+          "progress spotlight",
+          "update progress for spotlighted activities",
+          "update progress for the project"
+        ]
+      }
+    ],
+    "started_at": "2026-11-12T12:41:38.916255+00:00",
+    "finished_at": "2026-11-12T12:41:39.432190+00:00"
+  }
+]
