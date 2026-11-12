@@ -594,11 +594,38 @@ def test_card_and_search_accept_a_locale(middleware, store, card_factory, publis
         query="locale=ru",
     )
     assert status.startswith("200")
-    assert payload["title"] == "Создание проекта"
+    assert payload["title"] == "Create a Project"
     assert payload["requested_locale"] == "ru"
     assert payload["fallback_used"] is True
+    assert payload["content_language"] == "en"
+    assert payload["translation_status"] == "published"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/review",
+        body={"accept": True},
+    )
+    assert status.startswith("200"), payload
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/publish",
+        body={},
+    )
+    assert status.startswith("200"), payload
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/cards/{card.card_id}",
+        session="viewer-session",
+        query="locale=ru",
+    )
+    assert status.startswith("200")
+    assert payload["title"] == "Создание проекта"
+    assert payload["fallback_used"] is False
     assert payload["content_language"] == "ru"
-    assert payload["translation_status"] == "translated"
 
     status, payload = call(
         middleware,

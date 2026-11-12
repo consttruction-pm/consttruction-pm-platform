@@ -34,6 +34,7 @@ from .model import (
     CardStatus,
     CardType,
     KnowledgeError,
+    KnowledgeScope,
     LanguageContext,
     ReviewStatus,
     SearchScope,
@@ -45,12 +46,14 @@ from .search import SearchFilters, search
 from .store import KnowledgeStore
 from .translations import (
     TranslationError,
+    answerable_record,
     build_translation,
     localized_card_payload,
     localized_record,
     publish_translation,
     retire_translation,
     review_translation,
+    source_binding_current,
     source_record,
     translation_coverage,
 )
@@ -195,22 +198,25 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         if (
             card.publication_status is not CardStatus.PUBLISHED
             and not self._allowed(principal, Permission.KNOWLEDGE_REVIEW)
         ):
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_PUBLISHED")
-        resolved = canonical_locale(locale, default=DEFAULT_LOCALE) if locale else DEFAULT_LOCALE
-        if resolved is None:
-            raise KnowledgeAPIError("KNOWLEDGE_LOCALE_UNSUPPORTED")
-        record = localized_record(self.store, card, resolved)
+        if locale is None:
+            resolved = DEFAULT_LOCALE
+        else:
+            resolved = canonical_locale(locale, default=None)
+            if resolved is None:
+                raise KnowledgeAPIError("KNOWLEDGE_LOCALE_UNSUPPORTED")
+        record, fallback = answerable_record(self.store, card, resolved)
         payload = localized_card_payload(card, record)
         payload.update(
             {
                 "requested_locale": resolved,
-                "content_language": record.locale if record.available() else SOURCE_LANGUAGE,
-                "fallback_used": resolved != DEFAULT_LOCALE
-                and not (record.available() and record.approved_for_answer()),
+                "content_language": record.locale if not fallback else SOURCE_LANGUAGE,
+                "fallback_used": fallback,
                 "available_locales": self._available_locales(card),
                 "language_context": self._card_language_context(
                     card, record, resolved
@@ -267,10 +273,11 @@ class KnowledgeAPI:
         self, principal: AssistantPrincipal, card_id: str
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_READ)
-        if self.store.get_card(card_id) is None:
-            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
-        records = {record.locale: record for record in self.store.list_translations(card_id)}
         card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
+        records = {record.locale: record for record in self.store.list_translations(card_id)}
         rows = []
         for locale in locale_registry():
             code = str(locale["locale"])
@@ -295,6 +302,7 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         resolved = require_locale(locale)
         if resolved == SOURCE_LANGUAGE:
             raise TranslationError("KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_NOT_EDITABLE")
@@ -345,6 +353,10 @@ class KnowledgeAPI:
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_REVIEW)
         resolved = require_locale(locale)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
@@ -384,6 +396,7 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
@@ -419,6 +432,10 @@ class KnowledgeAPI:
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_PUBLISH)
         resolved = require_locale(locale)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
@@ -450,6 +467,7 @@ class KnowledgeAPI:
         return retired.as_dict()
 
     def _available_locales(self, card) -> list[dict[str, object]]:
+        answerable_card = card.publication_status is CardStatus.PUBLISHED
         rows: list[dict[str, object]] = []
         for definition in locale_registry():
             locale = str(definition["locale"])
@@ -459,7 +477,7 @@ class KnowledgeAPI:
                         "locale": locale,
                         "translation_status": source_record(card).translation_status.value,
                         "review_status": source_record(card).review_status.value,
-                        "available": True,
+                        "available": answerable_card,
                         "source": True,
                     }
                 )
@@ -479,7 +497,12 @@ class KnowledgeAPI:
                     "published_language_version": (
                         record.published_language_version if record is not None else None
                     ),
-                    "available": bool(record is not None and record.available()),
+                    "available": bool(
+                        answerable_card
+                        and record is not None
+                        and record.approved_for_answer()
+                        and source_binding_current(card, record)
+                    ),
                     "source": False,
                 }
             )
@@ -510,6 +533,7 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         updated = review_card(card, reviewer=principal.user_id, accept=accept)
         self.store.save_card(updated)
         self.store.record_card_event(
@@ -527,6 +551,7 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         published = publish_card(
             card, reviewer=principal.user_id, published_at=self._clock()
         )
@@ -546,6 +571,7 @@ class KnowledgeAPI:
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
         retired = retire_card(card, reviewer=principal.user_id)
         self.store.save_card(retired)
         self.store.record_card_event(
@@ -656,6 +682,9 @@ class KnowledgeAPI:
     def memory(
         self, principal: AssistantPrincipal, *, project_id: str | None = None
     ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        if project_id is not None:
+            self._guard(principal, project_id, Permission.KNOWLEDGE_READ)
         return {"entries": list(self.assistant.list_memory(principal, project_id=project_id))}
 
     def set_memory(
@@ -749,6 +778,15 @@ class KnowledgeAPI:
     ) -> None:
         if self._project_guard is not None:
             self._project_guard(principal, project_id, permission)
+
+    @staticmethod
+    def _require_card_scope(principal: AssistantPrincipal, card) -> None:
+        """Central corpus is shared; a project card belongs to one tenant only."""
+
+        if card.scope is KnowledgeScope.CENTRAL:
+            return
+        if not card.tenant_id or card.tenant_id != principal.tenant_id:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
 
     def _audit(
         self,

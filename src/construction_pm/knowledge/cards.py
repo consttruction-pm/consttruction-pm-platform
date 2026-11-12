@@ -200,17 +200,26 @@ def review_card(card: KnowledgeCard, *, reviewer: str, accept: bool = True) -> K
 
 
 def publish_card(card: KnowledgeCard, *, reviewer: str, published_at: datetime) -> KnowledgeCard:
+    """Publish a card that a human reviewer has already validated.
+
+    Publication only records the publication fact. It never grants validation:
+    the card must already be ``VALIDATED`` with a recorded reviewer, so a
+    publisher cannot approve their own unreviewed contribution by publishing it.
+    """
+
     if not isinstance(reviewer, str) or not reviewer.strip():
         raise KnowledgeError("KNOWLEDGE_CARD_REVIEWER_REQUIRED")
     if published_at.tzinfo is None:
         raise KnowledgeError("KNOWLEDGE_CARD_PUBLICATION_TIME_REQUIRED")
     if card.publication_status is CardStatus.PUBLISHED:
         raise KnowledgeError("KNOWLEDGE_CARD_ALREADY_PUBLISHED")
+    if card.publication_status is not CardStatus.DRAFT:
+        raise KnowledgeError("KNOWLEDGE_CARD_NOT_PUBLISHABLE")
+    if card.validation_status is not CardStatus.VALIDATED or not card.reviewer:
+        raise KnowledgeError("KNOWLEDGE_CARD_REVIEW_REQUIRED")
     candidate = replace(
         card,
-        validation_status=CardStatus.VALIDATED,
         publication_status=CardStatus.PUBLISHED,
-        reviewer=reviewer.strip(),
         published_at=published_at,
         revision=card.revision + 1,
     )
@@ -219,8 +228,12 @@ def publish_card(card: KnowledgeCard, *, reviewer: str, published_at: datetime) 
 
 
 def retire_card(card: KnowledgeCard, *, reviewer: str) -> KnowledgeCard:
-    if not reviewer.strip():
+    if not isinstance(reviewer, str) or not reviewer.strip():
         raise KnowledgeError("KNOWLEDGE_CARD_REVIEWER_REQUIRED")
+    if card.publication_status is CardStatus.RETIRED:
+        raise KnowledgeError("KNOWLEDGE_CARD_ALREADY_RETIRED")
+    if card.publication_status is not CardStatus.PUBLISHED:
+        raise KnowledgeError("KNOWLEDGE_CARD_NOT_PUBLISHED")
     retired = replace(
         card,
         publication_status=CardStatus.RETIRED,

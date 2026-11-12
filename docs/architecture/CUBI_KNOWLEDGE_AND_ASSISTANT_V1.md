@@ -96,9 +96,13 @@ Ten card types are supported: training, operation, configuration, concept,
 workflow, troubleshooting, limitation, relationship, decision and reference.
 Generation is rule-based and deterministic. A card always starts as
 `DRAFT`; review moves it to `VALIDATED`, publication requires an authorized
-reviewer, and retirement preserves history. Revisions and card events are kept.
-Thin source pages produce an explicit "no body content" purpose and limitation
-rather than a fabricated procedure.
+reviewer and a completed review (publication never grants validation itself),
+and retirement requires a published card and preserves history. Revisions and
+card events are kept. Re-ingestion never downgrades a reviewed card: a changed
+source is recorded as a blocked regeneration for human review instead. Thin
+source pages produce an explicit "no body content" purpose and limitation
+rather than a fabricated procedure. Card reads are tenant-checked; the central
+corpus is shared, a project card is not.
 
 ### 5.1 Ten locales, nine working languages
 
@@ -138,6 +142,11 @@ Rules enforced by the model and the service layer:
 - approval requires a named human reviewer and sets `reviewed_at`;
 - publication requires the source card to be published, the locale record to be
   approved and not machine output, and records `published_language_version`;
+  it also binds the record to the source card hash and revision, so a later
+  source change falls back to English until the locale is republished.
+  `translation_source: machine` forces the machine flag even if the request
+  claims otherwise, and an unknown `?locale=` tag is rejected rather than
+  silently replaced;
 - publishing one locale never touches another. Russian can be published while
   Persian remains `translated`;
 - editing an approved translation creates a new version and resets review to
@@ -378,10 +387,10 @@ middleware, the store, the API and the workflow engine.
 
 ## 11. Verification and evidence
 
-- Knowledge tests: `python -m pytest -q tests/knowledge` → 191 passed on the
-  runtime-mount branch (182 at merge).
-- Full Python suite: 3,836 passed, 117 skipped, 3 warnings on the
-  runtime-mount branch (3,778 at merge).
+- Knowledge tests: `python -m pytest -q tests/knowledge` → 205 passed on the
+  publication-integrity branch.
+- Full Python suite: 3,879 passed, 119 skipped, 3 warnings on the
+  publication-integrity branch (3,778 at merge).
 - Mounting evidence: the preview composition serves `/api/knowledge*` beside
   the real lifecycle app, and its ten-step creation persists WBS, activities,
   relationships, calendar, schedule settings and the published snapshot through

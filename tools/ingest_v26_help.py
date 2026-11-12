@@ -93,7 +93,10 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8"
             )
         failures = sum(report["failed"] for report in reports)
-        return 1 if failures else 0
+        outstanding = sum(
+            len(source["unconverted_topics"]) for source in coverage["sources"]
+        )
+        return 1 if failures or outstanding else 0
     finally:
         store.close()
 

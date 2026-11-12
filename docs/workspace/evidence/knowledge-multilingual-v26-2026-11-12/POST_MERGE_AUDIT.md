@@ -37,7 +37,33 @@ A claim is only `VERIFIED` when a test or a live probe on the merged tree shows 
 | Human review/publication of real cards | PARTIAL | the evidence database is 100% `draft`; only the disposable smoke copy publishes one Russian locale |
 | Supplementary 815-page PDF | BLOCKED_EXTERNAL | not supplied; recorded MISSING/VERIFY, nothing extracted |
 | Browser-level acceptance of the integrated product | NOT RUN | unit/API acceptance only; no browser evidence claimed |
-| Knowledge HTTP middleware mounted in a composed application | NOT_IMPLEMENTED at `835c1fc` | only tests/tools constructed it; addressed by the follow-up runtime-mount branch, not by this audit |
+| Knowledge HTTP middleware mounted in a composed application | VERIFIED at `51a83f3` (PR #1813) | the preview composition mounts it and `tests/knowledge/test_runtime_mount.py` serves knowledge beside the real lifecycle app, including a full ten-step creation |
+
+## Independent re-audit (2026-11-12)
+
+Two read-only audits ran against the merged tree: an ingestion/lifecycle audit
+and a security/isolation audit. They reproduced the following defects, now
+addressed on `fix/knowledge-publication-integrity-2026-11-12` unless marked
+otherwise.
+
+| Defect | Verdict | Resolution |
+|--------|---------|------------|
+| A rejected, retired or never-reviewed card could be published; publication overwrote the reviewer with the publisher | Fixed | `publish_card` requires a `VALIDATED` card with a recorded reviewer and keeps that reviewer; retirement requires a published card and cannot repeat (`test_publication_integrity.py`) |
+| `--force` re-ingestion overwrote a published card back to draft, dropping reviewer and publication time | Fixed | ingestion protects non-draft cards, records a `regeneration_blocked` card event and `topic_regeneration_blocked` audit row, and leaves the changed source line pending review (`test_force_reingestion_never_unpublishes_a_reviewed_card`) |
+| `get_card?locale=` served rejected/unapproved localized text | Fixed | card reads use `answerable_record`; unapproved or stale locales return the English source with `fallback_used=true` |
+| A published locale kept answering after the English source changed | Fixed | publication binds `source_card_hash`/`source_card_revision`; a later source change falls back until republished (legacy records without a binding keep working) |
+| Retired cards still advertised answerable locales | Fixed | `available_locales[].available` requires a published card, an approved record and a current source binding |
+| An unsupported `?locale=` was silently replaced with English | Fixed | the card route rejects unknown tags with `KNOWLEDGE_LOCALE_UNSUPPORTED` |
+| A client could hide machine provenance by sending `machine_translated=false` | Fixed | `translation_source=machine` forces the machine flag, so approval/publication stays blocked |
+| Project-scoped cards had no tenant predicate; memory reads skipped the project guard; a negative `limit` bypassed the row cap | Fixed | tenant check on every card operation, guard on memory reads, `LIMIT` clamped to 0..1000 |
+| Duplicate merge audit omitted the second official URL | Fixed | `topic_merged` detail now records `duplicate_topic_id` and `duplicate_url` |
+| A run that gave up on pages was audited `succeeded` and exited 0 | Fixed | audit outcome is `partial` while topics remain unconverted; the CLI exits non-zero |
+| Card/translation writes have no `expected_version` and conflicts are always 400 | Known gap | workflow writes are versioned and idempotent; card and translation writes remain last-write-wins |
+| `request_key` start dedupe ignores the payload and only covers active runs; run ids have no extra entropy | Known gap | recorded, not fixed in this slice |
+| Merge signature ignores leading body prose, so 59/509 recorded merges attached a non-identical page | Known gap | documented; the merge heuristic is intentional for shared pages but loses the duplicate body |
+| Card identity includes `card_type`, so a reclassified topic forks into a second card | Known gap | latent in the recorded corpus |
+| Card revision history is write-only (`knowledge_card_event` has no reader) and raw SQL can rewrite audit rows | Known gap | immutability is application-boundary only |
+| Smart Guide progress writes with `knowledge.read` | Accepted design | progress is a per-user, self-scoped memory row; no shared state is written |
 
 ## Reconciliation notes
 
