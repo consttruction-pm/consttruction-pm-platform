@@ -127,6 +127,12 @@ from construction_pm.cost_persistence import SQLiteCostStore
 from construction_pm.risk_api import RiskAPI
 from construction_pm.risk_application import RiskApplicationService
 from construction_pm.risk_persistence import SQLiteRiskStore
+from construction_pm.report_application import (
+    AuthoritativeReportDataset,
+    ReportApplicationService,
+)
+from construction_pm.report_api import ReportAPI
+from construction_pm.report_persistence import SQLiteReportStore
 from construction_pm.threshold_api import ThresholdAPI
 from construction_pm.threshold_application import ThresholdApplicationService
 from construction_pm.threshold_metrics import ProjectMetricReader
@@ -366,6 +372,7 @@ class PreviewRepositories:
     cost: SQLiteCostStore
     thresholds: SQLiteThresholdStore
     risks: SQLiteRiskStore
+    reports: SQLiteReportStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -447,6 +454,8 @@ class PreviewRepositories:
         thresholds.initialize()
         risks = SQLiteRiskStore(connection)
         risks.initialize()
+        reports = SQLiteReportStore(connection)
+        reports.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -499,6 +508,7 @@ class PreviewRepositories:
             cost=cost,
             thresholds=thresholds,
             risks=risks,
+            reports=reports,
             transaction_manager=transaction_manager,
         )
 
@@ -1579,6 +1589,18 @@ def open_preview_runtime(
             repositories.risks, policy, repositories.transaction_manager
         )
     )
+    report_api = ReportAPI(
+        ReportApplicationService(
+            repositories.reports,
+            AuthoritativeReportDataset(
+                repositories.activities,
+                repositories.resources,
+                repositories.risks,
+            ),
+            policy,
+            repositories.transaction_manager,
+        )
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1679,6 +1701,7 @@ def open_preview_runtime(
         ),
         threshold_api=threshold_api,
         risk_api=risk_api,
+        report_api=report_api,
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

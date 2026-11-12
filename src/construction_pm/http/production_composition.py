@@ -49,6 +49,7 @@ from construction_pm.document_api import DocumentAPI
 from construction_pm.budget_api import BudgetAPI
 from construction_pm.cost_api import CostAPI
 from construction_pm.risk_api import RiskAPI
+from construction_pm.report_api import ReportAPI
 from construction_pm.threshold_api import ThresholdAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
@@ -114,6 +115,7 @@ def build_project_lifecycle_wsgi_app(
     cost_api: CostAPI | None = None,
     threshold_api: ThresholdAPI | None = None,
     risk_api: RiskAPI | None = None,
+    report_api: ReportAPI | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
@@ -284,6 +286,7 @@ def build_project_lifecycle_wsgi_app(
         cost_api=cost_api,
         threshold_api=threshold_api,
         risk_api=risk_api,
+        report_api=report_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,

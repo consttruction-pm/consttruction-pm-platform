@@ -114,6 +114,8 @@ from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
 from ..risk_api import RiskAPI
 from ..risk_persistence import Risk
+from ..report_api import ReportAPI
+from ..report_persistence import ReportDefinition
 from ..threshold_api import ThresholdAPI
 from ..threshold_persistence import Threshold, parse_threshold_number
 from ..cost_persistence import (
@@ -248,6 +250,7 @@ class ProjectLifecycleHttpRoutes:
         cost_api: CostAPI | None = None,
         threshold_api: ThresholdAPI | None = None,
         risk_api: RiskAPI | None = None,
+        report_api: ReportAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -299,6 +302,7 @@ class ProjectLifecycleHttpRoutes:
         self._cost_api = cost_api
         self._threshold_api = threshold_api
         self._risk_api = risk_api
+        self._report_api = report_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -3063,6 +3067,206 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "RISK_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._report_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/reports" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    report_project_id, marker, report_suffix = rest.partition("/reports")
+                    if (
+                        marker
+                        and report_project_id
+                        and (not report_suffix or report_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, report_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [
+                            part
+                            for part in report_suffix.strip("/").split("/")
+                            if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _report_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.report.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.report.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _report_from_payload(report_id: str) -> ReportDefinition:
+                            body_id = payload.get("report_id")
+                            if body_id not in (None, "") and str(body_id) != report_id:
+                                raise ValueError("REPORT_ID_MISMATCH")
+                            raw_columns = payload.get("columns")
+                            if not isinstance(raw_columns, list):
+                                raise ValueError("REPORT_COLUMNS_REQUIRED")
+                            columns = tuple(str(column) for column in raw_columns)
+                            return ReportDefinition(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                report_id=report_id,
+                                name=str(payload.get("name", "")),
+                                description=str(payload.get("description") or ""),
+                                subject=str(payload.get("subject", "")),
+                                columns=columns,
+                            )
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and parts == ["catalogue"]:
+                                return self._json(200, self._report_api.catalogue())
+                            if method == "GET" and not parts:
+                                return _report_reply(
+                                    self._report_api.list_definitions(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                        subject=query.get("subject"),
+                                        search=query.get("search"),
+                                    )
+                                )
+                            if method == "POST" and not parts:
+                                return _report_reply(
+                                    self._report_api.create_definition(
+                                        _report_from_payload(
+                                            str(payload.get("report_id", ""))
+                                        ),
+                                        idempotency_key=(
+                                            request_headers.get("Idempotency-Key")
+                                            or payload.get("idempotency_key")
+                                            or ""
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 1:
+                                return _report_reply(
+                                    self._report_api.read_definition(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if method in {"PUT", "PATCH"} and len(parts) == 1:
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError("INVALID_EXPECTED_REPORT_REVISION")
+                                return _report_reply(
+                                    self._report_api.update_definition(
+                                        _report_from_payload(parts[0]),
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                        reason=str(payload.get("reason") or ""),
+                                    )
+                                )
+                            if method == "DELETE" and len(parts) == 1:
+                                expected = payload.get(
+                                    "expected_revision"
+                                ) or query.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError("INVALID_EXPECTED_REPORT_REVISION")
+                                return _report_reply(
+                                    self._report_api.delete_definition(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                        reason=str(payload.get("reason") or ""),
+                                    )
+                                )
+                            if method == "POST" and len(parts) == 2 and parts[1] == "run":
+                                return _report_reply(
+                                    self._report_api.run_report(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        project_revision=context.revision,
+                                        report_id=parts[0],
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 2 and parts[1] == "runs":
+                                return _report_reply(
+                                    self._report_api.list_runs(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[1] == "runs"
+                            ):
+                                return _report_reply(
+                                    self._report_api.read_run(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        run_id=parts[2],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 2
+                                and parts[1] == "history"
+                            ):
+                                return _report_reply(
+                                    self._report_api.definition_history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            return self._error(
+                                400, "REPORT_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "REPORT_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)

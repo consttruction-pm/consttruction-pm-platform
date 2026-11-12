@@ -2440,9 +2440,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         </div>`;
       break;
     case "reports":
-      body = `
-        <p>${escapeHtml(uiText(state.locale, "Report generation and print layouts are not available in this preview yet. No report is generated or claimed here.", "تولید گزارش و قالب چاپ در این پیش‌نمایش فعال نیست. هیچ گزارشی در این صفحه تولید یا ادعا نمی‌شود."))}</p>
-        ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
+      body = `<div class="cp-register-window cp-reports-window" data-reports-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Reports", "گزارش‌های پروژه"))}"></div>`;
       break;
     case "issues":
       body = `<div class="cp-register-window cp-issues-window" data-issues-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Issues", "مسائل پروژه"))}"></div>`;
@@ -2501,11 +2499,7 @@ function renderModuleEmptyState(state: WorkspaceState): string {
     || state.punchItems.length > 0;
   let copy: { title: string; message: string } | null = null;
 
-  if (state.activeMenu === "reports") {
-    copy = locale === "fa"
-      ? { title: "گزارش‌ها و چاپ", message: "ساخت گزارش و قالب چاپ در این پیش‌نمایش هنوز فعال نیست. این صفحه گزارشی تولید یا ادعایی درباره کامل بودن گزارش‌ها نمی‌کند." }
-      : { title: "Reports & print", message: "Report generation and print layouts are not available in this preview yet. This page has not generated a report or claimed that reporting is complete." };
-  } else if (state.activeMenu === "progress") {
+  if (state.activeMenu === "progress") {
     copy = locale === "fa"
       ? { title: "نمای پیشرفت پروژه", message: "پیشرفت هر فعالیت از سرویس مشترک فعالیت خوانده و ویرایش می‌شود. برای ثبت یا تغییر فعالیت‌ها از جدول فعالیت‌ها و برای بازمحاسبهٔ تاریخ‌ها از اجرای زمان‌بندی استفاده کنید؛ در این صفحه درصد یا تاریخ ساختگی نمایش داده نمی‌شود." }
       : { title: "Project progress", message: "Activity progress is read from and edited through the shared activity service. Use the activity grid to add activities and Run Schedule to recalculate dates; this page does not invent percentages or dates." };
