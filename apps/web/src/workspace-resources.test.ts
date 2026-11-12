@@ -10,7 +10,9 @@ import {
   loadResourceWorkspace,
   parseCapacitySegment,
   parseRateFact,
+  mountWorkspaceResourcesPage,
   parseResourceMaster,
+  resourceSaveErrorNotice,
   sumDecimal,
   updateResource,
   type ResourceCapacitySegment,
@@ -515,4 +517,102 @@ test("updateResource patches with expected_revision and refuses missing or stale
   assert.equal(unpersisted.ok, false);
   if (!unpersisted.ok) assert.equal(unpersisted.error.code, "RESOURCE_REVISION_REQUIRED");
   assert.equal(patches.length, 2);
+});
+
+
+function calendarCatalogue(...entries: { id: string; version: string; name: string }[]) {
+  return {
+    contract_version: "p6-calendar-read-api.v1",
+    kind: "calendar_catalog",
+    calendars: entries.map((entry) => ({
+      calendar_id: entry.id,
+      calendar_version: entry.version,
+      kind: "working-day",
+      calendar_type: "resource",
+      name: entry.name,
+      record_revision: 1,
+    })),
+  };
+}
+
+function mountHost() {
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = {
+    dataset: {} as Record<string, string>,
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  const click = (action: string): void => {
+    const target = {
+      dataset: { resourceAction: action },
+      closest: (selector: string) => (selector === "[data-resource-action]" ? target : null),
+    };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  return { host, click };
+}
+
+function resourceWorkspaceTransport(calendars: unknown) {
+  return transportWith({
+    "/api/projects/project-1/p6/resource-assignments": {
+      ok: true,
+      data: { contract_version: "p6-resource-read-api.v1", assignments: [assignmentDto()] },
+    },
+    "/api/projects/project-1/p6/resource-capacities": {
+      ok: true,
+      data: { contract_version: "p6-resource-capacity-read-api.v1", capacities: [] },
+    },
+    "/api/projects/project-1/p6/resource-rates": {
+      ok: true,
+      data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
+    },
+    [RESOURCES_PATH]: { ok: true, data: resourceList(master()) },
+    "/api/projects/project-1/p6/calendars": { ok: true, data: calendars },
+  });
+}
+
+test("resource editor offers the stored calendars instead of a free-text id", async () => {
+  const { host, click } = mountHost();
+  mountWorkspaceResourcesPage(host as unknown as HTMLElement, {
+    transport: resourceWorkspaceTransport(
+      calendarCatalogue(
+        { id: "CUBI-RPS-CAL", version: "v2", name: "Riverside resource calendar" },
+        { id: "CUBI-RPS-CAL", version: "v1", name: "Riverside resource calendar" },
+      ),
+    ),
+    context: CONTEXT,
+    locale: "en",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.match(host.innerHTML, /Riverside Civil Crew/);
+
+  click("new");
+  assert.match(host.innerHTML, /<select name="resource-calendar">/);
+  assert.match(host.innerHTML, /Project calendar \(default\)/);
+  assert.match(host.innerHTML, /Riverside resource calendar — CUBI-RPS-CAL \(v1, v2\)/);
+  assert.doesNotMatch(host.innerHTML, /<input name="resource-calendar"/);
+});
+
+test("resource editor falls back to a typed calendar id when the catalogue is empty", async () => {
+  const { host, click } = mountHost();
+  mountWorkspaceResourcesPage(host as unknown as HTMLElement, {
+    transport: resourceWorkspaceTransport(calendarCatalogue()),
+    context: CONTEXT,
+    locale: "en",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  click("new");
+  assert.match(host.innerHTML, /<input name="resource-calendar"/);
+  assert.match(host.innerHTML, /No calendar is stored in this project yet/);
+});
+
+test("resource save errors keep the calendar domain code visible", () => {
+  assert.equal(
+    resourceSaveErrorNotice("RESOURCE_CALENDAR_NOT_FOUND", true, "en"),
+    "The selected calendar is not stored in this project. Choose a stored calendar or the project default. (RESOURCE_CALENDAR_NOT_FOUND)",
+  );
+  assert.match(resourceSaveErrorNotice("REVISION_CONFLICT", false, "fa"), /ذخیره ناموفق بود \(REVISION_CONFLICT\)/);
 });

@@ -9,6 +9,11 @@ from construction_pm.application.project_lifecycle import (
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.calendar_master_repository import (
+    CalendarMaster,
+    SQLiteCalendarMasterRepository,
+)
 from construction_pm.p6_resource_master_api import P6ResourceAPI
 from construction_pm.p6_resource_master_repository import SQLiteP6ResourceRepository
 
@@ -45,9 +50,22 @@ def routes():
         "construction_pm.application.project_lifecycle",
         fromlist=["ProjectLifecycleService"],
     ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    connection = sqlite3.connect(":memory:")
+    calendars = SQLiteCalendarMasterRepository(connection)
+    calendars.save(
+        CalendarMaster(
+            scope=BackendScope("t1", "p1", 2),
+            calendar_id="CAL-1",
+            calendar_version="v1",
+            kind="working-day",
+            name="Project calendar",
+            calendar_type="project",
+        )
+    )
     resource_api = P6ResourceAPI(
-        SQLiteP6ResourceRepository(sqlite3.connect(":memory:")),
+        SQLiteP6ResourceRepository(connection),
         default_project_policy(),
+        calendars,
     )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
@@ -159,3 +177,30 @@ def test_resource_http_rejects_cross_project_and_malformed_body():
         "GET", "/api/projects/p1/p6/resources/missing", cookies={"cp_session": "s1"}
     )
     assert status == 404
+
+
+def test_resource_http_rejects_unknown_calendar_reference():
+    r = routes()
+    payload = {
+        "resource_id": "R-NO-CAL",
+        "name": "Crew without calendar",
+        "calendar_id": "CAL-MISSING",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/resources",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode(),
+    )
+    assert status == 409
+    error = json.loads(body)
+    assert error["code"] == "RESOURCE_CALENDAR_NOT_FOUND"
+
+    payload["calendar_id"] = "CAL-1"
+    status, _, _ = r.handle(
+        "POST",
+        "/api/projects/p1/p6/resources",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode(),
+    )
+    assert status == 200
