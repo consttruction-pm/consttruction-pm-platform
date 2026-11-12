@@ -235,6 +235,49 @@ def test_project_creation_runs_through_the_real_lifecycle_gateway(stack) -> None
     assert run["current_step"] == "settings"
 
 
+def test_preview_composition_serves_knowledge_beside_the_real_lifecycle_app(tmp_path) -> None:
+    from construction_pm.preview.runtime import open_preview_runtime
+    from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
+
+    preview = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        session = preview.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+
+        status, payload = call(preview.app, "GET", "/api/session", session=session.session_id)
+        assert status == "200", payload
+        assert payload["roles"] == ["planner"]
+
+        status, payload = call(preview.app, "GET", "/api/knowledge/locales", session=session.session_id)
+        assert status == "200", payload
+        assert len(payload["locales"]) == 10
+        assert payload["default_language"] == "en"
+
+        status, payload = call(preview.app, "GET", "/api/knowledge/coverage", session=session.session_id)
+        assert status == "200", payload
+        assert payload["card_counts"]["total"] == 0
+
+        status, payload = call(
+            preview.app,
+            "GET",
+            "/api/knowledge/search",
+            session=session.session_id,
+            query="q=project",
+        )
+        assert status == "200", payload
+        assert payload["hits"] == []
+        assert payload["insufficient_knowledge"] is True
+
+        status, payload = call(preview.app, "GET", "/api/projects", session=session.session_id)
+        assert status == "200", payload
+        assert {project["project_id"] for project in payload["projects"]} == {
+            "preview-rps-01",
+            "preview-nse-02",
+        }
+        assert (tmp_path / "knowledge.sqlite3").exists()
+    finally:
+        preview.close()
+
+
 def test_each_request_uses_its_own_session_for_project_reads(stack) -> None:
     lifecycle: FakeLifecycle = stack.lifecycle
     status, run = call(stack.runtime.app, "POST", "/api/knowledge/assistant/workflows", body={}, session="planner-session")
