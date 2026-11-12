@@ -1,8 +1,8 @@
-import type { WorkspaceMenuKey } from "./workspace-model.js";
+import type { WorkspaceActivityRow, WorkspaceMenuKey, WorkspaceWbsNode } from "./workspace-model.js";
 import type { WorkspaceTheme } from "./workspace-theme.js";
 import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
-import { defaultLayoutPatch, loadFilterEditor, readLayoutPatch, renderLayoutDialogs, resetFilterEditor, setFilterListEnabled, sortFilterList, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
-import { findActivityFilter } from "./workspace-activity-filters.js";
+import { addFilterCriterion, defaultLayoutPatch, filterCriterionRows, formatFilterPreview, loadFilterEditor, moveFilterCriterion, readLayoutPatch, removeFilterCriterion, renderLayoutDialogs, renumberFilterRows, resetFilterEditor, setFilterCriterionRows, setFilterListEnabled, sortFilterList, syncFilterField, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
+import { createActivityFilterDateContext, findActivityFilter, normalizeActivityFilter, previewActivityFilter, type ActivityFilterCriterion, type ActivityFilterDefinition } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { desktopMenuIcon } from "./workspace-command-icons.js";
@@ -178,6 +178,9 @@ export type DesktopShellState = {
   ganttVisible?: boolean;
   /** Windows carrying unsaved edits, used for the tab indicator and close guard. */
   dirtyWindows?: readonly WorkspaceMenuKey[];
+  /** Persisted activity rows and WBS nodes, used by the live filter preview. */
+  activities?: readonly WorkspaceActivityRow[];
+  wbsNodes?: readonly WorkspaceWbsNode[];
 };
 
 export type DesktopShellHandlers = {
@@ -1070,7 +1073,7 @@ type FilterDialogSnapshot = {
     editingId: string;
     scope: string;
     match: string;
-    rows: { field: string; operator: string; value: string }[];
+    rows: { field: string; operator: string; value: string; high: string }[];
   };
   list: {
     selected: string[];
@@ -1113,17 +1116,18 @@ function captureFilterDialog(dialog: HTMLDialogElement): FilterDialogSnapshot {
         editingId: "",
         scope: "layout",
         match: "all",
-        rows: [0, 1, 2, 3].map(() => ({ field: "activity_name", operator: "contains", value: "" })),
+        rows: [{ field: "activity_name", operator: "contains", value: "", high: "" }],
       }
       : {
         name: fieldValue(dialog, 'input[name="filterName"]'),
         editingId: fieldValue(dialog, 'input[name="filterEditingId"]'),
         scope: fieldValue(dialog, 'select[name="filterScope"]'),
         match: fieldValue(dialog, 'select[name="filterMatch"]'),
-        rows: [0, 1, 2, 3].map((index) => ({
-          field: fieldValue(dialog, `select[name="filter.field.${index}"]`),
-          operator: fieldValue(dialog, `select[name="filter.operator.${index}"]`),
-          value: fieldValue(dialog, `input[name="filter.value.${index}"]`),
+        rows: filterCriterionRows(dialog).map((criterion) => ({
+          field: criterion.fieldId,
+          operator: criterion.operator,
+          value: criterion.value,
+          high: criterion.highValue ?? "",
         })),
       },
     list: listFromState
@@ -1140,6 +1144,43 @@ function captureFilterDialog(dialog: HTMLDialogElement): FilterDialogSnapshot {
   };
 }
 
+/**
+ * Validates the builder and counts matching rows without applying anything.
+ * Incomplete or inverted criteria are reported instead of silently matching.
+ */
+function updateFilterPreview(host: HTMLElement, dialog: HTMLDialogElement): void {
+  const preview = dialog.querySelector<HTMLElement>("[data-filter-preview]");
+  const state = runtimeByHost.get(host)?.state;
+  if (!preview || !state) return;
+  const criteria = filterCriterionRows(dialog);
+  // A blank row is simply not part of the filter yet; it must not turn the
+  // preview into a validation error while the user is still filling it in.
+  const active = criteria.filter((criterion) => criterion.value.trim() !== ""
+    || criterion.highValue?.trim()
+    || criterion.operator === "is-empty" || criterion.operator === "is-not-empty");
+  if (active.length === 0) {
+    preview.textContent = translateWorkspaceUiText(
+      state.locale,
+      "Preview: choose a parameter and a value to see how many activities match.",
+      "پیش‌نمایش: پارامتر و مقدار را انتخاب کنید تا شمار فعالیت‌های مطابق دیده شود.",
+    );
+    preview.classList.remove("is-invalid");
+    return;
+  }
+  const match = fieldValue(dialog, 'select[name="filterMatch"]') === "any" ? "any" : "all";
+  const draft: ActivityFilterDefinition = { id: "preview", name: "preview", match, criteria: active };
+  const result = previewActivityFilter(
+    state.activities ?? [],
+    draft,
+    state.wbsNodes ?? [],
+    createActivityFilterDateContext(state.activities ?? [], state.dataDate ?? null),
+  );
+  preview.textContent = formatFilterPreview(result, state.locale);
+  preview.classList.toggle("is-invalid", !result.valid);
+  preview.dataset.filterPreviewMatched = String(result.matched);
+  preview.dataset.filterPreviewValid = result.valid ? "true" : "false";
+}
+
 function restoreFilterDialog(dialog: HTMLDialogElement, snapshot: FilterDialogSnapshot): void {
   const set = (selector: string, value: string): void => {
     const element = dialog.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
@@ -1149,15 +1190,12 @@ function restoreFilterDialog(dialog: HTMLDialogElement, snapshot: FilterDialogSn
   set('input[name="filterEditingId"]', snapshot.builder.editingId);
   set('select[name="filterScope"]', snapshot.builder.scope);
   set('select[name="filterMatch"]', snapshot.builder.match);
-  snapshot.builder.rows.forEach((row, index) => {
-    set(`select[name="filter.field.${index}"]`, row.field);
-    set(`select[name="filter.operator.${index}"]`, row.operator);
-    set(`input[name="filter.value.${index}"]`, row.value);
-    const operator = dialog.querySelector<HTMLSelectElement>(`select[name="filter.operator.${index}"]`);
-    if (operator) syncFilterOperator(operator);
-    const value = dialog.querySelector<HTMLInputElement>(`input[name="filter.value.${index}"]`);
-    if (value && row.value) value.value = row.value;
-  });
+  setFilterCriterionRows(dialog, snapshot.builder.rows.map((row) => ({
+    fieldId: row.field as ActivityFilterCriterion["fieldId"],
+    operator: row.operator as ActivityFilterCriterion["operator"],
+    value: row.value,
+    ...(row.operator === "within-range" ? { highValue: row.high } : {}),
+  })));
   if (snapshot.list) {
     const all = dialog.querySelector<HTMLInputElement>('input[name="filterAllActivities"]');
     if (all) all.checked = snapshot.list.allActivities;
@@ -1343,6 +1381,27 @@ function bindHost(host: HTMLElement): void {
       filterDialog.querySelector<HTMLInputElement>('input[name="filterName"]')?.focus();
       return;
     }
+    const filterRowAdd = target.closest<HTMLElement>("[data-filter-row-add]");
+    if (filterRowAdd && filterDialog) {
+      const row = addFilterCriterion(filterDialog);
+      row?.querySelector<HTMLSelectElement>('select[name^="filter.field."]')?.focus();
+      updateFilterPreview(host, filterDialog);
+      return;
+    }
+    const filterRowRemove = target.closest<HTMLElement>("[data-filter-row-remove]");
+    if (filterRowRemove && filterDialog) {
+      const row = filterRowRemove.closest<HTMLElement>(".cp-filter-row");
+      if (row) removeFilterCriterion(row);
+      updateFilterPreview(host, filterDialog);
+      return;
+    }
+    const filterRowMove = target.closest<HTMLElement>("[data-filter-row-move]");
+    if (filterRowMove && filterDialog) {
+      const row = filterRowMove.closest<HTMLElement>(".cp-filter-row");
+      if (row) moveFilterCriterion(row, filterRowMove.dataset.filterRowMove === "down" ? "down" : "up");
+      updateFilterPreview(host, filterDialog);
+      return;
+    }
     const filterRowSelect = target.closest<HTMLElement>("[data-filter-row-select]");
     if (filterRowSelect && filterDialog) {
       const row = filterRowSelect.closest<HTMLElement>("tr[data-filter-id]");
@@ -1440,8 +1499,23 @@ function bindHost(host: HTMLElement): void {
         setFilterListEnabled(dialog, !target.checked);
         return;
       }
+      if (target instanceof HTMLSelectElement && target.name.startsWith("filter.field.")) {
+        syncFilterField(target);
+        updateFilterPreview(host, dialog);
+        return;
+      }
       if (target instanceof HTMLSelectElement && target.name.startsWith("filter.operator.")) {
         syncFilterOperator(target);
+        updateFilterPreview(host, dialog);
+        return;
+      }
+      if (target instanceof HTMLSelectElement && target.name === "filterMatch") {
+        renumberFilterRows(dialog);
+        updateFilterPreview(host, dialog);
+        return;
+      }
+      if (target instanceof HTMLInputElement && /^filter\.(value|high)\./.test(target.name)) {
+        updateFilterPreview(host, dialog);
         return;
       }
     }

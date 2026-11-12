@@ -5,6 +5,7 @@ import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, crea
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
+  createActivityFilterDateContext,
   describeActivityFilter,
   type ActivityFilterApplication,
 } from "./workspace-activity-filters.js";
@@ -1953,7 +1954,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     `--cp-p6-bg-color:${presentationColor(tablePresentation.backgroundColor)}`,
     `--cp-p6-row-height:${tablePresentation.rowHeight}px`,
   ].join(";");
-  const filterApplication = applyActivityFilterState(state.activities, presentation.filters, state.wbsNodes);
+  const filterApplication = applyActivityFilterState(
+    state.activities,
+    presentation.filters,
+    state.wbsNodes,
+    createActivityFilterDateContext(state.activities, options.dataDate ?? null),
+  );
   const filteredActivities = filterAndSortActivities(
     filterApplication.activities,
     state.activityFilter,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
+import { defaultLayoutPatch, filterCriterionRowMarkup, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
 import { DEFAULT_PRESENTATION, normalizePresentation } from "./workspace-presentation.js";
 
 function form(entries: Record<string, string | string[]>): FormData {
@@ -362,11 +362,20 @@ test("Filters dialog exposes the version 26 list, scope categories and actions",
   assert.match(html, /name="filterScope"/);
   assert.match(html, /name="filterMatch"/);
   assert.match(html, /name="filterEditingId"/);
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 2; index += 1) {
     assert.match(html, new RegExp(`name="filter\\.field\\.${index}"`));
     assert.match(html, new RegExp(`name="filter\\.operator\\.${index}"`));
     assert.match(html, new RegExp(`name="filter\\.value\\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\\.high\\.${index}"`));
   }
+  assert.match(html, /data-filter-row-add/);
+  assert.match(html, /data-filter-high/);
+  assert.match(html, /data-filter-preview/);
+  assert.match(html, /id="cp-filter-date-tokens"/);
+  assert.match(html, /data-filter-field-type="text"/);
+  assert.match(html, /does not contain/);
+  assert.match(html, /data-filter-row-move="up"/);
+  assert.match(html, /data-filter-row-remove/);
 });
 
 test("checking predefined filters applies every checked filter", () => {
@@ -571,4 +580,48 @@ test("Copy and Paste move a filter into the chosen category", () => {
   assert.equal(filters?.saved[0].scope, "global");
   assert.equal(filters?.saved[0].name, "Civil open");
   assert.deepEqual(filters?.selectedIds, [filters?.saved[0].id]);
+});
+
+test("a filter draft reads dynamic criterion rows, their order and the high value", () => {
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
+    filterName: "Lookahead",
+    filterScope: "layout",
+    filterMatch: "all",
+    "filter.field.0": "start",
+    "filter.operator.0": "within-range",
+    "filter.value.0": "CD",
+    "filter.high.0": "CD+6w",
+    "filter.field.2": "progress",
+    "filter.operator.2": "less-than",
+    "filter.value.2": "100",
+  }), DEFAULT_PRESENTATION);
+  const saved = patch.presentation?.filters.saved ?? [];
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].name, "Lookahead");
+  assert.deepEqual(saved[0].criteria, [
+    { fieldId: "start", operator: "within-range", value: "CD", highValue: "CD+6w" },
+    { fieldId: "progress", operator: "less-than", value: "100" },
+  ]);
+  assert.equal(saved[0].match, "all");
+  assert.equal(saved[0].scope, "layout");
+});
+
+test("criterion rows render typed operators, the High value column and local row actions", () => {
+  const range = filterCriterionRowMarkup(2, "fa", { fieldId: "start", operator: "within-range", value: "CD", highValue: "CF" });
+  assert.match(range, /data-filter-row="2"/);
+  assert.match(range, /data-filter-field-type="date"/);
+  assert.match(range, /name="filter\.field\.2"/);
+  assert.match(range, /name="filter\.high\.2"[^>]*value="CF"/);
+  assert.match(range, /list="cp-filter-date-tokens"/);
+  assert.match(range, /در بازهٔ/);
+  assert.match(range, /data-filter-row-move="up"/);
+  assert.match(range, /data-filter-row-remove/);
+  assert.doesNotMatch(range, /name="filter\.high\.2"[^>]* hidden/);
+
+  const text = filterCriterionRowMarkup(0, "en");
+  assert.match(text, /data-filter-field-type="text"/);
+  assert.match(text, /does not contain/);
+  assert.doesNotMatch(text, /is within range of/);
+  assert.doesNotMatch(text, /data-filter-join(?![^>]*hidden)/);
 });

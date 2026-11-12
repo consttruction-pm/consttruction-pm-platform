@@ -50,7 +50,7 @@ import {
 } from "./workspace-view.js";
 import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds, buildWorkspaceDisplayRows } from "./workspace-wbs-display.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
-import { applyActivityFilterState } from "./workspace-activity-filters.js";
+import { applyActivityFilterState, createActivityFilterDateContext } from "./workspace-activity-filters.js";
 import { fitGanttScale } from "./workspace-gantt.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
 import {
@@ -1246,6 +1246,7 @@ function renderApp(
           state.activities,
           visualPreferences.presentation.filters,
           state.wbsNodes,
+          createActivityFilterDateContext(state.activities, chromeProject.dataDate === "—" ? null : chromeProject.dataDate),
         );
         const ordered = filterAndSortActivities(
           filterApplication.activities,
@@ -1693,6 +1694,8 @@ function renderApp(
       theme: activeWorkspaceTheme,
       dataAvailability: presentationDataAvailability(state.activities),
       dataDate: chromeProject.dataDate === "—" ? null : chromeProject.dataDate,
+      activities: state.activities,
+      wbsNodes: state.wbsNodes,
     },
     {
       onWindowOpen: activateWindow,

@@ -11,10 +11,12 @@ import type { WorkspaceActivityRow, WorkspaceCellValue } from "./workspace-model
 
 export const ACTIVITY_FILTER_OPERATORS = [
   "contains",
+  "not-contains",
   "equals",
   "not-equals",
   "greater-than",
   "less-than",
+  "within-range",
   "is-empty",
   "is-not-empty",
 ] as const;
@@ -26,6 +28,8 @@ export const ACTIVITY_FILTER_FIELDS = [
   "wbs",
   "activity_status",
   "activity_type",
+  "start",
+  "finish",
   "progress",
   "duration",
   "total_float",
@@ -33,10 +37,51 @@ export const ACTIVITY_FILTER_FIELDS = [
 ] as const;
 export type ActivityFilterFieldId = (typeof ACTIVITY_FILTER_FIELDS)[number];
 
+/** Value domain of a filter parameter; drives the editor's typed control. */
+export type ActivityFilterFieldType = "text" | "number" | "date" | "boolean" | "choice";
+
+const FIELD_TYPES: Record<ActivityFilterFieldId, ActivityFilterFieldType> = {
+  activity_id: "text",
+  activity_name: "text",
+  wbs: "text",
+  activity_status: "choice",
+  activity_type: "choice",
+  start: "date",
+  finish: "date",
+  progress: "number",
+  duration: "number",
+  total_float: "number",
+  is_critical: "boolean",
+};
+
+export function activityFilterFieldType(fieldId: ActivityFilterFieldId): ActivityFilterFieldType {
+  return FIELD_TYPES[fieldId];
+}
+
+/** Operators offered for a parameter type, in Version 26 order. */
+export function activityFilterOperatorsFor(fieldId: ActivityFilterFieldId): readonly ActivityFilterOperator[] {
+  const type = activityFilterFieldType(fieldId);
+  if (type === "date" || type === "number") {
+    return ["equals", "not-equals", "less-than", "greater-than", "within-range", "is-empty", "is-not-empty"];
+  }
+  if (type === "boolean") return ["equals", "not-equals"];
+  return ["contains", "not-contains", "equals", "not-equals", "is-empty", "is-not-empty"];
+}
+
+/** Authoritative project dates that relative tokens resolve against. */
+export type ActivityFilterDateContext = {
+  /** Current date, normally the project Data Date. */
+  currentDate: string | null;
+  projectStart: string | null;
+  projectFinish: string | null;
+};
+
 export type ActivityFilterCriterion = {
   fieldId: ActivityFilterFieldId;
   operator: ActivityFilterOperator;
   value: string;
+  /** Upper bound for the "is within range of" operator. */
+  highValue?: string;
 };
 
 /**
@@ -176,6 +221,8 @@ const FIELD_LABELS: Record<ActivityFilterFieldId, { en: string; fa: string }> = 
   wbs: { en: "WBS", fa: "ساختار شکست" },
   activity_status: { en: "Activity Status", fa: "وضعیت فعالیت" },
   activity_type: { en: "Activity Type", fa: "نوع فعالیت" },
+  start: { en: "Start", fa: "شروع" },
+  finish: { en: "Finish", fa: "پایان" },
   progress: { en: "Progress %", fa: "درصد پیشرفت" },
   duration: { en: "Duration", fa: "مدت" },
   total_float: { en: "Total Float", fa: "شناوری کل" },
@@ -184,10 +231,12 @@ const FIELD_LABELS: Record<ActivityFilterFieldId, { en: string; fa: string }> = 
 
 const OPERATOR_LABELS: Record<ActivityFilterOperator, { en: string; fa: string }> = {
   contains: { en: "contains", fa: "شامل" },
+  "not-contains": { en: "does not contain", fa: "شامل نیست" },
   equals: { en: "equals", fa: "برابر" },
   "not-equals": { en: "is not equal to", fa: "برابر نیست" },
   "greater-than": { en: "is greater than", fa: "بزرگ‌تر از" },
   "less-than": { en: "is less than", fa: "کوچک‌تر از" },
+  "within-range": { en: "is within range of", fa: "در بازهٔ" },
   "is-empty": { en: "is empty", fa: "خالی است" },
   "is-not-empty": { en: "is not empty", fa: "خالی نیست" },
 };
@@ -231,6 +280,8 @@ function fieldValue(
     case "wbs": return (activity.wbsId ? wbsLabels?.get(activity.wbsId) : null) || activity.wbsId || cells["activity.wbs"] || null;
     case "activity_status": return cells["activity.status"] ?? cells["activity.activity_status"] ?? null;
     case "activity_type": return cells["activity.type"] ?? cells["activity.activity_type"] ?? null;
+    case "start": return cells.start ?? cells["activity.start"] ?? null;
+    case "finish": return cells.finish ?? cells["activity.finish"] ?? null;
     case "progress": return cells["progress"] ?? cells["activity.duration_percent_complete"] ?? null;
     case "duration": return cells["duration"] ?? cells["activity.planned_duration"] ?? null;
     case "total_float": return cells["activity.total_float"] ?? null;
@@ -268,7 +319,100 @@ function booleanValue(value: WorkspaceCellValue): boolean | null {
 
 export function criterionIsComplete(criterion: ActivityFilterCriterion): boolean {
   if (criterion.operator === "is-empty" || criterion.operator === "is-not-empty") return true;
+  if (criterion.operator === "within-range") {
+    return criterion.value.trim().length > 0 && (criterion.highValue ?? "").trim().length > 0;
+  }
   return criterion.value.trim().length > 0;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Relative token grammar from the Help: CD, CS, CF plus ±n<d|w|m|y>. */
+const RELATIVE_DATE = /^(CD|CS|CF)(?:([+-])(\d{1,3})([dwmy]))?$/i;
+
+export function isDateFilterField(fieldId: ActivityFilterFieldId): boolean {
+  return activityFilterFieldType(fieldId) === "date";
+}
+
+/**
+ * Resolves a filter date value. A plain ISO date is accepted as-is; the
+ * documented relative tokens resolve against the project Data Date (CD), the
+ * earliest persisted start (CS) and the latest persisted finish (CF).
+ */
+export function resolveFilterDateValue(
+  raw: string,
+  context: ActivityFilterDateContext | undefined,
+): number | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(text) ? Date.parse(text) : Number.NaN;
+  if (Number.isFinite(iso)) return iso;
+  const token = RELATIVE_DATE.exec(text);
+  if (!token || !context) return null;
+  const anchorRaw = token[1].toUpperCase() === "CD"
+    ? context.currentDate
+    : token[1].toUpperCase() === "CS" ? context.projectStart : context.projectFinish;
+  if (!anchorRaw) return null;
+  const anchor = Date.parse(anchorRaw);
+  if (!Number.isFinite(anchor)) return null;
+  if (!token[2]) return anchor;
+  const amount = Number(token[3]) * (token[2] === "-" ? -1 : 1);
+  const unit = token[4].toLowerCase();
+  const days = unit === "d" ? amount
+    : unit === "w" ? amount * 7
+      : unit === "m" ? amount * 30
+        : amount * 365;
+  return anchor + days * DAY_MS;
+}
+
+/** Same calendar day in UTC, so date equality is not a millisecond compare. */
+function sameUtcDay(left: number, right: number): boolean {
+  return Math.floor(left / DAY_MS) === Math.floor(right / DAY_MS);
+}
+
+/** Derives CS/CF from the persisted rows; CD comes from the Data Date. */
+export function createActivityFilterDateContext(
+  activities: readonly WorkspaceActivityRow[],
+  currentDate: string | null,
+): ActivityFilterDateContext {
+  let start = Number.POSITIVE_INFINITY;
+  let finish = Number.NEGATIVE_INFINITY;
+  for (const activity of activities) {
+    const rawStart = activity.gantt?.start ?? (typeof activity.cells?.start === "string" ? activity.cells.start : null);
+    const rawFinish = activity.gantt?.finish ?? (typeof activity.cells?.finish === "string" ? activity.cells.finish : null);
+    const startMs = typeof rawStart === "string" ? Date.parse(rawStart) : Number.NaN;
+    const finishMs = typeof rawFinish === "string" ? Date.parse(rawFinish) : Number.NaN;
+    if (Number.isFinite(startMs)) start = Math.min(start, startMs);
+    if (Number.isFinite(finishMs)) finish = Math.max(finish, finishMs);
+  }
+  const iso = (value: number): string | null => Number.isFinite(value) ? new Date(value).toISOString().slice(0, 10) : null;
+  return { currentDate, projectStart: iso(start), projectFinish: iso(finish) };
+}
+
+export type ActivityFilterCriterionValidation = {
+  ok: boolean;
+  /** Stable machine-readable code for the editor and assertions. */
+  code: "OK" | "FILTER_VALUE_REQUIRED" | "FILTER_RANGE_INCOMPLETE" | "FILTER_VALUE_INVALID_DATE" | "FILTER_RANGE_INVALID";
+};
+
+export function validateActivityFilterCriterion(
+  criterion: ActivityFilterCriterion,
+  context?: ActivityFilterDateContext,
+): ActivityFilterCriterionValidation {
+  if (criterion.operator === "is-empty" || criterion.operator === "is-not-empty") return { ok: true, code: "OK" };
+  if (!criterion.value.trim()) return { ok: false, code: "FILTER_VALUE_REQUIRED" };
+  if (criterion.operator === "within-range" && !(criterion.highValue ?? "").trim()) {
+    return { ok: false, code: "FILTER_RANGE_INCOMPLETE" };
+  }
+  if (isDateFilterField(criterion.fieldId)) {
+    const low = resolveFilterDateValue(criterion.value, context);
+    if (low === null) return { ok: false, code: "FILTER_VALUE_INVALID_DATE" };
+    if (criterion.operator === "within-range") {
+      const high = resolveFilterDateValue(criterion.highValue ?? "", context);
+      if (high === null) return { ok: false, code: "FILTER_VALUE_INVALID_DATE" };
+      if (high < low) return { ok: false, code: "FILTER_RANGE_INVALID" };
+    }
+  }
+  return { ok: true, code: "OK" };
 }
 
 /** Matches one criterion; incomplete criteria never match anything. */
@@ -276,6 +420,7 @@ export function activityMatchesCriterion(
   activity: WorkspaceActivityRow,
   criterion: ActivityFilterCriterion,
   wbsLabels?: ReadonlyMap<string, string>,
+  dateContext?: ActivityFilterDateContext,
 ): boolean {
   if (!criterionIsComplete(criterion)) return false;
   const value = fieldValue(activity, criterion.fieldId, wbsLabels);
@@ -291,9 +436,28 @@ export function activityMatchesCriterion(
     return criterion.operator === "not-equals" ? actual !== expected : actual === expected;
   }
 
+  if (isDateFilterField(criterion.fieldId)) {
+    const actual = resolveFilterDateValue(String(value), dateContext);
+    const low = resolveFilterDateValue(criterion.value, dateContext);
+    if (actual === null || low === null) return false;
+    const high = criterion.operator === "within-range"
+      ? resolveFilterDateValue(criterion.highValue ?? "", dateContext)
+      : low;
+    if (high === null) return false;
+    switch (criterion.operator) {
+      case "equals": return sameUtcDay(actual, low);
+      case "not-equals": return !sameUtcDay(actual, low);
+      case "greater-than": return actual > low;
+      case "less-than": return actual < low;
+      case "within-range": return actual >= low && actual <= high;
+      default: return false;
+    }
+  }
+
   const expectedText = criterion.value.trim();
-  if (criterion.operator === "contains") {
-    return String(value).toLocaleLowerCase().includes(expectedText.toLocaleLowerCase());
+  if (criterion.operator === "contains" || criterion.operator === "not-contains") {
+    const contains = String(value).toLocaleLowerCase().includes(expectedText.toLocaleLowerCase());
+    return criterion.operator === "not-contains" ? !contains : contains;
   }
   if (criterion.operator === "equals" || criterion.operator === "not-equals") {
     const actualNumber = numericValue(value);
@@ -307,6 +471,10 @@ export function activityMatchesCriterion(
   const actualNumber = numericValue(value);
   const expectedNumber = numericValue(expectedText);
   if (actualNumber === null || expectedNumber === null) return false;
+  if (criterion.operator === "within-range") {
+    const highNumber = numericValue(criterion.highValue ?? "");
+    return highNumber !== null && actualNumber >= expectedNumber && actualNumber <= highNumber;
+  }
   return criterion.operator === "greater-than"
     ? actualNumber > expectedNumber
     : actualNumber < expectedNumber;
@@ -316,13 +484,14 @@ export function activityMatchesFilter(
   activity: WorkspaceActivityRow,
   filter: ActivityFilterDefinition | null,
   wbsLabels?: ReadonlyMap<string, string>,
+  dateContext?: ActivityFilterDateContext,
 ): boolean {
   if (!filter) return true;
   const criteria = filter.criteria.filter(criterionIsComplete);
   if (criteria.length === 0) return true;
   return filter.match === "any"
-    ? criteria.some((criterion) => activityMatchesCriterion(activity, criterion, wbsLabels))
-    : criteria.every((criterion) => activityMatchesCriterion(activity, criterion, wbsLabels));
+    ? criteria.some((criterion) => activityMatchesCriterion(activity, criterion, wbsLabels, dateContext))
+    : criteria.every((criterion) => activityMatchesCriterion(activity, criterion, wbsLabels, dateContext));
 }
 
 /**
@@ -334,10 +503,11 @@ export function filterActivitiesByDefinition(
   activities: readonly WorkspaceActivityRow[],
   filter: ActivityFilterDefinition | null,
   wbsNodes: readonly WbsLabelNode[] = [],
+  dateContext?: ActivityFilterDateContext,
 ): readonly WorkspaceActivityRow[] {
   if (!filter) return activities;
   const wbsLabels = buildWbsLabels(wbsNodes);
-  return activities.filter((activity) => activityMatchesFilter(activity, filter, wbsLabels));
+  return activities.filter((activity) => activityMatchesFilter(activity, filter, wbsLabels, dateContext));
 }
 
 export type ActivityFilterApplication = {
@@ -358,6 +528,7 @@ export function applyActivityFilterState(
   activities: readonly WorkspaceActivityRow[],
   state: ActivityFilterState,
   wbsNodes: readonly WbsLabelNode[] = [],
+  dateContext?: ActivityFilterDateContext,
 ): ActivityFilterApplication {
   const filters = getSelectedActivityFilters(state);
   const allIds = new Set(activities.map((activity) => activity.id));
@@ -369,8 +540,8 @@ export function applyActivityFilterState(
   const matchedIds = new Set<string>();
   for (const activity of activities) {
     const matches = combine === "any"
-      ? filters.some((filter) => activityMatchesFilter(activity, filter, wbsLabels))
-      : filters.every((filter) => activityMatchesFilter(activity, filter, wbsLabels));
+      ? filters.some((filter) => activityMatchesFilter(activity, filter, wbsLabels, dateContext))
+      : filters.every((filter) => activityMatchesFilter(activity, filter, wbsLabels, dateContext));
     if (matches) matchedIds.add(activity.id);
   }
   const highlight = state.applyMode === "highlight";
@@ -380,6 +551,33 @@ export function applyActivityFilterState(
     highlight,
     filters,
   };
+}
+
+export type ActivityFilterPreview = {
+  total: number;
+  matched: number;
+  valid: boolean;
+  code: ActivityFilterCriterionValidation["code"];
+};
+
+/**
+ * Validates a draft filter and counts the activities it would match. The
+ * editor shows this before Apply, so an incomplete or inverted range is visible
+ * instead of silently matching nothing.
+ */
+export function previewActivityFilter(
+  activities: readonly WorkspaceActivityRow[],
+  filter: ActivityFilterDefinition,
+  wbsNodes: readonly WbsLabelNode[] = [],
+  dateContext?: ActivityFilterDateContext,
+): ActivityFilterPreview {
+  const invalid = filter.criteria
+    .map((criterion) => validateActivityFilterCriterion(criterion, dateContext))
+    .find((validation) => !validation.ok);
+  if (invalid) return { total: activities.length, matched: 0, valid: false, code: invalid.code };
+  const wbsLabels = buildWbsLabels(wbsNodes);
+  const matched = activities.filter((activity) => activityMatchesFilter(activity, filter, wbsLabels, dateContext)).length;
+  return { total: activities.length, matched, valid: true, code: "OK" };
 }
 
 const MAX_SAVED_FILTERS = 20;
@@ -408,11 +606,15 @@ export function normalizeCriterion(value: unknown): ActivityFilterCriterion | nu
   if (typeof operator !== "string" || !(ACTIVITY_FILTER_OPERATORS as readonly string[]).includes(operator)) return null;
   const rawValue = value.value;
   if (rawValue !== null && rawValue !== undefined && typeof rawValue !== "string") return null;
-  return {
+  const rawHigh = value.highValue;
+  if (rawHigh !== null && rawHigh !== undefined && typeof rawHigh !== "string") return null;
+  const criterion: ActivityFilterCriterion = {
     fieldId: fieldId as ActivityFilterFieldId,
     operator: operator as ActivityFilterOperator,
     value: String(rawValue ?? "").slice(0, MAX_VALUE),
   };
+  if (operator === "within-range") criterion.highValue = String(rawHigh ?? "").slice(0, MAX_VALUE);
+  return criterion;
 }
 
 export function normalizeActivityFilter(value: unknown): ActivityFilterDefinition | null {
@@ -618,6 +820,11 @@ export function describeActivityFilter(
     const field = activityFilterFieldLabel(criterion.fieldId, locale);
     const operator = activityFilterOperatorLabel(criterion.operator, locale);
     const showValue = criterion.operator !== "is-empty" && criterion.operator !== "is-not-empty";
-    return showValue ? `${field} ${operator} ${criterion.value}` : `${field} ${operator}`;
+    if (!showValue) return `${field} ${operator}`;
+    if (criterion.operator === "within-range") {
+      const separator = /^fa\b/i.test(locale) ? " تا " : " and ";
+      return `${field} ${operator} ${criterion.value}${separator}${criterion.highValue ?? ""}`;
+    }
+    return `${field} ${operator} ${criterion.value}`;
   }).join(filter.match === "any" ? " | " : " & ");
 }

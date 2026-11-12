@@ -15,12 +15,15 @@ import {
   normalizeActivityFilter,
   normalizeActivityFilterState,
   pasteActivityFilter,
+  previewActivityFilter,
+  resolveFilterDateValue,
   selectActivityFilter,
   setActiveActivityFilter,
   setActivityFilterAllActivities,
   setActivityFilterApplyMode,
   setActivityFilterCombine,
   upsertActivityFilter,
+  validateActivityFilterCriterion,
   type ActivityFilterDefinition,
   type ActivityFilterState,
 } from "./workspace-activity-filters.js";
@@ -308,4 +311,104 @@ test("selectActivityFilter keeps the checked ids and repairs a legacy activeId",
   assert.equal(legacy.combine, "all");
   assert.equal(legacy.applyMode, "replace");
   assert.equal(legacy.allActivities, false);
+});
+
+test("date criteria accept ISO dates and the relative CD/CS/CF tokens", () => {
+  const dated: readonly WorkspaceActivityRow[] = [
+    { id: "D1", code: "D1", wbsId: "1", name: "Startup", cells: { start: "2026-10-10T08:00:00Z", finish: "2026-10-12T17:00:00Z" } },
+    { id: "D2", code: "D2", wbsId: "1", name: "Mid", cells: { start: "2026-10-15T08:00:00Z", finish: "2026-10-20T17:00:00Z" } },
+    { id: "D3", code: "D3", wbsId: "1", name: "Late", cells: { start: "2026-11-30T08:00:00Z", finish: "2026-12-03T17:00:00Z" } },
+  ];
+  const context = { currentDate: "2026-10-15", projectStart: "2026-10-10", projectFinish: "2026-12-03" };
+  const lookahead: ActivityFilterDefinition = {
+    id: "custom:lookahead",
+    name: "Lookahead",
+    match: "all",
+    criteria: [{ fieldId: "start", operator: "within-range", value: "CD", highValue: "CD+7d" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(dated, lookahead, [], context)), ["D2"]);
+
+  const beforeFinish: ActivityFilterDefinition = {
+    id: "custom:before-finish", name: "Before finish", match: "all",
+    criteria: [{ fieldId: "finish", operator: "less-than", value: "CF" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(dated, beforeFinish, [], context)), ["D1", "D2"]);
+
+  const onStart: ActivityFilterDefinition = {
+    id: "custom:on-start", name: "On start", match: "all",
+    criteria: [{ fieldId: "start", operator: "equals", value: "CS" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(dated, onStart, [], context)), ["D1"]);
+
+  // Without a date context a relative token cannot resolve, so the criterion
+  // never matches instead of falling back to a guessed date.
+  assert.deepEqual(ids(filterActivitiesByDefinition(dated, lookahead)), []);
+  assert.equal(resolveFilterDateValue("CD+6w", context), Date.parse("2026-10-15") + 42 * 24 * 60 * 60 * 1000);
+  assert.equal(resolveFilterDateValue("2026-10-20", context), Date.parse("2026-10-20"));
+});
+
+test("criterion validation reports incomplete, invalid and inverted ranges", () => {
+  const context = { currentDate: "2026-10-15", projectStart: "2026-10-01", projectFinish: "2026-12-01" };
+  assert.deepEqual(
+    validateActivityFilterCriterion({ fieldId: "start", operator: "greater-than", value: "" }, context),
+    { ok: false, code: "FILTER_VALUE_REQUIRED" },
+  );
+  assert.deepEqual(
+    validateActivityFilterCriterion({ fieldId: "start", operator: "within-range", value: "CD" }, context),
+    { ok: false, code: "FILTER_RANGE_INCOMPLETE" },
+  );
+  assert.deepEqual(
+    validateActivityFilterCriterion({ fieldId: "start", operator: "greater-than", value: "soon" }, context),
+    { ok: false, code: "FILTER_VALUE_INVALID_DATE" },
+  );
+  assert.deepEqual(
+    validateActivityFilterCriterion({ fieldId: "start", operator: "within-range", value: "CF", highValue: "CD" }, context),
+    { ok: false, code: "FILTER_RANGE_INVALID" },
+  );
+  assert.deepEqual(
+    validateActivityFilterCriterion({ fieldId: "progress", operator: "within-range", value: "10", highValue: "50" }, context),
+    { ok: true, code: "OK" },
+  );
+});
+
+test("numeric ranges and not-contains narrow rows, and the preview counts them", () => {
+  const numeric: ActivityFilterDefinition = {
+    id: "custom:float", name: "Float band", match: "all",
+    criteria: [{ fieldId: "total_float", operator: "within-range", value: "-5", highValue: "0" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(rows, numeric)), ["A100", "A130"]);
+
+  const notCivil: ActivityFilterDefinition = {
+    id: "custom:not-civil", name: "Not civil", match: "all",
+    criteria: [{ fieldId: "wbs", operator: "not-contains", value: "civil" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(rows, notCivil)), ["A100", "A150"]);
+
+  const preview = previewActivityFilter(rows, numeric);
+  assert.deepEqual(preview, { total: 4, matched: 2, valid: true, code: "OK" });
+
+  const invalid = previewActivityFilter(rows, {
+    id: "custom:bad", name: "Bad", match: "all",
+    criteria: [{ fieldId: "start", operator: "within-range", value: "CD" }],
+  }, [], { currentDate: "2026-10-15", projectStart: null, projectFinish: null });
+  assert.equal(invalid.valid, false);
+  assert.equal(invalid.code, "FILTER_RANGE_INCOMPLETE");
+});
+
+test("normalization keeps the high value only for ranges and describes it", () => {
+  const range = normalizeActivityFilter({
+    name: "Lookahead", match: "all",
+    criteria: [{ fieldId: "start", operator: "within-range", value: "CD", highValue: "CD+6w" }],
+  });
+  assert.ok(range);
+  assert.equal(range.criteria[0].highValue, "CD+6w");
+  assert.equal(describeActivityFilter(range, "en"), "Start is within range of CD and CD+6w");
+  assert.equal(describeActivityFilter(range, "fa"), "شروع در بازهٔ CD تا CD+6w");
+
+  const equal = normalizeActivityFilter({
+    name: "Named", match: "all",
+    criteria: [{ fieldId: "activity_name", operator: "equals", value: "Kickoff", highValue: "ignored" }],
+  });
+  assert.ok(equal);
+  assert.equal(equal.criteria[0].highValue, undefined);
 });
