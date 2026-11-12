@@ -349,13 +349,21 @@ class ProjectCreationWorkflow:
         principal.validate()
         self._authorize(principal, Permission.ASSISTANT_ACTION)
         resolved_locale = require_locale(locale) if locale else DEFAULT_LOCALE
+        fingerprint = hashlib.sha256(
+            f"{WORKFLOW_KEY}|{principal.tenant_id}|{principal.user_id}|{resolved_locale}".encode()
+        ).hexdigest()
         if request_key:
             existing = self._find_by_request_key(principal, request_key)
             if existing is not None:
+                self._require_same_request(existing, fingerprint, resolved_locale)
                 return self._view(existing)
         now = iso(self._clock())
         run_id = "WF-" + hashlib.sha256(
-            f"{principal.tenant_id}:{principal.user_id}:{now}:{request_key or ''}".encode()
+            (
+                f"{principal.tenant_id}:{principal.user_id}:key:{request_key}"
+                if request_key
+                else f"{principal.tenant_id}:{principal.user_id}:{now}"
+            ).encode()
         ).hexdigest()[:24]
         steps = {
             key: {"status": "pending", "data": {}, "decision": None, "updated_at": None}
@@ -382,6 +390,7 @@ class ProjectCreationWorkflow:
                 "warnings": [],
                 "history": [],
                 "request_key": request_key,
+                "request_fingerprint": fingerprint,
                 "locale": resolved_locale,
             },
             "version": 1,
@@ -392,7 +401,18 @@ class ProjectCreationWorkflow:
         record["state"]["history"].append(
             {"at": now, "actor": principal.user_id, "action": "start", "step": STEP_ORDER[0], "outcome": "succeeded", "detail": {}}
         )
-        self._store.save_workflow(record, expected_version=0)
+        try:
+            self._store.save_workflow(record, expected_version=0)
+        except KnowledgeError as exc:
+            # A concurrent request with the same key won the insert. Replaying
+            # the stored run is the only correct answer; a second run would
+            # duplicate the project the caller is about to create.
+            if request_key and str(exc) == "ASSISTANT_WORKFLOW_STALE_VERSION":
+                existing = self._find_by_request_key(principal, request_key)
+                if existing is not None:
+                    self._require_same_request(existing, fingerprint, resolved_locale)
+                    return self._view(existing)
+            raise
         self._remember(principal, "project_creation.active_run", {"run_id": run_id, "current_step": STEP_ORDER[0], "version": 1}, now)
         self._audit(principal, "workflow_start", run_id, "succeeded", {"run_id": run_id})
         return self._view(record)
@@ -1023,18 +1043,35 @@ class ProjectCreationWorkflow:
             run["completed_at"] = iso(self._clock())
 
     def _find_by_request_key(self, principal: WorkflowPrincipal, request_key: str) -> dict | None:
+        # Completed runs are returned too: replaying a finished request must
+        # yield the original run, not start a second project.
         for row in self._store.list_workflows(
             principal.tenant_id, ORGANIZATION_SCOPE, principal.user_id, limit=50
         ):
             state = row.get("state")
             if (
                 row.get("workflow_key") == WORKFLOW_KEY
-                and row.get("status") == "active"
                 and isinstance(state, Mapping)
                 and state.get("request_key") == request_key
             ):
                 return row
         return None
+
+    @staticmethod
+    def _require_same_request(
+        run: Mapping[str, object], fingerprint: str, locale: str
+    ) -> None:
+        state = run.get("state")
+        stored = state.get("request_fingerprint") if isinstance(state, Mapping) else None
+        if stored is None:
+            # Runs created before fingerprints were persisted: compare the
+            # locale they were started with instead of guessing.
+            stored_locale = state.get("locale") if isinstance(state, Mapping) else None
+            if stored_locale is not None and str(stored_locale) == locale:
+                return
+            raise ProjectWorkflowError("WORKFLOW_IDEMPOTENCY_CONFLICT")
+        if str(stored) != fingerprint:
+            raise ProjectWorkflowError("WORKFLOW_IDEMPOTENCY_CONFLICT")
 
     def _load(self, principal: WorkflowPrincipal, run_id: str) -> dict:
         run = self._store.get_workflow(principal.tenant_id, ORGANIZATION_SCOPE, run_id)

@@ -26,13 +26,14 @@ from .model import (
     TranslationRecord,
     TranslationSource,
     TranslationStatus,
+    card_id_for,
     parse_iso,
     sha256_hex,
     text,
     topic_id_for,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = (
     """
@@ -281,6 +282,55 @@ _SCHEMA = (
     CREATE INDEX IF NOT EXISTS idx_knowledge_audit_scope
         ON knowledge_audit(tenant_id, project_id, occurred_at)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS knowledge_card_revision (
+        card_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        content_hash TEXT NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        PRIMARY KEY (card_id, revision)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS knowledge_translation_revision (
+        card_id TEXT NOT NULL,
+        locale TEXT NOT NULL,
+        translation_version INTEGER NOT NULL,
+        content_hash TEXT NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        PRIMARY KEY (card_id, locale, translation_version)
+    )
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS knowledge_audit_no_update
+    BEFORE UPDATE ON knowledge_audit
+    BEGIN
+        SELECT RAISE(ABORT, 'KNOWLEDGE_AUDIT_IMMUTABLE');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS knowledge_audit_no_delete
+    BEFORE DELETE ON knowledge_audit
+    BEGIN
+        SELECT RAISE(ABORT, 'KNOWLEDGE_AUDIT_IMMUTABLE');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS knowledge_card_event_no_update
+    BEFORE UPDATE ON knowledge_card_event
+    BEGIN
+        SELECT RAISE(ABORT, 'KNOWLEDGE_CARD_EVENT_IMMUTABLE');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS knowledge_card_event_no_delete
+    BEFORE DELETE ON knowledge_card_event
+    BEGIN
+        SELECT RAISE(ABORT, 'KNOWLEDGE_CARD_EVENT_IMMUTABLE');
+    END
+    """,
 )
 
 
@@ -339,11 +389,71 @@ class SqliteKnowledgeStore:
                     connection.execute(statement)
                 from .model import iso, utc_now
 
+                if current < 3:
+                    self._migrate_card_identity(connection)
                 connection.execute(
                     "INSERT INTO knowledge_schema_migration(version, applied_at) VALUES (?, ?)",
                     (SCHEMA_VERSION, iso(utc_now())),
                 )
             return SCHEMA_VERSION
+
+    @staticmethod
+    def _migrate_card_identity(connection: sqlite3.Connection) -> None:
+        """Rewrite pre-3.0 card identifiers that still embed the card type.
+
+        The identity is now ``(source_id, topic_key)`` only. Rows whose stored
+        identifier already matches the new formula are untouched; when the new
+        identifier is already occupied the legacy row is left in place instead
+        of overwriting reviewed content, so a migration never destroys work.
+        """
+
+        rows = connection.execute(
+            "SELECT card_id, topic_id FROM knowledge_card WHERE topic_id IS NOT NULL"
+        ).fetchall()
+        # Rewriting a foreign key is a controlled schema migration, not an
+        # application edit: lift the event-immutability trigger for exactly
+        # this transaction and restore it before returning.
+        connection.execute("DROP TRIGGER IF EXISTS knowledge_card_event_no_update")
+        connection.execute("DROP TRIGGER IF EXISTS knowledge_card_event_no_delete")
+        for row in rows:
+            topic = connection.execute(
+                "SELECT source_id, topic_key FROM knowledge_topic WHERE topic_id=?",
+                (row["topic_id"],),
+            ).fetchone()
+            if topic is None:
+                continue
+            target = card_id_for(str(topic["source_id"]), str(topic["topic_key"]))
+            legacy = str(row["card_id"])
+            if target == legacy:
+                continue
+            if (
+                connection.execute(
+                    "SELECT 1 FROM knowledge_card WHERE card_id=?", (target,)
+                ).fetchone()
+                is not None
+            ):
+                continue
+            for table in (
+                "knowledge_card_event",
+                "knowledge_card_translation",
+                "knowledge_card_revision",
+            ):
+                connection.execute(
+                    f"UPDATE {table} SET card_id=? WHERE card_id=?", (target, legacy)
+                )
+            connection.execute(
+                "UPDATE knowledge_card SET card_id=? WHERE card_id=?", (target, legacy)
+            )
+        connection.execute(
+            "CREATE TRIGGER IF NOT EXISTS knowledge_card_event_no_update "
+            "BEFORE UPDATE ON knowledge_card_event BEGIN "
+            "SELECT RAISE(ABORT, 'KNOWLEDGE_CARD_EVENT_IMMUTABLE'); END"
+        )
+        connection.execute(
+            "CREATE TRIGGER IF NOT EXISTS knowledge_card_event_no_delete "
+            "BEFORE DELETE ON knowledge_card_event BEGIN "
+            "SELECT RAISE(ABORT, 'KNOWLEDGE_CARD_EVENT_IMMUTABLE'); END"
+        )
 
     @contextmanager
     def _transaction(self):
@@ -688,9 +798,32 @@ class SqliteKnowledgeStore:
         return tuple(dict(_loads(row[0], {})) for row in rows)
 
     # -- cards -----------------------------------------------------------
-    def save_card(self, card: KnowledgeCard) -> None:
+    def save_card(
+        self, card: KnowledgeCard, *, expected_version: int | None = None
+    ) -> None:
+        """Persist a card, optionally guarded by its current revision.
+
+        ``expected_version`` is the revision the caller read. A mismatch means
+        another actor already advanced the card; the write is rejected instead
+        of silently overwriting their review, publication or retirement. The
+        superseded row is snapshotted so the previous revision stays readable.
+        """
+
         card.validate()
         with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT revision FROM knowledge_card WHERE card_id=?",
+                (card.card_id,),
+            ).fetchone()
+            current = None if row is None else int(row["revision"])
+            if expected_version is not None:
+                if current is None:
+                    if int(expected_version) != 0:
+                        raise KnowledgeError("KNOWLEDGE_CARD_VERSION_CONFLICT")
+                elif current != int(expected_version):
+                    raise KnowledgeError("KNOWLEDGE_CARD_VERSION_CONFLICT")
+            if current is not None and current != card.revision:
+                self._snapshot_card(connection, card.card_id)
             connection.execute(
                 """
                 INSERT INTO knowledge_card(
@@ -817,6 +950,126 @@ class SqliteKnowledgeStore:
                 (card_id, action, actor_id, occurred_at, _json(dict(detail))),
             )
 
+    def list_card_events(
+        self,
+        card_id: str,
+        *,
+        limit: int = 50,
+        before: int | None = None,
+    ) -> tuple[tuple[dict[str, object], ...], int | None]:
+        """Newest-first event page plus the cursor for the next page."""
+
+        size = max(1, min(int(limit), 200))
+        clauses = ["card_id=?"]
+        parameters: list[object] = [card_id]
+        if before is not None:
+            clauses.append("event_id<?")
+            parameters.append(int(before))
+        rows = self._connection.execute(
+            "SELECT event_id, card_id, action, actor_id, occurred_at, detail_json "
+            "FROM knowledge_card_event WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY event_id DESC LIMIT ?",
+            (*parameters, size),
+        ).fetchall()
+        events = tuple(
+            {
+                "event_id": int(row["event_id"]),
+                "card_id": row["card_id"],
+                "action": row["action"],
+                "actor_id": row["actor_id"],
+                "occurred_at": row["occurred_at"],
+                "detail": dict(_loads(row["detail_json"], {})),
+            }
+            for row in rows
+        )
+        cursor = events[-1]["event_id"] if len(events) == size else None
+        return events, cursor
+
+    def list_card_revisions(
+        self, card_id: str, *, limit: int = 50
+    ) -> tuple[dict[str, object], ...]:
+        size = max(1, min(int(limit), 200))
+        rows = self._connection.execute(
+            "SELECT revision, content_hash, snapshot_json, recorded_at "
+            "FROM knowledge_card_revision WHERE card_id=? "
+            "ORDER BY revision DESC LIMIT ?",
+            (card_id, size),
+        ).fetchall()
+        return tuple(
+            {
+                "revision": int(row["revision"]),
+                "content_hash": row["content_hash"],
+                "recorded_at": row["recorded_at"],
+                "snapshot": dict(_loads(row["snapshot_json"], {})),
+            }
+            for row in rows
+        )
+
+    def list_translation_revisions(
+        self, card_id: str, locale: str, *, limit: int = 50
+    ) -> tuple[dict[str, object], ...]:
+        size = max(1, min(int(limit), 200))
+        rows = self._connection.execute(
+            "SELECT translation_version, content_hash, snapshot_json, recorded_at "
+            "FROM knowledge_translation_revision WHERE card_id=? AND locale=? "
+            "ORDER BY translation_version DESC LIMIT ?",
+            (card_id, locale, size),
+        ).fetchall()
+        return tuple(
+            {
+                "translation_version": int(row["translation_version"]),
+                "content_hash": row["content_hash"],
+                "recorded_at": row["recorded_at"],
+                "snapshot": dict(_loads(row["snapshot_json"], {})),
+            }
+            for row in rows
+        )
+
+    @staticmethod
+    def _snapshot_card(connection: sqlite3.Connection, card_id: str) -> None:
+        row = connection.execute(
+            "SELECT * FROM knowledge_card WHERE card_id=?", (card_id,)
+        ).fetchone()
+        if row is None:
+            return
+        connection.execute(
+            "INSERT OR IGNORE INTO knowledge_card_revision"
+            "(card_id, revision, content_hash, snapshot_json, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                card_id,
+                int(row["revision"]),
+                row["content_hash"],
+                _json(dict(row)),
+                _now_iso(),
+            ),
+        )
+
+    @staticmethod
+    def _snapshot_translation(
+        connection: sqlite3.Connection, card_id: str, locale: str
+    ) -> None:
+        row = connection.execute(
+            "SELECT * FROM knowledge_card_translation WHERE card_id=? AND locale=?",
+            (card_id, locale),
+        ).fetchone()
+        if row is None:
+            return
+        connection.execute(
+            "INSERT OR IGNORE INTO knowledge_translation_revision"
+            "(card_id, locale, translation_version, content_hash, snapshot_json, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                card_id,
+                locale,
+                int(row["translation_version"]),
+                row["content_hash"],
+                _json(dict(row)),
+                _now_iso(),
+            ),
+        )
+
     @staticmethod
     def _card_row(row: sqlite3.Row) -> KnowledgeCard:
         return KnowledgeCard(
@@ -849,9 +1102,28 @@ class SqliteKnowledgeStore:
         )
 
     # -- per-locale card translations ----------------------------------
-    def save_translation(self, record: TranslationRecord) -> None:
+    def save_translation(
+        self,
+        record: TranslationRecord,
+        *,
+        expected_version: int | None = None,
+    ) -> None:
         record.validate()
         with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT translation_version FROM knowledge_card_translation "
+                "WHERE card_id=? AND locale=?",
+                (record.card_id, record.locale),
+            ).fetchone()
+            current = None if row is None else int(row["translation_version"])
+            if expected_version is not None:
+                if current is None:
+                    if int(expected_version) != 0:
+                        raise KnowledgeError("KNOWLEDGE_TRANSLATION_VERSION_CONFLICT")
+                elif current != int(expected_version):
+                    raise KnowledgeError("KNOWLEDGE_TRANSLATION_VERSION_CONFLICT")
+            if current is not None and current != record.translation_version:
+                self._snapshot_translation(connection, record.card_id, record.locale)
             connection.execute(
                 """
                 INSERT INTO knowledge_card_translation(

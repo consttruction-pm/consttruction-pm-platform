@@ -170,7 +170,7 @@ def test_card_visibility_and_review_permissions(
     status, payload = call(
         middleware, "GET", f"/api/knowledge/cards/{draft.card_id}", session="viewer-session"
     )
-    assert status.startswith("400")
+    assert status.startswith("404")
     assert payload["code"] == "KNOWLEDGE_CARD_NOT_PUBLISHED"
 
     status, payload = call(
@@ -435,7 +435,7 @@ def test_translation_routes_require_the_right_permission(
     )
     assert status.startswith("200")
     assert payload["translation_status"] == "published"
-    assert payload["published_language_version"] == 1
+    assert payload["published_language_version"] == 3
 
     status, payload = call(
         middleware,
@@ -539,7 +539,7 @@ def test_translation_can_be_retired_without_losing_its_version(
     )
     assert status.startswith("200")
     assert payload["translation_status"] == "retired"
-    assert payload["published_language_version"] == 1
+    assert payload["published_language_version"] == 3
 
     status, payload = call(
         middleware,
@@ -558,7 +558,7 @@ def test_translation_can_be_retired_without_losing_its_version(
     ]
     assert len(events) == 1
     detail = json.loads(events[0]["detail_json"])
-    assert detail["published_language_version"] == 1
+    assert detail["published_language_version"] == 3
     assert detail["previous"]["translation_status"] == "published"
 
 

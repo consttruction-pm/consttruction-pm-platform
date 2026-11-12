@@ -43,20 +43,22 @@ MAX_RETRIES = 2
 def _card_signature(card: KnowledgeCard) -> tuple[object, ...]:
     """Content identity for cross-source de-duplication.
 
-    The official documentation publishes the same page under more than one
-    root. Two cards are the same topic when the page name and every substantive
-    content field match. Source URL, release and breadcrumb (`category`/leading
-    `purpose`) are provenance context and are deliberately excluded: the same
-    page appears as "Tools > Global Change" under one root and "Developing
-    Projects > Global Change" under another.
+    Two cards are the same topic only when every substantive content field
+    matches: title, purpose and the complete procedure/evidence lists. The
+    source URL, release and breadcrumb are provenance context and are excluded
+    because the same page appears under more than one official root.
+
+    Page filename and card type are deliberately *not* part of the signature.
+    Filenames differ between roots for the same topic, and the card type is a
+    classification that changes when the page is edited; either one previously
+    produced "merges" of pages that merely shared a heading, discarding unique
+    body content. Where nothing distinctive matches, the topics stay separate.
     """
 
     normalize = lambda value: " ".join(str(value).split())
-    page = card.source_url.rstrip("/").rsplit("/", 1)[-1].lower()
     return (
-        page,
-        card.card_type.value,
         normalize(card.title),
+        normalize(card.purpose),
         tuple(normalize(step) for step in card.steps),
         tuple(normalize(item) for item in card.prerequisites),
         tuple(normalize(item) for item in card.inputs),

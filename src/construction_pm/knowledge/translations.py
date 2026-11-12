@@ -285,6 +285,10 @@ def review_translation(
         reviewed_at=now if accept else None,
         published_language_version=None,
         published_at=None,
+        # A review decision is a new persisted state, so it advances the
+        # version. Otherwise two reviewers holding the same stale version could
+        # overwrite each other's decision undetected.
+        translation_version=record.translation_version + 1,
     )
     reviewed.validate()
     return reviewed
@@ -313,7 +317,10 @@ def publish_translation(
     published = replace(
         record,
         translation_status=TranslationStatus.PUBLISHED,
-        published_language_version=record.translation_version,
+        # Publication creates a new immutable version; the published language
+        # version is that new number, not the one it was approved at.
+        translation_version=record.translation_version + 1,
+        published_language_version=record.translation_version + 1,
         published_at=now,
         localization_metadata=bound_metadata,
     )
@@ -345,6 +352,7 @@ def retire_translation(
         translation_status=TranslationStatus.RETIRED,
         reviewer=reviewer,
         updated_at=now,
+        translation_version=record.translation_version + 1,
     )
     retired.validate()
     return retired

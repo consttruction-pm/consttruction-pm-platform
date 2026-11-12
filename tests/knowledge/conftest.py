@@ -74,7 +74,7 @@ def make_card(
     if card_type is None:
         card_type = CardType.OPERATION if steps else CardType.CONCEPT
     card = KnowledgeCard(
-        card_id=card_id_for("p6-26-help", topic_key, card_type),
+        card_id=card_id_for("p6-26-help", topic_key),
         card_type=card_type,
         title=title,
         category=category,

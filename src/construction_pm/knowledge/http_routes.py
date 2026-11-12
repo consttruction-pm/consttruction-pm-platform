@@ -59,10 +59,9 @@ class KnowledgeHttpMiddleware:
             status, headers, body = _error(401, "SESSION_INVALID")
         except AuthorizationError as exc:
             status, headers, body = _error(403, str(exc))
-        except KnowledgeAPIError as exc:
-            status, headers, body = _error(400, str(exc))
-        except KnowledgeError as exc:
-            status, headers, body = _error(400, str(exc))
+        except (KnowledgeAPIError, KnowledgeError) as exc:
+            code = str(exc) or "REQUEST_INVALID"
+            status, headers, body = _error(_status_for(code), code)
         except (ValueError, TypeError) as exc:
             status, headers, body = _error(400, str(exc) or "REQUEST_INVALID")
         start_response(status, headers)
@@ -202,14 +201,50 @@ class KnowledgeHttpMiddleware:
             return _json(200, self._api.list_card_translations(principal, parts[1]))
         if (
             parts[:1] == ["cards"]
+            and len(parts) == 3
+            and parts[2] == "history"
+            and method == "GET"
+        ):
+            return _json(
+                200,
+                self._api.card_history(
+                    principal,
+                    parts[1],
+                    limit=_int(_query_one(query, "limit"), default=50),
+                    before=_optional_int(_query_one(query, "before")),
+                ),
+            )
+        if (
+            parts[:1] == ["cards"]
+            and len(parts) == 5
+            and parts[2] == "translations"
+            and parts[4] == "history"
+            and method == "GET"
+        ):
+            return _json(
+                200,
+                self._api.translation_history(
+                    principal,
+                    parts[1],
+                    parts[3],
+                    limit=_int(_query_one(query, "limit"), default=50),
+                ),
+            )
+        if (
+            parts[:1] == ["cards"]
             and len(parts) == 4
             and parts[2] == "translations"
             and method in {"PUT", "POST"}
         ):
+            body = self._body(environ)
             return _json(
                 200,
                 self._api.save_translation(
-                    principal, parts[1], parts[3], self._body(environ)
+                    principal,
+                    parts[1],
+                    parts[3],
+                    body,
+                    expected_version=_optional_int(body.get("expected_version")),
                 ),
             )
         if (
@@ -226,7 +261,11 @@ class KnowledgeHttpMiddleware:
             return _json(
                 200,
                 self._api.review_translation(
-                    principal, parts[1], parts[3], accept=accept
+                    principal,
+                    parts[1],
+                    parts[3],
+                    accept=accept,
+                    expected_version=_optional_int(body.get("expected_version")),
                 ),
             )
         if (
@@ -236,8 +275,15 @@ class KnowledgeHttpMiddleware:
             and parts[4] == "publish"
             and method == "POST"
         ):
+            body = self._body(environ)
             return _json(
-                200, self._api.publish_translation(principal, parts[1], parts[3])
+                200,
+                self._api.publish_translation(
+                    principal,
+                    parts[1],
+                    parts[3],
+                    expected_version=_optional_int(body.get("expected_version")),
+                ),
             )
         if (
             parts[:1] == ["cards"]
@@ -246,21 +292,38 @@ class KnowledgeHttpMiddleware:
             and parts[4] == "retire"
             and method == "POST"
         ):
+            body = self._body(environ)
             return _json(
-                200, self._api.retire_translation(principal, parts[1], parts[3])
+                200,
+                self._api.retire_translation(
+                    principal,
+                    parts[1],
+                    parts[3],
+                    expected_version=_optional_int(body.get("expected_version")),
+                ),
             )
         if parts[:1] == ["cards"] and len(parts) == 3 and method == "POST":
             card_id, action = parts[1], parts[2]
             body = self._body(environ)
+            version = _optional_int(body.get("expected_version"))
             if action == "review":
                 accept = body.get("accept", True)
                 if not isinstance(accept, bool):
                     return _error(400, "KNOWLEDGE_REVIEW_ACCEPT_INVALID")
-                return _json(200, self._api.review(principal, card_id, accept=accept))
+                return _json(
+                    200,
+                    self._api.review(
+                        principal, card_id, accept=accept, expected_version=version
+                    ),
+                )
             if action == "publish":
-                return _json(200, self._api.publish(principal, card_id))
+                return _json(
+                    200, self._api.publish(principal, card_id, expected_version=version)
+                )
             if action == "retire":
-                return _json(200, self._api.retire(principal, card_id))
+                return _json(
+                    200, self._api.retire(principal, card_id, expected_version=version)
+                )
             return _error(404, "ROUTE_NOT_FOUND")
         if parts == ["eps"] and method == "GET":
             return _json(200, self._api.list_eps(principal))
@@ -489,6 +552,32 @@ _REASONS = {
     409: "Conflict",
 }
 
+_CONFLICT_SUFFIXES = (
+    "_VERSION_CONFLICT",
+    "_IDEMPOTENCY_CONFLICT",
+    "_ALREADY_PUBLISHED",
+    "_ALREADY_RETIRED",
+    "_CONFLICT",
+)
+
+
+def _status_for(code: str) -> int:
+    """Stable status mapping so clients do not guess from the message text."""
+
+    if code.startswith("KNOWLEDGE_"):
+        if code.endswith("_NOT_FOUND") or code.endswith("_NOT_PUBLISHED"):
+            return 404
+        if code.endswith(_CONFLICT_SUFFIXES):
+            return 409
+        return 400
+    if code.startswith("WORKFLOW_"):
+        if code.endswith(_CONFLICT_SUFFIXES):
+            return 409
+        return 400
+    if code.startswith("ORGANIZATION_") or code.startswith("PROJECT_"):
+        return 409 if code.endswith(_CONFLICT_SUFFIXES) else 400
+    return 400
+
 
 def _query_one(query: Mapping[str, list[str]], name: str) -> str | None:
     values = query.get(name)
@@ -500,6 +589,19 @@ def _int(value: object, *, default: int) -> int:
         return default
     try:
         return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise KnowledgeError("REQUEST_INTEGER_INVALID") from exc
+
+
+def _optional_int(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise KnowledgeError("REQUEST_INTEGER_INVALID")
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value))
     except (TypeError, ValueError) as exc:
         raise KnowledgeError("REQUEST_INTEGER_INVALID") from exc
 

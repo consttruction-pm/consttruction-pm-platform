@@ -134,7 +134,8 @@ def test_review_and_publish_are_per_locale(store, card_factory, publish_factory)
     assert stored_fa.translation_status is TranslationStatus.TRANSLATED
     assert stored_fa.published_language_version is None
     assert store.get_translation(card.card_id, "ru").translation_status is TranslationStatus.PUBLISHED
-    assert store.get_translation(card.card_id, "ru").published_language_version == 1
+    # Version 1 is the content, 2 the approval, 3 the publication itself.
+    assert store.get_translation(card.card_id, "ru").published_language_version == 3
 
 
 def test_retired_locale_keeps_its_version_and_stops_answering(
@@ -147,7 +148,7 @@ def test_retired_locale_keeps_its_version_and_stops_answering(
     retired = retire_translation(published, reviewer="retirer-1", now=LATER)
 
     assert retired.translation_status is TranslationStatus.RETIRED
-    assert retired.published_language_version == 1
+    assert retired.published_language_version == 3
     assert retired.available() is False
     assert retired.approved_for_answer() is False
     store.save_translation(retired)
@@ -226,7 +227,8 @@ def test_editing_bumps_version_and_resets_review(store, card_factory) -> None:
     approved = review_translation(first, reviewer="reviewer-1", accept=True, now=NOW)
     store.save_translation(approved)
     second = _build(card, "ru", payload={"summary": "Обновленное описание."}, now=LATER, existing=approved)
-    assert second.translation_version == 2
+    # 1 content, 2 approval, 3 the edit that supersedes the approval.
+    assert second.translation_version == 3
     assert second.translation_status is TranslationStatus.TRANSLATED
     assert second.review_status is ReviewStatus.PENDING
     assert second.published_language_version is None

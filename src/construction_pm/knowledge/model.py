@@ -866,7 +866,22 @@ class AssistantAnswer:
         }
 
 
-def card_id_for(source_id: str, topic_key: str, card_type: CardType) -> str:
+def card_id_for(source_id: str, topic_key: str) -> str:
+    """Stable card identity: one source topic, one card.
+
+    Classification is deliberately excluded. A topic that is reclassified from
+    ``concept`` to ``operation`` after the documentation changes is still the
+    same underlying page; letting the card type feed the identity created a
+    second card and orphaned the reviewed history of the first one.
+    """
+
+    seed = f"{source_id}:{topic_key}"
+    return "KC-" + sha256_hex(seed)[:24]
+
+
+def legacy_card_id_for(source_id: str, topic_key: str, card_type: CardType) -> str:
+    """Identity used before schema version 3, needed only for migration."""
+
     seed = f"{source_id}:{topic_key}:{card_type.value}"
     return "KC-" + sha256_hex(seed)[:24]
 
@@ -938,6 +953,7 @@ __all__ = [
     "WorkflowStatus",
     "card_content_hash",
     "card_id_for",
+    "legacy_card_id_for",
     "detect_language",
     "iso",
     "merge_unique",
