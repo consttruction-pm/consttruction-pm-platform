@@ -118,6 +118,9 @@ from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
 )
+from construction_pm.budget_api import BudgetAPI
+from construction_pm.budget_application import BudgetApplicationService
+from construction_pm.budget_persistence import SQLiteBudgetStore
 from construction_pm.p6_financial_period_repository import (
     P6FinancialPeriodApplicationService,
     SQLiteP6FinancialPeriodRepository,
@@ -348,6 +351,7 @@ class PreviewRepositories:
     financial_period_service: P6FinancialPeriodApplicationService
     issues: SQLiteP6IssueRepository
     documents: SQLiteDocumentStore
+    budget: SQLiteBudgetStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -421,6 +425,8 @@ class PreviewRepositories:
         issues = SQLiteP6IssueRepository(connection)
         documents = SQLiteDocumentStore(connection)
         documents.initialize()
+        budget = SQLiteBudgetStore(connection)
+        budget.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -469,6 +475,7 @@ class PreviewRepositories:
             financial_period_service=financial_period_service,
             issues=issues,
             documents=documents,
+            budget=budget,
             transaction_manager=transaction_manager,
         )
 
@@ -1601,6 +1608,13 @@ def open_preview_runtime(
                 repositories.documents,
                 policy,
                 RolePermissionDocumentLifecycleAuthorizer(),
+                repositories.transaction_manager,
+            )
+        ),
+        budget_api=BudgetAPI(
+            BudgetApplicationService(
+                repositories.budget,
+                policy,
                 repositories.transaction_manager,
             )
         ),

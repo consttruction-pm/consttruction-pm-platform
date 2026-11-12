@@ -2425,6 +2425,8 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       onNavigate: (menu) => activateWindow(menu),
+      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canApprove: activeWorkspaceRoles.includes("project_admin"),
     });
   }
 

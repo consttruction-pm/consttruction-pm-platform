@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { mountWorkspaceBudgetPanel } from "./workspace-budget.js";
 import {
   loadCostAccounts,
   loadExpenses,
@@ -74,6 +75,10 @@ export type CostPageOptions = {
   context: ProjectContext;
   locale: string;
   onNavigate?: (menu: "expenses" | "schedule") => void;
+  /** Mirrors the server PROJECT_WRITE gate for the budget register. */
+  canWrite: boolean;
+  /** Mirrors the server project-admin approval gate for budget changes. */
+  canApprove: boolean;
 };
 
 type CostState = {
@@ -448,7 +453,7 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
   if (host.dataset.costMounted === "true") return;
   host.dataset.costMounted = "true";
 
-  const { transport, context, locale, onNavigate } = options;
+  const { transport, context, locale, onNavigate, canWrite, canApprove } = options;
   const state: CostState = {
     status: "idle",
     expenses: [],
@@ -610,7 +615,20 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
         <div class="cp-register-toolbar"><strong>${escapeHtml(t("Financial Periods", "دوره‌های مالی"))}</strong><div>${state.periodMode === "create" ? "" : `<button type="button" data-cost-period-action="new" ${state.busy ? "disabled" : ""}>${escapeHtml(t("New Financial Period", "دورهٔ مالی جدید"))}</button>`}</div></div>
         ${renderPeriods()}
       </section>
+      <section class="cp-cost-panel" data-cost-section="budget">
+        <div data-budget-panel></div>
+      </section>
       ${state.notice ? `<p class="cp-calendar-notice" data-cost-notice data-state="${state.notice.kind}" role="status">${escapeHtml(state.notice.message)}</p>` : ""}`;
+    const budgetHost = host.querySelector<HTMLElement>("[data-budget-panel]");
+    if (budgetHost) {
+      mountWorkspaceBudgetPanel(budgetHost, {
+        transport,
+        context,
+        locale,
+        canWrite,
+        canApprove,
+      });
+    }
   }
 
   function readEarnedValueInput(form: HTMLFormElement): EarnedValueInput {

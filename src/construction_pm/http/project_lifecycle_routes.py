@@ -109,6 +109,13 @@ from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..document_api import DocumentAPI
 from ..document_persistence import DocumentRecord
+from ..budget_api import BudgetAPI
+from ..budget_persistence import (
+    BudgetChange,
+    BudgetLine,
+    FundingSource,
+    parse_budget_amount,
+)
 from ..p6_issue_repository import P6Issue, P6IssuePersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
@@ -225,6 +232,7 @@ class ProjectLifecycleHttpRoutes:
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         document_api: DocumentAPI | None = None,
+        budget_api: BudgetAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -271,6 +279,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_issue_api = p6_issue_api
         self._document_api = document_api
+        self._budget_api = budget_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -2097,6 +2106,247 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "DOCUMENT_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._budget_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/budget/" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    budget_project_id, marker, budget_rest = rest.partition("/budget/")
+                    if marker and budget_project_id:
+                        try:
+                            context = self._api.open_project(
+                                session_id, budget_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [part for part in budget_rest.strip("/").split("/") if part]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _budget_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.budget.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.budget.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and parts == ["lines"]:
+                                return _budget_reply(self._budget_api.list_lines(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                    currency=query.get("currency"),
+                                    cost_account_id=query.get("cost_account_id"),
+                                    search=query.get("search"),
+                                ))
+                            if method == "POST" and parts == ["lines"]:
+                                return _budget_reply(self._budget_api.create_line(
+                                    BudgetLine(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        budget_line_id=str(payload.get("budget_line_id", "")),
+                                        description=str(payload.get("description", "")),
+                                        currency=str(payload.get("currency", "")),
+                                        original_amount=parse_budget_amount(
+                                            payload.get("original_amount"),
+                                            code="INVALID_BUDGET_ORIGINAL_AMOUNT",
+                                        ),
+                                        cost_account_id=payload.get("cost_account_id"),
+                                        period_id=payload.get("period_id"),
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "GET" and len(parts) == 2 and parts[0] == "lines":
+                                return _budget_reply(self._budget_api.read_line(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    budget_line_id=parts[1],
+                                    context=auth,
+                                ))
+                            if method in {"PUT", "PATCH"} and len(parts) == 2 and parts[0] == "lines":
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_BUDGET_REVISION")
+                                return _budget_reply(self._budget_api.update_line(
+                                    BudgetLine(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        budget_line_id=parts[1],
+                                        description=str(payload.get("description", "")),
+                                        currency=str(payload.get("currency", "")),
+                                        original_amount=parse_budget_amount(
+                                            payload.get("original_amount"),
+                                            code="INVALID_BUDGET_ORIGINAL_AMOUNT",
+                                        ),
+                                        cost_account_id=payload.get("cost_account_id"),
+                                        period_id=payload.get("period_id"),
+                                    ),
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    audit_reason=str(payload.get("reason") or ""),
+                                ))
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[0] == "lines"
+                                and parts[2] == "changes"
+                            ):
+                                return _budget_reply(self._budget_api.list_changes(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    budget_line_id=parts[1],
+                                    context=auth,
+                                ))
+                            if (
+                                method == "POST"
+                                and len(parts) == 3
+                                and parts[0] == "lines"
+                                and parts[2] == "changes"
+                            ):
+                                return _budget_reply(self._budget_api.create_change(
+                                    BudgetChange(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        budget_line_id=parts[1],
+                                        change_id=str(payload.get("change_id", "")),
+                                        amount=parse_budget_amount(
+                                            payload.get("amount"),
+                                            code="INVALID_BUDGET_CHANGE_AMOUNT",
+                                        ),
+                                        reason=str(payload.get("reason", "")),
+                                        status=str(payload.get("status", "pending")),
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[0] == "lines"
+                                and parts[2] == "history"
+                            ):
+                                return _budget_reply(self._budget_api.line_history(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    budget_line_id=parts[1],
+                                    context=auth,
+                                ))
+                            if (
+                                method == "POST"
+                                and len(parts) == 3
+                                and parts[0] == "changes"
+                                and parts[2] == "status"
+                            ):
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_BUDGET_REVISION")
+                                return _budget_reply(self._budget_api.transition_change(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    change_id=parts[1],
+                                    status=str(payload.get("status", "")),
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    reason=str(payload.get("reason") or ""),
+                                ))
+                            if method == "GET" and parts == ["funding"]:
+                                return _budget_reply(self._budget_api.list_funding(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                ))
+                            if method == "POST" and parts == ["funding"]:
+                                return _budget_reply(self._budget_api.create_funding(
+                                    FundingSource(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        funding_id=str(payload.get("funding_id", "")),
+                                        name=str(payload.get("name", "")),
+                                        source_type=str(payload.get("source_type", "")),
+                                        currency=str(payload.get("currency", "")),
+                                        amount=parse_budget_amount(
+                                            payload.get("amount"),
+                                            code="INVALID_BUDGET_FUNDING_AMOUNT",
+                                        ),
+                                        period_id=payload.get("period_id"),
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method in {"PUT", "PATCH"} and len(parts) == 2 and parts[0] == "funding":
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_BUDGET_REVISION")
+                                return _budget_reply(self._budget_api.update_funding(
+                                    FundingSource(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        funding_id=parts[1],
+                                        name=str(payload.get("name", "")),
+                                        source_type=str(payload.get("source_type", "")),
+                                        currency=str(payload.get("currency", "")),
+                                        amount=parse_budget_amount(
+                                            payload.get("amount"),
+                                            code="INVALID_BUDGET_FUNDING_AMOUNT",
+                                        ),
+                                        period_id=payload.get("period_id"),
+                                    ),
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    audit_reason=str(payload.get("reason") or ""),
+                                ))
+                            if method == "GET" and parts == ["summary"]:
+                                return _budget_reply(self._budget_api.summary(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                ))
+                            return self._error(
+                                400, "BUDGET_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "BUDGET_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
