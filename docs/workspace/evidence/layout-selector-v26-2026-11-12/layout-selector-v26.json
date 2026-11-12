@@ -1,16 +1,16 @@
 {
   "contract": "cubi-layout-selector-v26.v1",
   "baseUrl": "http://127.0.0.1:4194",
-  "gitHead": "e2a345cb3d433140d3368730d6c476f74725372a",
-  "testedCodeSha": "e2a345cb3d433140d3368730d6c476f74725372a",
+  "gitHead": "303d30649601dd241113c78ae3c3e1103a4241a0",
+  "testedCodeSha": "303d30649601dd241113c78ae3c3e1103a4241a0",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T16:04:06.905Z",
+  "capturedAt": "2026-11-12T16:06:31.128Z",
   "scenarios": [
     {
       "id": "01",
       "name": "Classic Schedule Layout",
       "status": "pass",
-      "at": "2026-11-12T16:04:11.410Z",
+      "at": "2026-11-12T16:06:35.637Z",
       "scope": "Project layout · r1",
       "columns": 8
     },
@@ -18,7 +18,7 @@
       "id": "02",
       "name": "گزینه‌های منو فقط از چیدمان‌های ذخیره‌شدهٔ همان پروژه می‌آیند",
       "status": "pass",
-      "at": "2026-11-12T16:04:12.512Z",
+      "at": "2026-11-12T16:06:36.738Z",
       "options": [
         {
           "scope": "project",
@@ -33,7 +33,7 @@
       "id": "03",
       "name": "Field team view",
       "status": "pass",
-      "at": "2026-11-12T16:04:14.477Z",
+      "at": "2026-11-12T16:06:38.722Z",
       "revision": 0,
       "columns": 8
     },
@@ -41,7 +41,7 @@
       "id": "04",
       "name": "بازکردن چیدمان پروژه، جدول را پیش‌نمایش می‌دهد و Cancel آن را دقیقاً بازمی‌گرداند",
       "status": "pass",
-      "at": "2026-11-12T16:04:20.305Z",
+      "at": "2026-11-12T16:06:44.548Z",
       "hiddenColumnId": "activity.planned_duration",
       "userColumns": 7,
       "projectColumns": 8
@@ -50,7 +50,7 @@
       "id": "05",
       "name": "Apply و بازخوانی صفحه، چیدمان انتخاب‌شده را برای همان کاربر و پروژه بازمی‌گرداند",
       "status": "pass",
-      "at": "2026-11-12T16:04:30.494Z",
+      "at": "2026-11-12T16:06:54.719Z",
       "project": "Classic Schedule Layout",
       "user": "Field team view"
     },
@@ -58,7 +58,7 @@
       "id": "06",
       "name": "Save نسخهٔ ذخیره‌شده را واقعاً افزایش می‌دهد و دادهٔ زمان‌بندی را تغییر نمی‌دهد",
       "status": "pass",
-      "at": "2026-11-12T16:04:32.213Z",
+      "at": "2026-11-12T16:06:56.435Z",
       "beforeRevision": 1,
       "afterRevision": 2,
       "rows": 14
@@ -67,7 +67,7 @@
       "id": "07",
       "name": "هر پروژه چیدمان و کاتالوگ خودش را دارد و انتخاب کاربر بین پروژه‌ها نشت نمی‌کند",
       "status": "pass",
-      "at": "2026-11-12T16:04:39.560Z",
+      "at": "2026-11-12T16:07:03.670Z",
       "projectBefore": "Field team view",
       "nse": "Classic Schedule Layout",
       "restored": "Field team view"
@@ -76,7 +76,7 @@
       "id": "08",
       "name": "رابط راست‌به‌چپ، انتخاب‌کننده را بدون شکستن چیدمان نمایش می‌دهد",
       "status": "pass",
-      "at": "2026-11-12T16:04:42.340Z",
+      "at": "2026-11-12T16:07:06.425Z",
       "direction": "rtl",
       "options": 2
     },
@@ -102,13 +102,13 @@
       "id": "09",
       "name": "در سه وضوح 1280×720 و 1366×768 و 1920×1080 کنترل دیده می‌شود و منو داخل صفحه می‌ماند",
       "status": "pass",
-      "at": "2026-11-12T16:04:47.551Z"
+      "at": "2026-11-12T16:07:11.646Z"
     },
     {
       "id": "10",
       "name": "Rename، Export و Import یک پروندهٔ چیدمان واقعی می‌سازند و دادهٔ پروژه را تغییر نمی‌دهند",
       "status": "pass",
-      "at": "2026-11-12T16:04:51.256Z",
+      "at": "2026-11-12T16:07:15.350Z",
       "renamed": "Field crew layout",
       "download": "Field-crew-layout.cubi-layout.json",
       "imported": "Imported crew layout",
@@ -134,5 +134,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T16:04:51.257Z"
+  "finishedAt": "2026-11-12T16:07:15.351Z"
 }
