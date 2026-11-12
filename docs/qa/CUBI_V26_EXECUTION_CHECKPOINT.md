@@ -2564,8 +2564,8 @@ Recorded provenance:
   it is not a rescheduled forecast); updates remain per activity with no all/selected bulk apply; the
   Progress page has no period cost/unit actuals and the trend is the persisted percent series.
 - Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-PRJ-02 (project close/archive/status; resolved 2026-11-12), GAP-DOC-02 (binary document storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
-- Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
-  context menus and duplicated text command bands.
+- Priority-zero queue continues with Activity Details tab content, per-target context menus and
+  duplicated text command bands; table multi-select is complete (see below).
 
 ## GAP-PRJ-02 — audited project status lifecycle (2026-11-12)
 
@@ -2625,5 +2625,50 @@ Recorded provenance:
   filtering/portfolios, and defaults application is not audited.
 - Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-DOC-02 (binary document
   storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
-- Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
-  context menus and duplicated text command bands.
+- Priority-zero queue continues with Activity Details tab content, per-target context menus and
+  duplicated text command bands; table multi-select is complete (see below).
+
+## Activities multi-row selection (2026-11-12)
+
+Reference: Oracle Primavera P6 Professional Help Version 26 — [Select multiple items](https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_multiple_items.htm)
+(Shift selects a contiguous group, Ctrl selects non-adjacent items).
+
+### Implemented
+
+- `apps/web/src/workspace-model.ts`: `WorkspaceState.selectedActivityIds` and `selectionAnchorId`
+  alongside the existing `selectedActivityId` primary row; `selectActivity` collapses to one row,
+  `toggleActivitySelection` adds/removes one row (the added row becomes primary), and
+  `selectActivityRange` resolves the inclusive range in displayed row order from the fixed anchor.
+  `selectWbs` clears the selection and `withActivities` prunes ids that no longer exist.
+- `apps/web/src/workspace-view.ts`: every selected row is marked `is-selected`/`aria-selected`, the
+  grid declares `aria-multiselectable="true"`, Gantt bars use the same set for `aria-pressed`, and
+  the real Ctrl/Cmd/Shift modifiers travel with the row or bar click.
+- `apps/web/src/main.ts`: applies single, toggle and range requests; the incremental re-render
+  updates all rows from the shared set instead of one primary id.
+- No server write is involved: selection is view state and is cleared by a reload.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3546 passed, 143 skipped |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 891 `tsx` + 14 `node --test` tests pass, 0 fail |
+| Web bundle | `cd apps/web && npm run build` | three bundles written |
+| Browser suite | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=0a56e7a node e2e/activity-multi-select-v26.mjs` | 8/8 scenarios, 5 screenshots, 2 viewport/locale cells, 0 exceptions/console errors/5xx |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Implementation commit | `0a56e7a` |
+| Browser-tested code SHA | `0a56e7a29e2bfd700aeb9b7f0d98d39cbb899ff4` |
+| Evidence | `docs/workspace/evidence/activity-multi-select-v26-2026-11-12/` (`report.json` `gitHead`) |
+| Branch | `feat/v26-activity-multi-select` |
+
+### Status after this increment
+
+- ACT-020: `WIRED_READ` for multi-row selection; select-all, count reconciliation, search-driven
+  selection and export scope remain.
+- Priority-zero queue continues with Activity Details tab content, per-target context menus and
+  duplicated text command bands.
