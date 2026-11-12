@@ -4,6 +4,16 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, slice 2 (`agent3/exchange-datasets-2026-11`, PR pending)
+
+- **Baseline:** `main` @ `034d0a3` (slice 1 merged).
+- **Exchange import/export (Workstream 2):** `p6-exchange-api.v1` now exposes six datasets: `activities`, `resources`, `risks`, `wbs`, `assignments`, `costs`. Activities, resources, WBS, assignments and costs are importable; `risks` remains export-only (`EXCHANGE_DATASET_READ_ONLY`). Exports are CSV (default) or XLSX with typed numeric/date cells and stable ordering; every import format uses the same header/arity/type/enum/duplicate/parent/cycle/cross-reference/revision/idempotency pipeline. Quoted fields, embedded delimiters and multiline cells are parsed with `csv.DictReader`, never string splitting.
+- **Atomic apply:** apply requires a transaction manager, validates the full batch before the first write, applies WBS/resources parents-first and other registers in deterministic ID order through the canonical APIs (`P6WBSMasterAPI`, `P6ActivityMasterAPI`, `P6ResourceAPI`, `P6ResourceAssignmentApplicationService`, `P6ExpenseApplicationService`), and records the run plus idempotency key inside the same transaction. Any write failure rolls the entire batch back and records an `EXCHANGE_APPLY_FAILED` run without reserving the key. `applied.replayed` remains true only for a same-key/same-payload replay; same key with different content is 409 `EXCHANGE_IDEMPOTENCY_KEY_REUSE`.
+- **PostgreSQL parity:** `PostgresExchangeStore` mirrors the SQLite run/idempotency schema and is covered by `tests/integration/test_exchange_postgres_live.py` for successful apply, replay, key reuse and whole-batch rollback.
+- **Tests:** `tests/test_exchange_registers.py` covers WBS preview/apply/export, activity/assignment/cost round-trip, XLSX WBS import, invalid references, quoted/multiline CSV and atomic rollback; `tests/test_exchange_api.py` is updated for the expanded catalogue. Full suite: **3600 passed, 147 skipped** without a DSN and **3769 passed, 20 skipped** with PostgreSQL (0 failed).
+- **Explicit gate:** XML register exchange is not implemented because no versioned XML domain contract exists in this repository; implementing one would invent a second schema. Project-to-project/remote exchange remains out of scope until an approved transfer contract exists.
+- **Still open in Issue #1799:** report PDF/parameterized/scheduled output, object-storage/quarantine/OCR adapters, migration parity audit, configuration/health hardening.
+
 ## Agent 3 checkpoint — Issue #1799, slice 1 (`agent3/backend-completion-2026-11`)
 
 - **Baseline:** `main` @ `ed1ad03` (Issue #1799 recorded `47cb01d`; `ed1ad03` is Agent 1's tracking-workspace merge and does not change backend contracts). Branch `agent3/backend-completion-2026-11`. No reopened work from PR #1795/#1796.
