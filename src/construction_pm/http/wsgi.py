@@ -20,6 +20,7 @@ class ProjectLifecycleWsgiApp:
     DEFAULT_BODY_LIMIT = 1_048_576
     DEFAULT_P6_IMPORT_BODY_LIMIT = 50 * 1_024 * 1_024
     DEFAULT_FORM_ASSET_BODY_LIMIT = 21 * 1_024 * 1_024
+    DEFAULT_DOCUMENT_CONTENT_BODY_LIMIT = 25 * 1_024 * 1_024
 
     def __init__(
         self,
@@ -28,6 +29,7 @@ class ProjectLifecycleWsgiApp:
         default_body_limit: int = DEFAULT_BODY_LIMIT,
         p6_import_body_limit: int = DEFAULT_P6_IMPORT_BODY_LIMIT,
         form_asset_body_limit: int = DEFAULT_FORM_ASSET_BODY_LIMIT,
+        document_content_body_limit: int = DEFAULT_DOCUMENT_CONTENT_BODY_LIMIT,
     ) -> None:
         if default_body_limit <= 0 or p6_import_body_limit <= 0:
             raise ValueError("body limits must be positive")
@@ -35,10 +37,13 @@ class ProjectLifecycleWsgiApp:
             raise ValueError("P6 import body limit must not be smaller than default limit")
         if form_asset_body_limit < default_body_limit:
             raise ValueError("form asset body limit must not be smaller than default limit")
+        if document_content_body_limit < default_body_limit:
+            raise ValueError("document content body limit must not be smaller than default limit")
         self._routes = routes
         self._default_body_limit = default_body_limit
         self._p6_import_body_limit = p6_import_body_limit
         self._form_asset_body_limit = form_asset_body_limit
+        self._document_content_body_limit = document_content_body_limit
 
     def __call__(self, environ: dict[str, object], start_response: StartResponse) -> Iterable[bytes]:
         method = str(environ.get("REQUEST_METHOD", "GET")).upper()
@@ -50,6 +55,7 @@ class ProjectLifecycleWsgiApp:
             or (path.startswith("/api/projects/") and "/forms" in path)
             or (path.startswith("/api/projects/") and "/p6/issues" in path)
             or (path.startswith("/api/projects/") and path.endswith("/documents"))
+            or (path.startswith("/api/projects/") and "/documents/" in path)
             or (path.startswith("/api/projects/") and path.endswith("/budget/lines"))
             or (path.startswith("/api/projects/") and path.endswith("/budget/funding"))
             or (path.startswith("/api/projects/") and path.endswith("/cost/accounts"))
@@ -92,7 +98,7 @@ class ProjectLifecycleWsgiApp:
                 status, headers, body = self._routes.handle(
                     method, path, cookies=cookie_values, body=body, headers=request_headers
                 )
-        reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict", 413: "Payload Too Large", 502: "Bad Gateway", 503: "Service Unavailable"}.get(status, "Internal Server Error")
+        reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict", 413: "Payload Too Large", 415: "Unsupported Media Type", 502: "Bad Gateway", 503: "Service Unavailable"}.get(status, "Internal Server Error")
         response_headers = [("Content-Length", str(len(body))), *headers.items(),
                             ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")]
         start_response(f"{status} {reason}", response_headers)
@@ -107,6 +113,13 @@ class ProjectLifecycleWsgiApp:
             path.endswith("/forms/assets") or path == "/api/forms/organization/assets"
         ):
             return self._form_asset_body_limit
+        if (
+            method == "POST"
+            and path.startswith("/api/projects/")
+            and "/documents/" in path
+            and path.endswith("/content")
+        ):
+            return self._document_content_body_limit
         return self._default_body_limit
 
     @staticmethod
@@ -116,6 +129,10 @@ class ProjectLifecycleWsgiApp:
     @staticmethod
     def _request_headers(environ: Mapping[str, object]) -> dict[str, str]:
         headers: dict[str, str] = {}
+        content_type = environ.get("CONTENT_TYPE")
+        if content_type:
+            # WSGI exposes Content-Type outside the HTTP_* namespace.
+            headers["Content-Type"] = str(content_type)
         for key, value in environ.items():
             if not key.startswith("HTTP_") or key == "HTTP_COOKIE":
                 continue

@@ -114,6 +114,7 @@ from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..document_api import DocumentAPI
+from ..document_storage import content_disposition
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
@@ -2062,6 +2063,29 @@ class ProjectLifecycleHttpRoutes:
                                 return self._error(
                                     404, code, "error.document.not_found"
                                 )
+                            if code == "DOCUMENT_CONTENT_NOT_FOUND":
+                                return self._error(
+                                    404, code, "error.document.content.not_found"
+                                )
+                            if code == "DOCUMENT_CONTENT_TOO_LARGE":
+                                return self._error(
+                                    413, code, "error.document.content.too_large"
+                                )
+                            if code in {
+                                "DOCUMENT_CONTENT_TYPE_REJECTED",
+                                "DOCUMENT_CONTENT_TYPE_MISMATCH",
+                                "DOCUMENT_CONTENT_TYPE_UNRECOGNIZED",
+                            }:
+                                return self._error(
+                                    415, code, "error.document.content.type_rejected"
+                                )
+                            if code in {
+                                "DOCUMENT_CONTENT_HASH_MISMATCH",
+                                "DOCUMENT_CONTENT_INTEGRITY_FAILED",
+                            }:
+                                return self._error(
+                                    409, code, "error.document.content.integrity"
+                                )
                             if category == "conflict":
                                 return self._error(
                                     409, code, "error.document.conflict"
@@ -2076,12 +2100,60 @@ class ProjectLifecycleHttpRoutes:
                                 )
                             return self._error(400, code, "error.request.invalid")
 
+                        is_content_upload = (
+                            method == "POST"
+                            and len(parts) == 2
+                            and parts[1] == "content"
+                        )
                         try:
-                            payload = (
-                                json.loads(body.decode("utf-8") or "{}") if body else {}
-                            )
-                            if not isinstance(payload, dict):
-                                raise ValueError("invalid payload")
+                            if is_content_upload:
+                                payload: dict[str, object] = dict(query)
+                            else:
+                                payload = (
+                                    json.loads(body.decode("utf-8") or "{}") if body else {}
+                                )
+                                if not isinstance(payload, dict):
+                                    raise ValueError("invalid payload")
+                            if is_content_upload:
+                                expected_raw = (
+                                    query.get("expected_revision")
+                                    or request_headers.get("X-Expected-Revision")
+                                )
+                                expected_value: int | None = None
+                                if expected_raw not in (None, ""):
+                                    if isinstance(expected_raw, bool):
+                                        raise ValueError(
+                                            "INVALID_EXPECTED_DOCUMENT_REVISION"
+                                        )
+                                    expected_value = int(expected_raw)
+                                result = self._document_api.upload_content(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    data=body,
+                                    content_type=(
+                                        request_headers.get("Content-Type", "")
+                                        or str(query.get("content_type") or "")
+                                    ),
+                                    filename=(
+                                        request_headers.get("X-File-Name")
+                                        or query.get("filename")
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or str(query.get("idempotency_key") or "")
+                                    ),
+                                    expected_revision=expected_value,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                )
+                                if "content" in result:
+                                    return self._json(
+                                        200 if result.get("idempotent_replay") else 201,
+                                        result,
+                                    )
+                                return _document_reply(result)
                             if method == "GET" and not parts:
                                 result = self._document_api.list(
                                     tenant_id=context.tenant_id,
@@ -2122,6 +2194,48 @@ class ProjectLifecycleHttpRoutes:
                                 if "document_id" in result:
                                     return self._json(200, result)
                                 return _document_reply(result)
+                            if method == "GET" and len(parts) == 3 and parts[1] == "content" and parts[2] == "versions":
+                                result = self._document_api.list_content_versions(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                )
+                                if "versions" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "GET" and len(parts) >= 2 and parts[1] == "content":
+                                content_version = None
+                                if len(parts) == 3:
+                                    content_version = int(parts[2])
+                                elif len(parts) > 3:
+                                    return self._error(
+                                        400,
+                                        "DOCUMENT_REQUEST_INVALID",
+                                        "error.request.invalid",
+                                    )
+                                download = self._document_api.download_content(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                    version=content_version,
+                                )
+                                if not isinstance(download, dict):
+                                    headers = {
+                                        "Content-Type": download.content_type,
+                                        "Content-Disposition": content_disposition(
+                                            download.filename
+                                        ),
+                                        "X-Content-SHA256": download.content_hash,
+                                        "X-Document-Version": (
+                                            ""
+                                            if download.version is None
+                                            else str(download.version)
+                                        ),
+                                    }
+                                    return (200, headers, download.data)
+                                return _document_reply(download)
                             if method == "GET" and len(parts) == 1:
                                 result = self._document_api.read(
                                     tenant_id=context.tenant_id,
