@@ -5,15 +5,17 @@ from datetime import datetime
 from typing import Any
 
 from .application.authorization import AuthorizationContext
-from .api_errors import APIError
+from .api_errors import APIError, persistence_error
 from .document_application import (
     DocumentApplicationService,
     DocumentContentDownload,
 )
+from .document_ocr import DocumentOcrService
 from .document_persistence import DocumentAuditEvent, DocumentRecord, StoredDocument
 
 DOCUMENT_API_VERSION = "1.0"
 DOCUMENT_CONTENT_API_VERSION = "1.0"
+DOCUMENT_OCR_API_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
@@ -21,6 +23,7 @@ class DocumentAPI:
     """Thin versioned transport adapter over the document application boundary."""
 
     service: DocumentApplicationService
+    ocr: DocumentOcrService | None = None
 
     def create(
         self,
@@ -235,6 +238,126 @@ class DocumentAPI:
             ))
         except Exception as exc:
             return _error(self.service.error_dto(exc))
+
+    def request_ocr(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        version: int,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        if self.ocr is None:
+            return _error(persistence_error(
+                "DOCUMENT_OCR_UNAVAILABLE", "DOCUMENT_OCR_UNAVAILABLE"
+            ))
+        try:
+            job = self.ocr.request(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                version=version,
+                context=context,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+            return {
+                "contract_version": DOCUMENT_OCR_API_VERSION,
+                "document_id": document_id,
+                "ocr": job.as_dict(include_text=False),
+            }
+        except Exception as exc:
+            return _error(self.ocr.error_dto(exc))
+
+    def read_ocr(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        version: int,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        if self.ocr is None:
+            return _error(persistence_error(
+                "DOCUMENT_OCR_UNAVAILABLE", "DOCUMENT_OCR_UNAVAILABLE"
+            ))
+        try:
+            job = self.ocr.read(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                version=version,
+                context=context,
+            )
+            return {
+                "contract_version": DOCUMENT_OCR_API_VERSION,
+                "document_id": document_id,
+                "ocr": job.as_dict(include_text=True),
+            }
+        except Exception as exc:
+            return _error(self.ocr.error_dto(exc))
+
+    def list_ocr(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        if self.ocr is None:
+            return _error(persistence_error(
+                "DOCUMENT_OCR_UNAVAILABLE", "DOCUMENT_OCR_UNAVAILABLE"
+            ))
+        try:
+            jobs = self.ocr.list(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                context=context,
+            )
+            return {
+                "contract_version": DOCUMENT_OCR_API_VERSION,
+                "document_id": document_id,
+                "jobs": [job.as_dict(include_text=False) for job in jobs],
+            }
+        except Exception as exc:
+            return _error(self.ocr.error_dto(exc))
+
+    def retry_ocr(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        version: int,
+        context: AuthorizationContext,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        if self.ocr is None:
+            return _error(persistence_error(
+                "DOCUMENT_OCR_UNAVAILABLE", "DOCUMENT_OCR_UNAVAILABLE"
+            ))
+        try:
+            job = self.ocr.retry(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                version=version,
+                context=context,
+                occurred_at=occurred_at,
+            )
+            return {
+                "contract_version": DOCUMENT_OCR_API_VERSION,
+                "document_id": document_id,
+                "ocr": job.as_dict(include_text=False),
+            }
+        except Exception as exc:
+            return _error(self.ocr.error_dto(exc))
 
 
 def _resource(stored: StoredDocument) -> dict[str, Any]:

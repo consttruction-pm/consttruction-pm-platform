@@ -26,6 +26,7 @@ from .document_persistence import (
     DocumentStore,
     StoredDocument,
 )
+from .document_ocr import DocumentOcrJob, DocumentOcrRepository
 from .document_scan import (
     DocumentScanError,
     DocumentScanRejected,
@@ -80,6 +81,7 @@ class DocumentApplicationService:
     max_content_bytes: int = DEFAULT_MAX_DOCUMENT_BYTES
     scanner: DocumentScanner | None = None
     require_scanned_content: bool = False
+    ocr_store: DocumentOcrRepository | None = None
 
     def create(
         self,
@@ -324,6 +326,23 @@ class DocumentApplicationService:
                     scan_detail=verdict.detail if verdict else "",
                 )
             )
+            if version.scan_status == "clean" and self.ocr_store is not None:
+                self.ocr_store.request(
+                    DocumentOcrJob(
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        document_id=document_id,
+                        version=version.version,
+                        storage_ref=version.storage_ref,
+                        content_hash=version.content_hash,
+                        content_type=version.content_type,
+                        byte_size=version.byte_size,
+                        original_filename=version.original_filename,
+                        requested_by=actor_id,
+                        requested_at=occurred_at,
+                        next_attempt_at=occurred_at,
+                    )
+                )
             return DocumentContentUpload(content=version, storage_ref=storage_ref)
 
     def download_content(
