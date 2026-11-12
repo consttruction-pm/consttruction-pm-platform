@@ -5761,7 +5761,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-progress-line { fill: none; stroke: var(--cp-progress-color, #7030a0); stroke-width: var(--cp-progress-width, 1px); vector-effect: non-scaling-stroke; }
 /* General tab legend: only bar styles that are currently shown appear. */
 .cp-p6 .cp-gantt-legend { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 3px 10px; padding: 3px 6px; border-bottom: 1px solid #bcc9d8; background: #f7f9fc; color: #2b3a4d; font-size: 8.5px; }
-.cp-p6 .cp-gantt-legend.is-bottom { position: sticky; bottom: 0; z-index: 6; border-top: 1px solid #bcc9d8; border-bottom: 0; }
+.cp-p6 .cp-gantt-legend.is-bottom { position: relative; z-index: 6; border-top: 1px solid #bcc9d8; border-bottom: 0; }
 .cp-p6 .cp-gantt-legend-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .cp-p6 .cp-gantt-legend-swatch { display: inline-block; width: 14px; height: 6px; border: 1px solid var(--cp-legend-border, #000); background-color: var(--cp-legend-color, #0000ff); box-sizing: border-box; }
 .cp-p6 .cp-gantt-legend-swatch.is-line { height: 2px; border: 0; background-color: var(--cp-legend-color, #808080); }
