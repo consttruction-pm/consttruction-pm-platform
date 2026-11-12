@@ -1,0 +1,126 @@
+{
+  "contract": "cubi-documents-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "testedCodeSha": "81f457a9",
+  "evidenceCommitSha": "81f457a9",
+  "evidenceDate": "2026-11-12",
+  "project": "preview-rps-01",
+  "documentId": "DOC-V26-2547115",
+  "startedAt": "2026-11-12T14:09:07.355Z",
+  "viewport": "1280x720",
+  "scenarios": [
+    {
+      "documentId": "DOC-V26-2547115",
+      "versions": 1,
+      "hash": "sha256:4dc2c0abac4dd57864a51f016d8d9dd28cfa7c01ee921e9833fea0b50a2970f0",
+      "id": "01",
+      "name": "a new document is created and its chosen file is uploaded as version 1",
+      "status": "pass",
+      "at": "2026-11-12T14:09:10.482Z"
+    },
+    {
+      "filename": "evidence-2547115.pdf",
+      "bytes": 77,
+      "digest": "sha256:4dc2c0abac4dd57864a51f016d8d9dd28cfa7c01ee921e9833fea0b50a2970f0",
+      "id": "02",
+      "name": "version 1 downloads with a matching SHA-256 and the original bytes",
+      "status": "pass",
+      "at": "2026-11-12T14:09:10.698Z"
+    },
+    {
+      "versions": 2,
+      "version1": "sha256:4dc2c0abac4dd57864a51f016d8d9dd28cfa7c01ee921e9833fea0b50a2970f0",
+      "version2": "sha256:4bde9b341ebb2e21120a7a62971b84abb30f3db587bcd8a15213357af1bca513",
+      "id": "03",
+      "name": "a second upload becomes version 2 while version 1 stays byte-identical",
+      "status": "pass",
+      "at": "2026-11-12T14:09:11.299Z"
+    },
+    {
+      "code": "DOCUMENT_CONTENT_TYPE_MISMATCH",
+      "versions": 0,
+      "id": "04",
+      "name": "the server rejects a declared PDF whose bytes are not a PDF",
+      "status": "pass",
+      "at": "2026-11-12T14:09:11.481Z"
+    },
+    {
+      "versions": 2,
+      "id": "05",
+      "name": "the register and versions survive a full page reload",
+      "status": "pass",
+      "at": "2026-11-12T14:09:13.616Z"
+    },
+    {
+      "downloads": 2,
+      "uploadDisabled": true,
+      "id": "06",
+      "name": "a Viewer can download but cannot upload file bytes",
+      "status": "pass",
+      "at": "2026-11-12T14:09:16.917Z"
+    },
+    {
+      "direction": "rtl",
+      "versions": 2,
+      "id": "07",
+      "name": "the Content tab renders in Persian right-to-left at 1280x720",
+      "status": "pass",
+      "at": "2026-11-12T14:09:20.216Z"
+    },
+    {
+      "viewports": [
+        {
+          "width": 1366,
+          "height": 768,
+          "window": {
+            "x": 58,
+            "y": 141,
+            "width": 1258,
+            "height": 559
+          },
+          "details": {
+            "x": 58,
+            "y": 417.375,
+            "width": 1258,
+            "height": 282.625
+          }
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "window": {
+            "x": 58,
+            "y": 141,
+            "width": 1812,
+            "height": 871
+          },
+          "details": {
+            "x": 58,
+            "y": 430.03125,
+            "width": 1812,
+            "height": 306.8125
+          }
+        }
+      ],
+      "id": "08",
+      "name": "the document window fits 1366x768 and 1920x1080 without overflow",
+      "status": "pass",
+      "at": "2026-11-12T14:09:22.944Z"
+    }
+  ],
+  "screenshots": [
+    "01-document-created-version-1.png",
+    "02-verified-download.png",
+    "03-two-immutable-versions.png",
+    "04-server-rejects-mismatched-bytes.png",
+    "05-persisted-after-reload.png",
+    "06-viewer-read-only-bytes.png",
+    "07-documents-1280x720-fa.png",
+    "08-documents-1366x768-en.png",
+    "08-documents-1920x1080-en.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T14:09:22.944Z"
+}

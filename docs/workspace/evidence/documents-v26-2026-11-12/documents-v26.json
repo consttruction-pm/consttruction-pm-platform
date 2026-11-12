@@ -1,24 +1,24 @@
 {
   "contract": "cubi-documents-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "b22c795581d8773f890b12915ed0e078c4153f09",
-  "testedCodeSha": "b22c795581d8773f890b12915ed0e078c4153f09",
-  "evidenceCommitSha": "cbd783b28a140d85447c978721786e389c7c1ee9",
-  "capturedAt": "2026-11-12T01:43:04.787Z",
-  "documentA": "E2E-DOC-MWCVVO1C-A",
-  "documentB": "E2E-DOC-MWCVVO1C-B",
+  "gitHead": "81f457a9c3f9cbd2fe683dd01b300a72dacf272b",
+  "testedCodeSha": "81f457a9",
+  "evidenceCommitSha": "81f457a9",
+  "capturedAt": "2026-11-12T14:08:42.278Z",
+  "documentA": "E2E-DOC-MWDMIJPF-A",
+  "documentB": "E2E-DOC-MWDMIJPF-B",
   "scenarios": [
     {
       "rows": 0,
       "empty": "No project documents are stored for this project.",
       "id": "01",
-      "name": "\u067e\u0646\u062c\u0631\u0647\u0654 Documents \u0641\u0647\u0631\u0633\u062a \u062e\u0627\u0644\u06cc\u060c \u067e\u0627\u0644\u0627\u06cc\u0647\u200c\u0647\u0627 \u0648 \u062c\u0632\u0626\u06cc\u0627\u062a \u0628\u062f\u0648\u0646 \u0627\u0646\u062a\u062e\u0627\u0628 \u0646\u0634\u0627\u0646 \u0645\u06cc\u200c\u062f\u0647\u062f",
+      "name": "پنجرهٔ Documents فهرست خالی، پالایه‌ها و جزئیات بدون انتخاب نشان می‌دهد",
       "status": "pass",
-      "at": "2026-11-12T01:43:08.794Z"
+      "at": "2026-11-12T14:08:46.307Z"
     },
     {
       "row": {
-        "id": "E2E-DOC-MWCVVO1C-A",
+        "id": "E2E-DOC-MWDMIJPF-A",
         "title": "E2E foundation layout drawing",
         "type": "drawing",
         "status": "draft",
@@ -27,13 +27,13 @@
         "selected": true
       },
       "stored": {
-        "document_id": "E2E-DOC-MWCVVO1C-A",
+        "document_id": "E2E-DOC-MWDMIJPF-A",
         "tenant_id": "cubi-preview-tenant",
         "project_id": "preview-rps-01",
         "resource_type": "drawing",
         "title": "E2E foundation layout drawing",
         "status": "draft",
-        "storage_ref": "s3://cubi-e2e/E2E-DOC-MWCVVO1C-A.pdf",
+        "storage_ref": "s3://cubi-e2e/E2E-DOC-MWDMIJPF-A.pdf",
         "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "linked_entity_refs": [
           "WBS-1.1",
@@ -43,9 +43,9 @@
         "revision": 1
       },
       "id": "02",
-      "name": "\u0627\u06cc\u062c\u0627\u062f \u0633\u0646\u062f \u0627\u0632 \u0641\u0631\u0645 \u0648\u0627\u0642\u0639\u06cc \u0628\u0647\u200c\u0635\u0648\u0631\u062a \u067e\u06cc\u0634\u200c\u0646\u0648\u06cc\u0633 \u0628\u0627 \u0646\u0633\u062e\u0647\u0654 \u06f1 \u0648 \u0647\u0634 \u0635\u0631\u06cc\u062d",
+      "name": "ایجاد سند از فرم واقعی به‌صورت پیش‌نویس با نسخهٔ ۱ و هش صریح",
       "status": "pass",
-      "at": "2026-11-12T01:43:09.397Z"
+      "at": "2026-11-12T14:08:46.910Z"
     },
     {
       "revision": 2,
@@ -54,123 +54,123 @@
         "updated"
       ],
       "id": "03",
-      "name": "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0641\u0631\u0627\u062f\u0627\u062f\u0647 \u0628\u0627 Revision: \u0639\u0646\u0648\u0627\u0646 \u0630\u062e\u06cc\u0631\u0647 \u0645\u06cc\u200c\u0634\u0648\u062f\u060c \u0646\u0633\u062e\u0647 \u06f2 \u0648 \u062a\u0627\u0631\u06cc\u062e\u0686\u0647\u0654 created/updated \u062b\u0628\u062a \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "name": "ویرایش فراداده با Revision: عنوان ذخیره می‌شود، نسخه ۲ و تاریخچهٔ created/updated ثبت می‌شود",
       "status": "pass",
-      "at": "2026-11-12T01:43:10.213Z"
+      "at": "2026-11-12T14:08:47.726Z"
     },
     {
       "code": "DOCUMENT_STATUS_REQUIRES_TRANSITION",
       "status": "pass",
       "revision": 2,
       "id": "04",
-      "name": "\u0646\u0648\u0634\u062a\u0646 \u0641\u0631\u0627\u062f\u0627\u062f\u0647 \u0646\u0645\u06cc\u200c\u062a\u0648\u0627\u0646\u062f \u0648\u0636\u0639\u06cc\u062a \u0631\u0627 \u062a\u063a\u06cc\u06cc\u0631 \u062f\u0647\u062f: DOCUMENT_STATUS_REQUIRES_TRANSITION \u0648 \u0631\u06a9\u0648\u0631\u062f \u067e\u06cc\u0634\u200c\u0646\u0648\u06cc\u0633 \u0645\u06cc\u200c\u0645\u0627\u0646\u062f",
-      "at": "2026-11-12T01:43:10.220Z"
+      "name": "نوشتن فراداده نمی‌تواند وضعیت را تغییر دهد: DOCUMENT_STATUS_REQUIRES_TRANSITION و رکورد پیش‌نویس می‌ماند",
+      "at": "2026-11-12T14:08:47.734Z"
     },
     {
       "conflict": "Document was not saved (DOCUMENT_REVISION_CONFLICT)",
       "title": "E2E competing metadata edit",
       "revision": "3",
       "id": "05",
-      "name": "\u0646\u0648\u0634\u062a\u0646 \u0647\u0645\u0632\u0645\u0627\u0646 \u0628\u06cc\u0631\u0648\u0646\u06cc: \u0627\u0631\u0633\u0627\u0644 \u0641\u0631\u0645 \u06a9\u0647\u0646\u0647 409 \u0645\u06cc\u200c\u062f\u0647\u062f \u0648 \u0631\u06a9\u0648\u0631\u062f \u0645\u0639\u062a\u0628\u0631 \u062d\u0641\u0638 \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "name": "نوشتن همزمان بیرونی: ارسال فرم کهنه 409 می‌دهد و رکورد معتبر حفظ می‌شود",
       "status": "pass",
-      "at": "2026-11-12T01:43:11.014Z"
+      "at": "2026-11-12T14:08:48.544Z"
     },
     {
       "status": "pass",
       "revision": 4,
       "approvalDisabled": true,
       "id": "06",
-      "name": "\u06af\u0630\u0627\u0631 \u0648\u0636\u0639\u06cc\u062a \u0645\u062c\u0627\u0632 \u0628\u0627 \u062f\u0644\u06cc\u0644 \u062b\u0628\u062a \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u062a\u0623\u06cc\u06cc\u062f \u0628\u0631\u0627\u06cc Planner \u063a\u06cc\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062a",
-      "at": "2026-11-12T01:43:11.714Z"
+      "name": "گذار وضعیت مجاز با دلیل ثبت می‌شود و تأیید برای Planner غیرفعال است",
+      "at": "2026-11-12T14:08:49.243Z"
     },
     {
       "status": "pass",
       "revision": 5,
       "actor": "preview-admin",
       "id": "07",
-      "name": "\u0645\u062f\u06cc\u0631 \u067e\u0631\u0648\u0698\u0647 \u0633\u0646\u062f \u0627\u0631\u0633\u0627\u0644\u06cc \u0631\u0627 \u062a\u0623\u06cc\u06cc\u062f \u0645\u06cc\u200c\u06a9\u0646\u062f \u0648 \u062a\u0635\u0645\u06cc\u0645 \u062f\u0631 \u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u062b\u0628\u062a \u0645\u06cc\u200c\u0634\u0648\u062f",
-      "at": "2026-11-12T01:43:16.366Z"
+      "name": "مدیر پروژه سند ارسالی را تأیید می‌کند و تصمیم در تاریخچه ثبت می‌شود",
+      "at": "2026-11-12T14:08:53.895Z"
     },
     {
       "code": "DOCUMENT_INVALID_STATUS_TRANSITION",
       "status": "pass",
       "revision": 5,
       "id": "08",
-      "name": "\u06af\u0630\u0627\u0631 \u0646\u0627\u0645\u0639\u062a\u0628\u0631 \u062f\u0631 \u0646\u0645\u0648\u062f\u0627\u0631 \u0648\u0636\u0639\u06cc\u062a \u0628\u0627 400 \u0631\u062f \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u0631\u06a9\u0648\u0631\u062f \u062a\u063a\u06cc\u06cc\u0631 \u0646\u0645\u06cc\u200c\u06a9\u0646\u062f",
-      "at": "2026-11-12T01:43:16.376Z"
+      "name": "گذار نامعتبر در نمودار وضعیت با 400 رد می‌شود و رکورد تغییر نمی‌کند",
+      "at": "2026-11-12T14:08:53.903Z"
     },
     {
       "typeRows": 1,
       "statusRows": 1,
-      "searched": "E2E-DOC-MWCVVO1C-B",
+      "searched": "E2E-DOC-MWDMIJPF-B",
       "serverFiltered": 1,
       "id": "09",
-      "name": "\u067e\u0627\u0644\u0627\u06cc\u0647\u200c\u0647\u0627 \u0648 \u062c\u0633\u062a\u062c\u0648\u06cc \u0633\u0645\u062a \u0633\u0631\u0648\u0631 \u0641\u0642\u0637 \u0631\u06a9\u0648\u0631\u062f \u0645\u0637\u0627\u0628\u0642 \u0631\u0627 \u0628\u0631\u0645\u06cc\u200c\u06af\u0631\u062f\u0627\u0646\u0646\u062f",
+      "name": "پالایه‌ها و جستجوی سمت سرور فقط رکورد مطابق را برمی‌گردانند",
       "status": "pass",
-      "at": "2026-11-12T01:43:17.463Z"
+      "at": "2026-11-12T14:08:54.991Z"
     },
     {
       "status": "pass",
       "revision": 6,
       "editDisabled": true,
       "id": "10",
-      "name": "\u0633\u0646\u062f \u062a\u0623\u06cc\u06cc\u062f\u0634\u062f\u0647 \u062c\u0627\u06cc\u06af\u0632\u06cc\u0646 \u0645\u06cc\u200c\u0634\u0648\u062f\u060c \u0648\u06cc\u0631\u0627\u06cc\u0634 \u063a\u06cc\u0631\u0641\u0639\u0627\u0644 \u0648 \u06af\u0630\u0627\u0631 \u0628\u06cc\u0634\u062a\u0631\u06cc \u067e\u06cc\u0634\u0646\u0647\u0627\u062f \u0646\u0645\u06cc\u200c\u0634\u0648\u062f",
-      "at": "2026-11-12T01:43:18.165Z"
+      "name": "سند تأییدشده جایگزین می‌شود، ویرایش غیرفعال و گذار بیشتری پیشنهاد نمی‌شود",
+      "at": "2026-11-12T14:08:55.694Z"
     },
     {
       "rows": 2,
       "superseded": "superseded",
       "draft": "draft",
       "id": "11",
-      "name": "\u067e\u0633 \u0627\u0632 \u0628\u0627\u0631\u06af\u0630\u0627\u0631\u06cc \u06a9\u0627\u0645\u0644 \u0635\u0641\u062d\u0647\u060c \u0631\u06a9\u0648\u0631\u062f\u0647\u0627 \u0648\u0636\u0639\u06cc\u062a \u0633\u0631\u0648\u0631 \u0631\u0627 \u062d\u0641\u0638 \u0645\u06cc\u200c\u06a9\u0646\u0646\u062f",
+      "name": "پس از بارگذاری کامل صفحه، رکوردها وضعیت سرور را حفظ می‌کنند",
       "status": "pass",
-      "at": "2026-11-12T01:43:20.949Z"
+      "at": "2026-11-12T14:08:58.492Z"
     },
     {
       "notice": "DOCUMENT_PERMISSION_DENIED",
       "createStatus": 403,
       "updateStatus": 403,
       "id": "12",
-      "name": "\u0646\u0642\u0634 Viewer \u0641\u0642\u0637 \u0645\u06cc\u200c\u062e\u0648\u0627\u0646\u062f: \u062f\u06a9\u0645\u0647\u0654 \u0627\u06cc\u062c\u0627\u062f \u063a\u06cc\u0631\u0641\u0639\u0627\u0644 \u0648 \u0646\u0648\u0634\u062a\u0646 \u0645\u0633\u062a\u0642\u06cc\u0645 403 \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "name": "نقش Viewer فقط می‌خواند: دکمهٔ ایجاد غیرفعال و نوشتن مستقیم 403 می‌شود",
       "status": "pass",
-      "at": "2026-11-12T01:43:24.905Z"
+      "at": "2026-11-12T14:09:02.446Z"
     },
     {
       "innerWidth": 1280,
       "innerHeight": 720,
       "direction": "rtl",
       "toolbar": {
-        "x": 46,
-        "y": 133,
-        "width": 1178,
+        "x": 50,
+        "y": 141,
+        "width": 1172,
         "height": 39
       },
       "filters": {
-        "x": 46,
-        "y": 186,
-        "width": 1178,
+        "x": 50,
+        "y": 194,
+        "width": 1172,
         "height": 52.4375
       },
       "register": {
-        "x": 46,
-        "y": 252.4375,
-        "width": 1178,
+        "x": 50,
+        "y": 260.4375,
+        "width": 1172,
         "height": 100
       },
       "window": {
-        "x": 46,
-        "y": 133,
-        "width": 1178,
-        "height": 519
+        "x": 50,
+        "y": 141,
+        "width": 1172,
+        "height": 511
       },
       "bottomDisplay": "none",
       "collapsed": "true",
       "rowCount": 2,
-      "heading": "\u0627\u0633\u0646\u0627\u062f \u067e\u0631\u0648\u0698\u0647",
+      "heading": "اسناد پروژه",
       "id": "13",
-      "name": "\u067e\u0646\u062c\u0631\u0647\u0654 Documents \u062f\u0631 1280\u00d7720 \u0641\u0627\u0631\u0633\u06cc\u060c \u0631\u0627\u0633\u062a\u200c\u0628\u0647\u200c\u0686\u067e \u0648 \u0628\u062f\u0648\u0646 \u0628\u0631\u06cc\u062f\u06af\u06cc \u0686\u06cc\u062f\u0645\u0627\u0646 \u0631\u0646\u062f\u0631 \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "name": "پنجرهٔ Documents در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی چیدمان رندر می‌شود",
       "status": "pass",
-      "at": "2026-11-12T01:43:26.569Z"
+      "at": "2026-11-12T14:09:04.078Z"
     }
   ],
   "screenshots": [
@@ -189,5 +189,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T01:43:26.569Z"
+  "finishedAt": "2026-11-12T14:09:04.078Z"
 }
