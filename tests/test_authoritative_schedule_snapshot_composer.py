@@ -229,7 +229,9 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         clock=lambda: now,
         snapshot_id_factory=lambda: "SNAP-PUBLISHED-1",
     )
-    snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy, settings_repo)
+    snapshot_api = P6ScheduleSnapshotPublicationAPI(
+        publisher, policy, settings_repo, calendar_repo
+    )
     registry = CalendarResolverRegistry(
         day_resolvers={
             "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
@@ -2637,3 +2639,96 @@ def test_composer_rejects_resource_assignments_on_milestones(
         match="MILESTONE_RESOURCE_ASSIGNMENT_UNSUPPORTED:M-1:AS-M",
     ):
         fixture["composer"].compose(scope, snapshot_id="SNAP-MILESTONE")
+
+
+def test_project_schedule_settings_require_a_stored_project_calendar(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    options = _schedule_options_payload(ScheduleOptions(data_date=date(2026, 10, 19)))
+    payload = {
+        "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+        "expected_record_revision": 0,
+        "mode": "DATE_BASED",
+        "project_calendar_id": "CAL-MISSING",
+        "project_calendar_version": "1",
+        "project_calendar_system": CalendarSystem.GREGORIAN.value,
+        "project_start": "2026-10-19",
+        "project_finish": None,
+        "schedule_options": options,
+        "project_leveling_priority": 10,
+    }
+
+    status, error = _request(
+        app, "POST", "/api/projects/p1/p6/schedule/settings", payload
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PROJECT_CALENDAR_NOT_FOUND"
+    assert fixture["settings_repo"].get(scope) is None
+
+    # The identity must resolve to a stored version, not only to a known id.
+    payload["project_calendar_id"] = "CAL-1"
+    payload["project_calendar_version"] = "2"
+    status, error = _request(
+        app, "POST", "/api/projects/p1/p6/schedule/settings", payload
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PROJECT_CALENDAR_NOT_FOUND"
+    assert fixture["settings_repo"].get(scope) is None
+
+    # A stored calendar of the wrong kind cannot back the project definition:
+    # a TIME_BASED project needs a working-time calendar, not CAL-1.
+    payload["mode"] = "TIME_AWARE"
+    payload["project_start"] = "2026-10-19T08:00:00+00:00"
+    payload["project_calendar_id"] = "CAL-1"
+    payload["project_calendar_version"] = "1"
+    status, error = _request(
+        app, "POST", "/api/projects/p1/p6/schedule/settings", payload
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PROJECT_CALENDAR_KIND_MISMATCH"
+    assert fixture["settings_repo"].get(scope) is None
+    fixture["connection"].close()
+
+
+def test_deleted_project_calendar_blocks_publication_instead_of_rebinding(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+
+    activity_status, _activity = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-CAL-DELETED",
+            "name": "Calendar deletion probe",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert activity_status == "201 Created"
+
+    status, _settings = _save_settings(app)
+    assert status == "201 Created"
+
+    stored = fixture["calendar_repo"].get(scope, "CAL-1", "1")
+    assert stored is not None
+    fixture["calendar_repo"].delete(
+        scope, "CAL-1", "1", expected_revision=stored.record_revision
+    )
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert status.startswith("400")
+    assert str(error["code"]).startswith("CALENDAR_VERSION_NOT_FOUND")
+    fixture["connection"].close()

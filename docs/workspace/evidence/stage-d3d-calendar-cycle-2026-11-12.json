@@ -1,0 +1,47 @@
+{
+  "stage": "D3d",
+  "title": "Calendar cycle: project calendar reference, deletion boundary and persisted parity",
+  "contract": "cubi-stage-d3d-calendar-cycle.v1",
+  "testedCodeSha": "eda1b71cba9d90a8225c4bfc8925367d20aa2ae9",
+  "evidenceCommitSha": null,
+  "evidenceCommitNote": "This file is stored by the evidence commit that follows testedCodeSha.",
+  "changes": {
+    "service": "src/construction_pm/p6_schedule_snapshot_publication_api.py",
+    "preview_wiring": "src/construction_pm/preview/runtime.py"
+  },
+  "domain_rules": {
+    "PROJECT_CALENDAR_NOT_FOUND": "project settings require a calendar id and version stored in the same scope",
+    "PROJECT_CALENDAR_KIND_MISMATCH": "DATE_BASED needs working-day and TIME_AWARE needs working-time, matching the stored master kind",
+    "deleted_calendar": "publication after deletion fails closed with CALENDAR_VERSION_NOT_FOUND; it never rebinds to another stored version"
+  },
+  "commands": [
+    {
+      "command": "PYTHONPATH=src python3 -m pytest tests -q --ignore=tests/integration",
+      "result": "3106 passed, 19 skipped"
+    },
+    {
+      "command": "cd apps/web && npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "cd apps/web && npm test",
+      "result": "passed"
+    },
+    {
+      "command": "cd apps/web && node e2e/preview-e2e.mjs (isolated managed runtime)",
+      "result": "98 checks passed, 53 screenshots, uncaught exceptions=[], API failures=[]"
+    }
+  ],
+  "scenarios": [
+    "settings save rejects a missing calendar id with PROJECT_CALENDAR_NOT_FOUND and leaves no settings row",
+    "settings save rejects a known id with an unknown version",
+    "settings save rejects a TIME_AWARE project bound to a working-day calendar",
+    "deleting a stored project calendar makes the next publication fail closed instead of rebinding",
+    "the schedule cycle lists stored calendars with name/id/version/kind and persists the selected reference across reload (browser evidence)"
+  ],
+  "browser_evidence": "docs/workspace/evidence/calendar-cycle-v26-2026-11-12/preview-e2e-evidence.json",
+  "limitations": [
+    "Calendar deletion is still allowed for an unreferenced calendar; a referenced calendar is not blocked at delete time in this stage, but the persisted reference can no longer be resolved and scheduling/publication fails closed with a stable code.",
+    "Timezone conversion stays in the schedule core; the UI does not convert dates on its own."
+  ]
+}

@@ -15,6 +15,7 @@ from .backend_p0.models import BackendScope
 from .authoritative_schedule_input_composer import (
     ScheduleInputCompositionError,
 )
+from .calendar_master_repository import CalendarMasterRepository
 from .project_schedule_settings_repository import (
     ProjectScheduleSettings,
     ProjectScheduleSettingsPersistenceError,
@@ -45,6 +46,7 @@ class P6ScheduleSnapshotPublicationAPI:
     publisher: AuthoritativeScheduleSnapshotPublisher
     authorization_policy: AuthorizationPolicy
     project_schedule_settings_repository: ProjectScheduleSettingsRepository
+    calendar_repository: CalendarMasterRepository
 
     def _require_schedule_permission(
         self,
@@ -96,6 +98,22 @@ class P6ScheduleSnapshotPublicationAPI:
             raise ProjectScheduleSettingsPersistenceError("INVALID_EXPECTED_REVISION")
         try:
             settings.validate()
+            # The project calendar is a stored reference. Reject a missing or
+            # wrong-kind reference when the setting is saved instead of letting
+            # the next schedule run discover it, so the persisted settings never
+            # point at a calendar this project cannot resolve.
+            reference = settings.project_calendar
+            calendar = self.calendar_repository.get(
+                scope, reference.calendar_id, reference.calendar_version
+            )
+            if calendar is None:
+                raise ProjectScheduleSettingsPersistenceError(
+                    "PROJECT_CALENDAR_NOT_FOUND"
+                )
+            if calendar.kind != reference.kind:
+                raise ProjectScheduleSettingsPersistenceError(
+                    "PROJECT_CALENDAR_KIND_MISMATCH"
+                )
             stored = self.project_schedule_settings_repository.save(
                 settings,
                 expected_revision=expected_revision,

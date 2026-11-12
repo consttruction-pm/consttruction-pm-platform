@@ -1,0 +1,58 @@
+{
+  "contract": "cubi-preview-browser-e2e.v1",
+  "managed_runtime": true,
+  "testedCodeSha": "eda1b71cba9d90a8225c4bfc8925367d20aa2ae9",
+  "check_count": 98,
+  "uncaught_exceptions": [],
+  "api_failures": [],
+  "console_errors_note": "the two console errors are the deliberate IMMUTABLE_LAYOUT_REVISION and REVISION_CONFLICT negative-path checks; the suite's final no-uncaught-exception/no-5xx check passed",
+  "console_error_count": 2,
+  "persistence": {
+    "layout": {
+      "hidden_field": "activity.id",
+      "hidden_label": "Activity ID",
+      "added_field": "activity.status",
+      "added_label": "Status",
+      "order": [
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete",
+        "Start",
+        "Finish",
+        "Status",
+        "Total Float"
+      ],
+      "width": 170,
+      "pinned": "true",
+      "frozen": "true",
+      "reload_verified": true
+    },
+    "settings": {
+      "initial_revision": 1,
+      "saved_revision": 3,
+      "calendar": "Riverside Mon-Fri (Gregorian) \u2014 CUBI-RPS-CAL @ 1 (working-day)",
+      "project_start": "2026-09-21",
+      "calendar_system": "gregorian"
+    },
+    "capacity": {
+      "segments": [
+        "8",
+        "12",
+        "10"
+      ],
+      "resolved_week": "50",
+      "reload_verified": true
+    }
+  },
+  "screenshots": [
+    {
+      "name": "06-settings-calendar.png",
+      "file": "06-settings-calendar.png"
+    },
+    {
+      "name": "07-schedule-results.png",
+      "file": "07-schedule-results.png"
+    }
+  ]
+}

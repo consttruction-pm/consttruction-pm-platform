@@ -1395,6 +1395,7 @@ def open_preview_runtime(
         publisher,
         policy,
         repositories.settings,
+        repositories.calendars,
     )
     baseline_api = P6BaselineAPI(
         P6BaselineApplicationService(
