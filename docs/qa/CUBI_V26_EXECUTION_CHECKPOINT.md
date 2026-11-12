@@ -2227,3 +2227,66 @@ Recorded provenance:
 - ACT-010 filters, legend and sight/background lines: remain `NOT_AUDITED`.
 - Remaining honest gap: stored `calendar_exception` rows are not overlaid, there is no
   show/hide toggle, and resource/activity calendars are not consulted.
+
+## Priority Zero — Gantt legend, sight lines, bar filters and five scales (2026-11-12)
+
+Reference: Version 26 HTML Help only — <https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm>.
+
+Prior increments recorded late: PR [#1783](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1783)
+(calendar-aware Gantt non-working background) merged as `c926a88b5a65aeac36dff33bcfb4cad6876f132f`;
+all five post-merge workflows succeeded on that commit (ConstructionPM CI, ConstructionPM Web CI,
+Client Typecheck, PostgreSQL Sync State Integration, Deploy CUBI Web to GitHub Pages).
+
+### Shipped in this increment
+
+1. **Bottom legend overlay fixed.** `.cp-gantt-legend.is-bottom` was `position: sticky` inside a
+   non-scrolling flex column, so it painted over the last chart rows. It now takes its own space
+   below the chart (`apps/web/styles.css` and `apps/web/public/styles.css`).
+2. **Timescale dialog no longer resets zoom.** The dialog duplicated the toolbar Scale select, and
+   `readLayoutPatch` overwrote `ganttScale` from the interval on every submit. The duplicate control
+   is removed; only a real interval change derives a new tick scale
+   (`apps/web/src/workspace-dialogs.ts`).
+3. **Browser suite** `apps/web/e2e/gantt-options-v26.mjs` (contract `cubi-gantt-options-v26.v1`)
+   covers legend placement/content, three sight-line kinds, per-bar filter/Show fallback, all five
+   scales, zoom in/out/Fit, and WBS collapse/expand.
+
+- Help: [Change a Gantt Chart bar's settings](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bar_s_settings.htm),
+  [Change the background lines in the Gantt chart](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_background_lines_in_the_gantt_chart.htm),
+  [The Gantt Chart](https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_gantt_chart.htm),
+  [Change a layout's timescale format](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_layout_s_timescale_format_50.htm),
+  [Zoom in and out of a timescaled layout](https://docs.oracle.com/cd/G48902_01/client_help/en_US/zoom_in_and_out_of_a_timescaled_layout.htm).
+- Unit tests: `apps/web/src/workspace-dialogs.test.ts` (format-only edit leaves `ganttScale`
+  untouched; duplicate scale control absent; interval change derives the tick scale).
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 878 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Gantt options | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=b20501f node e2e/gantt-options-v26.mjs` | 2/2 cells pass (1366×768 en/fa), 22 screenshots, 0 exceptions/console errors/5xx |
+| Visual acceptance | same command with `e2e/workspace-visual-acceptance-v26.mjs` | 6/6 cells pass at the same code |
+| Legend | both cells | 7 items for 7 visible kinds; hide critical → 6 items; top/bottom placement correct |
+| Sight lines | both cells | 7 major, 10 minor horizontal, 3 minor vertical (all plotted ticks except the edge) |
+| Bar filter/Show | both cells | critical 7 → 0, task 6 → 13, total 17 unchanged (documented task fallback) |
+| Scales | both cells | 520/640/800/1100/1600 widths and 1/2/4/11/38 ticks for year/quarter/month/week/day |
+| Zoom/Fit + collapse | both cells | quarter↔month, Fit→month; 14→0→14 rows, 7 summary groups, no overflow |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `b20501f587a2673dd81271af6e1090b6284c091f` |
+| Evidence commit | `7ea89d54a41c7ee15e6a20a288c8e2d8eedac4c6` |
+| Branch | `feat/v26-gantt-options` |
+| PR | [#1784](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1784) |
+
+### Status after this increment
+
+- ACT-008 five scales and zoom/Fit: `WIRED_READ`.
+- ACT-010 legend, sight lines and per-bar filters: `WIRED_READ`.
+- Remaining honest gap: Fit maps to the month scale instead of measuring the pane; free pan and
+  scroll-sync are not audited; Add/Delete bar and some bar shapes remain absent.
+- Activity Details tab content, context-menu completeness, and the large-project
+  calculation-scope tests remain on the priority-zero queue.
