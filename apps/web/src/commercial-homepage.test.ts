@@ -110,7 +110,8 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /\.\/platform\/#project-controls/);
   assert.match(landing, /\.\/solutions\/#construction-teams/);
   assert.match(landing, /\.\/resources\/#documentation/);
-  assert.match(landing, /pricingHref = locale === "fa"/);
+  // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
+  assert.match(landing, /pricingHref = locale === "en" \? `\$\{siteRootHref\}pricing\/` : `\$\{siteRootHref\}\$\{locale\}\/pricing\/`/);
   assert.match(landing, /href="\$\{pricingHref\}"/);
 });
 
@@ -220,4 +221,24 @@ test("homepage header, dashboard and footer use the canonical logo asset only", 
   assert.match(landing, /cubi-exact-brand[^>]*>[\s\S]*?cubiPlatformLogoUrl\(\)/);
   assert.match(landing, /cubi-footer-brand[^>]*>[\s\S]*?cubiPlatformLogoUrl\(\)/);
   assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\s\S]*?<span[^>]*>CUBI<\/span>/);
+});
+
+test("homepage messaging covers oil and gas, EPC and the nine requested locales without overstating assistant autonomy", () => {
+  for (const locale of ["en", "fa", "de", "fr", "zh", "ja", "ko", "ru", "ar"]) {
+    assert.ok(landing.includes("  " + locale + ": {"), "Missing homepage locale copy: " + locale);
+  }
+  for (const phrase of [
+    "oil, gas, petrochemical",
+    "pipelines",
+    "refineries",
+    "EPC",
+    "Engineering Intelligence",
+    "permission-aware",
+    "industriesEyebrow",
+    "cubi-exact-industries",
+  ]) assert.ok(landing.includes(phrase), "Expected homepage messaging marker: " + phrase);
+  assert.ok(landing.includes("request your approval before changing project records"));
+  // Do not advertise a locale until its translated homepage AND every public
+  // marketing route, metadata and reciprocal language links are shipped.
+  assert.ok(landing.includes('Object.freeze(["en", "fa"])'));
 });
