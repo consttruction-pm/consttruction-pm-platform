@@ -44,7 +44,8 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     footerColumns: [
       { title: "Platform", links: ["Project Controls", "Planning & Scheduling", "Resources & Cost"] },
       { title: "Solutions", links: ["Construction Teams", "Project Leadership", "Project Delivery"] },
-      { title: "Resources", links: ["Documentation", "Product Overview", "Contact"] }
+      { title: "Resources", links: ["Documentation", "Product Overview", "Contact"] },
+      { title: "Company", links: ["About Us"] }
     ],
     footerNote: "Plan. Control. Build Smarter."
   },
@@ -82,7 +83,8 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     footerColumns: [
       { title: "پلتفرم", links: ["کنترل پروژه", "برنامه‌ریزی و زمان‌بندی", "منابع و هزینه"] },
       { title: "راهکارها", links: ["تیم‌های ساخت", "مدیریت پروژه", "تحویل پروژه"] },
-      { title: "منابع", links: ["مستندات", "معرفی محصول", "تماس"] }
+      { title: "منابع", links: ["مستندات", "معرفی محصول", "تماس"] },
+      { title: "تیم کوبی", links: ["درباره ما"] }
     ],
     footerNote: "برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
@@ -288,7 +290,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"], ["./about/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
       </div>`;
