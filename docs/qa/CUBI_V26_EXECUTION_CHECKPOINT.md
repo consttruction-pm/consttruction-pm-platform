@@ -1039,6 +1039,130 @@ Changed files: `apps/web/src/client.ts`, `apps/web/src/workspace-calendars.ts`,
 
 ---
 
+## Stage D3c — Calendar usage references and assignment calendar selection
+
+Status: **merged**. Independent PR
+[#1769](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1769), branch
+`feat/v26-stage-d3c-calendar-usage`, squash-merged into `main` as `cef505e9` on 2026-11-12
+(merge confirmed by the GitHub API: `merged=true`, `merged_at=2026-11-12T03:47:43Z`,
+`merge_commit_sha=cef505e93f3a729f9bcca9686f7a658af05f7c00`, 17 changed files). The PR was
+created from `main` @ `64a51a9b`, all 9 required checks were green on the exact head
+`7c97e522`, and post-merge CI on `cef505e9` succeeded 5/5 without a rerun.
+
+Help topics used: the Version 26 Calendars sections on calendar assignments, resource
+calendars and seeing which activities, relationships and resources use one calendar. The
+attached 815-page PDF has no extractable text in this environment, so topic filenames and
+printed page numbers remain `VERIFY` rather than guessed.
+
+### What shipped
+
+1. **Calendar usage read model**: new `p6-calendar-usage-api.v1` composes usage from the
+   authoritative repositories instead of a separate projection: activity calendar
+   assignments, relationship-lag calendar assignments, resource masters and resource
+   assignments. It never fabricates a reference and matches explicit references on the exact
+   calendar id and version pair.
+2. **Usage HTTP read**: `GET /api/projects/{project}/p6/calendars/{calendar}/{version}/uses`
+   returns `contract_version`, the resolved calendar reference, `total`, per-kind `counts`
+   and per-reference rows. A denied read or cross-scope request is 403, a malformed or empty
+   reference is 400 `P6_CALENDAR_REQUEST_INVALID`, and an unknown calendar or version is 404
+   `P6_CALENDAR_NOT_FOUND`. The route is wired into both the preview runtime and the
+   production composition.
+3. **Used By tab**: the Calendars window detail gains a read-only Used By tab with the total,
+   a localized per-kind summary and one row per reference, including the assignment/activity
+   identifier. The payload parser fails closed on a mismatched contract, calendar reference,
+   wrong array length or non-integer counts, so a drifted server cannot render partial usage.
+4. **Assignment calendar reference**: the Assignments register form gains a calendar select
+   with a `Project default` option and every stored calendar as an exact `id|version` value.
+   Saving sends `calendar_id` and `calendar_version`; a half-filled reference throws
+   `INCOMPLETE_CALENDAR_REFERENCE` before the request, and the register's calendar column
+   shows the stored reference.
+5. **Role gating in the register**: New and Revise assignment controls render only for
+   planner/project_admin roles, so a viewer sees the register and the usage tab but cannot
+   start a write. The server still enforces the write permission independently.
+6. **Browser evidence**: six scenarios drive the real window: baseline usage shows the stored
+   resource master, a new assignment is saved with an explicit calendar reference, usage then
+   counts both reference kinds, unknown calendar/stale version return 404, a viewer reads
+   usage and is refused a create with 403, and the Persian usage tab renders at 1280×720
+   without overflow.
+
+### Defects found while building the evidence and fixed
+
+- The first harness run reused a preview database that already contained an assignment from
+  an earlier interrupted run, so the baseline assertion saw a total of 2. Evidence runs now
+  start from a `--reset` preview and the report pins the code SHA.
+- The harness exit called `chrome.close()`, which the shared launcher does not expose; it now
+  calls the supported `stop()` so a failing scenario reports its real assertion and Chrome
+  does not keep the process alive.
+- `WorkspaceCalendarRecord` was not exported from the calendars module; it is re-exported
+  from the shared model so the assignments form can type the calendar catalogue.
+- Assignment tests failed typecheck once the calendar field became part of the input; the
+  fixtures and expected payloads were updated and a half-reference rejection test was added.
+- The New Assignment control was initially visible to viewers; it is now gated by the same
+  write-role check `main.ts` already knows.
+
+### Honest limits (definite, not planned)
+
+- Usage is derived on read; there is no stored usage projection, no Postgres mirror and no
+  cross-project aggregate.
+- A resource master stores only a calendar id, so those rows are matched by id and reported
+  with `calendar_version: null`; changing a calendar version does not invalidate a resource
+  master reference.
+- Activity and relationship-lag calendar assignments can be counted only when another flow
+  stored them; this slice adds no UI to create those assignments.
+- The assignment form offers the project's stored calendars only; there is no scoped
+  assignment editor launched from Project Details or Resources.
+- Multi-view calendar rendering, recurring exceptions and calendar delete/replace remain
+  unsupported in this window.
+- Calendar and register labels remain inline English/Persian; the nine-locale catalogs are
+  still pending.
+- Provider-specific product names are not shown in the UI or Help text.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Unit/integration | `cd apps/web && npm test` | 832 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Calendars web suite | `workspace-calendars.test.ts` | 36 tests including the usage parser/loader coverage |
+| Assignments web suite | `workspace-assignments.test.ts` | 19 tests including the calendar payload and half-reference rejection |
+| Backend usage suite | `pytest tests/test_calendar_usage_api.py` | 2 passed |
+| Full Python suite | `pytest tests` | 3492 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Usage scenarios | `CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=f714cf94 node e2e/calendars-usage-v26.mjs` | 6/6 scenarios pass, 5 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 06 of the same suite | Persian RTL usage panel and table inside the viewport |
+| Evidence bundle | `docs/workspace/evidence/calendars-usage-v26-2026-11-12/` | `calendars-usage-v26.json` + 5 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `f714cf9453a2742f4d9222cdbbdde506549f712b` |
+| Evidence commit | `8c3c17afaf9b989ea1ee5735096331e896d2ec0a` |
+| Branch head at merge | `7c97e5226c7854add03ef07f28b8234fcaec7061` |
+| PR | [#1769](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1769) |
+| Merge commit | `cef505e93f3a729f9bcca9686f7a658af05f7c00` |
+| Post-merge CI | 5/5 workflow runs success on `cef505e9` |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
+scenarios ran on `f714cf94`, and the screenshots plus report were committed afterwards as
+`8c3c17af`; a follow-up commit pinned that value into the report.
+
+### Next stage
+
+Remaining calendar multi-view rendering and recurring exceptions stay recorded as a gap.
+Execution moves to Stage F — Reports, Administration, Import/Export and Backup/Recovery —
+then Stage G workspace integration and the final review.
+
+Changed files: `src/construction_pm/p6_calendar_usage_api.py`,
+`src/construction_pm/http/project_lifecycle_routes.py`,
+`src/construction_pm/http/production_composition.py`, `src/construction_pm/preview/runtime.py`,
+`tests/test_calendar_usage_api.py`, `apps/web/src/workspace-calendars.ts`,
+`apps/web/src/workspace-calendars.test.ts`, `apps/web/src/workspace-assignments.ts`,
+`apps/web/src/workspace-assignments.test.ts`, `apps/web/src/main.ts`,
+`apps/web/e2e/calendars-usage-v26.mjs`.
+
+---
+
 ## Stage E1 — Project Issue register, status graph and history
 
 Status: **merged**. Independent PR
