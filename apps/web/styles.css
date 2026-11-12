@@ -5562,7 +5562,9 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   vertical-align: middle;
   overflow: hidden;
 }
-.cp-p6 #cp-activity-grid thead th[data-column-id] { position: relative; }
+/* Sticky headers keep their own containing block for the absolutely
+   positioned resize handles; a relative override here would scroll the
+   column headers away with the rows. */
 .cp-p6 .cp-p6-column-label { display: block; overflow: hidden; text-overflow: ellipsis; }
 .cp-p6 .cp-p6-column-resize {
   position: absolute;

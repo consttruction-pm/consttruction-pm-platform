@@ -2349,7 +2349,67 @@ Recorded provenance:
 ### Status after this increment
 
 - ACT-008 pane-aware Fit: `WIRED_READ`.
-- Remaining honest gap: Fit is stepped by the five documented scales, not continuous; free pan,
-  horizontal/vertical scroll-sync and pixel-level fit are still unimplemented or unaudited.
-- Activity Details tab content, context-menu completeness, WBS/Gantt scroll-sync and the
-  large-project calculation-scope tests remain on the priority-zero queue.
+- Remaining honest gap: Fit is stepped by the five documented scales, not continuous; free pan
+  and pixel-level fit are still unimplemented or unaudited (scroll-sync is covered by the next
+  increment).
+- Activity Details tab content, context-menu completeness and the large-project
+  calculation-scope tests remain on the priority-zero queue.
+
+## Priority Zero — table/Gantt scroll-sync and sticky headers (2026-11-12)
+
+### Defect and fix
+
+The audit of the shared vertical surface found a real regression: a later
+`.cp-p6 #cp-activity-grid thead th[data-column-id] { position: relative; }` rule overrode the
+sticky header of every data column. Scrolling the table moved its column headers out of view while
+the Gantt timescale stayed fixed, so the two panes no longer read as one surface.
+
+- The override is removed from `apps/web/styles.css` and `apps/web/public/styles.css`; `sticky`
+  already establishes the containing block for the absolutely positioned column resize handles.
+- `apps/web/src/workspace-presentation-css.test.ts` now asserts the header rule keeps
+  `position: sticky; top: 0` and that the relative override is gone (880 `tsx` tests).
+
+The existing delegated scroll handler in `apps/web/src/workspace-view.ts` already compensates for
+the table-header/Gantt-axis height difference; the new suite proves it end to end.
+
+### Help and tests
+
+- Help: [Zoom in and out of a timescaled layout](https://docs.oracle.com/cd/G48902_01/client_help/en_US/zoom_in_and_out_of_a_timescaled_layout.htm).
+- Browser: `apps/web/e2e/gantt-scroll-sync-v26.mjs` (contract `cubi-gantt-scroll-sync-v26.v1`)
+  at 1280×720 and 1366×768 in en/LTR and fa/RTL. It scrolls the table half way (Gantt follows to
+  the same rows, ≤1 px drift), returns the chart to the top (table returns), scrolls both panes to
+  their clamped bottom (last table row and last bar fully visible; alignment, not an absolute
+  clamp, because content heights differ by a couple of pixels), and scrolls the Gantt horizontally
+  on the day scale (timeline reaches its end — 1005/1600 px at a 595 px pane, −1010 in RTL — while
+  the table does not move and the axis stays pinned).
+- Fix verification: the first run failed on the header check, which led to the CSS fix; the suite
+  passes 4/4 at `eaf2d91`.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 880 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Scroll-sync acceptance | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=eaf2d91 node e2e/gantt-scroll-sync-v26.mjs` | 4/4 cells pass, 12 screenshots, 0 exceptions/console errors/5xx |
+| Row alignment | all 4 cells | 14 shared rows, 0 px at rest, ≤1 px while scrolling and at the clamped bottom |
+| Sticky chrome | all 4 cells | table header and Gantt axis keep their top while rows scroll (en and fa) |
+| Horizontal scroll | all 4 cells | 1005 px (1600 content − 595 pane) in LTR and −1010 px in RTL, table unchanged, axis pinned |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `eaf2d91c7e3dac4598f26a3892b83659b07cc9bd` |
+| Acceptance harness | `ddd7889` |
+| Evidence commit | `4156d22aeee448c2cb8b8694bc433e117ad97fc5` |
+| Branch | `feat/v26-gantt-scroll-sync` |
+| PR | [#1786](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1786) |
+
+### Status after this increment
+
+- ACT-008 table/Gantt vertical sync, sticky table header and sticky timescale axis: `WIRED_READ`.
+- Remaining honest gap: ~1 px subpixel row drift while scrolling; Fit is stepped by five scales;
+  free mouse pan is not implemented.
+- Activity Details tab content, context-menu completeness, multi-select and the server capability
+  gaps remain on the priority-zero queue.

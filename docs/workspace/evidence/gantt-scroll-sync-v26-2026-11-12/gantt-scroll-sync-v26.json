@@ -1,0 +1,260 @@
+{
+  "contract": "cubi-gantt-scroll-sync-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "eaf2d91c7e3dac4598f26a3892b83659b07cc9bd",
+  "testedCodeSha": "eaf2d91c7e3dac4598f26a3892b83659b07cc9bd",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T08:47:30.676Z",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "en",
+      "rest": {
+        "table": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 435,
+          "clientHeight": 311,
+          "top": 177.9,
+          "bottom": 491.1
+        },
+        "chart": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 436,
+          "clientHeight": 313,
+          "clientWidth": 595,
+          "scrollWidth": 800,
+          "top": 177.9,
+          "bottom": 491.1
+        },
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 0
+        }
+      },
+      "tableToChart": {
+        "scrollTop": 63,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "chartToTable": {
+        "scrollTop": 0,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "bottom": {
+        "table": 122,
+        "chart": 123,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "horizontal": {
+        "scrollLeft": 1005,
+        "width": 1600,
+        "clientWidth": 595
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "fa",
+      "rest": {
+        "table": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 435,
+          "clientHeight": 311,
+          "top": 177.9,
+          "bottom": 491.1
+        },
+        "chart": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 436,
+          "clientHeight": 313,
+          "clientWidth": 595,
+          "scrollWidth": 1605,
+          "top": 177.9,
+          "bottom": 491.1
+        },
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 0
+        }
+      },
+      "tableToChart": {
+        "scrollTop": 63,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "chartToTable": {
+        "scrollTop": 0,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "bottom": {
+        "table": 122,
+        "chart": 123,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "horizontal": {
+        "scrollLeft": -1010,
+        "width": 1605,
+        "clientWidth": 595
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "rest": {
+        "table": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 435,
+          "clientHeight": 345,
+          "top": 177.9,
+          "bottom": 524.7
+        },
+        "chart": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 436,
+          "clientHeight": 347,
+          "clientWidth": 638,
+          "scrollWidth": 1600,
+          "top": 177.9,
+          "bottom": 524.7
+        },
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 0
+        }
+      },
+      "tableToChart": {
+        "scrollTop": 46,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "chartToTable": {
+        "scrollTop": 0,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "bottom": {
+        "table": 88,
+        "chart": 89,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "horizontal": {
+        "scrollLeft": 962,
+        "width": 1600,
+        "clientWidth": 638
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "fa",
+      "rest": {
+        "table": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 435,
+          "clientHeight": 345,
+          "top": 177.9,
+          "bottom": 524.7
+        },
+        "chart": {
+          "scrollTop": 0,
+          "scrollLeft": 0,
+          "scrollHeight": 436,
+          "clientHeight": 347,
+          "clientWidth": 638,
+          "scrollWidth": 1605,
+          "top": 177.9,
+          "bottom": 524.7
+        },
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 0
+        }
+      },
+      "tableToChart": {
+        "scrollTop": 46,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "chartToTable": {
+        "scrollTop": 0,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "bottom": {
+        "table": 88,
+        "chart": 89,
+        "alignment": {
+          "pairs": 14,
+          "worstDelta": 1
+        }
+      },
+      "horizontal": {
+        "scrollLeft": -967,
+        "width": 1605,
+        "clientWidth": 638
+      }
+    }
+  ],
+  "screenshots": [
+    "gantt-scroll-table-1280x720-en.png",
+    "gantt-scroll-bottom-1280x720-en.png",
+    "gantt-scroll-horizontal-1280x720-en.png",
+    "gantt-scroll-table-1280x720-fa.png",
+    "gantt-scroll-bottom-1280x720-fa.png",
+    "gantt-scroll-horizontal-1280x720-fa.png",
+    "gantt-scroll-table-1366x768-en.png",
+    "gantt-scroll-bottom-1366x768-en.png",
+    "gantt-scroll-horizontal-1366x768-en.png",
+    "gantt-scroll-table-1366x768-fa.png",
+    "gantt-scroll-bottom-1366x768-fa.png",
+    "gantt-scroll-horizontal-1366x768-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T08:47:45.918Z"
+}
