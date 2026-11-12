@@ -110,6 +110,12 @@ from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..document_api import DocumentAPI
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
+from ..cost_api import CostAPI
+from ..cost_persistence import (
+    CostAccount,
+    Expense,
+    parse_cost_amount,
+)
 from ..budget_persistence import (
     BudgetChange,
     BudgetLine,
@@ -233,6 +239,7 @@ class ProjectLifecycleHttpRoutes:
         p6_issue_api: P6IssueAPI | None = None,
         document_api: DocumentAPI | None = None,
         budget_api: BudgetAPI | None = None,
+        cost_api: CostAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -280,6 +287,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_issue_api = p6_issue_api
         self._document_api = document_api
         self._budget_api = budget_api
+        self._cost_api = cost_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -2347,6 +2355,279 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "BUDGET_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._cost_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/cost/" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    cost_project_id, marker, cost_rest = rest.partition("/cost/")
+                    if marker and cost_project_id:
+                        try:
+                            context = self._api.open_project(
+                                session_id, cost_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [part for part in cost_rest.strip("/").split("/") if part]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _cost_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.cost.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.cost.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _expense_from_payload(expense_id: str) -> Expense:
+                            def optional_amount(key: str):
+                                value = payload.get(key)
+                                if value in (None, ""):
+                                    return None
+                                return parse_cost_amount(value, code="INVALID_EXPENSE_AMOUNT")
+
+                            return Expense(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                expense_id=expense_id,
+                                name=str(payload.get("name", "")),
+                                category=str(payload.get("category", "")),
+                                currency=str(payload.get("currency", "")),
+                                activity_id=payload.get("activity_id") or None,
+                                wbs_id=payload.get("wbs_id") or None,
+                                cost_account_id=payload.get("cost_account_id") or None,
+                                expense_date=payload.get("expense_date") or None,
+                                accrual_date=payload.get("accrual_date") or None,
+                                planned_amount=optional_amount("planned_amount"),
+                                actual_amount=optional_amount("actual_amount"),
+                                remaining_amount=optional_amount("remaining_amount"),
+                                note=payload.get("note") or None,
+                            )
+
+                        def _account_from_payload(account_id: str) -> CostAccount:
+                            return CostAccount(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                account_id=account_id,
+                                name=str(payload.get("name", "")),
+                                parent_account_id=payload.get("parent_account_id") or None,
+                                description=payload.get("description") or None,
+                                is_default=bool(payload.get("is_default", False)),
+                            )
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and parts == ["accounts"]:
+                                return _cost_reply(self._cost_api.list_accounts(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                ))
+                            if method == "POST" and parts == ["accounts"]:
+                                return _cost_reply(self._cost_api.create_account(
+                                    _account_from_payload(
+                                        str(payload.get("account_id", ""))
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "GET" and len(parts) == 2 and parts[0] == "accounts":
+                                return _cost_reply(self._cost_api.read_account(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    account_id=parts[1],
+                                    context=auth,
+                                ))
+                            if method in {"PUT", "PATCH"} and len(parts) == 2 and parts[0] == "accounts":
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_COST_REVISION")
+                                return _cost_reply(self._cost_api.update_account(
+                                    _account_from_payload(parts[1]),
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "DELETE" and len(parts) == 2 and parts[0] == "accounts":
+                                expected = payload.get("expected_revision") or query.get(
+                                    "expected_revision"
+                                )
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError("INVALID_EXPECTED_COST_REVISION")
+                                return _cost_reply(self._cost_api.delete_account(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    account_id=parts[1],
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    reason=str(payload.get("reason") or ""),
+                                ))
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[0] == "accounts"
+                                and parts[2] == "history"
+                            ):
+                                return _cost_reply(self._cost_api.account_history(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    account_id=parts[1],
+                                    context=auth,
+                                ))
+                            if (
+                                method == "POST"
+                                and len(parts) == 3
+                                and parts[0] == "accounts"
+                                and parts[2] == "default"
+                            ):
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_COST_REVISION")
+                                return _cost_reply(self._cost_api.set_default_account(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    account_id=parts[1],
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if (
+                                method == "POST"
+                                and len(parts) == 3
+                                and parts[0] == "accounts"
+                                and parts[2] == "copy"
+                            ):
+                                return _cost_reply(self._cost_api.copy_account(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    source_account_id=parts[1],
+                                    account_id=str(payload.get("account_id", "")),
+                                    name=str(payload.get("name", "")),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "GET" and parts == ["expenses"]:
+                                return _cost_reply(self._cost_api.list_expenses(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                    category=query.get("category"),
+                                    cost_account_id=query.get("cost_account_id"),
+                                    activity_id=query.get("activity_id"),
+                                    search=query.get("search"),
+                                ))
+                            if method == "POST" and parts == ["expenses"]:
+                                return _cost_reply(self._cost_api.create_expense(
+                                    _expense_from_payload(
+                                        str(payload.get("expense_id", ""))
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "GET" and len(parts) == 2 and parts[0] == "expenses":
+                                return _cost_reply(self._cost_api.read_expense(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    expense_id=parts[1],
+                                    context=auth,
+                                ))
+                            if method in {"PUT", "PATCH"} and len(parts) == 2 and parts[0] == "expenses":
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    raise ValueError("INVALID_EXPECTED_COST_REVISION")
+                                return _cost_reply(self._cost_api.update_expense(
+                                    _expense_from_payload(parts[1]),
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                ))
+                            if method == "DELETE" and len(parts) == 2 and parts[0] == "expenses":
+                                expected = payload.get("expected_revision") or query.get(
+                                    "expected_revision"
+                                )
+                                if isinstance(expected, bool) or not isinstance(expected, int):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError("INVALID_EXPECTED_COST_REVISION")
+                                return _cost_reply(self._cost_api.delete_expense(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    expense_id=parts[1],
+                                    expected_revision=expected,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    reason=str(payload.get("reason") or ""),
+                                ))
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[0] == "expenses"
+                                and parts[2] == "history"
+                            ):
+                                return _cost_reply(self._cost_api.expense_history(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    expense_id=parts[1],
+                                    context=auth,
+                                ))
+                            if method == "GET" and parts == ["summary"]:
+                                return _cost_reply(self._cost_api.summary(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                ))
+                            return self._error(
+                                400, "COST_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "COST_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)

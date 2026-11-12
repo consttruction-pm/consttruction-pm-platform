@@ -1,0 +1,298 @@
+{
+  "contract": "cubi-expenses-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "605678a8547d666f7601c5234222184d23394ad6",
+  "testedCodeSha": "605678a8547d666f7601c5234222184d23394ad6",
+  "evidenceCommitSha": "49a59396daea5109cd26979f7c034242fba7f072",
+  "capturedAt": "2026-11-12T02:18:55.860Z",
+  "parentAccountId": "E2E-CA-MWCX5RSZ",
+  "childAccountId": "E2E-CA-MWCX5RSZ-CONC",
+  "expenseId": "E2E-EXP-MWCX5RSZ",
+  "deletedExpenseId": "E2E-EXP-MWCX5RSZ-DEL",
+  "scenarios": [
+    {
+      "expenses": 0,
+      "accounts": 0,
+      "id": "01",
+      "name": "فهرست هزینهٔ خالی، حساب‌های خالی و فرم‌های مجاز برای Planner نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:19:00.076Z"
+    },
+    {
+      "row": {
+        "id": "E2E-CA-MWCX5RSZ",
+        "default": true,
+        "name": "E2E civil works",
+        "parent": "—",
+        "description": "Parent cost account",
+        "revision": 1,
+        "edit": true,
+        "copy": true,
+        "setDefault": false,
+        "remove": true
+      },
+      "stored": {
+        "contract_version": "p6-cost-api.v1",
+        "account_id": "E2E-CA-MWCX5RSZ",
+        "name": "E2E civil works",
+        "parent_account_id": null,
+        "description": "Parent cost account",
+        "is_default": true,
+        "revision": 1
+      },
+      "id": "02",
+      "name": "ایجاد حساب هزینهٔ والد به‌عنوان پیش‌فرض پروژه با نسخهٔ ۱",
+      "status": "pass",
+      "at": "2026-11-12T02:19:00.677Z"
+    },
+    {
+      "row": {
+        "id": "E2E-CA-MWCX5RSZ-CONC",
+        "default": false,
+        "name": "E2E concrete",
+        "parent": "E2E-CA-MWCX5RSZ",
+        "description": "Child account",
+        "revision": 1,
+        "edit": true,
+        "copy": true,
+        "setDefault": true,
+        "remove": true
+      },
+      "stored": {
+        "contract_version": "p6-cost-api.v1",
+        "account_id": "E2E-CA-MWCX5RSZ-CONC",
+        "name": "E2E concrete",
+        "parent_account_id": "E2E-CA-MWCX5RSZ",
+        "description": "Child account",
+        "is_default": false,
+        "revision": 1
+      },
+      "id": "03",
+      "name": "حساب فرزند با ارجاع والد ساخته می‌شود و والد در ستون حساب والد نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:19:01.278Z"
+    },
+    {
+      "accounts": 3,
+      "copy": {
+        "contract_version": "p6-cost-api.v1",
+        "account_id": "E2E-CA-MWCX5RSZ-CONC-COPY-0BBE",
+        "name": "E2E concrete copy",
+        "parent_account_id": "E2E-CA-MWCX5RSZ",
+        "description": "Child account",
+        "is_default": false,
+        "revision": 1
+      },
+      "id": "04",
+      "name": "کپی حساب هزینه یک حساب مستقل بدون پیش‌فرض می‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T02:19:01.963Z"
+    },
+    {
+      "child": {
+        "id": "E2E-CA-MWCX5RSZ-CONC",
+        "default": true,
+        "name": "E2E concrete",
+        "parent": "E2E-CA-MWCX5RSZ",
+        "description": "Child account",
+        "revision": 2,
+        "edit": true,
+        "copy": true,
+        "setDefault": false,
+        "remove": true
+      },
+      "parent": {
+        "id": "E2E-CA-MWCX5RSZ",
+        "default": false,
+        "name": "E2E civil works",
+        "parent": "—",
+        "description": "Parent cost account",
+        "revision": 2,
+        "edit": true,
+        "copy": true,
+        "setDefault": true,
+        "remove": true
+      },
+      "id": "05",
+      "name": "تعیین پیش‌فرض به حساب فرزند، پیش‌فرض والد را پاک می‌کند و نسخهٔ والد را افزایش می‌دهد",
+      "status": "pass",
+      "at": "2026-11-12T02:19:02.646Z"
+    },
+    {
+      "row": {
+        "id": "E2E-EXP-MWCX5RSZ",
+        "name": "E2E concrete pump",
+        "category": "equipment",
+        "activity": "—",
+        "account": "E2E-CA-MWCX5RSZ-CONC E2E concrete",
+        "date": "2026-10-05",
+        "planned": "1250.50",
+        "actual": "500.00",
+        "remaining": "750.50",
+        "currency": "USD",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "stored": {
+        "contract_version": "p6-cost-api.v1",
+        "expense_id": "E2E-EXP-MWCX5RSZ",
+        "name": "E2E concrete pump",
+        "category": "equipment",
+        "currency": "USD",
+        "activity_id": null,
+        "wbs_id": null,
+        "cost_account_id": "E2E-CA-MWCX5RSZ-CONC",
+        "expense_date": "2026-10-05",
+        "accrual_date": "2026-10-01",
+        "planned_amount": "1250.50",
+        "actual_amount": "500.00",
+        "remaining_amount": "750.50",
+        "note": null,
+        "revision": 1
+      },
+      "id": "06",
+      "name": "ایجاد هزینه از فرم با حساب هزینه، تاریخ تعهد و مبالغ دو رقم اعشار",
+      "status": "pass",
+      "at": "2026-11-12T02:19:03.264Z"
+    },
+    {
+      "row": {
+        "id": "E2E-EXP-MWCX5RSZ",
+        "name": "E2E concrete pump revised",
+        "category": "equipment",
+        "activity": "—",
+        "account": "E2E-CA-MWCX5RSZ-CONC E2E concrete",
+        "date": "2026-10-05",
+        "planned": "1250.50",
+        "actual": "600.00",
+        "remaining": "750.50",
+        "currency": "USD",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "conflict": "COST_REVISION_CONFLICT",
+      "stored": {
+        "contract_version": "p6-cost-api.v1",
+        "expense_id": "E2E-EXP-MWCX5RSZ",
+        "name": "E2E concrete pump revised",
+        "category": "equipment",
+        "currency": "USD",
+        "activity_id": null,
+        "wbs_id": null,
+        "cost_account_id": "E2E-CA-MWCX5RSZ-CONC",
+        "expense_date": "2026-10-05",
+        "accrual_date": "2026-10-01",
+        "planned_amount": "1250.50",
+        "actual_amount": "600.00",
+        "remaining_amount": "750.50",
+        "note": null,
+        "revision": 2
+      },
+      "id": "07",
+      "name": "ویرایش هزینه نسخهٔ ۲ می‌سازد و نوشتن کهنه 409 می‌گیرد",
+      "status": "pass",
+      "at": "2026-11-12T02:19:03.964Z"
+    },
+    {
+      "inUse": "COST_ACCOUNT_IN_USE",
+      "id": "08",
+      "name": "حذف حساب در حال استفاده و حساب دارای فرزند با 409 مسدود می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:19:05.064Z"
+    },
+    {
+      "remaining": 1,
+      "readStatus": 404,
+      "id": "09",
+      "name": "حذف هزینه با نسخهٔ جاری انجام می‌شود و ردیف از فهرست و سرور حذف می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:19:06.279Z"
+    },
+    {
+      "row": {
+        "id": "E2E-EXP-MWCX5RSZ",
+        "name": "E2E concrete pump revised",
+        "category": "equipment",
+        "activity": "—",
+        "account": "E2E-CA-MWCX5RSZ-CONC E2E concrete",
+        "date": "2026-10-05",
+        "planned": "1250.50",
+        "actual": "600.00",
+        "remaining": "750.50",
+        "currency": "USD",
+        "selected": false,
+        "edit": true,
+        "remove": true
+      },
+      "accounts": 3,
+      "id": "10",
+      "name": "پس از بارگذاری کامل صفحه، هزینه‌ها، حساب‌ها و پیش‌فرض حفظ می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T02:19:09.263Z"
+    },
+    {
+      "expenseStatus": 403,
+      "accountStatus": 403,
+      "id": "11",
+      "name": "نقش Viewer فقط می‌خواند: بدون دکمهٔ نوشتن و پاسخ مستقیم 403",
+      "status": "pass",
+      "at": "2026-11-12T02:19:13.478Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "direction": "rtl",
+      "heading": "هزینه‌های پروژه",
+      "toolbar": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 39
+      },
+      "panel": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 341.09375
+      },
+      "accountPanel": {
+        "x": 46,
+        "y": 465,
+        "width": 1178,
+        "height": 323.96875
+      },
+      "table": {
+        "x": 46,
+        "y": 189,
+        "width": 1178,
+        "height": 100
+      },
+      "rows": 1,
+      "accountRows": 3,
+      "id": "12",
+      "name": "فهرست هزینه در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:19:15.231Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-parent-account.png",
+    "03-child-account.png",
+    "04-copied-account.png",
+    "05-default-account.png",
+    "06-created-expense.png",
+    "07-expense-revision-conflict.png",
+    "08-account-delete-guards.png",
+    "09-deleted-expense.png",
+    "10-persisted-after-reload.png",
+    "11-viewer-denied.png",
+    "12-expenses-1280x720-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T02:19:15.231Z"
+}
