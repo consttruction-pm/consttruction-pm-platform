@@ -112,6 +112,35 @@ Companion to `workspace-information-architecture.md`. This file defines where ev
 | Issue Navigator | `dialog:issue-navigator` | — | Disabled |
 | Reports → Reports / Groups / Batches | `window:reports` / `dialog:report-groups` / `dialog:batch-reports` | — | Reports window is currently a preview |
 | Publish | `dialog:publish` | — | Disabled in local preview |
+| Engineering Intelligence | `submenu:engineering-intelligence` | — | CUBI engine suite tracked by Issue #1706; entries planned/disabled until real tools/windows pass acceptance |
+
+### Tools → Engineering Intelligence submenu (Issue #1706)
+
+This is one grouped submenu under the existing Tools menu; it does not add a ninth/top-level menu or change shell geometry. Every target below is planned/disabled until its real application path, permission checks, localization and browser E2E are verified.
+
+| Item | Target | Notes |
+| --- | --- | --- |
+| Engineering Analysis & Root Cause | `window:engineering-analysis` | ENG-01; evidence and rule trace |
+| Project Watchdog | `window:project-watchdog` | ENG-02; monitors and alert history |
+| Scenario Lab | `window:scenario-lab` | ENG-03; immutable scenario forks |
+| Optimization Studio | `window:optimization-studio` | ENG-04; constrained solutions and trade-offs |
+| Risk & Uncertainty | `window:risks` | ENG-05; extend existing Risks window, no duplicate |
+| Schedule & Project Quality | `window:project-quality` | ENG-06; audit findings and remediation |
+| Construction Productivity | `window:construction-productivity` | ENG-07; production, crews and equipment |
+| Contract & Claims Analysis | `window:changes-claims` | ENG-08; extend existing Changes & Claims surface |
+| Data Reconciliation | `window:data-reconciliation` | ENG-09; source mapping and conflict preview |
+| Automation Center | `window:automation-center` | ENG-10; workflow design and run history |
+| Portfolio Capacity | `window:portfolio-capacity` | ENG-11; organization/portfolio scope |
+| Engineering Standards & Methods | `window:engineering-standards` | ENG-12; governed source and rule catalogue |
+| Project Templates | `window:project-templates` | ENG-13; organization and project libraries |
+| Decision Register | `window:decision-register` | ENG-14; decision records and alternatives |
+| Deadlines & SLA | `window:deadline-monitor` | ENG-15; calendar-aware deadlines and escalation |
+| Data Quality | `window:data-quality` | ENG-16; transparent quality profile |
+| Recovery & History | `window:recovery-center` | ENG-17; undo/compensation/restore preview |
+| Command Dictionaries | `window:command-dictionaries` | ENG-18; scoped terminology |
+| Contextual Smart Guide | Existing Smart Guide entry | ENG-19; extend the current guide, do not create a duplicate assistant |
+
+The existing CUBI assistant avatar remains the single command entry point and invokes the corresponding registered tool under the same scope and approval rules. Direct windows and assistant commands are two interfaces to the same engine services.
 
 ### Administration
 | Item | Target | Notes |
@@ -151,6 +180,35 @@ Organization
 ```
 
 The tree is collapsible; the active window is highlighted. The tree never replaces the menu bar; both exist.
+
+### Engineering Intelligence navigation branch (planned; Issue #1706)
+
+Add a collapsible branch to the existing left tree without changing its geometry or displacing current nodes:
+
+```
+Engineering Intelligence
+├── Engineering Analysis       → window:engineering-analysis
+├── Project Watchdog            → window:project-watchdog
+├── Scenario Lab                → window:scenario-lab
+├── Optimization Studio         → window:optimization-studio
+├── Risks                       → window:risks (existing)
+├── Project Quality             → window:project-quality
+├── Construction Productivity   → window:construction-productivity
+├── Changes & Claims            → window:changes-claims (existing)
+├── Data Reconciliation         → window:data-reconciliation
+├── Portfolio Capacity          → window:portfolio-capacity
+├── Automation Center           → window:automation-center
+├── Engineering Standards       → window:engineering-standards
+├── Project Templates           → window:project-templates
+├── Decision Register           → window:decision-register
+├── Deadlines & SLA             → window:deadline-monitor
+├── Data Quality                → window:data-quality
+├── Recovery & History          → window:recovery-center
+├── Command Dictionaries        → window:command-dictionaries
+└── Smart Guide                 → existing guide entry
+```
+
+Risk and Changes & Claims reuse their existing windows and gain the specified analysis methods/details; do not create duplicate windows. All new entries remain planned/disabled until end-to-end acceptance. BIM/4D/5D is excluded from this branch and Issue #1706.
 
 ## Window tab behaviour
 

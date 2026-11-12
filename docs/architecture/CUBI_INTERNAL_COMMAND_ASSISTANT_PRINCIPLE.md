@@ -162,6 +162,32 @@ A resumable project-creation wizard must:
 - Provide Smart Guide navigation using actual menu/control identifiers and current workspace state.
 - Keep the shared command engine and typed contracts reusable by Web, Windows Desktop and Flutter/Mobile; clients must not implement separate command or calculation semantics.
 
+## 4.11 Engineering Intelligence Engine command integration
+
+The assistant must expose the full engine suite defined in [CUBI_ENGINEERING_INTELLIGENCE_ENGINES.md](CUBI_ENGINEERING_INTELLIGENCE_ENGINES.md), tracked by [Issue #1706](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1706). This is additive to sections 4.1–4.10 and uses the same CUBI-owned, no-model command parser, typed command envelope, exact-scope tools and approval lifecycle.
+
+The command catalogue must cover:
+- Engineering reasoning and root cause: explain, diagnose, trace cause, compare remedies and validate rules.
+- Project watchdog: inspect monitor status, configure authorized rules, explain/acknowledge alerts and propose actions.
+- Scenario and simulation: create/fork, modify, run, compare and propose promotion.
+- Optimization: define objectives/constraints, run optimization, compare Pareto alternatives and explain infeasibility.
+- Risk: register/score, analyze, simulate, test sensitivity and compare responses.
+- Quality: audit schedule/project, explain findings, propose remediation and recheck.
+- Construction production: calculate production rates, size crews, analyze shifts/equipment, compare methods and forecast productivity.
+- Contracts/claims: register event, check notice deadline, analyze delay/windows/concurrency and assemble evidence schedules.
+- Data reconciliation: inspect sources, map fields, preview matches, resolve conflicts and propose application.
+- Workflow automation: create, validate, simulate, activate, pause and inspect runs.
+- Portfolio capacity: report capacity, find conflicts, simulate and propose allocation.
+- Standards/methods and templates: search, check applicability, compare versions, preview templates and propose application.
+- Decision register: create decisions, evaluate options, perform sensitivity and record outcomes.
+- Deadline/SLA, data quality, recovery/undo, command dictionaries and contextual Smart Guide.
+
+The assistant must route these intents to versioned CUBI application tools. It may not implement a second CPM, resource, cost, EVM or financial calculator. It must display evidence, assumptions, source revisions and limitations. Read-only analysis may be enabled when its query path and grants are verified; mutations must use proposal/approval, revision recheck, idempotency, audit, transaction safety and fresh read-back.
+
+The existing avatar remains the single command entry point. The workspace exposes direct windows under **Tools → Engineering Intelligence** and appropriate project/organization tree locations; these are planned/disabled until each real window and tool passes acceptance. No duplicate chatbot or per-engine model is to be introduced.
+
+**Excluded from this registration:** BIM, drawing/model understanding, map/model integration and 4D/5D. These must not be added to the assistant command registry or workspace menu under Issue #1706; they require a separate discussion.
+
 ## 5. Technical design rules
 
 - Use deterministic, testable and explainable CUBI-owned algorithms for command parsing, normalization, matching, rule evaluation, planning and response generation.
