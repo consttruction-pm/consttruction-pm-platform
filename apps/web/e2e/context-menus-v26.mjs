@@ -388,7 +388,7 @@ async function ganttContextScenarios(page, suffix) {
     ];
     for (const point of candidates) {
       const hit = document.elementFromPoint(point.x, point.y);
-      if (hit && hit.closest("#cp-gantt") && !hit.closest("[data-gantt-activity-id]") && !hit.closest("[data-gantt-link]") && !hit.closest(".cp-gantt-axis")) return point;
+      if (hit && hit.closest("#cp-gantt") && !hit.closest("[data-gantt-activity-id]") && !hit.closest("[data-gantt-link]") && !hit.closest("[data-gantt-summary]") && !hit.closest("[data-gantt-wbs-id]") && !hit.closest(".cp-gantt-group-row") && !hit.closest(".cp-gantt-axis")) return point;
     }
     return null;
   })()`);

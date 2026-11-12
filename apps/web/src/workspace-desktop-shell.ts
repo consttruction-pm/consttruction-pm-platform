@@ -33,6 +33,9 @@ export type DesktopCommand =
   | "edit.find"
   | "edit.group-wbs"
   | "edit.sort-toggle"
+  | "edit.select-all"
+  | "edit.link"
+  | "edit.unlink"
   | "project.add-wbs"
   | "project.add-activity"
   | "project.edit-activity"
@@ -47,6 +50,7 @@ export type DesktopCommand =
   | "view.line-numbers"
   | "view.expand-all"
   | "view.collapse-all"
+  | "view.collapse-to"
   | "view.zoom-in"
   | "view.zoom-out"
   | "view.fit"
@@ -86,6 +90,10 @@ export type DesktopShellCapabilities = {
   canRedoLayout: boolean;
   hasWbs: boolean;
   hasSelectedActivity: boolean;
+  /** Two or more activity rows are selected, so a link can address a pair. */
+  hasMultiSelection: boolean;
+  /** At least one activity is loaded, so whole-table selection is possible. */
+  hasActivities: boolean;
   /** At least one persisted relationship is loaded, so logic views can draw. */
   hasRelationships: boolean;
   hasMultipleWindows: boolean;
@@ -226,6 +234,8 @@ const REASONS = {
   noWbs: { en: "Create a WBS element before adding activities", fa: "پیش از افزودن فعالیت، یک عنصر WBS بسازید" },
   noWbsGroup: { en: "Group the activity table by WBS to use hierarchy commands", fa: "برای فرمان‌های سلسله‌مراتب، جدول فعالیت را بر اساس WBS گروه‌بندی کنید" },
   noSelection: { en: "Select an activity in the grid first", fa: "ابتدا یک فعالیت را در جدول انتخاب کنید" },
+  noActivities: { en: "Load activities in the Activities window first", fa: "ابتدا فعالیت‌ها را در پنجرهٔ فعالیت‌ها بارگذاری کنید" },
+  noMultiSelection: { en: "Select at least two activities to unlink", fa: "برای قطع پیوند، دست‌کم دو فعالیت را انتخاب کنید" },
   noRelationships: { en: "This project has no persisted relationships to draw", fa: "این پروژه رابطهٔ ذخیره‌شده‌ای برای ترسیم ندارد" },
   activitiesWindow: { en: "Switch to the Activities window to change its layout", fa: "برای تغییر چیدمان، به پنجرهٔ فعالیت‌ها بروید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
@@ -237,6 +247,9 @@ const REASONS = {
   replace: { en: "Replace is not available in this workspace yet", fa: "جایگزینی هنوز در این محیط کار در دسترس نیست" },
   leveling: { en: "Resource leveling is not available in this workspace yet", fa: "تسطیح منابع هنوز در این محیط کار در دسترس نیست" },
   autoReorg: { en: "Automatic WBS reorganization is not available in this workspace yet", fa: "بازآرایی خودکار ساختار شکست هنوز در این محیط کار در دسترس نیست" },
+  fillDown: { en: "Fill Down needs editable table cells; CUBI edits each activity in Activity Details", fa: "پرکردن به پایین به سلول‌های ویرایش‌پذیر نیاز دارد؛ CUBI هر فعالیت را در جزئیات فعالیت ویرایش می‌کند" },
+  dissolve: { en: "Dissolving a WBS band while keeping its activities has no server contract; move its activities and delete the band instead", fa: "انحلال یک باند WBS با نگه‌داشتن فعالیت‌های آن قرارداد سمت سرور ندارد؛ فعالیت‌ها را منتقل و باند را حذف کنید" },
+  additionalActivities: { en: "CUBI keeps one canonical Activities window per project; use the window tabs instead of a second synchronized table", fa: "CUBI برای هر پروژه یک پنجرهٔ فعالیت متعارف نگه می‌دارد؛ به‌جای جدول همگام دوم از زبانه‌های پنجره استفاده کنید" },
   udfs: { en: "Enterprise user-defined fields are not available in this workspace yet", fa: "فیلدهای سفارشی سازمانی هنوز در این محیط کار در دسترس نیست" },
   baseline: { en: "Baseline management is not available in this workspace yet", fa: "مدیریت خط مبنا هنوز در این محیط کار در دسترس نیست" },
   compare: { en: "Baseline comparison is not available in this workspace yet", fa: "مقایسهٔ خط مبنا هنوز در این محیط کار در دسترس نیست" },
@@ -326,6 +339,30 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "edit.find", label: { en: "Find activities…", fa: "یافتن فعالیت‌ها…" }, command: "edit.find", shortcut: "Ctrl+F" },
         { id: "edit.group-wbs", label: { en: "Group by WBS", fa: "گروه‌بندی بر اساس WBS" }, command: "edit.group-wbs", checked: caps.groupByWbs },
         { id: "edit.sort-toggle", label: { en: "Reverse sort direction", fa: "معکوس کردن جهت ترتیب" }, command: "edit.sort-toggle" },
+        separator("edit.sep3"),
+        {
+          id: "edit.select-all",
+          label: { en: "Select All Activities", fa: "انتخاب همهٔ فعالیت‌ها" },
+          command: "edit.select-all",
+          shortcut: "Ctrl+A",
+          disabledReason: caps.hasActivities ? undefined : unavailable(REASONS.noActivities, locale),
+        },
+        {
+          id: "edit.link",
+          label: { en: "Link Activities…", fa: "پیوند فعالیت‌ها…" },
+          command: "edit.link",
+          disabledReason: caps.hasSelectedActivity ? undefined : unavailable(REASONS.noSelection, locale),
+        },
+        {
+          id: "edit.unlink",
+          label: { en: "Unlink Activities…", fa: "قطع پیوند فعالیت‌ها…" },
+          command: "edit.unlink",
+          disabledReason: !caps.hasMultiSelection
+            ? unavailable(REASONS.noMultiSelection, locale)
+            : caps.hasRelationships ? undefined : unavailable(REASONS.noRelationships, locale),
+        },
+        { id: "edit.fill-down", label: { en: "Fill Down", fa: "پرکردن به پایین" }, shortcut: "Ctrl+E", disabledReason: unavailable(REASONS.fillDown, locale) },
+        { id: "edit.dissolve", label: { en: "Dissolve", fa: "انحلال" }, disabledReason: unavailable(REASONS.dissolve, locale) },
       ],
     },
     {
@@ -359,6 +396,12 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           label: { en: "Collapse All", fa: "بستن همه" },
           command: "view.collapse-all",
           shortcut: "Ctrl+Num -",
+          disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : unavailable(REASONS.noWbsGroup, locale),
+        },
+        {
+          id: "view.collapse-to",
+          label: { en: "Collapse To…", fa: "بستن تا…" },
+          command: "view.collapse-to",
           disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : unavailable(REASONS.noWbsGroup, locale),
         },
         { id: "view.zoom-in", label: { en: "Zoom in", fa: "بزرگ‌نمایی" }, command: "view.zoom-in" },
@@ -466,6 +509,11 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           disabledReason: caps.hasSelectedActivity ? undefined : unavailable(REASONS.noSelection, locale),
         },
         { id: "project.relationships", label: { en: "Relationships", fa: "روابط" }, window: "schedule" },
+        {
+          id: "project.additional-activities",
+          label: { en: "Additional Activities View", fa: "نمای فعالیت‌های تکمیلی" },
+          disabledReason: unavailable(REASONS.additionalActivities, locale),
+        },
         { id: "project.schedule", label: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9" },
         { id: "project.schedule-options", label: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, command: "project.schedule-options" },
         { id: "project.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
@@ -578,6 +626,11 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.paste", label: { en: "Paste", fa: "چسباندن" }, title: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: why(REASONS.clipboard), icon: "paste", group: "edit" },
     { id: "toolbar.delete", label: { en: "Delete", fa: "حذف" }, title: { en: "Delete the selected activity", fa: "حذف فعالیت انتخاب‌شده" }, shortcut: "Del", disabledReason: why(REASONS.deleteActivity), icon: "delete", group: "edit" },
     { id: "toolbar.find", label: { en: "Find", fa: "یافتن" }, title: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F", icon: "find", group: "edit" },
+    { id: "toolbar.select-all", label: { en: "Select All", fa: "انتخاب همه" }, title: { en: "Select every visible activity row", fa: "انتخاب همهٔ ردیف‌های نمایان فعالیت" }, command: "edit.select-all", shortcut: "Ctrl+A", disabledReason: caps.hasActivities ? undefined : why(REASONS.noActivities), icon: "check", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.link", label: { en: "Link", fa: "پیوند" }, title: { en: "Link the selected activities", fa: "پیوند فعالیت‌های انتخاب‌شده" }, command: "edit.link", disabledReason: caps.hasSelectedActivity ? undefined : why(REASONS.noSelection), icon: "link", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.unlink", label: { en: "Unlink", fa: "قطع پیوند" }, title: { en: "Remove relationships between the selected activities", fa: "حذف روابط میان فعالیت‌های انتخاب‌شده" }, command: "edit.unlink", disabledReason: !caps.hasMultiSelection ? why(REASONS.noMultiSelection) : caps.hasRelationships ? undefined : why(REASONS.noRelationships), icon: "unlink", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.fill-down", label: { en: "Fill Down", fa: "پرکردن به پایین" }, title: { en: "Copy the first selected value down the column", fa: "کپی مقدار ردیف اول در ستون" }, shortcut: "Ctrl+E", disabledReason: why(REASONS.fillDown), icon: "fill", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.dissolve", label: { en: "Dissolve", fa: "انحلال" }, title: { en: "Dissolve the selected WBS band", fa: "انحلال باند WBS انتخاب‌شده" }, disabledReason: why(REASONS.dissolve), icon: "dissolve", group: "edit", windows: ["schedule", "wbs"] },
 
     // Layout: the Version 26 Layout toolbar owns every presentation command.
     { id: "toolbar.open-layout", label: { en: "Open Layout", fa: "بازکردن چیدمان" }, title: { en: "Open a saved activity layout", fa: "بازکردن چیدمان ذخیره‌شدهٔ فعالیت‌ها" }, command: "layout.open", disabledReason: caps.canOpenFieldChooser ? undefined : why(REASONS.noFields), icon: "folder", group: "layout", windows: ["schedule"] },
@@ -599,6 +652,7 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "fit", group: "view" },
     { id: "toolbar.expand-all", label: { en: "Expand All", fa: "بازکردن همه" }, title: { en: "Expand every WBS band", fa: "بازکردن همهٔ باندهای WBS" }, command: "view.expand-all", shortcut: "Ctrl+Num +", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "expand", group: "view", windows: ["schedule", "wbs"] },
     { id: "toolbar.collapse-all", label: { en: "Collapse All", fa: "بستن همه" }, title: { en: "Collapse every WBS band", fa: "بستن همهٔ باندهای WBS" }, command: "view.collapse-all", shortcut: "Ctrl+Num -", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "collapse", group: "view", windows: ["schedule", "wbs"] },
+    { id: "toolbar.collapse-to", label: { en: "Collapse To", fa: "بستن تا" }, title: { en: "Pick the WBS branch that stays open", fa: "انتخاب شاخهٔ WBS که باز می‌ماند" }, command: "view.collapse-to", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "collapseTo", group: "view", windows: ["schedule", "wbs"] },
     { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", active: state.detailsVisible !== false, icon: "panels", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
     { id: "toolbar.help", label: { en: "Help", fa: "راهنما" }, title: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1", icon: "help", group: "view" },
@@ -792,6 +846,7 @@ const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
   { id: "shortcut.delete", label: { en: "Delete activity", fa: "حذف فعالیت" }, keys: "Del", chord: { key: "Delete" }, unavailable: REASONS.deleteActivity },
   { id: "shortcut.insert", label: { en: "Insert activity", fa: "درج فعالیت" }, keys: "Ins", chord: { key: "Insert" }, command: "project.add-activity", requires: { test: (caps) => caps.hasWbs, reason: REASONS.noWbs } },
   { id: "shortcut.find", label: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, keys: "Ctrl+F", chord: { key: "f", ctrlOrMeta: true }, command: "edit.find" },
+  { id: "shortcut.select-all", label: { en: "Select all visible activities", fa: "انتخاب همهٔ فعالیت‌های نمایان" }, keys: "Ctrl+A", chord: { key: "a", ctrlOrMeta: true }, command: "edit.select-all", requires: { test: (caps) => caps.hasActivities, reason: REASONS.noActivities } },
   { id: "shortcut.find-next", label: { en: "Find next", fa: "یافتن مورد بعدی" }, keys: "F3", chord: { key: "F3" }, unavailable: REASONS.findNext },
   { id: "shortcut.refresh", label: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, keys: "F5", chord: { key: "F5" }, command: "workspace.refresh" },
   { id: "shortcut.schedule", label: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, keys: "F9", chord: { key: "F9" }, command: "tools.run-schedule" },
@@ -863,7 +918,7 @@ function renderShortcutsDialog(state: DesktopShellState): string {
   const bucket = (shortcut: DesktopShortcut): number => {
     if (shortcut.id.startsWith("shortcut.window.")) return 0;
     if (/^shortcut\.(new|open|close-window|print|save-layout|help|about|refresh)$/.test(shortcut.id)) return 0;
-    if (/^shortcut\.(undo|redo|cut|copy|paste|delete|insert|find)$/.test(shortcut.id)) return 1;
+    if (/^shortcut\.(undo|redo|cut|copy|paste|delete|insert|find|select-all)$/.test(shortcut.id)) return 1;
     return 2;
   };
   for (const shortcut of getDesktopShortcuts(state.openWindows)) {

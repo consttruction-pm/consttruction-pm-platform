@@ -37,6 +37,7 @@ const screenshots = [];
 const exceptions = [];
 const consoleErrors = [];
 const apiFailures = [];
+const commands = [];
 
 const EXPECTED_MENUS = {
   en: ["File", "Edit", "View", "Project", "Enterprise", "Tools", "Admin", "Help"],
@@ -178,6 +179,18 @@ async function closeMenus(page) {
   await sleep(150);
 }
 
+async function runMenuItem(page, menuId, itemId) {
+  await openMenu(page, menuId);
+  const clicked = await page.evaluate(`(() => {
+    const button = document.querySelector('[data-desktop-item="${itemId}"]');
+    if (!button || button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  assert(clicked, `${menuId}/${itemId} is missing or disabled`);
+  await sleep(500);
+}
+
 function verifyCell(cell, locale) {
   const m = cell.measure;
   assert(!m.pageOverflow, "page overflows horizontally");
@@ -301,6 +314,90 @@ async function main() {
       await closeMenus(page);
     }
 
+    // Command-by-command execution for the Edit and Display PARTIALs. Each
+    // command is driven from its application-menu entry so the menu wiring,
+    // not a synthetic function call, is what the evidence proves.
+    await page.click("#cp-activity-grid tbody tr[data-activity-id]");
+    await sleep(300);
+    await runMenuItem(page, "edit", "edit.select-all");
+    const selectAll = await page.evaluate(`(() => ({
+      visible: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+      selected: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id][aria-selected='true']").length,
+      focused: document.activeElement?.getAttribute("data-activity-id") ?? null,
+    }))()`);
+    assert(selectAll.visible > 1, `Select All saw ${selectAll.visible} visible rows`);
+    assert(selectAll.selected === selectAll.visible, `Select All selected ${selectAll.selected} of ${selectAll.visible} rows`);
+    assert(selectAll.focused, "Select All did not move focus to the grid");
+    commands.push({ id: "edit.select-all", ...selectAll });
+    await capture(page, "menu-edit-select-all");
+
+    // Narrow to the seeded A100 → A110 pair so Link and Unlink exercise one
+    // real relationship instead of every stored link in the project.
+    const pairSelected = await page.evaluate(`(() => {
+      const rows = [...document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]")];
+      const first = rows.find((row) => row.dataset.activityId === "A100");
+      const second = rows.find((row) => row.dataset.activityId === "A110");
+      if (!first || !second) return 0;
+      first.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      second.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+      return document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id][aria-selected='true']").length;
+    })()`);
+    assert(pairSelected === 2, `pair selection holds ${pairSelected} rows instead of 2`);
+    await sleep(300);
+
+    await runMenuItem(page, "edit", "edit.link");
+    const link = await page.evaluate(`(() => {
+      const drawer = document.querySelector("[data-tools-drawer]");
+      const form = document.querySelector("[data-relationship-create-form]");
+      return {
+        drawerVisible: Boolean(drawer) && !drawer.hidden,
+        predecessor: form?.querySelector('select[name="predecessor_id"]')?.value ?? null,
+        successor: form?.querySelector('select[name="successor_id"]')?.value ?? null,
+        focused: document.activeElement?.getAttribute("name") ?? null,
+      };
+    })()`);
+    assert(link.drawerVisible, "Link did not open the relationship drawer");
+    assert(link.predecessor === "A100" && link.successor === "A110", `Link preselected ${link.predecessor} → ${link.successor}`);
+    assert(link.focused === "relationship_type", "Link did not focus the relationship type");
+    commands.push({ id: "edit.link", ...link });
+    await page.evaluate(`document.querySelector("[data-tools-close]")?.click()`);
+    await sleep(300);
+
+    await runMenuItem(page, "view", "view.collapse-to");
+    const collapseTo = await page.evaluate(`(() => {
+      const dialog = document.querySelector("[data-collapse-to-dialog]");
+      return {
+        open: Boolean(dialog) && (dialog.open === true || dialog.hasAttribute("open")),
+        options: dialog?.querySelectorAll("[data-collapse-to-select] option").length ?? 0,
+      };
+    })()`);
+    assert(collapseTo.open, "Collapse To did not open its branch dialog");
+    assert(collapseTo.options > 0, "Collapse To has no WBS branches to choose");
+    commands.push({ id: "view.collapse-to", ...collapseTo });
+    await page.evaluate(`document.querySelector("[data-collapse-to-cancel]")?.click()`);
+    await sleep(250);
+
+    // Unlink is destructive, so first prove it reaches the confirmation with
+    // the exact selected-pair count, then accept and prove the persisted list
+    // really shrinks.
+    const beforeUnlink = await page.evaluate(`document.querySelectorAll("[data-relationship-id]").length`);
+    assert(beforeUnlink > 0, "the fixture exposes no relationship to unlink");
+    await page.evaluate(`(() => { window.__confirmCalls = []; window.confirm = (message) => { window.__confirmCalls.push(message); return false; }; })()`);
+    await runMenuItem(page, "edit", "edit.unlink");
+    const confirmation = await page.evaluate(`window.__confirmCalls ?? []`);
+    assert(confirmation.length === 1, `Unlink asked ${confirmation.length} confirmations`);
+    assert(/^Unlink 1 relationship\b/.test(confirmation[0]), `Unlink confirmation says ${confirmation[0]}`);
+    await page.evaluate(`window.confirm = () => true;`);
+    await runMenuItem(page, "edit", "edit.unlink");
+    await page.waitFor(
+      `document.querySelectorAll("[data-relationship-id]").length < ${beforeUnlink}`,
+      "relationship list to shrink",
+    );
+    const afterUnlink = await page.evaluate(`document.querySelectorAll("[data-relationship-id]").length`);
+    assert(afterUnlink === beforeUnlink - 1, `Unlink left ${afterUnlink} of ${beforeUnlink} relationships`);
+    commands.push({ id: "edit.unlink", before: beforeUnlink, after: afterUnlink, confirmation: confirmation[0] });
+    await capture(page, "menu-edit-unlink");
+
     // Layout selector: apply the stored project layout and survive a reload.
     await page.evaluate(`document.querySelector("[data-layout-trigger]")?.click()`);
     await page.waitFor(`document.querySelector("[data-layout-menu]")?.hidden === false`, "layout menu");
@@ -347,6 +444,7 @@ async function main() {
       evidenceCommitSha: process.env.CUBI_EVIDENCE_COMMIT_SHA || null,
       capturedAt: new Date().toISOString(),
       cells,
+      commands,
       screenshots,
       exceptions,
       consoleErrors,
