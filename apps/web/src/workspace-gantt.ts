@@ -60,6 +60,35 @@ export type GanttLinkOptions = {
 
 const DEFAULT_ROW_HEIGHT = 22;
 
+/** Zoom levels from finest to coarsest. */
+export const GANTT_SCALE_ORDER: readonly WorkspaceGanttScale[] = ["day", "week", "month", "quarter", "year"];
+
+/**
+ * Timeline width each zoom level needs before it scrolls. Zoom only changes the
+ * resolution of the shared timeline, so a finer scale is always wider.
+ */
+export const GANTT_CONTENT_WIDTH: Record<WorkspaceGanttScale, number> = {
+  day: 1600,
+  week: 1100,
+  month: 800,
+  quarter: 640,
+  year: 520,
+};
+
+/**
+ * Picks the finest zoom whose whole timeline fits the visible Gantt pane, so
+ * "Fit" never introduces horizontal scrolling of its own. When even the
+ * coarsest scale is wider than the pane the chart stays at year. A pane that
+ * has not been laid out yet (0/NaN width) keeps the documented month default.
+ */
+export function fitGanttScale(viewportWidthPx: number): WorkspaceGanttScale {
+  if (!Number.isFinite(viewportWidthPx) || viewportWidthPx <= 0) return "month";
+  for (const scale of GANTT_SCALE_ORDER) {
+    if (GANTT_CONTENT_WIDTH[scale] <= viewportWidthPx) return scale;
+  }
+  return "year";
+}
+
 /**
  * One row pitch drives the table, the Gantt rows, the bar centre and every
  * relationship anchor. Rows use border-box sizing, so the border is part of

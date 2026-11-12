@@ -1,6 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -3595,13 +3595,7 @@ function ganttRound(value: number): number {
 
 // Zoom only changes the resolution of the shared timeline: finer scales make
 // the same date range wider, which is what creates horizontal scrolling.
-const GANTT_CONTENT_WIDTH: Record<WorkspaceGanttScale, number> = {
-  day: 1600,
-  week: 1100,
-  month: 800,
-  quarter: 640,
-  year: 520,
-};
+// GANTT_CONTENT_WIDTH lives with the scale helpers so "Fit" can reason about it.
 
 const GANTT_LAG_UNITS: Record<string, string> = {
   "working-day": "d",
