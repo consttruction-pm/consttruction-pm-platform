@@ -50,6 +50,10 @@ import {
 } from "./workspace-view.js";
 import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds, buildWorkspaceDisplayRows } from "./workspace-wbs-display.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
+import {
+  readGroupSortMetadata,
+  withGroupSortMetadata,
+} from "./workspace-layout-settings.js";
 import { applyActivityFilterState, createActivityFilterDateContext } from "./workspace-activity-filters.js";
 import { fitGanttScale } from "./workspace-gantt.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
@@ -284,6 +288,27 @@ function presentationMetadata(layout: LayoutDefinition): LayoutDefinition {
       presentationUpdatedAt: visualPreferences.updatedAt,
     },
   };
+}
+
+/**
+ * Group mode and sort plan are part of the saved Activities layout. The saved
+ * metadata wins once per layout revision, so a reload or a layout switch
+ * returns the table the user saved. A newer in-session edit is never rewritten
+ * because the revision key does not change while the user is editing.
+ */
+let hydratedGroupSortKey: string | null = null;
+function hydrateGroupSortFromLayout(state: WorkspaceState): WorkspaceState {
+  const layout = state.p6Layout;
+  if (!layout) return state;
+  const saved = readGroupSortMetadata(layout.metadata);
+  if (!saved) return state;
+  const key = `${state.context.tenant_id}:${state.context.project_id}:${layout.scope}:${layout.revision}`;
+  if (key === hydratedGroupSortKey) return state;
+  hydratedGroupSortKey = key;
+  let next = state;
+  if (next.activityGroupBy !== saved.groupBy) next = setActivityGroupBy(next, saved.groupBy);
+  next = setActivitySortLevels(next, saved.sortLevels);
+  return next;
 }
 
 /**
@@ -945,6 +970,7 @@ function renderApp(
       state = { ...state, visiblePanels: { ...state.visiblePanels, details: storedDetailsVisible } };
     }
   }
+  state = hydrateGroupSortFromLayout(state);
   currentWorkspaceState = state;
   bindWindowDirtyIndicators(container);
   // The skin is a token set on the document root; applying it before paint
@@ -1800,7 +1826,7 @@ function renderApp(
   const saveCurrentLayout = async (name?: string): Promise<void> => {
     if (!state.p6Layout || !state.p6FieldRegistry) return;
     const base = state.p6Layout;
-    const bumped: LayoutDefinition = {
+    const bumped = withGroupSortMetadata({
       ...base,
       revision: base.revision + 1,
       metadata: {
@@ -1809,7 +1835,7 @@ function renderApp(
         presentation: visualPreferences.presentation,
         presentationUpdatedAt: visualPreferences.updatedAt,
       },
-    };
+    }, state.activityGroupBy, state.activitySortLevels, Date.now());
     const saved = await commitLayout(setP6Presentation(state, state.p6FieldRegistry, bumped));
     if (saved) {
       layoutPreviewBase = null;
@@ -1833,7 +1859,8 @@ function renderApp(
     try {
       const catalog = await loadLayoutCatalog(aiTransport, state.context, base.view_id);
       const existing = catalog[targetScope];
-      const saved = await persistence.save({
+      const snapshot = currentWorkspaceState ?? state;
+      const saved = await persistence.save(withGroupSortMetadata({
         schema_version: base.schema_version,
         scope: targetScope,
         view_id: base.view_id,
@@ -1845,7 +1872,7 @@ function renderApp(
           presentation: visualPreferences.presentation,
           presentationUpdatedAt: visualPreferences.updatedAt,
         },
-      });
+      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()));
       layoutPreviewBase = null;
       layoutPreviewScope = null;
       layoutPreviewContextKey = null;
