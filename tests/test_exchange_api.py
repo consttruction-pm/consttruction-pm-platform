@@ -92,9 +92,20 @@ def test_catalogue_and_exports_use_authoritative_rows(tmp_path: Path) -> None:
         catalogue = _json(body)
         assert catalogue["contract_version"] == "p6-exchange-api.v1"
         datasets = {entry["dataset"]: entry for entry in catalogue["datasets"]}
-        assert set(datasets) == {"activities", "resources", "risks"}
+        assert set(datasets) == {
+            "activities",
+            "resources",
+            "risks",
+            "wbs",
+            "assignments",
+            "costs",
+        }
         assert datasets["resources"]["importable"] is True
-        assert datasets["activities"]["importable"] is False
+        assert datasets["activities"]["importable"] is True
+        assert datasets["wbs"]["importable"] is True
+        assert datasets["assignments"]["importable"] is True
+        assert datasets["costs"]["importable"] is True
+        assert datasets["risks"]["importable"] is False
 
         status, body = _request(
             runtime.app,
@@ -359,7 +370,7 @@ def test_existing_ids_and_read_only_datasets_are_rejected(tmp_path: Path) -> Non
             runtime.app,
             "POST",
             f"{BASE}/import/preview",
-            body={"dataset": "activities", "content": "activity_id\nA1\n"},
+            body={"dataset": "risks", "content": "risk_id\nR1\n"},
             cookie=admin.session_id,
         )
         assert status == 400

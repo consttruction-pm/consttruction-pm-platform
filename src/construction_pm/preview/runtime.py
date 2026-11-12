@@ -155,6 +155,7 @@ from construction_pm.p6_financial_period_repository import (
     SQLiteP6FinancialPeriodRepository,
 )
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
@@ -1724,6 +1725,12 @@ def open_preview_runtime(
             ),
             repositories.risks,
             policy,
+            wbs_repository=repositories.wbs,
+            activity_api=P6ActivityMasterAPI(repositories.activities, policy),
+            wbs_api=P6WBSMasterAPI(repositories.wbs, policy),
+            assignment_service=repositories.resource_assignment_service,
+            expense_service=repositories.expense_service,
+            transaction_manager=repositories.transaction_manager,
         )
     )
     backup_api = BackupAPI(
