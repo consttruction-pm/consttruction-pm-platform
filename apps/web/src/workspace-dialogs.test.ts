@@ -91,6 +91,22 @@ test("Table Font and Row dialog exposes the real controls and persisted values",
   assert.doesNotMatch(html, /Primavera|Oracle|P6/);
 });
 
+test("a format-only Timescale edit does not reset the zoom picked from the toolbar", () => {
+  const patch = readLayoutPatch(form({
+    "timescale.interval": DEFAULT_PRESENTATION.timescale.interval,
+    "timescale.fontSize": "12",
+    "timescale.textColor": "#445566",
+  }), DEFAULT_PRESENTATION);
+  assert.equal(patch.ganttScale, undefined);
+  assert.equal(patch.presentation?.timescale.fontSize, 12);
+});
+
+test("the Timescale dialog no longer duplicates the toolbar scale control", () => {
+  const html = renderLayoutDialogs(dialogOptions());
+  assert.doesNotMatch(html, /name="ganttScale"/);
+  assert.match(html, /set by the Gantt scale buttons/);
+});
+
 test("Timescale dialog persists the header format and derives the tick scale", () => {
   const patch = readLayoutPatch(form({
     "timescale.interval": "week-day",

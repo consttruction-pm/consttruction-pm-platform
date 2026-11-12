@@ -624,11 +624,7 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
   const timescaleState = optionsInput.presentation.timescale;
   const timescale = `<fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Timescale format", "قالب مقیاس زمانی"))}</legend>
-      <label class="cp-dialog-row"><span>${esc(t(locale, "Scale", "مقیاس"))}</span>
-        <select name="ganttScale">
-          ${(["year", "quarter", "month", "week", "day"] as const).map((scale) => `<option value="${scale}"${layout.ganttScale === scale ? " selected" : ""}>${esc(t(locale, scale[0].toUpperCase() + scale.slice(1), { year: "سال", quarter: "فصل", month: "ماه", week: "هفته", day: "روز" }[scale]))}</option>`).join("")}
-        </select>
-      </label>
+      <p class="cp-dialog-note">${esc(t(locale, "The chart scale (Day, Week, Month, Quarter, Year) is set by the Gantt scale buttons. This dialog controls the header intervals and their format; changing an interval also picks the tick density that matches it.", "مقیاس نمودار (روز، هفته، ماه، فصل، سال) با دکمه‌های مقیاس گانت تعیین می‌شود. این گفت‌وگو فاصله‌های سربرگ و قالب آن‌ها را کنترل می‌کند؛ تغییر فاصله، چگالی نشانه‌ها را نیز متناسب با آن انتخاب می‌کند."))}</p>
       <div class="cp-dialog-grid">
         <label class="cp-dialog-row"><span>${esc(t(locale, "Date interval", "فاصلهٔ تاریخ"))}</span>
           <select name="timescale.interval">
@@ -849,10 +845,15 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
       textColor: data.get("timescale.textColor"),
       backgroundColor: data.get("timescale.backgroundColor"),
     }, presentation.timescale);
+    const intervalChanged = nextTimescale.interval !== presentation.timescale.interval;
     presentation.timescale = nextTimescale;
-    // The tick density follows the chosen interval so header groups, ticks and
-    // bar geometry stay on the same date range.
-    patch.ganttScale = timescaleTickScale(nextTimescale.interval);
+    // Tick density follows the chosen interval so header groups, ticks and
+    // bar geometry stay on the same date range. Only an actual interval change
+    // moves the chart scale; opening the dialog and changing a colour or font
+    // must not silently reset the zoom the user picked from the toolbar.
+    if (intervalChanged) {
+      patch.ganttScale = timescaleTickScale(nextTimescale.interval);
+    }
     presentationChanged = true;
   }
 
