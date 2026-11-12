@@ -4,6 +4,7 @@ type LandingCopy = {
   nav: string[]; eyebrow: string; title: string; accent: string; subtitle: string; body: string;
   primary: string; secondary: string; featuresEyebrow: string; featuresTitle: string; featuresBody: string; features: Feature[];
   techEyebrow: string; techTitle: string; techBody: string; techLink: string; techNodes: string[];
+  industriesEyebrow: string; industriesTitle: string; industriesBody: string;
   ctaTitle: string; ctaBody: string; signIn: string; start: string; language: string;
   footerColumns: Array<{ title: string; links: string[] }>; footerNote: string;
   assistantTitle: string; assistantSubtitle: string; assistantDescription: string;
@@ -15,14 +16,14 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     eyebrow: "CONSTRUCTION & BUILDING INTELLIGENCE",
     title: "Control every detail.", accent: "Build with confidence.",
     subtitle: "Plan. Control. Build Smarter.",
-    body: "Bring schedules, cost, progress, resources and project evidence into one clear control room—so your team can make the next decision with confidence.",
+    body: "From buildings and infrastructure to oil, gas, petrochemical, energy and complex industrial facilities, CUBI connects project scope, schedules, progress, resources, cost and evidence in one disciplined project-controls environment. Give planners, cost engineers, site leaders and executives a clearer basis for the next decision.",
     primary: "Explore the Platform →", secondary: "See How It Works",
     featuresEyebrow: "ONE CONNECTED WORKFLOW",
-    featuresTitle: "Everything your project needs to stay in control",
-    featuresBody: "Connect the work, the numbers and the evidence in one practical workspace built for construction teams.",
+    featuresTitle: "The information behind delivery, connected",
+    featuresBody: "Bring plans, performance, people, records and decisions together across the project lifecycle—with clear ownership, traceable information and workflows shaped around the way your organization delivers work.",
     features: [
       { icon: "⌁", title: "Project Controls", body: "Track milestones, progress and performance signals in one project view." },
-      { icon: "✧", assistantAvatar: true, title: "AI Assistant", body: "Turn project information into useful summaries, questions and next steps." },
+      { icon: "✧", assistantAvatar: true, title: "Engineering Intelligence", body: "Find relevant CUBI guidance, understand project context and prepare permission-aware next steps—with user approval before changes." },
       { icon: "↗", title: "Resources & Cost", body: "Connect resource plans, cost visibility and delivery performance." },
       { icon: "▤", title: "Documents & Contracts", body: "Keep project records and supporting evidence close to the workflow." },
       { icon: "◎", title: "Team Collaboration", body: "Give stakeholders a shared view of project status and actions." },
@@ -30,14 +31,17 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     ],
     techEyebrow: "BUILT FOR REAL PROJECTS",
     techTitle: "A connected foundation for better decisions",
-    techBody: "CUBI brings project planning, controls, information and intelligent assistance together while keeping the project workflow at the center.",
+    techBody: "CUBI connects project definition, WBS, activity networks, calendars, baselines, progress, resource and cost visibility, controlled documents, reporting and guided engineering assistance. Authoritative project services—not an assistant guess—remain the source of calculations and schedule outcomes.",
     techLink: "Explore platform capabilities →",
-    techNodes: ["Project controls", "AI assistance", "Connected data", "Secure workflow"],
+    techNodes: ["Project controls", "Engineering guidance", "Connected data", "Governed workflow"],
+    industriesEyebrow: "FROM CIVIL WORKS TO COMPLEX PROCESS FACILITIES",
+    industriesTitle: "One project-controls foundation. Many industries.",
+    industriesBody: "CUBI is designed for building and infrastructure programs, oil and gas developments, pipelines, refineries, petrochemical facilities, power and utility projects, industrial plants and EPC delivery. Adapt project structures, calendars, roles and reporting to the work—not the other way around.",
     ctaTitle: "Bring your project into focus.",
     ctaBody: "Start with one connected view of schedules, costs, progress and decisions.",
-    assistantTitle: "CUBI AI Assistant",
-    assistantSubtitle: "Project help, one step away",
-    assistantDescription: "For project-specific answers or schedule support, open your workspace and select a project. Your assistant is available inside the workspace.",
+    assistantTitle: "CUBI Engineering Intelligence Assistant",
+    assistantSubtitle: "Project guidance, one step away",
+    assistantDescription: "Find relevant product guidance and project-context support inside your workspace. Answers must respect your permissions, disclose knowledge gaps and request your approval before changing project records.",
     assistantWorkspaceAction: "Open project workspace →",
     assistantClose: "Close assistant panel",
     signIn: "Sign In", start: "Get Started", language: "فارسی",
@@ -53,14 +57,14 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     eyebrow: "هوشمندی ساخت و مدیریت پروژه",
     title: "جزئیات را کنترل کنید؛", accent: "با اطمینان بسازید.",
     subtitle: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
-    body: "زمان‌بندی، هزینه، پیشرفت، منابع و شواهد پروژه را در یک اتاق کنترل روشن کنار هم قرار دهید تا تیم شما با اطمینان تصمیم بعدی را بگیرد.",
+    body: "از پروژه‌های ساختمانی و زیرساختی تا طرح‌های نفت، گاز، پتروشیمی، انرژی و تأسیسات صنعتی پیچیده، کوبی اطلاعات محدوده کار، ساختار شکست، زمان‌بندی، پیشرفت، منابع، هزینه و مستندات را در یک محیط منسجم کنترل پروژه به هم پیوند می‌دهد. از مهندسان برنامه‌ریزی و کنترل هزینه تا مدیران پروژه، مدیران کارگاه و مدیران ارشد، هر عضو تیم می‌تواند تصویر روشن‌تری از وضعیت کار و مبنای دقیق‌تری برای تصمیم بعدی داشته باشد.",
     primary: "کاوش پلتفرم ←", secondary: "نحوه کار را ببینید",
     featuresEyebrow: "جریان کاری یکپارچه",
-    featuresTitle: "همه آنچه پروژه برای کنترل بهتر نیاز دارد",
-    featuresBody: "کارها، اعداد و مستندات پروژه را در یک فضای کاری کاربردی برای تیم‌های ساخت به هم متصل کنید.",
+    featuresTitle: "اطلاعات پشت اجرای پروژه، در یک جریان یکپارچه",
+    featuresBody: "برنامه‌ها، عملکرد، افراد، سوابق و تصمیم‌ها را در چرخه عمر پروژه کنار هم قرار دهید؛ با مسئولیت‌پذیری روشن، اطلاعات قابل ردیابی و گردش کاری متناسب با روش اجرای سازمان شما.",
     features: [
       { icon: "⌁", title: "کنترل پروژه", body: "نقاط عطف، پیشرفت و شاخص‌های عملکرد را در یک نمای پروژه دنبال کنید." },
-      { icon: "✧", assistantAvatar: true, title: "دستیار هوشمند", body: "اطلاعات پروژه را به خلاصه‌ها، پرسش‌ها و گام‌های بعدی مفید تبدیل کنید." },
+      { icon: "✧", assistantAvatar: true, title: "هوشمندی مهندسی و راهنمای هوشمند", body: "راهنمای مرتبط کوبی را پیدا کنید، اطلاعات پروژه را بهتر درک کنید و گام‌های بعدی را با رعایت سطح دسترسی و تأیید کاربر آماده سازید." },
       { icon: "↗", title: "منابع و هزینه", body: "برنامه منابع، شفافیت هزینه و عملکرد اجرا را به هم متصل کنید." },
       { icon: "▤", title: "اسناد و قراردادها", body: "سوابق و شواهد پشتیبان پروژه را در کنار جریان کار نگه دارید." },
       { icon: "◎", title: "همکاری تیمی", body: "نمای مشترک و روشنی از وضعیت پروژه و اقدامات در اختیار ذی‌نفعان قرار دهید." },
@@ -68,14 +72,17 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     ],
     techEyebrow: "برای پروژه‌های واقعی",
     techTitle: "زیرساختی یکپارچه برای تصمیم‌های بهتر",
-    techBody: "کوبی برنامه‌ریزی، کنترل پروژه، اطلاعات و دستیار هوشمند را کنار هم قرار می‌دهد و جریان کاری پروژه را در مرکز نگه می‌دارد.",
+    techBody: "کوبی تعریف پروژه، ساختار شکست کار، شبکه فعالیت‌ها، تقویم‌ها، مبناها، پیشرفت، اطلاعات منابع و هزینه، اسناد کنترل‌شده، گزارش‌ها و راهنمایی مهندسی را به هم متصل می‌کند. محاسبات و نتایج زمان‌بندی باید از سرویس‌های معتبر پروژه به دست آیند، نه از حدس دستیار.",
     techLink: "مشاهده قابلیت‌های پلتفرم ←",
-    techNodes: ["کنترل پروژه", "دستیار هوشمند", "داده یکپارچه", "جریان کاری امن"],
+    techNodes: ["کنترل پروژه", "راهنمای مهندسی", "داده یکپارچه", "گردش کار کنترل‌شده"],
+    industriesEyebrow: "از پروژه‌های عمرانی تا تأسیسات فرایندی پیچیده",
+    industriesTitle: "یک بنیان کنترل پروژه؛ برای صنایع گوناگون",
+    industriesBody: "کوبی برای پروژه‌های ساختمانی و زیرساختی، طرح‌های نفت و گاز، خطوط لوله، پالایشگاه‌ها، مجتمع‌های پتروشیمی، نیروگاه‌ها، خدمات عمومی، کارخانه‌های صنعتی و پروژه‌های EPC طراحی شده است. ساختار پروژه، تقویم، نقش‌ها و گزارش‌ها را با ماهیت کار هماهنگ کنید، نه برعکس.",
     ctaTitle: "تصویر روشنی از پروژه بسازید.",
     ctaBody: "با نمایی یکپارچه از زمان‌بندی، هزینه، پیشرفت و تصمیم‌ها شروع کنید.",
-    assistantTitle: "دستیار هوشمند کوبی",
-    assistantSubtitle: "راهنمای پروژه، همیشه در دسترس",
-    assistantDescription: "برای دریافت پاسخ درباره پروژه یا کمک در زمان‌بندی، وارد فضای کاری شوید و یک پروژه انتخاب کنید. دستیار در محیط پروژه در دسترس است.",
+    assistantTitle: "دستیار هوشمندی مهندسی کوبی",
+    assistantSubtitle: "راهنمای پروژه، یک گام با شما فاصله دارد",
+    assistantDescription: "راهنمای محصول و پشتیبانی متناسب با اطلاعات پروژه را در فضای کاری پیدا کنید. پاسخ‌ها باید سطح دسترسی را رعایت کنند، کمبود دانش را آشکار سازند و پیش از تغییر سوابق پروژه تأیید شما را بگیرند.",
     assistantWorkspaceAction: "ورود به فضای کاری پروژه ←",
     assistantClose: "بستن پنل دستیار",
     signIn: "ورود", start: "شروع کنید", language: "EN",
@@ -200,6 +207,9 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
       body: translate(`features.${index}.body`, feature.body),
     })),
     techEyebrow: translate("techEyebrow", baseline.techEyebrow),
+    industriesEyebrow: translate("industriesEyebrow", baseline.industriesEyebrow),
+    industriesTitle: translate("industriesTitle", baseline.industriesTitle),
+    industriesBody: translate("industriesBody", baseline.industriesBody),
     techTitle: translate("techTitle", baseline.techTitle),
     techBody: translate("techBody", baseline.techBody),
     techLink: translate("techLink", baseline.techLink),
@@ -275,6 +285,7 @@ function renderLanding(container: HTMLElement): void {
           <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
           <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon${f.assistantAvatar ? " cubi-feature-icon-assistant" : ""}" aria-hidden="true">${f.assistantAvatar ? `<img src="${cubiAssistantAvatarUrl()}" width="50" height="50" alt="" />` : f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
+        <section class="cubi-exact-industries" id="industries" aria-labelledby="cubi-industries-title"><div class="cubi-exact-section-head"><p class="cubi-kicker">${t.industriesEyebrow}</p><h2 id="cubi-industries-title">${t.industriesTitle}</h2><p>${t.industriesBody}</p></div></section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
             <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="29" height="29" alt="" /></b><span>AI</span></div>
