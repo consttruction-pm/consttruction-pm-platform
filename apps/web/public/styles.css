@@ -9019,6 +9019,6 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 
 /* The homepage language control is a real, keyboard-operable locale selector. */
 .cubi-language-picker{display:inline-flex;align-items:center;min-width:0}
-.cubi-language-picker select.cubi-exact-language{appearance:auto;-webkit-appearance:menulist;box-sizing:border-box;min-width:112px;max-width:150px;padding:8px 9px;border:1px solid #d9e1ea;border-radius:7px;background:#fff;color:#34445a;font:600 12px/1.2 inherit;cursor:pointer}
+.cubi-language-picker select.cubi-exact-language{appearance:auto;-webkit-appearance:menulist;box-sizing:border-box;min-width:112px;max-width:150px;padding:8px 9px;border:1px solid #d9e1ea;border-radius:7px;background:#fff;color:#34445a;font:inherit;font-size:12px;font-weight:600;line-height:1.2;cursor:pointer}
 .cubi-language-picker select.cubi-exact-language:focus-visible{outline:2px solid #1976d2;outline-offset:2px}
 @media(max-width:820px){.cubi-language-picker select.cubi-exact-language{min-width:96px;max-width:124px;padding:6px 5px;font-size:11px}}
