@@ -113,6 +113,7 @@ from ..p6_formula_column import (
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
+from ..p6_activity_step_api import P6ActivityStepReadAPI
 from ..document_api import DocumentAPI
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
@@ -256,6 +257,7 @@ class ProjectLifecycleHttpRoutes:
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
+        p6_activity_step_api: P6ActivityStepReadAPI | None = None,
         document_api: DocumentAPI | None = None,
         budget_api: BudgetAPI | None = None,
         cost_api: CostAPI | None = None,
@@ -313,6 +315,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_issue_api = p6_issue_api
+        self._p6_activity_step_api = p6_activity_step_api
         self._document_api = document_api
         self._budget_api = budget_api
         self._cost_api = cost_api
@@ -1804,6 +1807,24 @@ class ProjectLifecycleHttpRoutes:
                                 "error.resource.not_found",
                             )
                         return self._json(200, history)
+                    if (
+                        method == "GET"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "steps"
+                    ):
+                        if self._p6_activity_step_api is None:
+                            return self._error(
+                                503,
+                                "P6_ACTIVITY_STEP_READ_UNAVAILABLE",
+                                "error.resource.unavailable",
+                            )
+                        return self._json(
+                            200,
+                            self._p6_activity_step_api.list(
+                                scope, parts[0], auth_context=auth
+                            ),
+                        )
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_master_api.get(
                             scope, parts[0], auth_context=auth

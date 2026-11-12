@@ -26,7 +26,7 @@ const REQUIRED_TABS = [
   "codes", "notebook", "steps", "wps-docs", "expenses", "issues", "risks",
   "summary", "udfs", "update-history",
 ];
-const DATA_TABS = ["resources", "expenses", "issues", "risks", "udfs", "update-history"];
+const DATA_TABS = ["resources", "expenses", "issues", "risks", "steps", "udfs", "update-history"];
 
 const report = { url: baseUrl, tabs: [], data: {}, writes: {}, customize: null, exceptions: [], consoleErrors: [], apiFailures: [] };
 
@@ -130,6 +130,21 @@ async function main() {
     assert(!state.loading, `${tab} should have finished loading`);
     assert(!state.error, `${tab} reported a read error: ${state.text.slice(0, 180)}`);
   }
+
+  // Populated Steps evidence: the seeded earthworks activity carries three
+  // stored step definitions in sequence order.
+  await page.evaluate(`(() => { document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"]')?.click(); return true; })()`);
+  await sleep(1200);
+  await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab="steps"]')?.click(); return true; })()`);
+  await sleep(900);
+  const stepsPanel = await page.evaluate(`(() => {
+    const panel = document.querySelector('#cp-details [data-detail-panel="steps"]');
+    return { rows: panel?.querySelectorAll("tbody tr").length ?? 0, text: panel?.innerText ?? "", error: Boolean(panel?.querySelector(".cp-detail-error")) };
+  })()`);
+  report.steps = stepsPanel;
+  assert(!stepsPanel.error, `steps read reported an error: ${stepsPanel.text.slice(0, 180)}`);
+  assert(stepsPanel.rows >= 3, `expected seeded steps, got ${stepsPanel.rows} rows`);
+  assert(stepsPanel.text.includes("Cut and fill"), "seeded step description is missing");
 
   // Write path: create one authoritative record from each editable tab, then
   // prove the pane reloads the stored rows rather than trusting local state.

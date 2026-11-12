@@ -148,6 +148,23 @@ class SQLiteP6ActivityStepRepository:
             query += " AND activity_id=?"
             params += (activity_id,)
         rows = self.connection.execute(query + " ORDER BY activity_id,sequence,step_id", params).fetchall()
+        if not rows:
+            # No rows at the requested revision is only an empty collection when
+            # the project has no steps at all. If steps exist at another
+            # revision the caller is reading a stale projection and must
+            # refresh rather than silently receive an empty list.
+            current = self.connection.execute(
+                "SELECT 1 FROM p6_activity_step "
+                "WHERE tenant_id=? AND project_id=? AND project_revision=? LIMIT 1",
+                (scope.tenant_id, scope.project_id, scope.project_revision),
+            ).fetchone()
+            if current is None:
+                other = self.connection.execute(
+                    "SELECT 1 FROM p6_activity_step WHERE tenant_id=? AND project_id=? LIMIT 1",
+                    (scope.tenant_id, scope.project_id),
+                ).fetchone()
+                if other is not None:
+                    raise P6ActivityStepPersistenceError("REVISION_CONFLICT")
         return tuple(_from_row(scope, row) for row in rows)
 
 
@@ -255,6 +272,19 @@ class PostgresP6ActivityStepRepository:
             query += " AND activity_id=%s"
             params += (activity_id,)
         rows = self.connection.execute(query + " ORDER BY activity_id,sequence,step_id", params).fetchall()
+        if not rows:
+            current = self.connection.execute(
+                "SELECT 1 FROM p6_activity_step "
+                "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s LIMIT 1",
+                (scope.tenant_id, scope.project_id, scope.project_revision),
+            ).fetchone()
+            if current is None:
+                other = self.connection.execute(
+                    "SELECT 1 FROM p6_activity_step WHERE tenant_id=%s AND project_id=%s LIMIT 1",
+                    (scope.tenant_id, scope.project_id),
+                ).fetchone()
+                if other is not None:
+                    raise P6ActivityStepPersistenceError("REVISION_CONFLICT")
         return tuple(_from_row(scope, row) for row in rows)
 
 

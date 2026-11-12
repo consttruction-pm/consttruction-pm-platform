@@ -16,6 +16,7 @@ import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { loadAssignments, saveAssignment, type AssignmentRecord } from "./workspace-assignments.js";
 import { EXPENSE_CATEGORIES, loadExpenses, saveExpense, type ExpenseRecord } from "./workspace-expenses.js";
 import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, loadIssues, saveIssue, type IssueRecord } from "./workspace-issues.js";
+import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity-steps.js";
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
 import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
@@ -193,6 +194,7 @@ export type ActivityDetailsData = {
   expenses?: ActivityDetailsLoadState<ExpenseRecord>;
   issues?: ActivityDetailsLoadState<IssueRecord>;
   risks?: ActivityDetailsLoadState<RiskRecord>;
+  steps?: ActivityDetailsLoadState<ActivityStepRecord>;
   udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
 };
@@ -609,20 +611,34 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ].join(""))}
         <p class="cp-detail-hint">${esc(t(locale, "These notes are stored in this browser only. They are not project database records and are not presented as formal audit history.", "این یادداشت‌ها فقط در همین مرورگر ذخیره می‌شوند. آن‌ها رکورد پایگاه دادهٔ پروژه نیستند و به‌عنوان تاریخچه رسمی ممیزی ارائه نمی‌شوند."))}</p>`;
     }
-    case "steps":
-      return `<p class="cp-detail-hint">${esc(t(locale, "Steps are child records of the activity with their own sequence, weight and completion state. The current project service does not expose a steps read endpoint yet, so this table remains empty instead of claiming that the activity has no steps.", "گام‌ها رکوردهای فرزند فعالیت با ترتیب، وزن و وضعیت تکمیل مستقل هستند. سرویس فعلی پروژه هنوز نقطهٔ پایانی خواندن گام‌ها را ارائه نمی‌کند؛ بنابراین این جدول خالی می‌ماند و ادعا نمی‌کند که فعالیت گامی ندارد."))}</p>
-      ${gridTable(locale,
-        [t(locale, "Step Name", "نام گام"), t(locale, "Completed", "تکمیل‌شده"), t(locale, "Step Description", "توضیح گام"), t(locale, "Step % Complete", "درصد گام"), t(locale, "Step Weight", "وزن گام"), t(locale, "Step Weight Percent", "درصد وزن گام")],
-        [],
-        t(locale, "No steps are available from the current project service.", "هیچ گامی از سرویس فعلی پروژه در دسترس نیست."))}
-      ${controlBar(locale, [
-        disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
-        disabledControl(locale, t(locale, "Add from template", "افزودن از قالب"), notWritable),
-        disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-        disabledControl(locale, t(locale, "Modify", "ویرایش"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-        disabledControl(locale, t(locale, "Copy", "کپی"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-        disabledControl(locale, t(locale, "Print", "چاپ"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-      ].join(""))}`;
+    case "steps": {
+      const data = loadStateOf(input.data?.steps);
+      const rows = data.records
+        .filter((step) => step.activityId === activity?.id)
+        .map((step) => [
+          String(step.sequence),
+          step.description,
+          step.weight ?? "—",
+          step.startDate ?? "—",
+          step.finishDate ?? "—",
+          Object.entries(step.udfValues).map(([key, value]) => `${key}=${value}`).join(", ") || "—",
+        ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Sequence", "ترتیب"), t(locale, "Step Name", "نام گام"), t(locale, "Step Weight", "وزن گام"), t(locale, "Start", "شروع"), t(locale, "Finish", "پایان"), t(locale, "Step UDFs", "فیلدهای سفارشی گام")],
+          rows,
+          t(locale, "No steps are stored for this activity.", "هیچ گامی برای این فعالیت ذخیره نشده است."))
+        : loadNotice(locale, data, t(locale, "Activity steps have not been read yet.", "گام‌های فعالیت هنوز خوانده نشده‌اند."));
+      return `${table}
+        ${controlBar(locale, [
+          disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
+          disabledControl(locale, t(locale, "Add from template", "افزودن از قالب"), notWritable),
+          disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
+          disabledControl(locale, t(locale, "Modify", "ویرایش"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
+          reloadControl(locale, "steps"),
+        ].join(""))}
+        <p class="cp-detail-hint">${esc(t(locale, "Steps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.", "گام‌ها به ترتیب ذخیره‌شده از سرویس پروژه خوانده می‌شوند. رکورد گام درصد تکمیل را ذخیره نمی‌کند؛ بنابراین آن ستون نمایش داده نمی‌شود و از خود ساخته نمی‌شود."))}</p>`;
+    }
     case "wps-docs": {
       const links = new Set([activity?.id, activity?.code].filter((value): value is string => Boolean(value)));
       const docs = state?.documents.filter((document) => document.linkedEntityRefs.some((ref) => links.has(ref))) ?? [];
@@ -1387,11 +1403,12 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
   const context = input.state?.context;
   if (!transport || !context) return {};
   const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
-  const [assignments, expenses, issues, risks, udfs, history] = await Promise.all([
+  const [assignments, expenses, issues, risks, steps, udfs, history] = await Promise.all([
     loadAssignments(transport, context).then(resultState),
     loadExpenses(transport, context, { activityId }).then(resultState),
     loadIssues(transport, context).then(resultState),
     loadRisks(transport, context).then(resultState),
+    loadActivitySteps(transport, context, activityId).then(resultState),
     fetchP6ActivityUdfs(context.project_id, registry)
       .then((response): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({ status: "loaded", records: response.udfs, errorCode: null }))
       .catch((error: unknown): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({
@@ -1401,7 +1418,7 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
       })),
     readProgressHistory(transport, context, activityId),
   ]);
-  return { assignments, expenses, issues, risks, udfs, history };
+  return { assignments, expenses, issues, risks, steps, udfs, history };
 }
 
 function detailsDataKey(input: ActivityDetailsInput): string | null {

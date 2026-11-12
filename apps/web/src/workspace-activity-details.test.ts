@@ -204,6 +204,29 @@ test("write editors appear only for writable sessions and capture every stored f
   }
 });
 
+test("Steps render stored child records for the activity and omit completion columns", () => {
+  const html = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["steps"],
+    data: {
+      steps: {
+        status: "loaded",
+        errorCode: null,
+        records: [
+          { stepId: "STEP-1", activityId: "act-1", sequence: 1, description: "Strip topsoil", weight: "25", startDate: null, finishDate: null, udfValues: { crew: "civil" } },
+          { stepId: "STEP-2", activityId: "act-2", sequence: 1, description: "Other activity step", weight: null, startDate: null, finishDate: null, udfValues: {} },
+        ],
+      },
+    },
+  });
+  assert.match(html, /Strip topsoil/);
+  assert.match(html, /crew=civil/);
+  assert.match(html, /data-details-refresh="steps"/);
+  assert.doesNotMatch(html, /Other activity step/);
+  assert.doesNotMatch(html, /Step % Complete/);
+});
+
 test("Issues are filtered by the stored activity reference and Update History renders revision events", () => {
   const base = {
     locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",

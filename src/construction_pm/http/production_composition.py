@@ -49,6 +49,7 @@ from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
 from construction_pm.p6_issue_api import P6IssueAPI
+from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
 from construction_pm.document_api import DocumentAPI
 from construction_pm.budget_api import BudgetAPI
 from construction_pm.cost_api import CostAPI
@@ -120,6 +121,7 @@ def build_project_lifecycle_wsgi_app(
     p6_cost_account_api: P6CostAccountAPI | None = None,
     p6_financial_period_api: P6FinancialPeriodAPI | None = None,
     p6_issue_api: P6IssueAPI | None = None,
+    p6_activity_step_api: P6ActivityStepReadAPI | None = None,
     document_api: DocumentAPI | None = None,
     budget_api: BudgetAPI | None = None,
     cost_api: CostAPI | None = None,
@@ -317,6 +319,7 @@ def build_project_lifecycle_wsgi_app(
         p6_cost_account_api=p6_cost_account_api,
         p6_financial_period_api=p6_financial_period_api,
         p6_issue_api=p6_issue_api,
+        p6_activity_step_api=p6_activity_step_api,
         document_api=document_api,
         budget_api=budget_api,
         cost_api=cost_api,
