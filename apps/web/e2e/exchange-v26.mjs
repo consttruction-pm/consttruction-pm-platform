@@ -50,9 +50,13 @@ const duplicateId = `E2E-XCH-DUP-${stamp}`;
 const idempotencyKey = `e2e-exchange-${stamp}`;
 const CSV_HEADER =
   "resource_id,name,resource_type,parent_resource_id,calendar_id,default_units_per_time,unit_of_measure,email,is_active\n";
+const csvRow = (...values) => `${values.join(",")}\n`;
 
-const validCsv = `${CSV_HEADER}${crewId},Exchange crew,labor,,,,,e2e.exchange@example.test,true\n${childId},Exchange child,labor,${crewId},,,,false\n`;
-const invalidCsv = `${CSV_HEADER}${duplicateId},Bad row,robot,,CAL-DOES-NOT-EXIST,,,not-an-email,maybe\n`;
+const validCsv =
+  CSV_HEADER +
+  csvRow(crewId, "Exchange crew", "labor", "", "", "", "", "e2e.exchange@example.test", "true") +
+  csvRow(childId, "Exchange child", "labor", crewId, "", "", "", "", "false");
+const invalidCsv = CSV_HEADER + csvRow(duplicateId, "Bad row", "robot", "", "CAL-DOES-NOT-EXIST", "", "", "not-an-email", "maybe");
 
 const exceptions = [];
 const consoleErrors = [];
@@ -401,12 +405,15 @@ async function main() {
     await scenario("06", "شناسهٔ موجود و چرخهٔ سلسله‌مراتب پیش از نوشتن رد می‌شوند", async () => {
       const existing = await api(page, "POST", exchangeUrl("/import/preview"), {
         dataset: "resources",
-        content: `${CSV_HEADER}${crewId},Duplicate,labor,,,,,true\n`,
+        content: CSV_HEADER + csvRow(crewId, "Duplicate", "labor", "", "", "", "", "", "true"),
       });
       assert(existing.status === 200, `preview ${existing.status}`);
       assert(existing.body.errors.some((error) => error.code === "RESOURCE_ALREADY_EXISTS"), `existing ${JSON.stringify(existing.body.errors)}`);
 
-      const cycle = `${CSV_HEADER}E2E-XCH-A-${stamp},Cycle A,labor,E2E-XCH-B-${stamp},,,,true\nE2E-XCH-B-${stamp},Cycle B,labor,E2E-XCH-A-${stamp},,,,true\n`;
+      const cycle =
+        CSV_HEADER +
+        csvRow(`E2E-XCH-A-${stamp}`, "Cycle A", "labor", `E2E-XCH-B-${stamp}`, "", "", "", "", "true") +
+        csvRow(`E2E-XCH-B-${stamp}`, "Cycle B", "labor", `E2E-XCH-A-${stamp}`, "", "", "", "", "true");
       const looped = await api(page, "POST", exchangeUrl("/import/preview"), {
         dataset: "resources",
         content: cycle,
@@ -438,7 +445,7 @@ async function main() {
 
       const denied = await api(page, "POST", exchangeUrl("/import"), {
         dataset: "resources",
-        content: `${CSV_HEADER}E2E-XCH-DENIED-${stamp},Denied,labor,,,,,true\n`,
+        content: CSV_HEADER + csvRow(`E2E-XCH-DENIED-${stamp}`, "Denied", "labor", "", "", "", "", "", "true"),
         idempotency_key: `e2e-denied-${stamp}`,
       });
       assert(denied.status === 403 && denied.body.code === "EXCHANGE_PERMISSION_DENIED", `viewer apply ${JSON.stringify(denied).slice(0, 300)}`);
