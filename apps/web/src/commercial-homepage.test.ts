@@ -130,7 +130,7 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /\.\/platform\/#project-controls/);
   assert.match(landing, /\.\/solutions\/#construction-teams/);
   assert.match(landing, /\.\/resources\/#documentation/);
-  assert.match(landing, /pricingHref = locale === "fa"/);
+  assert.match(landing, /pricingHref = locale === "en" \? .*pricing/);
   assert.match(landing, /href="\$\{pricingHref\}"/);
 });
 
