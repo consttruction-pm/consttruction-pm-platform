@@ -182,7 +182,15 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
     document_id = f"doc-{suffix}"
     occurred = datetime.now(timezone.utc)
 
-    def version(number: int, key: str, digest: str) -> DocumentContentVersion:
+    def version(
+        number: int,
+        key: str,
+        digest: str,
+        *,
+        scan_status: str = "unscanned",
+        scan_engine: str = "",
+        scan_version: str = "",
+    ) -> DocumentContentVersion:
         return DocumentContentVersion(
             tenant_id=tenant,
             project_id=project,
@@ -197,6 +205,9 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
             idempotency_key=key,
             actor_id="live-actor",
             uploaded_at=occurred,
+            scan_status=scan_status,
+            scan_engine=scan_engine,
+            scan_engine_version=scan_version,
         )
 
     with psycopg.connect(DSN) as connection:
@@ -220,7 +231,35 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
         second = repository.append(version(2, f"content-{suffix}-2", "b"))
         connection.commit()
         assert repository.latest(tenant, project, document_id) == second
-        assert [item.version for item in repository.list(tenant, project, document_id)] == [1, 2]
+        # Legacy rows written without scan metadata remain readable and explicit.
+        assert first.scan_status == "unscanned"
+        assert first.scan_engine == ""
+        assert repository.get(tenant, project, document_id, 1).as_dict()["scan"] == {
+            "status": "unscanned",
+            "engine": "",
+            "engine_version": "",
+            "detail": "",
+        }
+
+        scanned = repository.append(
+            version(
+                3,
+                f"content-{suffix}-3",
+                "c",
+                scan_status="clean",
+                scan_engine="live-engine",
+                scan_version="9.1",
+            )
+        )
+        connection.commit()
+        assert scanned.version == 3
+        assert scanned.as_dict()["scan"] == {
+            "status": "clean",
+            "engine": "live-engine",
+            "engine_version": "9.1",
+            "detail": "",
+        }
+        assert [item.version for item in repository.list(tenant, project, document_id)] == [1, 2, 3]
         assert repository.get(tenant, project, document_id, 1) == first
         assert repository.get(tenant, project, document_id, 9) is None
         assert repository.latest(tenant, project, "other-document") is None

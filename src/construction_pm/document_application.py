@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from .api_errors import APIError, authorization_error, conflict_error, validation_error
+from .api_errors import (
+    APIError,
+    authorization_error,
+    conflict_error,
+    persistence_error,
+    validation_error,
+)
 from .application.authorization import AuthorizationContext, AuthorizationPolicy, Permission
 from .backend_p0.transactions import TransactionManager
 from .document_content_repository import (
@@ -20,12 +26,20 @@ from .document_persistence import (
     DocumentStore,
     StoredDocument,
 )
+from .document_scan import (
+    DocumentScanError,
+    DocumentScanRejected,
+    DocumentScanUnavailable,
+    DocumentScanner,
+    ScanVerdict,
+)
 from .document_storage import (
     DEFAULT_MAX_DOCUMENT_BYTES,
     DocumentBinaryStorage,
     DocumentContentHashMismatch,
     DocumentContentIntegrityError,
     DocumentContentNotFound,
+    DocumentContentQuarantined,
     DocumentContentTooLarge,
     DocumentContentTypeRejected,
     DocumentStorageError,
@@ -64,6 +78,8 @@ class DocumentApplicationService:
     storage: DocumentBinaryStorage | None = None
     content_repository: DocumentContentRepository | None = None
     max_content_bytes: int = DEFAULT_MAX_DOCUMENT_BYTES
+    scanner: DocumentScanner | None = None
+    require_scanned_content: bool = False
 
     def create(
         self,
@@ -246,6 +262,7 @@ class DocumentApplicationService:
                 idempotent_replay=True,
             )
 
+        verdict = self._scan_payload(data, blob.content_type)
         storage_ref = self.storage.put(
             tenant_id=tenant_id,
             project_id=project_id,
@@ -301,6 +318,10 @@ class DocumentApplicationService:
                     idempotency_key=idempotency_key,
                     actor_id=actor_id,
                     uploaded_at=occurred_at,
+                    scan_status=verdict.status if verdict else "unscanned",
+                    scan_engine=verdict.engine if verdict else "",
+                    scan_engine_version=verdict.engine_version if verdict else "",
+                    scan_detail=verdict.detail if verdict else "",
                 )
             )
             return DocumentContentUpload(content=version, storage_ref=storage_ref)
@@ -334,6 +355,10 @@ class DocumentApplicationService:
             # was written before version tracking existed. Serve it only when
             # the adapter recognises the reference and the digest matches.
             document = current.document
+            if self.require_scanned_content:
+                # Legacy references carry no scan verdict at all, so they can
+                # never satisfy a quarantine-first serving policy.
+                raise DocumentContentQuarantined("DOCUMENT_CONTENT_QUARANTINED")
             if document.storage_ref.startswith("local:v1/") and document.content_hash.startswith("sha256:"):
                 payload = self.storage.read(
                     document.storage_ref,
@@ -350,6 +375,8 @@ class DocumentApplicationService:
                 )
             raise DocumentContentNotFound("DOCUMENT_CONTENT_NOT_FOUND")
 
+        if self.require_scanned_content and selected.scan_status != "clean":
+            raise DocumentContentQuarantined("DOCUMENT_CONTENT_QUARANTINED")
         payload = self.storage.read(
             selected.storage_ref,
             tenant_id=tenant_id,
@@ -377,6 +404,40 @@ class DocumentApplicationService:
             raise DocumentStorageUnavailable("DOCUMENT_STORAGE_UNAVAILABLE")
         self.store.get(tenant_id, project_id, document_id)
         return self.content_repository.list(tenant_id, project_id, document_id)
+
+    def _scan_payload(self, data: bytes, content_type: str) -> ScanVerdict | None:
+        """Return a usable verdict, or fail closed when scanning is required.
+
+        Infected payloads are rejected before any bytes reach storage, in both
+        modes. A missing or broken scanner is only tolerated in the explicit
+        non-strict development mode, where the version is recorded as
+        ``failed``/``unscanned`` and therefore can never be served as clean.
+        """
+        if self.scanner is None:
+            if self.require_scanned_content:
+                raise DocumentScanUnavailable("DOCUMENT_SCAN_UNAVAILABLE")
+            return None
+        try:
+            verdict = self.scanner.scan(bytes(data), content_type=content_type)
+        except (DocumentScanRejected, DocumentScanUnavailable):
+            raise
+        except Exception as exc:
+            if self.require_scanned_content:
+                raise DocumentScanUnavailable("DOCUMENT_SCAN_UNAVAILABLE") from exc
+            return ScanVerdict(
+                status="failed",
+                engine="unavailable",
+                engine_version="0",
+                detail=type(exc).__name__,
+            )
+        if not isinstance(verdict, ScanVerdict):
+            raise DocumentScanError("INVALID_DOCUMENT_SCAN_RESULT")
+        verdict.validate()
+        if verdict.status == "infected":
+            raise DocumentScanRejected("DOCUMENT_CONTENT_INFECTED")
+        if self.require_scanned_content and verdict.status in {"unscanned", "failed"}:
+            raise DocumentScanUnavailable("DOCUMENT_SCAN_FAILED")
+        return verdict
 
     def _check_permission(
         self,
@@ -415,6 +476,16 @@ class DocumentApplicationService:
             return validation_error(str(exc) or "DOCUMENT_CONTENT_TYPE_REJECTED", str(exc))
         if isinstance(exc, DocumentContentNotFound):
             return validation_error("DOCUMENT_CONTENT_NOT_FOUND", str(exc))
+        if isinstance(exc, DocumentContentQuarantined):
+            return conflict_error(
+                str(exc) or "DOCUMENT_CONTENT_QUARANTINED", str(exc)
+            )
+        if isinstance(exc, DocumentScanRejected):
+            return conflict_error(str(exc) or "DOCUMENT_CONTENT_INFECTED", str(exc))
+        if isinstance(exc, DocumentScanUnavailable):
+            return persistence_error(str(exc) or "DOCUMENT_SCAN_UNAVAILABLE", str(exc))
+        if isinstance(exc, DocumentScanError):
+            return validation_error(str(exc) or type(exc).__name__, str(exc))
         if isinstance(exc, (DocumentContentHashMismatch, DocumentContentIntegrityError)):
             return validation_error(str(exc), str(exc))
         if isinstance(exc, DocumentStorageUnavailable):

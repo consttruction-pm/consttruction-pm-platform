@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Protocol
 
 from .backend_p0.models import MAX_SAFE_REVISION
+from .document_scan import SCAN_STATUSES
 from .document_persistence import DocumentIdempotencyReuse, _coerce_datetime
 
 
@@ -36,6 +37,10 @@ class DocumentContentVersion:
     idempotency_key: str
     actor_id: str
     uploaded_at: datetime
+    scan_status: str = "unscanned"
+    scan_engine: str = ""
+    scan_engine_version: str = ""
+    scan_detail: str = ""
 
     def validate(self) -> None:
         for name, value in (
@@ -69,6 +74,21 @@ class DocumentContentVersion:
             raise DocumentContentPersistenceError("INVALID_DOCUMENT_CONTENT_HASH")
         if not isinstance(self.uploaded_at, datetime) or self.uploaded_at.tzinfo is None:
             raise DocumentContentPersistenceError("INVALID_DOCUMENT_CONTENT_TIMESTAMP")
+        if self.scan_status not in SCAN_STATUSES:
+            raise DocumentContentPersistenceError("INVALID_DOCUMENT_CONTENT_SCAN_STATUS")
+        for name, value in (
+            ("SCAN_ENGINE", self.scan_engine),
+            ("SCAN_ENGINE_VERSION", self.scan_engine_version),
+            ("SCAN_DETAIL", self.scan_detail),
+        ):
+            if not isinstance(value, str):
+                raise DocumentContentPersistenceError(
+                    f"INVALID_DOCUMENT_CONTENT_{name}"
+                )
+        if self.scan_status != "unscanned" and not self.scan_engine.strip():
+            raise DocumentContentPersistenceError(
+                "INVALID_DOCUMENT_CONTENT_SCAN_ENGINE"
+            )
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -81,6 +101,12 @@ class DocumentContentVersion:
             "original_filename": self.original_filename,
             "uploaded_at": self.uploaded_at.isoformat(),
             "uploaded_by": self.actor_id,
+            "scan": {
+                "status": self.scan_status,
+                "engine": self.scan_engine,
+                "engine_version": self.scan_engine_version,
+                "detail": self.scan_detail,
+            },
         }
 
 
@@ -100,6 +126,10 @@ def _from_json(final_row: object) -> DocumentContentVersion:
         idempotency_key=payload["idempotency_key"],
         actor_id=payload["actor_id"],
         uploaded_at=_coerce_datetime(payload["uploaded_at"]),
+        scan_status=str(payload.get("scan_status", "unscanned")),
+        scan_engine=str(payload.get("scan_engine", "")),
+        scan_engine_version=str(payload.get("scan_engine_version", "")),
+        scan_detail=str(payload.get("scan_detail", "")),
     )
 
 
@@ -119,6 +149,10 @@ def _to_json(version: DocumentContentVersion) -> str:
             "idempotency_key": version.idempotency_key,
             "actor_id": version.actor_id,
             "uploaded_at": version.uploaded_at.isoformat(),
+            "scan_status": version.scan_status,
+            "scan_engine": version.scan_engine,
+            "scan_engine_version": version.scan_engine_version,
+            "scan_detail": version.scan_detail,
         },
         ensure_ascii=False,
         sort_keys=True,

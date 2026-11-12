@@ -121,6 +121,7 @@ from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
 )
+from construction_pm.document_scan import ReferenceDocumentScanner
 from construction_pm.document_storage import LocalDocumentStorage
 from construction_pm.administration_api import AdministrationAPI
 from construction_pm.administration_application import AdministrationApplicationService
@@ -1857,6 +1858,8 @@ def open_preview_runtime(
                 repositories.transaction_manager,
                 storage=LocalDocumentStorage(database.parent / "document-store"),
                 content_repository=repositories.document_content,
+                scanner=ReferenceDocumentScanner(),
+                require_scanned_content=True,
             )
         ),
         budget_api=BudgetAPI(
