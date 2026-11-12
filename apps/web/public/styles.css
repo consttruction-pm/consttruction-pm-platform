@@ -3494,39 +3494,6 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-toolbar-button:disabled .cp-icon { color: #8a95a3; }
 .cp-toolbar-button[aria-pressed="true"] { border-color: #9dc2e8; background: #e3effc; color: var(--cp-ui-primary-strong); }
 .cp-toolbar-label { white-space: nowrap; }
-.cp-layoutbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 3px 10px;
-  border-bottom: 1px solid var(--cp-ui-grid);
-  background: var(--cp-ui-window);
-  font-size: 11.5px;
-}
-.cp-layoutbar-field { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
-.cp-layoutbar-key { color: #5b6878; }
-.cp-layoutbar-field strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 26ch; font-weight: 600; color: #1f2d3d; }
-.cp-layoutbar-spacer { flex: 1 1 auto; }
-.cp-layoutbar-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 26px;
-  padding: 2px 7px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: #2b3a4d;
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.cp-layoutbar-button .cp-icon { width: 14px; height: 14px; color: var(--cp-ui-primary); }
-.cp-layoutbar-button:hover { border-color: var(--cp-ui-border); background: #fff; }
-.cp-layoutbar-button:focus-visible { outline: 2px solid var(--cp-ui-primary); outline-offset: 1px; }
 .cp-window-tabs { background: var(--cp-ui-window); }
 .cp-desktop-status {
   width: min(100%, var(--cubi-ui-page-max));
@@ -3831,8 +3798,6 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 @media (max-width: 760px) {
   .cp-titlebar { flex-wrap: wrap; gap: 6px 10px; }
   .cp-titlebar-product { display: none; }
-  .cp-layoutbar { overflow-x: auto; }
-  .cp-layoutbar-spacer { display: none; }
   .cp-toolbar-group { padding: 0 4px; }
   .cp-toolbar-label { font-size: 11px; }
   .cp-detail-panel { max-height: none; }
@@ -5167,20 +5132,6 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   border-color: #e2e8ef;
 }
 .cp-p6 .cp-toolbar-overflow-popup .cp-toolbar-label { display: inline; font-size: 10px; }
-.cp-p6 .cp-layoutbar {
-  height: 20px;
-  min-height: 20px;
-  padding: 0 6px;
-  gap: 8px;
-  border-radius: 0;
-  background: #edf1f6;
-  font-size: 10px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.cp-p6 .cp-layoutbar-field strong { font-size: 10px; max-width: 20ch; }
-.cp-p6 .cp-layoutbar-button { height: 18px; min-height: 18px; padding: 0 4px; gap: 3px; font-size: 9.5px; border-radius: 2px; }
-.cp-p6 .cp-layoutbar-button .cp-icon { width: 13px; height: 13px; }
 
 /* Workspace frame: 20px directory rail, flexible stage, 23px comments rail. */
 .cp-p6 .cp-p6-workspace {
@@ -6268,15 +6219,11 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   .cp-p6 .cp-comment-form-actions button { min-height: 32px; }
 }
 
-/* Keep dialogs, popups and rails usable on smaller screens without reflowing bars. */
-@media (max-width: 1100px) {  .cp-p6 .cp-layoutbar-field:nth-of-type(2) { display: none; }
-}
 @media (max-width: 860px) {
   .cp-p6 .cp-p6-workspace { min-width: 0; }
   .cp-p6 .cp-titlebar-product { display: none; }
   .cp-p6 .cp-menubar { overflow-x: auto; overflow-y: visible; }
   .cp-p6 .cp-menubar-trigger { padding: 0 5px; font-size: 10px; }
-  .cp-p6 .cp-layoutbar-button span { display: none; }
   .cp-p6 #workspace { overflow: auto; }
 }
 @media (max-height: 620px) {
