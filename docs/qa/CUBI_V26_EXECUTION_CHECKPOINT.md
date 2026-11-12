@@ -1206,7 +1206,81 @@ Recorded provenance (two independent facts):
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
 scenarios ran on `b22c7955`, and the screenshots plus report were committed afterwards.
 
+## Stage E3 — Project budget register, pending changes and funding sources
+
+PR [#1761](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1761) squash-merged
+into `main` as `9c11331b` on 2026-11-12. Post-merge CI on `9c11331b`: ConstructionPM CI, Web CI,
+Client Typecheck, PostgreSQL Integration, PostgreSQL Sync State Integration and the Pages deploy
+all succeeded.
+
+### What shipped
+
+1. **Persistent budget domain** (`budget_persistence.py`): `SQLiteBudgetStore` owns
+   `project_budget_line`, `project_budget_change`, `project_budget_funding` and the immutable
+   `project_budget_audit` trail. Money is parsed by one shared `parse_budget_amount` routine that
+   rejects booleans, floats, exponents, non-finite values and more than two decimals, and is
+   formatted back as two-decimal text. Creates carry idempotency fingerprints
+   (`BUDGET_IDEMPOTENCY_KEY_REUSE` on reuse, `BUDGET_ALREADY_EXISTS` on a duplicate id), updates
+   require `expected_revision` (`BUDGET_REVISION_CONFLICT`), and a change can only leave
+   `pending` once (`BUDGET_CHANGE_ALREADY_RESOLVED`).
+2. **Derived budget arithmetic** (`budget_application.py`): the stored original amount is never
+   rewritten by approvals. The current budget is `original + approved changes`; pending changes
+   are reported separately; funding balance is `current − funding sources`. Summaries are
+   grouped per currency with exact two-decimal `Decimal` arithmetic. A line's currency is locked
+   once changes exist (`BUDGET_CURRENCY_LOCKED`).
+3. **Application boundary and versioned API** (`BudgetAPI`, `p6-budget-api.v1`): project-scoped
+   reads and writes behind `PROJECT_READ`/`PROJECT_WRITE`, actor identity checked against the
+   authenticated principal, and approval restricted to `project_admin`
+   (`BUDGET_APPROVAL_REQUIRES_ADMIN`, 403). The HTTP layer maps not-found, conflict and
+   validation codes to honest 404/409/400 envelopes.
+4. **HTTP, preview and production wiring**: `GET/POST /api/projects/{id}/budget/lines`,
+   `GET/PUT/PATCH /budget/lines/{id}`, `GET/POST /budget/lines/{id}/changes`,
+   `GET /budget/lines/{id}/history`, `POST /budget/changes/{id}/status`,
+   `GET/POST /budget/funding`, `PUT/PATCH /budget/funding/{id}` and `GET /budget/summary`.
+   WSGI carries the line-filter and funding query strings through the real app, and the preview
+   runtime persists everything across restarts.
+5. **Cost workspace panel** (`workspace-budget.ts`): the Cost page now mounts a real budget panel
+   with per-currency totals, line create/edit, pending change entry, admin-only approve/reject,
+   funding sources, history and revision-conflict notices. Planner can write; viewer is read-only;
+   only `project_admin` sees approval controls.
+
+### Honest limits
+
+- There is no actual-cost or spending engine yet: `period_id` is a stored string, and variance
+  against actuals, expenses and cost accounts remains `COST-001`/`COST-002` work.
+- Lines are not periodized into a time-phased curve, and there is no bulk import/export.
+- Budget facts live in SQLite only; there is no Postgres mirror for this slice.
+- Funding sources are recorded, not reconciled against real receipts.
+- The new budget labels are inline English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 801 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Budget web suite | `apps/web/src/workspace-budget.test.ts` | 6 tests: parsers, contract drift, payload validation, money text, filtered reads, write envelopes |
+| Budget backend suites | `pytest tests/test_budget_sqlite_store.py tests/test_budget_application.py tests/test_budget_api.py tests/test_budget_http_routes.py tests/test_preview_budget.py` | 23 passed |
+| Adjacent regression | same run plus documents/preview/WSGI suites | 35 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3426 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_PREVIEW_URL=… CUBI_CHROME_NO_SANDBOX=1 node e2e/budget-v26.mjs` | 12/12 scenarios pass, 12 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 12 of the same suite | Persian RTL, summary/lines/changes/funding fit without clipping |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/budget-v26-2026-11-12/` | `budget-v26.json` + 12 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `32028937fe5be1755331afa21d7d0dc35cfe20b5` |
+| Evidence commit | `6fd7262393086b4d4b532f5ba74938c7ffa00f34` |
+| Branch | `feat/v26-stage-e3-budget` |
+| PR | [#1761](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1761) |
+| Merge commit | `9c11331b5f20b82e84f68c877ebbc47e71ca7250` |
+| Post-merge CI | 6/6 workflows success on `9c11331b` |
+
 ### Next stage
 
-Stage E3 Expenses/Cost Accounts/Budget verification, then Thresholds and the Risk register.
+Stage E3 Expenses/Cost Accounts and Thresholds, then the Risk register.
 
