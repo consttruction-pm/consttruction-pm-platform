@@ -329,6 +329,7 @@ async function main() {
         { scale: "week", width: 1100 },
         { scale: "day", width: 1600 },
       ];
+      const scaledWidths = Object.fromEntries(scales.map((entry) => [entry.scale, entry.width]));
       const scaleFacts = [];
       for (const entry of scales) {
         await clickVisible(page, `[data-gantt-scale="${entry.scale}"]`);
@@ -365,7 +366,21 @@ async function main() {
       await sleep(500);
       const fitted = await measure(page);
       verifyBase(fitted, `${label} fit`);
-      assert(fitted.scale === "month", `${label}: Fit did not return to the month scale (${fitted.scale})`);
+      // Fit must choose the finest zoom that actually fits the visible pane:
+      // its own declared width may not exceed the pane, and the next finer zoom
+      // must not have fitted. When even year is wider than the pane, year is
+      // the documented floor.
+      const fitOrder = ["day", "week", "month", "quarter", "year"];
+      const fitIndex = fitOrder.indexOf(fitted.scale);
+      assert(fitIndex >= 0, `${label}: Fit produced an unknown scale (${fitted.scale})`);
+      assert(
+        fitted.scale === "year" || fitted.contentWidth <= fitted.chartClientWidth + 1,
+        `${label}: Fit chose ${fitted.scale} (${fitted.contentWidth}px) wider than the pane (${fitted.chartClientWidth}px)`,
+      );
+      assert(
+        fitIndex === 0 || scaledWidths[fitOrder[fitIndex - 1]] > fitted.chartClientWidth + 1,
+        `${label}: Fit chose ${fitted.scale} although the finer ${fitOrder[fitIndex - 1]} would fit`,
+      );
       await capture(page, `gantt-zoom-fit-${label}`);
 
       // Collapse and expand every WBS branch.
@@ -412,7 +427,7 @@ async function main() {
         filtered: { bars: filtered.bars, barsByKind: filtered.barsByKind },
         hidden: { bars: hidden.bars, barsByKind: hidden.barsByKind, legendItems: hidden.legend?.items ?? null },
         scales: scaleFacts,
-        zoom: { out: zoomedOut.scale, in: zoomedIn.scale, fitted: fitted.scale },
+        zoom: { out: zoomedOut.scale, in: zoomedIn.scale, fitted: fitted.scale, fitContentWidth: fitted.contentWidth, fitPaneWidth: fitted.chartClientWidth },
         collapse: { collapsedRows: collapsed.rows.gantt, expandedRows: expanded.rows.gantt },
         final,
       });

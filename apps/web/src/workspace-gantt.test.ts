@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, GANTT_SCALE_ORDER, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, fitGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -221,6 +221,29 @@ test("bar labels keep their configured side unless the bar reaches the plotted e
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: 40, widthPercent: 10 }, 45), "left");
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: 10, widthPercent: 80 }, 78, 5), "left");
   assert.equal(resolveGanttLabelPosition("right", { leftPercent: Number.NaN, widthPercent: 10 }), "right");
+});
+
+test("Fit picks the finest zoom that fits the pane instead of a fixed scale", () => {
+  // Every declared width fits at least as well as the coarser ones.
+  const widths = GANTT_SCALE_ORDER.map((scale) => GANTT_CONTENT_WIDTH[scale]);
+  assert.deepEqual(widths, [...widths].sort((a, b) => b - a));
+
+  assert.equal(fitGanttScale(1920), "day");
+  assert.equal(fitGanttScale(1600), "day");
+  assert.equal(fitGanttScale(1599), "week");
+  assert.equal(fitGanttScale(1100), "week");
+  assert.equal(fitGanttScale(1099), "month");
+  assert.equal(fitGanttScale(800), "month");
+  assert.equal(fitGanttScale(799), "quarter");
+  assert.equal(fitGanttScale(640), "quarter");
+  assert.equal(fitGanttScale(639), "year");
+  assert.equal(fitGanttScale(520), "year");
+  // Even the coarsest scale is wider than the pane: Fit stays at year rather
+  // than inventing a scale, and the chart keeps its own horizontal scroll.
+  assert.equal(fitGanttScale(400), "year");
+  // A pane that has not been laid out yet keeps the documented month default.
+  assert.equal(fitGanttScale(0), "month");
+  assert.equal(fitGanttScale(Number.NaN), "month");
 });
 
 test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", () => {

@@ -45,6 +45,7 @@ import {
   storeWorkspaceTopLayout,
 } from "./workspace-view.js";
 import { collapseAllWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
+import { fitGanttScale } from "./workspace-gantt.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
 import {
   getBootstrapLabels,
@@ -1192,9 +1193,14 @@ function renderApp(
         renderApp(container, setGanttScale(state, order[nextIndex]), persistence);
         return;
       }
-      case "view.fit":
-        renderApp(container, setGanttScale(state, "month"), persistence);
+      case "view.fit": {
+        // Fit reads the pane it is about to fill; the Gantt may currently be
+        // hidden or replaced by the Activity Network, in which case the scale
+        // helper keeps the documented month default.
+        const ganttPane = container.querySelector<HTMLElement>("#cp-gantt .cp-gantt-chart");
+        renderApp(container, setGanttScale(state, fitGanttScale(ganttPane?.clientWidth ?? 0)), persistence);
         return;
+      }
       case "view.expand-all":
         setCollapsedWbsIds(state.context.project_id, []);
         invalidateWorkspaceRender(container);
