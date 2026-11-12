@@ -2349,10 +2349,11 @@ Recorded provenance:
 ### Status after this increment
 
 - ACT-008 pane-aware Fit: `WIRED_READ`.
-- Remaining honest gap: Fit is stepped by the five documented scales, not continuous; free pan,
-  horizontal/vertical scroll-sync and pixel-level fit are still unimplemented or unaudited.
-- Activity Details tab content, context-menu completeness, WBS/Gantt scroll-sync and the
-  large-project calculation-scope tests remain on the priority-zero queue.
+- Remaining honest gap: Fit is stepped by the five documented scales, not continuous; free pan
+  and pixel-level fit are still unimplemented or unaudited (scroll-sync is covered by the next
+  increment).
+- Activity Details tab content, context-menu completeness and the large-project
+  calculation-scope tests remain on the priority-zero queue.
 
 ## Priority Zero — table/Gantt scroll-sync and sticky headers (2026-11-12)
 
