@@ -2954,3 +2954,34 @@ Evidence: `docs/workspace/evidence/activity-filters-v26-2026-11-12/`
 `testedCodeSha` `857221097f4e6cbb878f225b3f409ad4aedec01f`, screenshots 01–07,
 `CHECKLIST.md`). Web suite at the same code: 948 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
+
+## Grouping and sorting (2026-11-12)
+
+- **Scope.** ACT-002 moved from NOT_AUDITED to WIRED_WRITE at code `79712844`. The Group and
+  Sort plan is now part of the saved Activities layout instead of an in-session-only state.
+- **Engine.** `filterAndSortActivities` orders WBS bands from the persisted node tree and
+  applies up to three sort levels inside each band; without grouping the same plan orders
+  the flat table. `buildWorkspaceDisplayRows` supplies the bands and their display
+  summaries. Expected orders in the browser suite are computed from the rendered cells, so
+  the test does not hard-code fixture order.
+- **Persistence.** `workspace-layout-settings.ts` validates and writes `metadata.groupSort`
+  (`wbs|none` plus up to three `{columnId, direction}` levels) and `groupSortUpdatedAt`.
+  Save and Save As merge the current plan; `hydrateGroupSortFromLayout` applies the stored
+  plan once per layout revision. Malformed blocks are dropped, and a layout without one
+  leaves the current plan in place.
+- **Invariant.** The plan only reorders/hides presentation rows; no schedule date, duration,
+  relationship or activity row is written, and the sort reads displayed cells only.
+- **Verified behaviour.** Start desc then Activity name asc renders
+  `A210…A100` flat, the Gantt follows, Save stores both levels at revision 2, and reload
+  restores the exact order. WBS grouping shows 7 bands with name-ascending activities in
+  every band and survives Save + reload. Persian RTL at 1280×720 and en at 1366×768 and
+  1920×1080 render without overflow.
+- **Known limits.** Grouping remains WBS or none (no group by field, WBS path or a second
+  group level); the toolbar sort exposes only the first level; a layout without stored
+  settings does not reset the plan; bands carry no totals formatting.
+
+Evidence: `docs/workspace/evidence/activity-group-sort-v26-2026-11-12/`
+(`activity-group-sort-v26.json`, 5/5 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `79712844d24317ee843c946a00347f10b93344da`, screenshots 01–05,
+`CHECKLIST.md`). Web suite at the same code: 951 + 14 tests pass; `tsc --noEmit` and
+`npm run build` pass.
