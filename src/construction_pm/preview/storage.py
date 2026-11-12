@@ -20,6 +20,8 @@ from typing import Callable, Iterable, Mapping
 
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
+    PROJECT_STATUSES,
+    ProjectStatusEvent,
     ProjectSummary,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -108,6 +110,7 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         date_system=str(row[6] or "gregorian"),
         primary_calendar_id=None if row[7] is None else str(row[7]),
         settings_revision=int(row[8]) if len(row) > 8 else 0,
+        status=str(row[9]) if len(row) > 9 and row[9] else "active",
     )
 
 
@@ -356,8 +359,25 @@ class PreviewStore:
                 date_system TEXT NOT NULL DEFAULT 'gregorian',
                 primary_calendar_id TEXT,
                 settings_revision INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'active',
                 PRIMARY KEY (tenant_id, project_id)
             );
+            CREATE TABLE IF NOT EXISTS preview_project_status_event (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                from_status TEXT NOT NULL,
+                to_status TEXT NOT NULL,
+                actor_user_id TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                settings_revision INTEGER NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, event_id),
+                FOREIGN KEY (tenant_id, project_id)
+                    REFERENCES preview_project(tenant_id, project_id)
+                    ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_preview_project_status_event
+                ON preview_project_status_event(tenant_id, project_id, settings_revision);
             CREATE TABLE IF NOT EXISTS preview_project_member (
                 tenant_id TEXT NOT NULL,
                 project_id TEXT NOT NULL,
@@ -392,6 +412,10 @@ class PreviewStore:
             (
                 "settings_revision",
                 "ALTER TABLE preview_project ADD COLUMN settings_revision INTEGER NOT NULL DEFAULT 0",
+            ),
+            (
+                "status",
+                "ALTER TABLE preview_project ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
             ),
         ):
             if column not in existing_columns:
@@ -490,7 +514,7 @@ class PreviewStore:
         rows = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision "
+            "p.settings_revision, p.status "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -506,7 +530,7 @@ class PreviewStore:
         row = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision "
+            "p.settings_revision, p.status "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -573,6 +597,132 @@ class PreviewStore:
         if owns_transaction:
             self.connection.commit()
         return updated
+
+    def set_project_status(
+        self,
+        tenant_id: str,
+        project_id: str,
+        user_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> bool:
+        """Apply a status change and append its event in one transaction.
+
+        Returns ``False`` when the caller is not a member, the project is gone,
+        or the stored configuration revision no longer matches. Setting the
+        status a project already has returns ``True`` without a revision bump
+        or a second event, so a retried request is idempotent.
+        """
+        if not tenant_id.strip() or not project_id.strip() or not user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
+        if status not in PROJECT_STATUSES:
+            raise ValueError("PREVIEW_PROJECT_STATUS_INVALID")
+        if not actor_user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_STATUS_ACTOR_REQUIRED")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+            raise ValueError("PREVIEW_PROJECT_REVISION_INVALID")
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise ValueError("PREVIEW_PROJECT_CLOCK_MUST_BE_TIMEZONE_AWARE")
+        owns_transaction = not self.connection.in_transaction
+        if owns_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.connection.execute(
+                "SELECT p.status, p.settings_revision FROM preview_project p "
+                "WHERE p.tenant_id=? AND p.project_id=? AND EXISTS ("
+                "SELECT 1 FROM preview_project_member m "
+                "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+                "AND m.user_id=?)",
+                (tenant_id, project_id, user_id),
+            ).fetchone()
+            if row is None:
+                if owns_transaction:
+                    self.connection.rollback()
+                return False
+            from_status = str(row[0] or "active")
+            current_revision = int(row[1])
+            if from_status == status:
+                if owns_transaction:
+                    self.connection.commit()
+                return True
+            if current_revision != expected_revision:
+                if owns_transaction:
+                    self.connection.rollback()
+                return False
+            cursor = self.connection.execute(
+                "UPDATE preview_project SET status=?, settings_revision=settings_revision+1 "
+                "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
+                "SELECT 1 FROM preview_project_member m "
+                "WHERE m.tenant_id=preview_project.tenant_id "
+                "AND m.project_id=preview_project.project_id AND m.user_id=?)",
+                (status, tenant_id, project_id, expected_revision, user_id),
+            )
+            if cursor.rowcount != 1:
+                if owns_transaction:
+                    self.connection.rollback()
+                return False
+            new_revision = expected_revision + 1
+            event_id = f"{project_id}@{new_revision}"
+            self.connection.execute(
+                "INSERT INTO preview_project_status_event "
+                "(tenant_id, project_id, event_id, from_status, to_status, "
+                "actor_user_id, recorded_at, settings_revision) "
+                "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",
+                (
+                    tenant_id,
+                    project_id,
+                    event_id,
+                    from_status,
+                    status,
+                    actor_user_id,
+                    recorded_at.isoformat(),
+                    new_revision,
+                ),
+            )
+            stored = self.connection.execute(
+                "SELECT from_status, to_status FROM preview_project_status_event "
+                "WHERE tenant_id=? AND project_id=? AND event_id=?",
+                (tenant_id, project_id, event_id),
+            ).fetchone()
+            if stored is None or str(stored[0]) != from_status or str(stored[1]) != status:
+                raise ValueError("PREVIEW_PROJECT_STATUS_READBACK_MISMATCH")
+            if owns_transaction:
+                self.connection.commit()
+            return True
+        except Exception:
+            if owns_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
+
+    def project_status_history(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectStatusEvent, ...]:
+        rows = self.connection.execute(
+            "SELECT e.event_id, e.from_status, e.to_status, e.actor_user_id, "
+            "e.recorded_at, e.settings_revision "
+            "FROM preview_project_status_event e "
+            "JOIN preview_project_member m "
+            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
+            "WHERE e.tenant_id=? AND e.project_id=? AND m.user_id=? "
+            "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id),
+        ).fetchall()
+        return tuple(
+            ProjectStatusEvent(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                event_id=str(row[0]),
+                from_status=str(row[1]),
+                to_status=str(row[2]),
+                actor_user_id=str(row[3]),
+                recorded_at=datetime.fromisoformat(str(row[4])),
+                settings_revision=int(row[5]),
+            )
+            for row in rows
+        )
 
     def project_rows(self) -> tuple[dict[str, object], ...]:
         rows = self.connection.execute(
@@ -767,6 +917,35 @@ class PreviewProjectRepository:
         if not updated:
             return None
         return self.store.get_for_user(tenant_id, project_id, user_id)
+
+    def set_status_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectSummary | None:
+        updated = self.store.set_project_status(
+            tenant_id,
+            project_id,
+            user_id,
+            status=status,
+            expected_revision=expected_revision,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+        if not updated:
+            return None
+        return self.store.get_for_user(tenant_id, project_id, user_id)
+
+    def status_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectStatusEvent, ...]:
+        return self.store.project_status_history(tenant_id, project_id, user_id)
 
 
 __all__ = [

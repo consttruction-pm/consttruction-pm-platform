@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { ProjectContext as SessionProjectContext, ProjectSummary, SessionApi } from "./session-api.js";
+import type { ProjectContext as SessionProjectContext, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
@@ -155,6 +155,34 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.updateProject(projectId, metadata, expectedRevision);
+  }
+
+  /** Change the V26 project status under the configuration revision guard. */
+  async saveProjectStatus(
+    projectId: string,
+    status: ProjectStatus,
+    expectedRevision: number,
+  ): Promise<ApiResult<{ contract_version: string; project: ProjectSummary }>> {
+    if (!this.dependencies.sessionApi.setProjectStatus) {
+      return {
+        ok: false,
+        error: localError("PROJECT_STATUS_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.setProjectStatus(projectId, status, expectedRevision);
+  }
+
+  /** Immutable status history for the settings panel. */
+  async loadProjectStatusHistory(
+    projectId: string,
+  ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>> {
+    if (!this.dependencies.sessionApi.projectStatusHistory) {
+      return {
+        ok: false,
+        error: localError("PROJECT_STATUS_HISTORY_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.projectStatusHistory(projectId);
   }
 
   /** Projects the current session may open, exactly as the session service listed them. */

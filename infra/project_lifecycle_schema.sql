@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
         CHECK (date_system IN ('gregorian', 'jalali')),
     primary_calendar_id TEXT,
     settings_revision INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
+    status TEXT NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active', 'inactive', 'planned', 'what_if')),
     PRIMARY KEY (tenant_id, project_id)
 );
 
@@ -33,6 +35,8 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS primary_calendar_id TEXT;
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS settings_revision INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,
@@ -46,3 +50,21 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
 
 CREATE INDEX IF NOT EXISTS idx_project_lifecycle_memberships_user
     ON project_lifecycle_memberships (tenant_id, user_id);
+
+CREATE TABLE IF NOT EXISTS project_lifecycle_status_event (
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    from_status TEXT NOT NULL,
+    to_status TEXT NOT NULL,
+    actor_user_id TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    settings_revision INTEGER NOT NULL CHECK (settings_revision >= 0),
+    PRIMARY KEY (tenant_id, project_id, event_id),
+    FOREIGN KEY (tenant_id, project_id)
+        REFERENCES project_lifecycle_projects(tenant_id, project_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_lifecycle_status_event
+    ON project_lifecycle_status_event (tenant_id, project_id, settings_revision);

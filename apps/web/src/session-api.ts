@@ -20,6 +20,21 @@ export type ProjectSummary = {
   primary_calendar_id?: string | null;
   /** Optimistic token for metadata edits; never the workspace data revision. */
   settings_revision?: number;
+  /** V26 General tab status: active, inactive, planned or what_if. */
+  status?: ProjectStatus;
+};
+
+export type ProjectStatus = "active" | "inactive" | "planned" | "what_if";
+
+export type ProjectStatusEvent = {
+  event_id: string;
+  tenant_id: string;
+  project_id: string;
+  from_status: ProjectStatus;
+  to_status: ProjectStatus;
+  actor_user_id: string;
+  recorded_at: string;
+  settings_revision: number;
 };
 
 export type ProjectMetadataInput = {
@@ -58,6 +73,14 @@ export type SessionApi = {
     metadata: ProjectMetadataInput,
     expectedRevision: number,
   ): Promise<ApiResult<{ project: ProjectSummary }>>;
+  setProjectStatus?(
+    projectId: string,
+    status: ProjectStatus,
+    expectedRevision: number,
+  ): Promise<ApiResult<{ contract_version: string; project: ProjectSummary }>>;
+  projectStatusHistory?(
+    projectId: string,
+  ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>>;
 };
 
 export class FetchSessionApi implements SessionApi {
@@ -97,6 +120,24 @@ export class FetchSessionApi implements SessionApi {
       `/api/projects/${encodeURIComponent(projectId)}`,
       "PATCH",
       { ...metadata, expected_revision: expectedRevision },
+    );
+  }
+
+  setProjectStatus(
+    projectId: string,
+    status: ProjectStatus,
+    expectedRevision: number,
+  ) {
+    return this.request<{ contract_version: string; project: ProjectSummary }>(
+      `/api/projects/${encodeURIComponent(projectId)}/status`,
+      "POST",
+      { status, expected_revision: expectedRevision },
+    );
+  }
+
+  projectStatusHistory(projectId: string) {
+    return this.request<{ contract_version: string; events: ProjectStatusEvent[] }>(
+      `/api/projects/${encodeURIComponent(projectId)}/status-history`,
     );
   }
 

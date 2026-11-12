@@ -5460,6 +5460,45 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
                 response = self._api.open_project(session_id, project_id, now=now)
                 return self._json(200, {"context": asdict(response.context)})
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/status"):
+                project_id = path[len("/api/projects/"):-len("/status")].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "PROJECT_REQUEST_INVALID", "error.request.invalid")
+                project = self._api.set_project_status(
+                    session_id,
+                    project_id,
+                    status=payload.get("status"),
+                    expected_revision=payload.get("expected_revision"),
+                    now=now,
+                )
+                return self._json(200, {
+                    "contract_version": "project-status-api.v1",
+                    "project": asdict(project),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/status-history"):
+                project_id = path[len("/api/projects/"):-len("/status-history")].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                events = self._api.project_status_history(session_id, project_id, now=now)
+                return self._json(200, {
+                    "contract_version": "project-status-api.v1",
+                    "events": [
+                        {
+                            "event_id": event.event_id,
+                            "tenant_id": event.tenant_id,
+                            "project_id": event.project_id,
+                            "from_status": event.from_status,
+                            "to_status": event.to_status,
+                            "actor_user_id": event.actor_user_id,
+                            "recorded_at": event.recorded_at.isoformat(),
+                            "settings_revision": event.settings_revision,
+                        }
+                        for event in events
+                    ],
+                })
             if method == "POST" and path == "/api/projects":
                 payload = json.loads(body.decode("utf-8") or "{}")
                 if not isinstance(payload, dict):
@@ -5550,6 +5589,10 @@ class ProjectLifecycleHttpRoutes:
                 return self._error(409, code, "error.project.revision_conflict")
             if code == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                 return self._error(403, code, "error.authorization.denied")
+            if code == "PROJECT_STATUS_INVALID":
+                return self._error(400, code, "error.project.status_invalid")
+            if code == "PROJECT_STATUS_READBACK_MISMATCH":
+                return self._error(500, code, "error.project.status_readback")
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")

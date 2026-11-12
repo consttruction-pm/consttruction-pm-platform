@@ -8946,3 +8946,9 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-backup-window [data-backup-history] td { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cp-p6 .cp-backup-window [data-backup-manifest] { margin-top: 6px; padding: 6px 8px; border: 1px solid #c8d3df; border-radius: 2px; background: #f7f9fb; font-size: 10px; }
 .cp-p6 .cp-backup-window [data-backup-restore-summary] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+
+.cp-project-settings-history{margin-top:10px;border-top:1px solid #e2e8f0;padding-top:8px;max-height:160px;overflow:auto}
+.cp-project-settings-history h3{margin:0 0 6px;font-size:11px;color:#3b5a7a}
+.cp-project-settings-history-list{margin:0;padding-inline-start:18px;font-size:10px;color:#334155;display:grid;gap:3px}
+.cp-project-settings-history-empty{margin:0;font-size:10px;color:#64748b}
+.cp-project-settings-field [data-project-status-save]{margin-top:6px}

@@ -97,3 +97,23 @@ def test_project_update_returns_none_when_revision_is_stale():
     assert PostgresProjectRepository(c).update_for_user(
         "t1", "u1", "p2", expected_revision=1, name="Stale"
     ) is None
+
+
+def test_project_summary_carries_the_persisted_status():
+    c = FakeConnection()
+    c.next_rows = [("p1", "t1", "Project 1", 4, "Scope", None, "gregorian", None, 2, "planned")]
+    p = PostgresProjectRepository(c).get_for_user("t1", "p1", "u1")
+    assert p is not None and p.status == "planned" and p.settings_revision == 2
+
+
+def test_status_history_maps_persisted_events():
+    c = FakeConnection()
+    c.next_rows = [
+        ("p1@1", "active", "planned", "u1", datetime(2026, 11, 12, tzinfo=timezone.utc), 1)
+    ]
+    events = PostgresProjectRepository(c).status_history_for_user("t1", "p1", "u1")
+    assert len(events) == 1
+    assert events[0].event_id == "p1@1"
+    assert events[0].from_status == "active" and events[0].to_status == "planned"
+    assert events[0].settings_revision == 1
+    assert events[0].recorded_at == datetime(2026, 11, 12, tzinfo=timezone.utc)
