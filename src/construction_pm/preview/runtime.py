@@ -159,6 +159,12 @@ from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
 from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
+from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
+from construction_pm.p6_activity_step_repository import (
+    P6ActivityStep,
+    P6ActivityStepApplicationService,
+    SQLiteP6ActivityStepRepository,
+)
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
 )
@@ -327,6 +333,17 @@ PREVIEW_ENGINE_VERSION = "cubi-preview-engine.v1"
 PREVIEW_DEFAULT_CALENDAR_NAME = "Project working calendar (Mon-Fri)"
 PREVIEW_DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
 
+# Explicit activity-step definitions seeded into the demo project. Only the
+# earthworks activity carries steps; every other fixture activity stays without
+# steps so the tab can also demonstrate an authoritative empty collection.
+PREVIEW_ACTIVITY_STEPS: dict[str, tuple[tuple[int, str, str], ...]] = {
+    "A130": (
+        (1, "Strip topsoil and set out the earthworks footprint", "25"),
+        (2, "Cut and fill to the design subgrade", "50"),
+        (3, "Compact and survey acceptance", "25"),
+    ),
+}
+
 
 class PreviewRuntimeError(RuntimeError):
     """Raised when the preview cannot be composed safely."""
@@ -390,6 +407,8 @@ class PreviewRepositories:
     financial_periods: SQLiteP6FinancialPeriodRepository
     financial_period_service: P6FinancialPeriodApplicationService
     issues: SQLiteP6IssueRepository
+    activity_steps: SQLiteP6ActivityStepRepository
+    activity_step_service: P6ActivityStepApplicationService
     documents: SQLiteDocumentStore
     document_content: SQLiteDocumentContentRepository
     budget: SQLiteBudgetStore
@@ -472,6 +491,10 @@ class PreviewRepositories:
             financial_periods, transaction_manager
         )
         issues = SQLiteP6IssueRepository(connection)
+        activity_steps = SQLiteP6ActivityStepRepository(connection)
+        activity_step_service = P6ActivityStepApplicationService(
+            activity_steps, transaction_manager
+        )
         documents = SQLiteDocumentStore(connection)
         documents.initialize()
         document_content = SQLiteDocumentContentRepository(connection)
@@ -539,6 +562,8 @@ class PreviewRepositories:
             financial_periods=financial_periods,
             financial_period_service=financial_period_service,
             issues=issues,
+            activity_steps=activity_steps,
+            activity_step_service=activity_step_service,
             documents=documents,
             document_content=document_content,
             budget=budget,
@@ -681,6 +706,34 @@ def seed_resource_rates(
             source=rate.source,
         )
         repositories.rate_service.save(P6ResourceRateRecord(scope=scope, fact=fact))
+
+
+def seed_activity_steps(
+    repositories: PreviewRepositories,
+    fixture: DemoProjectFixture,
+    scope: BackendScope,
+) -> None:
+    """Seed explicit step definitions for the fixture's earthworks activity.
+
+    Sequence, description and weight come from the fixture table below. The
+    step repository stores no completion state, so nothing here invents one.
+    """
+
+    known = {activity.activity_id for activity in fixture.activities}
+    for activity_id, steps in PREVIEW_ACTIVITY_STEPS.items():
+        if activity_id not in known:
+            continue
+        for sequence, description, weight in steps:
+            repositories.activity_step_service.save(
+                P6ActivityStep(
+                    scope=scope,
+                    step_id=f"STEP-{activity_id}-{sequence:02d}",
+                    activity_id=activity_id,
+                    sequence=sequence,
+                    description=description,
+                    weight=Decimal(weight),
+                )
+            )
 
 
 def seed_resource_master(
@@ -958,6 +1011,7 @@ def seed_demo_project(
     seed_resource_capacities(repositories, fixture, scope)
     seed_resource_rates(repositories, fixture, scope)
     seed_resource_master(repositories, fixture, scope)
+    seed_activity_steps(repositories, fixture, scope)
     calendar = seed_default_calendar(
         repositories,
         scope=scope,
@@ -1769,6 +1823,10 @@ def open_preview_runtime(
             repositories.financial_period_service, policy
         ),
         p6_issue_api=issue_api,
+        p6_activity_step_api=P6ActivityStepReadAPI(
+            repositories.activity_step_service,
+            policy,
+        ),
         document_api=DocumentAPI(
             DocumentApplicationService(
                 repositories.documents,

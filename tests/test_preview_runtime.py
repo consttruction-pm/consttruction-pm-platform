@@ -125,6 +125,24 @@ def test_preview_database_guard_refuses_and_preserves_foreign_sqlite(tmp_path: P
         connection.close()
 
 
+def test_preview_reset_replaces_a_stale_seed_after_ownership_check(tmp_path: Path) -> None:
+    database = tmp_path / "preview.sqlite3"
+    runtime = open_preview_runtime(database, reset=True)
+    runtime.close()
+    connection = sqlite3.connect(database)
+    connection.execute(
+        "UPDATE preview_meta SET value='cubi-preview-seed.stale' WHERE key='seed_version'"
+    )
+    connection.commit()
+    connection.close()
+
+    refreshed = open_preview_runtime(database, reset=True)
+    try:
+        assert refreshed.health()["seed_version"] == "cubi-preview-seed.v4"
+    finally:
+        refreshed.close()
+
+
 def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision(
     tmp_path: Path,
 ) -> None:
@@ -132,7 +150,7 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
     try:
         health = runtime.health()
         assert health["mode"] == "local-full-stack-preview"
-        assert health["seed_version"] == "cubi-preview-seed.v3"
+        assert health["seed_version"] == "cubi-preview-seed.v4"
         assert health["project_count"] == 2
         assert health["demo_project_count"] == 2
         assert health["activity_count"] == 20

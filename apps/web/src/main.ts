@@ -155,6 +155,12 @@ type LayoutHistoryState = {
 };
 
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
+/** One transport for activity-scoped detail reads; never rebuilt per render. */
+let detailsTransport: FetchApiTransport | null = null;
+function getDetailsTransport(): FetchApiTransport {
+  detailsTransport ??= new FetchApiTransport(window.location.origin);
+  return detailsTransport;
+}
 let currentWorkspaceState: WorkspaceState | null = null;
 let currentBootstrap: ProjectBootstrap | null = null;
 /** Authoritative metadata of the open project, read from the session service. */
@@ -1910,7 +1916,9 @@ function renderApp(
           projectName: activeProjectLabel(detailsState.context.project_id),
           dataDate: "—",
           calendarMode: detailsState.calendarMode,
+          transport: getDetailsTransport(),
           state: detailsState,
+          canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
         },
         (activityId) => renderApp(container, selectActivity(detailsState, activityId), persistence),
       );
