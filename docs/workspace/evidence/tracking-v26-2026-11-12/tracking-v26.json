@@ -1,11 +1,11 @@
 {
   "contract": "cubi-tracking-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "testedCodeSha": "dfe1da4df0e2d9d1e5a78d518ec1cee913a37185",
+  "testedCodeSha": "8b054e8f0a8975379b9ebf49bed59f625e69b17f",
   "evidenceCommitSha": null,
   "evidenceDate": "2026-11-12",
   "project": "preview-rps-01",
-  "startedAt": "2026-11-12T13:49:25.297Z",
+  "startedAt": "2026-11-12T13:50:52.342Z",
   "viewport": "1280x720",
   "scenarios": [
     {
@@ -25,7 +25,7 @@
       "id": "01",
       "name": "the Tracking window reads the published schedule and renders the summary and activity table",
       "status": "pass",
-      "at": "2026-11-12T13:49:28.625Z"
+      "at": "2026-11-12T13:50:55.671Z"
     },
     {
       "buckets": 10,
@@ -33,7 +33,7 @@
       "id": "02",
       "name": "the bar chart projects authoritative finish buckets",
       "status": "pass",
-      "at": "2026-11-12T13:49:28.847Z"
+      "at": "2026-11-12T13:50:55.894Z"
     },
     {
       "buckets": 8,
@@ -41,7 +41,7 @@
       "id": "03",
       "name": "the Gantt/profile view projects start buckets and summed durations",
       "status": "pass",
-      "at": "2026-11-12T13:49:29.063Z"
+      "at": "2026-11-12T13:50:56.109Z"
     },
     {
       "resources": 0,
@@ -50,7 +50,7 @@
       "id": "04",
       "name": "resource analysis shows only stored assignments and states an honest empty or unavailable case",
       "status": "pass",
-      "at": "2026-11-12T13:49:29.277Z"
+      "at": "2026-11-12T13:50:56.325Z"
     },
     {
       "groups": 6,
@@ -60,7 +60,7 @@
       "id": "05",
       "name": "WBS grouping, scale and sort change the server projection without inventing values",
       "status": "pass",
-      "at": "2026-11-12T13:49:30.950Z"
+      "at": "2026-11-12T13:50:57.995Z"
     },
     {
       "direction": "rtl",
@@ -68,7 +68,7 @@
       "id": "06",
       "name": "the Tracking window renders in Persian right-to-left at 1280x720",
       "status": "pass",
-      "at": "2026-11-12T13:49:32.537Z"
+      "at": "2026-11-12T13:50:59.587Z"
     },
     {
       "viewports": [
@@ -108,7 +108,7 @@
       "id": "07",
       "name": "the Tracking window fits 1366x768 and 1920x1080 without overflow",
       "status": "pass",
-      "at": "2026-11-12T13:49:35.331Z"
+      "at": "2026-11-12T13:51:02.393Z"
     }
   ],
   "screenshots": [
@@ -124,5 +124,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T13:49:35.331Z"
+  "finishedAt": "2026-11-12T13:51:02.393Z"
 }
