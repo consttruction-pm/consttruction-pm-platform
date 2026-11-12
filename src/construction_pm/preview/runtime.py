@@ -146,6 +146,10 @@ from construction_pm.report_application import (
 )
 from construction_pm.report_api import ReportAPI
 from construction_pm.report_persistence import SQLiteReportStore
+from construction_pm.report_schedules import (
+    SQLiteReportScheduleStore,
+    ReportScheduleService,
+)
 from construction_pm.threshold_api import ThresholdAPI
 from construction_pm.threshold_application import ThresholdApplicationService
 from construction_pm.threshold_metrics import ProjectMetricReader
@@ -417,6 +421,7 @@ class PreviewRepositories:
     thresholds: SQLiteThresholdStore
     risks: SQLiteRiskStore
     reports: SQLiteReportStore
+    report_schedules: SQLiteReportScheduleStore
     administration: SQLiteAdministrationStore
     exchange: SQLiteExchangeStore
     backup: SQLiteBackupStore
@@ -510,6 +515,8 @@ class PreviewRepositories:
         risks.initialize()
         reports = SQLiteReportStore(connection)
         reports.initialize()
+        report_schedules = SQLiteReportScheduleStore(connection)
+        report_schedules.initialize()
         administration = SQLiteAdministrationStore(connection)
         administration.initialize()
         exchange = SQLiteExchangeStore(connection)
@@ -572,6 +579,7 @@ class PreviewRepositories:
             thresholds=thresholds,
             risks=risks,
             reports=reports,
+            report_schedules=report_schedules,
             administration=administration,
             exchange=exchange,
             backup=backup,
@@ -1696,17 +1704,24 @@ def open_preview_runtime(
             repositories.risks, policy, repositories.transaction_manager
         )
     )
+    report_service = ReportApplicationService(
+        repositories.reports,
+        AuthoritativeReportDataset(
+            repositories.activities,
+            repositories.resources,
+            repositories.risks,
+        ),
+        policy,
+        repositories.transaction_manager,
+    )
     report_api = ReportAPI(
-        ReportApplicationService(
+        report_service,
+        schedules=ReportScheduleService(
+            repositories.report_schedules,
             repositories.reports,
-            AuthoritativeReportDataset(
-                repositories.activities,
-                repositories.resources,
-                repositories.risks,
-            ),
             policy,
             repositories.transaction_manager,
-        )
+        ),
     )
     administration_api = AdministrationAPI(
         AdministrationApplicationService(

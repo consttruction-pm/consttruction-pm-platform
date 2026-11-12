@@ -647,7 +647,8 @@ class SQLiteReportStore:
             """SELECT entity_type, entity_id, revision, event_type, actor_id,
                       occurred_at, reason
                FROM project_report_audit
-               WHERE tenant_id = ? AND project_id = ? AND entity_id = ?
+               WHERE tenant_id = ? AND project_id = ? AND entity_type = 'report'
+                 AND entity_id = ?
                ORDER BY revision""",
             (tenant_id, project_id, report_id),
         ).fetchall()
