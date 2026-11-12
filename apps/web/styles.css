@@ -5819,6 +5819,9 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-bar-label.is-above { left: 0; bottom: 100%; margin-bottom: 1px; color: var(--cp-bar-label-color, #000); }
 .cp-p6 .cp-gantt-bar-label.is-below { left: 0; top: 100%; margin-top: 1px; color: var(--cp-bar-label-color, #000); }
 .cp-p6 .cp-gantt-bar-label.is-right { left: 100%; top: 50%; margin-left: 3px; transform: translateY(-50%); color: var(--cp-bar-label-color, #000); }
+/* Labels on bars that finish at the plotted right edge mirror to the left so
+   the scrollable chart never truncates them. */
+.cp-p6 .cp-gantt-bar-label.is-left { right: 100%; top: 50%; margin-right: 3px; transform: translateY(-50%); color: var(--cp-bar-label-color, #000); text-align: right; }
 /* Relationship overlay: one pixel-space SVG over every row. Its viewBox uses
    the row height computed in TypeScript, so paths stay glued to bars through
    zoom, scroll, row-height and timescale changes. */
@@ -7629,6 +7632,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 #cp-activity-grid tbody tr.is-selected .cp-actions-column button { border-color: rgba(255, 255, 255, .6); }
 
 .cp-p6 .cp-gantt-bar-label.is-right,
+.cp-p6 .cp-gantt-bar-label.is-left,
 .cp-p6 .cp-gantt-bar-label.is-above,
 .cp-p6 .cp-gantt-bar-label.is-below { color: #111; }
 

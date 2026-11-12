@@ -1,6 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -3576,8 +3576,9 @@ function renderGanttBar(layer: GanttBarLayer, top: number, height: number, progr
     ? `<span class="cp-gantt-endpoint is-finish is-${style.finishShape}" style="--cp-gantt-endpoint:${style.finishColor}"></span>`
     : "";
   const labelText = barLabelText(style.labelField, bar, activity, format);
+  const labelPosition = resolveGanttLabelPosition(style.labelPosition, bar);
   const label = labelText
-    ? `<span dir="ltr" class="cp-gantt-bar-label is-${style.labelPosition}">${escapeHtml(labelText)}</span>`
+    ? `<span dir="ltr" class="cp-gantt-bar-label is-${labelPosition}" data-gantt-label-position="${labelPosition}">${escapeHtml(labelText)}</span>`
     : "";
   // Nonwork necking: a 1px black divider at every calendar week boundary that
   // falls inside the bar, as the desktop reference draws it.
@@ -3890,8 +3891,9 @@ function renderGanttWbsRow(
     ? `<span class="cp-gantt-summary-cap is-start" aria-hidden="true"></span><span class="cp-gantt-summary-cap is-finish" aria-hidden="true"></span>`
     : `${endpoint(style.startShape, style.startColor, "start")}${endpoint(style.finishShape, style.finishColor, "finish")}`;
   const labelText = summaryLabelText(style.labelField, row, { calendarMode, locale });
+  const labelPosition = resolveGanttLabelPosition(style.labelPosition, geometry ?? { leftPercent: 0, widthPercent: 0 });
   const label = labelText
-    ? `<span dir="ltr" class="cp-gantt-bar-label is-${style.labelPosition}">${escapeHtml(labelText)}</span>`
+    ? `<span dir="ltr" class="cp-gantt-bar-label is-${labelPosition}" data-gantt-label-position="${labelPosition}">${escapeHtml(labelText)}</span>`
     : "";
   const bar = geometry
     ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`

@@ -1,0 +1,1120 @@
+{
+  "contract": "cubi-workspace-visual-acceptance-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "34981bbf4edacb67cc5aac94b84fef24d59446fd",
+  "testedCodeSha": "34981bbf4edacb67cc5aac94b84fef24d59446fd",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T07:54:36.871Z",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1280,
+            "bottom": 65,
+            "width": 1280,
+            "height": 24
+          },
+          "scrollWidth": 1251,
+          "clientWidth": 1251,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 522,
+              "top": 130.9,
+              "right": 640,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1223,
+              "top": 130.9,
+              "right": 1239,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 497.1,
+          "right": 1244,
+          "bottom": 660,
+          "width": 1198,
+          "height": 162.9
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 210,
+        "top": 115.015625,
+        "right": 1070,
+        "bottom": 604.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1280,
+            "bottom": 65,
+            "width": 1280,
+            "height": 24
+          },
+          "scrollWidth": 1251,
+          "clientWidth": 1251,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 522,
+              "top": 130.9,
+              "right": 640,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1223,
+              "top": 130.9,
+              "right": 1239,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 470.1,
+          "right": 1244,
+          "bottom": 660,
+          "width": 1198,
+          "height": 189.9
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1280,
+            "bottom": 65,
+            "width": 1280,
+            "height": 24
+          },
+          "scrollWidth": 1251,
+          "clientWidth": 1251,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 640,
+              "top": 130.9,
+              "right": 758,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 470.1,
+          "right": 1234,
+          "bottom": 660,
+          "width": 1198,
+          "height": 189.9
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 210,
+        "top": 115.015625,
+        "right": 1070,
+        "bottom": 604.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1280,
+            "bottom": 65,
+            "width": 1280,
+            "height": 24
+          },
+          "scrollWidth": 1251,
+          "clientWidth": 1251,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 640,
+              "top": 130.9,
+              "right": 758,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 443,
+          "right": 1234,
+          "bottom": 660,
+          "width": 1198,
+          "height": 217
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1366,
+            "bottom": 65,
+            "width": 1366,
+            "height": 24
+          },
+          "scrollWidth": 1337,
+          "clientWidth": 1337,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 565,
+              "top": 130.9,
+              "right": 683,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1309,
+              "top": 130.9,
+              "right": 1325,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 472,
+          "right": 1330,
+          "bottom": 708,
+          "width": 1284,
+          "height": 236
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 253,
+        "top": 139.015625,
+        "right": 1113,
+        "bottom": 628.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1366,
+            "bottom": 65,
+            "width": 1366,
+            "height": 24
+          },
+          "scrollWidth": 1337,
+          "clientWidth": 1337,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 565,
+              "top": 130.9,
+              "right": 683,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1309,
+              "top": 130.9,
+              "right": 1325,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 445,
+          "right": 1330,
+          "bottom": 708,
+          "width": 1284,
+          "height": 263
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "windowSwitch": {
+        "reports": {
+          "activeMenu": "reports",
+          "heading": "Project Reports",
+          "fits": true
+        },
+        "restored": {
+          "viewport": {
+            "width": 1366,
+            "height": 768
+          },
+          "lang": "en",
+          "dir": "ltr",
+          "activeMenu": "schedule",
+          "documentScrollWidth": 1366,
+          "bodyScrollWidth": 1366,
+          "toolbar": {
+            "rect": {
+              "left": 0,
+              "top": 41,
+              "right": 1366,
+              "bottom": 65,
+              "width": 1366,
+              "height": 24
+            },
+            "scrollWidth": 1337,
+            "clientWidth": 1337,
+            "overflowControlVisible": true
+          },
+          "gridActionStrips": [
+            {
+              "rect": {
+                "left": 565,
+                "top": 130.9,
+                "right": 683,
+                "bottom": 145.9,
+                "width": 118,
+                "height": 15
+              },
+              "insideHead": true,
+              "buttonsOutside": 0
+            },
+            {
+              "rect": {
+                "left": 1309,
+                "top": 130.9,
+                "right": 1325,
+                "bottom": 145.9,
+                "width": 16,
+                "height": 15
+              },
+              "insideHead": true,
+              "buttonsOutside": 0
+            }
+          ],
+          "details": {
+            "left": 46,
+            "top": 445,
+            "right": 1330,
+            "bottom": 708,
+            "width": 1284,
+            "height": 263
+          },
+          "detailsVisible": true,
+          "rows": {
+            "table": 14,
+            "gantt": 14
+          },
+          "bands": 7,
+          "ganttGroups": 7,
+          "rowHeightMismatch": 0,
+          "firstRowOffset": {
+            "table": 38,
+            "gantt": 38
+          },
+          "labels": 21,
+          "clippedLabels": [],
+          "unresolvedEdgeLabels": [],
+          "bars": 24
+        }
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1366,
+            "bottom": 65,
+            "width": 1366,
+            "height": 24
+          },
+          "scrollWidth": 1337,
+          "clientWidth": 1337,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 683,
+              "top": 130.9,
+              "right": 801,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 445,
+          "right": 1320,
+          "bottom": 708,
+          "width": 1284,
+          "height": 263
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 253,
+        "top": 139.015625,
+        "right": 1113,
+        "bottom": 628.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1366,
+            "bottom": 65,
+            "width": 1366,
+            "height": 24
+          },
+          "scrollWidth": 1337,
+          "clientWidth": 1337,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 683,
+              "top": 130.9,
+              "right": 801,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 418,
+          "right": 1320,
+          "bottom": 708,
+          "width": 1284,
+          "height": 290
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1920,
+            "bottom": 65,
+            "width": 1920,
+            "height": 24
+          },
+          "scrollWidth": 1891,
+          "clientWidth": 1891,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 842,
+              "top": 130.9,
+              "right": 960,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1863,
+              "top": 130.9,
+              "right": 1879,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 578.9,
+          "right": 1884,
+          "bottom": 1020,
+          "width": 1838,
+          "height": 441.1
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 530,
+        "top": 295.015625,
+        "right": 1390,
+        "bottom": 784.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1920,
+            "bottom": 65,
+            "width": 1920,
+            "height": 24
+          },
+          "scrollWidth": 1891,
+          "clientWidth": 1891,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 842,
+              "top": 130.9,
+              "right": 960,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 1863,
+              "top": 130.9,
+              "right": 1879,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 46,
+          "top": 551.8,
+          "right": 1884,
+          "bottom": 1020,
+          "width": 1838,
+          "height": 468.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1920,
+            "bottom": 65,
+            "width": 1920,
+            "height": 24
+          },
+          "scrollWidth": 1891,
+          "clientWidth": 1891,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 960,
+              "top": 130.9,
+              "right": 1078,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 551.8,
+          "right": 1874,
+          "bottom": 1020,
+          "width": 1838,
+          "height": 468.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      },
+      "dialog": {
+        "left": 530,
+        "top": 295.015625,
+        "right": 1390,
+        "bottom": 784.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 41,
+            "right": 1920,
+            "bottom": 65,
+            "width": 1920,
+            "height": 24
+          },
+          "scrollWidth": 1891,
+          "clientWidth": 1891,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 960,
+              "top": 130.9,
+              "right": 1078,
+              "bottom": 145.9,
+              "width": 118,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          },
+          {
+            "rect": {
+              "left": 41,
+              "top": 130.9,
+              "right": 57,
+              "bottom": 145.9,
+              "width": 16,
+              "height": 15
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 36,
+          "top": 524.8,
+          "right": 1874,
+          "bottom": 1020,
+          "width": 1838,
+          "height": 495.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 38,
+          "gantt": 38
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "bars": 24
+      }
+    }
+  ],
+  "screenshots": [
+    "activities-1280x720-en.png",
+    "columns-dialog-1280x720-en.png",
+    "details-resized-1280x720-en.png",
+    "activities-1280x720-fa.png",
+    "columns-dialog-1280x720-fa.png",
+    "details-resized-1280x720-fa.png",
+    "activities-1366x768-en.png",
+    "columns-dialog-1366x768-en.png",
+    "details-resized-1366x768-en.png",
+    "window-switch-reports-1366x768-en.png",
+    "window-switch-back-1366x768-en.png",
+    "activities-1366x768-fa.png",
+    "columns-dialog-1366x768-fa.png",
+    "details-resized-1366x768-fa.png",
+    "activities-1920x1080-en.png",
+    "columns-dialog-1920x1080-en.png",
+    "details-resized-1920x1080-en.png",
+    "activities-1920x1080-fa.png",
+    "columns-dialog-1920x1080-fa.png",
+    "details-resized-1920x1080-fa.png",
+    "final-state-1280x720-en.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T07:55:06.759Z"
+}
