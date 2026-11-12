@@ -81,6 +81,47 @@ class DocumentContentNotFound(DocumentStorageError):
     pass
 
 
+class DocumentContentQuarantined(DocumentStorageError):
+    """Stored bytes exist but are not cleared for serving."""
+
+
+def storage_scope_key(value: str) -> str:
+    """Opaque, non-reversible tenant/project path segment."""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+
+
+def document_object_parts(
+    *,
+    tenant_id: str,
+    project_id: str,
+    content_hash: str,
+    extension: str,
+) -> tuple[str, str, str, str]:
+    """Return the four content-addressed object path segments.
+
+    Every segment is server-derived: tenant/project hashes, a two-character
+    digest prefix and the digest plus an allow-listed extension. A caller never
+    supplies a path.
+    """
+    digest = (
+        content_hash.split("sha256:", 1)[-1]
+        if content_hash.startswith("sha256:")
+        else content_hash
+    )
+    if not _HEX64.match(digest):
+        raise DocumentStorageError("INVALID_DOCUMENT_CONTENT_HASH")
+    if extension not in _CONTENT_TYPE_EXTENSIONS.values() or not _SAFE_EXTENSION.match(
+        extension or ""
+    ):
+        raise DocumentContentTypeRejected("DOCUMENT_CONTENT_TYPE_REJECTED")
+    return (
+        storage_scope_key(tenant_id),
+        storage_scope_key(project_id),
+        digest[:2],
+        f"{digest}{extension}",
+    )
+
+
 @dataclass(frozen=True)
 class DocumentBlob:
     """Server-validated payload facts; the original file name is display-only."""
@@ -278,7 +319,7 @@ class LocalDocumentStorage:
 
     @staticmethod
     def _scope_key(value: str) -> str:
-        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+        return storage_scope_key(value)
 
     def _relative_parts(
         self,
@@ -287,16 +328,11 @@ class LocalDocumentStorage:
         content_hash: str,
         extension: str,
     ) -> tuple[str, ...]:
-        digest = content_hash.split("sha256:", 1)[-1] if content_hash.startswith("sha256:") else content_hash
-        if not _HEX64.match(digest):
-            raise DocumentStorageError("INVALID_DOCUMENT_CONTENT_HASH")
-        if not _SAFE_EXTENSION.match(extension or ""):
-            raise DocumentContentTypeRejected("DOCUMENT_CONTENT_TYPE_REJECTED")
-        return (
-            self._scope_key(tenant_id),
-            self._scope_key(project_id),
-            digest[:2],
-            f"{digest}{extension}",
+        return document_object_parts(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            content_hash=content_hash,
+            extension=extension,
         )
 
     def _resolve(
@@ -434,12 +470,15 @@ __all__ = [
     "DocumentContentHashMismatch",
     "DocumentContentIntegrityError",
     "DocumentContentNotFound",
+    "DocumentContentQuarantined",
     "DocumentContentTooLarge",
     "DocumentContentTypeRejected",
     "DocumentStorageError",
     "LocalDocumentStorage",
     "content_disposition",
+    "document_object_parts",
     "sanitize_document_filename",
     "sniff_document_content_type",
+    "storage_scope_key",
     "validate_document_content",
 ]

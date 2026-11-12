@@ -2181,6 +2181,21 @@ class ProjectLifecycleHttpRoutes:
                                 return self._error(
                                     409, code, "error.document.content.integrity"
                                 )
+                            if code == "DOCUMENT_CONTENT_INFECTED":
+                                return self._error(
+                                    409, code, "error.document.content.infected"
+                                )
+                            if code == "DOCUMENT_CONTENT_QUARANTINED":
+                                return self._error(
+                                    409, code, "error.document.content.quarantined"
+                                )
+                            if code in {
+                                "DOCUMENT_SCAN_UNAVAILABLE",
+                                "DOCUMENT_SCAN_FAILED",
+                            }:
+                                return self._error(
+                                    503, code, "error.document.unavailable"
+                                )
                             if category == "conflict":
                                 return self._error(
                                     409, code, "error.document.conflict"
