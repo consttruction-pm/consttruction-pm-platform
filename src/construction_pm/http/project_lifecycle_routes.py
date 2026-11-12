@@ -111,6 +111,8 @@ from ..document_api import DocumentAPI
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
+from ..threshold_api import ThresholdAPI
+from ..threshold_persistence import Threshold, parse_threshold_number
 from ..cost_persistence import (
     CostAccount,
     Expense,
@@ -240,6 +242,7 @@ class ProjectLifecycleHttpRoutes:
         document_api: DocumentAPI | None = None,
         budget_api: BudgetAPI | None = None,
         cost_api: CostAPI | None = None,
+        threshold_api: ThresholdAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -288,6 +291,7 @@ class ProjectLifecycleHttpRoutes:
         self._document_api = document_api
         self._budget_api = budget_api
         self._cost_api = cost_api
+        self._threshold_api = threshold_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -2628,6 +2632,226 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "COST_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._threshold_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/thresholds" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    threshold_project_id, marker, threshold_suffix = rest.partition(
+                        "/thresholds"
+                    )
+                    if (
+                        marker
+                        and threshold_project_id
+                        and (not threshold_suffix or threshold_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, threshold_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [
+                            part
+                            for part in threshold_suffix.strip("/").split("/")
+                            if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _threshold_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(
+                                    404, code, "error.threshold.not_found"
+                                )
+                            if category == "conflict":
+                                return self._error(409, code, "error.threshold.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _threshold_from_payload(threshold_id: str) -> Threshold:
+                            def number(key: str, *, allow_negative: bool = False):
+                                value = payload.get(key)
+                                if value in (None, ""):
+                                    return None
+                                return parse_threshold_number(
+                                    value,
+                                    code="INVALID_THRESHOLD_NUMBER",
+                                    allow_negative=allow_negative,
+                                )
+
+                            body_id = payload.get("threshold_id")
+                            if body_id not in (None, "") and str(body_id) != threshold_id:
+                                raise ValueError("THRESHOLD_ID_MISMATCH")
+                            currency = payload.get("currency")
+                            return Threshold(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                threshold_id=threshold_id,
+                                name=str(payload.get("name", "")),
+                                monitoring_subject=str(
+                                    payload.get("monitoring_subject", "")
+                                ),
+                                parameter=str(payload.get("parameter", "")),
+                                currency=(
+                                    None
+                                    if currency in (None, "")
+                                    else str(currency)
+                                ),
+                                lower_threshold=number(
+                                    "lower_threshold", allow_negative=True
+                                ),
+                                upper_threshold=number(
+                                    "upper_threshold", allow_negative=True
+                                ),
+                                warning_level=number("warning_level"),
+                                issue_level=number("issue_level"),
+                                responsible_manager=(
+                                    payload.get("responsible_manager") or None
+                                ),
+                                status=str(payload.get("status") or "active"),
+                            )
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and not parts:
+                                return _threshold_reply(
+                                    self._threshold_api.list_thresholds(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                        monitoring_subject=query.get(
+                                            "monitoring_subject"
+                                        ),
+                                        parameter=query.get("parameter"),
+                                        status=query.get("status"),
+                                        search=query.get("search"),
+                                    )
+                                )
+                            if method == "POST" and not parts:
+                                return _threshold_reply(
+                                    self._threshold_api.create_threshold(
+                                        _threshold_from_payload(
+                                            str(payload.get("threshold_id", ""))
+                                        ),
+                                        idempotency_key=(
+                                            request_headers.get("Idempotency-Key")
+                                            or payload.get("idempotency_key")
+                                            or ""
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 1:
+                                return _threshold_reply(
+                                    self._threshold_api.read_threshold(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        threshold_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if method in {"PUT", "PATCH"} and len(parts) == 1:
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError("INVALID_EXPECTED_THRESHOLD_REVISION")
+                                return _threshold_reply(
+                                    self._threshold_api.update_threshold(
+                                        _threshold_from_payload(parts[0]),
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "DELETE" and len(parts) == 1:
+                                expected = payload.get(
+                                    "expected_revision"
+                                ) or query.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError("INVALID_EXPECTED_THRESHOLD_REVISION")
+                                return _threshold_reply(
+                                    self._threshold_api.delete_threshold(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        threshold_id=parts[0],
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                        reason=str(payload.get("reason") or ""),
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 2
+                                and parts[1] == "history"
+                            ):
+                                return _threshold_reply(
+                                    self._threshold_api.threshold_history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        threshold_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 2 and parts[1] == "runs":
+                                return _threshold_reply(
+                                    self._threshold_api.runs(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        threshold_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "POST"
+                                and len(parts) == 2
+                                and parts[1] == "monitor"
+                            ):
+                                return _threshold_reply(
+                                    self._threshold_api.monitor(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        project_revision=context.revision,
+                                        threshold_id=parts[0],
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            return self._error(
+                                400, "THRESHOLD_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "THRESHOLD_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
