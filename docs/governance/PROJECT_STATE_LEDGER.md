@@ -18,7 +18,6 @@
 - **Live PostgreSQL tracking (`tests/integration/test_tracking_postgres_live.py`):** real `PostgresP6ResourceAssignmentRepository`/`PostgresP6ResourceRepository` rows reach the read model with exact decimal totals (`300.20` for `300.10 + 0.10`), and other project/revision/tenant scopes return no resources or `CROSS_SCOPE_ACCESS`.
 - **Test isolation (Workstream 5):** `tests/integration/test_postgres_atomic_conflict_live.py` now derives mutation and idempotency identifiers from a per-run UUID. Two consecutive runs against the same PostgreSQL database pass (3 passed each), removing the fixed-key non-repeatability recorded in the previous checkpoint.
 - **Still open in Issue #1799:** exchange datasets/atomic apply/XML, report PDF/parameterized/scheduled output, object-storage/quarantine/OCR adapters, migration parity audit, and configuration/health hardening. These are tracked as the following slices, not claimed here.
->>>>>>> origin/main
 
 ## Agent 3 execution checkpoint — 2026-11-12 (`be13bbd`, merged as `d0c780c`)
 
