@@ -1,0 +1,106 @@
+{
+  "contract": "cubi-workspace-canonical-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "60370c40d5e93c5268b17e19471d6da1c2aec994",
+  "testedCodeSha": "60370c40d5e93c5268b17e19471d6da1c2aec994",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T05:36:04.065Z",
+  "scenarios": [
+    {
+      "tools": 10,
+      "heading": "Project Reports",
+      "id": "01",
+      "name": "منوی Tools گزارش‌ها، ورود/خروجی و پشتیبان‌گیری را بدون دلیل غیرفعالی باز می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:08.101Z"
+    },
+    {
+      "heading": "Import / Export",
+      "tabs": [
+        "Export",
+        "Import",
+        "Import history"
+      ],
+      "id": "02",
+      "name": "Tools / Project CSV Import / Export پنجرهٔ واقعی تبادل را باز می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:08.918Z"
+    },
+    {
+      "heading": "Backup / Recovery",
+      "tabs": [
+        "Snapshots",
+        "Restore",
+        "Restore History"
+      ],
+      "id": "03",
+      "name": "Tools / Project Backup / Recovery پنجرهٔ پشتیبان‌گیری را باز می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:09.736Z"
+    },
+    {
+      "administrationTabs": 6,
+      "active": "backup",
+      "id": "04",
+      "name": "منوی Administration ماتریس دسترسی، دسته‌ها، دوره‌ها و بازیابی را به پنجره‌های واقعی می‌رساند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:12.986Z"
+    },
+    {
+      "tabs": [
+        "project",
+        "schedule",
+        "reports",
+        "administration",
+        "exchange",
+        "backup"
+      ],
+      "id": "05",
+      "name": "تمام چهار پنجره هم‌زمان در نوار زبانه‌ها می‌مانند و با زبانه جابه‌جا می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:14.852Z"
+    },
+    {
+      "menus": [
+        "workspace",
+        "edit",
+        "view",
+        "project",
+        "organization",
+        "tools",
+        "help"
+      ],
+      "backupCreateDisabled": true,
+      "id": "06",
+      "name": "بازبین منوی مدیریت را نمی‌بیند اما پنجره‌های پروژه را فقط خواندنی باز می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T05:36:18.844Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "پشتیبان‌گیری / بازیابی",
+      "id": "07",
+      "name": "چیدمان فارسی راست‌به‌چپ در ۱۲۸۰×۷۲۰ از منوی کانونیک بدون نشان تجاری بیرونی",
+      "status": "pass",
+      "at": "2026-11-12T05:36:24.140Z"
+    }
+  ],
+  "screenshots": [
+    "01-tools-menu.png",
+    "02-reports-window.png",
+    "03-exchange-window.png",
+    "04-backup-window.png",
+    "05-administration-menu.png",
+    "06-administration-window.png",
+    "07-administration-recovery.png",
+    "08-four-windows.png",
+    "09-viewer-canonical.png",
+    "10-persian-tools.png",
+    "11-persian-workspace.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "status": "pass",
+  "scenarioCount": 7
+}
