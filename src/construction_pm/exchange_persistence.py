@@ -124,6 +124,8 @@ class SQLiteExchangeStore:
                 occurred_at TEXT NOT NULL,
                 PRIMARY KEY (tenant_id, project_id, idempotency_key)
             );
+            CREATE INDEX IF NOT EXISTS idx_exchange_run_scope
+                ON project_exchange_import_run (tenant_id, project_id, dataset, run_id);
             """
         )
         self.connection.commit()

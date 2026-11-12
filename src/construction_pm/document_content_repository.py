@@ -160,6 +160,26 @@ def _to_json(version: DocumentContentVersion) -> str:
     )
 
 
+def _resolve_insert_conflict(
+    repository, version: DocumentContentVersion
+) -> DocumentContentVersion:
+    existing = repository.get_by_idempotency(
+        version.tenant_id,
+        version.project_id,
+        version.document_id,
+        version.idempotency_key,
+    )
+    if existing is None:
+        raise DocumentContentPersistenceError("DOCUMENT_CONTENT_VERSION_CONFLICT")
+    if (
+        existing.content_hash != version.content_hash
+        or existing.content_type != version.content_type
+        or existing.byte_size != version.byte_size
+    ):
+        raise DocumentIdempotencyReuse("DOCUMENT_CONTENT_IDEMPOTENCY_KEY_REUSE")
+    return existing
+
+
 class DocumentContentRepository(Protocol):
     def append(self, version: DocumentContentVersion) -> DocumentContentVersion: ...
 
@@ -225,10 +245,10 @@ class SQLiteDocumentContentRepository:
         next_version = int(row[0]) + 1
         if next_version != version.version:
             raise DocumentContentPersistenceError("DOCUMENT_CONTENT_VERSION_GAP")
-        self.connection.execute(
+        cur = self.connection.execute(
             "INSERT INTO project_document_content "
             "(tenant_id, project_id, document_id, version, idempotency_key, content_json) "
-            "VALUES (?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING",
             (
                 version.tenant_id,
                 version.project_id,
@@ -238,6 +258,8 @@ class SQLiteDocumentContentRepository:
                 _to_json(version),
             ),
         )
+        if cur.rowcount != 1:
+            return _resolve_insert_conflict(self, version)
         return version
 
     def latest(self, tenant_id: str, project_id: str, document_id: str):
@@ -322,10 +344,10 @@ class PostgresDocumentContentRepository:
         next_version = int(row[0]) + 1
         if next_version != version.version:
             raise DocumentContentPersistenceError("DOCUMENT_CONTENT_VERSION_GAP")
-        self.connection.execute(
+        cur = self.connection.execute(
             "INSERT INTO project_document_content "
             "(tenant_id, project_id, document_id, version, idempotency_key, content_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
             (
                 version.tenant_id,
                 version.project_id,
@@ -335,6 +357,8 @@ class PostgresDocumentContentRepository:
                 _to_json(version),
             ),
         )
+        if cur.rowcount != 1:
+            return _resolve_insert_conflict(self, version)
         return version
 
     def latest(self, tenant_id: str, project_id: str, document_id: str):
