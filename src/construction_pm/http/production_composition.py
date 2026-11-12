@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable
+from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 from construction_pm.calendar_exception_repository import CalendarExceptionRepository
@@ -76,6 +76,12 @@ from construction_pm.ai_assistant_orchestration import (
     OpenAICompatibleChatProvider,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
+from construction_pm.http.operational import OperationalMiddleware
+from construction_pm.production_readiness import (
+    ReadinessService,
+    StructuredEventLogger,
+    build_readiness_service,
+)
 from construction_pm.backend_p0.workspace_read import WorkspaceControlRoomReadService
 from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
 from construction_pm.backend_p0.authoritative_schedule_facts import PublishedScheduleFactsProvider
@@ -164,6 +170,11 @@ def build_project_lifecycle_wsgi_app(
     form_builder_api: FormBuilderAPI | None = None,
     knowledge_database: str | None = None,
     knowledge_plan_port: object | None = None,
+    readiness_service: ReadinessService | None = None,
+    readiness_probes: Mapping[str, Callable[[], object]] | None = None,
+    request_logger: StructuredEventLogger | None = None,
+    environment: Mapping[str, str] | None = None,
+    operational_endpoints: bool = True,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -390,6 +401,17 @@ def build_project_lifecycle_wsgi_app(
             plan_port=knowledge_plan_port,
             clock=None if clock is None else clock.now,
         ).app
+    if operational_endpoints or request_logger is not None:
+        if readiness_service is None and operational_endpoints:
+            readiness_service = build_readiness_service(
+                os.environ if environment is None else environment,
+                probes=readiness_probes,
+            )
+        app = OperationalMiddleware(
+            app,
+            readiness=readiness_service,
+            logger=request_logger,
+        )
     return app
 
 
