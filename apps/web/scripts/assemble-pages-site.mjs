@@ -153,6 +153,7 @@ const languageRoutes = [
   { en: "/solutions/", fa: "/fa/solutions/" },
   { en: "/resources/", fa: "/fa/resources/" },
   { en: "/contact/", fa: "/fa/contact/" },
+  { en: "/about/", fa: "/fa/about/" },
   { en: "/pricing/", fa: "/fa/pricing/" },
 ];
 const documentForRoute = (route) => join(output, route === "/" ? "index.html" : route.slice(1) + "index.html");
@@ -185,8 +186,8 @@ writeFileSync(join(output, "sitemap.xml"), [
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.bundle.js",
   "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.bundle.js", "dist/web/src/pro-checkout.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
-  "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
-  "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html",
+  "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html", "about/index.html",
+  "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html", "fa/about/index.html",
   "pricing/index.html", "fa/pricing/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
@@ -197,10 +198,12 @@ const expectedTitles = new Map([
   ["solutions/index.html", "CUBI Solutions | Construction Project Delivery"],
   ["resources/index.html", "CUBI Resources | Product Overview and Documentation"],
   ["contact/index.html", "Contact CUBI | Account Access and Product Information"],
+  ["about/index.html", "About CUBI | Founders and Development Team"],
   ["fa/platform/index.html", "پلتفرم کوبی | کنترل پروژه ساختمانی"],
   ["fa/solutions/index.html", "راهکارهای کوبی | تحویل پروژه ساختمانی"],
   ["fa/resources/index.html", "منابع کوبی | معرفی محصول و راهنما"],
   ["fa/contact/index.html", "تماس با کوبی | دسترسی به حساب و اطلاعات محصول"],
+  ["fa/about/index.html", "درباره کوبی | بنیان‌گذاران و تیم توسعه"],
   ["pricing/index.html", "CUBI Pro Monthly | Pricing and Checkout"],
   ["fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت"],
 ]);
