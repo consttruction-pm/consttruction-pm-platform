@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import pytest
 
@@ -11,6 +12,8 @@ from construction_pm.p6_code_assignment_repository import (
 
 
 pytestmark = pytest.mark.postgres
+
+RUN_ID = uuid.uuid4().hex
 
 
 def _connection():
@@ -27,7 +30,12 @@ def _scope(revision: int = 1) -> BackendScope:
 
 def _assignment(metadata: str | None = "source=xer") -> P6CodeAssignment:
     return P6CodeAssignment(
-        _scope(), "ACTIVITY_TYPE", "a", "ACTIVITY", "activity-1", metadata
+        _scope(),
+        "ACTIVITY_TYPE",
+        "a",
+        "ACTIVITY",
+        f"activity-{RUN_ID}",
+        metadata,
     )
 
 
@@ -39,7 +47,10 @@ def test_postgres_round_trip_scope_isolation_and_idempotent_replay():
         item = _assignment()
         assert repo.upsert(item) == item
         assert repo.upsert(item) == item
-        assert repo.get(_scope(), "ACTIVITY_TYPE", "a", "ACTIVITY", "activity-1") == item
+        assert (
+            repo.get(_scope(), "ACTIVITY_TYPE", "a", "ACTIVITY", f"activity-{RUN_ID}")
+            == item
+        )
         assert repo.get(
             BackendScope("other-tenant", "project-pg", 1),
             "ACTIVITY_TYPE",

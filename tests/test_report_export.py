@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from openpyxl import load_workbook
+from pypdf import PdfReader
 
 from construction_pm.preview.runtime import open_preview_runtime
 from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
@@ -89,8 +90,12 @@ def test_xlsx_export_preserves_column_order_and_types() -> None:
 
 def test_export_rejects_unsupported_format_and_unknown_column() -> None:
     with pytest.raises(ReportExportError) as error:
-        build_report_export(_run(), "pdf")
+        build_report_export(_run(), "docx")
     assert str(error.value) == "REPORT_EXPORT_FORMAT_UNSUPPORTED"
+
+    with pytest.raises(ReportExportError) as error:
+        build_report_export(_run(), "pdf", locale="de")
+    assert str(error.value) == "REPORT_EXPORT_LOCALE_UNSUPPORTED"
 
     with pytest.raises(ReportExportError) as error:
         build_report_export(_run(columns=("activity_id", "budget")), "csv")
@@ -175,14 +180,42 @@ def test_report_run_export_over_http(tmp_path: Path) -> None:
             "Duration",
         ]
 
-        status, _, body = _request(
+        status, headers, body = _request(
             runtime.app,
             "GET",
             f"{BASE}/RPT-ACT/runs/{run['run_id']}/export?format=pdf",
             cookie=viewer.session_id,
         )
+        assert status == 200, body[:300]
+        assert headers["content-type"] == "application/pdf"
+        assert ".pdf" in headers["content-disposition"]
+        assert headers["x-report-run"] == run["run_id"]
+        assert body.startswith(b"%PDF-")
+        assert headers["x-content-sha256"]
+        page_text = PdfReader(BytesIO(body)).pages[0].extract_text()
+        assert "Report RPT-ACT" in page_text
+        assert "Activity ID" in page_text
+        assert run["rows"][0]["activity_id"] in page_text
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"{BASE}/RPT-ACT/runs/{run['run_id']}/export?format=pdf&locale=fa",
+            cookie=viewer.session_id,
+        )
+        assert status == 200, body[:300]
+        persian_text = PdfReader(BytesIO(body)).pages[0].extract_text()
+        assert "۱۴۰" in persian_text
+        assert b"/Direction" in body and b"/R2L" in body
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"{BASE}/RPT-ACT/runs/{run['run_id']}/export?format=pdf&locale=de",
+            cookie=viewer.session_id,
+        )
         assert status == 400, body[:300]
-        assert json.loads(body)["code"] == "REPORT_EXPORT_FORMAT_UNSUPPORTED"
+        assert json.loads(body)["code"] == "REPORT_EXPORT_LOCALE_UNSUPPORTED"
 
         status, _, body = _request(
             runtime.app,
@@ -219,3 +252,84 @@ def test_csv_export_neutralises_formula_injection() -> None:
     cell = workbook.active["B2"]
     assert cell.value == "'=HYPERLINK(\"http://example.test\")"
     assert cell.data_type == "s"
+
+
+def test_pdf_export_is_deterministic_and_carries_run_identity() -> None:
+    run = _run()
+    first = build_report_export(run, "pdf")
+    second = build_report_export(run, "pdf")
+
+    assert first.export_format == "pdf"
+    assert first.content_type == "application/pdf"
+    assert first.filename == "activities-RPT-ACT-RUN-RPT-ACT-1.pdf"
+    assert first.row_count == 2
+    assert first.data == second.data
+    assert first.content_sha256 == second.content_sha256
+    assert first.data.startswith(b"%PDF-")
+
+    reader = PdfReader(BytesIO(first.data))
+    assert reader.metadata.title == "Activities RPT-ACT RUN-RPT-ACT-1"
+    text = reader.pages[0].extract_text()
+    assert "Report RPT-ACT" in text
+    assert "Run RUN-RPT-ACT-1" in text
+    assert "Project preview-rps-01" in text
+    assert "Report revision 3" in text
+    assert "Project revision 7" in text
+    assert "Generated 2026-02-01T00:00:00+00:00 by planner" in text
+    assert "Activity ID" in text
+    assert "Milestone" in text
+    assert "Page 1 of 1" in text
+
+
+def test_pdf_export_paginates_rows_and_repeats_header_and_footer() -> None:
+    rows = tuple(
+        {
+            "activity_id": f"A{index:03d}",
+            "name": f"Activity {index} with a name long enough to be representative",
+            "actual_start": "2026-01-05",
+            "duration": "12.5",
+        }
+        for index in range(90)
+    )
+    document = build_report_export(_run(rows=rows), "pdf")
+    reader = PdfReader(BytesIO(document.data))
+
+    assert len(reader.pages) >= 3
+    total = len(reader.pages)
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = page.extract_text()
+        assert "Activity ID" in text
+        assert f"Page {page_number} of {total}" in text
+        assert "Activity Name" in text
+    assert "A000" in reader.pages[0].extract_text()
+    assert "A089" in reader.pages[-1].extract_text()
+
+
+def test_pdf_export_renders_empty_run_without_rows() -> None:
+    document = build_report_export(_run(rows=()), "pdf")
+    reader = PdfReader(BytesIO(document.data))
+    assert len(reader.pages) == 1
+    text = reader.pages[0].extract_text()
+    assert "No rows in this run." in text
+    assert "Activity ID" not in text
+    assert "Page 1 of 1" in text
+
+
+def test_pdf_export_fa_uses_jalali_dates_persian_digits_and_rtl_direction() -> None:
+    document = build_report_export(_run(), "pdf", locale="fa")
+    assert document.filename == "activities-RPT-ACT-RUN-RPT-ACT-1.pdf"
+    assert b"/Direction" in document.data and b"/R2L" in document.data
+
+    text = PdfReader(BytesIO(document.data)).pages[0].extract_text()
+    assert "1404/10/15" not in text  # Jalali, rendered with Persian digits
+    assert "۱۴۰۴/۱۰/۱۵" in text
+    assert "۱۲٫۵" in text
+    assert "۱۴۰۴/۱۱/۱۲" in text
+    assert "A1" in text  # identifiers keep their stored Latin digits
+    assert "A2" in text
+
+
+def test_pdf_export_rejects_unknown_stored_column() -> None:
+    with pytest.raises(ReportExportError) as error:
+        build_report_export(_run(columns=("activity_id", "budget")), "pdf")
+    assert str(error.value) == "REPORT_EXPORT_COLUMN_UNKNOWN"

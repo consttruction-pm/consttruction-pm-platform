@@ -229,6 +229,7 @@ class ReportApplicationService:
         run_id: str,
         export_format: str,
         context: AuthorizationContext,
+        locale: str = "en",
     ) -> ReportExportDocument:
         """Render an immutable run from its stored snapshot only."""
         run = self.read_run(
@@ -238,7 +239,7 @@ class ReportApplicationService:
             run_id=run_id,
             context=context,
         )
-        return build_report_export(run, export_format)
+        return build_report_export(run, export_format, locale=locale)
 
     # -- writes -----------------------------------------------------------
     def create_definition(

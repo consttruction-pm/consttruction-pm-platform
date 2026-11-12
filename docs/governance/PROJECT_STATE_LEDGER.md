@@ -4,6 +4,17 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, slice 3 (`agent3/reports-pdf-2026-11`, PR pending)
+
+- **Baseline:** `main` @ `3f8a67e` (slice 2 merged; PR #1802 squash merge `3f8a67ee659bd7db14bdb9b97b881308f3a71de0`).
+- **Report PDF export (Workstream 3, first slice):** `report_pdf.py` renders an immutable stored `ReportRun` as a deterministic A4 PDF through `build_report_export(run, "pdf", locale=...)`. Every page repeats subject, report id, run id, project id, report revision, project revision, generated-at and actor; the table header repeats after page breaks; the footer carries `Page N of M` and the run id. Cells wrap, an oversized cell fails closed with `REPORT_EXPORT_PDF_CELL_TOO_LONG` instead of truncating, an empty run renders an explicit notice, and `reportlab` runs with a fixed timestamp plus fixed metadata so the same run+locale yields byte-identical output and `X-Content-SHA256`.
+- **Locales and RTL:** `en` renders Gregorian ISO dates and grouped numbers; `fa` renders Jalali dates, Persian digits (`٬` grouping, `٫` decimal), the `Direction = R2L` viewer preference and a document language tag. Persian/Arabic text is shaped with `arabic-reshaper` and reordered with `python-bidi` in both locales; identifiers keep their stored Latin digits.
+- **Fonts and licensing:** two glyph subsets of DejaVu Sans (Latin, Arabic, presentation forms, punctuation) ship under `src/construction_pm/assets/fonts/` with the Bitstream Vera license; they are registered as `CubiSans`/`CubiSans-Bold` (rename required for modified copies). Runtime dependencies now declare `reportlab>=4.4,<5`, `arabic-reshaper>=3.0,<4` and `python-bidi>=0.6,<0.7`; `pypdf` is a test-only dependency.
+- **HTTP contract:** `GET .../reports/{report_id}/runs/{run_id}/export?format=csv|xlsx|pdf&locale=en|fa` keeps the existing `Content-Disposition`, `X-Content-SHA256` and `X-Report-Run` headers; the catalogue advertises `export_formats` and `export_locales`. Unsupported format/locale are 400; unknown run 404; cross-scope 403. Recorded in `docs/engineering/P6_REPORT_EXPORT_CONTRACT.md`.
+- **Tests:** `tests/test_report_export.py` now covers byte determinism, identity/metadata, multi-page pagination with repeated headers and correct page numbering, empty runs, Jalali/Persian-digit/RTL output and format/locale/column failures, plus HTTP download headers and both locales. Full suite: **3606 passed, 147 skipped** without a DSN; **3794 passed, 1 skipped** with both PostgreSQL DSN variables, repeated twice consecutively on the same database with identical results.
+- **Repeatability fix (Workstream 5):** `tests/test_p6_code_assignment_postgres.py` committed a fixed primary key in its third test, so later runs against the same database failed the immutable-metadata tests. Rows now use a per-run UUID; two consecutive runs pass (3 passed each).
+- **Not claimed:** parameterized definitions with typed provenance, durable scheduled runs/retry/delivery checksums, Web download wiring (Agent 1 owns the Web surface), and XML register exchange remain open.
+
 ## Agent 3 checkpoint — Issue #1799, slice 2 (`agent3/exchange-datasets-2026-11`, PR pending)
 
 - **Baseline:** `main` @ `034d0a3` (slice 1 merged).
