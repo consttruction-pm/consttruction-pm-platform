@@ -37,6 +37,8 @@ const screenshots = [];
 
 const WRITABLE_UDF = "activity.e2e_contract_status";
 const READ_ONLY_UDF = "activity.e2e_audit_ref";
+const DATETIME_UDF = "activity.e2e_review_at";
+const DURATION_UDF = "activity.e2e_cure_time";
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -263,6 +265,28 @@ async function main() {
       allowed_values: [],
     });
     assert(readOnly.status === 200, `read-only UDF definition status ${readOnly.status}`);
+    const reviewAt = await createUdf(page, {
+      udf_id: DATETIME_UDF,
+      subject_area: "activity",
+      display_name: "E2E Review At",
+      data_type: "datetime",
+      writable: true,
+      nullable: true,
+      unit: null,
+      allowed_values: [],
+    });
+    assert(reviewAt.status === 200, `datetime UDF definition status ${reviewAt.status}`);
+    const cureTime = await createUdf(page, {
+      udf_id: DURATION_UDF,
+      subject_area: "activity",
+      display_name: "E2E Cure Time",
+      data_type: "duration",
+      writable: true,
+      nullable: true,
+      unit: "day",
+      allowed_values: [],
+    });
+    assert(cureTime.status === 200, `duration UDF definition status ${cureTime.status}`);
 
     await openDetailsUdfTab(page);
     await reloadUdfValues(page);
@@ -274,7 +298,7 @@ async function main() {
       assert(before.writablePresent, "writable UDF input is missing");
       assert(before.writableTag === "SELECT", `writable control is ${before.writableTag}`);
       assert(before.readOnlyInput === false, "read-only UDF unexpectedly rendered an input");
-      assert(before.rows === 2, `expected two UDF rows, saw ${before.rows}`);
+      assert(before.rows === 4, `expected four UDF rows, saw ${before.rows}`);
       assert(before.tableText.includes("E2E Audit Reference"), "read-only UDF is not listed");
       await capture(page, "01-udf-form-en-1280x720");
 
@@ -370,7 +394,74 @@ async function main() {
       return { value: record.value };
     });
 
-    await scenario("04", "a viewer sees stored UDF values without an editor and cannot write", async () => {
+    await scenario("04", "datetime and duration UDFs use typed controls and survive a reload", async () => {
+      await setViewport(page, 1280, 720);
+      await setLanguage(page, "en");
+      await sleep(600);
+      const typed = await page.evaluate(`(() => {
+        const date = document.querySelector('[data-udf-value-input="${DATETIME_UDF}"]');
+        const amount = document.querySelector('[data-udf-value-input="${DURATION_UDF}"]');
+        const unit = document.querySelector('[data-udf-duration-unit="${DURATION_UDF}"]');
+        if (!date || !amount || !unit) return { ok: false, reason: "missing control" };
+        date.value = "2026-12-01T09:15";
+        date.dispatchEvent(new Event("input", { bubbles: true }));
+        amount.value = "10";
+        amount.dispatchEvent(new Event("input", { bubbles: true }));
+        unit.value = "hour";
+        unit.dispatchEvent(new Event("change", { bubbles: true }));
+        return {
+          ok: true,
+          dateType: date.type,
+          amountType: amount.type,
+          unit: unit.value,
+        };
+      })()`);
+      assert(typed.ok, `typed UDF controls are missing: ${typed.reason ?? "unknown"}`);
+      assert(typed.dateType === "datetime-local", `datetime control type is ${typed.dateType}`);
+      assert(typed.amountType === "number", `duration control type is ${typed.amountType}`);
+      const saved = await page.evaluate(`(() => {
+        const form = document.querySelector('[data-details-form="udf-values"]');
+        const button = form?.querySelector('button[type="submit"]');
+        if (!button) return false;
+        button.click();
+        return true;
+      })()`);
+      assert(saved, "Save values could not be clicked for typed UDFs");
+      await page.waitFor(`(() => {
+        const text = document.querySelector('[data-details-form="udf-values"] [data-details-form-message]')?.textContent ?? "";
+        return text.includes("Saved");
+      })()`, "saved typed UDF message", 20000);
+
+      const stored = await readValues(page, activityId);
+      const dateRecord = (stored.body.values ?? []).find((item) => item.udf_id === DATETIME_UDF);
+      const durationRecord = (stored.body.values ?? []).find((item) => item.udf_id === DURATION_UDF);
+      const expected = new Date("2026-12-01T09:15").toISOString();
+      assert(
+        typeof dateRecord?.value === "string" && Date.parse(dateRecord.value) === Date.parse(expected),
+        `stored datetime is ${JSON.stringify(dateRecord?.value)}`,
+      );
+      assert(durationRecord?.value?.value === "10", `stored duration amount is ${JSON.stringify(durationRecord?.value)}`);
+      assert(durationRecord?.value?.unit === "hour", `stored duration unit is ${JSON.stringify(durationRecord?.value)}`);
+      await capture(page, "06-udf-typed-en-1280x720");
+
+      await page.reload('#cp-activity-grid tbody tr[data-activity-id]', "workspace reload after typed values");
+      await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "activity rows after typed save");
+      await sleep(1000);
+      await openDetailsUdfTab(page);
+      await reloadUdfValues(page);
+      const afterReload = await page.evaluate(`(() => {
+        const date = document.querySelector('[data-udf-value-input="${DATETIME_UDF}"]');
+        const amount = document.querySelector('[data-udf-value-input="${DURATION_UDF}"]');
+        const unit = document.querySelector('[data-udf-duration-unit="${DURATION_UDF}"]');
+        return { date: date?.value ?? null, amount: amount?.value ?? null, unit: unit?.value ?? null };
+      })()`);
+      assert(afterReload.date === "2026-12-01T09:15", `reloaded datetime input is ${afterReload.date}`);
+      assert(afterReload.amount === "10", `reloaded duration amount is ${afterReload.amount}`);
+      assert(afterReload.unit === "hour", `reloaded duration unit is ${afterReload.unit}`);
+      return { datetime: expected, duration: durationRecord.value };
+    });
+
+    await scenario("05", "a viewer sees stored UDF values without an editor and cannot write", async () => {
       await setViewport(page, 1280, 720);
       await loginAs(page, "viewer", "en");
       await openDetailsUdfTab(page);
