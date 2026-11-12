@@ -325,12 +325,19 @@ export const DEFAULT_LANDING_LOCALE = "en";
  * pricing) have translated documents, correct metadata and working twin links.
  */
 export const LANDING_LANGUAGE_ROUTES: readonly string[] = Object.freeze(["en", "fa"]);
+/** Homepage copy is available in these locales; other public routes remain gated until translated. */
+export const LANDING_HOMEPAGE_LOCALES: readonly string[] = Object.freeze(["en", "fa", "de", "zh-Hans", "zh-Hant", "ar", "fr", "ja", "ko", "ru"]);
 let locale: LandingLocale = "en";
 
-/** Locales the public site can actually serve, in switcher order. */
+/** Locales the public site can actually serve as complete, indexable route trees. */
 export function getLandingLanguageRoutes(available: readonly string[] = getAvailableWorkspaceLocales()): string[] {
   const shipped = LANDING_LANGUAGE_ROUTES.filter((code) => available.includes(code));
   return shipped.length ? shipped : [DEFAULT_LANDING_LOCALE];
+}
+
+/** Locales with complete homepage copy. This list does not imply translated subpages. */
+export function getLandingHomepageLocales(available: readonly string[] = getAvailableWorkspaceLocales()): string[] {
+  return LANDING_HOMEPAGE_LOCALES.filter((code) => available.includes(code));
 }
 
 /**
@@ -372,21 +379,18 @@ function restoreLandingLocale(): string | null {
     if (saved !== routeLocale) persistLandingLocale();
     return null;
   }
-  // The un-prefixed document is the default language, and its metadata says so.
-  // A stored preference may only send the visitor to the matching language route;
-  // it must never repaint an English document in another language.
-  locale = DEFAULT_LANDING_LOCALE;
-  if (saved && saved !== DEFAULT_LANDING_LOCALE) {
-    return resolveLandingLanguageHref(saved, window.location.pathname);
-  }
+  // Homepage-only locales are rendered in place and are not advertised as
+  // translated, indexable subpage routes. The document lang/dir is updated
+  // together with the selected homepage copy.
+  locale = saved ?? DEFAULT_LANDING_LOCALE;
   return null;
 }
 function readSavedLandingLocale(): LandingLocale | null {
   try {
     const saved = window.localStorage.getItem(LANDING_LOCALE_STORAGE_KEY);
-    return saved && getLandingLanguageRoutes().includes(saved) ? saved : null;
+    return saved && getLandingHomepageLocales().includes(saved) ? saved : null;
   } catch {
-    // Storage may be disabled; the route still decides the language.
+    // Storage may be disabled; the homepage remains usable without storage.
     return null;
   }
 }
@@ -405,7 +409,7 @@ function getLandingCopy(requestedLocale: LandingLocale): LandingCopy & { chrome:
   const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
   const baseline = copy[normalizedLocale] ?? copy.en!;
   const chrome = getLandingChromeCopy(normalizedLocale);
-  const availableLocales = getLandingLanguageRoutes();
+  const availableLocales = getLandingHomepageLocales();
   const currentLocaleIndex = availableLocales.indexOf(normalizedLocale);
   const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? DEFAULT_LANDING_LOCALE;
   const translate = (key: string, fallback: string) => translateWorkspaceText(normalizedLocale, `landing.${key}`, fallback);
@@ -482,16 +486,19 @@ function renderLanding(container: HTMLElement): void {
   // product links must be resolved against the root instead of the page.
   const siteRootHref = resolveLandingLocaleFromPath(window.location.pathname) ? "../" : "./";
   const workspaceHref = `${siteRootHref}app/`;
-  const pricingHref = locale === "en" ? `${siteRootHref}pricing/` : `${siteRootHref}${locale}/pricing/`;
+  const publicRootHref = resolveLandingLanguageHref("en", window.location.pathname);
+  const publicLocaleRootHref = locale === "fa" ? resolveLandingLanguageHref("fa", window.location.pathname) : publicRootHref;
+  const publicPageHref = (route: string) => `${publicLocaleRootHref}${route}/`;
+  const pricingHref = publicPageHref("pricing");
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="${c.brandAria}"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="${c.brandAlt}" /></a>
         <nav class="cubi-exact-nav" aria-label="${c.primaryNavigation}">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="./resources/">${t.nav[3]}</a><a href="./about/">${t.nav[4]}</a><a href="./contact/">${t.nav[5]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
-          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="${c.changeLanguage}">${t.language}</button>
+          <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => `<option value="${code}"${code === locale ? " selected" : ""}>${getWorkspaceLocaleDisplayName(code)}</option>`).join("")}</select></label>
           <a href="${workspaceHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
@@ -528,21 +535,18 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="${c.brandAlt}" /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="./about/">${c.about}</a></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${publicPageHref("about")}">${c.about}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
       </div>`;
-  document.getElementById("cubi-language")?.addEventListener("click", () => {
-    const available = getLandingLanguageRoutes();
-    const index = available.indexOf(locale);
-    const next = available[(index + 1) % available.length] ?? DEFAULT_LANDING_LOCALE;
+  document.getElementById("cubi-language")?.addEventListener("change", (event) => {
+    const selected = (event.currentTarget as HTMLSelectElement).value;
+    const next = normalizeLandingLocaleTag(selected);
+    if (!getLandingHomepageLocales().includes(next)) return;
     locale = next;
     persistLandingLocale();
     renderLanding(container);
-    // The visible language must match an indexable language route, so the
-    // document URL and its localized metadata follow the selection.
-    const languageHref = resolveLandingLanguageHref(next, window.location.pathname);
-    if (languageHref !== window.location.pathname) window.location.assign(languageHref);
+    setLandingDocumentLocale();
   });
 }
 export function renderLandingPage(container: HTMLElement): void {
