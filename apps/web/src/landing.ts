@@ -269,7 +269,6 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     footerColumns:[{title:"المنصة",links:["التحكم بالمشروع","التخطيط والجدولة","الموارد والتكاليف"]},{title:"الحلول",links:["فرق البناء","قيادة المشروع","تنفيذ المشروع"]},{title:"الموارد",links:["الوثائق","نظرة عامة على المنتج","اتصل بنا"]}],footerNote:"خطّط. تحكّم. ابنِ بذكاء أكبر."
   }
 };
-};
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceText } from "./workspace-localization.js";
 import { cubiAssistantAvatarUrl, cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { LANDING_LOCALE_STORAGE_KEY } from "./workspace-preferences.js";
