@@ -144,6 +144,7 @@ from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
+from ..p6_activity_progress_api import P6ActivityProgressAPI
 from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
 from ..wbs_master_repository import WBSMaster, WBSParentKind, WBSPersistenceError
 from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
@@ -266,6 +267,7 @@ class ProjectLifecycleHttpRoutes:
         backup_api: BackupAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
+        p6_activity_progress_api: P6ActivityProgressAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
         p6_schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
@@ -322,6 +324,7 @@ class ProjectLifecycleHttpRoutes:
         self._backup_api = backup_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
+        self._p6_activity_progress_api = p6_activity_progress_api
         self._p6_wbs_master_api = p6_wbs_master_api
         self._p6_schedule_snapshot_api = p6_schedule_snapshot_api
         self._p6_relationship_api = p6_relationship_api
@@ -1604,7 +1607,11 @@ class ProjectLifecycleHttpRoutes:
                         TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
                     return self._error(400, code, "error.request.invalid")
-            if path.startswith("/api/projects/") and "/p6/activities" in path and self._p6_activity_master_api is not None:
+            if (
+                path.startswith("/api/projects/")
+                and "/p6/activities" in path
+                and self._p6_activity_master_api is not None
+            ):
                 prefix = "/p6/activities"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
                 suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
@@ -1779,6 +1786,24 @@ class ProjectLifecycleHttpRoutes:
                             build_activity(activity_id), auth_context=auth
                         )
                         return self._json(201, result)
+                    if (
+                        method == "GET"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "progress-history"
+                    ):
+                        if self._p6_activity_progress_api is None:
+                            raise ValueError("P6_ACTIVITY_PROGRESS_HISTORY_UNAVAILABLE")
+                        history = self._p6_activity_progress_api.history(
+                            scope, parts[0], auth_context=auth
+                        )
+                        if history is None:
+                            return self._error(
+                                404,
+                                "P6_ACTIVITY_PROGRESS_HISTORY_NOT_FOUND",
+                                "error.resource.not_found",
+                            )
+                        return self._json(200, history)
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_master_api.get(
                             scope, parts[0], auth_context=auth
@@ -1793,11 +1818,19 @@ class ProjectLifecycleHttpRoutes:
                         existing = self._p6_activity_master_api.repository.get(scope, parts[0])
                         if existing is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
-                        result = self._p6_activity_master_api.update(
-                            build_activity(parts[0], existing=existing),
-                            expected_revision=expected_revision,
-                            auth_context=auth,
-                        )
+                        activity = build_activity(parts[0], existing=existing)
+                        if self._p6_activity_progress_api is not None:
+                            result = self._p6_activity_progress_api.update(
+                                activity,
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            )
+                        else:
+                            result = self._p6_activity_master_api.update(
+                                activity,
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            )
                         return self._json(200, result)
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")

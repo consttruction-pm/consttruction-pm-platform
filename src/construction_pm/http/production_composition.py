@@ -15,7 +15,10 @@ from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
+from construction_pm.activity_progress_history import ActivityProgressHistoryRepository
+from construction_pm.backend_p0.transactions import TransactionManager
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
@@ -89,6 +92,8 @@ def build_project_lifecycle_wsgi_app(
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
+    activity_progress_history_repository: ActivityProgressHistoryRepository | None = None,
+    activity_progress_transaction_manager: TransactionManager | None = None,
     wbs_master_repository: WBSMasterRepository | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
@@ -234,6 +239,27 @@ def build_project_lifecycle_wsgi_app(
         if activity_master_repository is None
         else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
     )
+    if (
+        activity_progress_history_repository is not None
+        or activity_progress_transaction_manager is not None
+    ) and (
+        activity_master_api is None
+        or activity_progress_history_repository is None
+        or activity_progress_transaction_manager is None
+    ):
+        raise ValueError("ACTIVITY_PROGRESS_HISTORY_DEPENDENCIES_INCOMPLETE")
+    activity_progress_api = (
+        None
+        if activity_progress_history_repository is None
+        else P6ActivityProgressAPI(
+            activity_api=activity_master_api,  # type: ignore[arg-type]
+            history_repository=activity_progress_history_repository,
+            authorization_policy=authorization_policy,
+            relationship_repository=relationship_master_repository,
+            activity_repository=activity_master_repository,
+            transaction_manager=activity_progress_transaction_manager,
+        )
+    )
     wbs_master_api = (
         None
         if wbs_master_repository is None
@@ -265,6 +291,7 @@ def build_project_lifecycle_wsgi_app(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
+        p6_activity_progress_api=activity_progress_api,
         p6_wbs_master_api=wbs_master_api,
         workspace_read_v2_service=workspace_read_v2_service,
         p6_relationship_api=relationship_api,

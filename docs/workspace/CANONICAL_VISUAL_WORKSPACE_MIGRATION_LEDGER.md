@@ -92,7 +92,7 @@ The approved visual-demo catalogue in `apps/web/src/workspace-visual-demo.ts` co
 | 21 | `activity-sheet` | Schedule subview | Requires authoritative time-phased activity data |
 | 22 | `resource-sheet` | Resources/Assignments subview | Requires authoritative time-phased resource data |
 | 23 | `cost-control` | `cost` | Existing target; baseline/cash-flow gaps remain |
-| 24 | `progress-control` | `progress` | Existing target; progress-history gaps remain |
+| 24 | `progress-control` | `progress` | Existing target; append-only progress history and FS/SS/FF out-of-sequence review wired 2026-11-12 |
 | 25 | `procurement` | Existing procurement in-shell surface/rail where backed | Promote only after verifying actual read/write contracts |
 | 26 | `changes-claims` | Existing Changes & Claims in-shell surface/rail | Verify contracts, permissions and project scoping |
 | 27 | `form-builder` | Existing Form Builder mounted inside `cp-app-shell` | Preserve organization and project libraries and complete workflow |
@@ -135,7 +135,7 @@ The following reflects the code traceability matrix inspected on 2026-11-05. Re-
 | Project | Partial / wired-read | No close/archive/status operation; no EPS hierarchy |
 | WBS | Wired | No reorder/move, budget/milestone/document/EVM/planning-resource models or chart export |
 | Schedule | Implemented / wired | Numeric parity against a licensed V26 reference run not proven; long-tail dialogs need audit |
-| Progress | Wired / partial | No persisted update log, out-of-sequence review, dashboard charts or period actual cost/units |
+| Progress | Wired / partial | Append-only update log with a persisted percent trend and an FS/SS/FF review of persisted actual dates at write time (no float or calendar calculation); no all/selected bulk update, dashboard charts or period actual cost/units |
 | Resources | Wired-read / partial | No complete labor/nonlabor/material/role resource dictionary register |
 | Assignments | Wired / partial | No edit/delete, period/spread editor or usage profile; resource IDs remain free text |
 | Roles | Wired / partial | No delete route, rates/limits or role-assignment tabs |

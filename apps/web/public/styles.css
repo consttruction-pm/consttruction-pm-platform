@@ -7466,6 +7466,15 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 @media(max-width:900px){.cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{grid-template-columns:minmax(0,1fr)}}
 .cp-p6 .cp-register-notice{padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b}
+.cp-p6 .cp-progress-details-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-height:0;flex:0 0 auto;align-items:start}
+.cp-p6 [data-progress-page] .cp-register-details{min-height:0}
+.cp-p6 [data-progress-page] .cp-register-details .cp-register-detail-content{min-height:0;overflow:auto}
+@media(max-width:1000px){.cp-p6 .cp-progress-details-grid{grid-template-columns:minmax(0,1fr)}}
+.cp-p6 .cp-progress-trend{display:flex;align-items:center;gap:10px;padding:6px 9px;border-bottom:1px solid #e2e8f0;color:#3b5a7a}
+.cp-p6 .cp-progress-trend svg{width:160px;height:40px;flex:0 0 auto;color:#1f6fb2}
+.cp-p6 .cp-progress-trend span{font-size:9px;color:#52657a;min-width:0;overflow-wrap:anywhere}
+.cp-p6 [data-progress-history] .cp-calendar-notice{margin:0 0 4px;padding:5px 8px;font-size:9px}
+.cp-p6 .cp-progress-sequence-flag{display:inline-block;padding:1px 6px;border-radius:8px;background:#fde8e8;color:#a11c1c;font-size:9px;white-space:nowrap}
 .cp-p6 .cp-tracking-toolbar label{display:flex;align-items:center;gap:6px;color:#52657a;font-size:9px}
 .cp-p6 .cp-tracking-toolbar select{min-height:26px;padding:3px 7px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
 .cp-p6 .cp-tracking-layout{display:grid;grid-template-columns:minmax(170px,.5fr) minmax(0,1.7fr);gap:8px;flex:1 1 auto;min-height:0}

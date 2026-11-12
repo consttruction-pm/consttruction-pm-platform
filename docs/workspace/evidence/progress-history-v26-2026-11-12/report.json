@@ -1,0 +1,106 @@
+{
+  "contract": "cubi-progress-history-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "256b1c0fe6eb28a0f7c13a55a45a005f0862950d",
+  "testedCodeSha": "256b1c0",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T09:35:33.493Z",
+  "project": "preview-rps-01",
+  "activityId": "A140",
+  "predecessorId": "A130",
+  "cells": [
+    {
+      "viewport": "1920x1080",
+      "locale": "en",
+      "result": "history and trend redrawn"
+    },
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "result": "viewer read-only history; PATCH 403"
+    },
+    {
+      "viewport": "1280x720",
+      "locale": "fa",
+      "result": "RTL history and review visible"
+    },
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "result": "register, history, trend and review"
+    }
+  ],
+  "scenarios": [
+    {
+      "rows": 14,
+      "events": 0,
+      "id": "01",
+      "name": "the Progress register and an empty update history are read from the activity service",
+      "status": "pass",
+      "at": "2026-11-12T09:35:36.951Z"
+    },
+    {
+      "event": "A140@2",
+      "findings": [
+        "FS_PREDECESSOR_NOT_FINISHED (A130)"
+      ],
+      "id": "02",
+      "name": "a UI progress update is stored and recorded as an out-of-sequence event",
+      "status": "pass",
+      "at": "2026-11-12T09:35:37.269Z"
+    },
+    {
+      "events": [
+        "A140@2",
+        "A140@3"
+      ],
+      "trend": "r2: 20% · r3: 55%",
+      "id": "03",
+      "name": "a second update appends an event and extends the persisted percent trend",
+      "status": "pass",
+      "at": "2026-11-12T09:35:37.585Z"
+    },
+    {
+      "events": 2,
+      "actor": "preview-planner",
+      "id": "04",
+      "name": "the history API reports the same actor, changes and findings",
+      "status": "pass",
+      "at": "2026-11-12T09:35:37.592Z"
+    },
+    {
+      "events": 2,
+      "id": "05",
+      "name": "the stored history survives a reload and redraws at 1920x1080",
+      "status": "pass",
+      "at": "2026-11-12T09:35:38.679Z"
+    },
+    {
+      "events": 2,
+      "writeStatus": 403,
+      "id": "06",
+      "name": "a viewer can read the history but the server rejects a progress write",
+      "status": "pass",
+      "at": "2026-11-12T09:35:41.978Z"
+    },
+    {
+      "events": 2,
+      "rtl": true,
+      "id": "07",
+      "name": "the history and out-of-sequence review fit the Persian 1280x720 layout",
+      "status": "pass",
+      "at": "2026-11-12T09:35:46.189Z"
+    }
+  ],
+  "screenshots": [
+    "01-progress-empty-history.png",
+    "02-progress-first-update.png",
+    "03-progress-two-events.png",
+    "05-progress-1920.png",
+    "06-progress-viewer-1366.png",
+    "07-progress-fa-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}
