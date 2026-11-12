@@ -1,4 +1,6 @@
 import os
+import uuid
+
 import pytest
 
 psycopg = pytest.importorskip("psycopg")
@@ -11,6 +13,20 @@ from construction_pm.client_sync.offline_mutation import OfflineMutation
 from construction_pm.client_sync.postgres_sync_state import PostgresSyncStateStore
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcome
+
+
+# Mutation and idempotency identifiers must be unique per run: the live database
+# is reused across invocations, and fixed keys make a second run hit the first
+# run's persisted conflict/idempotency rows.
+RUN_ID = uuid.uuid4().hex
+
+
+def _key(name: str) -> str:
+    return f"live-{name}-{RUN_ID}"
+
+
+def _id(name: str) -> str:
+    return f"live-{name}-{RUN_ID}"
 
 
 class ConflictDelegate:
@@ -30,7 +46,9 @@ def _connect():
     return psycopg.connect(DSN)
 
 
-def _mutation(key="live-conflict-key", mutation_id="live-conflict-m1"):
+def _mutation(key=None, mutation_id=None):
+    key = key or _key("conflict-key")
+    mutation_id = mutation_id or _id("conflict-m1")
     return OfflineMutation(
         mutation_id,
         "live-ci-tenant",
@@ -71,7 +89,7 @@ def test_real_postgres_atomic_conflict_persists_and_replays():
 
 
 def test_real_postgres_same_key_executes_delegate_once_across_connections():
-    mutation = _mutation(key="live-race-key", mutation_id="live-race-m1")
+    mutation = _mutation(key=_key("race-key"), mutation_id=_id("race-m1"))
     import threading
     import concurrent.futures
 
@@ -124,7 +142,7 @@ def test_real_postgres_distinct_keys_can_execute_concurrently():
         def submit(self, item):
             with call_lock:
                 calls.append(item.idempotency_key)
-            if item.idempotency_key == "live-parallel-key-a":
+            if item.idempotency_key == first_key:
                 first_started.set()
             else:
                 second_started.set()
@@ -144,12 +162,10 @@ def test_real_postgres_distinct_keys_can_execute_concurrently():
             )
             return executor.submit(mutation)
 
-    first_mutation = _mutation(
-        key="live-parallel-key-a", mutation_id="live-parallel-m1"
-    )
-    second_mutation = _mutation(
-        key="live-parallel-key-b", mutation_id="live-parallel-m2"
-    )
+    first_key = _key("parallel-key-a")
+    second_key = _key("parallel-key-b")
+    first_mutation = _mutation(key=first_key, mutation_id=_id("parallel-m1"))
+    second_mutation = _mutation(key=second_key, mutation_id=_id("parallel-m2"))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(worker, first_mutation)
@@ -157,7 +173,7 @@ def test_real_postgres_distinct_keys_can_execute_concurrently():
 
         assert first_started.wait(timeout=5)
         assert second_started.wait(timeout=5)
-        assert set(calls) == {"live-parallel-key-a", "live-parallel-key-b"}
+        assert set(calls) == {first_key, second_key}
 
         release.set()
         first_result = first.result(timeout=10)
