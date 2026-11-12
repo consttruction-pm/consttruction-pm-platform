@@ -2891,3 +2891,31 @@ screenshots 01–04). Web suite at the same code: 940 + 14 tests pass, `tsc --no
 Columns, Add and Customize Details; permission enforcement is inherited from each command's
 action; cut/copy/paste/fill-down/export/assign stay truthfully disabled with no write/export
 route; the Activity Network has no context menu and there is no touch long-press path.
+
+## Gantt bar styles (2026-11-12)
+
+ACT-009 moves from `NOT_AUDITED` to `WIRED_WRITE` on a real-browser audit of the Bar Styles
+dialog (`View, Bars` → `Bar Style` tab in the V26 Help).
+
+- **Write path.** The dialog renders one fieldset per built-in kind from
+  `WorkspacePresentation.bars`; submit normalises the kinds present in `FormData` and writes a
+  presentation-only layout patch, so bar styling cannot reach schedule dates, durations or
+  relationships. `renderGanttActivityRow`/`renderGanttBar` apply shape, pattern, colour,
+  height, row and label to the live bar element.
+- **Verified behaviour.** Task bars take diamond body, hatched fill, triangle-up/circle
+  endpoints, `#123456` body and `#654321` border, 12 px, row 2, duration label above; the
+  style survives a full reload; every task bar keeps its date-derived `left`/`width`; 14
+  primary bars stay unchanged. Moving the task bar off row 1 (the default progress row)
+  exposes the two progress fills as independent layers at the same unchanged span — a
+  layout consequence, not schedule movement. A milestone write changes only the milestone
+  layer. Persian RTL at 1366×768 and en at 1280×720/1920×1080 render without overflow.
+- **Packing note.** Layer heights are packed to `rowHeight - 2`, so a requested 12 px task bar
+  sharing a row with a 4 px progress layer renders at 11 px; the suite asserts the rendered
+  height within 1 px and the persisted style value separately.
+
+Evidence: `docs/workspace/evidence/gantt-bar-styles-v26-2026-11-12/` (`gantt-bar-styles-v26.json`,
+9/9 scenarios, 0 exceptions/console errors/5xx, `testedCodeSha`
+`d998336604b8690b143cb280ea093059cf582cea`, screenshots 01–07). Web suite at the same code:
+942 + 14 tests pass. Remaining gaps: no dialog preview graphic, no user-defined bar rows
+(Add/Delete), per-endpoint patterns and the Show-when-collapsed/summary-bar-only flags are not
+modelled, and WBS summary bars use a separate renderer that this slice does not restyle.

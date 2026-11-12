@@ -1,0 +1,156 @@
+{
+  "contract": "cubi-gantt-bar-styles-v26.v1",
+  "baseUrl": "http://127.0.0.1:4197",
+  "gitHead": "d998336604b8690b143cb280ea093059cf582cea",
+  "testedCodeSha": "d9983366",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T17:10:55.697Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "documented default task bar renders",
+      "status": "pass",
+      "at": "2026-11-12T17:10:59.153Z",
+      "bars": 14,
+      "taskBars": 6,
+      "rows": 14,
+      "ganttRows": 14
+    },
+    {
+      "id": "02",
+      "name": "Bar Styles writes shape, pattern, height, row and label to every task bar",
+      "status": "pass",
+      "at": "2026-11-12T17:11:01.501Z",
+      "taskBars": 6,
+      "barsBefore": 14,
+      "barsAfter": 16,
+      "kindsBefore": {
+        "milestone": 1,
+        "task": 6,
+        "critical": 7
+      },
+      "kindsAfter": {
+        "milestone": 1,
+        "progress": 2,
+        "task": 6,
+        "critical": 7
+      },
+      "sample": {
+        "kind": "task",
+        "shape": "diamond",
+        "pattern": "hatched",
+        "row": "2",
+        "left": "1.37%",
+        "width": "2.74%",
+        "top": "6px",
+        "height": 11,
+        "className": "cp-gantt-bar cp-gantt-bar-task is-body-diamond is-pattern-hatched",
+        "bodyColor": "#123456",
+        "borderColor": "#654321",
+        "startMarker": "cp-gantt-endpoint is-start is-triangle-up",
+        "finishMarker": "cp-gantt-endpoint is-finish is-circle",
+        "label": "0",
+        "labelPosition": "above"
+      }
+    },
+    {
+      "id": "03",
+      "name": "a style edit does not move date-derived geometry or change the primary bar population",
+      "status": "pass",
+      "at": "2026-11-12T17:11:01.501Z",
+      "primaryBars": 14,
+      "compared": 14,
+      "progressLayers": 2,
+      "kindsBefore": {
+        "milestone": 1,
+        "task": 6,
+        "critical": 7
+      },
+      "kindsAfter": {
+        "milestone": 1,
+        "progress": 2,
+        "task": 6,
+        "critical": 7
+      }
+    },
+    {
+      "id": "04",
+      "name": "the bar style survives a full reload",
+      "status": "pass",
+      "at": "2026-11-12T17:11:02.750Z",
+      "bars": 16
+    },
+    {
+      "id": "05",
+      "name": "the same style renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-12T17:11:04.218Z",
+      "dir": "rtl",
+      "overflow": 0,
+      "bars": 16
+    },
+    {
+      "id": "06",
+      "name": "the style renders at 1280x720 without overflow",
+      "status": "pass",
+      "at": "2026-11-12T17:11:05.659Z",
+      "viewport": "1280x720",
+      "overflow": 0,
+      "bars": 16
+    },
+    {
+      "id": "07",
+      "name": "the style renders at 1920x1080 without overflow",
+      "status": "pass",
+      "at": "2026-11-12T17:11:06.191Z",
+      "viewport": "1920x1080",
+      "overflow": 0,
+      "bars": 16
+    },
+    {
+      "id": "08",
+      "name": "the milestone type writes its own shape, pattern, height and label",
+      "status": "pass",
+      "at": "2026-11-12T17:11:07.390Z",
+      "milestones": 1,
+      "sample": {
+        "kind": "milestone",
+        "shape": "diamond",
+        "pattern": "hatched",
+        "row": "1",
+        "left": "0%",
+        "width": "14px",
+        "top": "2px",
+        "height": 14,
+        "className": "cp-gantt-bar cp-gantt-bar-milestone is-body-diamond is-pattern-hatched",
+        "bodyColor": "#000000",
+        "borderColor": "#000000",
+        "startMarker": "",
+        "finishMarker": "",
+        "label": "0",
+        "labelPosition": "below"
+      }
+    },
+    {
+      "id": "09",
+      "name": "restoring the defaults returns the documented task and milestone bars",
+      "status": "pass",
+      "at": "2026-11-12T17:11:09.355Z",
+      "bars": 14
+    }
+  ],
+  "screenshots": [
+    "01-default-task-bar-en-1366.png",
+    "02-styled-task-bar-en-1366.png",
+    "03-styled-task-bar-after-reload-en-1366.png",
+    "04-styled-task-bar-fa-rtl-1366.png",
+    "05-styled-task-bar-en-1280.png",
+    "06-styled-task-bar-en-1920.png",
+    "07-styled-milestone-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 9,
+  "failed": 0
+}
