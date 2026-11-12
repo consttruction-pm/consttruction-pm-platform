@@ -170,7 +170,7 @@ test("baseline catalogs translate the command surface for Arabic, French, Japane
 });
 
 
-test("verified locale resources can translate the visual command menu and shared UI labels", async () => {
+test("verified locale resources can translate the shared UI labels", async () => {
   registerWorkspaceLocale({
     locale: "fr",
     displayName: "Français",
@@ -182,9 +182,7 @@ test("verified locale resources can translate the visual command menu and shared
       "column.label.Activity Name": "Nom de l’activité",
     },
   });
-  const { renderWorkspaceCommandShell } = await import("./workspace-command-shell.js");
-  const shell = renderWorkspaceCommandShell("fr");
-  assert.match(shell, /Espace de travail/);
-  assert.match(shell, /Nouveau projet/);
+  assert.equal(translateWorkspaceText("fr", "command.Workspace", "Workspace"), "Espace de travail");
+  assert.equal(translateWorkspaceText("fr", "command.New Project", "New Project"), "Nouveau projet");
   assert.equal(translateWorkspaceText("fr", "ui.Project", "Project"), "Projet");
 });

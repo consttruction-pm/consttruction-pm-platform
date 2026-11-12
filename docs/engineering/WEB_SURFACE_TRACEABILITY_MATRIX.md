@@ -186,3 +186,21 @@ faked in the UI.
 
 Ordering is dependency-based, not a completion claim. Each item is closed only by
 merged code, a test that exercises the real path, and browser evidence.
+
+## 2026-11-12 toolbar/menu surface update
+
+The Activities menu bar, icon toolbar, chart board controls and both vertical rails were
+re-audited against the Version 26 Standard, Edit, Layout, Display and Project toolbar topics
+(`https://docs.oracle.com/cd/G48902_01/client_help/en_US/menu_bar.htm`,
+`…/standard_toolbar.htm`, `…/edit_toolbar.htm`, `…/layout_toolbar.htm`,
+`…/display_toolbar.htm`, `…/project_toolbar.htm`).
+
+- Menu commands resolve through one registry (`apps/web/src/workspace-command-icons.ts`); unknown
+  ids fail the unit suite instead of rendering an unrelated glyph.
+- The toolbar is one surface (`renderToolbar`) with ten families; duplicate window/print/search
+  commands and the dead `workspace-command-shell.ts` parallel shell were removed.
+- Layout presentation commands are owned once by the `layout` family; the chart board keeps only
+  scale presets and the relationship toggle.
+- Evidence: `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` at
+  `9ddb1fa235eb20c89339e73622719ffb1915cb99`; per-requirement status in
+  `docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.

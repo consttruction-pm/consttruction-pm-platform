@@ -5,6 +5,7 @@ import { defaultLayoutPatch, loadFilterEditor, readLayoutPatch, renderLayoutDial
 import { findActivityFilter } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import { desktopMenuIcon } from "./workspace-command-icons.js";
 import {
   WORKSPACE_TOOLBAR_GROUPS,
   WORKSPACE_TOOLBAR_LABELS,
@@ -273,8 +274,8 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
   const menus: DesktopMenu[] = [
     {
       id: "workspace",
-      accessKey: "w",
-      label: { en: "Workspace", fa: "محیط کار" },
+      accessKey: "f",
+      label: { en: "File", fa: "فایل" },
       items: [
         { id: "file.new", label: { en: "New project…", fa: "پروژهٔ جدید…" }, window: "project", shortcut: "Ctrl+N" },
         { id: "file.open", label: { en: "Open project…", fa: "بازکردن پروژه…" }, window: "project", shortcut: "Ctrl+O" },
@@ -481,8 +482,8 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     },
     {
       id: "organization",
-      accessKey: "o",
-      label: { en: "Organization", fa: "سازمان" },
+      accessKey: "n",
+      label: { en: "Enterprise", fa: "سازمان" },
       items: [
         { id: "enterprise.projects", label: WINDOW_TITLES.project, window: "project" },
         { id: "enterprise.resources", label: WINDOW_TITLES.resources, window: "resources" },
@@ -517,7 +518,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     menus.push({
       id: "administration",
       accessKey: "a",
-      label: { en: "Administration", fa: "مدیریت" },
+      label: { en: "Admin", fa: "مدیریت" },
       items: [
         { id: "admin.window", label: WINDOW_TITLES.settings, window: "settings" },
         { id: "admin.preferences", label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, command: "dialog.user-preferences" },
@@ -563,66 +564,77 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
   const presentation = state.presentation ?? DEFAULT_PRESENTATION;
   const why = (label: LocalizedLabel): LocalizedLabel => unavailable(label, locale);
   const items: DesktopToolbarItem[] = [
+    // Standard: file and session commands that apply to the whole workspace.
     { id: "toolbar.new", label: { en: "New", fa: "جدید" }, title: { en: "New project", fa: "پروژهٔ جدید" }, window: "project", shortcut: "Ctrl+N", icon: "plus", group: "workspace" },
     { id: "toolbar.open", label: { en: "Open", fa: "بازکردن" }, title: { en: "Open project", fa: "بازکردن پروژه" }, window: "project", shortcut: "Ctrl+O", icon: "open", group: "workspace" },
-    { id: "toolbar.save-layout", label: { en: "Save", fa: "ذخیره" }, title: { en: "Save layout", fa: "ذخیرهٔ چیدمان" }, command: "layout.save", shortcut: "Ctrl+S", disabledReason: caps.hasLayout ? undefined : why(REASONS.noLayout), icon: "save", group: "workspace" },
+    { id: "toolbar.close-window", label: { en: "Close Window", fa: "بستن پنجره" }, title: { en: "Close the current window", fa: "بستن پنجرهٔ جاری" }, command: "project.close", shortcut: "Ctrl+W", disabledReason: caps.hasMultipleWindows ? undefined : why(REASONS.singleWindow), icon: "close", group: "workspace" },
     { id: "toolbar.refresh", label: { en: "Refresh", fa: "به‌روزرسانی" }, title: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, command: "workspace.refresh", shortcut: "F5", icon: "refresh", group: "workspace" },
-    { id: "toolbar.import", label: { en: "Import", fa: "ورود" }, title: { en: "Import project data", fa: "ورود دادهٔ پروژه" }, command: "project.interchange", icon: "import", group: "workspace" },
-    { id: "toolbar.export", label: { en: "Export", fa: "خروجی" }, title: { en: "Export project data", fa: "خروجی دادهٔ پروژه" }, command: "project.interchange", icon: "export", group: "workspace" },
-    { id: "toolbar.print", label: { en: "Print", fa: "چاپ" }, title: { en: "Print the current view", fa: "چاپ نمای جاری" }, command: "file.print", shortcut: "Ctrl+P", icon: "print", group: "workspace" },
 
+    // Edit: direct manipulation of the selected activity rows.
     { id: "toolbar.undo", label: { en: "Undo", fa: "بازگردانی" }, title: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, command: "edit.undo", shortcut: "Ctrl+Z", disabledReason: caps.canUndoLayout ? undefined : why(REASONS.undo), icon: "undo", group: "edit" },
     { id: "toolbar.redo", label: { en: "Redo", fa: "تکرار" }, title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, command: "edit.redo", shortcut: "Ctrl+Y", disabledReason: caps.canRedoLayout ? undefined : why(REASONS.redo), icon: "redo", group: "edit" },
     { id: "toolbar.cut", label: { en: "Cut", fa: "برش" }, title: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", disabledReason: why(REASONS.clipboard), icon: "cut", group: "edit" },
     { id: "toolbar.copy", label: { en: "Copy", fa: "کپی" }, title: { en: "Copy", fa: "کپی" }, shortcut: "Ctrl+C", disabledReason: why(REASONS.clipboard), icon: "copy", group: "edit" },
     { id: "toolbar.paste", label: { en: "Paste", fa: "چسباندن" }, title: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: why(REASONS.clipboard), icon: "paste", group: "edit" },
+    { id: "toolbar.delete", label: { en: "Delete", fa: "حذف" }, title: { en: "Delete the selected activity", fa: "حذف فعالیت انتخاب‌شده" }, shortcut: "Del", disabledReason: why(REASONS.deleteActivity), icon: "delete", group: "edit" },
     { id: "toolbar.find", label: { en: "Find", fa: "یافتن" }, title: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F", icon: "find", group: "edit" },
 
+    // Layout: the Version 26 Layout toolbar owns every presentation command.
+    { id: "toolbar.open-layout", label: { en: "Open Layout", fa: "بازکردن چیدمان" }, title: { en: "Open a saved activity layout", fa: "بازکردن چیدمان ذخیره‌شدهٔ فعالیت‌ها" }, command: "layout.open", disabledReason: caps.canOpenFieldChooser ? undefined : why(REASONS.noFields), icon: "folder", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.save-layout", label: { en: "Save", fa: "ذخیره" }, title: { en: "Save layout", fa: "ذخیرهٔ چیدمان" }, command: "layout.save", shortcut: "Ctrl+S", disabledReason: caps.hasLayout ? undefined : why(REASONS.noLayout), icon: "save", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.save-as", label: { en: "Save As", fa: "ذخیره با نام" }, title: { en: "Save the layout under a new name", fa: "ذخیرهٔ چیدمان با نام جدید" }, command: "layout.save-as", disabledReason: caps.hasLayout ? undefined : why(REASONS.noLayout), icon: "saveAs", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar styles", fa: "سبک میله‌ها" }, command: "dialog.bars", icon: "bars", group: "layout", windows: ["schedule", "wbs"] },
     { id: "toolbar.columns", label: { en: "Columns", fa: "ستون‌ها" }, title: { en: "Activity field layout", fa: "چیدمان فیلدهای فعالیت" }, command: "view.fields", disabledReason: caps.canOpenFieldChooser ? undefined : why(REASONS.noFields), icon: "columns", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "layout", windows: ["schedule", "wbs"] },
     { id: "toolbar.filters", label: { en: "Filters", fa: "فیلترها" }, title: { en: "Filter activities", fa: "پالایش فعالیت‌ها" }, command: "dialog.filters", icon: "filter", group: "layout", windows: ["schedule"] },
     { id: "toolbar.group-sort", label: { en: "Group & Sort", fa: "گروه و ترتیب" }, title: { en: "Group and sort dialog", fa: "دیالوگ گروه‌بندی و ترتیب" }, command: "dialog.group-sort", icon: "sort", group: "layout", windows: ["schedule"] },
     { id: "toolbar.group-wbs", label: { en: "Group WBS", fa: "گروه WBS" }, title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" }, command: "edit.group-wbs", active: caps.groupByWbs, icon: "group", group: "layout", windows: ["schedule"] },
     { id: "toolbar.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, title: { en: "Show or hide row numbers in the activity table", fa: "نمایش یا پنهان‌کردن شمارهٔ ردیف در جدول فعالیت‌ها" }, command: "view.line-numbers", active: presentation.table.lineNumbers, icon: "lineNumbers", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.font-row", label: { en: "Table Font", fa: "قلم جدول" }, title: { en: "Table font, colours and row height", fa: "قلم، رنگ و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "rowHeight", group: "layout", windows: ["schedule"] },
+    { id: "toolbar.preferences", label: { en: "User Preferences", fa: "ترجیحات کاربر" }, title: { en: "User preferences for the table and bars", fa: "ترجیحات کاربر برای جدول و میله‌ها" }, command: "dialog.user-preferences", icon: "settings", group: "layout" },
 
+    // Display: view-only adjustments that never change stored data.
     { id: "toolbar.zoom-in", label: { en: "Zoom In", fa: "بزرگ‌نمایی" }, title: { en: "Zoom in on the timescale", fa: "بزرگ‌نمایی مقیاس زمانی" }, command: "view.zoom-in", icon: "zoomIn", group: "view" },
     { id: "toolbar.zoom-out", label: { en: "Zoom Out", fa: "کوچک‌نمایی" }, title: { en: "Zoom out of the timescale", fa: "کوچک‌نمایی مقیاس زمانی" }, command: "view.zoom-out", icon: "zoomOut", group: "view" },
     { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "fit", group: "view" },
+    { id: "toolbar.expand-all", label: { en: "Expand All", fa: "بازکردن همه" }, title: { en: "Expand every WBS band", fa: "بازکردن همهٔ باندهای WBS" }, command: "view.expand-all", shortcut: "Ctrl+Num +", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "expand", group: "view", windows: ["schedule", "wbs"] },
+    { id: "toolbar.collapse-all", label: { en: "Collapse All", fa: "بستن همه" }, title: { en: "Collapse every WBS band", fa: "بستن همهٔ باندهای WBS" }, command: "view.collapse-all", shortcut: "Ctrl+Num -", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "collapse", group: "view", windows: ["schedule", "wbs"] },
     { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", active: state.detailsVisible !== false, icon: "panels", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
+    { id: "toolbar.help", label: { en: "Help", fa: "راهنما" }, title: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1", icon: "help", group: "view" },
 
+    // Project: the Version 26 project toolbar opens the project windows.
     { id: "toolbar.properties", label: { en: "Properties", fa: "مشخصات" }, title: { en: "Project properties", fa: "مشخصات پروژه" }, command: "project.settings", icon: "project", group: "project" },
-    { id: "toolbar.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, title: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9", icon: "calendar", group: "project", windows: ["schedule"] },
-    { id: "toolbar.schedule-options", label: { en: "Options", fa: "تنظیمات" }, title: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, command: "project.schedule-options", icon: "settings", group: "project", windows: ["schedule"] },
+    { id: "toolbar.activities-window", label: { en: "Activities", fa: "فعالیت‌ها" }, title: { en: "Open the Activities window", fa: "بازکردن پنجرهٔ فعالیت‌ها" }, window: "schedule", icon: "activity", group: "project" },
+    { id: "toolbar.wbs-window", label: { en: "WBS", fa: "ساختار شکست" }, title: { en: "Open the WBS window", fa: "بازکردن پنجرهٔ WBS" }, window: "wbs", icon: "wbs", group: "project" },
+    { id: "toolbar.assignments-window", label: { en: "Resource Assignments", fa: "تخصیص منابع" }, title: { en: "Open Resource Assignments", fa: "بازکردن تخصیص منابع" }, window: "assignments", icon: "assignment", group: "project" },
+    { id: "toolbar.documents-window", label: { en: "Work Products & Docs", fa: "محصولات کار و اسناد" }, title: { en: "Open the Documents window", fa: "بازکردن پنجرهٔ اسناد" }, window: "documents", icon: "documents", group: "project" },
+    { id: "toolbar.expenses-window", label: { en: "Expenses", fa: "هزینه‌ها" }, title: { en: "Open the Expenses window", fa: "بازکردن پنجرهٔ هزینه‌ها" }, window: "expenses", icon: "money", group: "project" },
+    { id: "toolbar.thresholds-window", label: { en: "Thresholds", fa: "آستانه‌ها" }, title: { en: "Open the Thresholds window", fa: "بازکردن پنجرهٔ آستانه‌ها" }, window: "thresholds", icon: "thresholds", group: "project" },
+    { id: "toolbar.issues-window", label: { en: "Issues", fa: "مسائل" }, title: { en: "Open the Issues window", fa: "بازکردن پنجرهٔ مسائل" }, window: "issues", icon: "issues", group: "project" },
+    { id: "toolbar.risks-window", label: { en: "Risks", fa: "ریسک‌ها" }, title: { en: "Open the Risks window", fa: "بازکردن پنجرهٔ ریسک‌ها" }, window: "risks", icon: "risks", group: "project" },
     { id: "toolbar.baseline", label: { en: "Baselines", fa: "خطوط مبنا" }, title: { en: "Baselines", fa: "خطوط مبنا" }, disabledReason: why(REASONS.baseline), icon: "baseline", group: "project" },
 
+    // Activities: the row-level commands for the selected activity.
     { id: "toolbar.add-activity", label: { en: "Add Activity", fa: "افزودن فعالیت" }, title: { en: "Add activity", fa: "افزودن فعالیت" }, command: "project.add-activity", disabledReason: caps.hasWbs ? undefined : why(REASONS.noWbs), icon: "activity", group: "activities", windows: ["schedule"] },
     { id: "toolbar.edit-activity", label: { en: "Edit", fa: "ویرایش" }, title: { en: "Edit selected activity", fa: "ویرایش فعالیت انتخاب‌شده" }, command: "project.edit-activity", disabledReason: caps.hasSelectedActivity ? undefined : why(REASONS.noSelection), icon: "edit", group: "activities", windows: ["schedule"] },
+    { id: "toolbar.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, title: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9", icon: "calendar", group: "activities", windows: ["schedule"] },
+    { id: "toolbar.schedule-options", label: { en: "Options", fa: "تنظیمات" }, title: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, command: "project.schedule-options", icon: "settings", group: "activities", windows: ["schedule"] },
     { id: "toolbar.predecessors", label: { en: "Predecessors", fa: "پیش‌نیازها" }, title: { en: "Assign predecessors", fa: "تخصیص پیش‌نیاز" }, command: "activity.predecessors", icon: "link", group: "activities", windows: ["schedule"] },
     { id: "toolbar.successors", label: { en: "Successors", fa: "پس‌نیازها" }, title: { en: "Assign successors", fa: "تخصیص پس‌نیاز" }, command: "activity.successors", icon: "network", group: "activities", windows: ["schedule"] },
 
-    { id: "toolbar.add-wbs", label: { en: "Add WBS", fa: "افزودن WBS" }, title: { en: "Add WBS element", fa: "افزودن عنصر WBS" }, command: "project.add-wbs", icon: "tree", group: "wbs", windows: ["wbs", "project"] },
-    { id: "toolbar.wbs", label: { en: "WBS", fa: "WBS" }, title: { en: "Open the WBS window", fa: "بازکردن پنجرهٔ WBS" }, window: "wbs", icon: "wbs", group: "wbs" },
-    { id: "toolbar.expand-all", label: { en: "Expand All", fa: "بازکردن همه" }, title: { en: "Expand every WBS band", fa: "بازکردن همهٔ باندهای WBS" }, command: "view.expand-all", shortcut: "Ctrl+Num +", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "expand", group: "wbs", windows: ["schedule", "wbs"] },
-    { id: "toolbar.collapse-all", label: { en: "Collapse All", fa: "بستن همه" }, title: { en: "Collapse every WBS band", fa: "بستن همهٔ باندهای WBS" }, command: "view.collapse-all", shortcut: "Ctrl+Num -", disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : why(REASONS.noWbsGroup), icon: "collapse", group: "wbs", windows: ["schedule", "wbs"] },
-
+    { id: "toolbar.add-wbs", label: { en: "Add WBS", fa: "افزودن WBS" }, title: { en: "Add WBS element", fa: "افزودن عنصر WBS" }, command: "project.add-wbs", icon: "tree", group: "wbs", windows: ["schedule", "wbs", "project"] },
+    // Chart: chart-local presentation that is not stored in the layout.
     { id: "toolbar.gantt", label: { en: "Gantt", fa: "گانت" }, title: { en: "Show or hide the Gantt chart", fa: "نمایش یا پنهان‌کردن نمودار گانت" }, command: "view.toggle-gantt", active: state.ganttVisible !== false, icon: "gantt", group: "gantt", windows: ["schedule", "wbs"] },
-    { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "gantt", windows: ["schedule", "wbs"] },
-    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar styles", fa: "سبک میله‌ها" }, command: "dialog.bars", icon: "bars", group: "gantt", windows: ["schedule", "wbs"] },
-    { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font, colours and row height", fa: "قلم، رنگ و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "rowHeight", group: "gantt", windows: ["schedule"] },
 
     { id: "toolbar.resources", label: { en: "Resources", fa: "منابع" }, title: { en: "Open the Resources window", fa: "بازکردن پنجرهٔ منابع" }, window: "resources", icon: "resource", group: "resources", windows: ["resources", "assignments", "roles"] },
-    { id: "toolbar.assignments", label: { en: "Assignments", fa: "تخصیص‌ها" }, title: { en: "Open Resource Assignments", fa: "بازکردن تخصیص منابع" }, window: "assignments", icon: "assignment", group: "resources", windows: ["resources", "assignments", "roles"] },
     { id: "toolbar.assign", label: { en: "Assign", fa: "تخصیص" }, title: { en: "Assign resources to the selected activity", fa: "تخصیص منابع به فعالیت انتخاب‌شده" }, command: "activity.assign-resources", icon: "link", group: "resources", windows: ["resources", "assignments", "schedule"] },
 
     { id: "toolbar.reports", label: { en: "Reports", fa: "گزارش‌ها" }, title: { en: "Open the Reports window", fa: "بازکردن پنجرهٔ گزارش‌ها" }, window: "reports", icon: "reports", group: "reports", windows: ["reports", "documents", "tracking"] },
-    { id: "toolbar.documents", label: { en: "Documents", fa: "اسناد" }, title: { en: "Open the Documents window", fa: "بازکردن پنجرهٔ اسناد" }, window: "documents", icon: "documents", group: "reports", windows: ["reports", "documents", "tracking"] },
     { id: "toolbar.tracking", label: { en: "Tracking", fa: "رهگیری" }, title: { en: "Open the Tracking window", fa: "بازکردن پنجرهٔ رهگیری" }, window: "tracking", icon: "tracking", group: "reports", windows: ["reports", "documents", "tracking"] },
     { id: "toolbar.print-preview", label: { en: "Print Preview", fa: "پیش‌نمایش چاپ" }, title: { en: "Print the current view", fa: "چاپ نمای جاری" }, command: "file.print", icon: "print", group: "reports", windows: ["reports", "documents", "tracking"] },
 
-    { id: "toolbar.search", label: { en: "Search", fa: "جست‌وجو" }, title: { en: "Search activities", fa: "جست‌وجوی فعالیت‌ها" }, command: "edit.find", icon: "find", group: "tools" },
-    { id: "toolbar.preferences", label: { en: "Preferences", fa: "تنظیمات" }, title: { en: "User preferences for the table and bars", fa: "ترجیحات کاربر برای جدول و میله‌ها" }, command: "dialog.user-preferences", icon: "settings", group: "tools" },
     { id: "toolbar.language", label: { en: "Language", fa: "زبان" }, title: { en: "Switch language", fa: "تغییر زبان" }, command: "admin.language", icon: "language", group: "tools" },
-    { id: "toolbar.help", label: { en: "Help", fa: "راهنما" }, title: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1", icon: "help", group: "tools" },
   ];
   return items.filter((item) => !item.windows || item.windows.includes(state.activeWindow));
 }
@@ -665,7 +677,10 @@ function renderMenuItem(item: DesktopMenuItem, locale: string): string {
     : item.command
       ? ` data-desktop-command="${escapeHtml(item.command)}"`
       : "";
-  return `<button type="button" role="menuitem" class="cp-menubar-item${disabled ? " is-disabled" : ""}" data-desktop-item="${escapeHtml(item.id)}"${target}${disabled ? ' disabled aria-disabled="true"' : ""}${item.checked ? ' aria-checked="true"' : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>
+  const icon = desktopMenuIcon(item.id);
+  return `<button type="button" role="menuitem" class="cp-menubar-item${disabled ? " is-disabled" : ""}${item.checked ? " is-checked" : ""}" data-desktop-item="${escapeHtml(item.id)}"${target}${disabled ? ' disabled aria-disabled="true"' : ""}${item.checked ? ' aria-checked="true"' : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>
+    <span class="cp-menubar-item-check" aria-hidden="true">${item.checked ? "✓" : ""}</span>
+    <span class="cp-menubar-item-icon" aria-hidden="true">${icon ? workspaceIcon(icon) : ""}</span>
     <span class="cp-menubar-item-label">${escapeHtml(pick(item.label, locale))}</span>
     ${reason ? `<span class="cp-menubar-item-reason">${escapeHtml(reason)}</span>` : item.shortcut ? `<span class="cp-menubar-item-shortcut">${escapeHtml(item.shortcut)}</span>` : ""}
   </button>`;

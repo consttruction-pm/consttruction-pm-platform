@@ -670,7 +670,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -898,11 +898,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
       if (dialog && typeof dialog.close === "function") dialog.close();
       else dialog?.removeAttribute("open");
-      return;
-    }
-    if (target.dataset.ganttCommand) {
-      const command = target.dataset.ganttCommand;
-      if (command === "bars" || command === "font-row" || command === "user-preferences") options.onGanttCommand?.(command);
       return;
     }
     if (target.dataset.ganttScale) {
@@ -2145,9 +2140,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                       <button type="button" data-columns-open title="${escapeAttribute(ACTIVITY_CONTEXT_LABELS.columns.en)}" aria-label="${escapeAttribute(uiText(state.locale, "Columns", "ستون‌ها"))}">${workspaceIcon("columns")}</button>
                       <button type="button" data-rail-action="wbs" title="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}" aria-label="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}">${workspaceIcon("wbs")}</button>
                       <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
-                      <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}">${workspaceIcon("table")}</button>
-                      <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}">${workspaceIcon("table")}</button>
-                      <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("columns")}</button>
+                      <span class="cp-action-separator" role="separator" aria-orientation="vertical"></span>
+                      <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}">${workspaceIcon("resetTableSplit")}</button>
+                      <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}">${workspaceIcon("resetDetailsSplit")}</button>
+                      <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("resetColumns")}</button>
                     </div>
                   </div>
                   ${renderActivityFilterSort(state, filteredActivities.length, t, groupRows.length, {
@@ -2169,9 +2165,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
-                    <div class="cp-p6-grid-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Gantt toolbar", "نوار ابزار گانت"))}">
-                      <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
-                    </div>
                   </div>
                   ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null, state.projectCalendar, selectedActivityIdList(state))}
                 </section>`}`}
@@ -3702,12 +3695,7 @@ function renderGantt(
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
-  const commandButtons = [
-    ["bars", uiText(locale, "Bar Styles", "سبک میله‌ها")],
-    ["font-row", uiText(locale, "Table Font", "قلم جدول")],
-    ["user-preferences", uiText(locale, "User Preferences", "ترجیحات کاربر")],
-  ].map(([command, label]) => `<button type="button" class="cp-gantt-command-button" data-gantt-command="${command}">${escapeHtml(label)}</button>`).join("");
-  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt commands", "فرمان‌های گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><div class="cp-gantt-command-group" role="group" aria-label="${escapeAttribute(uiText(locale, "Gantt layout commands", "فرمان‌های چیدمان گانت"))}">${commandButtons}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
+  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt chart controls", "کنترل‌های نمودار گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
   const axis = (() => {
     const timescale = presentation.timescale;
     const ordinalStartMs = timescale.ordinalStart
