@@ -105,6 +105,12 @@ from ..p6_field_registry import (
     P6_FIELD_REGISTRY_STATUS,
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
+from ..p6_udf_value_api import P6UserDefinedFieldValueAPI, P6_UDF_VALUE_API_VERSION
+from ..p6_user_defined_field_values_repository import P6UserDefinedFieldValuePersistenceError
+from ..p6_user_defined_fields_repository import (
+    P6UserDefinedFieldDefinition,
+    P6UserDefinedFieldPersistenceError,
+)
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_formula_column import (
     P6_FORMULA_COLUMN_API_VERSION,
@@ -219,8 +225,6 @@ from ..p6_layout_definition_repository import (
     P6LayoutPersistenceError,
     layout_column_from_mapping,
 )
-from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
-from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
 
 class Clock(Protocol):
@@ -249,6 +253,7 @@ class ProjectLifecycleHttpRoutes:
         clock: Clock | None = None,
         *,
         p6_field_registry_api: P6FieldRegistryAPI | None = None,
+        p6_udf_value_api: P6UserDefinedFieldValueAPI | None = None,
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_formula_column_api: P6FormulaColumnAPI | None = None,
@@ -308,6 +313,7 @@ class ProjectLifecycleHttpRoutes:
         self._api = api
         self._clock = clock or UtcClock()
         self._p6_field_registry_api = p6_field_registry_api
+        self._p6_udf_value_api = p6_udf_value_api
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_formula_column_api = p6_formula_column_api
@@ -5220,6 +5226,84 @@ class ProjectLifecycleHttpRoutes:
                     "status": P6_FIELD_REGISTRY_STATUS,
                     "fields": [item["field"] for item in fields],
                 })
+            if (
+                method in {"GET", "PUT"}
+                and path.startswith("/api/projects/")
+                and "/p6/udf-values/" in path
+            ):
+                if self._p6_udf_value_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                split = urlsplit(path)
+                prefix, remainder = split.path.split("/p6/udf-values/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = [unquote(part) for part in remainder.split("/") if part]
+                expected_parts = 3 if method == "GET" else 4
+                if (
+                    not project_id
+                    or "/" in project_id
+                    or len(parts) != expected_parts
+                    or any(not part for part in parts)
+                ):
+                    return self._error(400, "P6_UDF_VALUE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                registry_version, object_type, object_id = parts[0], parts[1], parts[2]
+
+                def udf_value_failure(exc: Exception) -> tuple[int, dict[str, str], bytes]:
+                    if isinstance(exc, AuthorizationError):
+                        return self._error(403, "P6_UDF_VALUE_PERMISSION_DENIED", "error.authorization.denied")
+                    code = str(exc) or "P6_UDF_VALUE_REQUEST_INVALID"
+                    status = 404 if code == "UDF_NOT_FOUND" else 409 if code in {
+                        "REVISION_CONFLICT",
+                        "UDF_NOT_WRITABLE",
+                    } else 400
+                    return self._error(status, code, "error.request.invalid")
+
+                if method == "GET":
+                    try:
+                        values = self._p6_udf_value_api.read_values(
+                            scope,
+                            registry_version,
+                            object_type,
+                            object_id,
+                            auth_context=auth,
+                        )
+                    except (AuthorizationError, P6UserDefinedFieldValuePersistenceError) as exc:
+                        return udf_value_failure(exc)
+                    return self._json(200, {
+                        "contract_version": P6_UDF_VALUE_API_VERSION,
+                        "kind": "user_defined_field_value_list",
+                        "object_type": object_type.lower(),
+                        "object_id": object_id,
+                        "values": list(values),
+                    })
+
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_UDF_VALUE_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or "value" not in payload:
+                    return self._error(400, "P6_UDF_VALUE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    saved = self._p6_udf_value_api.save_value(
+                        scope,
+                        registry_version,
+                        object_type,
+                        object_id,
+                        parts[3],
+                        payload.get("value"),
+                        auth_context=auth,
+                    )
+                except (AuthorizationError, P6UserDefinedFieldValuePersistenceError) as exc:
+                    return udf_value_failure(exc)
+                return self._json(200, saved)
             if method == "POST" and path.startswith("/api/projects/") and "/p6/udfs/" in path:
                 if self._p6_field_registry_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
+import { fetchP6ActivityUdfs, fetchP6ActivityUdfValues, saveP6ActivityUdfValue } from "./p6-udf-http.js";
 
 function response(body: unknown, ok = true, status = 200) {
   return {
@@ -58,5 +58,90 @@ test("rejects a UDF response from the wrong registry version", async () => {
       udfs: [],
     })),
     /P6_UDF_RESPONSE_INVALID/,
+  );
+});
+
+const UDF_VALUE = {
+  udf_id: "activity.contract_status",
+  subject_area: "Activity",
+  display_name: "Contract Status",
+  data_type: "enum" as const,
+  writable: true,
+  nullable: true,
+  unit: null,
+  allowed_values: ["draft", "signed"],
+  value: "signed",
+};
+
+test("reads activity UDF values through the revision-scoped route", async () => {
+  const calls: string[] = [];
+  const result = await fetchP6ActivityUdfValues(
+    "p1",
+    "p6-field-registry.v1",
+    "activity",
+    "A 100",
+    async (input) => {
+      calls.push(input);
+      return response({ object_type: "activity", object_id: "A 100", values: [UDF_VALUE] });
+    },
+  );
+
+  assert.equal(
+    calls[0],
+    "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity/A%20100",
+  );
+  assert.equal(result.values[0]?.value, "signed");
+  assert.deepEqual(result.values[0]?.allowed_values, ["draft", "signed"]);
+});
+
+test("writes one typed activity UDF value with PUT and preserves the request body", async () => {
+  const calls: Array<{ input: string; method?: string; body?: string }> = [];
+  const saved = await saveP6ActivityUdfValue(
+    "p1",
+    "p6-field-registry.v1",
+    "activity",
+    "A-100",
+    "activity.contract_status",
+    "signed",
+    async (input, init) => {
+      calls.push({ input, method: init?.method, body: init?.body });
+      return response(UDF_VALUE);
+    },
+  );
+
+  assert.equal(
+    calls[0]?.input,
+    "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity/A-100/activity.contract_status",
+  );
+  assert.equal(calls[0]?.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[0]?.body ?? "{}"), { value: "signed" });
+  assert.equal(saved.value, "signed");
+});
+
+test("surfaces the authoritative UDF value error code", async () => {
+  await assert.rejects(
+    () => saveP6ActivityUdfValue(
+      "p1",
+      "p6-field-registry.v1",
+      "activity",
+      "A-100",
+      "activity.contract_status",
+      "unknown",
+      async () => response({ code: "INVALID_ENUM_VALUE" }, false, 400),
+    ),
+    /INVALID_ENUM_VALUE/,
+  );
+});
+
+test("rejects malformed UDF value payloads", async () => {
+  await assert.rejects(
+    () => fetchP6ActivityUdfValues(
+      "p1",
+      "p6-field-registry.v1",
+      "activity",
+      "A-100",
+      async () => response({ object_type: "activity", object_id: "A-100", values: [{ udf_id: "x" }] }),
+    ),
+    /P6_UDF_VALUE_RESPONSE_INVALID/,
   );
 });

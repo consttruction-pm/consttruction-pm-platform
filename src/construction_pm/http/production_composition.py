@@ -30,6 +30,7 @@ from construction_pm.p6_baseline_conversion_api import P6BaselineConversionAPI
 from construction_pm.p6_baseline_capture_api import P6BaselineCaptureAPI
 from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
+from construction_pm.p6_udf_value_api import P6UserDefinedFieldValueAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_column import P6FormulaColumnAPI
 from construction_pm.p6_interchange_api import P6InterchangeAPI
@@ -109,6 +110,7 @@ def build_project_lifecycle_wsgi_app(
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     p6_field_registry_api: P6FieldRegistryAPI | None = None,
+    p6_udf_value_api: P6UserDefinedFieldValueAPI | None = None,
     p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
     p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
     p6_formula_column_api: P6FormulaColumnAPI | None = None,
@@ -327,6 +329,7 @@ def build_project_lifecycle_wsgi_app(
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         p6_field_registry_api=p6_field_registry_api,
+        p6_udf_value_api=p6_udf_value_api,
         p6_layout_definition_api=p6_layout_definition_api,
         p6_formula_authority_api=p6_formula_authority_api,
         p6_formula_column_api=p6_formula_column_api,

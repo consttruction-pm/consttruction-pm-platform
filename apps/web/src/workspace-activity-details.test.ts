@@ -236,6 +236,60 @@ test("write editors appear only for writable sessions and capture every stored f
   }
 });
 
+test("UDF tab shows stored values and edits only writable definitions for a writable session", () => {
+  const base = {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian" as const,
+    visibleTabs: ["udfs"] as ActivityDetailsTabId[],
+    data: {
+      udfValues: {
+        status: "loaded" as const,
+        errorCode: null,
+        records: [
+          {
+            udf_id: "activity.contract_status",
+            subject_area: "Activity",
+            display_name: "Contract Status",
+            data_type: "enum" as const,
+            writable: true,
+            nullable: false,
+            unit: null,
+            allowed_values: ["draft", "signed"],
+            value: "signed",
+          },
+          {
+            udf_id: "activity.audit_ref",
+            subject_area: "Activity",
+            display_name: "Audit Reference",
+            data_type: "string" as const,
+            writable: false,
+            nullable: true,
+            unit: null,
+            allowed_values: null,
+            value: "AUD-7",
+          },
+        ],
+      },
+    },
+  };
+
+  const readOnly = renderActivityDetailsPanel(base);
+  assert.doesNotMatch(readOnly, /data-details-form="udf-values"/);
+  assert.match(readOnly, /Contract Status/);
+  assert.match(readOnly, /signed/);
+  assert.match(readOnly, /AUD-7/);
+
+  const writable = renderActivityDetailsPanel({ ...base, canWrite: true });
+  assert.match(writable, /data-details-form="udf-values"/);
+  assert.match(writable, /name="udf:activity\.contract_status"/);
+  assert.match(writable, /data-udf-value-input="activity\.contract_status"/);
+  assert.match(writable, /<option value="signed" selected>signed<\/option>/);
+  assert.doesNotMatch(writable, /data-udf-value-input="activity\.audit_ref"/);
+  assert.match(writable, /Audit Reference[\s\S]*AUD-7/);
+  assert.match(writable, /Save values/);
+});
+
 test("Steps render stored child records for the activity and omit completion columns", () => {
   const html = renderActivityDetailsPanel({
     locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
