@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   getLandingCopyForLocale,
+  getLandingHomepageLocales,
   getLandingLanguageRoutes,
 } from "./landing.js";
 import { getLandingChromeCopy, normalizeLandingLocaleTag } from "./landing-chrome.js";
@@ -56,6 +57,8 @@ test("homepage direction metadata keeps Persian and Arabic RTL and other launch 
   }
 });
 
-test("homepage-only translations do not prematurely expose incomplete public-site locales", () => {
-  assert.deepEqual(getLandingLanguageRoutes(["en", "fa", ...launchLocales, "ru"]), ["en", "fa"]);
+test("homepage selector exposes every complete homepage locale without claiming translated subpage routes", () => {
+  const available = getLandingHomepageLocales(["en", "fa", "de", "zh", "ar", "fr", "ja", "ko", "ru"]);
+  assert.deepEqual(available, allHomepageLocales);
+  assert.deepEqual(getLandingLanguageRoutes(["en", "fa", "de", "zh", "ar", "fr", "ja", "ko", "ru"]), ["en", "fa"]);
 });
