@@ -1366,3 +1366,96 @@ Recorded provenance (two independent facts):
 
 Stage E Thresholds (definitions, monitoring and generated issues) and the Risk register.
 
+
+## Stage E4 — Project threshold register, monitoring runs and generated issues
+
+PR [#1765](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1765) squash-merged
+into `main` as `a761b5be` on 2026-11-12. Post-merge CI on `a761b5be`: ConstructionPM CI,
+Client Typecheck, PostgreSQL Sync State Integration and the Pages deploy succeeded on the first
+run; ConstructionPM Web CI failed its browser job with `CHROME_DID_NOT_START` (runner
+infrastructure, no test assertion ran), and the re-run of the failed job succeeded.
+
+### What shipped
+
+1. **Persistent threshold domain** (`threshold_persistence.py`): `SQLiteThresholdStore` owns
+   `project_threshold`, the immutable `project_threshold_audit` trail and the immutable
+   `project_threshold_run` log. One shared `parse_threshold_number` routine rejects booleans,
+   floats, exponents, non-finite values and more than four decimals; bounds may be negative,
+   levels may not, and every definition requires `issue_level > warning_level` with at least one
+   bound. Creates carry idempotency fingerprints (`THRESHOLD_IDEMPOTENCY_KEY_REUSE`), updates and
+   deletes require `expected_revision` (`THRESHOLD_REVISION_CONFLICT`), and a duplicate id fails
+   with `THRESHOLD_ALREADY_EXISTS`.
+2. **Authoritative metrics and level evaluation** (`threshold_metrics.py`): `ProjectMetricReader`
+   reads live facts instead of cached totals — `open_issue_count` counts open and in-progress
+   issues, `expense_actual_total` sums stored actual expense amounts per currency, and
+   `budget_balance` derives `original + approved changes - funding` per currency. A monetary
+   parameter without a currency fails with `THRESHOLD_CURRENCY_REQUIRED`; an unknown parameter
+   fails closed.
+3. **Monitoring and generated issues** (`threshold_application.py`): each `POST
+   /thresholds/{id}/monitor` reads the metric, evaluates `normal|warning|issue` from the
+   deviation against the configured bounds and levels, allocates the next immutable run
+   sequence, and records a `project_threshold_run` with the observed value and currency. A
+   generated P6 issue is raised only on a transition into `issue` (previous run was not `issue`),
+   with id `THR-<threshold_id>-R<sequence>`, through the existing issue API so authorization and
+   audit stay in one path. Repeating a monitor while the level stays `issue` does not duplicate
+   the issue; a run that returns to `normal`/`warning` and later crosses into `issue` again raises
+   a new one.
+4. **Versioned API and HTTP surface** (`threshold_api.py`, `p6-threshold-api.v1`): flat DTOs for
+   definitions, runs, history and errors, project-scoped behind `PROJECT_READ`/`PROJECT_WRITE`
+   with actor identity checked against the principal. Routes: `GET/POST
+   /api/projects/{id}/thresholds`, `GET/PUT/PATCH/DELETE /thresholds/{id}`, `GET
+   /thresholds/{id}/history`, `GET /thresholds/{id}/runs`, `POST /thresholds/{id}/monitor`, with
+   server-side subject/parameter/status/search filters. Not-found maps to 404, conflicts to 409,
+   validation to 400.
+5. **Preview, production and workspace wiring**: the preview runtime composes the threshold store,
+   metric reader and issue writer against the real issue, cost and budget stores and persists
+   across restarts; production composition accepts an optional `ThresholdAPI`. The Thresholds
+   window (`workspace-thresholds.ts`) mounts a real register over the API with toolbar
+   create/refresh, filters, a definitions table, create/edit form, monitor action, run log and
+   history panel. A stale write reloads the authoritative record after a 409; planner/admin see
+   write controls while viewer is read-only in the UI and receives server 403s.
+
+### Honest limits
+
+- Only three monitoring parameters exist (`open_issue_count`, `expense_actual_total`,
+  `budget_balance`); quality, safety, resource and scope subjects can be stored but have no
+  metric source yet.
+- Monitoring is manual; there is no scheduler, background evaluation, escalation policy or
+  notification delivery. A generated issue is a normal P6 issue with a free-text owner.
+- Generated issues are not linked back from the issue to the threshold beyond the id pattern,
+  and deleting a threshold keeps its audit trail but makes its runs unreachable through the API.
+- Threshold facts are SQLite only; there is no Postgres mirror, and definitions have no separate
+  version history beyond revisions and audit events.
+- New register labels are inline English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 818 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Threshold web suite | `apps/web/src/workspace-thresholds.test.ts` | 10 tests: strict parsers, payload normalization, create/patch/delete paths, runs/history, monitor envelope |
+| Workspace view suite | `apps/web/src/workspace-view.test.ts` | 89 tests, including the first-class Thresholds window |
+| Threshold backend suites | `pytest tests/test_threshold_sqlite_store.py tests/test_threshold_metrics.py tests/test_threshold_application.py tests/test_threshold_api.py tests/test_threshold_http_routes.py tests/test_preview_thresholds.py` | 22 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3472 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=47ab370 node e2e/thresholds-v26.mjs` | 13/13 scenarios pass, 13 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Generated issue readback | scenario 05 of the same suite | the run created `THR-<id>-R3`, and the issue is readable from `/p6/issues/{id}` |
+| Layout at 1280×720 | scenario 12 of the same suite | Persian RTL, table, filters and details panel fit without clipping |
+| Evidence bundle | `docs/workspace/evidence/thresholds-v26-2026-11-12/` | `thresholds-v26.json` + 13 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `47ab370ae6dc706c9175f7069d0f440bcfcac714` |
+| Evidence commit | `a2ab8c2f767c3a8b216ab0cc9ad673b630768569` |
+| Branch | `feat/v26-stage-e-thresholds` |
+| PR | [#1765](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1765) |
+| Merge commit | `a761b5be76ab739a6ab718bcb677be02c4c63464` |
+| Post-merge CI | 5/5 workflows success on `a761b5be` (Web CI browser job re-run after a `CHROME_DID_NOT_START` runner flake) |
+
+### Next stage
+
+Stage E Risk register (categories, scoring matrix, response and history), remaining Calendar
+work, then Stage F (Reports; Administration; Import/Export; Backup/Recovery).
