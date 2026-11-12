@@ -135,6 +135,17 @@ class KnowledgeHttpMiddleware:
             return _json(200, self._api.locales(principal))
         if parts == ["coverage"] and method == "GET":
             return _json(200, self._api.coverage(principal))
+        if parts == ["translations"] and method == "GET":
+            statuses = _query_one(query, "status")
+            return _json(
+                200,
+                self._api.translation_queue(
+                    principal,
+                    statuses=None if not statuses else statuses.split(","),
+                    locale=_query_one(query, "locale"),
+                    limit=_int(_query_one(query, "limit"), default=50),
+                ),
+            )
         if parts == ["search"] and method == "GET":
             text = _query_one(query, "q") or _query_one(query, "query")
             if not text:
@@ -306,6 +317,18 @@ class KnowledgeHttpMiddleware:
                     project_id=project_id,
                     language=body.get("language"),
                 ),
+            )
+        if (
+            len(parts) == 3
+            and parts[:2] == ["assistant", "guide"]
+            and method == "GET"
+        ):
+            project_id = _query_one(query, "project_id")
+            if project_id:
+                self._authorize_project(session_id, project_id, Permission.KNOWLEDGE_READ)
+            return _json(
+                200,
+                self._api.guide_progress(principal, parts[2], project_id=project_id),
             )
         if (
             len(parts) in {3, 4}

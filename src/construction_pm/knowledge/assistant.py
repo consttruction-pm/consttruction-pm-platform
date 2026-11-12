@@ -376,6 +376,59 @@ class KnowledgeAssistant:
             project_id=project_id or ORGANIZATION_SCOPE,
         )
 
+    def guide_progress(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        project_id: str | None = None,
+    ) -> dict[str, object]:
+        """Read the persisted guide position without moving it.
+
+        A user who was interrupted needs to know where to continue before
+        committing to a step change, so this is a read-only view of the same
+        memory record ``guide`` writes.
+        """
+
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        if not isinstance(card_id, str) or not card_id.strip():
+            raise AssistantError("ASSISTANT_CARD_REQUIRED")
+        scope = project_id or ORGANIZATION_SCOPE
+        key = f"guide.{card_id}"
+        for entry in self._store.list_memory(
+            user_id=principal.user_id,
+            tenant_id=principal.tenant_id,
+            project_id=scope,
+        ):
+            if entry.get("memory_key") != key:
+                continue
+            value = entry.get("value")
+            value = value if isinstance(value, Mapping) else {}
+            index = value.get("step_index", 0)
+            total = value.get("total_steps", 0)
+            return {
+                "card_id": card_id,
+                "started": True,
+                "step_index": index,
+                "step_number": (int(index) + 1) if isinstance(index, int) else None,
+                "total_steps": total,
+                "completed": bool(value.get("completed", False)),
+                "locale": value.get("locale"),
+                "updated_at": value.get("updated_at"),
+                "project_id": project_id,
+            }
+        return {
+            "card_id": card_id,
+            "started": False,
+            "step_index": None,
+            "step_number": None,
+            "total_steps": None,
+            "completed": False,
+            "locale": None,
+            "updated_at": None,
+            "project_id": project_id,
+        }
+
     def set_preference(
         self,
         principal: AssistantPrincipal,

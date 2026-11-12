@@ -219,6 +219,50 @@ class KnowledgeAPI:
         )
         return payload
 
+    def translation_queue(
+        self,
+        principal: AssistantPrincipal,
+        *,
+        statuses: Sequence[str] | None = None,
+        locale: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, object]:
+        """Reviewer view across every card, without changing any record.
+
+        The per-card endpoint answers "what state is this card in"; an
+        administrator also needs "what is waiting for me", which is the only
+        way to tell draft, reviewed, approved and published work apart without
+        opening cards one by one.
+        """
+
+        self._require(principal, Permission.KNOWLEDGE_REVIEW)
+        if limit < 1 or limit > 200:
+            raise KnowledgeAPIError("KNOWLEDGE_QUEUE_LIMIT_INVALID")
+        records = self.store.list_card_translations(
+            locale=locale, statuses=statuses, limit=limit
+        )
+        rows: list[dict[str, object]] = []
+        for record in records:
+            card = self.store.get_card(record.card_id)
+            rows.append(
+                {
+                    "card_id": record.card_id,
+                    "card_title": None if card is None else card.title,
+                    "card_publication_status": (
+                        None if card is None else card.publication_status.value
+                    ),
+                    "locale": record.locale,
+                    "translation_status": record.translation_status.value,
+                    "review_status": record.review_status.value,
+                    "translation_version": record.translation_version,
+                    "translator_id": record.localization_metadata.get("translator_id"),
+                    "translation_source": record.translation_source.value,
+                    "machine_translated": record.machine_translated,
+                    "updated_at": iso(record.updated_at),
+                }
+            )
+        return {"translations": rows, "count": len(rows)}
+
     def list_card_translations(
         self, principal: AssistantPrincipal, card_id: str
     ) -> dict[str, object]:
@@ -597,6 +641,17 @@ class KnowledgeAPI:
         return self.assistant.guide(
             principal, card_id, action, project_id=project_id, language=language
         ).as_dict()
+
+    def guide_progress(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        project_id: str | None = None,
+    ) -> dict[str, object]:
+        if project_id is not None:
+            self._guard(principal, project_id, Permission.KNOWLEDGE_READ)
+        return self.assistant.guide_progress(principal, card_id, project_id=project_id)
 
     def memory(
         self, principal: AssistantPrincipal, *, project_id: str | None = None

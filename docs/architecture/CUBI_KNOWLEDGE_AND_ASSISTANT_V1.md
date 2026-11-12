@@ -301,11 +301,13 @@ The WSGI middleware owns only `/api/knowledge*` and
 - `POST /api/knowledge/cards/{id}/translations/{locale}/review`
 - `POST /api/knowledge/cards/{id}/translations/{locale}/publish`
 - `POST /api/knowledge/cards/{id}/translations/{locale}/retire`
+- `GET /api/knowledge/translations?status=&locale=&limit=` (reviewer queue across cards)
 - `POST /api/knowledge/cards/{id}/review|publish|retire`
 - `GET|POST /api/knowledge/eps`
 - `GET /api/knowledge/audit`
 - `GET|POST /api/knowledge/memory`
 - `POST /api/knowledge/assistant/ask` (body: `question`, `mode`, `project_id`, `language`)
+- `GET /api/knowledge/assistant/guide/{card_id}?project_id=` (read-only persisted position)
 - `POST /api/knowledge/assistant/guide/{topic_key}` (body: `action`, `project_id`, `language`)
 - `GET|POST /api/knowledge/assistant/workflows` (body may carry `locale`)
 - `GET /api/knowledge/assistant/workflows/{run_id}`

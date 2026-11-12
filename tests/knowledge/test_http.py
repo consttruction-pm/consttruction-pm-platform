@@ -645,3 +645,129 @@ def test_guide_accepts_language_parameter(middleware, store, card_factory, publi
     assert payload["language"] == "ru"
     assert payload["fallback_used"] is True
     assert "Шаг 1" in payload["message"]
+
+
+def test_translation_queue_is_reviewer_only_and_shows_pending_work(
+    middleware, store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="queue.html"))
+    store.save_card(card)
+    status, _ = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=RU_PAYLOAD,
+    )
+    assert status.startswith("200")
+
+    status, payload = call(
+        middleware,
+        "GET",
+        "/api/knowledge/translations",
+        session="viewer-session",
+        query="status=translated",
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware,
+        "GET",
+        "/api/knowledge/translations",
+        query="status=translated",
+    )
+    assert status.startswith("200")
+    assert payload["count"] == 1
+    row = payload["translations"][0]
+    assert row["card_id"] == card.card_id
+    assert row["card_title"] == "Create a Project"
+    assert row["card_publication_status"] == "published"
+    assert row["locale"] == "ru"
+    assert row["translation_status"] == "translated"
+    assert row["review_status"] == "pending"
+    assert row["translator_id"] == "admin-1"
+    assert row["machine_translated"] is False
+
+    status, payload = call(
+        middleware, "GET", "/api/knowledge/translations", query="limit=0"
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "KNOWLEDGE_QUEUE_LIMIT_INVALID"
+
+    status, payload = call(
+        middleware,
+        "GET",
+        "/api/knowledge/translations",
+        query="status=published",
+    )
+    assert status.startswith("200")
+    assert payload["count"] == 0
+
+
+def test_guide_progress_reports_the_persisted_step_without_moving_it(
+    middleware, store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(
+        card_factory(
+            title="Create a Project",
+            topic_key="guide-progress.html",
+            steps=("Choose Project, then Create.", "Name the project."),
+        )
+    )
+    store.save_card(card)
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+    )
+    assert status.startswith("200")
+    assert payload["started"] is False
+    assert payload["step_index"] is None
+
+    status, _ = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+        body={"action": "start"},
+    )
+    assert status.startswith("200")
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+    )
+    assert status.startswith("200")
+    assert payload["started"] is True
+    assert payload["step_index"] == 0
+    assert payload["step_number"] == 1
+    assert payload["total_steps"] == 2
+    assert payload["completed"] is False
+
+    status, _ = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+        body={"action": "next"},
+    )
+    assert status.startswith("200")
+
+    status, first = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+    )
+    status, second = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+    )
+    assert first["step_index"] == 1
+    assert second["step_index"] == 1
+    assert second["completed"] is True
