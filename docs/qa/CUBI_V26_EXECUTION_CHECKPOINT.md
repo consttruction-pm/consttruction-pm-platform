@@ -2163,3 +2163,67 @@ Recorded provenance:
 - ACT-010 filters, legend and background lines: remain `NOT_AUDITED`.
 - WBS, Activity Details tab content, context-menu completeness, and the large-project
   calculation-scope tests remain on the priority-zero queue and are **not** claimed as verified.
+
+## Priority Zero — Gantt calendar non-working background (2026-11-12)
+
+Reference: Version 26 HTML Help only — <https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm>.
+
+Prior increment recorded late: PR [#1782](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1782)
+(edge-safe Gantt bar labels) merged as `24d1c4adf687488a8304779de26ef14791e37a1a`.
+
+### Shipped in this increment
+
+The Activities Gantt shades non-working days from the version-bound snapshot of the project's
+primary calendar. It never infers a workweek from schedule dates and never recomputes a schedule
+date.
+
+- Help: [Change a Gantt Chart bar's settings](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bar_s_settings.htm)
+  (step 6, "Calendar nonwork time"), [Change the background lines in the Gantt chart](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_background_lines_in_the_gantt_chart.htm),
+  [The Gantt Chart](https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_gantt_chart.htm).
+- Read path: `apps/web/src/project-bootstrap.ts` and `apps/web/src/main.ts` pass
+  `ProjectSummary.primary_calendar_id`; `WorkspaceReadClient.readProjectCalendar` in
+  `apps/web/src/workspace-read-api.ts` resolves the catalog record and calls
+  `loadCalendarSnapshot` → `GET /api/projects/{project_id}/p6/calendars/{calendar_id}/{calendar_version}/snapshot`
+  (`p6-calendar-read-api.v1`, calendar read authorization). The facts live in
+  `WorkspaceState.projectCalendar`.
+- Geometry/render: `createGanttNonWorkingBands` in `apps/web/src/workspace-gantt.ts` converts
+  Python weekday numbers (Monday = 0) to UTC days, merges contiguous weekend/holiday days into
+  bands, clips them to the visible scale and applies a 0.05% minimum width; `renderGantt` in
+  `apps/web/src/workspace-view.ts` paints them behind grid lines, sight lines and bars in a
+  non-interactive layer. `apps/web/styles.css` and `apps/web/public/styles.css` add the
+  weekend/holiday fills.
+- Fail-closed: no primary calendar → `not-loaded` (no request, no shading); unknown id →
+  `CALENDAR_NOT_FOUND`; empty `workingWeekdays` → `CALENDAR_WORKWEEK_MISSING`.
+- Tests: `apps/web/src/workspace-gantt.test.ts` (Mon–Fri and Sat–Wed workweeks, holiday-on-weekend
+  precedence, invalid scale/workweek/range), `apps/web/src/workspace-read-api.test.ts` (loaded
+  facts and exact request order, missing calendar, no primary, empty workweek),
+  `apps/web/src/workspace-view.test.ts` (holiday and weekend bands rendered; zero bands without
+  loaded facts), `apps/web/src/project-bootstrap.test.ts` (primary calendar travels with the read).
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 876 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Visual acceptance | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=9378378 node e2e/workspace-visual-acceptance-v26.mjs` | 6/6 cells pass, 21 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| Non-working bands | every cell | 11 bands (10 weekend + holiday `2026-10-28`), `outside=0` |
+| Evidence bundle | `docs/workspace/evidence/visual-acceptance-v26-2026-11-12/` | `workspace-visual-acceptance-v26.json` + 21 PNGs, contract `cubi-workspace-visual-acceptance-v26.v1` |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `9378378b6b22e65f77afa5c9e5892d9de384b88f` |
+| Evidence commit | `77f7b674fa1dd312e2eac7b61e008895ffe73860` |
+| Branch | `feat/v26-gantt-nonworking-periods` |
+| PR | [#1783](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1783) |
+
+### Status after this increment
+
+- ACT-010 calendar non-working background: `WIRED_READ` (real browser, three viewports, en/fa).
+- ACT-008 five-scale timescale/pan/zoom: remains `NOT_AUDITED`.
+- ACT-010 filters, legend and sight/background lines: remain `NOT_AUDITED`.
+- Remaining honest gap: stored `calendar_exception` rows are not overlaid, there is no
+  show/hide toggle, and resource/activity calendars are not consulted.
