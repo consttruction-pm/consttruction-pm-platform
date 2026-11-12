@@ -3,7 +3,7 @@
   "baseUrl": "http://127.0.0.1:4193",
   "gitHead": "97826cda5f349ba885ec9b33cdea29be4d05bf20",
   "testedCodeSha": "97826cda5f349ba885ec9b33cdea29be4d05bf20",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "a6466b2c26596d8bfb6d51efaa22bd72f95c0f05",
   "capturedAt": "2026-11-12T03:17:54.489Z",
   "riskId": "E2E-RK-MWCZ9M88",
   "scenarios": [
