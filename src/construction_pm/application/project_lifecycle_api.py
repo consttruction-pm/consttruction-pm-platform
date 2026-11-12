@@ -5,7 +5,12 @@ from datetime import datetime
 
 from .authorization import Permission
 
-from .project_lifecycle import ProjectContext, ProjectLifecycleService, ProjectSummary
+from .project_lifecycle import (
+    ProjectContext,
+    ProjectLifecycleService,
+    ProjectStatusEvent,
+    ProjectSummary,
+)
 
 
 @dataclass(frozen=True)
@@ -121,3 +126,25 @@ class ProjectLifecycleAPI:
             expected_revision=expected_revision,
             now=now,
         )
+
+    def set_project_status(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        now: datetime,
+    ) -> ProjectSummary:
+        return self._service.set_project_status(
+            session_id,
+            project_id,
+            status=status,
+            expected_revision=expected_revision,
+            now=now,
+        )
+
+    def project_status_history(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> tuple[ProjectStatusEvent, ...]:
+        return self._service.project_status_history(session_id, project_id, now=now)

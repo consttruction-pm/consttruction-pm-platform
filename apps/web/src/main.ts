@@ -9,7 +9,7 @@ import {
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
+import { FetchSessionApi, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -551,6 +551,39 @@ function openProjectSettings(
   calendarInput.maxLength = 200;
   calendarInput.autocomplete = "off";
 
+  const projectStatusSelect = document.createElement("select");
+  projectStatusSelect.name = "project_status";
+  projectStatusSelect.dataset.projectStatusSelect = "true";
+  for (const [value, text] of [
+    ["active", labels.settingsStatusActive],
+    ["inactive", labels.settingsStatusInactive],
+    ["planned", labels.settingsStatusPlanned],
+    ["what_if", labels.settingsStatusWhatIf],
+  ] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    projectStatusSelect.append(option);
+  }
+  const statusSave = document.createElement("button");
+  statusSave.type = "button";
+  statusSave.dataset.projectStatusSave = "true";
+  statusSave.textContent = labels.settingsStatusSave;
+
+  const historyPanel = document.createElement("div");
+  historyPanel.className = "cp-project-settings-history";
+  historyPanel.dataset.projectStatusHistory = "true";
+  const historyHeading = document.createElement("h3");
+  historyHeading.textContent = labels.settingsStatusHistory;
+  const historyEmpty = document.createElement("p");
+  historyEmpty.className = "cp-project-settings-history-empty";
+  historyEmpty.dataset.projectStatusHistoryEmpty = "true";
+  historyEmpty.textContent = labels.settingsStatusHistoryEmpty;
+  const historyList = document.createElement("ol");
+  historyList.className = "cp-project-settings-history-list";
+  historyList.dataset.projectStatusHistoryList = "true";
+  historyPanel.append(historyHeading, historyEmpty, historyList);
+
   const save = document.createElement("button");
   save.type = "submit";
   save.dataset.projectSettingsSave = "true";
@@ -568,22 +601,31 @@ function openProjectSettings(
   reloadLatest.textContent = labels.settingsReloadLatest;
   reloadLatest.hidden = true;
 
+  const statusField = labelled(
+    labels.settingsProjectStatus,
+    projectStatusSelect,
+    labels.settingsProjectStatusHint,
+  );
+  statusField.append(statusSave);
+
   form.append(
     labelled(labels.projectName, nameInput),
     labelled(labels.projectDescription, descriptionInput, labels.projectDescriptionPlaceholder),
     labelled(labels.projectStartDate, startDateInput),
     labelled(labels.projectDateSystem, dateSystemSelect),
     labelled(labels.settingsPrimaryCalendar, calendarInput, labels.settingsPrimaryCalendarHint),
+    statusField,
   );
   const actions = document.createElement("div");
   actions.className = "cp-project-settings-actions";
   actions.append(save, retry, reloadLatest, close);
 
-  panel.append(heading, revision, status, form, actions);
+  panel.append(heading, revision, status, form, historyPanel, actions);
   const shell = container.querySelector<HTMLElement>(".cp-app-shell");
   (shell ?? container).append(panel);
 
   let loadedRevision = state.context.revision;
+  let loadedStatus: ProjectStatus = "active";
   let saving = false;
 
   const applyLoaded = (project: ProjectSummary): void => {
@@ -597,7 +639,38 @@ function openProjectSettings(
     startDateInput.value = project.start_date ?? "";
     dateSystemSelect.value = project.date_system === "jalali" ? "jalali" : "gregorian";
     calendarInput.value = project.primary_calendar_id ?? "";
+    loadedStatus = (project.status ?? "active") as ProjectStatus;
+    projectStatusSelect.value = loadedStatus;
     revision.textContent = `${labels.settingsRevision} R${loadedRevision}`;
+  };
+
+  const statusLabel = (value: string): string => {
+    if (value === "inactive") return labels.settingsStatusInactive;
+    if (value === "planned") return labels.settingsStatusPlanned;
+    if (value === "what_if") return labels.settingsStatusWhatIf;
+    return labels.settingsStatusActive;
+  };
+
+  const renderHistory = (events: readonly ProjectStatusEvent[]): void => {
+    historyList.replaceChildren();
+    historyEmpty.hidden = events.length > 0;
+    for (const event of events) {
+      const item = document.createElement("li");
+      item.dataset.projectStatusHistoryRow = "true";
+      item.textContent = `${statusLabel(event.from_status)} → ${statusLabel(event.to_status)} · ${event.actor_user_id} · R${event.settings_revision} · ${event.recorded_at.slice(0, 10)}`;
+      historyList.append(item);
+    }
+  };
+
+  const loadHistory = async (): Promise<void> => {
+    const result = await bootstrap.loadProjectStatusHistory(state.context.project_id);
+    if (!result.ok) {
+      historyEmpty.hidden = false;
+      historyEmpty.textContent = `${labels.settingsFailed} (${result.error.code})`;
+      return;
+    }
+    historyEmpty.textContent = labels.settingsStatusHistoryEmpty;
+    renderHistory(result.data.events ?? []);
   };
 
   const load = async (): Promise<void> => {
@@ -611,7 +684,11 @@ function openProjectSettings(
     applyLoaded(result.data.project);
     setStatus("", "info");
     retry.hidden = true;
+    void loadHistory();
   };
+
+  const isForbidden = (code: string): boolean =>
+    code.includes("project.admin") || code.includes("authorization");
 
   const submit = async (): Promise<void> => {
     if (saving) return;
@@ -673,7 +750,7 @@ function openProjectSettings(
       reloadLatest.hidden = false;
       return;
     }
-    if (result.error.code.includes("project.admin")) {
+    if (isForbidden(result.error.code)) {
       setStatus(labels.settingsForbidden, "error");
       return;
     }
@@ -684,6 +761,40 @@ function openProjectSettings(
     setStatus(`${labels.settingsFailed} (${result.error.code})`, "error");
     retry.hidden = false;
   };
+
+  const saveStatus = async (): Promise<void> => {
+    const next = projectStatusSelect.value as ProjectStatus;
+    if (next === loadedStatus) {
+      setStatus(labels.settingsStatusSaved, "success");
+      return;
+    }
+    statusSave.disabled = true;
+    setStatus(labels.settingsSaving, "info");
+    const result = await bootstrap.saveProjectStatus(
+      state.context.project_id,
+      next,
+      loadedRevision,
+    );
+    statusSave.disabled = false;
+    if (result.ok) {
+      applyLoaded(result.data.project);
+      setStatus(labels.settingsStatusSaved, "success");
+      void loadHistory();
+      return;
+    }
+    projectStatusSelect.value = loadedStatus;
+    if (result.error.code === "PROJECT_REVISION_CONFLICT") {
+      setStatus(labels.settingsConflict, "conflict");
+      reloadLatest.hidden = false;
+      return;
+    }
+    if (isForbidden(result.error.code)) {
+      setStatus(labels.settingsForbidden, "error");
+      return;
+    }
+    setStatus(`${labels.settingsFailed} (${result.error.code})`, "error");
+  };
+  statusSave.addEventListener("click", () => { void saveStatus(); });
 
   retry.addEventListener("click", () => { void submit(); });
   reloadLatest.addEventListener("click", () => { void load(); });

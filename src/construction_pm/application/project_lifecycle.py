@@ -58,9 +58,13 @@ class ProjectSummary:
     # activity/WBS/relationship row is stamped with; reusing it for metadata
     # edits would make existing workspace data unreadable after a rename.
     settings_revision: int = 0
+    # V26 Project Details General tab status. Metadata edits carry their own
+    # revision; the status change is a separate, audited lifecycle operation.
+    status: str = "active"
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
+PROJECT_STATUSES = frozenset({"active", "inactive", "planned", "what_if"})
 MAX_PROJECT_DESCRIPTION = 2000
 MAX_PROJECT_CALENDAR_ID = 200
 
@@ -108,6 +112,58 @@ def normalize_project_calendar_id(value: object) -> str | None:
     if len(calendar_id) > MAX_PROJECT_CALENDAR_ID:
         raise ProjectLifecycleError("PROJECT_PRIMARY_CALENDAR_ID_INVALID")
     return calendar_id
+
+
+def normalize_project_status(value: object) -> str:
+    """Normalise a V26 project status to its stored form.
+
+    The General tab offers Active, Inactive, Planned and What-If; the stored
+    value keeps the Help labels' meaning in a stable snake_case form.
+    """
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_STATUS_INVALID")
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized not in PROJECT_STATUSES:
+        raise ProjectLifecycleError("PROJECT_STATUS_INVALID")
+    return normalized
+
+
+@dataclass(frozen=True)
+class ProjectStatusEvent:
+    """Append-only record of one accepted project status change."""
+
+    tenant_id: str
+    project_id: str
+    event_id: str
+    from_status: str
+    to_status: str
+    actor_user_id: str
+    recorded_at: datetime
+    settings_revision: int
+
+    def validate(self) -> None:
+        for name, value in (
+            ("tenant_id", self.tenant_id),
+            ("project_id", self.project_id),
+            ("event_id", self.event_id),
+            ("actor_user_id", self.actor_user_id),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ProjectLifecycleError(f"INVALID_PROJECT_STATUS_EVENT_{name.upper()}")
+        for name, value in (
+            ("from_status", self.from_status),
+            ("to_status", self.to_status),
+        ):
+            if value not in PROJECT_STATUSES:
+                raise ProjectLifecycleError(f"INVALID_PROJECT_STATUS_EVENT_{name.upper()}")
+        if not isinstance(self.recorded_at, datetime) or self.recorded_at.tzinfo is None:
+            raise ProjectLifecycleError("INVALID_PROJECT_STATUS_EVENT_RECORDED_AT")
+        if (
+            isinstance(self.settings_revision, bool)
+            or not isinstance(self.settings_revision, int)
+            or self.settings_revision < 0
+        ):
+            raise ProjectLifecycleError("INVALID_PROJECT_STATUS_EVENT_REVISION")
 
 
 def normalize_expected_revision(value: object) -> int:
@@ -160,6 +216,20 @@ class ProjectRepository(Protocol):
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
     ) -> ProjectSummary | None: ...
+    def set_status_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectSummary | None: ...
+    def status_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectStatusEvent, ...]: ...
 
 
 class SessionRepository(Protocol):
@@ -365,3 +435,76 @@ class ProjectLifecycleService:
                 raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
             raise ProjectLifecycleError("PROJECT_REVISION_CONFLICT")
         return updated
+
+    def set_project_status(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        now: datetime,
+    ) -> ProjectSummary:
+        """Change the V26 project status under the configuration revision guard.
+
+        Setting the status a project already has is a no-op: it returns the
+        stored row without bumping the revision or appending an event, so a
+        retried request cannot create duplicate history.
+        """
+        session = self.session(session_id, now=now)
+        existing = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if existing is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        self._policy.require(
+            ProjectContext(
+                tenant_id=existing.tenant_id,
+                project_id=existing.project_id,
+                revision=existing.revision,
+                user_id=session.user_id,
+            ).authorization_context(session.roles),
+            Permission.PROJECT_ADMIN,
+        )
+        normalized_status = normalize_project_status(status)
+        revision = normalize_expected_revision(expected_revision)
+        if existing.status == normalized_status:
+            return existing
+        updated = self._projects.set_status_for_user(
+            session.tenant_id,
+            session.user_id,
+            project_id,
+            status=normalized_status,
+            expected_revision=revision,
+            actor_user_id=session.user_id,
+            recorded_at=now,
+        )
+        if updated is None:
+            if self._projects.get_for_user(
+                session.tenant_id, project_id, session.user_id
+            ) is None:
+                raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+            raise ProjectLifecycleError("PROJECT_REVISION_CONFLICT")
+        return updated
+
+    def project_status_history(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> tuple[ProjectStatusEvent, ...]:
+        session = self.session(session_id, now=now)
+        project = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if project is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        self._policy.require(
+            ProjectContext(
+                tenant_id=project.tenant_id,
+                project_id=project.project_id,
+                revision=project.revision,
+                user_id=session.user_id,
+            ).authorization_context(session.roles),
+            Permission.PROJECT_READ,
+        )
+        return self._projects.status_history_for_user(
+            session.tenant_id, project_id, session.user_id
+        )

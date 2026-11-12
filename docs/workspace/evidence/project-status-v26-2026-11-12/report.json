@@ -1,0 +1,89 @@
+{
+  "contract": "cubi-project-status-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "e1b82363df2673f3a20de903bfb0ed77d79551d6",
+  "testedCodeSha": "e1b82363df2673f3a20de903bfb0ed77d79551d6",
+  "capturedAt": "2026-11-12T10:04:12.966Z",
+  "cells": [
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "direction": "ltr",
+      "role": "project_admin"
+    },
+    {
+      "viewport": "1920x1080",
+      "locale": "en",
+      "direction": "ltr",
+      "role": "project_admin"
+    },
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "direction": "ltr",
+      "role": "viewer"
+    },
+    {
+      "viewport": "1280x720",
+      "locale": "fa",
+      "direction": "rtl",
+      "role": "project_admin"
+    }
+  ],
+  "scenarios": [
+    {
+      "status": "pass",
+      "revision": "Configuration revision R0",
+      "id": "01",
+      "name": "the settings panel shows the stored status and an empty event history",
+      "at": "2026-11-12T10:04:17.116Z"
+    },
+    {
+      "status": "pass",
+      "eventId": "preview-rps-01@1",
+      "id": "02",
+      "name": "changing the status stores the row and records an event with the actor and revision",
+      "at": "2026-11-12T10:04:17.999Z"
+    },
+    {
+      "status": "pass",
+      "history": 1,
+      "id": "03",
+      "name": "a full reload re-reads the same status and append-only history",
+      "at": "2026-11-12T10:04:21.453Z"
+    },
+    {
+      "viewport": "1920x1080",
+      "status": "pass",
+      "id": "04",
+      "name": "the same record redraws at 1920x1080",
+      "at": "2026-11-12T10:04:22.183Z"
+    },
+    {
+      "viewerEvents": 1,
+      "directStatus": 403,
+      "id": "05",
+      "name": "a viewer reads the history but the server rejects a status change",
+      "status": "pass",
+      "at": "2026-11-12T10:04:26.699Z"
+    },
+    {
+      "locale": "fa",
+      "status": "pass",
+      "id": "06",
+      "name": "the status history fits the Persian 1280x720 layout",
+      "at": "2026-11-12T10:04:31.043Z"
+    }
+  ],
+  "screenshots": [
+    "01-status-empty-history.png",
+    "02-status-saved.png",
+    "03-status-reload.png",
+    "04-status-1920.png",
+    "05-status-viewer.png",
+    "06-status-fa-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

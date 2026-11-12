@@ -37,6 +37,16 @@ export type BootstrapLabels = {
   settingsPrimaryCalendarHint: string;
   settingsRevision: string;
   settingsReloadLatest: string;
+  settingsProjectStatus: string;
+  settingsProjectStatusHint: string;
+  settingsStatusSave: string;
+  settingsStatusSaved: string;
+  settingsStatusHistory: string;
+  settingsStatusHistoryEmpty: string;
+  settingsStatusActive: string;
+  settingsStatusInactive: string;
+  settingsStatusPlanned: string;
+  settingsStatusWhatIf: string;
   createAndOpen: string;
   constructionPm: string;
   unableToInitialize: string;
@@ -96,6 +106,16 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     settingsPrimaryCalendarHint: "Leave empty to keep the calendar created with the project.",
     settingsRevision: "Configuration revision",
     settingsReloadLatest: "Reload latest values",
+    settingsProjectStatus: "Project status",
+    settingsProjectStatusHint: "Active, Inactive, Planned or What-If. Changing it is recorded with the actor and revision.",
+    settingsStatusSave: "Save status",
+    settingsStatusSaved: "Status saved.",
+    settingsStatusHistory: "Status history",
+    settingsStatusHistoryEmpty: "No status changes are stored for this project.",
+    settingsStatusActive: "Active",
+    settingsStatusInactive: "Inactive",
+    settingsStatusPlanned: "Planned",
+    settingsStatusWhatIf: "What-If",
     createAndOpen: "Create and open",
     constructionPm: "CUBI Workspace",
     unableToInitialize: "Unable to initialize the web workspace.",
@@ -153,6 +173,16 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     settingsPrimaryCalendarHint: "برای نگه‌داشتن تقویمی که همراه پروژه ساخته شد، خالی بگذارید.",
     settingsRevision: "بازبینی پیکربندی",
     settingsReloadLatest: "بازخوانی آخرین مقادیر",
+    settingsProjectStatus: "وضعیت پروژه",
+    settingsProjectStatusHint: "فعال، غیرفعال، برنامه‌ریزی‌شده یا فرضی. هر تغییر همراه با کاربر و بازبینی ثبت می‌شود.",
+    settingsStatusSave: "ذخیرهٔ وضعیت",
+    settingsStatusSaved: "وضعیت ذخیره شد.",
+    settingsStatusHistory: "تاریخچهٔ وضعیت",
+    settingsStatusHistoryEmpty: "هیچ تغییر وضعیتی برای این پروژه ذخیره نشده است.",
+    settingsStatusActive: "فعال",
+    settingsStatusInactive: "غیرفعال",
+    settingsStatusPlanned: "برنامه‌ریزی‌شده",
+    settingsStatusWhatIf: "فرضی",
     createAndOpen: "ایجاد و باز کردن",
     constructionPm: "فضای کاری کوبی",
     unableToInitialize: "راه‌اندازی محیط کار وب امکان‌پذیر نیست.",

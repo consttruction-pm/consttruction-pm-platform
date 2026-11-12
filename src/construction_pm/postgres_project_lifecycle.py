@@ -4,7 +4,14 @@ import json
 from datetime import datetime
 from typing import Any, Protocol
 
-from .application.project_lifecycle import AuthenticatedSession, ProjectRepository, ProjectSummary, SessionRepository
+from .application.project_lifecycle import (
+    AuthenticatedSession,
+    PROJECT_STATUSES,
+    ProjectRepository,
+    ProjectStatusEvent,
+    ProjectSummary,
+    SessionRepository,
+)
 
 
 class ProjectLifecyclePostgresConnection(Protocol):
@@ -47,7 +54,8 @@ class PostgresProjectRepository(ProjectRepository):
 
     _SELECT = (
         "SELECT p.project_id, p.tenant_id, p.name, p.revision, p.description, "
-        "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision "
+        "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision, "
+        "p.status "
         "FROM project_lifecycle_projects p "
     )
 
@@ -144,6 +152,103 @@ class PostgresProjectRepository(ProjectRepository):
         ).fetchone()
         return None if row is None else _summary(row)
 
+    def set_status_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        status: str,
+        expected_revision: int,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectSummary | None:
+        """Change status and append its event; the caller owns the transaction."""
+        if status not in PROJECT_STATUSES:
+            raise ValueError("PROJECT_STATUS_INVALID")
+        current = self._connection.execute(
+            "SELECT p.status, p.settings_revision FROM project_lifecycle_projects p "
+            "WHERE p.tenant_id=%s AND p.project_id=%s AND EXISTS ("
+            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+            "AND m.user_id=%s)",
+            (tenant_id, project_id, user_id),
+        ).fetchone()
+        if current is None:
+            return None
+        from_status = str(current[0] or "active")
+        current_revision = int(current[1])
+        if from_status == status:
+            return self.get_for_user(tenant_id, project_id, user_id)
+        if current_revision != expected_revision:
+            return None
+        row = self._connection.execute(
+            "UPDATE project_lifecycle_projects SET status=%s, "
+            "settings_revision=settings_revision+1 "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
+            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
+            "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
+            "RETURNING project_id, tenant_id, name, revision, description, "
+            "start_date, date_system, primary_calendar_id, settings_revision, status",
+            (status, tenant_id, project_id, expected_revision, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        new_revision = expected_revision + 1
+        event_id = f"{project_id}@{new_revision}"
+        self._connection.execute(
+            "INSERT INTO project_lifecycle_status_event "
+            "(tenant_id, project_id, event_id, from_status, to_status, "
+            "actor_user_id, recorded_at, settings_revision) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+            (
+                tenant_id,
+                project_id,
+                event_id,
+                from_status,
+                status,
+                actor_user_id,
+                recorded_at,
+                new_revision,
+            ),
+        )
+        stored = self._connection.execute(
+            "SELECT from_status, to_status FROM project_lifecycle_status_event "
+            "WHERE tenant_id=%s AND project_id=%s AND event_id=%s",
+            (tenant_id, project_id, event_id),
+        ).fetchone()
+        if stored is None or str(stored[0]) != from_status or str(stored[1]) != status:
+            raise ValueError("PROJECT_STATUS_READBACK_MISMATCH")
+        return _summary(row)
+
+    def status_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectStatusEvent, ...]:
+        rows = self._connection.execute(
+            "SELECT e.event_id, e.from_status, e.to_status, e.actor_user_id, "
+            "e.recorded_at, e.settings_revision "
+            "FROM project_lifecycle_status_event e "
+            "JOIN project_lifecycle_memberships m "
+            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
+            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
+            "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id),
+        ).fetchall()
+        return tuple(
+            ProjectStatusEvent(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                event_id=str(row[0]),
+                from_status=str(row[1]),
+                to_status=str(row[2]),
+                actor_user_id=str(row[3]),
+                recorded_at=_as_datetime(row[4]),
+                settings_revision=int(row[5]),
+            )
+            for row in rows
+        )
+
 
 def _summary(row: Any) -> ProjectSummary:
     start_date = row[5]
@@ -160,6 +265,7 @@ def _summary(row: Any) -> ProjectSummary:
         date_system=str(row[6] or "gregorian"),
         primary_calendar_id=None if row[7] is None else str(row[7]),
         settings_revision=int(row[8]) if len(row) > 8 and row[8] is not None else 0,
+        status=str(row[9]) if len(row) > 9 and row[9] else "active",
     )
 
 
