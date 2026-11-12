@@ -173,6 +173,40 @@ def test_changed_content_is_snapshotted_on_force(store, clock) -> None:
     assert snapshots[0]["content_hash"] != topic["content_hash"]
 
 
+def test_force_reingestion_never_unpublishes_a_reviewed_card(store, clock) -> None:
+    from construction_pm.knowledge.cards import publish_card, review_card
+    from construction_pm.knowledge.model import CardStatus
+
+    fetcher = FakeFetcher(pages())
+    pipeline = IngestionPipeline(store=store, fetcher=fetcher, clock=clock)
+    pipeline.run(P6_26_HELP)
+    draft = next(
+        card for card in store.list_cards() if card.title == "Create a Project"
+    )
+    published = publish_card(
+        review_card(draft, reviewer="reviewer-1"),
+        reviewer="reviewer-1",
+        published_at=clock.now(),
+    )
+    store.save_card(published)
+
+    fetcher.pages[BASE + "create-project.html"] = CREATE_HTML.replace(
+        "organize activities", "organize activities, resources and costs"
+    )
+    report = pipeline.run(P6_26_HELP, force=True)
+
+    assert report.converted == 2
+    stored = store.get_card(published.card_id)
+    assert stored.publication_status is CardStatus.PUBLISHED
+    assert stored.reviewer == "reviewer-1"
+    assert stored.revision == published.revision
+    assert stored.content_hash == published.content_hash
+    topic = store.get_topic_by_key("p6-26-help", "create-project.html")
+    assert topic["content_hash"] != stored.content_hash
+    actions = {row["action"] for row in store.list_audit(tenant_id=None, limit=50)}
+    assert "topic_regeneration_blocked" in actions
+
+
 def test_coverage_report_and_ingest_all(store, clock) -> None:
     pipeline = IngestionPipeline(store=store, fetcher=FakeFetcher(pages()), clock=clock)
     reports = ingest_all(

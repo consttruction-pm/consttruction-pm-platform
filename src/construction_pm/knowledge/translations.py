@@ -191,7 +191,12 @@ def build_translation(
         translation_source = TranslationSource(source)
     except ValueError as exc:
         raise TranslationError("KNOWLEDGE_TRANSLATION_SOURCE_INVALID") from exc
-    machine = bool(payload.get("machine_translated", translation_source is TranslationSource.MACHINE))
+    if translation_source is TranslationSource.MACHINE:
+        # Provenance wins over the client flag: machine output stays marked as
+        # machine output even when the request claims it is human.
+        machine = True
+    else:
+        machine = bool(payload.get("machine_translated", False))
     if requested_status is None:
         status = (
             TranslationStatus.DRAFT
@@ -300,11 +305,17 @@ def publish_translation(
         raise TranslationError("KNOWLEDGE_TRANSLATION_REVIEW_REQUIRED")
     if record.machine_translated:
         raise TranslationError("KNOWLEDGE_TRANSLATION_MACHINE_OUTPUT_CANNOT_BE_PUBLISHED")
+    bound_metadata = {
+        **dict(record.localization_metadata),
+        "source_card_hash": card.content_hash,
+        "source_card_revision": card.revision,
+    }
     published = replace(
         record,
         translation_status=TranslationStatus.PUBLISHED,
         published_language_version=record.translation_version,
         published_at=now,
+        localization_metadata=bound_metadata,
     )
     published.validate()
     return published
@@ -339,6 +350,21 @@ def retire_translation(
     return retired
 
 
+def source_binding_current(card: KnowledgeCard, record: TranslationRecord) -> bool:
+    """Whether a published translation still belongs to the current source card.
+
+    Publishing records the source card hash and revision. When the English card
+    changes afterwards, the localized text is stale and must not answer until it
+    is reviewed and published again. Records published before this binding
+    existed carry no hash and keep their historical behaviour.
+    """
+
+    bound = record.localization_metadata.get("source_card_hash")
+    if not bound:
+        return True
+    return bound == card.content_hash
+
+
 def answerable_record(
     store: KnowledgeStore,
     card: KnowledgeCard,
@@ -346,14 +372,17 @@ def answerable_record(
 ) -> tuple[TranslationRecord, bool]:
     """Return the record usable for an answer and whether it is a fallback.
 
-    A localized record that is translated but not yet approved is not used as
-    the answer language; the caller receives the source record and a ``True``
-    fallback flag so it can state that the translation is not approved.
+    A localized record that is translated but not yet approved, or whose source
+    card has changed since publication, is not used as the answer language; the
+    caller receives the source record and a ``True`` fallback flag so it can
+    state that the translation is not approved.
     """
 
     resolved = require_locale(locale)
     record = localized_record(store, card, resolved)
-    if resolved == DEFAULT_LOCALE or record.approved_for_answer():
+    if resolved == DEFAULT_LOCALE or (
+        record.approved_for_answer() and source_binding_current(card, record)
+    ):
         return record, False
     fallback = source_record(card)
     fallback = replace(
@@ -363,6 +392,7 @@ def answerable_record(
             "requested_locale": resolved,
             "requested_translation_status": record.translation_status.value,
             "requested_review_status": record.review_status.value,
+            "requested_source_binding_current": source_binding_current(card, record),
         },
     )
     return fallback, True
@@ -462,6 +492,7 @@ __all__ = [
     "missing_record",
     "publish_translation",
     "review_translation",
+    "source_binding_current",
     "source_record",
     "translation_coverage",
 ]

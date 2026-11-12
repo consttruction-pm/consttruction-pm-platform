@@ -356,15 +356,53 @@ class IngestionPipeline:
                 outcome="succeeded",
                 detail={
                     "topic_key": topic_key,
+                    "duplicate_topic_id": parsed.topic_id,
+                    "duplicate_url": parsed.url,
                     "canonical_card_id": canonical,
                     "duplicate_card_id": card.card_id,
                 },
             )
             return "converted", None, False
+        protected = (
+            existing_card is not None
+            and existing_card.publication_status is not CardStatus.DRAFT
+        )
+        if protected:
+            # Re-ingestion must never un-publish a reviewed card. When the
+            # source text changed, keep the published version and record the
+            # pending regeneration for a human to review and republish.
+            if existing_card.content_hash != card.content_hash:
+                self.store.record_card_event(
+                    card.card_id,
+                    action="regeneration_blocked",
+                    actor_id="knowledge-ingestor",
+                    occurred_at=iso(self.clock()),
+                    detail={
+                        "content_hash": card.content_hash,
+                        "stored_content_hash": existing_card.content_hash,
+                        "publication_status": existing_card.publication_status.value,
+                    },
+                )
+                self._audit(
+                    source_id=source.source_id,
+                    action="topic_regeneration_blocked",
+                    outcome="succeeded",
+                    detail={
+                        "topic_key": topic_key,
+                        "card_id": card.card_id,
+                        "publication_status": existing_card.publication_status.value,
+                    },
+                )
+            self.store.save_parsed_topic(
+                parsed,
+                status="converted",
+                http_status=result.status,
+                occurred_at=iso(self.clock()),
+            )
+            return "converted", None, True
         unchanged = (
             existing_card is not None
             and existing_card.content_hash == card.content_hash
-            and existing_card.publication_status.value == "draft"
             and not force
         )
         if not unchanged:
@@ -486,10 +524,11 @@ class IngestionPipeline:
         self._audit(
             source_id=source.source_id,
             action="ingest_run",
-            outcome="succeeded" if failed == 0 else "partial",
+            outcome="succeeded" if failed == 0 and outstanding == 0 else "partial",
             detail={
                 "processed": processed,
                 "converted": converted,
+                "outstanding": outstanding,
                 "failed": failed,
                 "skipped": skipped,
             },

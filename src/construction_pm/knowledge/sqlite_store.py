@@ -796,7 +796,7 @@ class SqliteKnowledgeStore:
         sql = "SELECT * FROM knowledge_card WHERE " + " AND ".join(clauses)
         sql += " ORDER BY publication_status, title"
         if limit is not None:
-            sql += f" LIMIT {int(limit)}"
+            sql += f" LIMIT {max(0, min(int(limit), 1000))}"
         rows = self._connection.execute(sql, parameters).fetchall()
         return tuple(self._card_row(row) for row in rows)
 
@@ -955,7 +955,7 @@ class SqliteKnowledgeStore:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY locale, card_id"
         if limit is not None:
-            sql += f" LIMIT {int(limit)}"
+            sql += f" LIMIT {max(0, min(int(limit), 1000))}"
         rows = self._connection.execute(sql, parameters).fetchall()
         return tuple(self._translation_row(row) for row in rows)
 
@@ -1064,7 +1064,7 @@ class SqliteKnowledgeStore:
         )
         parameters: list[object] = [tenant_id, project_id]
         if limit is not None:
-            sql += f" LIMIT {int(limit)}"
+            sql += f" LIMIT {max(0, min(int(limit), 1000))}"
         rows = self._connection.execute(sql, parameters).fetchall()
         return tuple(dict(row) for row in rows)
 
