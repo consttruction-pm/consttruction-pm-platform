@@ -110,7 +110,8 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /\.\/platform\/#project-controls/);
   assert.match(landing, /\.\/solutions\/#construction-teams/);
   assert.match(landing, /\.\/resources\/#documentation/);
-  assert.match(landing, /pricingHref = locale === "fa"/);
+  // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
+  assert.match(landing, /pricingHref = locale === "en" \? `\$\{siteRootHref\}pricing\/` : `\$\{siteRootHref\}\$\{locale\}\/pricing\/`/);
   assert.match(landing, /href="\$\{pricingHref\}"/);
 });
 
