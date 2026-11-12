@@ -1829,10 +1829,16 @@ function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, cont
  * cannot disagree and resurrect the pane after a menu change.
  */
 function bottomDetailsVisible(state: WorkspaceState, layout: WorkspaceBottomLayout): boolean {
-  // Roles and Calendars render a complete detail surface inside their own
-  // window; the shared pane has no reader for them and would only show the
+  // Roles, Calendars and Issues render a complete detail surface inside their
+  // own window; the shared pane has no reader for them and would only show the
   // generic "tabs are not implemented" fallback.
-  return state.visiblePanels.details && layout !== "none" && state.activeMenu !== "roles" && state.activeMenu !== "calendars";
+  return (
+    state.visiblePanels.details &&
+    layout !== "none" &&
+    state.activeMenu !== "roles" &&
+    state.activeMenu !== "calendars" &&
+    state.activeMenu !== "issues"
+  );
 }
 
 /**
@@ -2562,7 +2568,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
       break;
     case "issues":
-      body = renderRegisterWindow(state, uiText(state.locale, "Project Issues", "مسائل پروژه"), [["Issue ID","شناسه مسئله"],["Title","عنوان"],["Status","وضعیت"],["Priority","اولویت"],["Responsible Manager","مدیر مسئول"],["Date Identified","تاریخ شناسایی"],["Due Date","موعد"],["Owner","مسئول"]], [["general","General","عمومی"],["details","Details","جزئیات"],["notes","Notes","یادداشت‌ها"],["documents","Documents","اسناد"]]);
+      body = `<div class="cp-register-window cp-issues-window" data-issues-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Issues", "مسائل پروژه"))}"></div>`;
       break;
     case "risks":
       body = renderRegisterWindow(state, uiText(state.locale, "Project Risks", "ریسک‌های پروژه"), [["Risk ID","شناسه ریسک"],["Description","شرح"],["Category","دسته"],["Probability","احتمال"],["Impact","اثر"],["Risk Score","امتیاز ریسک"],["Response Strategy","راهبرد پاسخ"],["Owner","مسئول"],["Status","وضعیت"]], [["general","General","عمومی"],["description","Description","شرح"],["cause","Cause","علت"],["effect","Effect","اثر"],["response","Response","پاسخ"],["mitigation","Mitigation","کاهش اثر"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]]);

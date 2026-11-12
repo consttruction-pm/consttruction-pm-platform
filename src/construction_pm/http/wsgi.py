@@ -48,9 +48,10 @@ class ProjectLifecycleWsgiApp:
         if query_string and (
             path.startswith("/api/forms/")
             or (path.startswith("/api/projects/") and "/forms" in path)
+            or (path.startswith("/api/projects/") and "/p6/issues" in path)
         ):
-            # Form endpoints read filters and locale from the query string;
-            # carry it on the routed path so the shared handler sees it.
+            # Form and issue endpoints read filters and locale from the query
+            # string; carry it on the routed path so the shared handler sees it.
             path = f"{path}?{query_string}"
         cookie_header = str(environ.get("HTTP_COOKIE", ""))
         cookies = SimpleCookie()

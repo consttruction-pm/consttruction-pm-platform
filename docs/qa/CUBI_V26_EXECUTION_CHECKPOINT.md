@@ -1036,3 +1036,88 @@ Changed files: `apps/web/src/client.ts`, `apps/web/src/workspace-calendars.ts`,
 `src/construction_pm/p6_calendar_api.py`,
 `src/construction_pm/http/project_lifecycle_routes.py`, `tests/test_p6_calendar_api.py`,
 `tests/test_project_lifecycle_http_routes.py`.
+
+---
+
+## Stage E1 — Project Issue register, status graph and history
+
+Status: **implementation complete; PR pending**. Branch `feat/v26-stage-e-risks-thresholds`,
+based on `main` @ `c7a5df64`.
+
+### What shipped
+
+1. **Authoritative issue register** (`p6_issue_repository.py`): project-scoped records with
+   validated `cost|schedule|quality|safety|scope|resource|other` types,
+   `open|in_progress|resolved|closed` statuses and `low|normal|high|critical` priorities.
+   The domain enforces ISO dates, `due_date >= date_identified`, a resolution note for resolved
+   and closed records, record revisions `1..MAX_SAFE_REVISION`, and the documented transition
+   graph (closed is final; resolved may reopen). Every create, field change, status change,
+   comment and delete appends an immutable `p6_issue_event` row with actor, timestamp and detail;
+   delete removes the record but keeps its audit trail.
+2. **Versioned API and HTTP routes** (`p6-issue-api.v1`): `GET/POST /p6/issues`,
+   `GET/PUT/PATCH/DELETE /p6/issues/{id}`, `GET /p6/issues/{id}/history` and
+   `POST /p6/issues/{id}/comments`, with project read/write authorization, cross-scope denial,
+   duplicate protection (409 `ISSUE_ALREADY_EXISTS`), stale-write protection
+   (409 `ISSUE_REVISION_CONFLICT`) and the public 404 `P6_ISSUE_NOT_FOUND`. Writes run inside
+   the repository transaction manager in preview; production composition receives the same API.
+3. **Issues window** (`workspace-issues.ts`): the static register shell and its submenu status
+   moved to Partial. The window reads the server with status/priority/type/search filters, creates
+   issues, edits with `expected_revision`, changes status through the server graph, comments,
+   deletes with confirmation, and renders general, details, document-reference and history tabs.
+   A 409 reloads the authoritative record instead of showing the stale form; closed issues disable
+   edit and remove the comment form with a truthful "Closed issues are final" note. Status and
+   priority badges, RTL-safe labels, English/Persian copy and the empty/loading/error/filtered
+   states are implemented.
+4. **Query-string carriage**: the WSGI layer now forwards `QUERY_STRING` for `/p6/issues` (as it
+   already did for forms), because the router reads filters from the routed query. Without this,
+   the browser's server-side filters silently returned the full register; the preview suite now
+   creates two records and proves a filter returns exactly one.
+5. **Bottom-pane parity**: Issues owns its detail tabs, so the shared bottom details pane is
+   collapsed and hidden for this menu, matching Roles and Calendars and avoiding a duplicate
+   generic surface.
+
+### Honest limits
+
+- No notification or email delivery; the Help topic's notification part is not implemented.
+- Owner and responsible manager are free-text fields, not a user-directory assignment.
+- Document references are stored and displayed as text; they are not linked to the document
+  register, and there is no attachment upload.
+- No bulk import/export, no issue-to-activity drill-through beyond the stored references, and
+  deleted records are not readable through the detail/history routes (the event trail is retained
+  only in repository storage).
+- The Postgres repository mirror exists but is not exercised by the default test suite.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Unit/integration (web) | `cd apps/web && npm test` | 786 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Issues web suite | `apps/web/src/workspace-issues.test.ts` | 9 tests: parsing, filters, validation, create, revision update/conflict, comment/history, delete |
+| View/navigation regression | `workspace-view.test.ts`, `workspace-navigation.test.ts` | 102 focused tests pass, including the first-class Issues window and collapsed bottom pane |
+| Backend issue suites | `pytest tests/test_p6_issue_repository.py tests/test_p6_issue_api.py tests/test_p6_issue_http_routes.py tests/test_preview_issues.py` | 18 passed |
+| Full Python suite | `pytest tests` | 3378 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_PREVIEW_URL=… CUBI_CHROME_NO_SANDBOX=1 node e2e/issues-v26.mjs` | 13/13 scenarios pass, 12 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 13 of the same suite | toolbar, filters, register and window fit; shared bottom pane collapsed |
+| CSS copies | `cmp apps/web/styles.css apps/web/public/styles.css` | byte-identical |
+| Evidence bundle | `docs/workspace/evidence/issues-v26-2026-11-12/` | `issues-v26.json` + 12 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `f7ff537d4d3d124e5fc58b4ca304974eec54fd84` |
+| Evidence commit | `545ed4a5371d9c85cd6e36b34163a1a6745be3ae` |
+| Branch head at merge | PENDING |
+| PR | PENDING |
+| Merge commit | PENDING |
+| Post-merge CI | PENDING |
+
+The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
+scenarios ran on `f7ff537d`, and the screenshots plus report were committed afterwards.
+
+### Next stage
+
+Stage E Documents (expose the existing document service through a real persistence and HTTP
+boundary), then Thresholds and the Risk register.

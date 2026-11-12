@@ -83,6 +83,7 @@ import {
   type StoredLayoutScope,
 } from "./workspace-layout-selector.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
 import { mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
@@ -2368,6 +2369,25 @@ function renderApp(
   const expensesPage = workspace.querySelector<HTMLElement>("[data-expenses-page]");
   if (expensesPage) {
     mountWorkspaceExpensesPage(expensesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      activities: state.activities.map((activity) => ({
+        id: activity.id,
+        code: activity.code,
+        name: activity.name,
+      })),
+      wbsNodes: state.wbsNodes.map((node) => ({
+        id: node.id,
+        code: node.localCode,
+        name: node.name,
+      })),
+    });
+  }
+
+  const issuesPage = workspace.querySelector<HTMLElement>("[data-issues-page]");
+  if (issuesPage) {
+    mountWorkspaceIssuesPage(issuesPage, {
       transport: aiTransport,
       context: state.context,
       locale: state.locale,

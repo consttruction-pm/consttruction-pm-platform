@@ -8759,3 +8759,51 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
   .cp-p6 .cp-layout-selector-host { flex-wrap: wrap; }
   .cp-p6 .cp-layout-selector-trigger { max-width: 100%; }
 }
+
+/* Issue register: stored project records with revision and history. */
+.cp-p6 .cp-issue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-end;
+  margin: 6px 0;
+  padding: 6px;
+  border: 1px solid #d7dee8;
+  border-radius: 4px;
+  background: #f7f9fc;
+}
+.cp-p6 .cp-issue-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: #4a5b6e;
+}
+.cp-p6 .cp-issue-filters input,
+.cp-p6 .cp-issue-filters select {
+  min-width: 120px;
+  font-size: 11px;
+}
+.cp-p6 .cp-issue-status,
+.cp-p6 .cp-issue-priority {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-size: 10px;
+  text-transform: capitalize;
+  background: #eef2f7;
+  border: 1px solid #c9d4e1;
+}
+.cp-p6 .cp-issue-status[data-status="open"] { background: #fdf6e3; border-color: #e2c98a; }
+.cp-p6 .cp-issue-status[data-status="in_progress"] { background: #eef4fd; border-color: #9db9de; }
+.cp-p6 .cp-issue-status[data-status="resolved"] { background: #eefaf0; border-color: #9fcfae; }
+.cp-p6 .cp-issue-status[data-status="closed"] { background: #f0f2f5; border-color: #c2c9d2; color: #5a6673; }
+.cp-p6 .cp-issue-priority[data-priority="critical"] { background: #fdecec; border-color: #dda3a3; color: #8d2020; }
+.cp-p6 .cp-issue-priority[data-priority="high"] { background: #fdf4e7; border-color: #ddbf92; }
+.cp-p6 .cp-issue-history { margin: 4px 0; padding: 0 0 0 16px; font-size: 11px; }
+.cp-p6 .cp-issue-history li { margin-bottom: 6px; }
+.cp-p6 .cp-issue-history span { display: block; font-size: 9.5px; color: #66788c; }
+.cp-p6 .cp-issue-history p { margin: 2px 0 0; }
+.cp-p6 .cp-issue-documents { margin: 4px 0; padding-left: 16px; font-size: 11px; }
+.cp-p6 .cp-issue-comment { display: flex; gap: 6px; align-items: flex-end; margin-top: 8px; font-size: 10px; }
+.cp-p6 .cp-issue-detail-body { padding: 4px 0; }
