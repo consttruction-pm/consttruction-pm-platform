@@ -1,0 +1,200 @@
+{
+  "contract": "cubi-risks-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "97826cda5f349ba885ec9b33cdea29be4d05bf20",
+  "testedCodeSha": "97826cda5f349ba885ec9b33cdea29be4d05bf20",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T03:17:54.489Z",
+  "riskId": "E2E-RK-MWCZ9M88",
+  "scenarios": [
+    {
+      "risks": 0,
+      "matrixCells": 25,
+      "id": "01",
+      "name": "فهرست ریسک خالی است و کنترل ساخت برای Planner نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T03:17:58.718Z"
+    },
+    {
+      "row": {
+        "id": "E2E-RK-MWCZ9M88",
+        "title": "E2E supplier lead time",
+        "category": "Schedule",
+        "probabilityImpact": "3 × 4",
+        "scoreExposure": "12 · High",
+        "response": "Mitigate",
+        "owner": "preview-planner",
+        "status": "Open",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "stored": {
+        "contract_version": "p6-risk-api.v1",
+        "risk_id": "E2E-RK-MWCZ9M88",
+        "title": "E2E supplier lead time",
+        "description": "E2E risk created against the real risk register.",
+        "category": "schedule",
+        "status": "open",
+        "probability": 3,
+        "impact": 4,
+        "score": 12,
+        "exposure_level": "high",
+        "response_strategy": "mitigate",
+        "response_owner": "preview-planner",
+        "response_due_date": "2026-12-15",
+        "owner": "preview-planner",
+        "responsible_manager": "preview-planner",
+        "date_identified": "2026-11-05",
+        "closure_note": null,
+        "revision": 1
+      },
+      "id": "02",
+      "name": "ریسک زمان‌بندی با احتمال ۳ و اثر ۴ امتیاز ۱۲ و مواجههٔ زیاد می‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T03:17:59.337Z"
+    },
+    {
+      "cell": {
+        "key": "3-4",
+        "exposure": "high",
+        "count": 1,
+        "selected": true
+      },
+      "id": "03",
+      "name": "ماتریس ۵×۵ ریسک را در خانهٔ احتمال ۳ و اثر ۴ می‌شمارد",
+      "status": "pass",
+      "at": "2026-11-12T03:17:59.366Z"
+    },
+    {
+      "row": {
+        "id": "E2E-RK-MWCZ9M88",
+        "title": "E2E supplier lead time",
+        "category": "Schedule",
+        "probabilityImpact": "4 × 5",
+        "scoreExposure": "20 · Critical",
+        "response": "Mitigate",
+        "owner": "preview-planner",
+        "status": "Monitoring",
+        "selected": true,
+        "edit": true,
+        "remove": true
+      },
+      "staleStatus": 409,
+      "id": "04",
+      "name": "ویرایش به احتمال ۴ و اثر ۵ امتیاز ۲۰ بحرانی می‌سازد و نوشتن کهنه ۴۰۹ است",
+      "status": "pass",
+      "at": "2026-11-12T03:18:00.487Z"
+    },
+    {
+      "status": "pass",
+      "revision": 3,
+      "id": "05",
+      "name": "بستن ریسک بدون یادداشت رد می‌شود و با یادداشت ثبت می‌شود",
+      "at": "2026-11-12T03:18:01.388Z"
+    },
+    {
+      "events": 3,
+      "id": "06",
+      "name": "تاریخچهٔ تغییرناپذیر ساخت، ویرایش و بستن را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-12T03:18:02.272Z"
+    },
+    {
+      "filtered": 1,
+      "empty": 0,
+      "id": "07",
+      "name": "صافی‌های دسته، وضعیت، راهبرد، مواجهه و جستجو روی فهرست اعمال می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T03:18:04.902Z"
+    },
+    {
+      "row": {
+        "id": "E2E-RK-MWCZ9M88",
+        "title": "E2E supplier lead time",
+        "category": "Schedule",
+        "probabilityImpact": "4 × 5",
+        "scoreExposure": "20 · Critical",
+        "response": "Mitigate",
+        "owner": "preview-planner",
+        "status": "Closed",
+        "selected": false,
+        "edit": true,
+        "remove": true
+      },
+      "history": 3,
+      "id": "08",
+      "name": "پس از بارگذاری کامل صفحه، ریسک، امتیاز و نسخه حفظ می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T03:18:07.804Z"
+    },
+    {
+      "createStatus": 403,
+      "id": "09",
+      "name": "نقش Viewer فقط می‌خواند: بدون کنترل نوشتن و پاسخ مستقیم 403",
+      "status": "pass",
+      "at": "2026-11-12T03:18:11.936Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "direction": "rtl",
+      "heading": "ریسک‌های پروژه",
+      "toolbar": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 39
+      },
+      "panel": {
+        "x": 46,
+        "y": 142,
+        "width": 1178,
+        "height": 341.09375
+      },
+      "table": {
+        "x": 430.078125,
+        "y": 249.046875,
+        "width": 793.921875,
+        "height": 100
+      },
+      "matrix": {
+        "x": 53,
+        "y": 256.046875,
+        "width": 362.078125,
+        "height": 160.640625
+      },
+      "rows": 1,
+      "id": "10",
+      "name": "فهرست ریسک در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T03:18:16.805Z"
+    },
+    {
+      "remaining": 0,
+      "readStatus": 404,
+      "id": "11",
+      "name": "حذف ریسک با نسخهٔ جاری انجام می‌شود و خواندن بعدی ۴۰۴ است",
+      "status": "pass",
+      "at": "2026-11-12T03:18:19.619Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created-risk.png",
+    "03-scoring-matrix.png",
+    "04-edited-and-stale-conflict.png",
+    "05-closure-note-required.png",
+    "06-closed-with-note.png",
+    "07-history.png",
+    "08-filtered-register.png",
+    "09-persisted-after-reload.png",
+    "10-viewer-denied.png",
+    "11-risks-1280x720-fa.png",
+    "12-deleted-risk.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T03:18:19.619Z"
+}
