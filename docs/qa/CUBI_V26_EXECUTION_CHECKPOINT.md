@@ -1126,8 +1126,11 @@ Stage E2 Documents (shipped below), then Thresholds and the Risk register.
 
 ## Stage E2 — Project document register, audited status graph and history
 
-Status: **in review** on branch `feat/v26-stage-e-documents`, code commit
-`b22c7955`. PR and merge commit are recorded in the post-merge update below.
+Status: **merged**. Independent PR
+[#1759](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1759) squash-merged into
+`main` as `8f9b37a0` on 2026-11-12. Post-merge CI on `8f9b37a0`: ConstructionPM CI, Web CI,
+Client Typecheck, PostgreSQL Integration, PostgreSQL Sync State Integration and the Pages deploy
+all succeeded.
 
 ### What shipped
 
@@ -1196,9 +1199,9 @@ Recorded provenance (two independent facts):
 | Tested code SHA | `b22c795581d8773f890b12915ed0e078c4153f09` |
 | Evidence commit | `cbd783b28a140d85447c978721786e389c7c1ee9` |
 | Branch | `feat/v26-stage-e-documents` |
-| PR | TBD |
-| Merge commit | TBD |
-| Post-merge CI | TBD |
+| PR | [#1759](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1759) |
+| Merge commit | `8f9b37a02d0bd910ad6db5d67017f765eb9ad018` |
+| Post-merge CI | 6/6 workflows success on `8f9b37a0` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
 scenarios ran on `b22c7955`, and the screenshots plus report were committed afterwards.
