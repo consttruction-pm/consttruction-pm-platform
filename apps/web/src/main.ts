@@ -1918,6 +1918,7 @@ function renderApp(
           calendarMode: detailsState.calendarMode,
           transport: getDetailsTransport(),
           state: detailsState,
+          canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
         },
         (activityId) => renderApp(container, selectActivity(detailsState, activityId), persistence),
       );

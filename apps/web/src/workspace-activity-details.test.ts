@@ -175,6 +175,35 @@ test("Resources lists only the assignments stored for the selected activity", ()
   assert.match(html, /data-details-refresh="resources"/);
 });
 
+test("write editors appear only for writable sessions and capture every stored field", () => {
+  const base = {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian" as const,
+  };
+  const readOnly = renderActivityDetailsPanel({ ...base, visibleTabs: ["resources"] });
+  assert.doesNotMatch(readOnly, /data-details-form="resources"/);
+  assert.match(readOnly, /Add Resource[\s\S]*disabled/);
+
+  const resources = renderActivityDetailsPanel({ ...base, visibleTabs: ["resources"], canWrite: true });
+  assert.match(resources, /data-details-form="resources"/);
+  for (const name of ["resourceId", "roleId", "units", "plannedCost", "currency", "note"]) {
+    assert.match(resources, new RegExp(`name="${name}"`));
+  }
+  assert.match(resources, /Add assignment/);
+
+  const expenses = renderActivityDetailsPanel({ ...base, visibleTabs: ["expenses"], canWrite: true });
+  assert.match(expenses, /data-details-form="expenses"/);
+  assert.match(expenses, /name="category"/);
+  assert.match(expenses, /<option value="material"/);
+
+  const issues = renderActivityDetailsPanel({ ...base, visibleTabs: ["issues"], canWrite: true });
+  assert.match(issues, /data-details-form="issues"/);
+  for (const name of ["title", "issueType", "status", "priority", "owner", "dateIdentified"]) {
+    assert.match(issues, new RegExp(`name="${name}"`));
+  }
+});
+
 test("Issues are filtered by the stored activity reference and Update History renders revision events", () => {
   const base = {
     locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",

@@ -28,10 +28,52 @@ const REQUIRED_TABS = [
 ];
 const DATA_TABS = ["resources", "expenses", "issues", "risks", "udfs", "update-history"];
 
-const report = { url: baseUrl, tabs: [], data: {}, customize: null, exceptions: [], consoleErrors: [], apiFailures: [] };
+const report = { url: baseUrl, tabs: [], data: {}, writes: {}, customize: null, exceptions: [], consoleErrors: [], apiFailures: [] };
 
 function assert(condition, message) {
   if (!condition) throw new Error(`ASSERTION_FAILED: ${message}`);
+}
+
+async function poll(page, expression, timeout = 15000) {
+  const started = Date.now();
+  while (Date.now() - started < timeout) {
+    if (await page.evaluate(expression)) return true;
+    await sleep(250);
+  }
+  return false;
+}
+
+async function submitWriteForm(page, tab, values) {
+  const outcome = await page.evaluate(`(() => {
+    const form = document.querySelector('#cp-details [data-details-form="${tab}"]');
+    if (!form) return { error: "form missing" };
+    const values = ${JSON.stringify(values)};
+    for (const [name, value] of Object.entries(values)) {
+      const field = form.querySelector('[name="' + name + '"]');
+      if (!field) return { error: "field missing: " + name };
+      field.value = value;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const submit = form.querySelector('button[type="submit"]');
+    if (!submit) return { error: "submit missing" };
+    submit.click();
+    return { submitted: true };
+  })()`);
+  assert(outcome?.submitted, `${tab} write form could not be submitted: ${JSON.stringify(outcome)}`);
+  const settled = await poll(page, `(() => {
+    const form = document.querySelector('#cp-details [data-details-form="${tab}"]');
+    const slot = form?.querySelector("[data-details-form-message]");
+    return Boolean(slot && (slot.dataset.state === "ok" || slot.dataset.state === "error"));
+  })()`);
+  const state = await page.evaluate(`(() => {
+    const form = document.querySelector('#cp-details [data-details-form="${tab}"]');
+    const slot = form?.querySelector("[data-details-form-message]");
+    return { state: slot?.dataset.state ?? null, text: slot?.textContent ?? "" };
+  })()`);
+  assert(settled, `${tab} write did not settle: ${JSON.stringify(state)}`);
+  assert(state.state === "ok", `${tab} write failed: ${state.text}`);
+  return state;
 }
 
 async function main() {
@@ -87,6 +129,39 @@ async function main() {
     assert(state.refresh, `${tab} must expose a Reload action`);
     assert(!state.loading, `${tab} should have finished loading`);
     assert(!state.error, `${tab} reported a read error: ${state.text.slice(0, 180)}`);
+  }
+
+  // Write path: create one authoritative record from each editable tab, then
+  // prove the pane reloads the stored rows rather than trusting local state.
+  const today = new Date().toISOString().slice(0, 10);
+  const WRITES = [
+    {
+      tab: "resources",
+      values: { resourceId: "RPS-CIVIL-CREW", roleId: "", units: "12", plannedCost: "900", currency: "USD", note: "E2E assignment" },
+      expect: "RPS-CIVIL-CREW",
+    },
+    {
+      tab: "expenses",
+      values: { name: "E2E concrete", category: "material", currency: "USD", plannedCost: "1500", note: "E2E expense" },
+      expect: "E2E concrete",
+    },
+    {
+      tab: "issues",
+      values: { title: "E2E schedule risk", description: "Created by the Activity Details acceptance run.", issueType: "schedule", status: "open", priority: "high", owner: "e2e-planner", dateIdentified: today, dueDate: "" },
+      expect: "E2E schedule risk",
+    },
+  ];
+  for (const write of WRITES) {
+    await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab="${write.tab}"]')?.click(); return true; })()`);
+    await sleep(500);
+    const settled = await submitWriteForm(page, write.tab, write.values);
+    const panel = await page.evaluate(`(() => {
+      const panel = document.querySelector('#cp-details [data-detail-panel="${write.tab}"]');
+      return { rows: panel?.querySelectorAll("tbody tr").length ?? 0, text: panel?.innerText ?? "" };
+    })()`);
+    report.writes[write.tab] = { message: settled.text, rows: panel.rows, stored: panel.text.includes(write.expect) };
+    assert(panel.rows > 0, `${write.tab} did not show a stored row after saving`);
+    assert(panel.text.includes(write.expect), `${write.tab} did not reload the stored record`);
   }
 
   // Customize Tabs: hide Status, apply, confirm, reload and confirm again.

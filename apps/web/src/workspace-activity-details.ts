@@ -13,9 +13,9 @@
  * permanently empty. Calendar is a CUBI addition and follows the official tabs.
  */
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
-import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
-import { loadIssues, type IssueRecord } from "./workspace-issues.js";
+import { loadAssignments, saveAssignment, type AssignmentRecord } from "./workspace-assignments.js";
+import { EXPENSE_CATEGORIES, loadExpenses, saveExpense, type ExpenseRecord } from "./workspace-expenses.js";
+import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, loadIssues, saveIssue, type IssueRecord } from "./workspace-issues.js";
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
 import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
@@ -211,6 +211,12 @@ export type ActivityDetailsInput = {
   data?: ActivityDetailsData;
   /** Registry version used by the UDF metadata endpoint. */
   registryVersion?: string;
+  /**
+   * True when the authenticated role may write to this project. The pane
+   * hides the inline editors otherwise; the server still authorizes every
+   * request, so this only controls presentation.
+   */
+  canWrite?: boolean;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
   /** Display order from Customize Activity Details; defaults to all tabs. */
@@ -294,6 +300,40 @@ function loadNotice(locale: string, state: ActivityDetailsLoadState<unknown>, id
 
 function reloadControl(locale: string, tab: ActivityDetailsTabId): string {
   return `<button type="button" class="cp-detail-action" data-details-refresh="${tab}">${esc(t(locale, "Reload", "بازخوانی"))}</button>`;
+}
+
+type DetailFormField = {
+  name: string;
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  value?: string;
+  options?: readonly string[];
+  wide?: boolean;
+};
+
+/**
+ * Inline creator for the collections whose write contracts the project
+ * service already exposes. Fields are intentionally explicit: every value the
+ * server stores is entered here, nothing is inferred from the selected row
+ * except the activity ID, which the pane pins to the current activity.
+ */
+function detailForm(locale: string, kind: string, submitLabel: string, fields: readonly DetailFormField[]): string {
+  const controls = fields.map((field) => {
+    const id = `detail-form-${kind}-${field.name}`;
+    const label = `<span>${esc(field.label)}</span>`;
+    const control = field.options
+      ? `<select id="${id}" name="${esc(field.name)}"${field.required ? " required" : ""}>${field.required ? "" : `<option value="">${esc(t(locale, "None", "هیچ"))}</option>`}${field.options.map((option) => `<option value="${esc(option)}"${option === field.value ? " selected" : ""}>${esc(option)}</option>`).join("")}</select>`
+      : `<input id="${id}" name="${esc(field.name)}" type="text" autocomplete="off"${field.required ? " required" : ""}${field.placeholder ? ` placeholder="${esc(field.placeholder)}"` : ""}${field.value !== undefined ? ` value="${esc(field.value)}"` : ""}>`;
+    return `<label class="cp-detail-form-field${field.wide ? " is-wide" : ""}" for="${id}">${label}${control}</label>`;
+  }).join("");
+  return `<form class="cp-detail-form" data-details-form="${kind}" novalidate>
+      <div class="cp-detail-form-grid">${controls}</div>
+      <div class="cp-detail-form-actions">
+        <button type="submit" class="cp-detail-action">${esc(submitLabel)}</button>
+        <span class="cp-detail-form-message" data-details-form-message role="status"></span>
+      </div>
+    </form>`;
 }
 
 function lagText(value: string, unit: string): string {
@@ -503,16 +543,25 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           t(locale, "No resource assignments are stored for this activity.", "هیچ تخصیص منبعی برای این فعالیت ذخیره نشده است."))
         : loadNotice(locale, data, t(locale, "Resource assignments have not been read for this activity yet.", "تخصیص‌های منبع هنوز برای این فعالیت خوانده نشده‌اند."));
       return `${table}
-        ${controlBar(locale, [
-          disabledControl(locale, t(locale, "Add Resource", "افزودن منبع"), notWritable),
-          disabledControl(locale, t(locale, "Add Role", "افزودن نقش"), notWritable),
-          disabledControl(locale, t(locale, "Assign By Role", "تخصیص بر اساس نقش"), notWritable),
-          disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
-          reloadControl(locale, "resources"),
-        ].join(""))}
+        ${input.canWrite && activity
+          ? detailForm(locale, "resources", t(locale, "Add assignment", "افزودن تخصیص"), [
+            { name: "resourceId", label: t(locale, "Resource ID", "شناسهٔ منبع"), required: true },
+            { name: "roleId", label: t(locale, "Role ID", "شناسهٔ نقش") },
+            { name: "units", label: t(locale, "Budgeted units", "واحد بودجه‌ای"), placeholder: "0" },
+            { name: "plannedCost", label: t(locale, "Planned cost", "هزینهٔ برنامه‌ای"), placeholder: "0" },
+            { name: "currency", label: t(locale, "Currency", "ارز"), placeholder: "USD" },
+            { name: "note", label: t(locale, "Note", "یادداشت"), wide: true },
+          ])
+          : controlBar(locale, [
+            disabledControl(locale, t(locale, "Add Resource", "افزودن منبع"), notWritable),
+            disabledControl(locale, t(locale, "Add Role", "افزودن نقش"), notWritable),
+            disabledControl(locale, t(locale, "Assign By Role", "تخصیص بر اساس نقش"), notWritable),
+            disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
+          ].join(""))}
+        ${controlBar(locale, reloadControl(locale, "resources"))}
         <label class="cp-detail-check"><input type="checkbox" disabled> ${esc(t(locale, "Drive activity dates by default", "تعیین پیش‌فرض تاریخ فعالیت"))}</label>
         <label class="cp-detail-check"><input type="checkbox" disabled> ${esc(t(locale, "Resources can be assigned to the same activity more than once", "منابع می‌توانند بیش از یک بار به همین فعالیت تخصیص یابند"))}</label>
-        <p class="cp-detail-hint">${esc(t(locale, "Assignments are read from the project resource service and filtered by activity ID. The documented write actions stay disabled until this pane owns an assignment editor.", "تخصیص‌ها از سرویس منابع پروژه خوانده و بر اساس شناسهٔ فعالیت فیلتر می‌شوند. کنش‌های نوشتن مستند تا زمانی که این پنل ویرایشگر تخصیص نداشته باشد غیرفعال می‌مانند."))}</p>`;
+        <p class="cp-detail-hint">${esc(t(locale, "Assignments are read from the project resource service and filtered by activity ID. The editor records a new assignment for this activity and reloads the authoritative list; it does not edit existing assignments or respect by role here.", "تخصیص‌ها از سرویس منابع پروژه خوانده و بر اساس شناسهٔ فعالیت فیلتر می‌شوند. ویرایشگر یک تخصیص جدید برای این فعالیت ثبت می‌کند و فهرست مرجع را دوباره بارگذاری می‌کند؛ تخصیص‌های موجود یا تخصیص بر اساس نقش را ویرایش نمی‌کند."))}</p>`;
     }
     case "predecessors":
       return relationshipRows(input, predecessors);
@@ -619,12 +668,20 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           t(locale, "No expense records are stored for this activity.", "هیچ رکورد هزینه‌ای برای این فعالیت ذخیره نشده است."))
         : loadNotice(locale, data, t(locale, "Activity expenses have not been read yet.", "هزینه‌های فعالیت هنوز خوانده نشده‌اند."));
       return `${table}
-      ${controlBar(locale, [
-        disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
-        disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No expense is selected.", "هیچ هزینه‌ای انتخاب نشده است.")),
-        reloadControl(locale, "expenses"),
-      ].join(""))}
-      <p class="cp-detail-hint">${esc(t(locale, "Expenses are read from the cost service with an activity filter. At-completion and vendor values stay empty because the cost record does not store them.", "هزینه‌ها از سرویس هزینه با فیلتر فعالیت خوانده می‌شوند. مقادیر پایان کار و فروشنده خالی می‌مانند زیرا رکورد هزینه آن‌ها را ذخیره نمی‌کند."))}</p>`;
+      ${input.canWrite && activity
+        ? detailForm(locale, "expenses", t(locale, "Add expense", "افزودن هزینه"), [
+          { name: "name", label: t(locale, "Expense item", "قلم هزینه"), required: true },
+          { name: "category", label: t(locale, "Category", "دسته"), required: true, value: "other", options: EXPENSE_CATEGORIES },
+          { name: "currency", label: t(locale, "Currency", "ارز"), required: true, value: "USD" },
+          { name: "plannedCost", label: t(locale, "Planned cost", "هزینهٔ برنامه‌ای"), placeholder: "0" },
+          { name: "note", label: t(locale, "Note", "یادداشت"), wide: true },
+        ])
+        : controlBar(locale, [
+          disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
+          disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No expense is selected.", "هیچ هزینه‌ای انتخاب نشده است.")),
+        ].join(""))}
+      ${controlBar(locale, reloadControl(locale, "expenses"))}
+      <p class="cp-detail-hint">${esc(t(locale, "Expenses are read from the cost service with an activity filter. The editor records a new expense tied to this activity and reloads the authoritative list. At-completion and vendor values stay empty because the cost record does not store them.", "هزینه‌ها از سرویس هزینه با فیلتر فعالیت خوانده می‌شوند. ویرایشگر یک هزینهٔ جدید مرتبط با این فعالیت ثبت می‌کند و فهرست مرجع را دوباره بارگذاری می‌کند. مقادیر پایان کار و فروشنده خالی می‌مانند زیرا رکورد هزینه آن‌ها را ذخیره نمی‌کند."))}</p>`;
     }
     case "summary": {
       const costRow = (label: string, prefix: string): string[] => [
@@ -705,12 +762,23 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           t(locale, "No issue records are linked to this activity.", "هیچ رکورد مسئله‌ای به این فعالیت پیوند ندارد."))
         : loadNotice(locale, data, t(locale, "Issue records have not been read for this activity yet.", "رکوردهای مسئله هنوز برای این فعالیت خوانده نشده‌اند."));
       return `${table}
-        ${controlBar(locale, [
-          disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
-          disabledControl(locale, t(locale, "Remove", "حذف"), t(locale, "Issue links are edited in the Issues window.", "پیوندهای مسئله در پنجرهٔ مسائل ویرایش می‌شوند.")),
-          reloadControl(locale, "issues"),
-        ].join(""))}
-        <p class="cp-detail-hint">${esc(t(locale, "Issues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed.", "مسائل رکوردهای پروژه با ویرایش مستقل هستند. فقط مسائلی فهرست می‌شوند که ارجاع فعالیت ذخیره‌شدهٔ آن‌ها با این فعالیت برابر است."))}</p>`;
+        ${input.canWrite && activity
+          ? detailForm(locale, "issues", t(locale, "Add issue", "افزودن مسئله"), [
+            { name: "title", label: t(locale, "Title", "عنوان"), required: true, wide: true },
+            { name: "description", label: t(locale, "Description", "توضیحات"), wide: true },
+            { name: "issueType", label: t(locale, "Issue type", "نوع مسئله"), required: true, value: "other", options: ISSUE_TYPES },
+            { name: "status", label: t(locale, "Status", "وضعیت"), required: true, value: "open", options: ISSUE_STATUSES },
+            { name: "priority", label: t(locale, "Priority", "اولویت"), required: true, value: "normal", options: ISSUE_PRIORITIES },
+            { name: "owner", label: t(locale, "Owner", "مالک"), required: true },
+            { name: "dateIdentified", label: t(locale, "Date identified", "تاریخ شناسایی"), required: true, value: new Date().toISOString().slice(0, 10) },
+            { name: "dueDate", label: t(locale, "Due date", "تاریخ سررسید"), placeholder: "YYYY-MM-DD" },
+          ])
+          : controlBar(locale, [
+            disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
+            disabledControl(locale, t(locale, "Remove", "حذف"), t(locale, "Issue links are edited in the Issues window.", "پیوندهای مسئله در پنجرهٔ مسائل ویرایش می‌شوند.")),
+          ].join(""))}
+        ${controlBar(locale, reloadControl(locale, "issues"))}
+        <p class="cp-detail-hint">${esc(t(locale, "Issues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed. The editor creates an issue already linked to this activity and reloads the authoritative list.", "مسائل رکوردهای پروژه با ویرایش مستقل هستند. فقط مسائلی فهرست می‌شوند که ارجاع فعالیت ذخیره‌شدهٔ آن‌ها با این فعالیت برابر است. ویرایشگر مسئله‌ای را از پیش مرتبط با این فعالیت ایجاد و فهرست مرجع را دوباره بارگذاری می‌کند."))}</p>`;
     }
     case "risks": {
       const data = loadStateOf(input.data?.risks);
@@ -1478,6 +1546,110 @@ export function enhanceActivityDetails(
     state.display.splice(to, 0, moved);
     redrawDialog();
   };
+
+  host.addEventListener("submit", (event) => {
+    const form = event.target as HTMLFormElement | null;
+    if (!form || typeof form.matches !== "function" || !form.matches("[data-details-form]")) return;
+    event.preventDefault();
+    const runtime = detailsRuntime.get(host);
+    const input = runtime?.input;
+    const transport = input?.transport;
+    const context = input?.state?.context;
+    const activityId = input?.selectedActivityId;
+    const key = input ? detailsDataKey(input) : null;
+    const locale = input?.locale ?? "en";
+    const message = (target: HTMLFormElement, text: string, isError: boolean | null): void => {
+      const slot = target.querySelector<HTMLElement>("[data-details-form-message]");
+      if (slot) {
+        slot.textContent = text;
+        if (isError === null) delete slot.dataset.state;
+        else slot.dataset.state = isError ? "error" : "ok";
+      }
+    };
+    if (!runtime || !input || !transport || !context || !activityId || !key) {
+      message(form, t(locale, "The project service is not available for this tab.", "سرویس پروژه برای این زبانه در دسترس نیست."), true);
+      return;
+    }
+    const data = new FormData(form);
+    const value = (name: string): string => String(data.get(name) ?? "").trim();
+    const optional = (name: string): string | null => value(name) || null;
+    const kind = form.dataset.detailsForm;
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    message(form, t(locale, "Saving to the project service…", "در حال ذخیره در سرویس پروژه…"), null);
+
+    const finish = async (failure: string | null): Promise<void> => {
+      if (failure) {
+        message(form, `${t(locale, "The project service rejected the change: ", "سرویس پروژه تغییر را نپذیرفت: ")}${failure}`, true);
+        if (submit) submit.disabled = false;
+        return;
+      }
+      detailsDataCache.delete(key);
+      await loadDetailsInto(host, key, activityId, true);
+      const fresh = host.querySelector<HTMLFormElement>(`[data-details-form="${kind}"]`);
+      if (fresh) {
+        message(fresh, t(locale, "Saved. The list was reloaded from the project service.", "ذخیره شد. فهرست از سرویس پروژه دوباره بارگذاری شد."), false);
+      }
+    };
+
+    void (async () => {
+      if (kind === "resources") {
+        const saved = await saveAssignment(transport, context, {
+          assignmentId: crypto.randomUUID(),
+          activityId,
+          resourceId: value("resourceId"),
+          roleId: optional("roleId"),
+          units: optional("units"),
+          unit: null,
+          plannedCost: optional("plannedCost"),
+          currency: optional("currency"),
+          calendarId: null,
+          calendarVersion: null,
+          note: optional("note"),
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "expenses") {
+        const saved = await saveExpense(transport, context, {
+          expenseId: crypto.randomUUID(),
+          name: value("name"),
+          category: value("category"),
+          activityId,
+          wbsId: null,
+          costAccountId: null,
+          expenseDate: null,
+          accrualDate: null,
+          plannedCost: optional("plannedCost"),
+          actualCost: null,
+          remainingCost: null,
+          currency: value("currency"),
+          note: optional("note"),
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "issues") {
+        const saved = await saveIssue(transport, context, {
+          issueId: crypto.randomUUID(),
+          title: value("title"),
+          description: value("description"),
+          issueType: value("issueType"),
+          status: value("status"),
+          priority: value("priority"),
+          owner: value("owner"),
+          responsibleManager: null,
+          dateIdentified: value("dateIdentified"),
+          dueDate: optional("dueDate"),
+          wbsId: null,
+          activityId,
+          documentRefs: [],
+          resolutionNote: null,
+        });
+        await finish(saved.ok ? null : saved.error.code);
+      }
+    })();
+  });
 
   host.addEventListener("click", (event) => {
     const runtime = detailsRuntime.get(host);
