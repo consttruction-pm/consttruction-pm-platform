@@ -2614,7 +2614,7 @@ Recorded provenance:
 | Implementation commit | `e1b82363` |
 | Browser-tested code SHA | `e1b82363df2673f3a20de903bfb0ed77d79551d6` |
 | Evidence | `docs/workspace/evidence/project-status-v26-2026-11-12/` (`report.json` `gitHead`) |
-| Branch | `feat/v26-project-lifecycle-status` (merged via PR) |
+| Branch | `feat/v26-project-lifecycle-status` (PR [#1789](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1789)) |
 
 ### Status after this increment
 
