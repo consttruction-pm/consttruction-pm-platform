@@ -1198,7 +1198,16 @@ function workspaceContextAt(target: HTMLElement): WorkspaceContextTarget | null 
   const link = closest<SVGPathElement>("[data-gantt-link],[data-gantt-link-hit]");
   const relationshipId = link?.dataset.ganttLink ?? link?.dataset.ganttLinkHit;
   if (relationshipId) {
-    return { kind: "gantt-link", relationshipId, anchor: link as unknown as HTMLElement };
+    // Focus restore needs a focusable owner. A relationship belongs to the
+    // successor row, so Escape returns to that row (falling back to the chart)
+    // rather than to an SVG path that cannot take focus.
+    const successorId = link?.getAttribute("data-link-to") ?? "";
+    const rows = successorId && target.ownerDocument
+      ? Array.from(target.ownerDocument.querySelectorAll<HTMLElement>("#cp-gantt [data-gantt-activity-id]"))
+      : [];
+    const successor = rows.find((row) => row.getAttribute("data-gantt-activity-id") === successorId) ?? null;
+    const chart = closest<HTMLElement>("#cp-gantt");
+    return { kind: "gantt-link", relationshipId, anchor: successor ?? chart ?? (link as unknown as HTMLElement) };
   }
   const header = closest<HTMLElement>("#cp-activity-grid thead th");
   if (header) {
@@ -1220,7 +1229,9 @@ function workspaceContextAt(target: HTMLElement): WorkspaceContextTarget | null 
   if (closest("#cp-gantt")) {
     const summary = closest<HTMLElement>("[data-gantt-summary]");
     const group = closest<HTMLElement>(".cp-gantt-group-row[data-gantt-wbs-id]");
-    const wbsTarget = summary ?? group;
+    // The group row carries the focusable identity; the summary bar inside it
+    // is decorative, so anchor to the row when the pointer lands on the bar.
+    const wbsTarget = group ?? summary;
     if (wbsTarget) {
       const wbsId = wbsTarget.getAttribute("data-gantt-wbs-id")
         ?? wbsTarget.closest<HTMLElement>("[data-gantt-wbs-id]")?.getAttribute("data-gantt-wbs-id")
@@ -2136,7 +2147,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <div class="cp-p6-primary">
               <div class="cp-layout-selector-host" data-layout-selector-host data-workspace-menu="schedule" role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activities layout", "چیدمان فعالیت‌ها"))}"></div>
               <section class="cp-p6-split" data-panel-split data-top-layout="${topLayout}" data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
-                <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
+                <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule" tabindex="-1">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
                     <div class="cp-p6-grid-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Activities toolbar", "نوار ابزار فعالیت‌ها"))}">
@@ -2158,7 +2169,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   })}
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="true" style="width:${activityTableWidth}px">
-                      <thead><tr role="row">${lineNumbers ? `<th role="columnheader" scope="col" class="cp-p6-line-number">#</th>` : ""}${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}"><span class="cp-p6-column-label">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</span><span class="cp-p6-column-resize" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${localizeWorkspaceLabel(state.locale, column.label)} column`, `تغییر عرض ستون ${localizeWorkspaceLabel(state.locale, column.label)}`))}" aria-valuemin="${MIN_COLUMN_WIDTH}" aria-valuemax="${MAX_COLUMN_WIDTH}" aria-valuenow="${column.width}" tabindex="0" data-resize-handle="column"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
+                      <thead><tr role="row">${lineNumbers ? `<th role="columnheader" scope="col" class="cp-p6-line-number">#</th>` : ""}${state.columns.map((column) => `<th role="columnheader" scope="col" tabindex="-1" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}"><span class="cp-p6-column-label">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</span><span class="cp-p6-column-resize" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${localizeWorkspaceLabel(state.locale, column.label)} column`, `تغییر عرض ستون ${localizeWorkspaceLabel(state.locale, column.label)}`))}" aria-valuemin="${MIN_COLUMN_WIDTH}" aria-valuemax="${MAX_COLUMN_WIDTH}" aria-valuenow="${column.width}" tabindex="0" data-resize-handle="column"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
                       <tbody>${displayRows.length ? activityRowMarkup : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2 + (lineNumbers ? 1 : 0))}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
                     </table>
                   </div>
@@ -2166,7 +2177,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 ${topLayout === "table-only" ? "" : `<div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(topLayout === "activity-network" ? uiText(state.locale, "Resize table and Activity Network", "تغییر اندازهٔ جدول و شبکهٔ فعالیت‌ها") : uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}" aria-valuemin="${MIN_TABLE_SPLIT}" aria-valuemax="${MAX_TABLE_SPLIT}" aria-valuenow="${tableSplit.toFixed(0)}" data-resize-handle="table-gantt"><span></span></div>
                 ${topLayout === "activity-network"
                   ? renderActivityNetwork(state.activities, state.relationships, state.locale, state.selectedActivityId)
-                  : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
+                  : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule" tabindex="-1">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
                   </div>
@@ -3773,7 +3784,7 @@ function renderGantt(
           : fullLabel;
     return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${compactDay ? " is-day" : ""}${compactMonth ? " is-month" : ""}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(label)}</span>`;
     }).join("");
-    return `<div class="cp-gantt-axis" data-timescale-lines="${timescale.lines}" data-timescale-format="${timescale.dateFormat}" data-timescale-interval="${timescale.interval}" data-timescale-type="${timescale.type}" style="height:${axisHeight}px;--cp-timescale-height:${axisHeight}px;--cp-timescale-font-size:${timescale.fontSize}px;--cp-timescale-color:${timescale.textColor};--cp-timescale-bg:${timescale.backgroundColor}"><div class="cp-gantt-axis-track">${groupRows}<div class="cp-gantt-timescale-ticks">${tickMarkup}</div></div></div>`;
+    return `<div class="cp-gantt-axis" tabindex="-1" data-timescale-lines="${timescale.lines}" data-timescale-format="${timescale.dateFormat}" data-timescale-interval="${timescale.interval}" data-timescale-type="${timescale.type}" style="height:${axisHeight}px;--cp-timescale-height:${axisHeight}px;--cp-timescale-font-size:${timescale.fontSize}px;--cp-timescale-color:${timescale.textColor};--cp-timescale-bg:${timescale.backgroundColor}"><div class="cp-gantt-axis-track">${groupRows}<div class="cp-gantt-timescale-ticks">${tickMarkup}</div></div></div>`;
   })();
   const linkSvg = showRelationships && links.length
     ? `<svg class="cp-gantt-links" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}" style="height:${rowsHeight}px"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" data-link-from-x="${link.fromX}" data-link-to-x="${link.toX}" data-link-lane-x="${link.laneX}" data-link-from-y="${link.fromY}" data-link-to-y="${link.toY}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"><title>${escapeHtml(`${link.type} ${link.predecessorId} → ${link.successorId}${link.lag ? ` (${ganttLagText(link.lag)}${link.lag.unit === "percent" ? "" : " " + link.lag.unit})` : ""}`)}</title></path><path class="cp-gantt-link-hit" data-gantt-link-hit="${escapeAttribute(link.relationshipId)}" d="${escapeAttribute(link.path)}" aria-hidden="true"></path>`).join("")}</svg>`
@@ -3934,7 +3945,7 @@ function renderGanttWbsRow(
     ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`
     : "";
   const color = wbsLevelColor(presentation.wbs, row.depth);
-  return `<div class="cp-gantt-row cp-gantt-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color}" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
+  return `<div class="cp-gantt-row cp-gantt-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" tabindex="-1" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color}" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
 }
 
 function renderGanttActivityRow(

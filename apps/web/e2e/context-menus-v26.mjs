@@ -120,6 +120,23 @@ async function clickCommand(page, command) {
   return true;
 }
 
+const activeElementState = `(() => {
+  const element = document.activeElement;
+  if (!element) return null;
+  const attribute = (name) => (typeof element.getAttribute === "function" ? element.getAttribute(name) : null);
+  return {
+    tag: element.tagName,
+    id: element.id ?? "",
+    className: typeof element.className === "string" ? element.className : (element.className?.baseVal ?? ""),
+    activityId: attribute("data-activity-id"),
+    ganttActivityId: attribute("data-gantt-activity-id"),
+    columnId: attribute("data-column-id"),
+    wbsRow: attribute("data-wbs-row"),
+    ganttWbsId: attribute("data-gantt-wbs-id"),
+    menuCommand: attribute("data-activity-menu-command"),
+  };
+})()`;
+
 function commandsOf(state) {
   return (state?.items ?? []).map((item) => item.command);
 }
@@ -301,6 +318,64 @@ async function tableRowContextScenarios(page, suffix) {
   check(`Shift+F10 opens the menu and focuses the first command (${suffix})`,
     Boolean(keyboardMenu) && keyboardMenu.focused !== null, { menu: keyboardMenu });
   await dismiss(page);
+}
+
+async function dismissalScenarios(page, suffix) {
+  // 1. Escape after a pointer invocation returns focus to the invoking row.
+  const rowId = await page.evaluate(`(() => document.querySelector("#cp-activity-grid tbody tr[data-activity-id]")?.getAttribute("data-activity-id") ?? null)()`);
+  await openMenuAt(page, "#cp-activity-grid tbody tr[data-activity-id]", { dx: 40, dy: 4 });
+  const rowMenuOpened = Boolean(await page.evaluate(menuState));
+  await dismiss(page);
+  const afterRowEscape = await page.evaluate(activeElementState);
+  check(`dismissal: Escape closes the pointer menu and returns focus to the activity row (${suffix})`,
+    rowMenuOpened && (await page.evaluate(menuState)) === null && afterRowEscape?.activityId === rowId,
+    { rowId, afterRowEscape });
+
+  // 2. An outside click dismisses the menu and never leaves focus on a command.
+  await openMenuAt(page, "#cp-activity-grid tbody tr[data-activity-id]", { dx: 40, dy: 4 });
+  const reopened = Boolean(await page.evaluate(menuState));
+  // The details heading is inert: clicking it cannot run a workspace command.
+  const outside = (await centerOf(page, "#cp-details h2")) ?? (await centerOf(page, ".cp-workspace"));
+  if (outside) await leftClickAt(page, outside.x, outside.y);
+  const afterOutside = await page.evaluate(activeElementState);
+  check(`dismissal: an outside click closes the menu without focusing a command (${suffix})`,
+    reopened && (await page.evaluate(menuState)) === null && !afterOutside?.menuCommand,
+    { reopened, outside, afterOutside });
+
+  // 3. Escape after a keyboard invocation restores focus to the same row.
+  await page.evaluate(`(() => {
+    const row = document.querySelector("#cp-activity-grid tbody tr[data-activity-id]");
+    row?.focus({ preventScroll: true });
+  })()`);
+  const focusedRow = await page.evaluate(`(() => document.activeElement?.getAttribute("data-activity-id") ?? null)()`);
+  await page.cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "F10", code: "F10", windowsVirtualKeyCode: 121, modifiers: 8 });
+  await page.cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "F10", code: "F10", windowsVirtualKeyCode: 121, modifiers: 8 });
+  await sleep(140);
+  const keyboardOpened = Boolean(await page.evaluate(menuState));
+  if (keyboardOpened) await dismiss(page);
+  const afterKeyboardEscape = await page.evaluate(activeElementState);
+  check(`dismissal: Escape returns focus to the row that opened the menu from the keyboard (${suffix})`,
+    Boolean(focusedRow) && keyboardOpened && afterKeyboardEscape?.activityId === focusedRow,
+    { focusedRow, afterKeyboardEscape });
+
+  // 4. A column header menu returns focus to that header.
+  const headerColumn = await page.evaluate(`(() => document.querySelector("#cp-activity-grid thead th[data-column-id]")?.getAttribute("data-column-id") ?? null)()`);
+  await openMenuAt(page, "#cp-activity-grid thead th[data-column-id]", { dx: 12, dy: 3 });
+  const headerOpened = Boolean(await page.evaluate(menuState));
+  await dismiss(page);
+  const afterHeaderEscape = await page.evaluate(activeElementState);
+  check(`dismissal: Escape returns focus to the column header (${suffix})`,
+    headerOpened && Boolean(headerColumn) && afterHeaderEscape?.columnId === headerColumn,
+    { headerColumn, afterHeaderEscape });
+
+  // 5. The Gantt timescale menu returns focus to the timescale axis.
+  await openMenuAt(page, "#cp-gantt .cp-gantt-axis", { dx: 30, dy: 2 });
+  const axisOpened = Boolean(await page.evaluate(menuState));
+  await dismiss(page);
+  const afterAxisEscape = await page.evaluate(activeElementState);
+  check(`dismissal: Escape returns focus to the Gantt timescale (${suffix})`,
+    axisOpened && /cp-gantt-axis/.test(afterAxisEscape?.className ?? ""),
+    { afterAxisEscape });
 }
 
 async function ganttContextScenarios(page, suffix) {
@@ -627,6 +702,7 @@ async function main() {
 
     // Phase A: English, 1440x900.
     await tableRowContextScenarios(page, "en-1440");
+    await dismissalScenarios(page, "en-1440");
     await toolbarScenario(page, "en-1440");
     await filterStateScenario(page, "en-1440");
     await ganttContextScenarios(page, "en-1440");
@@ -672,6 +748,7 @@ async function main() {
       { dir: rtlMenu?.dir, first: rtlMenu?.items[0]?.label });
     await page.screenshot("menu-table-row-fa-rtl.png");
     await dismiss(page);
+    await dismissalScenarios(page, "fa-1440");
     await detailsContextScenarios(page, "fa-1440");
     await page.evaluate(`(() => document.querySelector("[data-details-customize-close]")?.click())()`);
     await sleep(120);

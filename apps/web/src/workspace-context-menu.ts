@@ -96,13 +96,46 @@ function focusableItems(menu: HTMLElement): HTMLElement[] {
   return Array.from(menu.querySelectorAll<HTMLElement>("[data-activity-menu-command]:not(:disabled)"));
 }
 
+function escapeSelector(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
+  return value.replace(/["\\]/g, "\\$&");
+}
+
+/**
+ * Selection re-renders replace the row that opened a menu, so the element the
+ * menu was anchored to can be detached before Escape is pressed. Look the same
+ * logical object up again by its stable identity attributes so focus returns to
+ * the object the user was working on, not to the document body.
+ */
+function anchorCandidates(anchor: HTMLElement): string[] {
+  const candidates: string[] = [];
+  if (anchor.id) candidates.push(`#${escapeSelector(anchor.id)}`);
+  for (const name of ["data-activity-id", "data-gantt-activity-id", "data-column-id", "data-wbs-row", "data-gantt-wbs-id"]) {
+    const value = anchor.getAttribute(name);
+    if (value) candidates.push(`[${name}="${escapeSelector(value)}"]`);
+  }
+  return candidates;
+}
+
+function resolveAnchor(anchor: HTMLElement | null): HTMLElement | null {
+  if (!anchor) return null;
+  if (typeof anchor.isConnected !== "boolean" || anchor.isConnected) return anchor;
+  const scope = anchor.ownerDocument;
+  if (!scope) return null;
+  for (const selector of anchorCandidates(anchor)) {
+    const match = scope.querySelector<HTMLElement>(selector);
+    if (match) return match;
+  }
+  return null;
+}
+
 function close(restoreFocus: boolean): void {
   const previous = active;
   active = null;
   if (!previous) return;
   previous.element.remove();
   if (restoreFocus) {
-    const anchor = previous.anchor;
+    const anchor = resolveAnchor(previous.anchor);
     if (anchor && typeof anchor.isConnected === "boolean" && anchor.isConnected && typeof anchor.focus === "function") {
       anchor.focus({ preventScroll: true });
     }
