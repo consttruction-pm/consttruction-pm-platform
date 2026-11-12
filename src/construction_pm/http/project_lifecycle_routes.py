@@ -130,6 +130,7 @@ from ..risk_persistence import Risk
 from ..report_api import ReportAPI
 from ..report_parameters import ReportParameterError, bindings_from_payload
 from ..report_persistence import ReportDefinition
+from ..report_schedules import ReportSchedule, ReportScheduleError
 from ..administration_api import AdministrationAPI
 from ..exchange_api import ExchangeAPI
 from ..backup_api import BackupAPI
@@ -3398,6 +3399,50 @@ class ProjectLifecycleHttpRoutes:
                                 ),
                             )
 
+                        def _schedule_from_payload(
+                            report_id: str, schedule_id: str
+                        ) -> ReportSchedule:
+                            raw_parameters = payload.get("parameters")
+                            if raw_parameters is None:
+                                parameters: tuple[tuple[str, str], ...] = ()
+                            else:
+                                if not isinstance(raw_parameters, dict):
+                                    raise ReportScheduleError(
+                                        "INVALID_REPORT_SCHEDULE_PARAMETERS"
+                                    )
+                                pairs: list[tuple[str, str]] = []
+                                for key, value in raw_parameters.items():
+                                    if isinstance(value, bool):
+                                        text = "true" if value else "false"
+                                    elif isinstance(value, (str, int, float)):
+                                        text = str(value)
+                                    else:
+                                        raise ReportScheduleError(
+                                            "INVALID_REPORT_SCHEDULE_PARAMETERS"
+                                        )
+                                    pairs.append((str(key), text))
+                                parameters = tuple(pairs)
+                            return ReportSchedule(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                report_id=report_id,
+                                schedule_id=schedule_id,
+                                cadence=str(payload.get("cadence", "")),
+                                run_time=str(payload.get("run_time", "")),
+                                timezone=str(payload.get("timezone") or "UTC"),
+                                project_revision=payload.get(
+                                    "project_revision", context.revision
+                                ),
+                                export_format=str(
+                                    payload.get("export_format") or "csv"
+                                ),
+                                locale=str(payload.get("locale") or "en"),
+                                weekday=payload.get("weekday"),
+                                day_of_month=payload.get("day_of_month"),
+                                parameters=parameters,
+                                enabled=payload.get("enabled", True),
+                            )
+
                         try:
                             payload = (
                                 json.loads(body.decode("utf-8") or "{}") if body else {}
@@ -3568,6 +3613,121 @@ class ProjectLifecycleHttpRoutes:
                                         tenant_id=context.tenant_id,
                                         project_id=context.project_id,
                                         report_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 2
+                                and parts[1] == "schedules"
+                            ):
+                                return _report_reply(
+                                    self._report_api.list_schedules(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "POST"
+                                and len(parts) == 2
+                                and parts[1] == "schedules"
+                            ):
+                                raw_schedule_id = payload.get("schedule_id")
+                                if (
+                                    not isinstance(raw_schedule_id, str)
+                                    or not raw_schedule_id.strip()
+                                ):
+                                    raise ReportScheduleError(
+                                        "INVALID_REPORT_SCHEDULE_ID"
+                                    )
+                                return _report_reply(
+                                    self._report_api.create_schedule(
+                                        _schedule_from_payload(
+                                            parts[0], raw_schedule_id.strip()
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 3
+                                and parts[1] == "schedules"
+                            ):
+                                return _report_reply(
+                                    self._report_api.read_schedule(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        schedule_id=parts[2],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method in {"PUT", "PATCH"}
+                                and len(parts) == 3
+                                and parts[1] == "schedules"
+                            ):
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError(
+                                        "INVALID_EXPECTED_REPORT_SCHEDULE_REVISION"
+                                    )
+                                return _report_reply(
+                                    self._report_api.update_schedule(
+                                        _schedule_from_payload(parts[0], parts[2]),
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if (
+                                method == "DELETE"
+                                and len(parts) == 3
+                                and parts[1] == "schedules"
+                            ):
+                                expected = payload.get(
+                                    "expected_revision"
+                                ) or query.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError(
+                                            "INVALID_EXPECTED_REPORT_SCHEDULE_REVISION"
+                                        )
+                                return _report_reply(
+                                    self._report_api.delete_schedule(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        schedule_id=parts[2],
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 4
+                                and parts[1] == "schedules"
+                                and parts[3] == "history"
+                            ):
+                                return _report_reply(
+                                    self._report_api.schedule_history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        report_id=parts[0],
+                                        schedule_id=parts[2],
                                         context=auth,
                                     )
                                 )
