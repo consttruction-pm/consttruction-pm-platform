@@ -242,3 +242,27 @@ test("homepage messaging covers oil and gas, EPC and the nine requested locales 
   // marketing route, metadata and reciprocal language links are shipped.
   assert.ok(landing.includes('Object.freeze(["en", "fa"])'));
 });
+
+
+test("About Us is a first-class bilingual public route with approved founder facts and assistant integration", () => {
+  const english = readFileSync(join(root, "public/about/index.html"), "utf8");
+  const persian = readFileSync(join(root, "public/fa/about/index.html"), "utf8");
+  for (const [html, locale, direction] of [[english, "en", "ltr"], [persian, "fa", "rtl"]]) {
+    assert.match(html, new RegExp('<html lang="' + locale + '" dir="' + direction + '">'));
+    assert.match(html, /rel="canonical" href="__CUBI_BASE_URL__/);
+    assert.match(html, /hreflang="en"/);
+    assert.match(html, /hreflang="fa"/);
+    assert.match(html, /property="og:locale"/);
+    assert.match(html, /global-assistant-launcher\\.bundle\\.js/);
+    assert.match(html, /Founders and development team|بنیان‌گذاران و تیم توسعه/);
+  }
+  for (const name of ["Jalal Foroughi Fard", "Javad Foroughi Fard", "Mohammad Foroughi Fard", "Sam Foroughi Fard"]) {
+    assert.ok(english.includes(name), "Missing approved founder profile: " + name);
+  }
+  for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
+    assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
+  }
+  assert.match(landing, /href="\\.\\/about\\/">\\$\\{t\\.nav\\[4\\]\\}/);
+  assert.match(english, /href="\\.\\.\\/about\\/" aria-current="page">About Us/);
+  assert.match(persian, /href="\\.\\.\\/about\\/" aria-current="page">درباره ما/);
+});
