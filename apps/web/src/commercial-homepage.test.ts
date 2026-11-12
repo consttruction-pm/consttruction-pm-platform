@@ -69,7 +69,7 @@ test("the landing language follows its route and persists the accepted preferenc
   // instead of declaring a second constant that could silently diverge.
   assert.match(landing, /import \{ LANDING_LOCALE_STORAGE_KEY \} from "\.\/workspace-preferences\.js"/);
   assert.doesNotMatch(landing, /const LANDING_LOCALE_STORAGE_KEY/);
-  // A language route, not storage, owns the document language and its metadata.
+  // Complete public routes own their URL; homepage-only locales persist without a subpage route.
   assert.match(landing, /function restoreLandingLocale\(\): string \| null/);
   assert.match(landing, /function readSavedLandingLocale\(\): LandingLocale \| null/);
   assert.match(landing, /getLandingHomepageLocales\(\)\.includes\(saved\)/);
