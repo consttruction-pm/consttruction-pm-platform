@@ -10,11 +10,15 @@ import { translateUiString } from "./workspace-ui-translations.js";
 
 export const FINANCIAL_PERIOD_API_VERSION = "p6-financial-period-api.v1";
 export const BASELINE_API_VERSION = "p6-baseline-api.v1";
+export const BASELINE_CAPTURE_API_VERSION = "p6-baseline-capture-api.v1";
 export const EARNED_VALUE_API_VERSION = "p6-earned-value-read-model.v1";
 export const SCHEDULE_SETTINGS_API_VERSION = "p6-project-schedule-settings-api.v1";
 
 export const ETC_METHODS = ["REMAINING_COST", "PF_ONE", "PF_CPI", "PF_CPI_SPI", "USER_PF"] as const;
 export type EtcMethod = (typeof ETC_METHODS)[number];
+
+export const BASELINE_TYPES = ["PRIMARY", "SECONDARY", "TERTIARY", "USER_SELECTED"] as const;
+export type BaselineType = (typeof BASELINE_TYPES)[number];
 
 export const PERIOD_STATUSES = ["OPEN", "CLOSED"] as const;
 
@@ -32,6 +36,14 @@ export type BaselineRecord = {
   baselineType: string;
   sourceRevision: number;
   createdAt: string;
+};
+
+export type BaselineCaptureInput = {
+  baselineId: string;
+  name: string;
+  baselineType: BaselineType;
+  notes: string;
+  currency: string;
 };
 
 export type EarnedValueResult = {
@@ -103,6 +115,9 @@ type CostState = {
   measureError: string | null;
   periodDraft: FinancialPeriodInput;
   periodMode: "browse" | "create";
+  captureMode: "browse" | "create";
+  captureDraft: BaselineCaptureInput;
+  capturing: boolean;
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
 };
@@ -272,8 +287,12 @@ export function parseBaseline(value: unknown): BaselineRecord {
   if (!isRecord(value)) throw new Error("INVALID_BASELINE_RECORD");
   if (value.contract_version !== BASELINE_API_VERSION) throw new Error("INVALID_BASELINE_RESPONSE");
   if (value.kind !== "p6_baseline") throw new Error("INVALID_BASELINE_RESPONSE");
-  const payload = value.baseline;
-  if (!isRecord(payload)) throw new Error("INVALID_BASELINE_RESPONSE");
+  return parseBaselineMetadata(value.baseline);
+}
+
+function parseBaselineMetadata(value: unknown): BaselineRecord {
+  if (!isRecord(value)) throw new Error("INVALID_BASELINE_RESPONSE");
+  const payload = value;
   const baselineId = requiredText(payload.baseline_id, "INVALID_BASELINE_RECORD");
   const name = requiredText(payload.name, "INVALID_BASELINE_RECORD");
   const baselineType = requiredText(payload.baseline_type, "INVALID_BASELINE_RECORD");
@@ -448,6 +467,68 @@ function emptyPeriodDraft(): FinancialPeriodInput {
   return { periodId: "", name: "", startDate: "", endDate: "", status: "OPEN" };
 }
 
+function emptyCaptureDraft(): BaselineCaptureInput {
+  return { baselineId: "", name: "", baselineType: "PRIMARY", notes: "", currency: "" };
+}
+
+export function buildBaselineCapturePayload(
+  input: BaselineCaptureInput,
+  expectedRevision: number,
+): Record<string, unknown> {
+  const baselineId = input.baselineId.trim();
+  const name = input.name.trim();
+  if (!baselineId) throw new Error("BASELINE_ID_REQUIRED");
+  if (!name) throw new Error("BASELINE_NAME_REQUIRED");
+  if (!BASELINE_TYPES.includes(input.baselineType)) throw new Error("INVALID_BASELINE_TYPE");
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+    throw new Error("INVALID_EXPECTED_REVISION");
+  }
+  const payload: Record<string, unknown> = {
+    contract_version: BASELINE_CAPTURE_API_VERSION,
+    expected_revision: expectedRevision,
+    baseline_id: baselineId,
+    name,
+    baseline_type: input.baselineType,
+  };
+  const notes = input.notes.trim();
+  if (notes) payload.notes = notes;
+  const currency = input.currency.trim();
+  if (currency) payload.currency = currency;
+  return payload;
+}
+
+export async function captureBaseline(
+  transport: ApiTransport,
+  context: ProjectContext,
+  input: BaselineCaptureInput,
+): Promise<ApiResult<BaselineRecord>> {
+  let payload: Record<string, unknown>;
+  try {
+    payload = buildBaselineCapturePayload(input, context.revision);
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_BASELINE_CAPTURE");
+  }
+  const result = await transport.post<Record<string, unknown>, unknown>(
+    projectPath(context, "/p6/baselines/capture"),
+    payload,
+    context,
+  );
+  if (!result.ok) return result;
+  try {
+    const value = result.data;
+    if (
+      !isRecord(value) ||
+      value.contract_version !== BASELINE_CAPTURE_API_VERSION ||
+      value.kind !== "p6_baseline_capture"
+    ) {
+      throw new Error("INVALID_BASELINE_CAPTURE_RESPONSE");
+    }
+    return { ok: true, data: parseBaselineMetadata(value.baseline) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_BASELINE_CAPTURE_RESPONSE");
+  }
+}
+
 /** Read-only Cost overview bound to the authoritative cost and EVM read models. */
 export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptions): void {
   if (host.dataset.costMounted === "true") return;
@@ -476,6 +557,9 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
     measureError: null,
     periodDraft: emptyPeriodDraft(),
     periodMode: "browse",
+    captureMode: "browse",
+    captureDraft: emptyCaptureDraft(),
+    capturing: false,
     busy: false,
     notice: null,
   };
@@ -575,8 +659,20 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
     const baselineSelect = state.baselines.length
       ? `<select name="evm-baseline">${state.baselines.map((item) => `<option value="${escapeHtml(item.baselineId)}" ${item.baselineId === state.baselineId ? "selected" : ""}>${escapeHtml(`${item.baselineId} — ${item.name}`)}</option>`).join("")}</select>`
       : `<span class="cp-muted">${escapeHtml(t("No baseline is stored.", "هیچ مبنایی ذخیره نشده است."))}</span>`;
-    const canMeasure = state.baselines.length > 0 && !state.measuring;
     const currencies = currencyOptions();
+    const capturePanel = !canWrite
+      ? ""
+      : state.captureMode === "create"
+        ? `<form data-cost-capture-form class="cp-expense-fields">
+      <label>${escapeHtml(t("Baseline ID", "شناسه مبنا"))}<input name="capture-baseline-id" value="${escapeHtml(state.captureDraft.baselineId)}" required></label>
+      <label>${escapeHtml(t("Baseline Name", "نام مبنا"))}<input name="capture-name" value="${escapeHtml(state.captureDraft.name)}" required></label>
+      <label>${escapeHtml(t("Baseline Type", "نوع مبنا"))}<select name="capture-type">${BASELINE_TYPES.map((type) => `<option value="${type}" ${state.captureDraft.baselineType === type ? "selected" : ""}>${type}</option>`).join("")}</select></label>
+      <label>${escapeHtml(t("Currency", "ارز"))}<input name="capture-currency" value="${escapeHtml(state.captureDraft.currency)}" list="cp-cost-currencies" placeholder="${escapeHtml(currencies[0] ?? "")}"></label>
+      <label>${escapeHtml(t("Notes", "یادداشت"))}<input name="capture-notes" value="${escapeHtml(state.captureDraft.notes)}"></label>
+      <div class="cp-calendar-panel-actions"><button type="submit" ${state.capturing ? "disabled" : ""}>${escapeHtml(t("Capture current schedule", "ثبت زمان‌بندی جاری"))}</button><button type="button" data-cost-capture-action="cancel" ${state.capturing ? "disabled" : ""}>${escapeHtml(t("Cancel", "انصراف"))}</button></div>
+    </form>`
+        : `<div class="cp-register-toolbar"><span class="cp-muted">${escapeHtml(t("Capture the calculated schedule as an immutable baseline.", "زمان‌بندی محاسبه‌شده را به‌عنوان یک مبنای تغییرناپذیر ثبت کنید."))}</span><button type="button" data-cost-capture-action="new" ${state.busy || state.capturing ? "disabled" : ""}>${escapeHtml(t("Capture baseline", "ثبت مبنا"))}</button></div>`;
+    const canMeasure = state.baselines.length > 0 && !state.measuring;
     const datalist = currencies.length
       ? `<datalist id="cp-cost-currencies">${currencies.map((currency) => `<option value="${escapeHtml(currency)}"></option>`).join("")}</datalist>`
       : "";
@@ -589,6 +685,7 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
       <div class="cp-calendar-panel-actions"><button type="submit" ${canMeasure ? "" : "disabled"}>${escapeHtml(t("Measure earned value", "محاسبهٔ ارزش کسب‌شده"))}</button></div>
       ${datalist}
     </form>
+    ${capturePanel}
     ${state.baselinesStatus === "loading" ? `<p class="cp-muted">${escapeHtml(t("Reading baselines…", "در حال خواندن مبناها…"))}</p>` : ""}
     ${state.baselinesError ? `<p class="cp-calendar-notice" role="alert">${escapeHtml(t("Baselines could not be read", "خواندن مبناها ناموفق بود"))} (${escapeHtml(state.baselinesError)})</p>` : ""}
     ${!state.baselinesStatus.match(/^(idle|loading)$/) && !state.baselines.length ? `<p class="cp-register-notice">${escapeHtml(t("Earned-value measurement needs a stored baseline with baseline activities. This project has none, so no values are computed or displayed.", "محاسبهٔ ارزش کسب‌شده به یک مبنای ذخیره‌شده با فعالیت‌های مبنا نیاز دارد. این پروژه هیچ مبنایی ندارد؛ بنابراین هیچ مقداری محاسبه یا نمایش داده نمی‌شود."))}</p>` : ""}
@@ -650,6 +747,20 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
       startDate: String(data.get("period-start") ?? ""),
       endDate: String(data.get("period-end") ?? ""),
       status: String(data.get("period-status") ?? "OPEN"),
+    };
+  }
+
+  function readCaptureInput(form: HTMLFormElement): BaselineCaptureInput {
+    const data = new FormData(form);
+    const type = String(data.get("capture-type") ?? "USER_SELECTED");
+    return {
+      baselineId: String(data.get("capture-baseline-id") ?? ""),
+      name: String(data.get("capture-name") ?? ""),
+      baselineType: (BASELINE_TYPES as readonly string[]).includes(type)
+        ? (type as BaselineType)
+        : "USER_SELECTED",
+      notes: String(data.get("capture-notes") ?? ""),
+      currency: String(data.get("capture-currency") ?? ""),
     };
   }
 
@@ -727,6 +838,20 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
       state.periodDraft = emptyPeriodDraft();
       state.periodMode = "browse";
       render();
+      return;
+    }
+    const captureAction = target.closest<HTMLElement>("[data-cost-capture-action]")?.dataset.costCaptureAction;
+    if (captureAction === "new") {
+      state.captureDraft = emptyCaptureDraft();
+      state.captureDraft.currency = currencyOptions()[0] ?? "";
+      state.captureMode = "create";
+      render();
+      return;
+    }
+    if (captureAction === "cancel") {
+      state.captureDraft = emptyCaptureDraft();
+      state.captureMode = "browse";
+      render();
     }
   });
 
@@ -781,6 +906,45 @@ export function mountWorkspaceCostPage(host: HTMLElement, options: CostPageOptio
           state.periods = periods.data;
           state.periodsStatus = "loaded";
           state.periodsError = null;
+        }
+        render();
+      })();
+      return;
+    }
+    if (form.matches("[data-cost-capture-form]")) {
+      event.preventDefault();
+      if (state.capturing) return;
+      const input = readCaptureInput(form);
+      state.captureDraft = input;
+      void (async () => {
+        state.capturing = true;
+        state.notice = null;
+        render();
+        const result = await captureBaseline(transport, context, input);
+        state.capturing = false;
+        if (!result.ok) {
+          state.notice = {
+            kind: "error",
+            message: `${t("Baseline was not captured", "ثبت مبنا انجام نشد")} (${result.error.code})`,
+          };
+          state.captureMode = "create";
+          render();
+          return;
+        }
+        state.notice = {
+          kind: "ok",
+          message: t("Baseline captured from the calculated schedule.", "مبنا از زمان‌بندی محاسبه‌شده ثبت شد."),
+        };
+        state.captureMode = "browse";
+        state.captureDraft = emptyCaptureDraft();
+        state.baselineId = result.data.baselineId;
+        state.measured = null;
+        state.measureError = null;
+        const baselines = await loadBaselines(transport, context);
+        if (baselines.ok) {
+          state.baselines = baselines.data;
+          state.baselinesStatus = "loaded";
+          state.baselinesError = null;
         }
         render();
       })();

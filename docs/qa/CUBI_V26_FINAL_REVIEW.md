@@ -98,11 +98,12 @@ Blocking items (a named external dependency or a server capability is required):
 | ID | Class | Gap | Why it blocks |
 | --- | --- | --- | --- |
 | GAP-V26-01 | Evidence | No licensed Version 26 reference run exists in this environment | Numeric parity cannot be claimed; no row can be `IMPLEMENTED_AND_PARITY_TESTED` until an authorized dataset is available |
-| GAP-BAS-03 | Core/server | No HTTP route captures the current schedule into a baseline | Cost/EVM cannot run on an empty-baseline project; the page states this honestly |
 | GAP-PRJ-02 | Core/server | No close/archive/status lifecycle operation | The Project page cannot offer those actions without fabricating them |
 | GAP-DOC-02 | Core/server | No binary upload/download route | Documents store metadata plus `storage_ref` and SHA-256 only |
 | GAP-PRG-02 | Core/server | No persisted progress-update log or out-of-sequence review | Progress edits are revision-guarded but not historically logged |
 | GAP-TRK-01 | Core | No tracking read model | The Tracking window remains an honest shell |
+
+Resolved after the review snapshot: **GAP-BAS-03** — `p6-baseline-capture-api.v1` now captures the latest published schedule snapshot as immutable baseline activities from the Cost Overview; merged implementation `b04d851`, browser-verified at `2a1c6b3` with evidence `1b367ba`. The older GAP-COST-01 browser note that seeded baseline rows manually is superseded by the capture journey.
 
 Non-blocking gaps, recorded per surface in the two traceability matrices:
 

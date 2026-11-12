@@ -1,0 +1,167 @@
+{
+  "contract": "cubi-cost-capture-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "2a1c6b3c7d1a2bfebb590e101cd031059316c42d",
+  "testedCodeSha": "2a1c6b3",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T09:07:46.571Z",
+  "project": "preview-rps-01",
+  "baselineId": "E2E-BL-MWDBRJTJ",
+  "expenseId": "E2E-EXP-CAP-MWDBRJTJ",
+  "dataDate": "2026-10-12",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "baseline": "E2E-BL-MWDBRJTJ",
+      "budgetAtCompletion": "1000.00",
+      "plannedValue": "500.000",
+      "documentScrollWidth": 1366,
+      "viewportWidth": 1366
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "en",
+      "role": "planner",
+      "baselines": 1,
+      "direction": "ltr",
+      "documentScrollWidth": 1920,
+      "viewportWidth": 1920
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "fa",
+      "role": "viewer",
+      "direction": "rtl",
+      "documentScrollWidth": 1280,
+      "viewportWidth": 1280
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "fa",
+      "role": "planner",
+      "direction": "rtl",
+      "currencyDefault": "",
+      "documentScrollWidth": 1280,
+      "viewportWidth": 1280
+    }
+  ],
+  "scenarios": [
+    {
+      "baselines": 0,
+      "captureNew": true,
+      "id": "01",
+      "name": "Cost Overview without baselines shows the capture entry point and no fabricated values",
+      "status": "pass",
+      "at": "2026-11-12T09:07:49.907Z"
+    },
+    {
+      "expenseId": "E2E-EXP-CAP-MWDBRJTJ",
+      "activity": "A130",
+      "planned": "1000.00",
+      "id": "02",
+      "name": "a stored expense rolls into the captured baseline budget",
+      "status": "pass",
+      "at": "2026-11-12T09:07:49.921Z"
+    },
+    {
+      "metadata": {
+        "baseline_id": "E2E-BL-MWDBRJTJ",
+        "name": "E2E captured schedule",
+        "baseline_type": "USER_SELECTED",
+        "source_revision": 7,
+        "created_at": "2026-11-12T09:07:50.047502+00:00",
+        "notes": "Captured by the Cost Overview browser acceptance."
+      },
+      "listed": [
+        "E2E-BL-MWDBRJTJ"
+      ],
+      "id": "03",
+      "name": "capturing from the UI stores the calculated schedule as an immutable baseline",
+      "status": "pass",
+      "at": "2026-11-12T09:07:50.706Z"
+    },
+    {
+      "replayed": true,
+      "counts": {
+        "activities": 13,
+        "budgeted_cost": "1000.00"
+      },
+      "snapshot": "SNAP-PREVIEW-RPS01-001",
+      "excluded": [
+        "A100"
+      ],
+      "id": "04",
+      "name": "replaying the same capture is idempotent and never duplicates rows",
+      "status": "pass",
+      "at": "2026-11-12T09:07:50.718Z"
+    },
+    {
+      "status": "pass",
+      "code": "BASELINE_CAPTURE_STALE_REVISION",
+      "id": "05",
+      "name": "a stale revision is rejected with a conflict and the page stays unchanged",
+      "at": "2026-11-12T09:07:50.723Z"
+    },
+    {
+      "budgetAtCompletion": "1000.00",
+      "plannedValue": "500.000",
+      "earnedValue": "375.000",
+      "id": "06",
+      "name": "the captured baseline is measurable through the shared earned-value read model",
+      "status": "pass",
+      "at": "2026-11-12T09:07:51.391Z"
+    },
+    {
+      "baselines": [
+        "E2E-BL-MWDBRJTJ"
+      ],
+      "id": "07",
+      "name": "the captured baseline survives a full page reload",
+      "status": "pass",
+      "at": "2026-11-12T09:07:54.609Z"
+    },
+    {
+      "status": "pass",
+      "baselines": 1,
+      "direction": "rtl",
+      "id": "08",
+      "name": "a viewer sees the stored baseline read-only and cannot capture",
+      "at": "2026-11-12T09:07:59.619Z"
+    },
+    {
+      "direction": "rtl",
+      "currencyDefault": "",
+      "id": "09",
+      "name": "the capture form stays inside a 1280x720 Persian right-to-left workspace",
+      "status": "pass",
+      "at": "2026-11-12T09:08:04.962Z"
+    }
+  ],
+  "screenshots": [
+    "01-cost-empty.png",
+    "03-capture-form.png",
+    "03-captured-baseline-selected.png",
+    "06-evm-form.png",
+    "06-evm-result.png",
+    "07-after-reload-1920.png",
+    "08-fa-rtl-1280x720-viewer.png",
+    "09-fa-rtl-1280x720-capture-form.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T09:08:04.962Z"
+}

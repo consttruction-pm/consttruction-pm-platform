@@ -76,6 +76,11 @@ from ..p6_baseline_conversion_api import (
     P6_BASELINE_CONVERSION_API_VERSION,
     P6BaselineConversionAPI,
 )
+from ..p6_baseline_capture_api import (
+    P6_BASELINE_CAPTURE_API_VERSION,
+    P6BaselineCaptureAPI,
+)
+from ..p6_baseline_capture import P6BaselineCaptureError
 from ..p6_current_activity_value_repository import (
     P6CurrentActivityPersistenceError,
 )
@@ -243,6 +248,7 @@ class ProjectLifecycleHttpRoutes:
         p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
         p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
         p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
+        p6_baseline_capture_api: P6BaselineCaptureAPI | None = None,
         p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
@@ -298,6 +304,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_baseline_update_api = p6_baseline_update_api
         self._p6_baseline_assignment_api = p6_baseline_assignment_api
         self._p6_baseline_conversion_api = p6_baseline_conversion_api
+        self._p6_baseline_capture_api = p6_baseline_capture_api
         self._p6_earned_value_read_api = p6_earned_value_read_api
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
@@ -368,6 +375,11 @@ class ProjectLifecycleHttpRoutes:
                     return self._handle_form_route(
                         method, path, session_id=session_id, now=now, body=body, headers=request_headers
                     )
+            baseline_capture_response = self._handle_baseline_capture_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if baseline_capture_response is not None:
+                return baseline_capture_response
             baseline_update_response = self._handle_baseline_update_route(
                 method, path, session_id=session_id, now=now, body=body
             )
@@ -5870,6 +5882,119 @@ class ProjectLifecycleHttpRoutes:
         ):
             return cls._error(409, code, "error.p6.evm.conflict")
         return cls._error(400, code, "error.p6.evm.invalid")
+
+    def _handle_baseline_capture_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Capture the current calculated schedule as a new immutable baseline."""
+        marker = "/p6/baselines/capture"
+        if method != "POST" or not path.startswith("/api/projects/"):
+            return None
+        if not path.endswith(marker):
+            return None
+        project_id = path[len("/api/projects/"): -len(marker)].rstrip("/")
+        if not project_id or "/" in project_id:
+            return self._error(
+                400, "P6_BASELINE_CAPTURE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if self._p6_baseline_capture_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(session_id, project_id, now=now).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "P6_BASELINE_CAPTURE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "P6_BASELINE_CAPTURE_REQUEST_INVALID", "error.request.invalid"
+            )
+        allowed = {
+            "contract_version",
+            "expected_revision",
+            "baseline_id",
+            "name",
+            "baseline_type",
+            "notes",
+            "currency",
+            "earned_value_technique",
+        }
+        if set(payload) - allowed:
+            return self._error(
+                400, "P6_BASELINE_CAPTURE_REQUEST_INVALID", "error.request.invalid"
+            )
+        try:
+            result = self._p6_baseline_capture_api.capture(
+                scope,
+                baseline_id=payload.get("baseline_id", ""),
+                name=payload.get("name", ""),
+                expected_revision=payload.get("expected_revision"),
+                auth_context=auth,
+                baseline_type=payload.get("baseline_type", "USER_SELECTED"),
+                notes=payload.get("notes"),
+                currency=payload.get("currency"),
+                earned_value_technique=payload.get(
+                    "earned_value_technique",
+                    "ACTIVITY_PERCENT_COMPLETE",
+                ),
+                contract_version=payload.get(
+                    "contract_version", P6_BASELINE_CAPTURE_API_VERSION
+                ),
+            )
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6BaselineCaptureError as exc:
+            return self._baseline_capture_error(exc)
+        except (
+            P6BaselinePersistenceError,
+            P6BaselineActivityPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code in {
+                "REVISION_CONFLICT",
+                "IMMUTABLE_BASELINE",
+                "IMMUTABLE_BASELINE_ACTIVITIES",
+            }:
+                return self._error(409, code, "error.p6.baseline.capture.conflict")
+            return self._error(400, code, "error.p6.baseline.capture.invalid")
+        return self._json(200 if result["replayed"] else 201, result)
+
+    @classmethod
+    def _baseline_capture_error(
+        cls, exc: P6BaselineCaptureError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_CAPTURE_SCHEDULE_SNAPSHOT_MISSING":
+            return cls._error(404, code, "error.p6.baseline.capture.not_found")
+        if code.startswith("BASELINE_CAPTURE_ACTIVITY_NOT_FOUND:"):
+            return cls._error(404, code, "error.p6.baseline.capture.not_found")
+        if code in {
+            "BASELINE_CAPTURE_TARGET_EXISTS",
+            "BASELINE_CAPTURE_STALE_REVISION",
+            "BASELINE_CAPTURE_NO_MEASURABLE_ACTIVITIES",
+        } or code.startswith(
+            (
+                "BASELINE_CAPTURE_CURRENCY_MISMATCH:",
+                "BASELINE_CAPTURE_CURRENCY_AMBIGUOUS:",
+            )
+        ):
+            return cls._error(409, code, "error.p6.baseline.capture.conflict")
+        return cls._error(400, code, "error.p6.baseline.capture.invalid")
 
     def _handle_baseline_role_route(
         self,

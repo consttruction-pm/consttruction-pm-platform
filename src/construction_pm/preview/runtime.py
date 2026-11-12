@@ -160,6 +160,11 @@ from construction_pm.p6_baseline_assignment import (
     SQLiteP6BaselineRoleAssignmentRepository,
 )
 from construction_pm.p6_baseline_assignment_api import P6BaselineAssignmentAPI
+from construction_pm.p6_baseline_capture import (
+    P6BaselineCaptureService,
+    PublishedScheduleCaptureSource,
+)
+from construction_pm.p6_baseline_capture_api import P6BaselineCaptureAPI
 from construction_pm.p6_baseline_conversion import P6BaselineConversionService
 from construction_pm.p6_baseline_conversion_api import P6BaselineConversionAPI
 from construction_pm.p6_baseline_repository import (
@@ -1505,6 +1510,18 @@ def open_preview_runtime(
         ),
         policy,
     )
+    baseline_capture_api = P6BaselineCaptureAPI(
+        P6BaselineCaptureService(
+            baseline_repository=repositories.baselines,
+            baseline_activity_repository=repositories.baseline_activities,
+            activity_repository=repositories.activities,
+            assignment_repository=repositories.resource_assignments,
+            expense_repository=repositories.expenses,
+            schedule_source=PublishedScheduleCaptureSource(facts_provider),
+            transaction_manager=repositories.transaction_manager,
+        ),
+        policy,
+    )
 
     def _evm_resolver(scope: BackendScope) -> WorkingTimeResolver:
         """Resolve the persisted project calendar for this EVM measurement."""
@@ -1708,6 +1725,7 @@ def open_preview_runtime(
         p6_baseline_update_api=baseline_update_api,
         p6_baseline_assignment_api=baseline_assignment_api,
         p6_baseline_conversion_api=baseline_conversion_api,
+        p6_baseline_capture_api=baseline_capture_api,
         p6_earned_value_read_api=earned_value_read_api,
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
