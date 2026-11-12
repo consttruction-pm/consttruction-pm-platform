@@ -201,6 +201,15 @@ export type WorkspaceState = {
   visiblePanels: Record<WorkspacePanel, boolean>;
   selectedWbsId: string | null;
   selectedActivityId: string | null;
+  /**
+   * Ctrl/Cmd-click and Shift-click selection in the Activities table and
+   * Gantt. ``selectedActivityId`` stays the primary row (the one whose details
+   * are shown); this list carries every selected row. Older states without the
+   * list fall back to the single primary id.
+   */
+  selectedActivityIds?: readonly string[];
+  /** Fixed end of a Shift-click range, set by the last Ctrl/Cmd-click. */
+  selectionAnchorId?: string | null;
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
   wbsNodes: readonly WorkspaceWbsNode[];
@@ -316,7 +325,13 @@ export function selectWbs(state: WorkspaceState, wbsId: string | null): Workspac
     ...state,
     selectedWbsId: wbsId,
     selectedActivityId: null,
+    selectedActivityIds: [],
+    selectionAnchorId: null,
   };
+}
+
+export function selectedActivityIdList(state: WorkspaceState): readonly string[] {
+  return state.selectedActivityIds ?? (state.selectedActivityId ? [state.selectedActivityId] : []);
 }
 
 export function selectActivity(state: WorkspaceState, activityId: string | null): WorkspaceState {
@@ -327,6 +342,58 @@ export function selectActivity(state: WorkspaceState, activityId: string | null)
   return {
     ...state,
     selectedActivityId: activityId,
+    selectedActivityIds: activityId ? [activityId] : [],
+    selectionAnchorId: activityId,
+  };
+}
+
+/** Ctrl/Cmd-click: add or remove one row while keeping the other selections. */
+export function toggleActivitySelection(state: WorkspaceState, activityId: string): WorkspaceState {
+  if (!state.activities.some((activity) => activity.id === activityId)) {
+    throw new Error("ACTIVITY_NOT_FOUND");
+  }
+  const current = selectedActivityIdList(state);
+  const removing = current.includes(activityId);
+  const ids = removing ? current.filter((id) => id !== activityId) : [...current, activityId];
+  // Adding focuses the clicked row; removing keeps the current primary while
+  // it is still selected, otherwise the last remaining row becomes primary.
+  const primary = removing
+    ? state.selectedActivityId && ids.includes(state.selectedActivityId)
+      ? state.selectedActivityId
+      : ids[ids.length - 1] ?? null
+    : activityId;
+  return {
+    ...state,
+    selectedActivityId: primary,
+    selectedActivityIds: ids,
+    selectionAnchorId: removing ? state.selectionAnchorId ?? primary : activityId,
+  };
+}
+
+/**
+ * Shift-click: select the inclusive range between the fixed anchor and the
+ * target in the order the rows are displayed. The target becomes the primary
+ * row while the anchor stays fixed for the next range click.
+ */
+export function selectActivityRange(
+  state: WorkspaceState,
+  activityId: string,
+  orderedIds: readonly string[],
+): WorkspaceState {
+  if (!state.activities.some((activity) => activity.id === activityId)) {
+    throw new Error("ACTIVITY_NOT_FOUND");
+  }
+  const anchor = state.selectionAnchorId ?? state.selectedActivityId ?? activityId;
+  const from = orderedIds.indexOf(anchor);
+  const to = orderedIds.indexOf(activityId);
+  if (from < 0 || to < 0) return selectActivity(state, activityId);
+  const [start, end] = from <= to ? [from, to] : [to, from];
+  const ids = orderedIds.slice(start, end + 1);
+  return {
+    ...state,
+    selectedActivityId: activityId,
+    selectedActivityIds: [...ids],
+    selectionAnchorId: anchor,
   };
 }
 
@@ -827,10 +894,15 @@ export function withActivities(
     }
   }
 
+  const selectedActivityIds = selectedActivityIdList(state).filter((id) => ids.has(id));
   const selectedActivityId =
-    state.selectedActivityId && ids.has(state.selectedActivityId)
+    state.selectedActivityId && selectedActivityIds.includes(state.selectedActivityId)
       ? state.selectedActivityId
-      : null;
+      : selectedActivityIds[selectedActivityIds.length - 1] ?? null;
+  const selectionAnchorId =
+    state.selectionAnchorId && selectedActivityIds.includes(state.selectionAnchorId)
+      ? state.selectionAnchorId
+      : selectedActivityId;
 
   return {
     ...state,
@@ -842,6 +914,8 @@ export function withActivities(
       }),
     ),
     selectedActivityId,
+    selectedActivityIds,
+    selectionAnchorId,
   };
 }
 

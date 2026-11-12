@@ -24,6 +24,8 @@ import {
   toggleActivitySortDirection,
   updateP6FieldPresentation,
   selectActivity,
+  selectActivityRange,
+  toggleActivitySelection,
   selectWbs,
   setP6Presentation,
   setLocale,
@@ -2229,11 +2231,21 @@ function renderApp(
         notice.textContent = error instanceof Error ? error.message : "ACTIVITY_LOAD_FAILED";
       }
     },
-    onActivitySelect: (activityId) => {
-      renderApp(container, selectActivity(state, activityId), persistence);
+    onActivitySelect: (activityId, selection) => {
+      const next = selection?.range
+        ? selectActivityRange(state, activityId, selection.orderedIds ?? [])
+        : selection?.additive
+          ? toggleActivitySelection(state, activityId)
+          : selectActivity(state, activityId);
+      renderApp(container, next, persistence);
     },
-    onGanttActivitySelect: (activityId) => {
-      renderApp(container, selectActivity(state, activityId), persistence);
+    onGanttActivitySelect: (activityId, selection) => {
+      const next = selection?.range
+        ? selectActivityRange(state, activityId, selection.orderedIds ?? [])
+        : selection?.additive
+          ? toggleActivitySelection(state, activityId)
+          : selectActivity(state, activityId);
+      renderApp(container, next, persistence);
     },
     onGanttScaleChange: (ganttScale) => {
       renderApp(container, setGanttScale(state, ganttScale), persistence);

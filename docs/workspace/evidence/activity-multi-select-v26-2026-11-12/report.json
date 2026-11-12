@@ -1,0 +1,116 @@
+{
+  "contract": "cubi-activity-multi-select-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "0a56e7a29e2bfd700aeb9b7f0d98d39cbb899ff4",
+  "testedCodeSha": "0a56e7a29e2bfd700aeb9b7f0d98d39cbb899ff4",
+  "capturedAt": "2026-11-12T10:17:23.245Z",
+  "cells": [
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "direction": "ltr",
+      "role": "planner"
+    },
+    {
+      "viewport": "1280x720",
+      "locale": "fa",
+      "direction": "rtl",
+      "role": "planner"
+    }
+  ],
+  "scenarios": [
+    {
+      "selected": [
+        "A100"
+      ],
+      "id": "01",
+      "name": "a plain click selects exactly one row",
+      "status": "pass",
+      "at": "2026-11-12T10:17:26.680Z"
+    },
+    {
+      "selected": [
+        "A100",
+        "A210"
+      ],
+      "primary": "A210",
+      "id": "02",
+      "name": "Ctrl-click adds a row and focuses its details",
+      "status": "pass",
+      "at": "2026-11-12T10:17:27.092Z"
+    },
+    {
+      "selected": [
+        "A210",
+        "A120",
+        "A130"
+      ],
+      "anchor": "A210",
+      "id": "03",
+      "name": "Shift-click selects the inclusive range from the fixed anchor",
+      "status": "pass",
+      "at": "2026-11-12T10:17:27.509Z"
+    },
+    {
+      "remaining": [
+        "A210"
+      ],
+      "id": "04",
+      "name": "Ctrl-click removes only the clicked row",
+      "status": "pass",
+      "at": "2026-11-12T10:17:28.185Z"
+    },
+    {
+      "selected": [
+        "A110"
+      ],
+      "id": "05",
+      "name": "a plain click collapses back to one row",
+      "status": "pass",
+      "at": "2026-11-12T10:17:28.523Z"
+    },
+    {
+      "table": [
+        "A110",
+        "A210"
+      ],
+      "gantt": [
+        "A110",
+        "A210"
+      ],
+      "id": "06",
+      "name": "the Gantt shares the same multi-row selection",
+      "status": "pass",
+      "at": "2026-11-12T10:17:28.942Z"
+    },
+    {
+      "selected": [],
+      "id": "07",
+      "name": "a full reload clears the in-memory selection",
+      "status": "pass",
+      "at": "2026-11-12T10:17:30.378Z"
+    },
+    {
+      "locale": "fa",
+      "selected": [
+        "A100",
+        "A110",
+        "A210"
+      ],
+      "id": "08",
+      "name": "Shift-range selection works in the Persian RTL layout",
+      "status": "pass",
+      "at": "2026-11-12T10:17:32.405Z"
+    }
+  ],
+  "screenshots": [
+    "01-single-select.png",
+    "02-ctrl-select.png",
+    "03-shift-range.png",
+    "04-gantt-selection.png",
+    "05-fa-shift-range.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

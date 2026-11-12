@@ -5,7 +5,10 @@ import {
   addFormulaColumn,
   applyAuthoritativeScheduleFacts,
   createWorkspaceState,
+  selectedActivityIdList,
   selectActivity,
+  selectActivityRange,
+  toggleActivitySelection,
   selectWbs,
   setCalendarMode,
   setGanttScale,
@@ -131,6 +134,77 @@ test("WBS selection clears Activity selection", () => {
 
   state = selectWbs(state, "W-2");
   assert.equal(state.selectedWbsId, "W-2");
+  assert.equal(state.selectedActivityId, null);
+});
+
+test("Ctrl-click toggles rows while keeping the primary selection", () => {
+  let state = createWorkspaceState(context);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Walls" },
+    { id: "A-3", wbsId: "W-1", code: "A-3", name: "Roof" },
+  ]);
+  state = selectActivity(state, "A-1");
+  state = toggleActivitySelection(state, "A-3");
+  assert.deepEqual(selectedActivityIdList(state), ["A-1", "A-3"]);
+  assert.equal(state.selectedActivityId, "A-3", "the added row becomes primary");
+  assert.equal(state.selectionAnchorId, "A-3");
+
+  state = toggleActivitySelection(state, "A-2");
+  assert.deepEqual(selectedActivityIdList(state), ["A-1", "A-3", "A-2"]);
+  assert.equal(state.selectedActivityId, "A-2");
+
+  state = toggleActivitySelection(state, "A-2");
+  assert.deepEqual(selectedActivityIdList(state), ["A-1", "A-3"]);
+  assert.equal(state.selectedActivityId, "A-3", "removing the primary keeps a selected primary");
+
+  state = toggleActivitySelection(state, "A-1");
+  state = toggleActivitySelection(state, "A-3");
+  assert.deepEqual(selectedActivityIdList(state), []);
+  assert.equal(state.selectedActivityId, null);
+});
+
+test("Shift-click selects the inclusive displayed range from the fixed anchor", () => {
+  let state = createWorkspaceState(context);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Walls" },
+    { id: "A-3", wbsId: "W-1", code: "A-3", name: "Roof" },
+    { id: "A-4", wbsId: "W-1", code: "A-4", name: "Fitout" },
+  ]);
+  const order = ["A-1", "A-2", "A-3", "A-4"];
+  state = selectActivity(state, "A-2");
+  state = selectActivityRange(state, "A-4", order);
+  assert.deepEqual(selectedActivityIdList(state), ["A-2", "A-3", "A-4"]);
+  assert.equal(state.selectedActivityId, "A-4");
+  assert.equal(state.selectionAnchorId, "A-2", "the anchor stays fixed");
+
+  state = selectActivityRange(state, "A-1", order);
+  assert.deepEqual(selectedActivityIdList(state), ["A-1", "A-2"]);
+  assert.equal(state.selectedActivityId, "A-1");
+  assert.equal(state.selectionAnchorId, "A-2");
+});
+
+test("reloading activities prunes selections that no longer exist", () => {
+  let state = createWorkspaceState(context);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Walls" },
+    { id: "A-3", wbsId: "W-1", code: "A-3", name: "Roof" },
+  ]);
+  state = selectActivity(state, "A-1");
+  state = selectActivityRange(state, "A-3", ["A-1", "A-2", "A-3"]);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+    { id: "A-3", wbsId: "W-1", code: "A-3", name: "Roof" },
+  ]);
+  assert.deepEqual(selectedActivityIdList(state), ["A-1", "A-3"]);
+  assert.equal(state.selectedActivityId, "A-3");
+
+  state = withActivities(state, [
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Walls" },
+  ]);
+  assert.deepEqual(selectedActivityIdList(state), []);
   assert.equal(state.selectedActivityId, null);
 });
 

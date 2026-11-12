@@ -1118,13 +1118,35 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false"[^>]*>/);
+  assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="true"[^>]*>/);
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" data-activity-kind="task" tabindex="0" aria-selected="true" aria-label="A-1"/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*><span class="cp-p6-tree-guides"[^>]*><span class="cp-p6-activity-cell">.*A-1<\/span><\/span><\/td>/);
 });
 
+
+test("the activity grid marks every row in the shared selection", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [
+      { id: "A-1", wbsId: "W-1", code: "01", name: "Foundation", cells: { activity_name: "Foundation" } },
+      { id: "A-2", wbsId: "W-1", code: "02", name: "Walls", cells: { activity_name: "Walls" } },
+      { id: "A-3", wbsId: "W-1", code: "03", name: "Roof", cells: { activity_name: "Roof" } },
+    ],
+    selectedActivityId: "A-2",
+    selectedActivityIds: ["A-1", "A-2"],
+    selectionAnchorId: "A-1",
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const selected = [...container.innerHTML.matchAll(/data-activity-id="(A-\d)"[^>]*aria-selected="true"/g)].map((match) => match[1]);
+  assert.deepEqual(selected, ["A-1", "A-2"]);
+  assert.match(container.innerHTML, /data-activity-id="A-3"[^>]*aria-selected="false"/);
+});
 
 test("Gantt activity selection responds to Enter and Space keyboard activation", () => {
   const state = {
