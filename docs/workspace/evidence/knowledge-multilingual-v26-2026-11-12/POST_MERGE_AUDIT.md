@@ -37,7 +37,7 @@ A claim is only `VERIFIED` when a test or a live probe on the merged tree shows 
 | Human review/publication of real cards | PARTIAL | the evidence database is 100% `draft`; only the disposable smoke copy publishes one Russian locale |
 | Supplementary 815-page PDF | BLOCKED_EXTERNAL | not supplied; recorded MISSING/VERIFY, nothing extracted |
 | Browser-level acceptance of the integrated product | NOT RUN | unit/API acceptance only; no browser evidence claimed |
-| Knowledge HTTP middleware mounted in a composed application | NOT_IMPLEMENTED at `835c1fc` | only tests/tools constructed it; addressed by the follow-up runtime-mount branch, not by this audit |
+| Knowledge HTTP middleware mounted in a composed application | VERIFIED at `51a83f3` (PR #1813) | the preview composition mounts it and `tests/knowledge/test_runtime_mount.py` serves knowledge beside the real lifecycle app, including a full ten-step creation |
 
 ## Independent re-audit (2026-11-12)
 
