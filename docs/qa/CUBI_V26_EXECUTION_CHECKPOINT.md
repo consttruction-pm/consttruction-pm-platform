@@ -2664,7 +2664,7 @@ Recorded provenance:
 | Implementation commit | `0a56e7a` |
 | Browser-tested code SHA | `0a56e7a29e2bfd700aeb9b7f0d98d39cbb899ff4` |
 | Evidence | `docs/workspace/evidence/activity-multi-select-v26-2026-11-12/` (`report.json` `gitHead`) |
-| Branch | `feat/v26-activity-multi-select` |
+| Branch | `feat/v26-activity-multi-select` (PR [#1790](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1790)) |
 
 ### Status after this increment
 
