@@ -99,10 +99,47 @@ Declared runtime dependencies: `reportlab>=4.4,<5`, `arabic-reshaper>=3.0,<4`,
 `python-bidi>=0.6,<0.7`. Tests use `pypdf` (declared in the `test` extra) to
 assert page count, metadata and extracted text.
 
+## Parameters
+
+A definition may bind a subset of the parameters its subject supports:
+
+| Subject | Parameter | Type | Filter |
+|---|---|---|---|
+| activities | `status` | enum (`Not Started`, `In Progress`, `Completed`) | exact stored status |
+| activities | `activity_type` | enum (P6 activity types) | exact stored type |
+| activities | `actual_start_from` | date | `actual_start >= value`; null dates excluded |
+| activities | `actual_start_to` | date | `actual_start <= value`; null dates excluded |
+| resources | `resource_type` | enum (`labor`, `nonlabor`, `material`) | exact stored type |
+| resources | `is_active` | boolean | exact stored flag |
+| risks | `status` | enum (`open`, `monitoring`, `mitigating`, `closed`) | exact stored status |
+| risks | `category` | enum (risk categories) | case-insensitive exact category |
+| risks | `min_score` | integer | `score >= value` |
+
+- A binding stores only `key`, `required` and an optional `default`; labels,
+  types and enum choices come from the server catalogue, so a client cannot
+  widen an enum or inject a label.
+- `GET .../reports/catalogue` advertises `parameters` per subject.
+- `POST .../reports/{id}/run` accepts `{"parameters": {...}}`. Values are
+  canonicalized (trimmed strings, integer/decimal/date/boolean canonical form).
+- A missing required value is `400 REPORT_PARAMETER_REQUIRED`; an unbound or
+  unknown key is `400 REPORT_PARAMETER_UNKNOWN`; a type or enum violation is
+  `400 REPORT_PARAMETER_INVALID`; a non-object/duplicate binding list is
+  rejected as `400 INVALID_REPORT_PARAMETER_LIST` / `400
+  REPORT_PARAMETER_DUPLICATED`.
+- The stored run records the resolved `parameters` plus `parameter_sources`
+  (`explicit` or `default`), so provenance is reproducible after the definition
+  changes. Filtering reads only stored snapshot rows and never invents a row.
+- Bindings participate in the definition fingerprint: reusing an idempotency
+  key with different parameters returns `409 REPORT_IDEMPOTENCY_KEY_REUSE` and
+  increments the definition revision on update.
+- `SQLiteReportStore.initialize()` adds `parameters_json` to existing
+  definition/run tables with empty defaults, so pre-parameter databases keep
+  reading; a migration test covers this path.
+
 ## Out of scope in this slice
 
-- Parameterized definitions and typed parameter provenance.
 - Durable scheduled runs, retry/idempotent delivery and delivery checksums.
+- A PostgreSQL report store: the report register remains SQLite-only.
 - The Web download wiring (owned by Agent 1); this contract is the backend seam.
 - Persian catalogue labels for table headers: the stored catalogue labels are
   English today and are used verbatim in all formats.

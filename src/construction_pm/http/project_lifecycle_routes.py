@@ -128,6 +128,7 @@ from ..cost_api import CostAPI
 from ..risk_api import RiskAPI
 from ..risk_persistence import Risk
 from ..report_api import ReportAPI
+from ..report_parameters import ReportParameterError, bindings_from_payload
 from ..report_persistence import ReportDefinition
 from ..administration_api import AdministrationAPI
 from ..exchange_api import ExchangeAPI
@@ -3383,14 +3384,18 @@ class ProjectLifecycleHttpRoutes:
                             if not isinstance(raw_columns, list):
                                 raise ValueError("REPORT_COLUMNS_REQUIRED")
                             columns = tuple(str(column) for column in raw_columns)
+                            subject = str(payload.get("subject", ""))
                             return ReportDefinition(
                                 tenant_id=context.tenant_id,
                                 project_id=context.project_id,
                                 report_id=report_id,
                                 name=str(payload.get("name", "")),
                                 description=str(payload.get("description") or ""),
-                                subject=str(payload.get("subject", "")),
+                                subject=subject,
                                 columns=columns,
+                                parameters=bindings_from_payload(
+                                    subject, payload.get("parameters")
+                                ),
                             )
 
                         try:
@@ -3476,6 +3481,20 @@ class ProjectLifecycleHttpRoutes:
                                     )
                                 )
                             if method == "POST" and len(parts) == 2 and parts[1] == "run":
+                                parameters: dict[str, object] | None = None
+                                if body:
+                                    run_payload = json.loads(
+                                        body.decode("utf-8") or "{}"
+                                    )
+                                    if not isinstance(run_payload, dict):
+                                        raise ValueError("REPORT_REQUEST_INVALID")
+                                    raw_parameters = run_payload.get("parameters")
+                                    if raw_parameters is not None:
+                                        if not isinstance(raw_parameters, dict):
+                                            raise ValueError(
+                                                "REPORT_PARAMETERS_INVALID"
+                                            )
+                                        parameters = raw_parameters
                                 return _report_reply(
                                     self._report_api.run_report(
                                         tenant_id=context.tenant_id,
@@ -3485,6 +3504,7 @@ class ProjectLifecycleHttpRoutes:
                                         context=auth,
                                         actor_id=session.user_id,
                                         occurred_at=now,
+                                        parameters=parameters,
                                     )
                                 )
                             if method == "GET" and len(parts) == 2 and parts[1] == "runs":
@@ -3554,6 +3574,8 @@ class ProjectLifecycleHttpRoutes:
                             return self._error(
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"
                             )
+                        except ReportParameterError as exc:
+                            return self._error(400, str(exc), "error.request.invalid")
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"

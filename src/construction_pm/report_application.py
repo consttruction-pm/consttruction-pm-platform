@@ -33,6 +33,11 @@ from .report_export import (
     ReportExportError,
     build_report_export,
 )
+from .report_parameters import (
+    ReportParameterError,
+    apply_parameters,
+    resolve_parameters,
+)
 
 
 class ReportAuthorizationError(ValueError):
@@ -45,7 +50,11 @@ class ReportDatasetError(ValueError):
 
 class ReportDatasetSource(Protocol):
     def build(
-        self, scope: BackendScope, subject: str, columns: tuple[str, ...]
+        self,
+        scope: BackendScope,
+        subject: str,
+        columns: tuple[str, ...],
+        parameters: Mapping[str, str] | None = None,
     ) -> tuple[Mapping[str, Any], ...]: ...
 
 
@@ -72,14 +81,22 @@ class AuthoritativeReportDataset:
     risk_store: object
 
     def build(
-        self, scope: BackendScope, subject: str, columns: tuple[str, ...]
+        self,
+        scope: BackendScope,
+        subject: str,
+        columns: tuple[str, ...],
+        parameters: Mapping[str, str] | None = None,
     ) -> tuple[Mapping[str, Any], ...]:
         scope.validate()
         if subject not in {"activities", "resources", "risks"}:
             raise ReportDatasetError("INVALID_REPORT_SUBJECT")
         try:
             rows = tuple(self._rows(scope, subject))
+            if parameters:
+                rows = apply_parameters(subject, rows, parameters)
         except ReportDatasetError:
+            raise
+        except ReportParameterError:
             raise
         except Exception as exc:  # noqa: BLE001 - bounded dataset boundary
             raise ReportDatasetError("REPORT_DATASET_UNAVAILABLE") from exc
@@ -318,6 +335,7 @@ class ReportApplicationService:
         context: AuthorizationContext,
         actor_id: str,
         occurred_at: datetime,
+        parameters: Mapping[str, object] | None = None,
     ) -> ReportRun:
         self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
         if actor_id != context.user_id:
@@ -334,8 +352,14 @@ class ReportApplicationService:
             stored = self.store.get_definition(tenant_id, project_id, report_id)
             columns = stored.definition.columns
             subject = stored.definition.subject
+            resolved = resolve_parameters(
+                subject, stored.definition.parameters, parameters
+            )
             rows = self.dataset.build(
-                BackendScope(tenant_id, project_id, project_revision), subject, columns
+                BackendScope(tenant_id, project_id, project_revision),
+                subject,
+                columns,
+                resolved.mapping(),
             )
             run = ReportRun(
                 run_id=self.store.next_run_id(tenant_id, project_id, report_id),
@@ -349,6 +373,8 @@ class ReportApplicationService:
                 rows=rows,
                 generated_at=occurred_at,
                 generated_by=actor_id,
+                parameters=resolved.values,
+                parameter_sources=resolved.sources,
             )
             return self.store.save_run(run)
 
@@ -387,7 +413,9 @@ class ReportApplicationService:
             return conflict_error("REPORT_IDEMPOTENCY_KEY_REUSE", str(exc))
         if isinstance(exc, ReportAuthorizationError):
             return authorization_error(str(exc), str(exc))
-        if isinstance(exc, (ReportPersistenceError, ReportDatasetError)):
+        if isinstance(
+            exc, (ReportPersistenceError, ReportDatasetError, ReportParameterError)
+        ):
             return validation_error(str(exc), str(exc))
         if isinstance(exc, ReportExportError):
             return validation_error(str(exc), str(exc))

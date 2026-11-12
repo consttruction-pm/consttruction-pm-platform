@@ -14,6 +14,7 @@ from .report_export import (
     REPORT_EXPORT_LOCALES,
     ReportExportDocument,
 )
+from .report_parameters import parameter_catalogue
 from .report_persistence import (
     ReportAuditEvent,
     ReportDefinition,
@@ -37,6 +38,7 @@ class ReportAPI:
             "subjects": report_catalogue(),
             "export_formats": list(REPORT_EXPORT_FORMATS),
             "export_locales": list(REPORT_EXPORT_LOCALES),
+            "parameters": parameter_catalogue(),
         }
 
     def list_definitions(
@@ -193,6 +195,7 @@ class ReportAPI:
         context: AuthorizationContext,
         actor_id: str,
         occurred_at: datetime,
+        parameters: dict[str, object] | None = None,
     ) -> dict[str, Any]:
         try:
             return _run(
@@ -204,6 +207,7 @@ class ReportAPI:
                     context=context,
                     actor_id=actor_id,
                     occurred_at=occurred_at,
+                    parameters=parameters,
                 )
             )
         except Exception as exc:
@@ -299,6 +303,8 @@ def _run_summary(run: ReportRun) -> dict[str, Any]:
         "row_count": len(run.rows),
         "generated_at": run.generated_at.isoformat(),
         "generated_by": run.generated_by,
+        "parameters": dict(run.parameters),
+        "parameter_sources": dict(run.parameter_sources),
     }
 
 
