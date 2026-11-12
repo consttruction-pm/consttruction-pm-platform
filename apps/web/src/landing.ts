@@ -383,6 +383,9 @@ function restoreLandingLocale(): string | null {
   // translated, indexable subpage routes. The document lang/dir is updated
   // together with the selected homepage copy.
   locale = saved ?? DEFAULT_LANDING_LOCALE;
+  if (saved && getLandingLanguageRoutes().includes(saved)) {
+    return resolveLandingLanguageHref(saved, window.location.pathname);
+  }
   return null;
 }
 function readSavedLandingLocale(): LandingLocale | null {
