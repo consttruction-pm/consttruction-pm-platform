@@ -1,10 +1,10 @@
 {
   "contract": "cubi-workspace-visual-acceptance-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "9378378b6b22e65f77afa5c9e5892d9de384b88f",
-  "testedCodeSha": "9378378b6b22e65f77afa5c9e5892d9de384b88f",
+  "gitHead": "b20501f587a2673dd81271af6e1090b6284c091f",
+  "testedCodeSha": "b20501f587a2673dd81271af6e1090b6284c091f",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T08:14:50.545Z",
+  "capturedAt": "2026-11-12T08:33:57.312Z",
   "cells": [
     {
       "viewport": {
@@ -1233,5 +1233,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T08:15:20.311Z"
+  "finishedAt": "2026-11-12T08:34:27.149Z"
 }

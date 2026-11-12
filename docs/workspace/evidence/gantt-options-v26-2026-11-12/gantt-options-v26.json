@@ -1,0 +1,354 @@
+{
+  "contract": "cubi-gantt-options-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "b20501f587a2673dd81271af6e1090b6284c091f",
+  "testedCodeSha": "b20501f587a2673dd81271af6e1090b6284c091f",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T08:33:08.511Z",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "baseline": {
+        "scale": "month",
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "rowHeightMismatch": 0,
+        "bands": 7,
+        "ganttGroups": 7,
+        "ticks": 4,
+        "periodGroups": 2,
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 6,
+          "critical": 7
+        },
+        "legend": null,
+        "sight": {
+          "majorHorizontal": 0,
+          "minorHorizontal": 0,
+          "minorVertical": 0
+        },
+        "contentWidth": 800,
+        "chartClientWidth": 638,
+        "chartScrollLeft": 0,
+        "trackWidth": 800
+      },
+      "legendTop": {
+        "position": "top",
+        "items": 7,
+        "kinds": [
+          "task",
+          "critical",
+          "summary",
+          "milestone",
+          "progress",
+          "actual",
+          "baseline"
+        ]
+      },
+      "legendBottom": {
+        "position": "bottom",
+        "items": 7,
+        "chartGap": 68.2
+      },
+      "sight": {
+        "majorHorizontal": 7,
+        "minorHorizontal": 10,
+        "minorVertical": 3
+      },
+      "filtered": {
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 13
+        }
+      },
+      "hidden": {
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 13
+        },
+        "legendItems": 6
+      },
+      "scales": [
+        {
+          "scale": "year",
+          "contentWidth": 520,
+          "ticks": 1,
+          "periods": 2
+        },
+        {
+          "scale": "quarter",
+          "contentWidth": 640,
+          "ticks": 2,
+          "periods": 0
+        },
+        {
+          "scale": "month",
+          "contentWidth": 800,
+          "ticks": 4,
+          "periods": 2
+        },
+        {
+          "scale": "week",
+          "contentWidth": 1100,
+          "ticks": 11,
+          "periods": 2
+        },
+        {
+          "scale": "day",
+          "contentWidth": 1600,
+          "ticks": 38,
+          "periods": 2
+        }
+      ],
+      "zoom": {
+        "out": "quarter",
+        "in": "month",
+        "fitted": "month"
+      },
+      "collapse": {
+        "collapsedRows": 0,
+        "expandedRows": 14
+      },
+      "final": {
+        "scale": "month",
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "rowHeightMismatch": 0,
+        "bands": 7,
+        "ganttGroups": 7,
+        "ticks": 4,
+        "periodGroups": 2,
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 6,
+          "critical": 7
+        },
+        "legend": null,
+        "sight": {
+          "majorHorizontal": 0,
+          "minorHorizontal": 0,
+          "minorVertical": 0
+        },
+        "contentWidth": 800,
+        "chartClientWidth": 638,
+        "chartScrollLeft": 0,
+        "trackWidth": 800
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "fa",
+      "baseline": {
+        "scale": "month",
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "rowHeightMismatch": 0,
+        "bands": 7,
+        "ganttGroups": 7,
+        "ticks": 4,
+        "periodGroups": 2,
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 6,
+          "critical": 7
+        },
+        "legend": null,
+        "sight": {
+          "majorHorizontal": 0,
+          "minorHorizontal": 0,
+          "minorVertical": 0
+        },
+        "contentWidth": 800,
+        "chartClientWidth": 638,
+        "chartScrollLeft": 0,
+        "trackWidth": 800
+      },
+      "legendTop": {
+        "position": "top",
+        "items": 7,
+        "kinds": [
+          "task",
+          "critical",
+          "summary",
+          "milestone",
+          "progress",
+          "actual",
+          "baseline"
+        ]
+      },
+      "legendBottom": {
+        "position": "bottom",
+        "items": 7,
+        "chartGap": 68.2
+      },
+      "sight": {
+        "majorHorizontal": 7,
+        "minorHorizontal": 10,
+        "minorVertical": 3
+      },
+      "filtered": {
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 13
+        }
+      },
+      "hidden": {
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 13
+        },
+        "legendItems": 6
+      },
+      "scales": [
+        {
+          "scale": "year",
+          "contentWidth": 520,
+          "ticks": 1,
+          "periods": 2
+        },
+        {
+          "scale": "quarter",
+          "contentWidth": 640,
+          "ticks": 2,
+          "periods": 0
+        },
+        {
+          "scale": "month",
+          "contentWidth": 800,
+          "ticks": 4,
+          "periods": 2
+        },
+        {
+          "scale": "week",
+          "contentWidth": 1100,
+          "ticks": 11,
+          "periods": 2
+        },
+        {
+          "scale": "day",
+          "contentWidth": 1600,
+          "ticks": 38,
+          "periods": 2
+        }
+      ],
+      "zoom": {
+        "out": "quarter",
+        "in": "month",
+        "fitted": "month"
+      },
+      "collapse": {
+        "collapsedRows": 0,
+        "expandedRows": 14
+      },
+      "final": {
+        "scale": "month",
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "rowHeightMismatch": 0,
+        "bands": 7,
+        "ganttGroups": 7,
+        "ticks": 4,
+        "periodGroups": 2,
+        "bars": 17,
+        "barsByKind": {
+          "milestone": 1,
+          "actual": 3,
+          "task": 6,
+          "critical": 7
+        },
+        "legend": null,
+        "sight": {
+          "majorHorizontal": 0,
+          "minorHorizontal": 0,
+          "minorVertical": 0
+        },
+        "contentWidth": 800,
+        "chartClientWidth": 638,
+        "chartScrollLeft": 0,
+        "trackWidth": 800
+      }
+    }
+  ],
+  "screenshots": [
+    "gantt-legend-top-1366x768-en.png",
+    "gantt-legend-bottom-1366x768-en.png",
+    "gantt-sight-lines-1366x768-en.png",
+    "gantt-bar-filter-1366x768-en.png",
+    "gantt-scale-year-1366x768-en.png",
+    "gantt-scale-quarter-1366x768-en.png",
+    "gantt-scale-month-1366x768-en.png",
+    "gantt-scale-week-1366x768-en.png",
+    "gantt-scale-day-1366x768-en.png",
+    "gantt-zoom-fit-1366x768-en.png",
+    "gantt-collapsed-1366x768-en.png",
+    "gantt-legend-top-1366x768-fa.png",
+    "gantt-legend-bottom-1366x768-fa.png",
+    "gantt-sight-lines-1366x768-fa.png",
+    "gantt-bar-filter-1366x768-fa.png",
+    "gantt-scale-year-1366x768-fa.png",
+    "gantt-scale-quarter-1366x768-fa.png",
+    "gantt-scale-month-1366x768-fa.png",
+    "gantt-scale-week-1366x768-fa.png",
+    "gantt-scale-day-1366x768-fa.png",
+    "gantt-zoom-fit-1366x768-fa.png",
+    "gantt-collapsed-1366x768-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T08:33:50.948Z"
+}
