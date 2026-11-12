@@ -2290,3 +2290,66 @@ Recorded provenance:
   scroll-sync are not audited; Add/Delete bar and some bar shapes remain absent.
 - Activity Details tab content, context-menu completeness, and the large-project
   calculation-scope tests remain on the priority-zero queue.
+
+## Priority Zero — Fit measures the visible Gantt pane (2026-11-12)
+
+Previous increment merged: PR [#1784](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1784)
+squashed as `d7629a8`; all five post-merge workflows on that commit are green
+(ConstructionPM CI, ConstructionPM Web CI, Client Typecheck, PostgreSQL Sync State Integration,
+Deploy CUBI Web to GitHub Pages).
+
+### Defect and fix
+
+`view.fit` always jumped to the month scale. In a pane narrower than the month timeline (800 px)
+that created horizontal scrolling; it never used the width of the pane it was asked to fill.
+
+- `fitGanttScale(viewportWidthPx)` in `apps/web/src/workspace-gantt.ts` returns the finest of
+  day/week/month/quarter/year whose `GANTT_CONTENT_WIDTH` (1600/1100/800/640/520) fits the pane,
+  keeps year as the floor, and returns month for an unlaid-out pane (0/NaN).
+- `GANTT_CONTENT_WIDTH` and `GANTT_SCALE_ORDER` moved to `workspace-gantt.ts`;
+  `apps/web/src/workspace-view.ts` imports the table instead of declaring a second copy.
+- `view.fit` in `apps/web/src/main.ts` measures `#cp-gantt .cp-gantt-chart` and passes its
+  `clientWidth`; a hidden Gantt or the Activity Network keeps the documented month default.
+
+### Help and tests
+
+- Help: [Zoom in and out of a timescaled layout](https://docs.oracle.com/cd/G48902_01/client_help/en_US/zoom_in_and_out_of_a_timescaled_layout.htm).
+- Unit: `fitGanttScale` boundaries 1600/1100/800/640/520 plus 0/NaN, and the strictly decreasing
+  width table, in `apps/web/src/workspace-gantt.test.ts` (879 `tsx` tests total).
+- Browser: new `apps/web/e2e/gantt-fit-v26.mjs` (contract `cubi-gantt-fit-v26.v1`) at
+  1366×768 and 1920×1080 in en/LTR and fa/RTL. It starts at year, runs Fit, and asserts the chosen
+  width fits the measured pane, no finer scale would have fitted, a still-wider scale keeps a
+  scroll range reaching its content end, the wider window never selects a coarser scale, and the
+  page does not overflow. The five-scale Gantt-options suite still passes on the same code; it was
+  run with `CUBI_GANTT_EVIDENCE_DIR=/tmp/gantt-options-check` so the merged 2026-11-12 evidence
+  directory was not overwritten.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 879 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Build | `cd apps/web && npm run build` | `dist/web/src/main.bundle.js` contains `fitGanttScale` |
+| Fit acceptance | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=08302a5 node e2e/gantt-fit-v26.mjs` | 4/4 cells pass, 4 screenshots, 0 exceptions/console errors/5xx |
+| Gantt options regression | same command with `e2e/gantt-options-v26.mjs` | 2/2 cells pass (Fit now year at the 638 px pane) |
+| Pane 638 px | 1366×768 en/fa | year (520 ≤ 638), chart scroll range equals the pane (fa adds 5 px of RTL axis decoration) |
+| Pane 915 px | 1920×1080 en/fa | month (800 ≤ 915); week (1100) does not fit, so it is not chosen |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `08302a5df027b7c454352a00afa03881db8de5a1` |
+| Acceptance harness | `ca7cc4f` |
+| Evidence commit | `f2523c1a342c0e6a5a2533de0f547b297dc31321` |
+| Branch | `feat/v26-gantt-fit` |
+| PR | opened after this record; see the next checkpoint entry for the merge SHA |
+
+### Status after this increment
+
+- ACT-008 pane-aware Fit: `WIRED_READ`.
+- Remaining honest gap: Fit is stepped by the five documented scales, not continuous; free pan,
+  horizontal/vertical scroll-sync and pixel-level fit are still unimplemented or unaudited.
+- Activity Details tab content, context-menu completeness, WBS/Gantt scroll-sync and the
+  large-project calculation-scope tests remain on the priority-zero queue.
