@@ -337,7 +337,7 @@ export function getLandingLanguageRoutes(available: readonly string[] = getAvail
 
 /** Locales with complete homepage copy. This list does not imply translated subpages. */
 export function getLandingHomepageLocales(available: readonly string[] = getAvailableWorkspaceLocales()): string[] {
-  return LANDING_HOMEPAGE_LOCALES.filter((code) => available.includes(code));
+  return LANDING_HOMEPAGE_LOCALES.filter((code) => available.includes(code) || (code.startsWith("zh-") && available.includes("zh")));
 }
 
 /**
@@ -404,6 +404,12 @@ function persistLandingLocale(): void {
 function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
   document.documentElement.dir = getWorkspaceLocaleDirection(locale);
+  const localized = getLandingCopy(locale);
+  document.title = `${localized.title} ${localized.accent} | CUBI Platform`;
+  const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+  if (description) description.content = localized.body;
+  const ogLocale = document.querySelector<HTMLMetaElement>('meta[property="og:locale"]');
+  if (ogLocale) ogLocale.content = ({ en: "en_US", fa: "fa_IR", de: "de_DE", "zh-Hans": "zh_CN", "zh-Hant": "zh_TW", ar: "ar_SA", fr: "fr_FR", ja: "ja_JP", ko: "ko_KR", ru: "ru_RU" } as Record<string, string>)[locale] ?? "en_US";
 }
 function getLandingCopy(requestedLocale: LandingLocale): LandingCopy & { chrome: LandingChromeCopy } {
   const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
@@ -498,7 +504,7 @@ function renderLanding(container: HTMLElement): void {
           <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
-          <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => `<option value="${code}"${code === locale ? " selected" : ""}>${getWorkspaceLocaleDisplayName(code)}</option>`).join("")}</select></label>
+          <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
           <a href="${workspaceHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
@@ -547,6 +553,11 @@ function renderLanding(container: HTMLElement): void {
     persistLandingLocale();
     renderLanding(container);
     setLandingDocumentLocale();
+    // Only English and Persian have complete public subpage routes. Keep
+    // homepage-only locales on the root homepage instead of routing them into
+    // a Persian or English subpage by accident.
+    const targetHome = resolveLandingLanguageHref(next === "fa" ? "fa" : "en", window.location.pathname);
+    if (targetHome !== window.location.pathname) window.location.assign(targetHome);
   });
 }
 export function renderLandingPage(container: HTMLElement): void {
