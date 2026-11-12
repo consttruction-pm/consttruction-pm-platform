@@ -124,6 +124,8 @@ const measurement = `(() => {
   const trackWidth = track ? track.getBoundingClientRect().width : contentWidth;
   const trackLeft = track ? track.getBoundingClientRect().left : 0;
   const labels = [...document.querySelectorAll("#cp-gantt .cp-gantt-bar-label")];
+  const nonWorking = [...document.querySelectorAll("#cp-gantt [data-gantt-nonworking]")];
+  const nonWorkingBounds = nonWorking.map((band) => band.getBoundingClientRect());
   const clippedLabels = labels.filter((label) => {
     const r = label.getBoundingClientRect();
     return r.right - trackLeft > trackWidth + 1 || r.left - trackLeft < -1;
@@ -182,6 +184,13 @@ const measurement = `(() => {
     labels: labels.length,
     clippedLabels,
     unresolvedEdgeLabels,
+    nonWorking: {
+      total: nonWorking.length,
+      weekend: nonWorking.filter((band) => band.dataset.ganttNonworking === "weekend").length,
+      holiday: nonWorking.filter((band) => band.dataset.ganttNonworking === "holiday").length,
+      outside: nonWorkingBounds.filter((r) => r.left < trackLeft - 1 || r.right > trackLeft + trackWidth + 1).length,
+      holidayDates: [...new Set(nonWorking.filter((band) => band.dataset.ganttNonworking === "holiday").map((band) => band.dataset.nonworkingFrom))],
+    },
     bars: document.querySelectorAll("#cp-gantt [data-gantt-bar-kind], #cp-gantt [data-gantt-summary]").length,
   };
 })()`;
@@ -209,6 +218,10 @@ function verify(state, label) {
   assert(details.height > 40 && details.width > 100, `${label}: details pane is collapsed (${details.width}x${details.height})`);
   assert(state.clippedLabels.length === 0, `${label}: clipped bar labels ${JSON.stringify(state.clippedLabels)}`);
   assert(state.unresolvedEdgeLabels.length === 0, `${label}: edge labels not resolved ${JSON.stringify(state.unresolvedEdgeLabels)}`);
+  assert(state.nonWorking.total > 0, `${label}: no calendar non-working shading`);
+  assert(state.nonWorking.weekend > 0, `${label}: calendar snapshot shows no weekend shading`);
+  assert(state.nonWorking.holiday > 0, `${label}: calendar snapshot shows no holiday shading ${JSON.stringify(state.nonWorking.holidayDates)}`);
+  assert(state.nonWorking.outside === 0, `${label}: ${state.nonWorking.outside} non-working bands escape the plotted timeline`);
 }
 
 async function ensureActivitiesLayout(page) {

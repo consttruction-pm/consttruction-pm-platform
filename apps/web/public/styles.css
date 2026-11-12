@@ -5732,6 +5732,11 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-axis-tick.is-day { font-size: 0; }
 .cp-p6 .cp-gantt-axis-tick.is-day::after { content: attr(data-gantt-day); font-size: var(--cp-timescale-font-size, 11px); }
 .cp-p6 .cp-gantt-body { position: relative; width: 100%; min-width: var(--cp-gantt-content-width, 100%); background: #ffffff; }
+/* Calendar nonwork time: the persisted project calendar paints weekends and
+   holidays behind grid lines and rows; no schedule date is moved. */
+.cp-p6 .cp-gantt-nonworking { position: absolute; inset-block: 0; inset-inline: 0; z-index: 0; pointer-events: none; }
+.cp-p6 .cp-gantt-nonworking-band { position: absolute; top: 0; bottom: 0; background: rgba(120, 132, 146, .16); }
+.cp-p6 .cp-gantt-nonworking-band.is-holiday { background: rgba(191, 87, 66, .22); }
 .cp-p6 .cp-gantt-grid { position: absolute; inset-block: 0; inset-inline: 0; z-index: 0; pointer-events: none; }
 .cp-p6 .cp-gantt-grid-line { position: absolute; top: 0; bottom: 0; width: 0; border-inline-start: 1px dotted #b3b3b3; }
 /* Sight Lines tab: minor vertical lines follow the visible timescale ticks and

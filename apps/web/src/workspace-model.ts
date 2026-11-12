@@ -31,6 +31,25 @@ export type WorkspaceCalendarCatalog = {
   calendars: readonly WorkspaceCalendarRecord[];
   errorCode: string | null;
 };
+
+/**
+ * Version-bound non-working facts of the project's primary calendar.
+ *
+ * The Gantt may only shade days the persisted calendar snapshot marks as
+ * non-working; it never derives a workweek from the schedule dates. An empty
+ * weekday list means the snapshot could not establish a workweek, so no
+ * shading is attempted instead of guessing.
+ */
+export type WorkspaceProjectCalendar = {
+  status: "not-loaded" | "loaded" | "unavailable";
+  calendarId: string | null;
+  calendarVersion: string | null;
+  /** Python weekday numbers: Monday = 0 ... Sunday = 6. */
+  workingWeekdays: readonly number[];
+  /** Canonical ISO Gregorian holiday dates stored in the calendar snapshot. */
+  holidays: readonly string[];
+  errorCode: string | null;
+};
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
@@ -175,6 +194,7 @@ export type WorkspaceState = {
   direction: "rtl" | "ltr";
   calendarMode: WorkspaceCalendarMode;
   calendarCatalog: WorkspaceCalendarCatalog;
+  projectCalendar: WorkspaceProjectCalendar;
   ganttScale: WorkspaceGanttScale;
   showGanttRelationships: boolean;
   activeMenu: WorkspaceMenuKey;
@@ -250,6 +270,7 @@ export function createWorkspaceState(
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
+    projectCalendar: { status: "not-loaded", calendarId: null, calendarVersion: null, workingWeekdays: [], holidays: [], errorCode: null },
     ganttScale: "month",
     showGanttRelationships: true,
     activeMenu: "schedule",

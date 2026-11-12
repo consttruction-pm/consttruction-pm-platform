@@ -972,6 +972,7 @@ function renderApp(
   const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
       locale: state.locale,
       calendarMode: state.calendarMode,
+      primaryCalendarId: activeProjectSummary?.project_id === state.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
     });
     if (!refreshed.ok) throw new Error(refreshed.error.code);
     let nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);
@@ -2518,6 +2519,7 @@ function renderApp(
         const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
           locale: state.locale,
           calendarMode: state.calendarMode,
+          primaryCalendarId: activeProjectSummary?.project_id === state.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
         });
         if (!refreshed.ok) return;
         const nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);

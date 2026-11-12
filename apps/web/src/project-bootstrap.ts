@@ -215,7 +215,14 @@ export class ProjectBootstrap {
     // The language is part of the read: server-backed guidance and every
     // localized projection must be produced in the language the user chose,
     // instead of defaulting to English and only relabelling the shell.
-    const workspace = await this.dependencies.workspaceReadClient.load(context, { locale });
+    const summary = this.projects.find((project) => project.project_id === projectContext.project_id) ?? null;
+    const workspace = await this.dependencies.workspaceReadClient.load(context, {
+      locale,
+      // The Gantt shades non-working days from this project's persisted
+      // calendar, so the summary's reference travels with the read instead of
+      // being guessed from the calendar catalogue.
+      primaryCalendarId: summary?.primary_calendar_id ?? null,
+    });
     if (!this.isCurrent(generation)) return null;
     if (!workspace.ok) return { status: "error", error: workspace.error };
 

@@ -1,6 +1,6 @@
-import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
+import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -2134,7 +2134,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                       <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
                     </div>
                   </div>
-                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null)}
+                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null, state.projectCalendar)}
                 </section>`}`}
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -3635,6 +3635,7 @@ function renderGantt(
   presentation: WorkspacePresentation,
   locale: string,
   dataDate: string | null = null,
+  projectCalendar: WorkspaceProjectCalendar | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -3774,6 +3775,17 @@ function renderGantt(
       .map((tick) => `<span class="cp-gantt-grid-line is-minor" data-gantt-grid-minor="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
       .join("")
     : "";
+  // Non-working shading comes from the primary calendar's persisted snapshot.
+  // It paints behind grid lines and rows and never changes a schedule date.
+  const nonWorkingBands = projectCalendar?.status === "loaded"
+    ? createGanttNonWorkingBands(scale, {
+      workingWeekdays: projectCalendar.workingWeekdays,
+      holidays: projectCalendar.holidays,
+    })
+    : [];
+  const nonWorkingLayer = nonWorkingBands.length
+    ? `<div class="cp-gantt-nonworking" aria-hidden="true">${nonWorkingBands.map((band) => `<span class="cp-gantt-nonworking-band is-${band.kind}" data-gantt-nonworking="${band.kind}" data-nonworking-from="${band.fromDate}" data-nonworking-to="${band.toDate}" data-nonworking-days="${band.days}" style="left:${ganttRound(band.leftPercent)}%;width:${ganttRound(band.widthPercent)}%" title="${escapeAttribute(`${band.kind === "holiday" ? "Holiday" : "Non-working day"} ${band.fromDate}${band.toDate === band.fromDate ? "" : ` – ${band.toDate}`}`)}"></span>`).join("")}</div>`
+    : "";
   // Horizontal sight lines: one before every summary band, plus the documented
   // row interval. They live in the body layer so they scroll with the chart.
   const horizontalSight: string[] = [];
@@ -3823,7 +3835,7 @@ function renderGantt(
   const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
   const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, calendarMode);
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
 
 function renderGanttRows(
