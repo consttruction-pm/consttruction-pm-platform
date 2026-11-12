@@ -1860,5 +1860,99 @@ Recorded provenance (two independent facts):
 
 ### Next stage
 
-Stage F3 (Import/Export: search, remote/data exchange and round-trip validation), Stage F4
-(Backup/Recovery), then Stage G canonical workspace integration and the final review report.
+Stage F4 (Backup/Recovery), then Stage G canonical workspace integration and the final review
+report.
+
+## Stage F3 — Project CSV import/export with validated resource writes
+
+Date: 2026-11-12. Contract: `p6-exchange-api.v1`. Window: Import / Export (20th workspace menu).
+
+### What shipped
+
+1. **Import-run ledger and idempotency store** (`exchange_persistence.py`): SQLite tables
+   `project_exchange_import_run` (tenant/project scope, run id, dataset, mode, row counts, content
+   SHA-256, actor, timestamp, idempotency key, stored result) and `project_exchange_idempotency`;
+   run ids are `EXR-<dataset>-<n>` per project and the store exposes history newest first.
+2. **Dataset catalogue and export** (`exchange_application.py`): `activities`, `resources` and
+   `risks` are exported from their authoritative repositories at the current project revision with
+   fixed contract columns (`resource_id`…`is_active`, `activity_id`…`wbs_id`, `risk_id`…`date_identified`).
+   Only `resources` is importable; `activities` and `risks` reject imports with
+   `EXCHANGE_DATASET_READ_ONLY`, unknown datasets with `EXCHANGE_DATASET_UNKNOWN`.
+3. **Strict CSV validation before any write**: required header, unknown/missing columns
+   (`EXCHANGE_COLUMN_MISSING`/`EXCHANGE_COLUMN_UNKNOWN`), row arity, empty content and the
+   1,000,000-character ceiling, duplicate ids in the file, ids that already exist
+   (`RESOURCE_ALREADY_EXISTS`), unknown parents (`RESOURCE_PARENT_NOT_FOUND`), hierarchy cycles
+   (`RESOURCE_HIERARCHY_CYCLE`), calendar existence, resource type, email, units and active-flag
+   validation. Every error carries the 1-based row number (header is row 1), field and code; a
+   preview returns `accepted`/`rejected` counts and never writes.
+4. **Parents-first apply through the resource API**: accepted rows are ordered by hierarchy depth
+   then id and created through `P6ResourceAPI.create`, so authorization, calendar checks, parent
+   existence and audit stay in one authoritative path. Apply requires an idempotency key
+   (`EXCHANGE_IDEMPOTENCY_KEY_REQUIRED`), replays the stored run for identical content and key,
+   and rejects key reuse for different content (`EXCHANGE_IDEMPOTENCY_KEY_REUSE`, 409). Reads
+   require `PROJECT_READ`, imports require `PROJECT_WRITE`; a viewer direct write receives 403
+   `EXCHANGE_PERMISSION_DENIED`. Cross-scope calls fail `CROSS_SCOPE_ACCESS`.
+5. **Preview, production and workspace wiring**: the preview runtime composes
+   `SQLiteExchangeStore` → `ExchangeService` → `ExchangeAPI` over the activity/resource/risk
+   repositories and the shared authorization policy; production composition accepts an optional
+   `ExchangeAPI`, and the WSGI boundary carries `/exchange` query strings. The window
+   (`workspace-exchange.ts`, menu key `exchange`) mounts Export, Import and Import History tabs:
+   dataset switch with contract table and CSV download, dataset selector plus pasted/selected CSV
+   content, validation summary with row/field/code errors, apply for `planner`/`project_admin`
+   writer roles, created ids and the run history table.
+
+### Honest limits
+
+- Only resources can be imported. Activities and risks are export-only readbacks; there is no
+  activity, relationship, WBS, cost or assignment import.
+- There is no global search, “Find”, remote-project exchange or round-trip re-import of an edited
+  export; UTIL-002's search and remote-data-exchange requirements remain unimplemented.
+- Validation covers the resource contract only: no cross-file reference checks beyond parents and
+  calendars, no unit-of-measure or rate/limit import, no dry-run diff against current values, and
+  previews are capped at 20 returned rows in the payload (counts cover the whole file).
+- Import history is append-only with no delete, retry-from-history, download of the applied file
+  or per-row audit detail; the run stores the result JSON but no Postgres mirror.
+- The CSV parser is a strict single-line, comma-separated reader: no quoted fields, embedded
+  commas/newlines, delimiters other than comma or XLSX/JSON formats.
+- Exports read the SQLite preview repositories; the production Postgres resource mirror is not
+  exercised by the default suite.
+- New labels are inline English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 858 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Exchange web suite | `apps/web/src/workspace-exchange.test.ts` | 6 tests: fail-closed catalogue/export/preview/history parsers, URL and body construction, read-only viewer, invalid and valid writer flows |
+| Exchange backend suite | `pytest tests/test_exchange_api.py` | 5 HTTP-level tests: catalogue + three exports, preview/apply/history with idempotent replay, row/field validation errors, existing ids + read-only dataset + missing key, viewer read/403 and planner apply |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3506 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=f7fdedc node e2e/exchange-v26.mjs` | 8/8 scenarios pass, 8 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| Catalogue and exports | scenarios 01–02 of the same suite | three datasets, `resource_id`/`activity_id`/`risk_id` headers match the contract, row counts match the CSV line count, download control present |
+| Valid preview and apply | scenarios 03–04 of the same suite | two rows accepted with apply enabled; apply creates both ids, replay returns the same run, key reuse returns 409, export contains the new resources, history shows preview and apply runs |
+| Invalid file | scenario 05 of the same suite | row/field/code table shows type, calendar, email and active-flag errors and apply stays disabled |
+| Existing id, cycle and read-only dataset | scenario 06 of the same suite | `RESOURCE_ALREADY_EXISTS`, two `RESOURCE_HIERARCHY_CYCLE` errors and `EXCHANGE_DATASET_READ_ONLY` are reported before writing |
+| Authorization | scenario 07 of the same suite | viewer export works, editor and apply are disabled, direct apply returns 403 `EXCHANGE_PERMISSION_DENIED` |
+| Layout at 1280×720 | scenario 08 of the same suite | Persian RTL heading `ورود / خروجی`, three tabs, no external product branding |
+| Evidence bundle | `docs/workspace/evidence/exchange-v26-2026-11-12/` | `exchange-v26.json` + 8 screenshots, contract `cubi-exchange-v26.v1` |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `f7fdedcd7bc0d2453a2c48ad29e4d81ae151f79f` |
+| Evidence commit | `0edef46c53807b56b205ad6bb14127113c30d8d5` |
+| Branch | `feat/v26-stage-f3-exchange` |
+| PR | [#1775](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1775) |
+| Merge commit | `20f49d5b5df76e1c9990b858a582cdc21e74ecf5` |
+| Post-merge CI | 5/5 triggered workflows success on `20f49d5b`; PostgreSQL Integration was not selected by the main push path filters (it ran and passed on the PR) |
+
+Two consecutive browser runs failed on script defects (doubled escape sequences, a misaligned CSV
+row and an over-strict history count) before the evidence run; each fix is a separate `test(stage-f3)`
+commit on the PR so the tested SHA stays honest.
+
+### Next stage
+
+Stage F4 (Backup/Recovery), then Stage G canonical workspace integration and the final review
+report.
