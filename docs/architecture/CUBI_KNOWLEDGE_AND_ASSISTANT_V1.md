@@ -387,9 +387,9 @@ middleware, the store, the API and the workflow engine.
 
 ## 11. Verification and evidence
 
-- Knowledge tests: `python -m pytest -q tests/knowledge` → 202 passed on the
+- Knowledge tests: `python -m pytest -q tests/knowledge` → 205 passed on the
   publication-integrity branch.
-- Full Python suite: 3,868 passed, 119 skipped, 3 warnings on the
+- Full Python suite: 3,879 passed, 119 skipped, 3 warnings on the
   publication-integrity branch (3,778 at merge).
 - Mounting evidence: the preview composition serves `/api/knowledge*` beside
   the real lifecycle app, and its ten-step creation persists WBS, activities,
