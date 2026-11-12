@@ -72,12 +72,12 @@ test("the landing language follows its route and persists the accepted preferenc
   // A language route, not storage, owns the document language and its metadata.
   assert.match(landing, /function restoreLandingLocale\(\): string \| null/);
   assert.match(landing, /function readSavedLandingLocale\(\): LandingLocale \| null/);
-  assert.match(landing, /getLandingLanguageRoutes\(\)\.includes\(saved\)/);
+  assert.match(landing, /getLandingHomepageLocales\(\)\.includes\(saved\)/);
   assert.match(landing, /function persistLandingLocale\(\): void/);
   assert.match(landing, /preferredLanguageRoute = restoreLandingLocale\(\);/);
   assert.match(landing, /persistLandingLocale\(\);/);
   assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
-  // The stored preference is honoured by moving to the document that describes it.
+  // Homepage-only locales persist in place; complete subpage locales use their own route.
   assert.match(landing, /window\.location\.replace\(preferredLanguageRoute\)/);
   assert.match(landing, /window\.location\.assign\(languageHref\)/);
 });
@@ -104,7 +104,7 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
 });
 
 test("homepage navigation and footer connect to real public routes", () => {
-  for (const route of ["./platform/", "./solutions/", "./resources/", "./contact/"]) {
+  for (const route of ["platform", "solutions", "resources", "contact", "about", "pricing"]) {
     assert.ok(landing.includes("publicPageHref"), "Expected homepage link resolver to " + route);
   }
   assert.match(landing, /"platform\/#project-controls"/);
