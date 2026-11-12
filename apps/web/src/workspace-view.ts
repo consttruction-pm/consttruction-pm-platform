@@ -160,7 +160,7 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
-const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
+const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 const WORKSPACE_SPLIT_STORAGE_KEY = "cubi:workspace:split";
@@ -4170,18 +4170,18 @@ const ACTIVITY_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
+  ["relationships", "Relationships", "روابط"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
-  ["discussion", "Discussion", "گفت‌وگو"],
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
-  ["feedback", "Feedback", "بازخورد"],
-  ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
+  ["wps-docs", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
-  ["summary", "Summary", "خلاصه"],
-  ["relationships", "Relationships", "روابط"],
+  ["issues", "Issues", "مسائل"],
   ["risks", "Risks", "ریسک‌ها"],
+  ["summary", "Summary", "خلاصه"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["update-history", "Update History", "تاریخچه تغییرات"],
+  ["calendar", "Calendar (CUBI)", "تقویم (CUBI)"],
 ] as const;
 
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {

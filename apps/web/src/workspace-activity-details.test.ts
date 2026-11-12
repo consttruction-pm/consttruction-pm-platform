@@ -6,6 +6,7 @@ import {
   ACTIVITY_DETAILS_STORAGE_KEY,
   ACTIVITY_DETAILS_TABS,
   ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY,
+  parseActivityProgressHistory,
   readActivityDetailsVisibleTabs,
   renderActivityDetailsPanel,
 } from "./workspace-activity-details.js";
@@ -42,18 +43,18 @@ test("activity details renders an explicit placeholder when nothing is selected"
   assert.match(html, /data-details-next="" disabled/);
 });
 
-test("activity details renders the seventeen Version 26 tabs in documented order plus the CUBI calendar tab", () => {
+test("activity details renders the sixteen required Version 26 tabs in order plus the CUBI calendar tab", () => {
   const expected: ActivityDetailsTabId[] = [
-    "general", "status", "resources", "predecessors", "successors", "codes",
-    "tasks", "discussion", "notebook", "steps", "feedback", "wps-docs",
-    "expenses", "summary", "relationships", "risks", "udfs",
+    "general", "status", "resources", "predecessors", "successors", "relationships",
+    "codes", "notebook", "steps", "wps-docs", "expenses", "issues", "risks",
+    "summary", "udfs", "update-history",
   ];
-  assert.deepEqual(ACTIVITY_DETAILS_TABS.slice(0, 17).map((tab) => tab.id), expected);
-  assert.equal(ACTIVITY_DETAILS_TABS[17]?.id, "calendar");
+  assert.deepEqual(ACTIVITY_DETAILS_TABS.slice(0, 16).map((tab) => tab.id), expected);
+  assert.equal(ACTIVITY_DETAILS_TABS[16]?.id, "calendar");
   const html = render("act-1");
   const positions = expected.map((id) => html.indexOf(`data-detail-tab="${id}"`));
-  assert.ok(positions.every((position) => position >= 0), "every official tab is rendered");
-  assert.deepEqual([...positions].sort((a, b) => a - b), positions, "tabs keep the v26 order");
+  assert.ok(positions.every((position) => position >= 0), "every required tab is rendered");
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions, "tabs keep the required order");
   assert.ok(html.indexOf('data-detail-tab="calendar"') > positions[positions.length - 1]);
 });
 
@@ -149,6 +150,104 @@ test("WPS & Docs reads real linked project documents", () => {
   assert.match(html, /Method statement/);
   assert.match(html, /DOC-1/);
   assert.match(html, /hash-1/);
+});
+
+test("Resources lists only the assignments stored for the selected activity", () => {
+  const html = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["resources"],
+    data: {
+      assignments: {
+        status: "loaded",
+        errorCode: null,
+        records: [
+          { assignmentId: "AS-1", activityId: "act-1", resourceId: "RES-1", roleId: "civil", units: "24", actualUnits: "8", remainingUnits: "16", plannedCost: "1200", actualCost: null, remainingCost: null, unit: "h", currency: "USD", calendarId: null, calendarVersion: null, note: null, isDriving: null, unitsPerTime: null, unitsPerTimePeriod: null, hoursPerUnitsTimePeriod: null },
+          { assignmentId: "AS-2", activityId: "act-2", resourceId: "RES-2", roleId: null, units: "8", actualUnits: null, remainingUnits: "8", plannedCost: null, actualCost: null, remainingCost: null, unit: "h", currency: "USD", calendarId: null, calendarVersion: null, note: null, isDriving: null, unitsPerTime: null, unitsPerTimePeriod: null, hoursPerUnitsTimePeriod: null },
+        ],
+      },
+    },
+  });
+  assert.match(html, /RES-1/);
+  assert.match(html, /civil/);
+  assert.match(html, /1200/);
+  assert.doesNotMatch(html, /RES-2/);
+  assert.match(html, /data-details-refresh="resources"/);
+});
+
+test("Issues are filtered by the stored activity reference and Update History renders revision events", () => {
+  const base = {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian" as const,
+    data: {
+      issues: {
+        status: "loaded" as const, errorCode: null,
+        records: [
+          { issueId: "IS-1", title: "Late concrete", activityId: "act-1", issueType: "schedule", priority: "high", status: "open", owner: "planner", updatedAt: "2026-10-08", description: "", responsibleManager: null, dateIdentified: "2026-10-08", dueDate: null, wbsId: null, documentRefs: [], resolutionNote: null, recordRevision: 1, createdAt: "2026-10-08" },
+          { issueId: "IS-2", title: "Other activity", activityId: "act-2", issueType: "cost", priority: "low", status: "closed", owner: "planner", updatedAt: "2026-10-09", description: "", responsibleManager: null, dateIdentified: "2026-10-09", dueDate: null, wbsId: null, documentRefs: [], resolutionNote: null, recordRevision: 1, createdAt: "2026-10-09" },
+        ],
+      },
+      history: {
+        status: "loaded" as const, errorCode: null,
+        records: [
+          { eventId: "EV-1", activityId: "act-1", recordedAt: "2026-10-08T10:00:00Z", actorUserId: "user-1", fromRecordRevision: 2, toRecordRevision: 3, changes: [{ field: "percent_complete", before: "40", after: "55" }], outOfSequence: true },
+        ],
+      },
+    },
+  };
+  const issues = renderActivityDetailsPanel({ ...base, visibleTabs: ["issues"] });
+  assert.match(issues, /IS-1/);
+  assert.doesNotMatch(issues, /IS-2/);
+
+  const history = renderActivityDetailsPanel({ ...base, visibleTabs: ["update-history"] });
+  assert.match(history, /R2 → R3/);
+  assert.match(history, /percent_complete: 40 → 55/);
+  assert.match(history, /Out of sequence/);
+});
+
+test("detail tabs distinguish a pending read from a loaded but empty collection", () => {
+  const pending = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["expenses"],
+    data: { expenses: { status: "loading", records: [], errorCode: null } },
+  });
+  assert.match(pending, /Loading authoritative records/);
+  assert.doesNotMatch(pending, /No expense records are stored/);
+
+  const empty = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["expenses"],
+    data: { expenses: { status: "loaded", records: [], errorCode: null } },
+  });
+  assert.match(empty, /No expense records are stored for this activity/);
+
+  const failed = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["expenses"],
+    data: { expenses: { status: "error", records: [], errorCode: "COST_READ_FAILED" } },
+  });
+  assert.match(failed, /COST_READ_FAILED/);
+});
+
+test("progress history parsing rejects malformed payloads instead of inventing events", () => {
+  assert.throws(() => parseActivityProgressHistory({ events: "nope" }), /INVALID_ACTIVITY_PROGRESS_HISTORY/);
+  assert.throws(() => parseActivityProgressHistory({ kind: "p6_activity_progress_history", events: [{ event_id: "EV-1" }] }), /INVALID_ACTIVITY_PROGRESS_HISTORY/);
+  const parsed = parseActivityProgressHistory({
+    kind: "p6_activity_progress_history",
+    events: [{
+      event_id: "EV-1", activity_id: "act-1", recorded_at: "2026-10-08T10:00:00Z",
+      actor_user_id: "user-1", from_record_revision: 1, to_record_revision: 2,
+      changes: [{ field: "status", before: "planned", after: "active" }],
+      out_of_sequence: { is_out_of_sequence: false, findings: [] },
+    }],
+  });
+  assert.equal(parsed[0]?.eventId, "EV-1");
+  assert.equal(parsed[0]?.changes[0]?.field, "status");
+  assert.equal(parsed[0]?.outOfSequence, false);
 });
 
 test("Projects window keeps the bottom pane scoped to Project Details", () => {

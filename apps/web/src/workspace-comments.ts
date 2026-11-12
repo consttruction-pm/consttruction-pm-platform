@@ -105,6 +105,38 @@ function renderEntry(entry: CommentEntry, replies: readonly CommentEntry[], inpu
   </article>`;
 }
 
+export type WorkspaceCommentView = {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+  parentId: string | null;
+};
+
+/**
+ * Read the browser-local notes for one project entity. Notebook detail tabs
+ * use this reader so they show the same notes as the Comments rail, and can
+ * state clearly that the notes are not project database records.
+ */
+export function listWorkspaceEntityComments(input: {
+  projectId: string;
+  entityKind: WorkspaceCommentsInput["entityKind"];
+  entityId: string;
+}): readonly WorkspaceCommentView[] {
+  return readComments()
+    .filter((entry) => entry.projectId === input.projectId
+      && entry.entityKind === input.entityKind
+      && entry.entityId === input.entityId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((entry) => ({
+      id: entry.id,
+      author: entry.author,
+      body: entry.body,
+      createdAt: entry.createdAt,
+      parentId: entry.parentId,
+    }));
+}
+
 export function renderWorkspaceComments(input: WorkspaceCommentsInput): string {
   const entries = entityEntries(input);
   const roots = entries.filter((entry) => !entry.parentId || !entries.some((candidate) => candidate.id === entry.parentId));

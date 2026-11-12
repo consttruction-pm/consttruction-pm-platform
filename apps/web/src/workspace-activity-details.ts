@@ -4,13 +4,23 @@
  * that the read model does not provide show an explicit empty state instead of
  * sample figures, so the pane never reports invented project facts.
  *
- * Tab set and order follow P6 Professional Version 26 Help, "Activity Details"
- * (docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm; attached
- * Help PDF pp. 746, 752-813): General, Status, Resources, Predecessors,
- * Successors, Codes, Tasks, Discussion, Notebook, Steps, Feedback, WPS & Docs,
- * Expenses, Summary, Relationships, Risks, UDFs. Calendar is a CUBI addition and
- * is kept after the official tabs so it never replaces one of them.
+ * Tab set and order follow the activity-details contract used for Version 26
+ * acceptance: General, Status, Resources, Predecessors, Successors,
+ * Relationships, Codes, Notebook, Steps, WPs & Docs, Expenses, Issues, Risks,
+ * Summary, UDFs and Update History. The Version 26 Tasks, Discussion and
+ * Feedback tabs are P6 EPPM-only surfaces; this desktop-style workspace has no
+ * EPPM task/messaging source, so they are not offered rather than shown as
+ * permanently empty. Calendar is a CUBI addition and follows the official tabs.
  */
+import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
+import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
+import { loadIssues, type IssueRecord } from "./workspace-issues.js";
+import { loadRisks, type RiskRecord } from "./workspace-risks.js";
+import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
+import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
+import { P6_FIELD_REGISTRY_VERSION } from "./p6-field-layout-foundation.js";
+import { listWorkspaceEntityComments } from "./workspace-comments.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -29,18 +39,17 @@ export type ActivityDetailsTabId =
   | "resources"
   | "predecessors"
   | "successors"
+  | "relationships"
   | "codes"
-  | "tasks"
-  | "discussion"
   | "notebook"
   | "steps"
-  | "feedback"
   | "wps-docs"
   | "expenses"
-  | "summary"
-  | "relationships"
+  | "issues"
   | "risks"
+  | "summary"
   | "udfs"
+  | "update-history"
   | "calendar";
 
 type TabLabel = { id: string; en: string; fa: string };
@@ -52,18 +61,17 @@ export const ACTIVITY_DETAILS_TABS: readonly ActivityTabLabel[] = [
   { id: "resources", en: "Resources", fa: "منابع" },
   { id: "predecessors", en: "Predecessors", fa: "پیش‌نیازها" },
   { id: "successors", en: "Successors", fa: "پس‌نیازها" },
+  { id: "relationships", en: "Relationships", fa: "روابط" },
   { id: "codes", en: "Codes", fa: "کدها" },
-  { id: "tasks", en: "Tasks", fa: "وظایف" },
-  { id: "discussion", en: "Discussion", fa: "گفت‌وگو" },
   { id: "notebook", en: "Notebook", fa: "دفترچه" },
   { id: "steps", en: "Steps", fa: "گام‌ها" },
-  { id: "feedback", en: "Feedback", fa: "بازخورد" },
-  { id: "wps-docs", en: "WPS & Docs", fa: "محصولات کاری و اسناد" },
+  { id: "wps-docs", en: "WPs & Docs", fa: "محصولات کاری و اسناد" },
   { id: "expenses", en: "Expenses", fa: "هزینه‌ها" },
-  { id: "summary", en: "Summary", fa: "خلاصه" },
-  { id: "relationships", en: "Relationships", fa: "روابط" },
+  { id: "issues", en: "Issues", fa: "مسائل" },
   { id: "risks", en: "Risks", fa: "ریسک‌ها" },
+  { id: "summary", en: "Summary", fa: "خلاصه" },
   { id: "udfs", en: "UDFs", fa: "فیلدهای سفارشی" },
+  { id: "update-history", en: "Update History", fa: "تاریخچه تغییرات" },
   { id: "calendar", en: "Calendar (CUBI)", fa: "تقویم (CUBI)" },
 ];
 
@@ -156,6 +164,39 @@ const SETTINGS_DETAILS_TABS: readonly TabLabel[] = [
   { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
 ];
 
+export type ActivityDetailsLoadStatus = "idle" | "loading" | "loaded" | "error";
+
+/**
+ * One authoritative detail collection. A tab must distinguish "not read yet",
+ * "being read", "read and empty" and "read failed"; collapsing those into an
+ * empty table would claim facts the service never returned.
+ */
+export type ActivityDetailsLoadState<T> = {
+  status: ActivityDetailsLoadStatus;
+  records: readonly T[];
+  errorCode: string | null;
+};
+
+export type ActivityProgressHistoryEvent = {
+  eventId: string;
+  activityId: string;
+  recordedAt: string;
+  actorUserId: string;
+  fromRecordRevision: number;
+  toRecordRevision: number;
+  changes: readonly { field: string; before: string | null; after: string | null }[];
+  outOfSequence: boolean;
+};
+
+export type ActivityDetailsData = {
+  assignments?: ActivityDetailsLoadState<AssignmentRecord>;
+  expenses?: ActivityDetailsLoadState<ExpenseRecord>;
+  issues?: ActivityDetailsLoadState<IssueRecord>;
+  risks?: ActivityDetailsLoadState<RiskRecord>;
+  udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
+  history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
+};
+
 export type ActivityDetailsInput = {
   locale: string;
   activities: readonly WorkspaceActivityRow[];
@@ -164,6 +205,12 @@ export type ActivityDetailsInput = {
   projectName: string;
   dataDate: string;
   calendarMode: "jalali" | "gregorian";
+  /** Project transport used to read activity-scoped detail collections. */
+  transport?: ApiTransport;
+  /** Authoritative detail collections already read for this activity. */
+  data?: ActivityDetailsData;
+  /** Registry version used by the UDF metadata endpoint. */
+  registryVersion?: string;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
   /** Display order from Customize Activity Details; defaults to all tabs. */
@@ -224,6 +271,29 @@ function gridTable(locale: string, headers: readonly string[], rows: readonly st
     ? rows.map((row) => `<tr>${row.map((item) => `<td>${esc(item)}</td>`).join("")}</tr>`).join("")
     : `<tr><td colspan="${headers.length}" class="cp-detail-none">${esc(emptyText)}</td></tr>`;
   return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/**
+ * A collection that has not been read yet is not the same as an empty
+ * collection. These helpers keep those states visibly distinct.
+ */
+function loadStateOf<T>(value: ActivityDetailsLoadState<T> | undefined): ActivityDetailsLoadState<T> {
+  return value ?? { status: "idle", records: [], errorCode: null };
+}
+
+function loadNotice(locale: string, state: ActivityDetailsLoadState<unknown>, idleText: string): string | null {
+  if (state.status === "idle") return `<p class="cp-detail-hint">${esc(idleText)}</p>`;
+  if (state.status === "loading") {
+    return `<p class="cp-detail-hint" role="status" data-details-loading>${esc(t(locale, "Loading authoritative records from the project service…", "در حال بارگذاری سوابق مرجع از سرویس پروژه…"))}</p>`;
+  }
+  if (state.status === "error") {
+    return `<p class="cp-detail-error" role="alert">${esc(t(locale, "The project service could not return these records: ", "سرویس پروژه این سوابق را برنگرداند: "))}${esc(state.errorCode ?? "UNKNOWN")}</p>`;
+  }
+  return null;
+}
+
+function reloadControl(locale: string, tab: ActivityDetailsTabId): string {
+  return `<button type="button" class="cp-detail-action" data-details-refresh="${tab}">${esc(t(locale, "Reload", "بازخوانی"))}</button>`;
 }
 
 function lagText(value: string, unit: string): string {
@@ -413,20 +483,37 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         </div>`)}
         <p class="cp-detail-hint">${esc(t(locale, "Duration, float, constraint and cost values come from the scheduling core; this pane only displays them.", "مقادیر مدت، شناوری، محدودیت و هزینه توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
     }
-    case "resources":
-      return `${gridTable(locale,
-        [t(locale, "Resource", "منبع"), t(locale, "Role", "نقش"), t(locale, "Units/Time", "واحد در زمان"), t(locale, "Budgeted Units", "واحد بودجه‌ای"), t(locale, "Actual Units", "واحد واقعی"), t(locale, "Remaining Units", "واحد باقی‌مانده"), t(locale, "Cost", "هزینه")],
-        [],
-        t(locale, "No resource assignments are returned for this activity. Assignments are read from the project service; this pane does not invent resource rows.", "هیچ تخصیص منبعی برای این فعالیت برگردانده نشده است. تخصیص‌ها از سرویس پروژه خوانده می‌شوند؛ این پنل سطر منبعی نمی‌سازد."))}
+    case "resources": {
+      const data = loadStateOf(input.data?.assignments);
+      const rows = data.records
+        .filter((record) => record.activityId === activity?.id)
+        .map((record) => [
+          record.resourceId,
+          record.roleId ?? "—",
+          record.unitsPerTime ?? "—",
+          record.units ?? "—",
+          record.actualUnits ?? "—",
+          record.remainingUnits ?? "—",
+          record.plannedCost ?? "—",
+        ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Resource", "منبع"), t(locale, "Role", "نقش"), t(locale, "Units/Time", "واحد در زمان"), t(locale, "Budgeted Units", "واحد بودجه‌ای"), t(locale, "Actual Units", "واحد واقعی"), t(locale, "Remaining Units", "واحد باقی‌مانده"), t(locale, "Cost", "هزینه")],
+          rows,
+          t(locale, "No resource assignments are stored for this activity.", "هیچ تخصیص منبعی برای این فعالیت ذخیره نشده است."))
+        : loadNotice(locale, data, t(locale, "Resource assignments have not been read for this activity yet.", "تخصیص‌های منبع هنوز برای این فعالیت خوانده نشده‌اند."));
+      return `${table}
         ${controlBar(locale, [
           disabledControl(locale, t(locale, "Add Resource", "افزودن منبع"), notWritable),
           disabledControl(locale, t(locale, "Add Role", "افزودن نقش"), notWritable),
           disabledControl(locale, t(locale, "Assign By Role", "تخصیص بر اساس نقش"), notWritable),
           disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
+          reloadControl(locale, "resources"),
         ].join(""))}
         <label class="cp-detail-check"><input type="checkbox" disabled> ${esc(t(locale, "Drive activity dates by default", "تعیین پیش‌فرض تاریخ فعالیت"))}</label>
         <label class="cp-detail-check"><input type="checkbox" disabled> ${esc(t(locale, "Resources can be assigned to the same activity more than once", "منابع می‌توانند بیش از یک بار به همین فعالیت تخصیص یابند"))}</label>
-        <p class="cp-detail-hint">${esc(t(locale, "The documented controls are kept in place; both options and all four actions stay disabled until the assignment write service is connected.", "کنترل‌های مستند در جای خود حفظ شده‌اند؛ هر دو گزینه و هر چهار کنش تا اتصال سرویس نوشتن تخصیص غیرفعال می‌مانند."))}</p>`;
+        <p class="cp-detail-hint">${esc(t(locale, "Assignments are read from the project resource service and filtered by activity ID. The documented write actions stay disabled until this pane owns an assignment editor.", "تخصیص‌ها از سرویس منابع پروژه خوانده و بر اساس شناسهٔ فعالیت فیلتر می‌شوند. کنش‌های نوشتن مستند تا زمانی که این پنل ویرایشگر تخصیص نداشته باشد غیرفعال می‌مانند."))}</p>`;
+    }
     case "predecessors":
       return relationshipRows(input, predecessors);
     case "successors":
@@ -445,52 +532,40 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
         disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
       ].join(""))}`;
-    case "tasks":
-      return `<p class="cp-detail-hint">${esc(t(locale, "In Version 26 the Tasks tab is available only with P6 EPPM and reads tasks from Oracle Primavera Cloud. A desktop-style project has no EPPM task source, so the documented columns are shown without rows.", "در نسخهٔ ۲۶ زبانهٔ Tasks فقط با P6 EPPM در دسترس است و وظایف را از Oracle Primavera Cloud می‌خواند. پروژهٔ سبک دسکتاپ منبع وظیفهٔ EPPM ندارد؛ بنابراین ستون‌های مستند بدون سطر نمایش داده می‌شوند."))}</p>
-      ${gridTable(locale,
-        ["Task ID", "Start Date", "Flag", "Overdue", "Status Completion", "Status Dates", "Use Only Work Days", "Task Name", "Completed Date", "Company", "Duration", "Due Date", "Status"].map((label) => esc(label)),
-        [],
-        t(locale, "Not available: this tab is documented as P6 EPPM only.", "در دسترس نیست: این زبانه مطابق مستندات فقط مخصوص P6 EPPM است."))}`;
-    case "discussion":
-      return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Show", "نمایش"), "")}
-        ${field(locale, t(locale, "Sort", "ترتیب"), "")}
-      </div>
-      <div class="cp-detail-controls">
-        <label class="cp-detail-inline">${esc(t(locale, "Show", "نمایش"))}
-          <select class="cp-detail-select" disabled>
-            <option>${esc(t(locale, "All messages", "همهٔ پیام‌ها"))}</option>
-            <option>${esc(t(locale, "Messages from the last week", "پیام‌های هفتهٔ گذشته"))}</option>
-          </select>
-        </label>
-        <label class="cp-detail-inline">${esc(t(locale, "Sort", "ترتیب"))}
-          <select class="cp-detail-select" disabled>
-            <option>${esc(t(locale, "Newest to oldest", "از جدید به قدیم"))}</option>
-            <option>${esc(t(locale, "Oldest to newest", "از قدیم به جدید"))}</option>
-          </select>
-        </label>
-      </div>
-      ${empty(locale, t(locale, "No project discussion messages are returned for this activity. Activity discussion is not exposed by the workspace read model; browser-local notes stay in the Comments rail.", "هیچ پیام گفت‌وگویی برای این فعالیت برگردانده نشده است. گفت‌وگوی فعالیت در مدل خواندن محیط کار ارائه نشده است؛ یادداشت‌های محلی در نوار یادداشت‌ها می‌مانند."))}
-      <textarea class="cp-detail-textarea" rows="2" disabled placeholder="${esc(t(locale, "Message text", "متن پیام"))}"></textarea>
-      ${controlBar(locale, disabledControl(locale, t(locale, "Post", "ارسال"), notWritable))}`;
-    case "notebook":
-      return `${gridTable(locale,
-        [t(locale, "Notebook Topic", "موضوع دفترچه"), t(locale, "Description", "توضیحات")],
-        [],
-        t(locale, "No notebook topics are stored by the project read model for this activity.", "هیچ موضوع دفترچه‌ای برای این فعالیت توسط مدل خواندن پروژه ذخیره نشده است."))}
-      ${controlBar(locale, [
-        disabledControl(locale, t(locale, "Modify", "ویرایش"), notWritable),
-        disabledControl(locale, t(locale, "Copy", "کپی"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-        disabledControl(locale, t(locale, "Print", "چاپ"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-        disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
-        disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-      ].join(""))}
-      <p class="cp-detail-hint">${esc(t(locale, "Browser-local notes for this activity remain available from the Comments rail.", "یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
+    case "notebook": {
+      const notes = activity && state
+        ? listWorkspaceEntityComments({
+          projectId: state.context.project_id,
+          entityKind: "activity",
+          entityId: activity.id,
+        })
+        : [];
+      const cards = notes.map((note) => `<article class="cp-detail-note" data-detail-note="${esc(note.id)}">
+          <header><strong>${esc(note.author)}</strong><time datetime="${esc(note.createdAt)}">${esc(note.createdAt)}</time></header>
+          <p>${esc(note.body)}</p>
+          ${note.parentId ? `<small>${esc(t(locale, "Reply", "پاسخ"))}</small>` : ""}
+        </article>`).join("");
+      return `${notes.length
+        ? `<div class="cp-detail-notes">${cards}</div>`
+        : gridTable(locale,
+          [t(locale, "Notebook Topic", "موضوع دفترچه"), t(locale, "Description", "توضیحات")],
+          [],
+          t(locale, "No browser-local notes have been recorded for this activity.", "هیچ یادداشت محلی برای این فعالیت ثبت نشده است."))}
+        ${controlBar(locale, [
+          disabledControl(locale, t(locale, "Modify", "ویرایش"), t(locale, "Browser-local notes are edited from the Comments rail.", "یادداشت‌های محلی از نوار یادداشت‌ها ویرایش می‌شوند.")),
+          disabledControl(locale, t(locale, "Copy", "کپی"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
+          disabledControl(locale, t(locale, "Print", "چاپ"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
+          disabledControl(locale, t(locale, "Add", "افزودن"), t(locale, "Add notes from the Comments rail so they are stored with the same browser-local contract.", "یادداشت‌ها را از نوار یادداشت‌ها اضافه کنید تا با همان قرارداد محلی مرورگر ذخیره شوند.")),
+          disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
+        ].join(""))}
+        <p class="cp-detail-hint">${esc(t(locale, "These notes are stored in this browser only. They are not project database records and are not presented as formal audit history.", "این یادداشت‌ها فقط در همین مرورگر ذخیره می‌شوند. آن‌ها رکورد پایگاه دادهٔ پروژه نیستند و به‌عنوان تاریخچه رسمی ممیزی ارائه نمی‌شوند."))}</p>`;
+    }
     case "steps":
-      return `${gridTable(locale,
+      return `<p class="cp-detail-hint">${esc(t(locale, "Steps are child records of the activity with their own sequence, weight and completion state. The current project service does not expose a steps read endpoint yet, so this table remains empty instead of claiming that the activity has no steps.", "گام‌ها رکوردهای فرزند فعالیت با ترتیب، وزن و وضعیت تکمیل مستقل هستند. سرویس فعلی پروژه هنوز نقطهٔ پایانی خواندن گام‌ها را ارائه نمی‌کند؛ بنابراین این جدول خالی می‌ماند و ادعا نمی‌کند که فعالیت گامی ندارد."))}</p>
+      ${gridTable(locale,
         [t(locale, "Step Name", "نام گام"), t(locale, "Completed", "تکمیل‌شده"), t(locale, "Step Description", "توضیح گام"), t(locale, "Step % Complete", "درصد گام"), t(locale, "Step Weight", "وزن گام"), t(locale, "Step Weight Percent", "درصد وزن گام")],
         [],
-        t(locale, "This activity has no steps in the current project data. Steps are not synthesised here.", "این فعالیت در دادهٔ فعلی پروژه گامی ندارد. گام‌ها در این پنل ساخته نمی‌شوند."))}
+        t(locale, "No steps are available from the current project service.", "هیچ گامی از سرویس فعلی پروژه در دسترس نیست."))}
       ${controlBar(locale, [
         disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
         disabledControl(locale, t(locale, "Add from template", "افزودن از قالب"), notWritable),
@@ -499,14 +574,6 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         disabledControl(locale, t(locale, "Copy", "کپی"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
         disabledControl(locale, t(locale, "Print", "چاپ"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
       ].join(""))}`;
-    case "feedback":
-      return `${section(t(locale, "Notes to Resources", "یادداشت برای منابع"), `${empty(locale, t(locale, "No notes to resources are returned by the project read model.", "هیچ یادداشتی برای منابع توسط مدل خواندن پروژه برگردانده نشده است."))}
-        <textarea class="cp-detail-textarea" rows="2" disabled placeholder="${esc(t(locale, "Notes to resources", "یادداشت برای منابع"))}"></textarea>
-        ${controlBar(locale, disabledControl(locale, t(locale, "Add", "افزودن"), notWritable))}`)}
-        ${section(t(locale, "Feedback from Resources", "بازخورد منابع"), `${empty(locale, t(locale, "No feedback from resources is returned by the project read model.", "هیچ بازخوردی از منابع توسط مدل خواندن پروژه برگردانده نشده است."))}
-        <label class="cp-detail-check"><input type="checkbox" disabled> ${esc(t(locale, "New", "جدید"))}</label>
-        <textarea class="cp-detail-textarea" rows="2" disabled placeholder="${esc(t(locale, "Feedback from resources", "بازخورد منابع"))}"></textarea>
-        ${controlBar(locale, disabledControl(locale, t(locale, "Add", "افزودن"), notWritable))}`)}`;
     case "wps-docs": {
       const links = new Set([activity?.id, activity?.code].filter((value): value is string => Boolean(value)));
       const docs = state?.documents.filter((document) => document.linkedEntityRefs.some((ref) => links.has(ref))) ?? [];
@@ -529,15 +596,36 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
         ].join(""))}`;
     }
-    case "expenses":
-      return `${gridTable(locale,
-        [t(locale, "Expense Item", "قلم هزینه"), t(locale, "Cost Account", "حساب هزینه"), t(locale, "Expense Category", "دستهٔ هزینه"), t(locale, "Accrual Type", "نوع تعهد"), t(locale, "Budgeted or Planned Cost", "هزینهٔ بودجه‌ای"), t(locale, "Actual Cost", "هزینهٔ واقعی"), t(locale, "Remaining Cost", "هزینهٔ باقی‌مانده"), t(locale, "At Completion Cost", "هزینهٔ پایان کار"), t(locale, "Vendor", "فروشنده"), t(locale, "Auto Compute Actuals", "محاسبهٔ خودکار واقعی")],
-        [],
-        t(locale, "No activity expense records are returned by the project read model.", "هیچ رکورد هزینهٔ فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}
+    case "expenses": {
+      const data = loadStateOf(input.data?.expenses);
+      const rows = data.records
+        .filter((record) => !record.activityId || record.activityId === activity?.id)
+        .map((record) => [
+          record.name,
+          record.costAccountId ?? "—",
+          record.category,
+          record.accrualDate ? t(locale, "Accrual", "تعهدی") : t(locale, "Not set", "تعیین‌نشده"),
+          record.plannedCost ?? "—",
+          record.actualCost ?? "—",
+          record.remainingCost ?? "—",
+          "—",
+          "—",
+          "—",
+        ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Expense Item", "قلم هزینه"), t(locale, "Cost Account", "حساب هزینه"), t(locale, "Expense Category", "دستهٔ هزینه"), t(locale, "Accrual Type", "نوع تعهد"), t(locale, "Budgeted or Planned Cost", "هزینهٔ بودجه‌ای"), t(locale, "Actual Cost", "هزینهٔ واقعی"), t(locale, "Remaining Cost", "هزینهٔ باقی‌مانده"), t(locale, "At Completion Cost", "هزینهٔ پایان کار"), t(locale, "Vendor", "فروشنده"), t(locale, "Auto Compute Actuals", "محاسبهٔ خودکار واقعی")],
+          rows,
+          t(locale, "No expense records are stored for this activity.", "هیچ رکورد هزینه‌ای برای این فعالیت ذخیره نشده است."))
+        : loadNotice(locale, data, t(locale, "Activity expenses have not been read yet.", "هزینه‌های فعالیت هنوز خوانده نشده‌اند."));
+      return `${table}
       ${controlBar(locale, [
         disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
         disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No expense is selected.", "هیچ هزینه‌ای انتخاب نشده است.")),
-      ].join(""))}`;
+        reloadControl(locale, "expenses"),
+      ].join(""))}
+      <p class="cp-detail-hint">${esc(t(locale, "Expenses are read from the cost service with an activity filter. At-completion and vendor values stay empty because the cost record does not store them.", "هزینه‌ها از سرویس هزینه با فیلتر فعالیت خوانده می‌شوند. مقادیر پایان کار و فروشنده خالی می‌مانند زیرا رکورد هزینه آن‌ها را ذخیره نمی‌کند."))}</p>`;
+    }
     case "summary": {
       const costRow = (label: string, prefix: string): string[] => [
         label,
@@ -597,25 +685,102 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(input, predecessors))}
         ${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(input, successors))}
         ${gantt ? `<div class="cp-detail-grid">${field(locale, t(locale, "Gantt start", "شروع گانت"), gantt.start)}${field(locale, t(locale, "Gantt finish", "پایان گانت"), gantt.finish)}${field(locale, t(locale, "Gantt progress", "پیشرفت گانت"), `${gantt.progressPercent}%`)}</div>` : ""}`;
-    case "risks":
-      return `<p class="cp-detail-hint">${esc(t(locale, "In Version 26 the Risks tab is available when connected to a P6 Professional database. This workspace has no risk store, so the documented columns are shown without rows.", "در نسخهٔ ۲۶ زبانهٔ Risks هنگام اتصال به پایگاه دادهٔ P6 Professional در دسترس است. این محیط کار مخزن ریسک ندارد؛ بنابراین ستون‌های مستند بدون سطر نمایش داده می‌شوند."))}</p>
-        ${gridTable(locale,
-          [t(locale, "Risk ID", "شناسهٔ ریسک"), t(locale, "Risk Name", "نام ریسک"), t(locale, "Risk Category", "دستهٔ ریسک"), t(locale, "Risk Type", "نوع ریسک"), t(locale, "Risk Status", "وضعیت ریسک"), t(locale, "Risk Owner", "مالک ریسک"), t(locale, "Exposure Start", "شروع مواجهه"), t(locale, "Exposure Finish", "پایان مواجهه"), t(locale, "Identified By", "شناسایی‌کننده"), t(locale, "Identified On", "تاریخ شناسایی"), t(locale, "Description", "توضیحات")],
-          [],
-          t(locale, "No activity risk records are returned by the project read model.", "هیچ رکورد ریسک فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}
+    case "issues": {
+      const data = loadStateOf(input.data?.issues);
+      const rows = data.records
+        .filter((issue) => issue.activityId === activity?.id)
+        .map((issue) => [
+          issue.issueId,
+          issue.title,
+          issue.issueType,
+          issue.priority,
+          issue.status,
+          issue.owner,
+          issue.updatedAt,
+        ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Issue ID", "شناسه مسئله"), t(locale, "Title", "عنوان"), t(locale, "Category", "دسته‌بندی"), t(locale, "Severity", "شدت"), t(locale, "Status", "وضعیت"), t(locale, "Reported by", "گزارش‌دهنده"), t(locale, "Updated", "آخرین به‌روزرسانی")],
+          rows,
+          t(locale, "No issue records are linked to this activity.", "هیچ رکورد مسئله‌ای به این فعالیت پیوند ندارد."))
+        : loadNotice(locale, data, t(locale, "Issue records have not been read for this activity yet.", "رکوردهای مسئله هنوز برای این فعالیت خوانده نشده‌اند."));
+      return `${table}
         ${controlBar(locale, [
           disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
+          disabledControl(locale, t(locale, "Remove", "حذف"), t(locale, "Issue links are edited in the Issues window.", "پیوندهای مسئله در پنجرهٔ مسائل ویرایش می‌شوند.")),
+          reloadControl(locale, "issues"),
+        ].join(""))}
+        <p class="cp-detail-hint">${esc(t(locale, "Issues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed.", "مسائل رکوردهای پروژه با ویرایش مستقل هستند. فقط مسائلی فهرست می‌شوند که ارجاع فعالیت ذخیره‌شدهٔ آن‌ها با این فعالیت برابر است."))}</p>`;
+    }
+    case "risks": {
+      const data = loadStateOf(input.data?.risks);
+      const rows = data.records.map((risk) => [
+        risk.riskId,
+        risk.title,
+        risk.category,
+        risk.status,
+        risk.exposureLevel,
+        risk.responseStrategy,
+        risk.owner,
+        risk.dateIdentified,
+      ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Risk ID", "شناسهٔ ریسک"), t(locale, "Risk Name", "نام ریسک"), t(locale, "Risk Category", "دستهٔ ریسک"), t(locale, "Risk Status", "وضعیت ریسک"), t(locale, "Exposure", "مواجهه"), t(locale, "Response", "پاسخ"), t(locale, "Risk Owner", "مالک ریسک"), t(locale, "Identified On", "تاریخ شناسایی")],
+          rows,
+          t(locale, "No project risk records are stored for this project.", "هیچ رکورد ریسک پروژه‌ای برای این پروژه ذخیره نشده است."))
+        : loadNotice(locale, data, t(locale, "Risk records have not been read yet.", "رکوردهای ریسک هنوز خوانده نشده‌اند."));
+      return `<p class="cp-detail-hint">${esc(t(locale, "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity.", "رکوردهای ریسک در این محیط کار ارجاع فعالیت ذخیره نمی‌کنند؛ بنابراین فهرست ریسک پروژه بدون ادعای پیوند به این فعالیت نمایش داده می‌شود."))}</p>
+        ${table}
+        ${controlBar(locale, [
+          disabledControl(locale, t(locale, "Assign", "تخصیص"), t(locale, "Risks are managed in the Risks window; this register is read-only.", "ریسک‌ها در پنجرهٔ ریسک‌ها مدیریت می‌شوند؛ این فهرست فقط‌خواندنی است.")),
           disabledControl(locale, t(locale, "Remove", "حذف"), t(locale, "No risk is selected.", "هیچ ریسکی انتخاب نشده است.")),
+          reloadControl(locale, "risks"),
         ].join(""))}`;
+    }
     case "udfs": {
-      const rows = Object.entries(activity?.cells ?? {})
-        .filter(([key]) => /(^|[._])udf([._]|$)/i.test(key))
-        .map(([key, value]) => [key.replace(/^activity\./, ""), typeof value, String(value)]);
-      return `${gridTable(locale,
-        [t(locale, "User Defined Field", "فیلد سفارشی"), t(locale, "Data Type", "نوع داده"), t(locale, "Value", "مقدار")],
-        rows,
-        t(locale, "No user-defined fields are returned for this activity.", "هیچ فیلد سفارشی برای این فعالیت برگردانده نشده است."))}
-        ${controlBar(locale, disabledControl(locale, t(locale, "Customize User Defined Fields", "تنظیم فیلدهای سفارشی"), notWritable))}`;
+      const data = loadStateOf(input.data?.udfs);
+      const meta = data.records.filter((udf) => udf.subject_area === "activity");
+      const rows = meta.length
+        ? meta.map((udf) => [
+          udf.display_name,
+          udf.data_type,
+          cell(activity, udf.udf_id, `udf.${udf.udf_id}`, `activity.${udf.udf_id}`) || "—",
+        ])
+        : Object.entries(activity?.cells ?? {})
+          .filter(([key]) => /(^|[._])udf([._]|$)/i.test(key))
+          .map(([key, value]) => [key.replace(/^activity\./, ""), typeof value, String(value)]);
+      const table = data.status === "loaded" || data.status === "idle"
+        ? gridTable(locale,
+          [t(locale, "User Defined Field", "فیلد سفارشی"), t(locale, "Data Type", "نوع داده"), t(locale, "Value", "مقدار")],
+          rows,
+          t(locale, "No activity user-defined fields are defined by the project registry.", "هیچ فیلد سفارشی فعالیتی توسط رجیستری پروژه تعریف نشده است."))
+        : loadNotice(locale, data, t(locale, "User-defined field metadata has not been read yet.", "فرادادهٔ فیلدهای سفارشی هنوز خوانده نشده است."));
+      return `${table}
+        ${controlBar(locale, [
+          disabledControl(locale, t(locale, "Customize User Defined Fields", "تنظیم فیلدهای سفارشی"), notWritable),
+          reloadControl(locale, "udfs"),
+        ].join(""))}
+        <p class="cp-detail-hint">${esc(t(locale, "Field names and data types come from the project UDF registry; values come from the selected activity projection. No field is inferred from its key shape.", "نام و نوع دادهٔ فیلدها از رجیستری UDF پروژه و مقادیر از نمای فعالیت انتخاب‌شده می‌آیند. هیچ فیلدی از شکل کلید آن حدس زده نمی‌شود."))}</p>`;
+    }
+    case "update-history": {
+      const data = loadStateOf(input.data?.history);
+      const rows = data.records.map((event) => [
+        event.recordedAt,
+        event.actorUserId,
+        `R${event.fromRecordRevision} → R${event.toRecordRevision}`,
+        event.changes.map((change) => `${change.field}: ${change.before ?? "—"} → ${change.after ?? "—"}`).join("; ") || "—",
+        event.outOfSequence ? t(locale, "Out of sequence", "خارج از توالی") : "—",
+      ]);
+      const table = data.status === "loaded"
+        ? gridTable(locale,
+          [t(locale, "Recorded", "زمان ثبت"), t(locale, "Actor", "کاربر"), t(locale, "Record revision", "ویرایش رکورد"), t(locale, "Changes", "تغییرات"), t(locale, "Sequence review", "بازبینی توالی")],
+          rows,
+          t(locale, "No progress update history is stored for this activity.", "هیچ تاریخچهٔ به‌روزرسانی پیشرفتی برای این فعالیت ذخیره نشده است."))
+        : loadNotice(locale, data, t(locale, "Progress update history has not been read yet.", "تاریخچهٔ به‌روزرسانی پیشرفت هنوز خوانده نشده است."));
+      return `${table}
+        ${controlBar(locale, reloadControl(locale, "update-history"))}
+        <p class="cp-detail-hint">${esc(t(locale, "History events are append-only records written by the authoritative progress service. This pane never synthesises an entry.", "رویدادهای تاریخچه رکوردهای فقط‌افزودنی هستند که سرویس مرجع پیشرفت می‌نویسد. این پنل هرگز سابقه‌ای نمی‌سازد."))}</p>`;
     }
     case "calendar":
       return `<div class="cp-detail-grid">
@@ -623,7 +788,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${field(locale, t(locale, "Project calendar", "تقویم پروژه"), state?.calendarMode === "jalali" ? t(locale, "Jalali display", "نمایش شمسی") : t(locale, "Gregorian display", "نمایش میلادی"))}
         ${field(locale, t(locale, "Data date", "تاریخ داده"), dataDateValue)}
       </div>
-      <p class="cp-detail-hint">${esc(t(locale, "Calendar is a CUBI addition. It sits after the seventeen Version 26 tabs and does not replace any of them. The project read model does not return activity calendar assignments yet.", "تقویم یک افزودهٔ CUBI است. پس از هفده زبانهٔ نسخهٔ ۲۶ قرار دارد و جایگزین هیچ‌یک نمی‌شود. مدل خواندن پروژه هنوز تخصیص تقویم فعالیت را برنمی‌گرداند."))}</p>`;
+      <p class="cp-detail-hint">${esc(t(locale, "Calendar is a CUBI addition. It follows the sixteen Version 26 activity-details tabs and does not replace any of them. The project read model does not return activity calendar assignments yet.", "تقویم یک افزودهٔ CUBI است. پس از شانزده زبانهٔ جزئیات فعالیت نسخهٔ ۲۶ قرار دارد و جایگزین هیچ‌یک نمی‌شود. مدل خواندن پروژه هنوز تخصیص تقویم فعالیت را برنمی‌گرداند."))}</p>`;
     default:
       return "";
   }
@@ -1067,7 +1232,163 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
 type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void };
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
+const detailsLoadToken = new WeakMap<HTMLElement, number>();
+const detailsLoadedKey = new WeakMap<HTMLElement, string>();
+const detailsDataCache = new Map<string, ActivityDetailsData>();
 const customizeRuntime = new WeakMap<HTMLElement, CustomizeState>();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function resultState<T>(result: ApiResult<readonly T[]>): ActivityDetailsLoadState<T> {
+  return result.ok
+    ? { status: "loaded", records: result.data, errorCode: null }
+    : { status: "error", records: [], errorCode: result.error.code };
+}
+
+function loadingDetailsState<T>(): ActivityDetailsLoadState<T> {
+  return { status: "loading", records: [], errorCode: null };
+}
+
+/** Parse the authoritative progress-history contract into the tab shape. */
+export function parseActivityProgressHistory(value: unknown): ActivityProgressHistoryEvent[] {
+  if (!isRecord(value) || value.kind !== "p6_activity_progress_history" || !Array.isArray(value.events)) {
+    throw new Error("INVALID_ACTIVITY_PROGRESS_HISTORY");
+  }
+  return value.events.map((raw) => {
+    if (!isRecord(raw)) throw new Error("INVALID_ACTIVITY_PROGRESS_HISTORY");
+    const { event_id, activity_id, recorded_at, actor_user_id, from_record_revision, to_record_revision } = raw;
+    if (
+      typeof event_id !== "string" || !event_id
+      || typeof activity_id !== "string" || !activity_id
+      || typeof recorded_at !== "string" || !recorded_at
+      || typeof actor_user_id !== "string" || !actor_user_id
+      || typeof from_record_revision !== "number"
+      || typeof to_record_revision !== "number"
+    ) {
+      throw new Error("INVALID_ACTIVITY_PROGRESS_HISTORY");
+    }
+    const changes = Array.isArray(raw.changes)
+      ? raw.changes.map((change) => {
+        if (!isRecord(change) || typeof change.field !== "string") {
+          throw new Error("INVALID_ACTIVITY_PROGRESS_HISTORY");
+        }
+        const text = (item: unknown): string | null => (item === null || item === undefined ? null : String(item));
+        return { field: change.field, before: text(change.before), after: text(change.after) };
+      })
+      : [];
+    const review = isRecord(raw.out_of_sequence) ? raw.out_of_sequence : null;
+    return {
+      eventId: event_id,
+      activityId: activity_id,
+      recordedAt: recorded_at,
+      actorUserId: actor_user_id,
+      fromRecordRevision: from_record_revision,
+      toRecordRevision: to_record_revision,
+      changes,
+      outOfSequence: review?.is_out_of_sequence === true,
+    };
+  });
+}
+
+async function readProgressHistory(
+  transport: ApiTransport,
+  context: ProjectContext,
+  activityId: string,
+): Promise<ActivityDetailsLoadState<ActivityProgressHistoryEvent>> {
+  const path = `/api/projects/${encodeURIComponent(context.project_id)}/p6/activities/${encodeURIComponent(activityId)}/progress-history`;
+  const result = await transport.get<unknown>(path, context);
+  if (!result.ok) {
+    // A 404 means the activity has no progress events yet, not that the read
+    // failed. Surfacing it as an error would misreport the project state.
+    if (result.error.code === "P6_ACTIVITY_PROGRESS_HISTORY_NOT_FOUND") {
+      return { status: "loaded", records: [], errorCode: null };
+    }
+    return { status: "error", records: [], errorCode: result.error.code };
+  }
+  try {
+    return { status: "loaded", records: parseActivityProgressHistory(result.data), errorCode: null };
+  } catch (error) {
+    return { status: "error", records: [], errorCode: error instanceof Error ? error.message : "INVALID_ACTIVITY_PROGRESS_HISTORY" };
+  }
+}
+
+async function readDetailsData(input: ActivityDetailsInput, activityId: string): Promise<ActivityDetailsData> {
+  const transport = input.transport;
+  const context = input.state?.context;
+  if (!transport || !context) return {};
+  const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
+  const [assignments, expenses, issues, risks, udfs, history] = await Promise.all([
+    loadAssignments(transport, context).then(resultState),
+    loadExpenses(transport, context, { activityId }).then(resultState),
+    loadIssues(transport, context).then(resultState),
+    loadRisks(transport, context).then(resultState),
+    fetchP6ActivityUdfs(context.project_id, registry)
+      .then((response): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({ status: "loaded", records: response.udfs, errorCode: null }))
+      .catch((error: unknown): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({
+        status: "error",
+        records: [],
+        errorCode: error instanceof Error ? error.message : "P6_UDF_UNAVAILABLE",
+      })),
+    readProgressHistory(transport, context, activityId),
+  ]);
+  return { assignments, expenses, issues, risks, udfs, history };
+}
+
+function detailsDataKey(input: ActivityDetailsInput): string | null {
+  const state = input.state;
+  if (!state || !input.selectedActivityId || state.activeMenu !== "schedule") return null;
+  return `${state.context.tenant_id}:${state.context.project_id}:${state.context.revision}:${input.selectedActivityId}`;
+}
+
+function redrawDetailsPanel(host: HTMLElement): void {
+  const runtime = detailsRuntime.get(host);
+  if (!runtime) return;
+  const openDialog = host.querySelector<HTMLDialogElement>("[data-details-customize-dialog][open]");
+  // A background read must never discard an in-progress Customize Tabs edit.
+  if (openDialog) return;
+  host.innerHTML = renderActivityDetailsPanel(runtime.input);
+}
+
+async function loadDetailsInto(host: HTMLElement, key: string, activityId: string, force = false): Promise<void> {
+  const runtime = detailsRuntime.get(host);
+  if (!runtime) return;
+  const input = runtime.input;
+  if (!input.transport || !input.state) return;
+  if (!force) {
+    const cached = detailsDataCache.get(key);
+    if (cached) {
+      detailsRuntime.set(host, { ...runtime, input: { ...input, data: cached } });
+      redrawDetailsPanel(host);
+      return;
+    }
+  }
+  const token = (detailsLoadToken.get(host) ?? 0) + 1;
+  detailsLoadToken.set(host, token);
+  detailsRuntime.set(host, {
+    ...runtime,
+    input: {
+      ...input,
+      data: {
+        assignments: loadingDetailsState(),
+        expenses: loadingDetailsState(),
+        issues: loadingDetailsState(),
+        risks: loadingDetailsState(),
+        udfs: loadingDetailsState(),
+        history: loadingDetailsState(),
+      },
+    },
+  });
+  redrawDetailsPanel(host);
+  const data = await readDetailsData(input, activityId);
+  if (detailsLoadToken.get(host) !== token) return;
+  detailsDataCache.set(key, data);
+  const current = detailsRuntime.get(host);
+  if (!current) return;
+  detailsRuntime.set(host, { ...current, input: { ...current.input, data } });
+  redrawDetailsPanel(host);
+}
 
 export function enhanceActivityDetails(
   host: HTMLElement,
@@ -1080,6 +1401,15 @@ export function enhanceActivityDetails(
   };
   detailsRuntime.set(host, { input: effective, onSelect: onSelectActivity });
   host.innerHTML = renderActivityDetailsPanel(effective);
+  const key = detailsDataKey(effective);
+  if (key && effective.selectedActivityId && effective.transport && effective.state) {
+    if (effective.data) {
+      detailsLoadedKey.set(host, key);
+    } else if (detailsLoadedKey.get(host) !== key) {
+      detailsLoadedKey.set(host, key);
+      void loadDetailsInto(host, key, effective.selectedActivityId);
+    }
+  }
   if (detailsBound.has(host)) return;
   detailsBound.add(host);
 
@@ -1156,6 +1486,18 @@ export function enhanceActivityDetails(
     const onSelectActivity = runtime.onSelect;
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
+
+    const refresh = target.closest<HTMLElement>("[data-details-refresh]");
+    if (refresh?.dataset.detailsRefresh) {
+      const activityId = runtime.input.selectedActivityId;
+      const key = detailsDataKey(runtime.input);
+      if (activityId && key) {
+        detailsDataCache.delete(key);
+        detailsLoadedKey.set(host, key);
+        void loadDetailsInto(host, key, activityId, true);
+      }
+      return;
+    }
 
     const tab = target.closest<HTMLElement>("[data-detail-tab]");
     if (tab?.dataset.detailTab) {
