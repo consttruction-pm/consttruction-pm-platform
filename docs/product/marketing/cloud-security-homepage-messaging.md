@@ -20,53 +20,57 @@ Use a prominent, visually polished homepage section with concise cards, clear ic
 
 > **Your Projects. Securely Connected. Reliably Protected.**
 >
-> Manage your projects in a cloud environment designed to support secure access, infrastructure protection, and dependable data backup.
+> Manage your projects in a secure and always-accessible environment.
 >
-> CUBI uses cloud hosting services and their available security and reliability capabilities to help protect access to your workspace and reduce the risk of losing project information.
+> With cloud infrastructure, security capabilities, and backup services, CUBI helps you manage your project information and records with greater confidence.
+
+### Exact approved homepage copy (Persian)
+
+> **Your Projects. Securely Connected. Reliably Protected.**
+>
+> مدیریت پروژه‌های خود را به محیطی امن و همیشه در دسترس بسپارید.
+>
+> CUBI با بهره‌گیری از زیرساخت ابری، امکانات امنیتی و خدمات پشتیبان‌گیری، به شما کمک می‌کند اطلاعات و سوابق پروژه‌های خود را با اطمینان بیشتری مدیریت کنید.
+>
+> **Secure SSL Connection**  
+> ارتباط امن و رمزنگاری‌شده با CUBI.
+>
+> **Cloud Firewall Protection**  
+> محافظت زیرساخت در برابر دسترسی‌های غیرمجاز.
+>
+> **DDoS Protection**  
+> محافظت در برابر حملات مختل‌کننده سرویس.
+>
+> **Automatic Cloud Backup**  
+> پشتیبان‌گیری خودکار برای کاهش خطر از دست رفتن اطلاعات.
+>
+> **Infrastructure Monitoring**  
+> پایش سلامت و عملکرد زیرساخت.
+>
+> **Data Recovery**  
+> امکان بازیابی اطلاعات از نسخه‌های پشتیبان.
+>
+> CUBI؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری.
 
 ### Homepage feature cards
 
-1. **SSL/TLS Secure Connection**  
+1. **Secure SSL Connection**  
    Encrypted connection between the user's browser and CUBI.
 
 2. **Cloud Firewall Protection**  
-   Network-level filtering that helps block unauthorized or unwanted traffic.
+   Infrastructure protection against unauthorized access.
 
 3. **DDoS Protection**  
-   Protection designed to help keep the website available during denial-of-service attacks.
+   Protection against attacks that disrupt service availability.
 
 4. **Automatic Cloud Backup**  
-   Scheduled backups that help reduce the risk of losing project information.
+   Automatic backups to reduce the risk of losing project information.
 
-5. **Secure Cloud Storage**  
-   Cloud-based storage for website and project data, subject to the selected provider's storage and encryption capabilities.
+5. **Infrastructure Monitoring**  
+   Monitoring of infrastructure health and performance.
 
-6. **Infrastructure Monitoring**  
-   Monitoring of hosting infrastructure health and service status.
-
-7. **Data Recovery**  
-   Recovery from available backups when supported by the selected hosting and backup services.
-
-### Suggested short homepage closing line
-
-> **Focus on managing your projects. CUBI's cloud infrastructure helps protect the services and information you rely on.**
-
-## Suggested Persian meaning for localization
-
-### عنوان
-**پروژه‌های شما؛ ارتباط امن، حفاظت قابل‌اعتماد**
-
-### معرفی
-پروژه‌های خود را در محیطی ابری مدیریت کنید که برای دسترسی امن، محافظت از زیرساخت و پشتیبان‌گیری مطمئن طراحی شده است.
-
-### کارت‌ها
-- **ارتباط امن SSL/TLS:** ارتباط رمزنگاری‌شده میان مرورگر شما و CUBI.
-- **محافظت فایروال ابری:** فیلتر ترافیک شبکه برای کمک به جلوگیری از دسترسی‌های غیرمجاز.
-- **محافظت DDoS:** کمک به حفظ دسترس‌پذیری سایت در برابر حملات ازکاراندازی سرویس.
-- **پشتیبان‌گیری خودکار ابری:** تهیه نسخه پشتیبان زمان‌بندی‌شده برای کاهش خطر از دست رفتن اطلاعات پروژه.
-- **ذخیره‌سازی امن ابری:** نگهداری اطلاعات در فضای ابری، متناسب با قابلیت‌های سرویس‌دهنده انتخاب‌شده.
-- **پایش سلامت زیرساخت:** بررسی وضعیت و سلامت سرویس میزبانی.
-- **بازیابی اطلاعات:** بازیابی اطلاعات از نسخه‌های پشتیبان موجود، در محدوده امکانات سرویس انتخاب‌شده.
+6. **Data Recovery**  
+   Recovery of information from available backup copies.
 
 ## Accuracy and claim controls
 
