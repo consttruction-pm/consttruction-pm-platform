@@ -84,12 +84,14 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
   "[data-workspace-menu]",
   "[data-administration-page]",
   "[data-exchange-page]",
+  "[data-backup-page]",
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
   "project", "wbs", "schedule", "progress", "resources", "assignments", "roles",
   "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues",
   "risks", "thresholds", "control", "settings", "administration", "exchange",
+  "backup",
 ]);
 
 export function isWorkspaceMenuKey(value: string | undefined): value is WorkspaceMenuKey {
@@ -735,6 +737,35 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
     action: {
       label: { en: "Open project import and export", fa: "باز کردن ورود و خروجی پروژه" },
       target: "[data-exchange-page]",
+    },
+  },
+
+  backup: {
+    purpose: {
+      en: "Project backup and recovery: capture a checksummed snapshot of WBS, activities, resources, relationships and layouts, review its manifest, then restore selected sections additively or by overwrite.",
+      fa: "پشتیبان‌گیری و بازیابی پروژه: ثبت یک تصویر دارای چکسام از ساختار شکست، فعالیت‌ها، منابع، روابط و چیدمان‌ها، مرور فهرست محتوا و سپس بازیابی بخش‌های انتخابی به‌صورت افزودنی یا بازنویسی.",
+    },
+    steps: [
+      {
+        en: "On the Snapshots tab choose the kind and label, capture a snapshot, then open its manifest to confirm the section counts and content hash.",
+        fa: "در زبانهٔ تصاویر، نوع و برچسب را انتخاب کنید، تصویر را ثبت کنید و سپس فهرست محتوای آن را برای تأیید تعداد بخش‌ها و هش محتوا باز کنید.",
+      },
+      {
+        en: "Use Download to keep a copy of the snapshot content; the restored payload is rejected if the stored checksum no longer matches.",
+        fa: "برای نگه‌داشتن نسخه‌ای از محتوای تصویر از بارگیری استفاده کنید؛ اگر چکسام ذخیره‌شده دیگر مطابقت نداشته باشد، محتوای بازیابی رد می‌شود.",
+      },
+      {
+        en: "On the Restore tab pick a snapshot, select sections and choose merge (additive) or overwrite, then review created, updated and skipped counts in the run summary.",
+        fa: "در زبانهٔ بازیابی یک تصویر و بخش‌ها را انتخاب و حالت افزودنی یا بازنویسی را تعیین کنید؛ سپس تعداد ایجاد، به‌روزرسانی و ردشده را در خلاصهٔ اجرا مرور کنید.",
+      },
+    ],
+    commonError: {
+      en: "Capturing needs write access and restoring needs the project administrator role; both enforce the project revision, and a tampered payload returns a 409 integrity failure without writing.",
+      fa: "ثبت تصویر نیازمند دسترسی نوشتن و بازیابی نیازمند نقش مدیر پروژه است؛ هر دو نسخهٔ پروژه را اعتبارسنجی می‌کنند و محتوای دست‌کاری‌شده بدون هیچ نوشتنی خطای یکپارچگی ۴۰۹ برمی‌گرداند.",
+    },
+    action: {
+      label: { en: "Open project backup and recovery", fa: "باز کردن پشتیبان‌گیری و بازیابی پروژه" },
+      target: "[data-backup-page]",
     },
   },
 };

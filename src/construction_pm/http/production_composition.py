@@ -51,6 +51,7 @@ from construction_pm.cost_api import CostAPI
 from construction_pm.risk_api import RiskAPI
 from construction_pm.report_api import ReportAPI
 from construction_pm.administration_api import AdministrationAPI
+from construction_pm.backup_api import BackupAPI
 from construction_pm.exchange_api import ExchangeAPI
 from construction_pm.threshold_api import ThresholdAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
@@ -120,6 +121,7 @@ def build_project_lifecycle_wsgi_app(
     report_api: ReportAPI | None = None,
     administration_api: AdministrationAPI | None = None,
     exchange_api: ExchangeAPI | None = None,
+    backup_api: BackupAPI | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
@@ -293,6 +295,7 @@ def build_project_lifecycle_wsgi_app(
         report_api=report_api,
         administration_api=administration_api,
         exchange_api=exchange_api,
+        backup_api=backup_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,

@@ -118,6 +118,7 @@ from ..report_api import ReportAPI
 from ..report_persistence import ReportDefinition
 from ..administration_api import AdministrationAPI
 from ..exchange_api import ExchangeAPI
+from ..backup_api import BackupAPI
 from ..administration_persistence import AdministrationPreferences, DictionaryEntry
 from ..threshold_api import ThresholdAPI
 from ..threshold_persistence import Threshold, parse_threshold_number
@@ -256,6 +257,7 @@ class ProjectLifecycleHttpRoutes:
         report_api: ReportAPI | None = None,
         administration_api: AdministrationAPI | None = None,
         exchange_api: ExchangeAPI | None = None,
+        backup_api: BackupAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -310,6 +312,7 @@ class ProjectLifecycleHttpRoutes:
         self._report_api = report_api
         self._administration_api = administration_api
         self._exchange_api = exchange_api
+        self._backup_api = backup_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -3581,6 +3584,142 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "EXCHANGE_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._backup_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/backup" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    backup_project_id, marker, backup_suffix = rest.partition("/backup")
+                    if (
+                        marker
+                        and backup_project_id
+                        and (not backup_suffix or backup_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, backup_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        scope = BackendScope(
+                            context.tenant_id, context.project_id, context.revision
+                        )
+                        parts = [
+                            part
+                            for part in backup_suffix.strip("/").split("/")
+                            if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _backup_reply(result: dict[str, object], success: int = 200):
+                            if "category" not in result:
+                                return self._json(success, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if category == "not_found" or code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.backup.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.backup.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "POST" and not parts:
+                                return _backup_reply(
+                                    self._backup_api.create(
+                                        scope=scope,
+                                        kind=str(payload.get("kind", "project")),
+                                        label=str(payload.get("label", "")),
+                                        idempotency_key=str(
+                                            payload.get("idempotency_key", "")
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    ),
+                                    201,
+                                )
+                            if method == "GET" and not parts:
+                                return _backup_reply(
+                                    self._backup_api.snapshots(
+                                        scope=scope,
+                                        context=auth,
+                                    )
+                                )
+                            if method == "GET" and parts == ["restores"]:
+                                return _backup_reply(
+                                    self._backup_api.restores(
+                                        scope=scope,
+                                        context=auth,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 1:
+                                return _backup_reply(
+                                    self._backup_api.snapshot(
+                                        scope=scope,
+                                        snapshot_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 2
+                                and parts[1] == "content"
+                            ):
+                                return _backup_reply(
+                                    self._backup_api.content(
+                                        scope=scope,
+                                        snapshot_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if (
+                                method == "POST"
+                                and len(parts) == 2
+                                and parts[1] == "restore"
+                            ):
+                                raw_sections = payload.get("sections")
+                                if raw_sections is not None and not isinstance(
+                                    raw_sections, list
+                                ):
+                                    raise ValueError("invalid sections")
+                                return _backup_reply(
+                                    self._backup_api.restore(
+                                        scope=scope,
+                                        snapshot_id=parts[0],
+                                        mode=str(payload.get("mode", "merge")),
+                                        sections=None
+                                        if raw_sections is None
+                                        else [str(item) for item in raw_sections],
+                                        idempotency_key=str(
+                                            payload.get("idempotency_key", "")
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            return self._error(
+                                400, "BACKUP_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "BACKUP_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
