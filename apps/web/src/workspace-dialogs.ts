@@ -207,7 +207,9 @@ function shell(locale: string, id: string, title: string, body: string, includeD
 function tableEditor(optionsInput: DialogOptions, includeDisplayOptions: boolean): string {
   const { locale, presentation } = optionsInput;
   const table = presentation.table;
-  return `<fieldset class="cp-dialog-group">
+  return `${includeDisplayOptions ? '<input type="hidden" name="tableLineNumbers" value="1">' : ""}
+    <input type="hidden" name="tableFields" value="1">
+    <fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Table font and colour", "قلم و رنگ جدول"))}</legend>
       <label class="cp-dialog-row"><span>${esc(t(locale, "Font family", "خانوادهٔ قلم"))}</span>
         <select name="fontFamily">${selectOptions(TABLE_FONT_FAMILIES, FONT_FAMILY_LABELS, table.fontFamily, locale)}</select>
@@ -234,7 +236,8 @@ function tableEditor(optionsInput: DialogOptions, includeDisplayOptions: boolean
       </label>
       <label class="cp-dialog-check"><input type="checkbox" name="showIcons"${table.showIcons ? " checked" : ""}> ${esc(t(locale, "Show activity type icons", "نمایش نماد نوع فعالیت"))}</label>
       ${includeDisplayOptions ? `<label class="cp-dialog-check"><input type="checkbox" name="lineNumbers"${table.lineNumbers ? " checked" : ""}> ${esc(t(locale, "Show line numbers", "نمایش شمارهٔ ردیف"))}</label>` : ""}
-    </fieldset>`;
+    </fieldset>
+    ${includeDisplayOptions ? "" : `<button type="submit" class="cp-dialog-reset" name="tableReset" value="1" data-dialog-reset>${esc(t(locale, "Reset to defaults", "بازنشانی به پیش‌فرض"))}</button>`}`;
 }
 
 function barEditor(kind: GanttBarKind, style: GanttBarStyle, locale: string, availability: DialogOptions["dataAvailability"]): string {
@@ -973,14 +976,15 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     presentation.table.rowHeightMode = rowHeightMode;
     presentationChanged = true;
   }
-  if (data.has("showIcons")) {
+  if (data.has("tableFields")) {
+    // An unchecked checkbox is absent from FormData, so the table fieldset
+    // carries a marker input and both flags are read as booleans.
     patch.showIcons = data.get("showIcons") === "on";
     presentation.table.showIcons = patch.showIcons;
-    presentationChanged = true;
-  }
-  if (data.has("lineNumbers")) {
-    patch.lineNumbers = data.get("lineNumbers") === "on";
-    presentation.table.lineNumbers = patch.lineNumbers;
+    if (data.has("tableLineNumbers")) {
+      patch.lineNumbers = data.get("lineNumbers") === "on";
+      presentation.table.lineNumbers = patch.lineNumbers;
+    }
     presentationChanged = true;
   }
 
@@ -1153,6 +1157,13 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
       presentation.filters = filters;
       presentationChanged = true;
     }
+  }
+
+  if (data.get("tableReset") === "1") {
+    // Reset replaces only the table presentation; timescale, bars, Gantt
+    // settings, WBS colours and filters keep their saved values.
+    presentation.table = { ...DEFAULT_PRESENTATION.table };
+    presentationChanged = true;
   }
 
   if (presentationChanged) patch.presentation = presentation;
