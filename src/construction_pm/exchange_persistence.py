@@ -86,6 +86,8 @@ class ExchangeStore(Protocol):
         self, record: ExchangeIdempotencyRecord
     ) -> ExchangeIdempotencyRecord: ...
 
+    def commit(self) -> None: ...
+
 
 class SQLiteExchangeStore:
     """SQLite-backed exchange run log; one connection per preview runtime."""
@@ -156,7 +158,6 @@ class SQLiteExchangeStore:
                 json.dumps(run.result, sort_keys=True),
             ),
         )
-        self.connection.commit()
         return run
 
     def read_run(
@@ -211,8 +212,10 @@ class SQLiteExchangeStore:
                 record.occurred_at,
             ),
         )
-        self.connection.commit()
         return record
+
+    def commit(self) -> None:
+        self.connection.commit()
 
     @staticmethod
     def _from_row(row: tuple[Any, ...]) -> ExchangeImportRun:
@@ -233,11 +236,148 @@ class SQLiteExchangeStore:
         )
 
 
+class PostgresExchangeStore:
+    """PostgreSQL twin of the exchange run/idempotency log.
+
+    The store never commits implicitly: an ExchangeService apply runs the
+    register writes, the run record and the idempotency record inside one
+    application-owned transaction, so a failing row rolls all of them back.
+    """
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_exchange_import_run (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                dataset TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                row_count INTEGER NOT NULL,
+                accepted INTEGER NOT NULL,
+                rejected INTEGER NOT NULL,
+                content_sha256 TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                idempotency_key TEXT,
+                result_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, run_id)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_exchange_idempotency (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                request_sha256 TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, idempotency_key)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE INDEX IF NOT EXISTS idx_exchange_run_scope
+            ON project_exchange_import_run (tenant_id, project_id, dataset, run_id)"""
+        )
+
+    def next_run_id(self, tenant_id: str, project_id: str, dataset: str) -> str:
+        row = self.connection.execute(
+            "SELECT COUNT(*) FROM project_exchange_import_run "
+            "WHERE tenant_id=%s AND project_id=%s AND dataset=%s",
+            (tenant_id, project_id, dataset),
+        ).fetchone()
+        return f"EXR-{dataset}-{int(row[0]) + 1}"
+
+    def save_run(self, run: ExchangeImportRun) -> ExchangeImportRun:
+        self.connection.execute(
+            "INSERT INTO project_exchange_import_run (tenant_id, project_id, run_id, "
+            "dataset, mode, row_count, accepted, rejected, content_sha256, actor_id, "
+            "occurred_at, idempotency_key, result_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                run.tenant_id,
+                run.project_id,
+                run.run_id,
+                run.dataset,
+                run.mode,
+                run.row_count,
+                run.accepted,
+                run.rejected,
+                run.content_sha256,
+                run.actor_id,
+                run.occurred_at,
+                run.idempotency_key,
+                json.dumps(run.result, sort_keys=True),
+            ),
+        )
+        return run
+
+    def read_run(
+        self, tenant_id: str, project_id: str, run_id: str
+    ) -> ExchangeImportRun | None:
+        row = self.connection.execute(
+            "SELECT tenant_id, project_id, run_id, dataset, mode, row_count, accepted, "
+            "rejected, content_sha256, actor_id, occurred_at, idempotency_key, result_json "
+            "FROM project_exchange_import_run "
+            "WHERE tenant_id=%s AND project_id=%s AND run_id=%s",
+            (tenant_id, project_id, run_id),
+        ).fetchone()
+        return None if row is None else SQLiteExchangeStore._from_row(row)
+
+    def list_runs(
+        self, tenant_id: str, project_id: str, *, limit: int = 50
+    ) -> tuple[ExchangeImportRun, ...]:
+        rows = self.connection.execute(
+            "SELECT tenant_id, project_id, run_id, dataset, mode, row_count, accepted, "
+            "rejected, content_sha256, actor_id, occurred_at, idempotency_key, result_json "
+            "FROM project_exchange_import_run "
+            "WHERE tenant_id=%s AND project_id=%s ORDER BY occurred_at DESC LIMIT %s",
+            (tenant_id, project_id, limit),
+        ).fetchall()
+        return tuple(SQLiteExchangeStore._from_row(row) for row in rows)
+
+    def read_idempotency(
+        self, tenant_id: str, project_id: str, idempotency_key: str
+    ) -> ExchangeIdempotencyRecord | None:
+        row = self.connection.execute(
+            "SELECT tenant_id, project_id, idempotency_key, request_sha256, run_id, "
+            "occurred_at FROM project_exchange_idempotency "
+            "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+            (tenant_id, project_id, idempotency_key),
+        ).fetchone()
+        if row is None:
+            return None
+        return ExchangeIdempotencyRecord(*row)
+
+    def save_idempotency(
+        self, record: ExchangeIdempotencyRecord
+    ) -> ExchangeIdempotencyRecord:
+        self.connection.execute(
+            "INSERT INTO project_exchange_idempotency (tenant_id, project_id, "
+            "idempotency_key, request_sha256, run_id, occurred_at) VALUES (%s,%s,%s,%s,%s,%s)",
+            (
+                record.tenant_id,
+                record.project_id,
+                record.idempotency_key,
+                record.request_sha256,
+                record.run_id,
+                record.occurred_at,
+            ),
+        )
+        return record
+
+    def commit(self) -> None:
+        self.connection.commit()
+
+
 __all__ = [
     "ExchangeIdempotencyRecord",
     "ExchangeIdempotencyReuse",
     "ExchangeImportRun",
     "ExchangePersistenceError",
+    "PostgresExchangeStore",
     "ExchangeStore",
     "SQLiteExchangeStore",
 ]
