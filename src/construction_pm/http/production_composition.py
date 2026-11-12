@@ -12,8 +12,7 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
-from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
-from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
+from construction_pm.shared_core_runtime import build_shared_core_runtime
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
@@ -168,19 +167,15 @@ def build_project_lifecycle_wsgi_app(
             calendar_exception_repository=resource_calendar_exception_repository,
             calendar_work_hours_repository=resource_calendar_work_hours_repository,
         )
-    provider = AuthoritativeScheduleQueryProvider(
+    shared_core_runtime = build_shared_core_runtime(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
+        authorization_policy=authorization_policy,
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,
     )
-    schedule_query_api = ScheduleQueryAPI(
-        ScheduleQueryApplicationService(
-            provider=provider,
-            authorization_policy=authorization_policy,
-        )
-    )
+    schedule_query_api = shared_core_runtime.schedule_query_api
     runtime_config_requested = (
         ai_action_permission_adapter is not None
         or ai_action_transaction_manager is not None
