@@ -1,12 +1,12 @@
 {
   "contract": "cubi-reports-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "3449e2e14651de6ce3f3bc9bbd2461a14573d393",
-  "testedCodeSha": "3449e2e14651de6ce3f3bc9bbd2461a14573d393",
+  "gitHead": "5ecb939e662b58c7f8543584744a74a2fe42f18a",
+  "testedCodeSha": "5ecb939e662b58c7f8543584744a74a2fe42f18a",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T04:02:55.728Z",
-  "activityReportId": "E2E-RPT-ACT-MWD0VII1",
-  "resourceReportId": "E2E-RPT-RES-MWD0VII1",
+  "capturedAt": "2026-11-12T04:04:56.288Z",
+  "activityReportId": "E2E-RPT-ACT-MWD0Y3J9",
+  "resourceReportId": "E2E-RPT-RES-MWD0Y3J9",
   "scenarios": [
     {
       "reports": 0,
@@ -18,7 +18,7 @@
       "id": "01",
       "name": "فهرست گزارش خالی است و کاتالوگ سه موضوع و کنترل ساخت دارد",
       "status": "pass",
-      "at": "2026-11-12T04:02:59.659Z"
+      "at": "2026-11-12T04:05:00.204Z"
     },
     {
       "revision": 1,
@@ -31,23 +31,23 @@
       "id": "02",
       "name": "تعریف گزارش فعالیت با ستون‌های انتخابی ساخته و بازخوانی می‌شود",
       "status": "pass",
-      "at": "2026-11-12T04:03:00.511Z"
+      "at": "2026-11-12T04:05:01.056Z"
     },
     {
       "rows": 14,
-      "runId": "RUN-E2E-RPT-ACT-MWD0VII1-1",
+      "runId": "RUN-E2E-RPT-ACT-MWD0Y3J9-1",
       "id": "03",
       "name": "اجرایگزارش ۱۴ ردیف دادهٔ مرجع را با ستون‌های دقیق ذخیره می‌کند",
       "status": "pass",
-      "at": "2026-11-12T04:03:01.415Z"
+      "at": "2026-11-12T04:05:02.060Z"
     },
     {
       "runs": 2,
-      "readback": "RUN-E2E-RPT-ACT-MWD0VII1-1",
+      "readback": "RUN-E2E-RPT-ACT-MWD0Y3J9-1",
       "id": "04",
       "name": "اجرای دوم ذخیره می‌شود و خروجی اجرای اول بدون تغییر بازخوانی می‌شود",
       "status": "pass",
-      "at": "2026-11-12T04:03:02.415Z"
+      "at": "2026-11-12T04:05:03.060Z"
     },
     {
       "revision": 2,
@@ -56,14 +56,40 @@
       "id": "05",
       "name": "ویرایش با نسخهٔ ۲ اعمال می‌شود و نوشتن با نسخهٔ کهنه ۴۰۹ است",
       "status": "pass",
-      "at": "2026-11-12T04:03:04.447Z"
+      "at": "2026-11-12T04:05:05.092Z"
     },
     {
-      "error": "Error: WAIT_TIMEOUT: resources subject filter\n    at Page.waitFor (file:///data/work/repo/apps/web/e2e/preview-e2e.mjs:918:11)\n    at async file:///data/work/repo/apps/web/e2e/reports-v26.mjs:461:7\n    at async scenario (file:///data/work/repo/apps/web/e2e/reports-v26.mjs:73:22)\n    at async main (file:///data/work/repo/apps/web/e2e/reports-v26.mjs:447:5)",
+      "reports": 2,
+      "resourceRows": 1,
       "id": "06",
       "name": "گزارش منابع ساخته می‌شود و فیلتر موضوع و جستجو در سرور اعمال می‌شود",
-      "status": "fail",
-      "at": "2026-11-12T04:03:25.391Z"
+      "status": "pass",
+      "at": "2026-11-12T04:05:07.026Z"
+    },
+    {
+      "remaining": 1,
+      "readStatus": 404,
+      "id": "07",
+      "name": "حذف گزارش با نسخهٔ جاری انجام می‌شود و خواندن بعدی ۴۰۴ است",
+      "status": "pass",
+      "at": "2026-11-12T04:05:07.804Z"
+    },
+    {
+      "createStatus": 403,
+      "runRows": 14,
+      "id": "08",
+      "name": "نقش Viewer فقط می‌خواند: اجرا مجاز و نوشتن مستقیم ۴۰۳ است",
+      "status": "pass",
+      "at": "2026-11-12T04:05:11.743Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "گزارش‌های پروژه",
+      "rows": 1,
+      "id": "09",
+      "name": "پنجرهٔ گزارش در 1280×720 فارسی، راست‌به‌چپ و بدون سرریز رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:05:16.329Z"
     }
   ],
   "screenshots": [
@@ -71,10 +97,14 @@
     "02-created-definition.png",
     "03-first-run-output.png",
     "04-stored-run-readback.png",
-    "05-revised-run.png"
+    "05-revised-run.png",
+    "06-resource-report.png",
+    "07-deleted-report.png",
+    "08-viewer-read-only.png",
+    "09-reports-1280x720-fa.png"
   ],
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T04:03:25.391Z"
+  "finishedAt": "2026-11-12T04:05:16.329Z"
 }

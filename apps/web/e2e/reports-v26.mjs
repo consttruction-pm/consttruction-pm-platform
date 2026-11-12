@@ -376,6 +376,7 @@ async function main() {
       const afterSecond = await page.evaluate(pageState);
       assert(afterSecond.history.length === 2, `history after second run ${JSON.stringify(afterSecond.history)}`);
       assert(afterSecond.history[0].runId.endsWith("-2"), `newest run ${JSON.stringify(afterSecond.history[0])}`);
+      await capture(page, "04-stored-run-readback");
       const firstRunId = afterSecond.history[1].runId;
       await page.click(`[data-report-run-item][data-run-id="${firstRunId}"]`);
       await page.waitFor(
@@ -390,7 +391,6 @@ async function main() {
       const readback = await api(page, "GET", reportsUrl(`/${activityReportId}/runs/${firstRunId}`));
       assert(readback.status === 200 && readback.body.run_id === firstRunId, `run readback ${JSON.stringify(readback)}`);
       assert(readback.body.rows.length === 14, `run readback rows ${readback.body.rows.length}`);
-      await capture(page, "04-stored-run-readback");
       return { runs: afterSecond.history.length, readback: firstRunId };
     });
 
