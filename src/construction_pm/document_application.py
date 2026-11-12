@@ -27,6 +27,7 @@ from .document_persistence import (
     StoredDocument,
 )
 from .document_ocr import DocumentOcrJob, DocumentOcrRepository
+from .document_retention import DocumentContentDisposed, DocumentRetentionStore
 from .document_scan import (
     DocumentScanError,
     DocumentScanRejected,
@@ -82,6 +83,7 @@ class DocumentApplicationService:
     scanner: DocumentScanner | None = None
     require_scanned_content: bool = False
     ocr_store: DocumentOcrRepository | None = None
+    disposition_repository: DocumentRetentionStore | None = None
 
     def create(
         self,
@@ -394,6 +396,14 @@ class DocumentApplicationService:
                 )
             raise DocumentContentNotFound("DOCUMENT_CONTENT_NOT_FOUND")
 
+        if (
+            self.disposition_repository is not None
+            and self.disposition_repository.get_disposition(
+                tenant_id, project_id, document_id, selected.version
+            )
+            is not None
+        ):
+            raise DocumentContentDisposed("DOCUMENT_CONTENT_DISPOSED")
         if self.require_scanned_content and selected.scan_status != "clean":
             raise DocumentContentQuarantined("DOCUMENT_CONTENT_QUARANTINED")
         payload = self.storage.read(
@@ -498,6 +508,10 @@ class DocumentApplicationService:
         if isinstance(exc, DocumentContentQuarantined):
             return conflict_error(
                 str(exc) or "DOCUMENT_CONTENT_QUARANTINED", str(exc)
+            )
+        if isinstance(exc, DocumentContentDisposed):
+            return conflict_error(
+                str(exc) or "DOCUMENT_CONTENT_DISPOSED", str(exc)
             )
         if isinstance(exc, DocumentScanRejected):
             return conflict_error(str(exc) or "DOCUMENT_CONTENT_INFECTED", str(exc))
