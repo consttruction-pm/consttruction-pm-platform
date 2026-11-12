@@ -1628,11 +1628,29 @@ test("bar styles change the real bar layers while the schedule facts stay untouc
   renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
   assert.match(container.innerHTML, /data-gantt-bar-kind="task"[^>]*data-gantt-bar-shape="bar"[^>]*data-gantt-bar-pattern="hatched"/);
   assert.match(container.innerHTML, /--cp-bar-body:#123456/);
-  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Excavate</);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right"[^>]*>Excavate</);
   assert.doesNotMatch(container.innerHTML, /data-gantt-bar-kind="milestone"/);
   // The three activity rows and their persisted dependency links are unchanged.
   assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
   assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
+});
+
+test("bar labels mirror to the left of bars that reach the plotted right edge", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    bars: {
+      task: { labelField: "activity-name", labelPosition: "right" },
+      critical: { visible: false },
+      milestone: { visible: false },
+      progress: { visible: false },
+    },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation });
+  // A-1 finishes at the mid-timeline (Sep 3) and keeps its configured right
+  // label; A-2 runs to the plotted finish (Sep 5) and is mirrored left so the
+  // scrollable chart never clips it.
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right" data-gantt-label-position="right">Excavate</);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-left" data-gantt-label-position="left">Concrete</);
 });
 
 test("Gantt chart options drive labels, legend, sight lines and the progress line", () => {
@@ -1707,7 +1725,9 @@ test("summary bars consume the configured summary style", () => {
   assert.match(container.innerHTML, /--cp-bar-body:#0b5fa5/);
   assert.match(container.innerHTML, /cp-gantt-endpoint is-start is-diamond/);
   assert.match(container.innerHTML, /cp-gantt-endpoint is-finish is-diamond/);
-  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Civil works</);
+  // The summary spans the whole plotted range, so its label mirrors left and
+  // stays inside the scrollable chart.
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-left" data-gantt-label-position="left">Civil works</);
 });
 
 test("actual and baseline bars are drawn only from persisted date facts", () => {

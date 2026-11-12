@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -198,6 +198,24 @@ test("Gantt links skip relationships whose endpoints are filtered out", () => { 
     { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
   ], bars);
   assert.deepEqual(links, []);
+});
+
+test("bar labels keep their configured side unless the bar reaches the plotted edge", () => {
+  // Inside positions belong to the bar body and never depend on the timeline edge.
+  for (const inside of ["inside-left", "inside-center", "inside-right"] as const) {
+    assert.equal(resolveGanttLabelPosition(inside, { leftPercent: 95, widthPercent: 5 }), inside);
+  }
+  // A bar finishing well inside the timeline keeps the configured side.
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: 10, widthPercent: 20 }), "right");
+  assert.equal(resolveGanttLabelPosition("above", { leftPercent: 10, widthPercent: 20 }), "above");
+  assert.equal(resolveGanttLabelPosition("below", { leftPercent: 10, widthPercent: 20 }), "below");
+  // Bars reaching the edge (>= 78%) mirror to the left so the chart cannot clip them.
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: 60, widthPercent: 20 }), "left");
+  assert.equal(resolveGanttLabelPosition("above", { leftPercent: 60, widthPercent: 20 }), "left");
+  assert.equal(resolveGanttLabelPosition("below", { leftPercent: 90, widthPercent: 10 }), "left");
+  // A custom threshold is honoured and non-finite geometry does not flip.
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: 40, widthPercent: 10 }, 45), "left");
+  assert.equal(resolveGanttLabelPosition("right", { leftPercent: Number.NaN, widthPercent: 10 }), "right");
 });
 
 test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", () => {

@@ -81,6 +81,28 @@ export function ganttRowsHeight(count: number, rowHeight: number): number {
   return Math.max(0, count) * ganttRowPitch(rowHeight);
 }
 
+/** A bar label rendered to the left of its bar instead of the configured side. */
+export type GanttResolvedLabelPosition = GanttBarStyleLike["labelPosition"] | "left";
+
+type GanttBarStyleLike = { labelPosition: "inside-left" | "inside-center" | "inside-right" | "above" | "below" | "right" };
+
+/**
+ * Bars that finish at the right edge of the timeline would push their label
+ * past the plotted content, where the scrollable chart clips it. The desktop
+ * reference mirrors those labels to the left of the bar instead of truncating
+ * them, so the label stays readable at every zoom level.
+ */
+export function resolveGanttLabelPosition(
+  configured: GanttBarStyleLike["labelPosition"],
+  bar: { leftPercent: number; widthPercent: number },
+  edgePercent = 78,
+): GanttResolvedLabelPosition {
+  if (configured === "inside-left" || configured === "inside-center" || configured === "inside-right") return configured;
+  const finish = bar.leftPercent + bar.widthPercent;
+  if (Number.isFinite(finish) && finish >= edgePercent) return "left";
+  return configured;
+}
+
 const ganttScaleCache = new WeakMap<readonly WorkspaceActivityRow[], GanttScale | null>();
 const ganttGeometryCache = new WeakMap<object, { scale: GanttScale; start: string; finish: string; progressPercent: number; critical: boolean; geometry: GanttBarGeometry | null }>();
 
