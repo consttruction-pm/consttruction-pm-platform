@@ -36,10 +36,11 @@ import { timescaleTickScale } from "./workspace-gantt.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 import {
   ACTIVITY_FILTER_FIELDS,
-  ACTIVITY_FILTER_OPERATORS,
   ACTIVITY_FILTER_SCOPES,
   activityFilterFieldLabel,
+  activityFilterFieldType,
   activityFilterOperatorLabel,
+  activityFilterOperatorsFor,
   copyActivityFilterAsLayout,
   deleteActivityFilter,
   filterScopeLabel,
@@ -59,6 +60,7 @@ import {
   type ActivityFilterOperator,
   type ActivityFilterScope,
   type ActivityFilterState,
+  type ActivityFilterPreview,
 } from "./workspace-activity-filters.js";
 
 export type DesktopSortColumn = { id: string; label: string };
@@ -193,7 +195,7 @@ function buttons(locale: string, includeDefault = false): string {
 }
 
 function shell(locale: string, id: string, title: string, body: string, includeDefault = false, footer?: string): string {
-  return `<dialog class="cp-desktop-dialog cp-option-dialog" data-desktop-dialog="${id}" aria-labelledby="cp-dialog-${id}-heading">
+  return `<dialog class="cp-desktop-dialog cp-option-dialog" data-desktop-dialog="${id}" data-locale="${esc(locale)}" aria-labelledby="cp-dialog-${id}-heading">
     <form method="dialog" data-dialog-form="${id}">
       <h2 id="cp-dialog-${id}-heading">${esc(title)}</h2>
       <div class="cp-dialog-body">${body}</div>
@@ -342,19 +344,40 @@ function filterList(state: DialogOptions["presentation"]["filters"], locale: str
     </fieldset>`;
 }
 
-function filterBuilder(locale: string): string {
-  const rows = Array.from({ length: 4 }, (_, index) => `<div class="cp-filter-row" data-filter-row="${index}">
+const FILTER_DATE_TOKENS = ["CD", "CS", "CF", "CD+7d", "CD-7d", "CD+1w", "CF+6w"] as const;
+
+/** One editable criterion row; indices are renumbered after every mutation. */
+export function filterCriterionRowMarkup(index: number, locale: string, criterion?: ActivityFilterCriterion): string {
+  const fieldId = criterion?.fieldId ?? "activity_name";
+  const type = activityFilterFieldType(fieldId);
+  const operator = criterion?.operator ?? (activityFilterOperatorsFor(fieldId)[0] ?? "contains");
+  const operators = activityFilterOperatorsFor(fieldId);
+  const range = operator === "within-range";
+  const blank = operator === "is-empty" || operator === "is-not-empty";
+  const dateList = type === "date" ? ` list="cp-filter-date-tokens"` : "";
+  return `<div class="cp-filter-row" data-filter-row="${index}" data-filter-field-type="${type}">
+      <span class="cp-filter-join" data-filter-join${index === 0 ? " hidden" : ""}>${esc(t(locale, "And", "و"))}</span>
       <select name="filter.field.${index}" aria-label="${esc(t(locale, "Filter field", "فیلد فیلتر"))}">
-        ${ACTIVITY_FILTER_FIELDS.map((id) => `<option value="${id}"${id === "activity_name" ? " selected" : ""}>${esc(activityFilterFieldLabel(id, locale))}</option>`).join("")}
+        ${ACTIVITY_FILTER_FIELDS.map((id) => `<option value="${id}"${id === fieldId ? " selected" : ""}>${esc(activityFilterFieldLabel(id, locale))}</option>`).join("")}
       </select>
       <select name="filter.operator.${index}" aria-label="${esc(t(locale, "Filter operator", "عملگر فیلتر"))}">
-        ${ACTIVITY_FILTER_OPERATORS.map((id) => `<option value="${id}"${id === "contains" ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
+        ${operators.map((id) => `<option value="${id}"${id === operator ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
       </select>
-      <input type="text" name="filter.value.${index}" value="" aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false">
-    </div>`).join("");
+      <input type="text" name="filter.value.${index}" value="${esc(criterion?.value ?? "")}"${dateList} aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false"${blank ? " disabled" : ""}>
+      <input type="text" name="filter.high.${index}" value="${esc(criterion?.highValue ?? "")}"${dateList} data-filter-high aria-label="${esc(t(locale, "High value", "مقدار بالا"))}" autocomplete="off" spellcheck="false"${range ? "" : " hidden disabled"}>
+      <span class="cp-filter-row-actions">
+        <button type="button" data-filter-row-move="up" title="${esc(t(locale, "Move up", "بالا بردن"))}" aria-label="${esc(t(locale, "Move criterion up", "جابه‌جایی معیار به بالا"))}">↑</button>
+        <button type="button" data-filter-row-move="down" title="${esc(t(locale, "Move down", "پایین آوردن"))}" aria-label="${esc(t(locale, "Move criterion down", "جابه‌جایی معیار به پایین"))}">↓</button>
+        <button type="button" data-filter-row-remove title="${esc(t(locale, "Remove criterion", "حذف معیار"))}" aria-label="${esc(t(locale, "Remove criterion", "حذف معیار"))}">×</button>
+      </span>
+    </div>`;
+}
+
+function filterBuilder(locale: string): string {
+  const rows = [0, 1].map((index) => filterCriterionRowMarkup(index, locale)).join("");
   return `<fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Filter details", "جزئیات فیلتر"))}</legend>
-      <p class="cp-dialog-note">${esc(t(locale, "New starts a global filter; Modify loads a saved filter for editing. Default filters cannot be modified. A filter only narrows or highlights rows on screen; it never changes schedule data.", "New یک فیلتر سراسری آغاز می‌کند و Modify یک فیلتر ذخیره‌شده را برای ویرایش بار می‌کند. فیلترهای پیش‌فرض قابل ویرایش نیستند. فیلتر فقط ردیف‌های روی صفحه را محدود یا برجسته می‌کند و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
+      <p class="cp-dialog-note">${esc(t(locale, "New starts a global filter; Modify loads a saved filter for editing. Default filters cannot be modified. Date values accept an ISO date or the relative tokens CD (current date), CS (project start) and CF (project finish) with a ±n d/w/m/y offset. A filter only narrows or highlights rows on screen; it never changes schedule data.", "New یک فیلتر سراسری آغاز می‌کند و Modify یک فیلتر ذخیره‌شده را برای ویرایش بار می‌کند. فیلترهای پیش‌فرض قابل ویرایش نیستند. مقدار تاریخ می‌تواند تاریخ ISO یا نشانه‌های نسبی CD (تاریخ جاری)، CS (شروع پروژه) و CF (پایان پروژه) با جابه‌جایی ±n d/w/m/y باشد. فیلتر فقط ردیف‌های روی صفحه را محدود یا برجسته می‌کند و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
       <input type="hidden" name="filterEditingId" value="">
       <div class="cp-dialog-grid">
         <label class="cp-dialog-row"><span>${esc(t(locale, "Filter name", "نام فیلتر"))}</span>
@@ -374,10 +397,13 @@ function filterBuilder(locale: string): string {
           </select>
         </label>
       </div>
-      <div class="cp-filter-criteria" role="group" aria-label="${esc(t(locale, "Filter criteria", "معیارهای فیلتر"))}">
-        <div class="cp-filter-head"><span>${esc(t(locale, "Field", "فیلد"))}</span><span>${esc(t(locale, "Is", "است"))}</span><span>${esc(t(locale, "Value", "مقدار"))}</span></div>
-        ${rows}
+      <div class="cp-filter-criteria" role="group" aria-label="${esc(t(locale, "Where", "شرط"))}">
+        <div class="cp-filter-head"><span>${esc(t(locale, "Where", "شرط"))}</span><span>${esc(t(locale, "Field", "فیلد"))}</span><span>${esc(t(locale, "Is", "است"))}</span><span>${esc(t(locale, "Value", "مقدار"))}</span><span>${esc(t(locale, "High value", "مقدار بالا"))}</span><span></span></div>
+        <div class="cp-filter-rows" data-filter-rows>${rows}</div>
+        <datalist id="cp-filter-date-tokens">${FILTER_DATE_TOKENS.map((token) => `<option value="${token}"></option>`).join("")}</datalist>
+        <button type="button" class="cp-filter-add" data-filter-row-add>${esc(t(locale, "Add criterion", "افزودن معیار"))}</button>
       </div>
+      <p class="cp-filter-preview" data-filter-preview aria-live="polite">${esc(t(locale, "Preview: choose a parameter and a value to see how many activities match.", "پیش‌نمایش: پارامتر و مقدار را انتخاب کنید تا شمار فعالیت‌های مطابق دیده شود."))}</p>
     </fieldset>`;
 }
 
@@ -425,16 +451,7 @@ export function resetFilterEditor(dialog: HTMLElement, scope: ActivityFilterScop
   if (scopeSelect) scopeSelect.value = scope === "default" ? "layout" : scope;
   const editing = dialog.querySelector<HTMLInputElement>('input[name="filterEditingId"]');
   if (editing) editing.value = "";
-  for (const select of dialog.querySelectorAll<HTMLSelectElement>('select[name^="filter.field."]')) {
-    if (select.querySelector('option[value="activity_name"]')) select.value = "activity_name";
-  }
-  for (const select of dialog.querySelectorAll<HTMLSelectElement>('select[name^="filter.operator."]')) {
-    select.value = "contains";
-  }
-  for (const input of dialog.querySelectorAll<HTMLInputElement>('input[name^="filter.value."]')) {
-    input.value = "";
-    input.disabled = false;
-  }
+  setFilterCriterionRows(dialog, [{ fieldId: "activity_name", operator: "contains", value: "" }]);
   dialog.querySelector('input[name="filterDelete"]')?.closest("label")?.remove();
 }
 
@@ -449,29 +466,156 @@ export function loadFilterEditor(dialog: HTMLElement, filter: ActivityFilterDefi
   if (editing) editing.value = filter.builtin ? "" : filter.id;
   const scopeSelect = dialog.querySelector<HTMLSelectElement>('select[name="filterScope"]');
   if (scopeSelect) scopeSelect.value = filter.scope === "global" || filter.scope === "user" ? filter.scope : "layout";
-  for (let index = 0; index < 4; index += 1) {
-    const criterion = filter.criteria[index];
-    const field = dialog.querySelector<HTMLSelectElement>(`select[name="filter.field.${index}"]`);
-    const operator = dialog.querySelector<HTMLSelectElement>(`select[name="filter.operator.${index}"]`);
-    const value = dialog.querySelector<HTMLInputElement>(`input[name="filter.value.${index}"]`);
-    if (field) field.value = criterion?.fieldId ?? "activity_name";
-    if (operator) {
-      operator.value = criterion?.operator ?? "contains";
-      if (value) {
-        value.disabled = operator.value === "is-empty" || operator.value === "is-not-empty";
-        value.value = criterion?.value ?? "";
-      }
+  setFilterCriterionRows(dialog, filter.criteria.length > 0 ? filter.criteria : [{ fieldId: "activity_name", operator: "contains", value: "" }]);
+}
+
+/** Reads the builder rows in display order, including the High value column. */
+export function filterCriterionRows(dialog: HTMLElement): ActivityFilterCriterion[] {
+  const rows = dialog.querySelectorAll<HTMLElement>("[data-filter-rows] .cp-filter-row");
+  return Array.from(rows).map((row) => {
+    const read = (prefix: string): string => row.querySelector<HTMLInputElement | HTMLSelectElement>(`[name^="${prefix}"]`)?.value ?? "";
+    const criterion: ActivityFilterCriterion = {
+      fieldId: read("filter.field.") as ActivityFilterCriterion["fieldId"],
+      operator: read("filter.operator.") as ActivityFilterCriterion["operator"],
+      value: read("filter.value."),
+    };
+    if (criterion.operator === "within-range") criterion.highValue = read("filter.high.");
+    return criterion;
+  });
+}
+
+/** Rebuilds the builder rows; names are renumbered from zero after the write. */
+export function setFilterCriterionRows(dialog: HTMLElement, criteria: readonly ActivityFilterCriterion[]): void {
+  const container = dialog.querySelector<HTMLElement>("[data-filter-rows]");
+  if (!container) return;
+  const locale = dialog.dataset.locale ?? "en";
+  const rows = criteria.length > 0 ? criteria : [{ fieldId: "activity_name" as const, operator: "contains" as const, value: "" }];
+  container.innerHTML = rows.map((criterion, index) => filterCriterionRowMarkup(index, locale, criterion)).join("");
+  renumberFilterRows(dialog);
+}
+
+/** Renumbers row names and join labels after an insert, delete or move. */
+export function renumberFilterRows(dialog: HTMLElement): void {
+  const container = dialog.querySelector<HTMLElement>("[data-filter-rows]");
+  if (!container) return;
+  const locale = dialog.dataset.locale ?? "en";
+  Array.from(container.querySelectorAll<HTMLElement>(".cp-filter-row")).forEach((row, index) => {
+    row.dataset.filterRow = String(index);
+    row.querySelector<HTMLSelectElement>('select[name^="filter.field."]')?.setAttribute("name", `filter.field.${index}`);
+    row.querySelector<HTMLSelectElement>('select[name^="filter.operator."]')?.setAttribute("name", `filter.operator.${index}`);
+    row.querySelector<HTMLInputElement>('input[name^="filter.value."]')?.setAttribute("name", `filter.value.${index}`);
+    row.querySelector<HTMLInputElement>('input[name^="filter.high."]')?.setAttribute("name", `filter.high.${index}`);
+    const join = row.querySelector<HTMLElement>("[data-filter-join]");
+    if (join) {
+      const any = dialog.querySelector<HTMLSelectElement>('select[name="filterMatch"]')?.value === "any";
+      join.hidden = index === 0;
+      join.textContent = any
+        ? translateWorkspaceUiText(locale, "Or", "یا")
+        : translateWorkspaceUiText(locale, "And", "و");
     }
+  });
+}
+
+/** Appends one criterion row and returns it. */
+export function addFilterCriterion(dialog: HTMLElement): HTMLElement | null {
+  const container = dialog.querySelector<HTMLElement>("[data-filter-rows]");
+  if (!container) return null;
+  const count = container.querySelectorAll(".cp-filter-row").length;
+  if (count >= 8) return null;
+  const locale = dialog.dataset.locale ?? "en";
+  container.insertAdjacentHTML("beforeend", filterCriterionRowMarkup(count, locale));
+  renumberFilterRows(dialog);
+  return container.querySelector<HTMLElement>(`.cp-filter-row[data-filter-row="${count}"]`);
+}
+
+/** Removes a criterion row; the last row is kept so the editor stays usable. */
+export function removeFilterCriterion(row: HTMLElement): boolean {
+  const container = row.closest<HTMLElement>("[data-filter-rows]");
+  if (!container || container.querySelectorAll(".cp-filter-row").length <= 1) return false;
+  row.remove();
+  const dialog = container.closest<HTMLElement>("dialog");
+  if (dialog) renumberFilterRows(dialog);
+  return true;
+}
+
+/** Moves a criterion row one place and returns true when it moved. */
+export function moveFilterCriterion(row: HTMLElement, direction: "up" | "down"): boolean {
+  const sibling = direction === "up" ? row.previousElementSibling : row.nextElementSibling;
+  if (!sibling || !sibling.classList.contains("cp-filter-row")) return false;
+  if (direction === "up") row.parentElement?.insertBefore(row, sibling);
+  else row.parentElement?.insertBefore(sibling, row);
+  const dialog = row.closest<HTMLElement>("dialog");
+  if (dialog) renumberFilterRows(dialog);
+  return true;
+}
+
+/** Keeps the value and High value boxes in step with the chosen operator. */
+export function syncFilterOperator(select: HTMLSelectElement): void {
+  const row = select.closest<HTMLElement>(".cp-filter-row");
+  const input = row?.querySelector<HTMLInputElement>('input[name^="filter.value."]');
+  if (!input) return;
+  const blank = select.value === "is-empty" || select.value === "is-not-empty";
+  input.disabled = blank;
+  if (blank) input.value = "";
+  const high = row?.querySelector<HTMLInputElement>("[data-filter-high]");
+  if (high) {
+    const range = select.value === "within-range";
+    high.hidden = !range;
+    high.disabled = !range;
+    if (!range) high.value = "";
   }
 }
 
-/** Keeps the value box in step with the chosen operator. */
-export function syncFilterOperator(select: HTMLSelectElement): void {
-  const row = select.closest(".cp-filter-row");
-  const input = row?.querySelector<HTMLInputElement>('input[name^="filter.value."]');
-  if (!input) return;
-  input.disabled = select.value === "is-empty" || select.value === "is-not-empty";
-  if (input.disabled) input.value = "";
+/** Swaps the operator list when the parameter type changes. */
+export function syncFilterField(select: HTMLSelectElement): void {
+  const row = select.closest<HTMLElement>(".cp-filter-row");
+  if (!row) return;
+  const fieldId = select.value as ActivityFilterCriterion["fieldId"];
+  const type = activityFilterFieldType(fieldId);
+  row.dataset.filterFieldType = type;
+  const locale = (row.closest<HTMLElement>("dialog")?.dataset.locale) ?? "en";
+  const operator = row.querySelector<HTMLSelectElement>('select[name^="filter.operator."]');
+  if (!operator) return;
+  const current = operator.value;
+  const allowed = activityFilterOperatorsFor(fieldId);
+  operator.innerHTML = allowed
+    .map((id) => `<option value="${id}">${esc(activityFilterOperatorLabel(id, locale))}</option>`)
+    .join("");
+  operator.value = allowed.includes(current as ActivityFilterOperator) ? current : allowed[0];
+  const value = row.querySelector<HTMLInputElement>('input[name^="filter.value."]');
+  if (value) {
+    value.value = "";
+    if (type === "date") value.setAttribute("list", "cp-filter-date-tokens");
+    else value.removeAttribute("list");
+    if (type === "number") value.setAttribute("inputmode", "decimal");
+    else value.removeAttribute("inputmode");
+  }
+  const high = row.querySelector<HTMLInputElement>("[data-filter-high]");
+  if (high) {
+    high.value = "";
+    if (type === "date") high.setAttribute("list", "cp-filter-date-tokens");
+    else high.removeAttribute("list");
+  }
+  syncFilterOperator(operator);
+}
+
+/** Renders the editor's validation/preview line. */
+export function formatFilterPreview(preview: ActivityFilterPreview, locale: string): string {
+  if (!preview.valid) {
+    const messages: Record<string, { en: string; fa: string }> = {
+      FILTER_VALUE_REQUIRED: { en: "Enter a value for every criterion.", fa: "برای هر معیار مقداری وارد کنید." },
+      FILTER_RANGE_INCOMPLETE: { en: "A range needs both a value and a high value.", fa: "بازه به مقدار و مقدار بالا نیاز دارد." },
+      FILTER_VALUE_INVALID_DATE: { en: "Use an ISO date or a relative token such as CD+7d.", fa: "از تاریخ ISO یا نشانهٔ نسبی مانند CD+7d استفاده کنید." },
+      FILTER_RANGE_INVALID: { en: "The high value must not be before the value.", fa: "مقدار بالا نباید پیش از مقدار باشد." },
+    };
+    const message = messages[preview.code] ?? messages.FILTER_VALUE_REQUIRED;
+    return translateWorkspaceUiText(locale, message.en, message.fa);
+  }
+  return translateWorkspaceUiText(
+    locale,
+    `${preview.matched} of ${preview.total} activities match.`,
+    `${preview.matched} از ${preview.total} فعالیت مطابق است.`,
+  );
 }
 
 /** Sorts one Filter list category in place; used by the column headers. */
@@ -729,16 +873,25 @@ function selectNewestActivityFilter(state: ActivityFilterState): ActivityFilterS
 function buildFilterDraft(data: FormData, editingId: string, scope: ActivityFilterScope): ActivityFilterDefinition | null {
   const name = String(data.get("filterName") ?? "").trim();
   if (!name) return null;
+  // The editor can add, delete and reorder criterion rows; read every index the
+  // form actually carries and keep DOM order so And/Or reads top to bottom.
+  const indexes = new Set<number>();
+  for (const key of data.keys()) {
+    const match = /^filter\.field\.(\d+)$/.exec(key);
+    if (match) indexes.add(Number(match[1]));
+  }
   const criteria: ActivityFilterCriterion[] = [];
-  for (let index = 0; index < 4; index += 1) {
+  for (const index of [...indexes].sort((left, right) => left - right)) {
     const fieldId = data.get(`filter.field.${index}`);
     const operator = data.get(`filter.operator.${index}`);
     if (typeof fieldId !== "string" || typeof operator !== "string") continue;
-    criteria.push({
+    const criterion: ActivityFilterCriterion = {
       fieldId: fieldId as ActivityFilterCriterion["fieldId"],
       operator: operator as ActivityFilterOperator,
       value: String(data.get(`filter.value.${index}`) ?? ""),
-    });
+    };
+    if (operator === "within-range") criterion.highValue = String(data.get(`filter.high.${index}`) ?? "");
+    criteria.push(criterion);
   }
   return normalizeActivityFilter({
     id: /^custom:/.test(editingId) ? editingId : undefined,
