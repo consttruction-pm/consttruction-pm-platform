@@ -100,10 +100,11 @@ Blocking items (a named external dependency or a server capability is required):
 | GAP-V26-01 | Evidence | No licensed Version 26 reference run exists in this environment | Numeric parity cannot be claimed; no row can be `IMPLEMENTED_AND_PARITY_TESTED` until an authorized dataset is available |
 | GAP-PRJ-02 | Core/server | No close/archive/status lifecycle operation | The Project page cannot offer those actions without fabricating them |
 | GAP-DOC-02 | Core/server | No binary upload/download route | Documents store metadata plus `storage_ref` and SHA-256 only |
-| GAP-PRG-02 | Core/server | No persisted progress-update log or out-of-sequence review | Progress edits are revision-guarded but not historically logged |
 | GAP-TRK-01 | Core | No tracking read model | The Tracking window remains an honest shell |
 
 Resolved after the review snapshot: **GAP-BAS-03** — `p6-baseline-capture-api.v1` now captures the latest published schedule snapshot as immutable baseline activities from the Cost Overview; merged implementation `b04d851`, browser-verified at `2a1c6b3` with evidence `1b367ba`. The older GAP-COST-01 browser note that seeded baseline rows manually is superseded by the capture journey.
+
+Also resolved after the review snapshot: **GAP-PRG-02** — `p6-activity-progress-history-api.v1` appends an immutable progress event inside the same transaction as each revision-guarded activity PATCH and reviews persisted actual dates against stored FS/SS/FF predecessors at write time (a persisted-fact comparison, not a rescheduled forecast). The Progress window renders the event log, the persisted percent-complete trend and a per-event out-of-sequence flag; browser-verified in `apps/web/e2e/progress-history-v26.mjs`, with live PostgreSQL repository coverage in `tests/integration/test_activity_progress_history_postgres_live.py`. Remaining sub-gaps: no all/selected bulk update, no stored EVM or cost/unit period actuals on this page, and the trend is the persisted percent series rather than a schedule-data dashboard.
 
 Non-blocking gaps, recorded per surface in the two traceability matrices:
 
@@ -117,7 +118,8 @@ Non-blocking gaps, recorded per surface in the two traceability matrices:
 - Preferences do not yet drive formatting/precision/fiscal calendars elsewhere; there is no user
   directory or security-profile editor.
 - Administration, risk, threshold, exchange and backup facts are SQLite-only; the Postgres mirror is
-  not exercised for them by the default suite.
+  not exercised for them by the default suite. Progress-history events do have a Postgres repository, covered by
+  `tests/integration/test_activity_progress_history_postgres_live.py` in the PostgreSQL Integration workflow.
 - Long-tail schedule dialogs are not line-by-line audited (GAP-SCH-01) and translated-string coverage
   for the six non-authored locales is unverified (GAP-I18N-01).
 - New labels are inline English/Persian rather than part of the locale dictionaries.

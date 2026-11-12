@@ -2490,6 +2490,7 @@ Recorded provenance:
 
 | Merge | Workflows |
 | --- | --- |
+| `921754f` (PR #1787, baseline capture → earned value) | 5/5 success: ConstructionPM CI, Web CI, Client Typecheck, PostgreSQL Sync State Integration, Deploy CUBI Web to GitHub Pages |
 | `4be217e` (PR #1786, sticky headers + scroll sync) | 5/5 success: ConstructionPM CI, Web CI, Client Typecheck, PostgreSQL Sync State Integration, Deploy CUBI Web to GitHub Pages |
 | `f7a5560` (PR #1785, pane-aware Fit) | 5/5 success on the same workflow set |
 
@@ -2502,3 +2503,67 @@ Recorded provenance:
 - Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
   context menus, duplicated text command bands and the remaining server capabilities
   (GAP-PRG-02, GAP-TRK-01, GAP-PRJ-02, GAP-DOC-02).
+
+## GAP-PRG-02 — persisted progress history and out-of-sequence review (2026-11-12)
+
+Reference: Oracle Primavera P6 Professional Help Version 26 — [Update progress for individual activities](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_for_individual_activities_manually.htm)
+and [Update progress for all activities](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_for_all_activities.htm).
+The first topic defines the per-activity Status-tab workflow (Started/Finished actual dates, Remaining
+duration, percent complete) that the Progress page mirrors; the second defines the bulk Apply Actuals
+scope that this increment deliberately does not implement.
+
+### Implemented
+
+- `activity_progress_history.py`: append-only `activity_progress_event` persistence for SQLite and
+  PostgreSQL, with `event_id = activity_id@to_record_revision`, `ON CONFLICT DO NOTHING` plus
+  read-back, deterministic ordering and no update/delete path. Tracked fields are actual start/finish,
+  percent complete, remaining duration, remaining start, expected finish, status and status code.
+- `p6_activity_progress_api.py`: wraps the existing activity-master PATCH, reads the previous row,
+  writes through the same revision guard, re-reads the stored row and appends the event in the same
+  transaction (`SQLiteTransactionManager`, savepoint-aware). FS/SS/FF findings are evaluated from
+  persisted actual dates at write time and captured with the event they describe.
+- `GET /api/projects/{id}/p6/activities/{activity_id}/progress-history`
+  (`p6-activity-progress-history-api.v1`, `PROJECT_READ`) returns events, a persisted
+  percent-complete trend and the latest review; unknown activities return 404
+  `P6_ACTIVITY_PROGRESS_HISTORY_NOT_FOUND`; a missing composition returns
+  `P6_ACTIVITY_PROGRESS_HISTORY_UNAVAILABLE`.
+- Preview and production composition both build `P6ActivityProgressAPI` with the relationship and
+  activity repositories, so the review reads authoritative stored logic rather than browser state.
+- `workspace-progress.ts`: history table (revision, recorded time, actor, changes, sequence), inline
+  percent trend, localized out-of-sequence summary and per-row sequence flag; reloaded after every
+  save and every selection.
+- `tests/integration/test_activity_progress_history_postgres_live.py` runs against live PostgreSQL in
+  the PostgreSQL Integration workflow (append/list/isolation/latest, idempotent replay, concurrent
+  identical append).
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3537 passed, 142 skipped (psycopg installed; without it the live modules skip as whole modules) |
+| Progress tests | `PYTHONPATH=src python3 -m pytest tests/test_activity_progress_history.py -q` | 9 passed |
+| Live PostgreSQL | `CONSTRUCTION_PM_POSTGRES_DSN=... python3 -m pytest tests/integration/test_activity_progress_history_postgres_live.py -q` | 3 passed |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 885 `tsx` + 14 `node --test` tests pass, 0 fail |
+| Web bundle | `cd apps/web && npm run build` | three bundles written |
+| Browser suite | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=256b1c0 node e2e/progress-history-v26.mjs` | 7/7 scenarios, 6 screenshots, 4 viewport/locale cells, 0 exceptions/console errors/5xx |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Implementation commit | `256b1c0` |
+| Browser-tested code SHA | `256b1c0fe6eb28a0f7c13a55a45a005f0862950d` |
+| Evidence | `docs/workspace/evidence/progress-history-v26-2026-11-12/` (`report.json` `gitHead`) |
+| Branch | `feat/v26-progress-history` (merged via PR) |
+
+### Status after this increment
+
+- GAP-PRG-02: resolved (`WIRED_WRITE`); PRO-001 updated in the window matrix.
+- Honest limits: the review compares persisted actual dates only (no float or calendar calculation, so
+  it is not a rescheduled forecast); updates remain per activity with no all/selected bulk apply; the
+  Progress page has no period cost/unit actuals and the trend is the persisted percent series.
+- Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-PRJ-02 (project
+  close/archive/status), GAP-DOC-02 (binary document storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
+- Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
+  context menus and duplicated text command bands.
