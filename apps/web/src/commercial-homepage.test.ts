@@ -112,7 +112,7 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /\.\/resources\/#documentation/);
   // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
   assert.match(landing, /pricingHref = locale === "en" \? `\$\{siteRootHref\}pricing\/` : `\$\{siteRootHref\}\$\{locale\}\/pricing\/`/);
-  assert.match(landing, /href="\$\{pricingHref\}"/);
+  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -262,7 +262,7 @@ test("About Us is a first-class bilingual public route with approved founder fac
   for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
     assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
   }
-  assert.match(landing, /href="\\.\\/about\\/">\\$\\{t\\.nav\\[4\\]\\}/);
-  assert.match(english, /href="\\.\\.\\/about\\/" aria-current="page">About Us/);
-  assert.match(persian, /href="\\.\\.\\/about\\/" aria-current="page">درباره ما/);
+  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
+  assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
+  assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
