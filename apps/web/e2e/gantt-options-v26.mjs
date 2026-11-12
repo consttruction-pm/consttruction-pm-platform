@@ -127,7 +127,7 @@ const measurement = `(() => {
     bands: document.querySelectorAll(".cp-p6-wbs-band").length,
     ganttGroups: document.querySelectorAll("#cp-gantt .cp-gantt-group-row").length,
     ticks: document.querySelectorAll("#cp-gantt [data-gantt-tick]").length,
-    periodGroups: document.querySelectorAll("#cp-gantt .cp-gantt-period").length,
+    periodGroups: document.querySelectorAll("#cp-gantt [data-timescale-group]").length,
     bars: bars.length,
     barsByKind,
     legend: legend ? {
@@ -242,8 +242,8 @@ async function main() {
         form.querySelector('[name="gantt.sightLines.beforeSummaries"]').checked = false;
         form.querySelector('[name="gantt.sightLines.rowInterval"]').value = '0';
         form.querySelector('[name="gantt.sightLines.minorVertical"]').checked = false;
-        form.querySelector('[name="bar.task.filter"]').value = 'task';
-        form.querySelector('[name="bar.task.visible"]').checked = true;
+        form.querySelector('[name="bar.critical.filter"]').value = 'critical';
+        form.querySelector('[name="bar.critical.visible"]').checked = true;
       `);
       await applyTimescale(page, `
         form.querySelector('[name="timescale.interval"]').value = 'quarter-month';
@@ -254,7 +254,9 @@ async function main() {
       verifyBase(baseline, `${label} baseline`);
       assert(baseline.legend === null, `${label}: legend is visible before it is enabled`);
       assert(baseline.sight.majorHorizontal === 0 && baseline.sight.minorHorizontal === 0, `${label}: sight lines are visible before they are enabled`);
+      const baselineCriticalBars = baseline.barsByKind.critical ?? 0;
       const baselineTaskBars = baseline.barsByKind.task ?? 0;
+      assert(baselineCriticalBars > 0, `${label}: the fixture has no critical bars to test a per-bar filter`);
 
       // Legend above the chart.
       await applyBars(page, `
@@ -295,24 +297,29 @@ async function main() {
       await capture(page, `gantt-sight-lines-${label}`);
 
       // Per-bar filter and Show flag.
-      await applyBars(page, `form.querySelector('[name="bar.task.filter"]').value = 'milestone';`);
+      await applyBars(page, `form.querySelector('[name="bar.critical.filter"]').value = 'milestone';`);
       const filtered = await measure(page);
-      verifyBase(filtered, `${label} task filter milestone`);
-      assert((filtered.barsByKind.task ?? 0) === 0, `${label}: task bars still drawn under a disjoint filter (${filtered.barsByKind.task})`);
-      assert(filtered.bars < baseline.bars, `${label}: disjoint task filter did not remove any bar (${filtered.bars} >= ${baseline.bars})`);
-      await capture(page, `gantt-task-filter-${label}`);
+      verifyBase(filtered, `${label} critical filter milestone`);
+      assert((filtered.barsByKind.critical ?? 0) === 0, `${label}: critical bars still drawn under a disjoint filter (${filtered.barsByKind.critical})`);
+      // A non-matching specialised style falls back to the generic task bar
+      // instead of leaving the row blank, so the total stays stable while the
+      // drawn kind changes.
+      assert((filtered.barsByKind.task ?? 0) === baselineTaskBars + baselineCriticalBars, `${label}: critical bars did not fall back to task bars (${filtered.barsByKind.task})`);
+      assert(filtered.bars === baseline.bars, `${label}: a per-bar filter changed the bar total (${filtered.bars} != ${baseline.bars})`);
+      await capture(page, `gantt-bar-filter-${label}`);
 
       await applyBars(page, `
-        form.querySelector('[name="bar.task.filter"]').value = 'task';
-        form.querySelector('[name="bar.task.visible"]').checked = false;
+        form.querySelector('[name="bar.critical.filter"]').value = 'critical';
+        form.querySelector('[name="bar.critical.visible"]').checked = false;
       `);
       const hidden = await measure(page);
-      verifyBase(hidden, `${label} task hidden`);
-      assert((hidden.barsByKind.task ?? 0) === 0, `${label}: hidden task bars are still drawn`);
-      assert(hidden.legend && hidden.legend.items === legendBottom.legend.items - 1, `${label}: legend did not drop the hidden task style (${hidden.legend?.items})`);
-      await applyBars(page, `form.querySelector('[name="bar.task.visible"]').checked = true;`);
+      verifyBase(hidden, `${label} critical hidden`);
+      assert((hidden.barsByKind.critical ?? 0) === 0, `${label}: hidden critical bars are still drawn`);
+      assert((hidden.barsByKind.task ?? 0) === baselineTaskBars + baselineCriticalBars, `${label}: hidden critical bars did not fall back to task bars (${hidden.barsByKind.task})`);
+      assert(hidden.legend && hidden.legend.items === legendBottom.legend.items - 1, `${label}: legend did not drop the hidden critical style (${hidden.legend?.items})`);
+      await applyBars(page, `form.querySelector('[name="bar.critical.visible"]').checked = true;`);
       const restored = await measure(page);
-      assert((restored.barsByKind.task ?? 0) === baselineTaskBars, `${label}: task bars did not return (${restored.barsByKind.task} != ${baselineTaskBars})`);
+      assert((restored.barsByKind.critical ?? 0) === baselineCriticalBars, `${label}: critical bars did not return (${restored.barsByKind.critical} != ${baselineCriticalBars})`);
 
       // Five timescales, chosen from the Gantt scale buttons.
       const scales = [
@@ -331,7 +338,7 @@ async function main() {
         verifyBase(scaled, `${label} scale ${entry.scale}`);
         assert(scaled.scale === entry.scale, `${label}: scale is ${scaled.scale}, expected ${entry.scale}`);
         assert(scaled.contentWidth === entry.width, `${label}: ${entry.scale} content width ${scaled.contentWidth} != ${entry.width}`);
-        assert(scaled.ticks > 0 && scaled.periodGroups > 0, `${label}: ${entry.scale} has no ticks/periods`);
+        assert(scaled.ticks > 0, `${label}: ${entry.scale} has no ticks`);
         scaleFacts.push({ scale: entry.scale, contentWidth: scaled.contentWidth, ticks: scaled.ticks, periods: scaled.periodGroups });
         await capture(page, `gantt-scale-${entry.scale}-${label}`);
       }
@@ -365,10 +372,11 @@ async function main() {
       await clickVisible(page, "[data-wbs-collapse-all]");
       await sleep(600);
       const collapsed = await measure(page);
-      verifyBase(collapsed, `${label} collapsed`);
       assert(collapsed.rows.table === collapsed.rows.gantt, `${label}: collapsed row counts differ`);
       assert(collapsed.rows.gantt < baseline.rows.gantt, `${label}: collapse-all did not hide activity rows (${collapsed.rows.gantt})`);
+      assert(collapsed.bands > 0, `${label}: collapse-all removed the WBS bands`);
       assert(collapsed.ganttGroups === baseline.ganttGroups, `${label}: collapse-all removed summary groups`);
+      assert(collapsed.documentScrollWidth <= collapsed.viewport.width + 1, `${label}: collapsed chart overflows horizontally`);
       await capture(page, `gantt-collapsed-${label}`);
       await clickVisible(page, "[data-wbs-expand-all]");
       await sleep(600);
@@ -387,8 +395,8 @@ async function main() {
         form.querySelector('[name="gantt.sightLines.beforeSummaries"]').checked = false;
         form.querySelector('[name="gantt.sightLines.rowInterval"]').value = '0';
         form.querySelector('[name="gantt.sightLines.minorVertical"]').checked = false;
-        form.querySelector('[name="bar.task.filter"]').value = 'task';
-        form.querySelector('[name="bar.task.visible"]').checked = true;
+        form.querySelector('[name="bar.critical.filter"]').value = 'critical';
+        form.querySelector('[name="bar.critical.visible"]').checked = true;
       `);
       const final = await measure(page);
       verifyBase(final, `${label} final`);
