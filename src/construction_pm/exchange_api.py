@@ -9,6 +9,7 @@ from typing import Any
 from .application.authorization import AuthorizationContext
 from .backend_p0.models import BackendScope
 from .exchange_application import (
+    EXCHANGE_EXPORT_FORMATS,
     ExchangeAuthorizationError,
     ExchangeError,
     ExchangeService,
@@ -47,6 +48,7 @@ class ExchangeAPI:
         return {
             "contract_version": EXCHANGE_API_VERSION,
             "datasets": list(self.service.catalogue()),
+            "export_formats": list(EXCHANGE_EXPORT_FORMATS),
             "max_import_chars": 1_000_000,
         }
 
@@ -57,6 +59,7 @@ class ExchangeAPI:
         dataset: str,
         context: AuthorizationContext,
         generated_at: datetime,
+        export_format: str = "csv",
     ) -> dict[str, Any]:
         try:
             result = self.service.export(
@@ -64,6 +67,7 @@ class ExchangeAPI:
                 dataset=dataset,
                 context=context,
                 generated_at=generated_at,
+                export_format=export_format,
             )
         except Exception as exc:  # noqa: BLE001 - bounded transport boundary
             return _error_dto(exc)
@@ -77,6 +81,7 @@ class ExchangeAPI:
         content: str,
         context: AuthorizationContext,
         occurred_at: datetime,
+        import_format: str = "csv",
     ) -> dict[str, Any]:
         try:
             result = self.service.preview_import(
@@ -85,6 +90,7 @@ class ExchangeAPI:
                 content=content,
                 context=context,
                 occurred_at=occurred_at,
+                import_format=import_format,
             )
         except Exception as exc:  # noqa: BLE001
             return _error_dto(exc)
@@ -99,6 +105,7 @@ class ExchangeAPI:
         idempotency_key: str,
         context: AuthorizationContext,
         occurred_at: datetime,
+        import_format: str = "csv",
     ) -> dict[str, Any]:
         try:
             result = self.service.apply_import(
@@ -108,6 +115,7 @@ class ExchangeAPI:
                 idempotency_key=idempotency_key,
                 context=context,
                 occurred_at=occurred_at,
+                import_format=import_format,
             )
         except Exception as exc:  # noqa: BLE001
             return _error_dto(exc)

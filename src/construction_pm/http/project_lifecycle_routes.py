@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from decimal import Decimal
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -3490,6 +3491,32 @@ class ProjectLifecycleHttpRoutes:
                                 )
                             if (
                                 method == "GET"
+                                and len(parts) == 4
+                                and parts[1] == "runs"
+                                and parts[3] == "export"
+                            ):
+                                export_format = query.get("format") or "csv"
+                                document = self._report_api.export_run(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    report_id=parts[0],
+                                    run_id=parts[2],
+                                    export_format=export_format,
+                                    context=auth,
+                                )
+                                if isinstance(document, dict):
+                                    return _report_reply(document)
+                                headers = {
+                                    "Content-Type": document.content_type,
+                                    "Content-Disposition": content_disposition(
+                                        document.filename
+                                    ),
+                                    "X-Content-SHA256": document.content_sha256,
+                                    "X-Report-Run": document.run_id,
+                                }
+                                return (200, headers, document.data)
+                            if (
+                                method == "GET"
                                 and len(parts) == 2
                                 and parts[1] == "history"
                             ):
@@ -3764,14 +3791,31 @@ class ProjectLifecycleHttpRoutes:
                                 dataset = str(
                                     query.get("dataset") or payload.get("dataset") or ""
                                 )
-                                return _exchange_reply(
-                                    self._exchange_api.export(
-                                        scope=scope,
-                                        dataset=dataset,
-                                        context=auth,
-                                        generated_at=now,
-                                    )
+                                export_format = (
+                                    query.get("format")
+                                    or payload.get("format")
+                                    or "csv"
                                 )
+                                result = self._exchange_api.export(
+                                    scope=scope,
+                                    dataset=dataset,
+                                    context=auth,
+                                    generated_at=now,
+                                    export_format=export_format,
+                                )
+                                if "category" in result:
+                                    return _exchange_reply(result)
+                                encoded = result.pop("content_base64", None)
+                                if encoded is None:
+                                    return self._json(200, result)
+                                headers = {
+                                    "Content-Type": str(result["content_type"]),
+                                    "Content-Disposition": content_disposition(
+                                        f"{dataset}.xlsx"
+                                    ),
+                                    "X-Content-SHA256": str(result["content_sha256"]),
+                                }
+                                return (200, headers, base64.b64decode(encoded))
                             if method == "POST" and parts == ["import", "preview"]:
                                 return _exchange_reply(
                                     self._exchange_api.preview_import(
@@ -3780,6 +3824,9 @@ class ProjectLifecycleHttpRoutes:
                                         content=str(payload.get("content", "")),
                                         context=auth,
                                         occurred_at=now,
+                                        import_format=str(
+                                            payload.get("format") or "csv"
+                                        ),
                                     )
                                 )
                             if method == "POST" and parts == ["import"]:
@@ -3792,6 +3839,9 @@ class ProjectLifecycleHttpRoutes:
                                     ),
                                     context=auth,
                                     occurred_at=now,
+                                    import_format=str(
+                                        payload.get("format") or "csv"
+                                    ),
                                 )
                                 if (
                                     "category" not in result
