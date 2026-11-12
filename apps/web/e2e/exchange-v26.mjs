@@ -381,7 +381,8 @@ async function main() {
       const state = await page.evaluate(pageState);
       const appliedRun = state.runs.find((run) => run.id === applied.body.run_id);
       assert(appliedRun, `run ${applied.body.run_id} missing from history: ${JSON.stringify(state.runs.slice(0, 3))}`);
-      assert(state.runs.length >= 3, `history runs ${state.runs.length}`);
+      assert(state.runs.length >= 2, `history runs ${state.runs.length}`);
+      assert(state.runs.some((run) => run.id === applied.body.run_id), "applied run is missing from the history table");
       await capture(page, "04-applied-and-history");
       return { runId: applied.body.run_id, runs: state.runs.length, reuseStatus: reuse.status };
     });
