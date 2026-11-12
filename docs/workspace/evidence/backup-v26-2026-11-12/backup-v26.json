@@ -1,0 +1,99 @@
+{
+  "contract": "cubi-backup-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "04d3d0fc32eb619202cbd49ed7ae215e0d3dd5be",
+  "testedCodeSha": "04d3d0fc32eb619202cbd49ed7ae215e0d3dd5be",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T05:20:21.544Z",
+  "idempotencyKey": "e2e-backup-MWD3N393",
+  "scenarios": [
+    {
+      "snapshotId": "BKP-1",
+      "sha": "0468a8f7e8588b06b9262f973b05a63a87fe2e56b7927839107315f4f225281e",
+      "sections": [
+        "activities",
+        "relationships",
+        "resources",
+        "wbs"
+      ],
+      "id": "01",
+      "name": "عکس‌برداری پروژه با فهرست محتوا و اثر انگشت SHA-256 ثبت می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T05:20:27.193Z"
+    },
+    {
+      "snapshotId": "BKP-2",
+      "sections": [
+        "layouts"
+      ],
+      "id": "02",
+      "name": "عکس‌برداری چیدمان‌ها فقط بخش layouts را نگه می‌دارد",
+      "status": "pass",
+      "at": "2026-11-12T05:20:28.477Z"
+    },
+    {
+      "snapshotId": "BKP-3",
+      "reuseStatus": 409,
+      "missingStatus": 404,
+      "id": "03",
+      "name": "ثبت ایدمپوتنت همان عکس را برمی‌گرداند و استفادهٔ دوبارهٔ کلید ۴۰۹ است",
+      "status": "pass",
+      "at": "2026-11-12T05:20:29.197Z"
+    },
+    {
+      "activityId": "A100",
+      "updated": "1",
+      "originalName": "Project kickoff",
+      "run": "RSR-1 · wbs: +0 ~0 =13 · activities: +0 ~1 =13 · resources: +0 ~0 =1 · relationships: +0 ~0 =15",
+      "id": "04",
+      "name": "بازیابی overwrite فعالیت ویرایش‌شده را به محتوای عکس برمی‌گرداند و اجرا ثبت می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T05:20:31.775Z"
+    },
+    {
+      "counts": {
+        "created": 0,
+        "updated": 0,
+        "skipped": 43
+      },
+      "runId": "RSR-2",
+      "id": "05",
+      "name": "بازیابی merge چیزی را حذف نمی‌کند و رکوردهای یکسان را رد می‌کند",
+      "status": "pass",
+      "at": "2026-11-12T05:20:32.158Z"
+    },
+    {
+      "viewerCapture": 403,
+      "viewerRestore": 403,
+      "plannerCapture": 201,
+      "plannerRestore": 403,
+      "id": "06",
+      "name": "بازبین و برنامه‌ریز عکس‌ها را می‌خوانند اما بازیابی فقط برای مدیر پروژه است",
+      "status": "pass",
+      "at": "2026-11-12T05:20:39.575Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "پشتیبان‌گیری / بازیابی",
+      "id": "07",
+      "name": "چیدمان فارسی راست‌به‌چپ در ۱۲۸۰×۷۲۰ بدون نشان تجاری بیرونی",
+      "status": "pass",
+      "at": "2026-11-12T05:20:43.866Z"
+    }
+  ],
+  "screenshots": [
+    "01-project-snapshot.png",
+    "02-layout-snapshot.png",
+    "03-restore-armed.png",
+    "04-restored-and-history.png",
+    "05-merge-skip.png",
+    "06-viewer-read-only.png",
+    "07-planner-write-only.png",
+    "08-persian-rtl.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "status": "pass",
+  "scenarioCount": 7
+}
