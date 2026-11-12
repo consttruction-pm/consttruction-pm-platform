@@ -2985,3 +2985,30 @@ Evidence: `docs/workspace/evidence/activity-group-sort-v26-2026-11-12/`
 `testedCodeSha` `79712844d24317ee843c946a00347f10b93344da`, screenshots 01–05,
 `CHECKLIST.md`). Web suite at the same code: 951 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
+
+## Table font and row height (2026-11-12)
+
+- **Scope.** ACT-005 moved from NOT_AUDITED to WIRED_WRITE at code `dbe361ae`.
+- **Controls.** The Table Font and Row dialog writes family, size, text and background
+  colour, row mode (`keep|fixed|content`), fixed height and Show-icons. `applyDesktopVisuals`
+  publishes them as CSS variables on the document root; the layout metadata carries the same
+  table presentation, so a reload restores it.
+- **Reset.** A new Reset to defaults action replaces only `DEFAULT_PRESENTATION.table`
+  (Tahoma 11 px, `#000000`/`#ffffff`, fixed 18 px, icons on) and publishes it with a new
+  layout revision.
+- **Defect fixed.** Unchecked Show-icons / Show-line-numbers were absent from `FormData`, so
+  the saved `true` survived and the toggle was one-way. Marker inputs (`tableFields`,
+  `tableLineNumbers`) now make both flags read as booleans; a unit regression test covers it.
+- **Verified behaviour.** Cairo 14 px, `#102030`, `#fdf6e3`, fixed 26 px rows and hidden icons
+  appear in the computed cell style and rendered row height and survive a reload; Reset
+  returns the shipped values and survives a reload; Persian RTL at 1280×720 and 1920×1080
+  render without overflow.
+- **Known limits.** Content-optimised row height is a flag rather than measured text; the
+  font list is the five installed families; WBS band fonts/colours remain ACT-004; line
+  numbers live in User Preferences.
+
+Evidence: `docs/workspace/evidence/activity-table-font-v26-2026-11-12/`
+(`activity-table-font-v26.json`, 5/5 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `dbe361aeed4e4e5feb2b48bcd44b8d7db6579db8`, screenshots 01–05,
+`CHECKLIST.md`). Web suite at the same code: 953 + 14 tests pass; `tsc --noEmit` and
+`npm run build` pass.
