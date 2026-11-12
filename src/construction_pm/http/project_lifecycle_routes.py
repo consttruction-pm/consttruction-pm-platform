@@ -111,6 +111,8 @@ from ..document_api import DocumentAPI
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
+from ..risk_api import RiskAPI
+from ..risk_persistence import Risk
 from ..threshold_api import ThresholdAPI
 from ..threshold_persistence import Threshold, parse_threshold_number
 from ..cost_persistence import (
@@ -243,6 +245,7 @@ class ProjectLifecycleHttpRoutes:
         budget_api: BudgetAPI | None = None,
         cost_api: CostAPI | None = None,
         threshold_api: ThresholdAPI | None = None,
+        risk_api: RiskAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -292,6 +295,7 @@ class ProjectLifecycleHttpRoutes:
         self._budget_api = budget_api
         self._cost_api = cost_api
         self._threshold_api = threshold_api
+        self._risk_api = risk_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -2852,6 +2856,179 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "THRESHOLD_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._risk_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/risks" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    risk_project_id, marker, risk_suffix = rest.partition("/risks")
+                    if (
+                        marker
+                        and risk_project_id
+                        and (not risk_suffix or risk_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, risk_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [
+                            part for part in risk_suffix.strip("/").split("/") if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _risk_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if code.endswith("_NOT_FOUND"):
+                                return self._error(404, code, "error.risk.not_found")
+                            if category == "conflict":
+                                return self._error(409, code, "error.risk.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _risk_from_payload(risk_id: str) -> Risk:
+                            body_id = payload.get("risk_id")
+                            if body_id not in (None, "") and str(body_id) != risk_id:
+                                raise ValueError("RISK_ID_MISMATCH")
+                            return Risk(
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                risk_id=risk_id,
+                                title=str(payload.get("title", "")),
+                                description=str(payload.get("description") or ""),
+                                category=str(payload.get("category", "")),
+                                status=str(payload.get("status") or "open"),
+                                probability=payload.get("probability"),
+                                impact=payload.get("impact"),
+                                response_strategy=str(
+                                    payload.get("response_strategy", "")
+                                ),
+                                owner=str(payload.get("owner", "")),
+                                date_identified=str(payload.get("date_identified", "")),
+                                response_owner=payload.get("response_owner") or None,
+                                response_due_date=payload.get("response_due_date") or None,
+                                responsible_manager=(
+                                    payload.get("responsible_manager") or None
+                                ),
+                                closure_note=payload.get("closure_note") or None,
+                            )
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and not parts:
+                                return _risk_reply(
+                                    self._risk_api.list_risks(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                        category=query.get("category"),
+                                        status=query.get("status"),
+                                        response_strategy=query.get("response_strategy"),
+                                        exposure=query.get("exposure"),
+                                        search=query.get("search"),
+                                    )
+                                )
+                            if method == "POST" and not parts:
+                                return _risk_reply(
+                                    self._risk_api.create_risk(
+                                        _risk_from_payload(
+                                            str(payload.get("risk_id", ""))
+                                        ),
+                                        idempotency_key=(
+                                            request_headers.get("Idempotency-Key")
+                                            or payload.get("idempotency_key")
+                                            or ""
+                                        ),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "GET" and len(parts) == 1:
+                                return _risk_reply(
+                                    self._risk_api.read_risk(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        risk_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            if method in {"PUT", "PATCH"} and len(parts) == 1:
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    raise ValueError("INVALID_EXPECTED_RISK_REVISION")
+                                return _risk_reply(
+                                    self._risk_api.update_risk(
+                                        _risk_from_payload(parts[0]),
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                        reason=str(payload.get("reason") or ""),
+                                    )
+                                )
+                            if method == "DELETE" and len(parts) == 1:
+                                expected = payload.get(
+                                    "expected_revision"
+                                ) or query.get("expected_revision")
+                                if isinstance(expected, bool) or not isinstance(
+                                    expected, int
+                                ):
+                                    if isinstance(expected, str) and expected.isdigit():
+                                        expected = int(expected)
+                                    else:
+                                        raise ValueError("INVALID_EXPECTED_RISK_REVISION")
+                                return _risk_reply(
+                                    self._risk_api.delete_risk(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        risk_id=parts[0],
+                                        expected_revision=expected,
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                        reason=str(payload.get("reason") or ""),
+                                    )
+                                )
+                            if (
+                                method == "GET"
+                                and len(parts) == 2
+                                and parts[1] == "history"
+                            ):
+                                return _risk_reply(
+                                    self._risk_api.risk_history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        risk_id=parts[0],
+                                        context=auth,
+                                    )
+                                )
+                            return self._error(
+                                400, "RISK_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "RISK_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
