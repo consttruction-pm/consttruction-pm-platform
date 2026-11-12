@@ -1771,17 +1771,23 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
-test("WBS, risks and thresholds have separate register windows", () => {
+test("WBS and risks have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
     ["risks", "Project Risks"],
-    ["thresholds", "Project Thresholds"],
   ];
   for (const [menu, title] of cases) {
     const html = render("en", menu);
     assert.ok(html.includes(title), `missing register surface: ${title}`);
     assert.match(html, /No records are loaded for this project|WBS hierarchy/);
   }
+});
+
+test("Thresholds is a first-class window mounted on the real monitoring register", () => {
+  const html = render("en", "thresholds");
+  assert.match(html, /data-thresholds-page/);
+  assert.match(html, /Project Thresholds/);
+  assert.doesNotMatch(html, /No records are loaded for this project/);
 });
 
 test("Issues is a first-class window mounted on the real issue register", () => {

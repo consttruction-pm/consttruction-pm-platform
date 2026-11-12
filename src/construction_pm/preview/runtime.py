@@ -124,6 +124,10 @@ from construction_pm.budget_persistence import SQLiteBudgetStore
 from construction_pm.cost_api import CostAPI
 from construction_pm.cost_application import CostApplicationService
 from construction_pm.cost_persistence import SQLiteCostStore
+from construction_pm.threshold_api import ThresholdAPI
+from construction_pm.threshold_application import ThresholdApplicationService
+from construction_pm.threshold_metrics import ProjectMetricReader
+from construction_pm.threshold_persistence import SQLiteThresholdStore
 from construction_pm.p6_financial_period_repository import (
     P6FinancialPeriodApplicationService,
     SQLiteP6FinancialPeriodRepository,
@@ -356,6 +360,7 @@ class PreviewRepositories:
     documents: SQLiteDocumentStore
     budget: SQLiteBudgetStore
     cost: SQLiteCostStore
+    thresholds: SQLiteThresholdStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -433,6 +438,8 @@ class PreviewRepositories:
         budget.initialize()
         cost = SQLiteCostStore(connection)
         cost.initialize()
+        thresholds = SQLiteThresholdStore(connection)
+        thresholds.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -483,6 +490,7 @@ class PreviewRepositories:
             documents=documents,
             budget=budget,
             cost=cost,
+            thresholds=thresholds,
             transaction_manager=transaction_manager,
         )
 
@@ -1541,6 +1549,23 @@ def open_preview_runtime(
         )
         ai_tool_names = ("activity.create", "project.plan.create")
 
+    issue_api = P6IssueAPI(repositories.issues, policy, repositories.transaction_manager)
+
+    def _threshold_issue_writer(issue, *, context, occurred_at):
+        issue_api.create(issue, auth_context=context, occurred_at=occurred_at)
+        return issue.issue_id
+
+    threshold_api = ThresholdAPI(
+        ThresholdApplicationService(
+            repositories.thresholds,
+            policy,
+            repositories.transaction_manager,
+            ProjectMetricReader(
+                repositories.issues, repositories.cost, repositories.budget
+            ),
+            _threshold_issue_writer,
+        )
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1609,7 +1634,7 @@ def open_preview_runtime(
         p6_financial_period_api=P6FinancialPeriodAPI(
             repositories.financial_period_service, policy
         ),
-        p6_issue_api=P6IssueAPI(repositories.issues, policy, repositories.transaction_manager),
+        p6_issue_api=issue_api,
         document_api=DocumentAPI(
             DocumentApplicationService(
                 repositories.documents,
@@ -1632,6 +1657,7 @@ def open_preview_runtime(
                 repositories.transaction_manager,
             )
         ),
+        threshold_api=threshold_api,
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

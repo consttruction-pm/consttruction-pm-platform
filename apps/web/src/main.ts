@@ -83,6 +83,7 @@ import {
   type StoredLayoutScope,
 } from "./workspace-layout-selector.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { mountWorkspaceThresholdsPage } from "./workspace-thresholds.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
 import { mountWorkspaceDocumentsPage } from "./workspace-documents.js";
 import { mountWorkspaceCostPage } from "./workspace-cost.js";
@@ -2384,6 +2385,16 @@ function renderApp(
         code: node.localCode,
         name: node.name,
       })),
+    });
+  }
+
+  const thresholdsPage = workspace.querySelector<HTMLElement>("[data-thresholds-page]");
+  if (thresholdsPage) {
+    mountWorkspaceThresholdsPage(thresholdsPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
     });
   }
 

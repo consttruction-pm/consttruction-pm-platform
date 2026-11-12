@@ -2451,7 +2451,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = renderRegisterWindow(state, uiText(state.locale, "Project Risks", "ریسک‌های پروژه"), [["Risk ID","شناسه ریسک"],["Description","شرح"],["Category","دسته"],["Probability","احتمال"],["Impact","اثر"],["Risk Score","امتیاز ریسک"],["Response Strategy","راهبرد پاسخ"],["Owner","مسئول"],["Status","وضعیت"]], [["general","General","عمومی"],["description","Description","شرح"],["cause","Cause","علت"],["effect","Effect","اثر"],["response","Response","پاسخ"],["mitigation","Mitigation","کاهش اثر"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]]);
       break;
     case "thresholds":
-      body = renderRegisterWindow(state, uiText(state.locale, "Project Thresholds", "آستانه‌های پروژه"), [["Threshold","آستانه"],["Monitoring Subject","موضوع پایش"],["Parameter","پارامتر"],["Lower Threshold","حد پایین"],["Upper Threshold","حد بالا"],["Warning Level","سطح هشدار"],["Issue Level","سطح مسئله"],["Responsible Manager","مدیر مسئول"],["Status","وضعیت"]], [["general","General","عمومی"],["details","Details","جزئیات"],["monitoring","Monitoring","پایش"],["issues","Issues","مسائل"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = `<div class="cp-register-window cp-thresholds-window" data-thresholds-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Thresholds", "آستانه‌های پروژه"))}"></div>`;
       break;
     case "tracking":
       body = `
