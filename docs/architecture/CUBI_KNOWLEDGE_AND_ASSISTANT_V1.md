@@ -348,10 +348,42 @@ real lifecycle `authorize_project`; the middleware never infers project access
 from request bodies. Unknown routes return `404`, malformed JSON `400`, missing
 or invalid sessions `401`.
 
+### Mounting in the composed application
+
+`construction_pm.knowledge.runtime.build_knowledge_runtime` binds the slice to
+a composed WSGI application and returns a `KnowledgeRuntime` holding the
+middleware, the store, the API and the workflow engine.
+
+- `build_project_lifecycle_wsgi_app(..., knowledge_database=...)` wraps the
+  lifecycle application with the knowledge middleware; omitting the argument
+  keeps the previous application unchanged, so the surface is never served by
+  accident.
+- The managed preview composition always passes a database
+  (`CUBI_KNOWLEDGE_DB`, default `<preview database directory>/knowledge.sqlite3`)
+  and a `MasterDataPlanPort` over the authoritative WBS, activity and
+  relationship APIs, so WBS and activity steps write real records.
+- The workflow gateway is session-bound. The middleware publishes the
+  authenticated `cp_session` through a context variable, each workflow call
+  builds a `LifecycleProjectGateway` for that session, and the variable is
+  reset after the request. A call with no bound session fails closed with
+  `PROJECT_GATEWAY_SESSION_REQUIRED` instead of borrowing another identity.
+- The preview composition supplies a schedule-settings port backed by the real
+  calendar, calendar-snapshot, project-settings and schedule-publication
+  repositories, so the full ten-step creation runs end to end there. A
+  deployment that does not supply one still fails closed with
+  `PROJECT_PLAN_SCHEDULE_SETTINGS_UNAVAILABLE`; the step may be skipped with a
+  recorded reason, and no data date or calendar is invented.
+
 ## 11. Verification and evidence
 
-- Knowledge tests: `python -m pytest -q tests/knowledge` → 182 passed.
-- Full Python suite: 3,778 passed, 116 skipped, 3 warnings.
+- Knowledge tests: `python -m pytest -q tests/knowledge` → 191 passed on the
+  runtime-mount branch (182 at merge).
+- Full Python suite: 3,836 passed, 117 skipped, 3 warnings on the
+  runtime-mount branch (3,778 at merge).
+- Mounting evidence: the preview composition serves `/api/knowledge*` beside
+  the real lifecycle app, and its ten-step creation persists WBS, activities,
+  relationships, calendar, schedule settings and the published snapshot through
+  the real repositories. `tests/knowledge/test_runtime_mount.py` proves both.
 - Live Version 26 ingestion from the two authoritative HTML sources:
   - HTML Help (`client_help/en_US/toc.htm`): 982/982 converted, 0 failed.
   - User Guide (`English/User_Guides/p6_pro_user/toc.htm`): 557/557 converted,
@@ -379,8 +411,9 @@ or invalid sessions `401`.
 ## 12. Deliberate non-goals and open items
 
 - No external AI/provider integration, by design.
-- No Visual Workspace or Gantt UI change; the assistant surface is API/domain
-  only in this slice.
+- No Visual Workspace, Gantt or client-side change: the surface is now served
+  by the composed backend application, but rendering it in the workspace shell
+  remains the shell owner's change.
 - No claim that the supplementary PDF was extracted; its absence is recorded.
 - Voice capture is a client concern; this slice accepts text.
 - UI wiring into the shell must be performed by the shell owner in a separate

@@ -169,6 +169,7 @@ from construction_pm.p6_financial_period_repository import (
 )
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+from construction_pm.knowledge.plan import MasterDataPlanPort, RealScheduleSettingsWriter
 from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
@@ -1794,6 +1795,27 @@ def open_preview_runtime(
             repositories.transaction_manager,
         )
     )
+    # The deterministic knowledge/assistant surface is mounted in front of the
+    # lifecycle application. It owns only /api/knowledge* and the project
+    # knowledge route; every other request is delegated unchanged.
+    knowledge_database = (
+        os.environ.get("CUBI_KNOWLEDGE_DB", "").strip()
+        or str(database.parent / "knowledge.sqlite3")
+    )
+    knowledge_plan_port = MasterDataPlanPort(
+        wbs_api=P6WBSMasterAPI(repositories.wbs, policy),
+        activity_api=P6ActivityMasterAPI(repositories.activities, policy),
+        relationship_api=P6RelationshipAPI(
+            repositories.relationships, policy, repositories.activities
+        ),
+        settings_port=RealScheduleSettingsWriter(
+            publication_api=snapshot_api,
+            calendar_repository=repositories.calendars,
+            calendar_snapshot_repository=repositories.calendar_snapshots,
+            settings_repository=repositories.settings,
+        ),
+        snapshot_api=snapshot_api,
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1969,6 +1991,8 @@ def open_preview_runtime(
         ai_action_runtime=ai_action_runtime,
         ai_assistant_provider=ai_assistant_provider,
         form_builder_api=form_builder_api,
+        knowledge_database=knowledge_database,
+        knowledge_plan_port=knowledge_plan_port,
     )
     return PreviewRuntime(
         database=database,

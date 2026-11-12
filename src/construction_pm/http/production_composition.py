@@ -162,6 +162,8 @@ def build_project_lifecycle_wsgi_app(
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
     resource_calendar_work_hours_repository: CalendarWorkHourRepository | None = None,
     form_builder_api: FormBuilderAPI | None = None,
+    knowledge_database: str | None = None,
+    knowledge_plan_port: object | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -373,7 +375,22 @@ def build_project_lifecycle_wsgi_app(
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
     )
-    return ProjectLifecycleWsgiApp(routes)
+    app: object = ProjectLifecycleWsgiApp(routes)
+    if knowledge_database:
+        # Mounted in front of the lifecycle application: the middleware answers
+        # only /api/knowledge* and /api/projects/{id}/knowledge and delegates
+        # everything else to the unchanged application behind it.
+        from construction_pm.knowledge.runtime import build_knowledge_runtime
+
+        app = build_knowledge_runtime(
+            app,
+            policy=authorization_policy,
+            lifecycle_api=lifecycle_api,
+            database=knowledge_database,
+            plan_port=knowledge_plan_port,
+            clock=None if clock is None else clock.now,
+        ).app
+    return app
 
 
 __all__ = ["build_project_lifecycle_wsgi_app"]
