@@ -441,7 +441,7 @@ function getLandingCopy(requestedLocale: LandingLocale): LandingCopy & { chrome:
     ctaBody: translate("ctaBody", baseline.ctaBody),
     signIn: translate("signIn", baseline.signIn),
     start: translate("start", baseline.start),
-    language: translate("language", getWorkspaceLocaleDisplayName(nextLocale)),
+    language: translate("language", normalizedLocale === "en" ? "فارسی" : normalizedLocale === "fa" ? "EN" : getWorkspaceLocaleDisplayName(nextLocale)),
     footerColumns: baseline.footerColumns.map((column, columnIndex) => ({
       title: translate(`footerColumns.${columnIndex}.title`, column.title),
       links: column.links.map((value, linkIndex) => translate(`footerColumns.${columnIndex}.links.${linkIndex}`, value)),
@@ -527,7 +527,7 @@ function renderLanding(container: HTMLElement): void {
         <section class="cubi-exact-cta" id="resources"><div><h2>${t.ctaTitle}</h2><p>${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="${workspaceHref}">${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">${t.secondary}</a></div></section>
       </main>
       <footer class="cubi-exact-footer">
-        <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
+        <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="${c.brandAlt}" /></div>
         ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="./about/">${c.about}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
