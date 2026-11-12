@@ -1,0 +1,217 @@
+{
+  "contract": "cubi-issues-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f7ff537d4d3d124e5fc58b4ca304974eec54fd84",
+  "testedCodeSha": "f7ff537d4d3d124e5fc58b4ca304974eec54fd84",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T01:18:30.372Z",
+  "issueA": "E2E-ISS-MWCV02CW-A",
+  "issueB": "E2E-ISS-MWCV02CW-B",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "پنجرهٔ Issues فهرست خالی، پالایه‌های واقعی و جزئیات بدون انتخاب نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-12T01:18:34.403Z",
+      "rows": 0,
+      "empty": "No project issues are stored for this project."
+    },
+    {
+      "id": "02",
+      "name": "ایجاد مسئله از فرم واقعی، ذخیره در سرور و نمایش با نسخهٔ ۱",
+      "status": "pass",
+      "at": "2026-11-12T01:18:35.056Z",
+      "row": {
+        "id": "E2E-ISS-MWCV02CW-A",
+        "title": "E2E foundation pour hold",
+        "type": "quality",
+        "status": "open",
+        "priority": "high",
+        "owner": "Site Engineer",
+        "due": "2026-12-15",
+        "revision": "1",
+        "selected": true
+      },
+      "stored": {
+        "issue_id": "E2E-ISS-MWCV02CW-A",
+        "title": "E2E foundation pour hold",
+        "description": "Concrete pour held pending cube results.",
+        "issue_type": "quality",
+        "status": "open",
+        "priority": "high",
+        "owner": "Site Engineer",
+        "responsible_manager": "Project Manager",
+        "date_identified": "2026-12-01",
+        "due_date": "2026-12-15",
+        "wbs_id": null,
+        "activity_id": null,
+        "document_refs": [
+          "DOC-CUBE-01",
+          "DOC-ITP-04"
+        ],
+        "resolution_note": null,
+        "record_revision": 1,
+        "created_at": "2026-11-12T01:18:34.439319+00:00",
+        "updated_at": "2026-11-12T01:18:34.439319+00:00"
+      }
+    },
+    {
+      "id": "03",
+      "name": "ویرایش با Revision: عنوان و اولویت ذخیره می‌شود و نسخه به ۲ می‌رسد",
+      "status": "pass",
+      "at": "2026-11-12T01:18:35.873Z",
+      "revision": 2,
+      "history": [
+        "created",
+        "updated"
+      ]
+    },
+    {
+      "id": "04",
+      "name": "نوشتن همزمان بیرونی: ارسال فرم کهنه 409 می‌دهد و رکورد معتبر حفظ می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:36.673Z",
+      "conflictNotice": "Issue was not saved (ISSUE_REVISION_CONFLICT)",
+      "authoritative": {
+        "title": "E2E competing edit",
+        "revision": "3"
+      }
+    },
+    {
+      "id": "05",
+      "name": "حل مسئله بدون یادداشت حل رد می‌شود و نسخه تغییر نمی‌کند",
+      "status": "pass",
+      "at": "2026-11-12T01:18:37.200Z",
+      "notice": "Issue was not saved (ISSUE_RESOLUTION_NOTE_REQUIRED)"
+    },
+    {
+      "id": "06",
+      "name": "حل با یادداشت، سپس بازگشایی: گذار وضعیت مجاز در تاریخچه ثبت می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:38.643Z",
+      "transitions": [
+        {
+          "fields": [
+            "status",
+            "resolution_note"
+          ],
+          "from_status": "open",
+          "record_revision": 4,
+          "to_status": "resolved"
+        },
+        {
+          "fields": [
+            "status"
+          ],
+          "from_status": "resolved",
+          "record_revision": 5,
+          "to_status": "open"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "name": "یادداشت جدید پس از بازگشایی ثبت و با متن پیراسته در تاریخچه نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:39.343Z",
+      "revision": 6,
+      "comment": "Inspecting foundation pour"
+    },
+    {
+      "id": "08",
+      "name": "بستن مسئله نهایی است: ویرایش غیرفعال و فرم یادداشت برداشته می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:40.076Z",
+      "revision": 7,
+      "finalNote": true
+    },
+    {
+      "id": "09",
+      "name": "پالایه‌ها و جستجوی سمت سرور فقط رکورد مطابق را برمی‌گردانند",
+      "status": "pass",
+      "at": "2026-11-12T01:18:41.055Z",
+      "closedRows": 1,
+      "searched": "E2E-ISS-MWCV02CW-B",
+      "serverFiltered": 1
+    },
+    {
+      "id": "10",
+      "name": "حذف با Revision: رکورد و ردیف برداشته می‌شود و مسیر GET آن 404 است",
+      "status": "pass",
+      "at": "2026-11-12T01:18:41.854Z",
+      "remaining": [
+        "E2E-ISS-MWCV02CW-B"
+      ],
+      "historyStatus": 404
+    },
+    {
+      "id": "11",
+      "name": "پس از بارگذاری کامل صفحه، مسئلهٔ باقی‌مانده و حذف‌شده همان وضعیت سرور را دارند",
+      "status": "pass",
+      "at": "2026-11-12T01:18:44.637Z",
+      "rows": 1,
+      "surviving": "E2E-ISS-MWCV02CW-B"
+    },
+    {
+      "id": "12",
+      "name": "نقش Viewer فقط می‌خواند: ایجاد مسئله با 403 رد می‌شود و رکورد جدیدی ذخیره نمی‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:49.059Z",
+      "notice": "Issue was not created (authorization denied for permission=project.write)",
+      "directStatus": 403
+    },
+    {
+      "id": "13",
+      "name": "پنجرهٔ Issues در 1280×720 بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:18:49.726Z",
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "toolbar": {
+        "x": 56,
+        "y": 142,
+        "width": 1178,
+        "height": 39
+      },
+      "filters": {
+        "x": 56,
+        "y": 195,
+        "width": 1178,
+        "height": 52.4375
+      },
+      "register": {
+        "x": 56,
+        "y": 261.4375,
+        "width": 1178,
+        "height": 100
+      },
+      "window": {
+        "x": 56,
+        "y": 142,
+        "width": 1178,
+        "height": 510
+      },
+      "bottomDisplay": "none",
+      "collapsed": "true",
+      "rowCount": 1
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created.png",
+    "03-edited-history.png",
+    "04-revision-conflict.png",
+    "06-status-history.png",
+    "07-comment.png",
+    "08-closed-final.png",
+    "09-filters.png",
+    "10-deleted.png",
+    "11-persisted-after-reload.png",
+    "12-viewer-denied.png",
+    "13-issues-1280x720.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T01:18:49.726Z"
+}
