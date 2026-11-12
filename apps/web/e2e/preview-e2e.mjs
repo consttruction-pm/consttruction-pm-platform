@@ -1916,8 +1916,8 @@ async function main() {
     await page.screenshot("02c-persian-rtl-assistant.png");
     record("Persian RTL assistant entry mirrors, translates and stays operable", rtlAssistant);
 
-    // The header switch must move between the two language routes for a real URL.
-    await page.click("#cubi-language");
+    // The locale dropdown must move between the two complete public route trees.
+    await page.setSelect("#cubi-language", "en");
     await page.waitFor(
       `document.readyState === "complete" && document.documentElement.dir === "ltr" && Boolean(document.querySelector(".cubi-reference-home"))`,
       "English landing after the language switch",
