@@ -268,6 +268,34 @@ test("every menu entry opens a window, runs a command, or states why it is unava
   }
 });
 
+test("the canonical menu bar reaches the reports, administration, exchange and backup windows", () => {
+  for (const locale of ["en", "fa"]) {
+    const byId = new Map(
+      getDesktopMenus(shellState({}, locale)).flatMap((menu) => menu.items.map((item) => [item.id, item])),
+    );
+    const expected: Record<string, string> = {
+      "tools.reports": "reports",
+      "tools.import-export": "exchange",
+      "tools.backup": "backup",
+      "admin.permissions": "administration",
+      "admin.categories": "administration",
+      "admin.periods": "administration",
+      "admin.recovery": "backup",
+    };
+    for (const [id, window] of Object.entries(expected)) {
+      const item = byId.get(id);
+      assert.ok(item, `${id} must exist in the ${locale} menu bar`);
+      assert.equal(item?.window, window, `${id} must open the ${window} window`);
+      assert.equal(item?.disabledReason, undefined, `${id} must be enabled now that ${window} ships`);
+      assert.ok(item?.label[locale === "fa" ? "fa" : "en"].trim().length > 0);
+    }
+  }
+  // Non-administrators keep the same workspace but never see the role-gated menu.
+  const limited = new Set(getDesktopMenus(shellState({ canAdminister: false })).flatMap((menu) => menu.items.map((item) => item.id)));
+  assert.ok(!limited.has("admin.permissions"), "non-administrators must not see administration commands");
+  assert.ok(limited.has("tools.import-export") && limited.has("tools.backup"), "project-level surfaces stay available");
+});
+
 test("window titles cover every navigation surface and avoid third-party product names", () => {
   const titles = Object.keys(WINDOW_TITLES);
   assert.deepEqual(titles, [
