@@ -1860,8 +1860,8 @@ Recorded provenance (two independent facts):
 
 ### Next stage
 
-Stage F4 (Backup/Recovery), then Stage G canonical workspace integration and the final review
-report.
+Stage F4 (Backup/Recovery) is complete; Stage G canonical workspace integration and the final
+review report remain.
 
 ## Stage F3 — Project CSV import/export with validated resource writes
 
@@ -1955,4 +1955,84 @@ commit on the PR so the tested SHA stays honest.
 ### Next stage
 
 Stage F4 (Backup/Recovery), then Stage G canonical workspace integration and the final review
+report.
+
+## Stage F4 — Project and layout backup/recovery
+
+Status: merged. Stage F4 completes the Administration/Utilities block; Stage G (canonical
+workspace integration) and the final review report remain.
+
+### What shipped
+
+1. **Versioned backup contract**: `p6-backup-api.v1` over `SQLiteBackupStore`, the authoritative
+   WBS, activity, relationship and resource repositories and the layout-definition repository.
+   `POST /api/projects/{p}/backup` captures; `GET .../backup` lists; `GET .../backup/{id}` and
+   `GET .../backup/{id}/content` read one snapshot and its verified manifest;
+   `POST .../backup/{id}/restore` restores; `GET .../backup/restores` lists runs.
+2. **Checksummed snapshots**: a `project` snapshot stores canonical JSON for `wbs`, `activities`,
+   `resources` and `relationships`; a `layouts` snapshot stores stored layout definitions only.
+   Every snapshot carries `section_counts`, `content_sha256`, the project revision, actor and
+   timestamp. Content reads recompute the checksum and reject drift with 409
+   `BACKUP_INTEGRITY_FAILED` before returning rows.
+3. **Non-destructive restore**: `merge` creates records missing from the project and leaves
+   existing records untouched; `overwrite` updates records that differ using each record's stored
+   revision; identical records are skipped in both modes. Restores run in one transaction and
+   append an immutable `RSR-<n>` run with per-section created/updated/skipped counts. Restore
+   never deletes a record.
+4. **Authorization and idempotency**: capture requires `PROJECT_WRITE`, snapshot/content/list
+   reads `PROJECT_READ`, restore `PROJECT_ADMIN`; cross-scope calls fail `CROSS_SCOPE_ACCESS`.
+   Capture and restore require an idempotency key; identical requests replay the stored result
+   (`replayed: true`), different requests under a used key return 409
+   `BACKUP_IDEMPOTENCY_KEY_REUSE`.
+5. **Preview, production and workspace wiring**: the preview runtime composes
+   `SQLiteBackupStore` → `BackupService` → `BackupAPI` over the existing repositories; production
+   composition accepts an optional `BackupAPI`; WSGI carries the `/backup` path through the
+   query-carry whitelist. The window (`workspace-backup.ts`, menu key `backup`) mounts Snapshots,
+   Restore and Restore History tabs: kind/label capture, snapshot table with section counts and
+   SHA-256, verified manifest with JSON download, snapshot/mode selection with counted restore
+   summary, and the run table.
+
+### Honest limits
+
+- Restore never deletes; there is no snapshot delete, purge or retention policy, and no scheduled
+  or offsite copy, encryption-at-rest or object storage. Snapshot content stays in the project
+  SQLite store.
+- Snapshots are project-scoped only: no cross-project restore, portfolio backup or tenant-wide
+  export, and layouts cover the single stored activity-grid view.
+- The Postgres mirror and production backup store are not exercised by the default suite.
+- New labels are inline English/Persian rather than part of the eight-locale dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 862 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Backup web suite | `apps/web/src/workspace-backup.test.ts` | 5 tests: fail-closed snapshot/content/run parsers, path and idempotency payloads, viewer read-only, writer capture and administrator restore |
+| Backup backend suite | `pytest tests/test_backup_api.py` | 6 HTTP-level tests: checksummed project snapshot + list/detail/content, layouts snapshot and merge restore, additive merge + replay + key-reuse 409, overwrite rewind, validation/missing snapshot/section/mode, viewer/planner/admin gates |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3512 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_CHROME_NO_SANDBOX=1 CUBI_TESTED_CODE_SHA=04d3d0f node e2e/backup-v26.mjs` | 7/7 scenarios pass, 8 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| Snapshot capture and manifest | scenarios 01–02 of the same suite | project snapshot has four sections and a 64-hex SHA; manifest shows section counts and download; layouts snapshot contains only `layouts` |
+| Idempotency and validation | scenario 03 of the same suite | replay returns the same `BKP-<n>`, changed label returns 409, bad mode 400 and unknown snapshot 404 |
+| Overwrite restore | scenario 04 of the same suite | an edited activity is rewound to the snapshot name, revision advances and the `RSR-<n>` run appears in history |
+| Merge safety | scenario 05 of the same suite | merge creates/updates nothing and skips existing records; replay returns the same run |
+| Authorization | scenario 06 of the same suite | viewer capture/restore are disabled and 403; planner captures but restore is disabled and 403 |
+| Layout at 1280×720 | scenario 07 of the same suite | Persian RTL heading `پشتیبان‌گیری / بازیابی`, three tabs, no external product branding |
+| Evidence bundle | `docs/workspace/evidence/backup-v26-2026-11-12/` | `backup-v26.json` + 8 screenshots, contract `cubi-backup-v26.v1` |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `04d3d0fc32eb619202cbd49ed7ae215e0d3dd5be` |
+| Evidence commit | `97bfc7370dd8f9b26dfa3675f2ca3818ed2abe9e` |
+| Branch | `feat/v26-stage-f4-backup` |
+| PR | [#1777](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1777) |
+| Merge commit | `90863b31c149ebe3ef14d0f380f32d2663dc32e2` |
+| Post-merge CI | 5/5 triggered workflows success on `90863b3` (ConstructionPM CI, Web CI, Client Typecheck, PostgreSQL Sync State Integration, Pages deploy) |
+
+### Next stage
+
+Stage G canonical workspace integration, then the final full review, regression and blocker
 report.
