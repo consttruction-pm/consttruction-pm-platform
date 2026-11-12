@@ -4,7 +4,17 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
-## Agent 3 checkpoint — Issue #1799, slice 3 (`agent3/reports-pdf-2026-11`, PR pending)
+## Agent 3 checkpoint — Issue #1799, slice 4 (`agent3/report-parameters-2026-11`, PR pending)
+
+- **Baseline:** `main` @ `bca5800` (PDF export merged as PR #1803; `da22846` is Agent 1's document-bytes workspace merge).
+- **Parameterized report definitions (Workstream 3):** a definition can bind a typed subset of the subject's server-owned parameter catalogue. Activities expose `status`, `activity_type`, `actual_start_from` and `actual_start_to`; resources expose `resource_type` and `is_active`; risks expose `status`, `category` and `min_score`. Bindings store only key/required/default; labels, types, enum choices and filter semantics live in `report_parameters.py`, so a client cannot widen an enum or inject a label.
+- **Run semantics and provenance:** `POST .../reports/{id}/run` accepts `{"parameters": {...}}`; values are canonicalized and the run stores resolved `parameters` plus `parameter_sources` (`explicit`/`default`). Filtering applies to the stored snapshot rows only — no row, column or aggregate is invented. Missing required, unknown, invalid and duplicate/non-object payloads fail closed with `REPORT_PARAMETER_REQUIRED`, `REPORT_PARAMETER_UNKNOWN`, `REPORT_PARAMETER_INVALID` and `INVALID_REPORT_PARAMETER_LIST`/`REPORT_PARAMETER_DUPLICATED`.
+- **Idempotency and revisions:** bindings are part of the definition fingerprint, so reusing a key with changed parameters returns 409 `REPORT_IDEMPOTENCY_KEY_REUSE`; a parameter change through update appends a revision and audit event.
+- **Migration (Workstream 5):** `SQLiteReportStore.initialize()` adds `parameters_json` to the definition and run tables with empty defaults; a test creates the pre-parameter schema, inserts a definition/run, runs `initialize()`, reads both unchanged, then writes and rereads a parameterized definition.
+- **Tests:** new `tests/test_report_parameters.py` (7 tests) covers catalogue exposure, explicit/default provenance, all-subject filtering, required/unknown/invalid/duplicate failures, fingerprint reuse and the SQLite migration. Full suite: **3613 passed, 147 skipped** without a DSN and **3801 passed, 1 skipped** with both PostgreSQL DSN variables.
+- **Not claimed:** durable scheduled runs/retry/delivery checksums, a PostgreSQL report store (the register remains SQLite-only) and Web parameter/downstream wiring (Agent 1's surface) remain open.
+
+## Agent 3 checkpoint — Issue #1799, slice 3 (`agent3/reports-pdf-2026-11`, merged as `bca5800`, PR #1803)
 
 - **Baseline:** `main` @ `3f8a67e` (slice 2 merged; PR #1802 squash merge `3f8a67ee659bd7db14bdb9b97b881308f3a71de0`).
 - **Report PDF export (Workstream 3, first slice):** `report_pdf.py` renders an immutable stored `ReportRun` as a deterministic A4 PDF through `build_report_export(run, "pdf", locale=...)`. Every page repeats subject, report id, run id, project id, report revision, project revision, generated-at and actor; the table header repeats after page breaks; the footer carries `Page N of M` and the run id. Cells wrap, an oversized cell fails closed with `REPORT_EXPORT_PDF_CELL_TOO_LONG` instead of truncating, an empty run renders an explicit notice, and `reportlab` runs with a fixed timestamp plus fixed metadata so the same run+locale yields byte-identical output and `X-Content-SHA256`.

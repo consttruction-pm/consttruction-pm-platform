@@ -15,6 +15,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Protocol
 
+from .report_parameters import (
+    ReportParameterBinding,
+    bindings_from_json,
+    describe_bindings,
+    validate_bindings,
+)
+
 
 class ReportPersistenceError(ValueError):
     """Raised when a report definition or run violates its contract."""
@@ -110,6 +117,7 @@ class ReportDefinition:
     subject: str
     columns: tuple[str, ...]
     description: str = ""
+    parameters: tuple[ReportParameterBinding, ...] = ()
 
     def validate(self) -> None:
         for value, code in (
@@ -137,6 +145,7 @@ class ReportDefinition:
             seen.add(column)
         if len(seen) != len(self.columns):
             raise ReportPersistenceError("REPORT_COLUMN_DUPLICATED")
+        validate_bindings(self.subject, self.parameters)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -145,6 +154,7 @@ class ReportDefinition:
             "description": self.description,
             "subject": self.subject,
             "columns": list(self.columns),
+            "parameters": describe_bindings(self.subject, self.parameters),
         }
 
     def fingerprint(self) -> str:
@@ -200,6 +210,8 @@ class ReportRun:
     rows: tuple[Mapping[str, Any], ...]
     generated_at: datetime
     generated_by: str
+    parameters: tuple[tuple[str, str], ...] = ()
+    parameter_sources: tuple[tuple[str, str], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -213,6 +225,8 @@ class ReportRun:
             "row_count": len(self.rows),
             "generated_at": self.generated_at.isoformat(),
             "generated_by": self.generated_by,
+            "parameters": dict(self.parameters),
+            "parameter_sources": dict(self.parameter_sources),
         }
 
 
@@ -303,9 +317,10 @@ def _definition_from_row(row: tuple[object, ...]) -> StoredReportDefinition:
         description=str(row[4]),
         subject=str(row[5]),
         columns=tuple(str(item) for item in json.loads(str(row[6]))),
+        parameters=bindings_from_json(str(row[5]), str(row[7])),
     )
     definition.validate()
-    return StoredReportDefinition(definition=definition, revision=int(row[7]))
+    return StoredReportDefinition(definition=definition, revision=int(row[8]))
 
 
 def _run_from_row(row: tuple[object, ...]) -> ReportRun:
@@ -321,6 +336,14 @@ def _run_from_row(row: tuple[object, ...]) -> ReportRun:
         rows=tuple(dict(item) for item in json.loads(str(row[8]))),
         generated_at=datetime.fromisoformat(str(row[9])),
         generated_by=str(row[10]),
+        parameters=tuple(
+            (str(key), str(value))
+            for key, value in json.loads(str(row[11])).items()
+        ),
+        parameter_sources=tuple(
+            (str(key), str(value))
+            for key, value in json.loads(str(row[12])).items()
+        ),
     )
 
 
@@ -372,6 +395,12 @@ class SQLiteReportStore:
                 PRIMARY KEY (tenant_id, project_id, idempotency_key)
             )"""
         )
+        _ensure_column(
+            self.connection,
+            "project_report_definition",
+            "parameters_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS project_report_run (
                 run_id TEXT NOT NULL,
@@ -388,6 +417,18 @@ class SQLiteReportStore:
                 PRIMARY KEY (tenant_id, project_id, run_id)
             )"""
         )
+        _ensure_column(
+            self.connection,
+            "project_report_run",
+            "parameters_json",
+            "TEXT NOT NULL DEFAULT '{}'",
+        )
+        _ensure_column(
+            self.connection,
+            "project_report_run",
+            "parameter_sources_json",
+            "TEXT NOT NULL DEFAULT '{}'",
+        )
         self.connection.commit()
 
     # -- definitions ------------------------------------------------------
@@ -396,7 +437,7 @@ class SQLiteReportStore:
     ) -> StoredReportDefinition:
         row = self.connection.execute(
             """SELECT tenant_id, project_id, report_id, name, description, subject,
-                      columns_json, revision
+                      columns_json, parameters_json, revision
                FROM project_report_definition
                WHERE tenant_id = ? AND project_id = ? AND report_id = ?""",
             (tenant_id, project_id, report_id),
@@ -417,7 +458,7 @@ class SQLiteReportStore:
             raise ReportPersistenceError("INVALID_REPORT_SUBJECT")
         query = (
             """SELECT tenant_id, project_id, report_id, name, description, subject,
-                      columns_json, revision
+                      columns_json, parameters_json, revision
                FROM project_report_definition
                WHERE tenant_id = ? AND project_id = ?"""
         )
@@ -471,8 +512,8 @@ class SQLiteReportStore:
         self.connection.execute(
             """INSERT INTO project_report_definition
                (tenant_id, project_id, report_id, name, description, subject,
-                columns_json, revision, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
+                columns_json, parameters_json, revision, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
             (
                 definition.tenant_id,
                 definition.project_id,
@@ -481,6 +522,7 @@ class SQLiteReportStore:
                 definition.description,
                 definition.subject,
                 json.dumps(list(definition.columns), ensure_ascii=False),
+                _bindings_json(definition),
                 now,
                 now,
             ),
@@ -535,13 +577,14 @@ class SQLiteReportStore:
         self.connection.execute(
             """UPDATE project_report_definition
                SET name = ?, description = ?, subject = ?, columns_json = ?,
-                   revision = ?, updated_at = ?
+                   parameters_json = ?, revision = ?, updated_at = ?
                WHERE tenant_id = ? AND project_id = ? AND report_id = ?""",
             (
                 definition.name,
                 definition.description,
                 definition.subject,
                 json.dumps(list(definition.columns), ensure_ascii=False),
+                _bindings_json(definition),
                 new_revision,
                 now,
                 definition.tenant_id,
@@ -632,6 +675,25 @@ class SQLiteReportStore:
         _validate_actor(run.generated_by)
         if run.report_revision < 1 or run.project_revision < 0:
             raise ReportPersistenceError("INVALID_REPORT_REVISION")
+        for pairs, code in (
+            (run.parameters, "INVALID_REPORT_RUN_PARAMETERS"),
+            (run.parameter_sources, "INVALID_REPORT_RUN_PARAMETER_SOURCES"),
+        ):
+            if not isinstance(pairs, tuple):
+                raise ReportPersistenceError(code)
+            keys = [key for key, _ in pairs]
+            if len(keys) != len(set(keys)) or any(
+                not isinstance(key, str) or not key or not isinstance(value, str)
+                for key, value in pairs
+            ):
+                raise ReportPersistenceError(code)
+        if {key for key, _ in run.parameter_sources} != {
+            key for key, _ in run.parameters
+        } or any(
+            source not in {"explicit", "default"}
+            for _, source in run.parameter_sources
+        ):
+            raise ReportPersistenceError("INVALID_REPORT_RUN_PARAMETER_SOURCES")
         existing = self.connection.execute(
             """SELECT 1 FROM project_report_run
                WHERE tenant_id = ? AND project_id = ? AND run_id = ?""",
@@ -643,8 +705,9 @@ class SQLiteReportStore:
             """INSERT INTO project_report_run
                (run_id, tenant_id, project_id, report_id, report_revision,
                 project_revision, subject, columns_json, rows_json,
-                generated_at, generated_by)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                generated_at, generated_by, parameters_json,
+                parameter_sources_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 run.run_id,
                 run.tenant_id,
@@ -657,6 +720,8 @@ class SQLiteReportStore:
                 json.dumps([dict(row) for row in run.rows], ensure_ascii=False),
                 run.generated_at.isoformat(),
                 run.generated_by,
+                json.dumps(dict(run.parameters), ensure_ascii=False),
+                json.dumps(dict(run.parameter_sources), ensure_ascii=False),
             ),
         )
         return run
@@ -685,7 +750,8 @@ class SQLiteReportStore:
         rows = self.connection.execute(
             """SELECT run_id, tenant_id, project_id, report_id, report_revision,
                       project_revision, subject, columns_json, rows_json,
-                      generated_at, generated_by
+                      generated_at, generated_by, parameters_json,
+                      parameter_sources_json
                FROM project_report_run
                WHERE tenant_id = ? AND project_id = ? AND report_id = ?
                ORDER BY generated_at DESC, run_id DESC""",
@@ -699,7 +765,8 @@ class SQLiteReportStore:
         row = self.connection.execute(
             """SELECT run_id, tenant_id, project_id, report_id, report_revision,
                       project_revision, subject, columns_json, rows_json,
-                      generated_at, generated_by
+                      generated_at, generated_by, parameters_json,
+                      parameter_sources_json
                FROM project_report_run
                WHERE tenant_id = ? AND project_id = ? AND report_id = ? AND run_id = ?""",
             (tenant_id, project_id, report_id, run_id),
@@ -745,6 +812,30 @@ class SQLiteReportStore:
             or expected_revision < 1
         ):
             raise ReportPersistenceError(code)
+
+
+def _bindings_json(definition: ReportDefinition) -> str:
+    return json.dumps(
+        [
+            {"key": binding.key, "required": binding.required, "default": binding.default}
+            for binding in sorted(definition.parameters, key=lambda item: item.key)
+        ],
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def _ensure_column(
+    connection: sqlite3.Connection, table: str, column: str, declaration: str
+) -> None:
+    existing = {
+        str(row[1])
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in existing:
+        connection.execute(
+            f"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+        )
 
 
 __all__ = [
