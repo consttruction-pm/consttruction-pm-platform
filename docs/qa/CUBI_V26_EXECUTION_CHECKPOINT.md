@@ -1284,3 +1284,85 @@ Recorded provenance (two independent facts):
 
 Stage E3 Expenses/Cost Accounts and Thresholds, then the Risk register.
 
+## Stage E3b — Expense and cost-account register
+
+PR [#1763](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1763) squash-merged
+into `main` as `67b69adb` on 2026-11-12. Post-merge CI on `67b69adb`: ConstructionPM CI,
+ConstructionPM Web CI, Client Typecheck, PostgreSQL Sync State Integration and the Pages deploy
+all succeeded (5/5 workflows).
+
+### What shipped
+
+1. **Persistent cost domain** (`cost_persistence.py`): `SQLiteCostStore` owns
+   `project_cost_account`, `project_expense` and the immutable `project_cost_audit` trail. One
+   shared `parse_cost_amount` routine rejects booleans, `None`, floats, exponents, non-finite
+   values and more than two decimals, and `parse_cost_date` accepts only ISO calendar dates.
+   Creates carry idempotency fingerprints (`COST_IDEMPOTENCY_KEY_REUSE`), updates and deletes
+   require `expected_revision` (`COST_REVISION_CONFLICT`), and deleting an account that has
+   children or is referenced by an expense fails with `COST_ACCOUNT_HAS_CHILDREN` /
+   `COST_ACCOUNT_IN_USE`.
+2. **Accounts and expenses** (`cost_application.py`): accounts support a parent hierarchy with
+   ancestry-cycle rejection, copy (server clones parent/description with `is_default = false`),
+   and exactly one project default — clearing the previous default bumps its revision and writes
+   a `default_cleared` audit event. Expenses store a validated category
+   (`labor\|material\|equipment\|subcontract\|overhead\|other`), a three-letter currency,
+   activity/WBS/cost-account references, expense and accrual dates and planned/actual/remaining
+   amounts, with server-side category/cost-account/activity/search filters and a per-currency
+   summary.
+3. **Application boundary and versioned API** (`CostAPI`, `p6-cost-api.v1`): project-scoped reads
+   and writes behind `PROJECT_READ`/`PROJECT_WRITE`, actor identity checked against the
+   authenticated principal, and flat versioned DTOs. The HTTP layer maps not-found to 404,
+   conflicts to 409 and validation to 400, including the copy, default and history routes.
+4. **HTTP, preview and production wiring**: `GET/POST /api/projects/{id}/cost/accounts`,
+   `GET/PUT/PATCH/DELETE /cost/accounts/{id}`, `GET /cost/accounts/{id}/history`,
+   `POST /cost/accounts/{id}/copy`, `POST /cost/accounts/{id}/default`,
+   `GET/POST /cost/expenses`, `GET/PUT/PATCH/DELETE /cost/expenses/{id}`,
+   `GET /cost/expenses/{id}/history` and `GET /cost/summary`. WSGI carries the query strings for
+   account/expense reads, and the preview runtime persists everything across restarts.
+5. **Expenses window** (`workspace-expenses.ts`): the page now mounts a real cost register over
+   `p6-cost-api.v1` with an expense table, details pane, create/edit/delete, category and
+   cost-account selects, accrual date, and a cost-account table with parent links, default badge,
+   copy, set-default, edit and delete. Revision conflicts reload the authoritative record, and
+   planner/admin see write controls while viewer is read-only in the UI and on the server.
+
+### Honest limits
+
+- Expenses have no approval workflow, periodization or derived variance; the summary is a direct
+  per-currency roll-up of stored amounts.
+- A cost account can be re-parented only through the edit form; there is no drag-based hierarchy
+  editor, archive state or account merge.
+- Expenses do not link to budget lines yet; the cost account is the shared reference.
+- Cost facts live in SQLite only; there is no Postgres mirror for this slice.
+- The new register labels are inline English/Persian rather than part of the eight-locale
+  dictionary.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 807 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Cost web suite | `apps/web/src/workspace-expenses.test.ts` | 14 tests: parsers, contract drift, payload validation, filters, create/edit/delete, copy/default |
+| Cost backend suites | `pytest tests/test_cost_sqlite_store.py tests/test_cost_application.py tests/test_cost_api.py tests/test_cost_http_routes.py tests/test_preview_cost_register.py` | 23 passed |
+| Adjacent regression | same run plus budget repository/application/API/HTTP suites | 46 passed |
+| Full Python suite | `PYTHONPATH=src pytest tests` | 3450 passed, 109 skipped |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Browser E2E | `CUBI_PREVIEW_URL=… CUBI_CHROME_NO_SANDBOX=1 node e2e/expenses-v26.mjs` | 12/12 scenarios pass, 12 screenshots, 0 exceptions, 0 console errors, 0 API failures |
+| Layout at 1280×720 | scenario 12 of the same suite | Persian RTL, expense table and account panel fit without clipping |
+| Evidence bundle | `docs/workspace/evidence/expenses-v26-2026-11-12/` | `expenses-v26.json` + 12 screenshots |
+
+Recorded provenance (two independent facts):
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `605678a8547d666f7601c5234222184d23394ad6` |
+| Evidence commit | `49a59396daea5109cd26979f7c034242fba7f072` |
+| Branch | `feat/v26-stage-e3b-cost-register` |
+| PR | [#1763](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1763) |
+| Merge commit | `67b69adbeb56018d81120531d33fcd67b9eb9dea` |
+| Post-merge CI | 5/5 workflows success on `67b69adb` |
+
+### Next stage
+
+Stage E Thresholds (definitions, monitoring and generated issues) and the Risk register.
+
