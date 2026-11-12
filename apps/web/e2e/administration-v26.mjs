@@ -421,9 +421,9 @@ async function main() {
       assert(filtered.body.entries[0].entry_id === categoryEntry && filtered.body.entries[0].sequence === 30, `filtered entry ${JSON.stringify(filtered.body.entries[0])}`);
 
       await page.setSelect('select[name="admin-dictionary-filter"]', "cost_category");
-      await page.setInput('[data-admin-dict-search]', "E2E Civil");
+      await page.setInput('input[name="admin-dict-search"]', "E2E Civil");
       await page.evaluate(`(() => {
-        const input = document.querySelector('[data-admin-dict-search]');
+        const input = document.querySelector('input[name="admin-dict-search"]');
         input.dispatchEvent(new Event("change", { bubbles: true }));
       })()`);
       await page.waitFor(
