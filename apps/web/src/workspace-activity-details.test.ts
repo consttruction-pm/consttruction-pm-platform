@@ -152,6 +152,38 @@ test("WPS & Docs reads real linked project documents", () => {
   assert.match(html, /hash-1/);
 });
 
+test("WPS & Docs prefers the live document register and filters by activity link", () => {
+  const html = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["wps-docs"],
+    data: {
+      documents: {
+        status: "loaded",
+        errorCode: null,
+        records: [
+          { documentId: "DOC-LIVE", resourceType: "submittal", title: "Live method statement", status: "approved", storageRef: "local:v1/aa/bb/cc/" + "a".repeat(64) + ".pdf", contentHash: "sha256:" + "a".repeat(64), linkedEntityRefs: ["act-1"], revision: 3 },
+          { documentId: "DOC-OTHER", resourceType: "drawing", title: "Unrelated drawing", status: "draft", storageRef: "object://other", contentHash: "sha256:" + "b".repeat(64), linkedEntityRefs: ["act-2"], revision: 1 },
+        ],
+      },
+    },
+  });
+  assert.match(html, /Live method statement/);
+  assert.match(html, /DOC-LIVE/);
+  assert.doesNotMatch(html, /Unrelated drawing/);
+});
+
+test("WPS & Docs distinguishes a failed document read from an empty register", () => {
+  const html = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["wps-docs"],
+    data: { documents: { status: "error", errorCode: "DOCUMENT_PERMISSION_DENIED", records: [] } },
+  });
+  assert.match(html, /DOCUMENT_PERMISSION_DENIED/);
+  assert.match(html, /could not return these records/);
+});
+
 test("Resources lists only the assignments stored for the selected activity", () => {
   const html = renderActivityDetailsPanel({
     locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",

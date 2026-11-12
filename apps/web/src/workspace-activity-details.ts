@@ -18,6 +18,8 @@ import { EXPENSE_CATEGORIES, loadExpenses, saveExpense, type ExpenseRecord } fro
 import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, loadIssues, saveIssue, type IssueRecord } from "./workspace-issues.js";
 import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity-steps.js";
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
+import { loadDocuments, type DocumentRecord } from "./workspace-documents.js";
+import type { WorkspaceDocument } from "./workspace-document.js";
 import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
 import { P6_FIELD_REGISTRY_VERSION } from "./p6-field-layout-foundation.js";
@@ -197,6 +199,8 @@ export type ActivityDetailsData = {
   steps?: ActivityDetailsLoadState<ActivityStepRecord>;
   udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
+  /** Project document register, filtered to this activity's links. */
+  documents?: ActivityDetailsLoadState<DocumentRecord>;
 };
 
 export type ActivityDetailsInput = {
@@ -641,21 +645,33 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     }
     case "wps-docs": {
       const links = new Set([activity?.id, activity?.code].filter((value): value is string => Boolean(value)));
-      const docs = state?.documents.filter((document) => document.linkedEntityRefs.some((ref) => links.has(ref))) ?? [];
-      const rows = docs.map((document) => [document.title, document.status, t(locale, "Not returned", "برگردانده نشده")]);
+      const live = input.data?.documents;
+      const liveNotice = live && live.status !== "loaded"
+        ? loadNotice(locale, live, t(locale, "Project documents have not been read yet.", "اسناد پروژه هنوز خوانده نشده‌اند."))
+        : null;
+      const source: readonly (DocumentRecord | WorkspaceDocument)[] =
+        live?.status === "loaded" ? live.records : (state?.documents ?? []);
+      const docs = source.filter((document) => document.linkedEntityRefs.some((ref) => links.has(ref)));
+      const rows = docs.map((document) => [
+        document.title,
+        document.status,
+        document.resourceType,
+        `R${document.revision}`,
+      ]);
       const details = docs.map((document) => `<details class="cp-detail-document"><summary>${esc(document.title)}</summary><div class="cp-detail-grid">
           ${field(locale, t(locale, "Document ID", "شناسهٔ سند"), document.documentId)}
           ${field(locale, t(locale, "Type", "نوع"), document.resourceType)}
           ${field(locale, t(locale, "Status", "وضعیت"), document.status)}
           ${field(locale, t(locale, "Revision", "ویرایش"), `R${document.revision}`)}
           ${field(locale, t(locale, "Content hash", "هش محتوا"), document.contentHash)}
-          ${field(locale, t(locale, "File stored", "فایل ذخیره‌شده"), document.hasStorageRef ? t(locale, "Yes", "بله") : t(locale, "No", "خیر"))}
         </div></details>`).join("");
-      return `${gridTable(locale,
-        [t(locale, "Title", "عنوان"), t(locale, "Status Code", "کد وضعیت"), t(locale, "Work Product", "محصول کاری")],
+      return `${liveNotice ?? ""}
+        ${gridTable(locale,
+        [t(locale, "Title", "عنوان"), t(locale, "Status Code", "کد وضعیت"), t(locale, "Type", "نوع"), t(locale, "Revision", "ویرایش")],
         rows,
         t(locale, "No project document is linked to this activity. Project documents are managed on the Documents page.", "هیچ سند پروژه‌ای به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد مدیریت می‌شوند."))}
         ${details}
+        <p class="cp-detail-hint">${esc(t(locale, "Uploading, downloading and verifying file bytes happen on the Documents page; this tab shows the same authoritative linked records.", "بارگذاری، دانلود و تأیید بایت‌های فایل در صفحهٔ اسناد انجام می‌شود؛ این زبانه همان رکوردهای پیوندشدهٔ مرجع را نشان می‌دهد."))}</p>
         ${controlBar(locale, [
           disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
           disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
@@ -1403,7 +1419,7 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
   const context = input.state?.context;
   if (!transport || !context) return {};
   const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
-  const [assignments, expenses, issues, risks, steps, udfs, history] = await Promise.all([
+  const [assignments, expenses, issues, risks, steps, udfs, history, documents] = await Promise.all([
     loadAssignments(transport, context).then(resultState),
     loadExpenses(transport, context, { activityId }).then(resultState),
     loadIssues(transport, context).then(resultState),
@@ -1417,8 +1433,9 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
         errorCode: error instanceof Error ? error.message : "P6_UDF_UNAVAILABLE",
       })),
     readProgressHistory(transport, context, activityId),
+    loadDocuments(transport, context).then(resultState),
   ]);
-  return { assignments, expenses, issues, risks, steps, udfs, history };
+  return { assignments, expenses, issues, risks, steps, udfs, history, documents };
 }
 
 function detailsDataKey(input: ActivityDetailsInput): string | null {
@@ -1462,6 +1479,7 @@ async function loadDetailsInto(host: HTMLElement, key: string, activityId: strin
         risks: loadingDetailsState(),
         udfs: loadingDetailsState(),
         history: loadingDetailsState(),
+        documents: loadingDetailsState(),
       },
     },
   });
