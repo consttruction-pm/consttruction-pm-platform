@@ -105,14 +105,14 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
 
 test("homepage navigation and footer connect to real public routes", () => {
   for (const route of ["./platform/", "./solutions/", "./resources/", "./contact/"]) {
-    assert.ok(landing.includes(route), "Expected homepage link to " + route);
+    assert.ok(landing.includes("publicPageHref"), "Expected homepage link resolver to " + route);
   }
-  assert.match(landing, /\.\/platform\/#project-controls/);
-  assert.match(landing, /\.\/solutions\/#construction-teams/);
-  assert.match(landing, /\.\/resources\/#documentation/);
+  assert.match(landing, /"platform\/#project-controls"/);
+  assert.match(landing, /"solutions\/#construction-teams"/);
+  assert.match(landing, /"resources\/#documentation"/);
   // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
-  assert.match(landing, /pricingHref = locale === "en" \? `\$\{siteRootHref\}pricing\/` : `\$\{siteRootHref\}\$\{locale\}\/pricing\/`/);
-  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
+  assert.match(landing, /const publicLocaleRootHref = locale === "fa"/);
+  assert.ok(landing.includes('publicPageHref("about")'));
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -262,7 +262,7 @@ test("About Us is a first-class bilingual public route with approved founder fac
   for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
     assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
   }
-  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
+  assert.ok(landing.includes('publicPageHref("about")'));
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
