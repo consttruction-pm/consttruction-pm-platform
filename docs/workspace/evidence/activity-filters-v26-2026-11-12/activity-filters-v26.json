@@ -1,0 +1,119 @@
+{
+  "contract": "cubi-activity-filters-v26.v1",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "857221097f4e6cbb878f225b3f409ad4aedec01f",
+  "testedCodeSha": "857221097f4e6cbb878f225b3f409ad4aedec01f",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T17:25:41.928Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the manager and editor expose the version 26 surfaces",
+      "status": "pass",
+      "at": "2026-11-12T17:25:44.617Z",
+      "rows": 2,
+      "actions": [
+        "apply",
+        "delete",
+        "copy",
+        "paste",
+        "make-global",
+        "copy-as-layout"
+      ],
+      "groups": [
+        "default",
+        "global",
+        "layout",
+        "user"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the editor validates typed and relative dates before Apply",
+      "status": "pass",
+      "at": "2026-11-12T17:25:45.399Z",
+      "matched": 9,
+      "total": 14,
+      "text": "9 of 14 activities match."
+    },
+    {
+      "id": "03",
+      "name": "Add and the High value column save a compound lookahead filter",
+      "status": "pass",
+      "at": "2026-11-12T17:25:47.994Z",
+      "matched": 1,
+      "rows": 1
+    },
+    {
+      "id": "04",
+      "name": "the saved filter and its result survive a full reload",
+      "status": "pass",
+      "at": "2026-11-12T17:25:49.926Z",
+      "rows": 1,
+      "saved": [
+        "in progress",
+        "not started",
+        "completed",
+        "critical",
+        "non critical",
+        "negative float",
+        "milestone",
+        "six-week lookahead"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Any selected filter highlights instead of removing rows",
+      "status": "pass",
+      "at": "2026-11-12T17:25:51.399Z",
+      "rows": 14,
+      "matched": 7
+    },
+    {
+      "id": "06",
+      "name": "All Activities clears the filter and the highlight",
+      "status": "pass",
+      "at": "2026-11-12T17:25:52.827Z",
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "criterion rows renumber when moved and deleted",
+      "status": "pass",
+      "at": "2026-11-12T17:25:54.383Z",
+      "rows": 3,
+      "saved": 8
+    },
+    {
+      "id": "08",
+      "name": "the editor renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-12T17:25:57.123Z",
+      "dir": "rtl",
+      "matched": 7,
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "the dialog fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-12T17:25:59.382Z",
+      "rows": 2,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-filters-dialog-en-1366.png",
+    "02-filter-preview-en-1366.png",
+    "03-saved-lookahead-en-1366.png",
+    "04-filter-after-reload-en-1366.png",
+    "05-highlight-critical-in-progress-en-1366.png",
+    "06-filters-dialog-fa-rtl-1280.png",
+    "07-filters-dialog-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 9,
+  "failed": 0
+}

@@ -2919,3 +2919,38 @@ Evidence: `docs/workspace/evidence/gantt-bar-styles-v26-2026-11-12/` (`gantt-bar
 942 + 14 tests pass. Remaining gaps: no dialog preview graphic, no user-defined bar rows
 (Add/Delete), per-endpoint patterns and the Show-when-collapsed/summary-bar-only flags are not
 modelled, and WBS summary bars use a separate renderer that this slice does not restyle.
+
+## Activity filters (2026-11-12)
+
+- **Scope.** ACT-003 moved from NOT_AUDITED to WIRED_WRITE at code `85722109`. The Filters
+  dialog now offers typed criteria instead of a fixed operator list.
+- **Engine.** `activityFilterFieldType` classifies every field as text/choice/number/date/
+  boolean and `activityFilterOperatorsFor` limits the Is list to the operators that type
+  supports; dates and numbers add `is within range of`. `resolveFilterDateValue` parses ISO
+  dates and `CD`/`CS`/`CF` tokens with `±n[dwmy]` offsets against a date context built from
+  the project data date and the loaded activity span. `validateActivityFilterCriterion`
+  reports missing values, missing high values and invalid dates. `previewActivityFilter`
+  counts matches across the whole project.
+- **UI.** The editor renders Where/Field/Is/Value/High value/actions, an And/Or join cell
+  after the first row, Add (up to eight rows), per-row Move up/down and Delete, a token
+  datalist and a live preview (`data-filter-preview-valid|matched`). High value is only
+  shown and persisted for `within-range`. The dialog snapshot keeps rows, joins and high
+  values, so Cancel is exact.
+- **Invariant.** Applying a filter only replaces or highlights presentation rows; the
+  layout patch carries the saved filter definition and nothing from the schedule.
+- **Verified behaviour.** Start offers `within range` and no text operators; a range without
+  a high value is invalid; `next week` is rejected; `CS`…`CS+6w` matches 9 of 14 activities;
+  adding `Activity % Complete is not equal to 100` narrows it to one row, the grid row count
+  equals the preview count, and the saved `Six-Week Lookahead` survives a full reload.
+  Any + Highlight keeps all 14 rows and highlights only the matches; All Activities clears
+  both. Persian RTL at 1280×720 and en at 1366×768/1920×1080 render without overflow.
+- **Known limits.** The preview fixture has no data date, so `CD` is inert there and the
+  suite uses `CS`. `CS`/`CF` are derived from the loaded activity span rather than persisted
+  project dates. Choice fields have no value picker, there is no Optimize action, Make Global
+  is a scope label inside the project, and row-level copy/paste is not offered.
+
+Evidence: `docs/workspace/evidence/activity-filters-v26-2026-11-12/`
+(`activity-filters-v26.json`, 9/9 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `857221097f4e6cbb878f225b3f409ad4aedec01f`, screenshots 01–07,
+`CHECKLIST.md`). Web suite at the same code: 948 + 14 tests pass; `tsc --noEmit` and
+`npm run build` pass.
