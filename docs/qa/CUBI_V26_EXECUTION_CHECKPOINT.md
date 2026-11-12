@@ -2780,3 +2780,20 @@ following comparisons need that evidence before any row may move from
 
 Without an authorized dataset these remain explicitly unverified; CUBI persists and re-reads
 its own values but does not assert equality with P6 outputs.
+
+## Typed datetime and duration UDF controls (2026-11-12)
+
+Status: **branch-ready** on `feat/activity-udf-value-editing-20261112`, implementation
+`a04fe023`.
+
+The Activity Details UDFs tab previously asked for datetime and duration values as free
+text. A datetime definition now renders a `datetime-local` control and saves a
+timezone-aware ISO instant; a duration definition renders a number amount plus a unit
+selector, rejects a non-token unit before writing, and reads both back after a reload.
+The five-scenario browser suite records the typed journey alongside the existing enum,
+clearance and viewer checks at `a04fe023` (Web 930 + 14 pass, typecheck and build clean;
+evidence `docs/workspace/evidence/activity-udf-values-v26-2026-11-12/`).
+
+Remaining UDF gaps are unchanged: no definition search or subject filter, definition
+lifecycle is not exposed, values stay revision-scoped, and the other Activity Details
+tabs remain read-only.
