@@ -3,6 +3,8 @@ import type {
   WorkspaceCalendarCatalog,
   WorkspaceCalendarRecord,
 } from "./workspace-model.js";
+
+export type { WorkspaceCalendarRecord } from "./workspace-model.js";
 import {
   formatJalaliDateInput,
   isValidCanonicalIsoDate,
@@ -11,6 +13,7 @@ import {
 
 export const CALENDAR_CATALOG_CONTRACT = "p6-calendar-read-api.v1";
 export const CALENDAR_API_CONTRACT = "p6-calendar.v1";
+export const CALENDAR_USAGE_CONTRACT = "p6-calendar-usage-api.v1";
 
 export type CalendarFactorSet = {
   hours_per_day: string | null;
@@ -308,6 +311,69 @@ export async function loadCalendarExceptions(
     return { ok: true, data: exceptions };
   } catch (error) {
     return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_EXCEPTIONS");
+  }
+}
+
+export type CalendarUsageEntry = {
+  kind: string;
+  referenceId: string;
+  details: Record<string, unknown>;
+};
+
+export type CalendarUsage = {
+  calendarId: string;
+  calendarVersion: string;
+  total: number;
+  counts: Record<string, number>;
+  usages: readonly CalendarUsageEntry[];
+};
+
+export function parseCalendarUsage(payload: unknown, calendarId: string, calendarVersion: string): CalendarUsage {
+  if (!isRecord(payload) || payload.contract_version !== CALENDAR_USAGE_CONTRACT || payload.kind !== "calendar_usage") {
+    throw new Error("INVALID_CALENDAR_USAGE");
+  }
+  const calendar = payload.calendar;
+  if (!isRecord(calendar) || calendar.calendar_id !== calendarId || calendar.calendar_version !== calendarVersion) {
+    throw new Error("INVALID_CALENDAR_USAGE");
+  }
+  if (!Array.isArray(payload.usages) || !Number.isInteger(payload.total) || payload.total !== payload.usages.length) {
+    throw new Error("INVALID_CALENDAR_USAGE");
+  }
+  if (!isRecord(payload.counts)) throw new Error("INVALID_CALENDAR_USAGE");
+  const usages = payload.usages.map((item): CalendarUsageEntry => {
+    if (!isRecord(item) || typeof item.kind !== "string" || !item.kind || typeof item.reference_id !== "string" || !item.reference_id) {
+      throw new Error("INVALID_CALENDAR_USAGE");
+    }
+    const details = isRecord(item.details) ? item.details : {};
+    return { kind: item.kind, referenceId: item.reference_id, details };
+  });
+  const counts: Record<string, number> = {};
+  for (const [kind, value] of Object.entries(payload.counts)) {
+    if (!Number.isInteger(value) || Number(value) < 0) throw new Error("INVALID_CALENDAR_USAGE");
+    counts[kind] = Number(value);
+  }
+  return {
+    calendarId,
+    calendarVersion,
+    total: Number(payload.total),
+    counts,
+    usages,
+  };
+}
+
+export async function loadCalendarUsage(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendarId: string,
+  calendarVersion: string,
+): Promise<ApiResult<CalendarUsage>> {
+  if (!calendarId || !calendarVersion) return localError("CALENDAR_REFERENCE_REQUIRED");
+  const result = await transport.get<unknown>(calendarPath(context, calendarId, calendarVersion, "uses"), context);
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseCalendarUsage(result.data, calendarId, calendarVersion) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_USAGE");
   }
 }
 
@@ -694,7 +760,10 @@ type PageState = {
   workHours: readonly CalendarWorkHourRule[];
   workHoursError: string | null;
   workHoursLoading: boolean;
-  tab: "general" | "workweek" | "exceptions";
+  usage: CalendarUsage | null;
+  usageError: string | null;
+  usageLoading: boolean;
+  tab: "general" | "workweek" | "exceptions" | "usage";
   dialog: "none" | "copy" | "delete" | "new";
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
@@ -725,6 +794,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     workHours: [],
     workHoursError: null,
     workHoursLoading: false,
+    usage: null,
+    usageError: null,
+    usageLoading: false,
     tab: "general",
     dialog: "none",
     busy: false,
@@ -865,6 +937,51 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     </section>`;
   }
 
+  function usageKindLabel(kind: string): string {
+    const labels: Record<string, [string, string]> = {
+      activity_calendar_assignment: ["Activity", "فعالیت"],
+      relationship_lag_calendar_assignment: ["Relationship lag", "تأخیر رابطه"],
+      resource_calendar_assignment: ["Resource master", "مستر منبع"],
+      resource_assignment_calendar: ["Resource assignment", "تخصیص منبع"],
+    };
+    const label = labels[kind];
+    return label ? say(label[0], label[1]) : kind;
+  }
+
+  function renderUsage(): string {
+    if (state.usageLoading) {
+      return `<div class="cp-calendar-empty" role="status" data-calendar-usage-loading>${escapeHtml(say("Reading stored references to this calendar…", "در حال خواندن ارجاع‌های ذخیره‌شده به این تقویم…"))}</div>`;
+    }
+    if (state.usageError) {
+      return `<div class="cp-calendar-empty" role="alert" data-calendar-usage-error>${escapeHtml(say("Calendar references could not be read", "خواندن ارجاع‌های تقویم ناموفق بود"))} (${escapeHtml(state.usageError)})</div>`;
+    }
+    const usage = state.usage;
+    if (!usage) {
+      return `<div class="cp-calendar-empty">${escapeHtml(say("Select a calendar to read its stored references.", "برای خواندن ارجاع‌های ذخیره‌شده، یک تقویم انتخاب کنید."))}</div>`;
+    }
+    const heads = [say("Used By", "استفاده‌کننده"), say("Reference", "مرجع"), say("Details", "جزئیات")]
+      .map((label) => `<th>${escapeHtml(label)}</th>`)
+      .join("");
+    const rows = usage.usages.map((item) => {
+      const detail = Object.entries(item.details)
+        .map(([key, value]) => `${key}=${value === null ? "—" : String(value)}`)
+        .join(" · ");
+      return `<tr data-calendar-usage-row data-usage-kind="${escapeAttribute(item.kind)}" data-usage-reference="${escapeAttribute(item.referenceId)}"><td>${escapeHtml(usageKindLabel(item.kind))}</td><td><code>${escapeHtml(item.referenceId)}</code></td><td>${escapeHtml(detail || "—")}</td></tr>`;
+    }).join("");
+    const counts = Object.entries(usage.counts)
+      .map(([kind, count]) => `${usageKindLabel(kind)} ${count}`)
+      .join(" · ");
+    const table = usage.usages.length
+      ? `<div class="cp-register-table-wrap"><table><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`
+      : `<div class="cp-calendar-empty" data-calendar-usage-empty>${escapeHtml(say("No stored activity, resource or assignment reference uses this calendar version yet.", "هنوز هیچ ارجاع ذخیره‌شدهٔ فعالیت، منبع یا تخصیصی از این نسخهٔ تقویم استفاده نمی‌کند."))}</div>`;
+    return `<section class="cp-calendar-editor-panel" data-calendar-panel="usage" data-calendar-usage>
+      <div class="cp-calendar-section-head"><strong>${escapeHtml(say("Calendar References", "ارجاع‌های تقویم"))}</strong><span data-calendar-usage-total>${usage.total}</span></div>
+      ${table}
+      <p class="cp-calendar-hint" data-calendar-usage-summary>${escapeHtml(counts || say("No references.", "بدون ارجاع."))}</p>
+      <p class="cp-calendar-hint">${escapeHtml(say("A resource master stores a calendar id without a version, so it is matched by id only. Resource assignments store the exact id and version.", "مستر منبع شناسهٔ تقویم را بدون نسخه ذخیره می‌کند، بنابراین فقط با شناسه تطبیق داده می‌شود. تخصیص‌های منبع شناسه و نسخهٔ دقیق را ذخیره می‌کنند."))}</p>
+    </section>`;
+  }
+
   function renderDetails(): string {
     const record = selectedRecord(state);
     if (!record) {
@@ -877,8 +994,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       ["general", say("General", "عمومی")],
       ["workweek", say("Workweek", "هفته کاری")],
       ["exceptions", say("Exceptions", "استثناها")],
+      ["usage", say("Used By", "استفاده‌کنندگان")],
     ].map(([key, label]) => `<button type="button" role="tab" data-calendar-tab="${key}" aria-selected="${state.tab === key}" class="${state.tab === key ? "is-active" : ""}">${escapeHtml(label)}</button>`).join("");
-    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek(record) : renderExceptions(record);
+    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek(record) : state.tab === "exceptions" ? renderExceptions(record) : renderUsage();
     const snapshotFailure = state.snapshotError
       ? `<p class="cp-calendar-notice" role="alert">${escapeHtml(say("Calendar snapshot could not be read", "خواندن نسخه تقویم ناموفق بود"))} (${escapeHtml(state.snapshotError)}). ${escapeHtml(say("Dates and durations must not be inferred without it.", "بدون آن، تاریخ و مدت نباید استنتاج شود."))}</p>`
       : "";
@@ -958,6 +1076,8 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     state.editingException = null;
     state.workHours = [];
     state.workHoursError = null;
+    state.usage = null;
+    state.usageError = null;
     state.tab = tab;
     state.dialog = "none";
     state.draftName = null;
@@ -965,15 +1085,18 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     state.notice = null;
     state.snapshotLoading = true;
     state.workHoursLoading = true;
+    state.usageLoading = true;
     render();
-    const [snapshotResult, exceptionResult, workHourResult] = await Promise.all([
+    const [snapshotResult, exceptionResult, workHourResult, usageResult] = await Promise.all([
       loadCalendarSnapshot(transport, context, id, version),
       loadCalendarExceptions(transport, context, id, version),
       loadCalendarWorkHours(transport, context, id, version),
+      loadCalendarUsage(transport, context, id, version),
     ]);
     if (state.selected?.id !== id || state.selected?.version !== version) return;
     state.snapshotLoading = false;
     state.workHoursLoading = false;
+    state.usageLoading = false;
     if (snapshotResult.ok) {
       state.snapshot = snapshotResult.data.snapshot;
     } else {
@@ -988,6 +1111,11 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       state.workHours = workHourResult.data;
     } else {
       state.workHoursError = workHourResult.error.code;
+    }
+    if (usageResult.ok) {
+      state.usage = usageResult.data;
+    } else {
+      state.usageError = usageResult.error.code;
     }
     render();
   }

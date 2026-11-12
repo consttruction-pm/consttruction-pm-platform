@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { loadCalendarCatalogue, type WorkspaceCalendarRecord } from "./workspace-calendars.js";
 
 export const ASSIGNMENT_READ_API_VERSION = "p6-resource-read-api.v1";
 export const ASSIGNMENT_WRITE_API_VERSION = "p6-resource-write-api.v1";
@@ -58,6 +59,8 @@ export type AssignmentInput = {
   unit: string | null;
   plannedCost: string | null;
   currency: string | null;
+  calendarId: string | null;
+  calendarVersion: string | null;
   note: string | null;
 };
 
@@ -126,6 +129,7 @@ export type AssignmentPageOptions = {
   context: ProjectContext;
   locale: string;
   activities: readonly AssignmentActivityOption[];
+  canWrite: boolean;
 };
 
 export const ASSIGNMENT_STORAGE_KEY = "cubi.assignments.view.v1";
@@ -344,6 +348,11 @@ export function buildAssignmentPayload(input: AssignmentInput): Record<string, u
   if (!input.assignmentId.trim() || !input.activityId.trim() || !input.resourceId.trim()) {
     throw new Error("ASSIGNMENT_FIELDS_REQUIRED");
   }
+  const calendarId = input.calendarId?.trim() ? input.calendarId.trim() : null;
+  const calendarVersion = input.calendarVersion?.trim() ? input.calendarVersion.trim() : null;
+  if ((calendarId === null) !== (calendarVersion === null)) {
+    throw new Error("INCOMPLETE_CALENDAR_REFERENCE");
+  }
   return {
     contract_version: ASSIGNMENT_WRITE_API_VERSION,
     assignment_id: input.assignmentId.trim(),
@@ -354,6 +363,8 @@ export function buildAssignmentPayload(input: AssignmentInput): Record<string, u
     unit: input.unit?.trim() ? input.unit.trim() : null,
     planned_cost: normalizedDecimal(input.plannedCost ?? ""),
     currency: input.currency?.trim() ? input.currency.trim() : null,
+    calendar_id: calendarId,
+    calendar_version: calendarVersion,
     note: input.note?.trim() ? input.note.trim() : null,
   };
 }
@@ -707,6 +718,8 @@ type PageState = {
   periodDraft: { periodStart: string; units: string; cost: string };
   periodBusy: boolean;
   periodNotice: { kind: "ok" | "error"; message: string } | null;
+  calendars: readonly WorkspaceCalendarRecord[];
+  calendarError: string | null;
 };
 
 function emptyDraft(): AssignmentInput {
@@ -719,6 +732,8 @@ function emptyDraft(): AssignmentInput {
     unit: null,
     plannedCost: null,
     currency: null,
+    calendarId: null,
+    calendarVersion: null,
     note: null,
   };
 }
@@ -737,6 +752,8 @@ function draftFromAssignment(record: AssignmentRecord, assignmentId: string): As
     unit: record.unit,
     plannedCost: record.plannedCost,
     currency: record.currency,
+    calendarId: record.calendarId,
+    calendarVersion: record.calendarVersion,
     note: record.note,
   };
 }
@@ -752,7 +769,7 @@ function storageOrNull(): Storage | null {
 export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: AssignmentPageOptions): void {
   if (host.dataset.assignmentsMounted === "true") return;
   host.dataset.assignmentsMounted = "true";
-  const { transport, context, locale, activities } = options;
+  const { transport, context, locale, activities, canWrite } = options;
   const prefs = loadAssignmentViewPrefs(storageOrNull(), context.project_id);
   const state: PageState = {
     status: "loading",
@@ -775,6 +792,8 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     periodDraft: emptyPeriodDraft(),
     periodBusy: false,
     periodNotice: null,
+    calendars: [],
+    calendarError: null,
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -867,8 +886,8 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
         ${resourceSelect}
         ${activitySelect}
         <details class="cp-assignment-columns"><summary>${escapeHtml(say("Columns", "ستون‌ها"))}</summary><div class="cp-assignment-columns-panel" data-assignment-columns>${columnChecks}</div></details>
-        <button type="button" data-assignment-action="new" ${state.busy ? "disabled" : ""}>${escapeHtml(say("New Assignment", "تخصیص جدید"))}</button>
-        <button type="button" data-assignment-action="revise" ${state.busy || !selected() ? "disabled" : ""} title="${escapeHtml(say("Copy the selected assignment into a new revision", "رونوشت تخصیص انتخاب‌شده در یک بازنگری جدید"))}">${escapeHtml(say("Revise", "بازنگری"))}</button>
+        ${canWrite ? `<button type="button" data-assignment-action="new" ${state.busy ? "disabled" : ""}>${escapeHtml(say("New Assignment", "تخصیص جدید"))}</button>
+        <button type="button" data-assignment-action="revise" ${state.busy || !selected() ? "disabled" : ""} title="${escapeHtml(say("Copy the selected assignment into a new revision", "رونوشت تخصیص انتخاب‌شده در یک بازنگری جدید"))}">${escapeHtml(say("Revise", "بازنگری"))}</button>` : ""}
         <button type="button" data-assignment-action="reload" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Refresh", "به‌روزرسانی"))}</button>
       </div>
     </div>`;
@@ -898,8 +917,14 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
       <label>${escapeHtml(say("Unit", "واحد"))}<input name="unit" value="${escapeHtml(draft.unit ?? "")}"></label>
       <label>${escapeHtml(say("Planned Cost", "هزینه برنامه‌ای"))}<input name="planned-cost" value="${escapeHtml(draft.plannedCost ?? "")}" inputmode="decimal"></label>
       <label>${escapeHtml(say("Currency", "ارز"))}<input name="currency" value="${escapeHtml(draft.currency ?? "")}"></label>
+      <label>${escapeHtml(say("Calendar", "تقویم"))}<select name="calendar"><option value="">${escapeHtml(say("Project default", "پیش‌فرض پروژه"))}</option>${state.calendars.map((calendar) => {
+        const value = `${calendar.calendarId}|${calendar.calendarVersion}`;
+        const selected = calendar.calendarId === draft.calendarId && calendar.calendarVersion === draft.calendarVersion;
+        return `<option value="${escapeHtml(value)}"${selected ? " selected" : ""}>${escapeHtml(`${calendar.calendarId} @ ${calendar.calendarVersion} — ${calendar.name}`)}</option>`;
+      }).join("")}</select></label>
       <label class="cp-assignment-note">${escapeHtml(say("Note", "یادداشت"))}<input name="note" value="${escapeHtml(draft.note ?? "")}"></label>
       <div class="cp-calendar-panel-actions"><button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Create assignment", "ایجاد تخصیص"))}</button><button type="button" data-assignment-action="cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
+      ${state.calendarError ? `<p class="cp-register-notice" data-assignment-calendar-error>${escapeHtml(say("Stored calendars could not be read", "خواندن تقویم‌های ذخیره‌شده ناموفق بود"))} (${escapeHtml(state.calendarError)})</p>` : ""}
       <datalist id="cp-assignment-resources">${knownResources.map((id) => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist>
       <datalist id="cp-assignment-roles">${knownRoles.map((id) => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist>
     </form>
@@ -1174,6 +1199,11 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
       return;
     }
     if (target.name === "activity-id") state.draft.activityId = target.value;
+    if (target.name === "calendar") {
+      const [calendarId, calendarVersion] = target.value.split("|");
+      state.draft.calendarId = calendarId || null;
+      state.draft.calendarVersion = calendarVersion || null;
+    }
   });
 
   host.addEventListener("submit", (event) => {
@@ -1232,5 +1262,18 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     }
   });
 
+  async function loadCalendars(): Promise<void> {
+    const result = await loadCalendarCatalogue(transport, context);
+    if (result.ok) {
+      state.calendars = result.data;
+      state.calendarError = null;
+    } else {
+      state.calendars = [];
+      state.calendarError = result.error.code;
+    }
+    render();
+  }
+
   void reload(null);
+  void loadCalendars();
 }

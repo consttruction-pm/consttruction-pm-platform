@@ -2352,6 +2352,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
+      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
       activities: state.activities.map((activity) => ({
         id: activity.id,
         code: activity.code,

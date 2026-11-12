@@ -32,6 +32,7 @@ from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
+from ..p6_calendar_usage_api import P6CalendarUsageAPI
 from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
@@ -230,6 +231,7 @@ class ProjectLifecycleHttpRoutes:
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_formula_column_api: P6FormulaColumnAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
+        p6_calendar_usage_api: P6CalendarUsageAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
@@ -280,6 +282,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_formula_column_api = p6_formula_column_api
         self._p6_calendar_read_api = p6_calendar_read_api
+        self._p6_calendar_usage_api = p6_calendar_usage_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
         self._p6_baseline_update_api = p6_baseline_update_api
@@ -777,6 +780,37 @@ class ProjectLifecycleHttpRoutes:
                     calendar_version,
                     auth_context=auth,
                 )
+                if result is None:
+                    return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/calendars/" in path and path.endswith("/uses"):
+                if self._p6_calendar_usage_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/calendars/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = suffix[:-len("/uses")].rstrip("/").split("/")
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                calendar_id, calendar_version = parts
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    result = self._p6_calendar_usage_api.list_usages(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        calendar_id,
+                        calendar_version,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except CalendarPersistenceError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
                 return self._json(200, result)
