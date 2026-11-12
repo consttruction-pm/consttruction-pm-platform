@@ -1,4 +1,4 @@
-"""Grounded, fully CUBI-owned engineering assistant.
+"""Grounded, fully CUBI-owned multilingual engineering assistant.
 
 Three modes are enforced explicitly:
 
@@ -7,8 +7,11 @@ Three modes are enforced explicitly:
 * ``execute`` — route an approved operation to the real workflow engine.
 
 The assistant never infers a permission from chat text and never invents a menu,
-field or operation. When retrieval cannot support an answer it says so plainly
-and records the gap for curation.
+field or operation. It detects the question language, honours an explicit or
+saved response language, and answers with an approved translation when one
+exists. When it does not, the official source is shown with an explicit fallback
+notice; a missing or unreviewed translation is never hidden and never presented
+as if it were approved.
 """
 
 from __future__ import annotations
@@ -24,19 +27,32 @@ from construction_pm.application.authorization import (
     Permission,
 )
 
+from .glossary import GLOSSARIES
+from .locales import (
+    DEFAULT_LOCALE,
+    FALLBACK_LOCALE,
+    SOURCE_LANGUAGE,
+    canonical_locale,
+    detect_locale,
+    direction,
+    language_code,
+    resolve_response_locale,
+)
+from .messages import message as localized_message
 from .model import (
     AssistantAnswer,
     AssistantMode,
     CardStatus,
     Citation,
     KnowledgeError,
+    LanguageContext,
     SearchScope,
-    detect_language,
     iso,
     utc_now,
 )
-from .search import search
+from .search import SearchFilters, search
 from .store import KnowledgeStore
+from .translations import answerable_record
 from .workflow import (
     ORGANIZATION_SCOPE,
     ProjectCreationWorkflow,
@@ -47,7 +63,14 @@ _MAX_QUOTE = 900
 _EXECUTE_INTENT = re.compile(
     r"(?:create|start|set\s*up|make|new)\s+(?:a\s+|the\s+)?project"
     r"|(?:ایجاد|ساخت|راه\s*اندازی|تعریف|شروع)\s+(?:یک\s+)?پروژه"
-    r"|پروژه\s+(?:جدید|تازه)",
+    r"|پروژه\s+(?:جدید|تازه)"
+    r"|(?:создать|запустить|начать)\s+(?:новый\s+)?проект"
+    r"|(?:erstelle|erstellen|starte)\s+(?:ein\s+)?projekt"
+    r"|(?:créer|creer|démarrer)\s+(?:un\s+)?projet"
+    r"|(?:创建|建立|新建)\s*(?:一个|一個)?\s*(?:项目|專案)"
+    r"|(?:プロジェクト)\s*(?:を)?\s*(?:作成|開始)"
+    r"|(?:프로젝트)\s*(?:를)?\s*(?:생성|시작)"
+    r"|(?:إنشاء|بدء)\s+(?:مشروع)",
     re.IGNORECASE,
 )
 _GUIDE_ACTIONS = frozenset({"start", "next", "back", "complete"})
@@ -97,20 +120,29 @@ class KnowledgeAssistant:
         if not isinstance(question, str) or not question.strip():
             raise AssistantError("ASSISTANT_QUESTION_REQUIRED")
         self._require(principal, Permission.KNOWLEDGE_READ)
+        question_locale = detect_locale(question)
+        response_locale = self._response_locale(
+            principal, question, language=language, project_id=project_id
+        )
         if mode is AssistantMode.EXECUTE:
             self._require(principal, Permission.ASSISTANT_ACTION)
-            routed = self._route_execution(principal, question.strip(), project_id)
+            routed = self._route_execution(
+                principal, question.strip(), project_id, response_locale
+            )
             if routed is not None:
                 return routed
-        resolved_language = language or detect_language(question)
         outcome = search(
             self._store,
             self._scope(principal, project_id),
             question,
             limit=5,
+            locale=response_locale,
+            filters=SearchFilters(locale=response_locale),
         )
         if outcome.insufficient_knowledge or not outcome.hits:
-            return self._gap(principal, question, mode, resolved_language, project_id)
+            return self._gap(
+                principal, question, mode, response_locale, project_id, question_locale
+            )
         top = outcome.hits[0]
         card = self._store.get_card(top.card_id) if top.card_id else None
         citations = tuple(
@@ -123,41 +155,79 @@ class KnowledgeAssistant:
             for hit in outcome.hits
             if hit.source_url
         )[:6]
-        steps = tuple(card.steps) if card else ()
-        warnings = tuple(card.warnings) if card else ()
-        limitations = tuple(card.limitations) if card else ()
+        if card is not None:
+            record, fallback = answerable_record(self._store, card, response_locale)
+            if fallback and _detect_card_locale(card) == response_locale:
+                fallback = False
+            title = record.title or card.title
+            summary = record.summary or card.purpose
+            steps = tuple(record.steps) if record.steps else tuple(card.steps)
+            warnings = tuple(record.warnings) or tuple(card.warnings)
+            limitations = tuple(record.limitations) or tuple(card.limitations)
+            content_language = record.locale if record.available() else SOURCE_LANGUAGE
+            translation_status = (
+                str(record.localization_metadata.get("requested_translation_status"))
+                if fallback and record.localization_metadata.get("requested_translation_status")
+                else record.translation_status.value
+            )
+        else:
+            record = None
+            fallback = response_locale != DEFAULT_LOCALE
+            title = top.title
+            summary = top.snippet
+            steps = ()
+            warnings = ()
+            limitations = ()
+            content_language = top.language or SOURCE_LANGUAGE
+            translation_status = top.translation_status or "official_source"
         if mode is AssistantMode.GUIDE:
             return self._guide_answer(
                 principal,
-                top.title,
+                title,
                 card,
                 citations,
-                resolved_language,
+                response_locale,
+                question_locale,
                 project_id,
                 steps,
                 warnings,
                 limitations,
+                fallback,
+                translation_status,
+                content_language,
+                record,
             )
-        purpose = (card.purpose if card else top.snippet).strip()
+        purpose = (summary or "").strip()
         if len(purpose) > _MAX_QUOTE:
             purpose = purpose[:_MAX_QUOTE].rstrip() + "..."
-        if resolved_language == "fa":
-            message = (
-                f"بر اساس منابع رسمی نسخه ۲۶، «{top.title}»: {purpose}"
-            )
-        else:
-            message = f"Based on the official Version 26 reference, {top.title}: {purpose}"
+        key = "answer_fallback" if fallback else "answer_prefix"
+        message = localized_message(response_locale, key).format(
+            title=title,
+            summary=purpose,
+            locale=_locale_label(response_locale),
+        )
         return AssistantAnswer(
             kind="answer",
             message=message,
             mode=mode,
-            language=resolved_language,
+            language=response_locale,
             citations=citations,
             card_ids=tuple(hit.card_id for hit in outcome.hits if hit.card_id)[:6],
             steps=steps,
             warnings=warnings,
             limitations=limitations,
             next_step=None,
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=content_language,
+            translation_status=translation_status,
+            fallback_used=fallback,
+            language_context=self._language_context(
+                response_locale,
+                question_locale,
+                translation_status=translation_status,
+                record=record,
+            ),
         )
 
     def guide(
@@ -167,6 +237,7 @@ class KnowledgeAssistant:
         action: str,
         *,
         project_id: str | None = None,
+        language: str | None = None,
     ) -> AssistantAnswer:
         self._require(principal, Permission.KNOWLEDGE_READ)
         if action not in _GUIDE_ACTIONS:
@@ -176,7 +247,14 @@ class KnowledgeAssistant:
             raise AssistantError("ASSISTANT_CARD_NOT_FOUND")
         if card.publication_status is not CardStatus.PUBLISHED:
             raise AssistantError("ASSISTANT_CARD_NOT_PUBLISHED")
-        steps = tuple(card.steps)
+        response_locale = self._response_locale(
+            principal, card.title, language=language, project_id=project_id
+        )
+        question_locale = response_locale
+        record, fallback = answerable_record(self._store, card, response_locale)
+        if fallback and _detect_card_locale(card) == response_locale:
+            fallback = False
+        steps = tuple(record.steps) if record.steps else tuple(card.steps)
         if not steps:
             raise AssistantError("ASSISTANT_CARD_HAS_NO_STEPS")
         scope = project_id or ORGANIZATION_SCOPE
@@ -211,6 +289,7 @@ class KnowledgeAssistant:
             value={
                 "card_id": card.card_id,
                 "title": card.title,
+                "locale": response_locale,
                 "step_index": index,
                 "total_steps": len(steps),
                 "completed": completed,
@@ -224,19 +303,35 @@ class KnowledgeAssistant:
             "knowledge_card",
             card.card_id,
             "succeeded",
-            {"action": action, "step_index": index, "project_id": project_id},
+            {
+                "action": action,
+                "step_index": index,
+                "project_id": project_id,
+                "locale": response_locale,
+                "fallback": fallback,
+            },
         )
-        language = detect_language(steps[index])
+        title = record.title or card.title
         step_text = steps[index]
-        if language == "fa":
-            message = f"گام {index + 1} از {len(steps)} — {card.title}: {step_text}"
-        else:
-            message = f"Step {index + 1} of {len(steps)} — {card.title}: {step_text}"
+        message = localized_message(response_locale, "guide_step").format(
+            index=index + 1,
+            total=len(steps),
+            title=title,
+            step=step_text,
+        )
+        if fallback:
+            message = (
+                localized_message(response_locale, "translation_missing").format(
+                    locale=_locale_label(response_locale)
+                )
+                + " "
+                + message
+            )
         return AssistantAnswer(
             kind="workflow_step",
             message=message,
             mode=AssistantMode.GUIDE,
-            language=language,
+            language=response_locale,
             citations=(
                 Citation(
                     title=card.source_title,
@@ -247,9 +342,28 @@ class KnowledgeAssistant:
             ),
             card_ids=(card.card_id,),
             steps=(step_text,),
-            warnings=tuple(card.warnings),
-            limitations=tuple(card.limitations),
+            warnings=tuple(record.warnings) or tuple(card.warnings),
+            limitations=tuple(record.limitations) or tuple(card.limitations),
             next_step="complete" if completed else "next",
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=record.locale if record.available() else SOURCE_LANGUAGE,
+            translation_status=(
+                str(record.localization_metadata.get("requested_translation_status"))
+                if fallback and record.localization_metadata.get("requested_translation_status")
+                else record.translation_status.value
+            ),
+            fallback_used=fallback,
+            language_context=self._language_context(
+                response_locale,
+                question_locale,
+                translation_status=(
+                    str(record.localization_metadata.get("requested_translation_status"))
+                    if fallback and record.localization_metadata.get("requested_translation_status")
+                    else record.translation_status.value
+                ),
+                record=record,
+            ),
         )
 
     def list_memory(
@@ -273,6 +387,12 @@ class KnowledgeAssistant:
         self._require(principal, Permission.KNOWLEDGE_READ)
         if not isinstance(key, str) or not re.fullmatch(r"[a-z0-9_.-]{2,64}", key):
             raise AssistantError("ASSISTANT_MEMORY_KEY_INVALID")
+        if key in {"locale", "ui.language", "assistant.locale"}:
+            requested = value.get("locale", value.get("value"))
+            resolved = canonical_locale(requested, default=None)
+            if resolved is None:
+                raise AssistantError("KNOWLEDGE_LOCALE_UNSUPPORTED")
+            value = {**dict(value), "locale": resolved}
         now = iso(self._clock())
         self._store.save_memory(
             user_id=principal.user_id,
@@ -294,42 +414,48 @@ class KnowledgeAssistant:
 
     # -- internals -------------------------------------------------------
     def _route_execution(
-        self, principal: AssistantPrincipal, question: str, project_id: str | None
+        self,
+        principal: AssistantPrincipal,
+        question: str,
+        project_id: str | None,
+        response_locale: str,
     ) -> AssistantAnswer | None:
         if not _EXECUTE_INTENT.search(question):
             return None
+        question_locale = detect_locale(question)
+        context = self._language_context(
+            response_locale,
+            question_locale,
+            translation_status="not_applicable",
+        )
         if self._workflows is None:
             return AssistantAnswer(
                 kind="clarification",
-                message=(
-                    "The project-creation workflow is not available in this environment. "
-                    "No operation was executed."
-                ),
+                message=localized_message(response_locale, "workflow_unavailable"),
                 mode=AssistantMode.EXECUTE,
-                language=detect_language(question),
+                language=response_locale,
                 next_step="workflow.unavailable",
+                source_language=SOURCE_LANGUAGE,
+                response_language=response_locale,
+                content_language=response_locale,
+                translation_status="not_applicable",
+                language_context=context,
             )
         view = self._workflows.start(principal.workflow_principal())
-        language = detect_language(question)
-        if language == "fa":
-            message = (
-                "گردش کار ایجاد پروژه آغاز شد. گام نخست: انتخاب سازمان و گره EPS. "
-                "هیچ پروژه‌ای تا تأیید نهایی و اجرای واقعی ایجاد نمی‌شود."
-            )
-        else:
-            message = (
-                "The project-creation workflow has started. Current step: organization and EPS. "
-                "No project is created until the reviewed plan is approved and executed."
-            )
         return AssistantAnswer(
             kind="workflow_step",
-            message=message,
+            message=localized_message(response_locale, "workflow_start"),
             mode=AssistantMode.EXECUTE,
-            language=language,
+            language=response_locale,
             steps=(),
             next_step=view.current_step,
             workflow_run_id=view.run_id,
             workflow_step=view.current_step,
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=response_locale,
+            translation_status="not_applicable",
+            language_context=context,
         )
 
     def _guide_answer(
@@ -338,27 +464,51 @@ class KnowledgeAssistant:
         title: str,
         card,
         citations: tuple[Citation, ...],
-        language: str,
+        response_locale: str,
+        question_locale: str,
         project_id: str | None,
         steps: tuple[str, ...],
         warnings: tuple[str, ...],
         limitations: tuple[str, ...],
+        fallback: bool,
+        translation_status: str,
+        content_language: str,
+        record,
     ) -> AssistantAnswer:
         if card is None or not steps:
-            purpose = (card.purpose if card else "").strip()
-            if language == "fa":
-                message = f"برای «{title}» راهنمای گام‌به‌گام رسمی ثبت نشده است. {purpose}"
-            else:
-                message = f"No official step-by-step guide is recorded for {title}. {purpose}"
+            purpose = (record.summary if record is not None else "").strip()
+            key = "no_guide"
+            message = localized_message(response_locale, key).format(
+                title=title, summary=purpose
+            )
+            if fallback:
+                message = (
+                    localized_message(response_locale, "translation_missing").format(
+                        locale=_locale_label(response_locale)
+                    )
+                    + " "
+                    + message
+                )
             return AssistantAnswer(
                 kind="answer",
                 message=message,
                 mode=AssistantMode.GUIDE,
-                language=language,
+                language=response_locale,
                 citations=citations,
                 card_ids=() if card is None else (card.card_id,),
                 warnings=warnings,
                 limitations=limitations,
+                source_language=SOURCE_LANGUAGE,
+                response_language=response_locale,
+                content_language=content_language,
+                translation_status=translation_status,
+                fallback_used=fallback,
+                language_context=self._language_context(
+                    response_locale,
+                    question_locale,
+                    translation_status=translation_status,
+                    record=record,
+                ),
             )
         scope = project_id or ORGANIZATION_SCOPE
         now = iso(self._clock())
@@ -370,6 +520,7 @@ class KnowledgeAssistant:
             value={
                 "card_id": card.card_id,
                 "title": card.title,
+                "locale": response_locale,
                 "step_index": 0,
                 "total_steps": len(steps),
                 "completed": False,
@@ -383,23 +534,46 @@ class KnowledgeAssistant:
             "knowledge_card",
             card.card_id,
             "succeeded",
-            {"steps": len(steps), "project_id": project_id},
+            {
+                "steps": len(steps),
+                "project_id": project_id,
+                "locale": response_locale,
+                "fallback": fallback,
+            },
         )
-        if language == "fa":
-            message = f"راهنمای گام‌به‌گام «{card.title}» آغاز شد. گام ۱: {steps[0]}"
-        else:
-            message = f"Step-by-step guide started for {card.title}. Step 1: {steps[0]}"
+        message = localized_message(response_locale, "guide_start").format(
+            title=title, step=steps[0]
+        )
+        if fallback:
+            message = (
+                localized_message(response_locale, "translation_missing").format(
+                    locale=_locale_label(response_locale)
+                )
+                + " "
+                + message
+            )
         return AssistantAnswer(
             kind="workflow_step",
             message=message,
             mode=AssistantMode.GUIDE,
-            language=language,
+            language=response_locale,
             citations=citations,
             card_ids=(card.card_id,),
             steps=steps,
             warnings=warnings,
             limitations=limitations,
             next_step="next",
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=content_language,
+            translation_status=translation_status,
+            fallback_used=fallback,
+            language_context=self._language_context(
+                response_locale,
+                question_locale,
+                translation_status=translation_status,
+                record=record,
+            ),
         )
 
     def _gap(
@@ -407,8 +581,9 @@ class KnowledgeAssistant:
         principal: AssistantPrincipal,
         question: str,
         mode: AssistantMode,
-        language: str,
+        response_locale: str,
         project_id: str | None,
+        question_locale: str,
     ) -> AssistantAnswer:
         now = iso(self._clock())
         self._store.save_memory(
@@ -416,7 +591,12 @@ class KnowledgeAssistant:
             tenant_id=principal.tenant_id,
             project_id=project_id or ORGANIZATION_SCOPE,
             memory_key="knowledge_gap.last_question",
-            value={"question": question.strip(), "mode": mode.value, "at": now},
+            value={
+                "question": question.strip(),
+                "mode": mode.value,
+                "locale": response_locale,
+                "at": now,
+            },
             occurred_at=now,
         )
         self._audit(
@@ -425,25 +605,97 @@ class KnowledgeAssistant:
             "knowledge_query",
             question.strip()[:120],
             "insufficient",
-            {"mode": mode.value, "project_id": project_id},
+            {"mode": mode.value, "project_id": project_id, "locale": response_locale},
         )
-        if language == "fa":
-            message = (
-                "دانش تأییدشده و منتشرشده کافی برای پاسخ به این پرسش در دسترس نیست. "
-                "برای جلوگیری از پاسخ ساختگی، پاسخی ارائه نمی‌شود."
-            )
-        else:
-            message = (
-                "There is not enough published, validated knowledge to answer this question. "
-                "No answer is generated rather than guessing."
-            )
         return AssistantAnswer(
             kind="knowledge_gap",
-            message=message,
+            message=localized_message(response_locale, "gap"),
             mode=mode,
-            language=language,
+            language=response_locale,
             insufficient_knowledge=True,
             next_step="knowledge.curate",
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=response_locale,
+            translation_status="missing",
+            language_context=self._language_context(
+                response_locale,
+                question_locale,
+                translation_status="missing",
+            ),
+        )
+
+    def _response_locale(
+        self,
+        principal: AssistantPrincipal,
+        question: str,
+        *,
+        language: str | None,
+        project_id: str | None,
+    ) -> str:
+        profile = self._profile_locale(principal, project_id)
+        try:
+            return resolve_response_locale(
+                requested=language,
+                question=question,
+                profile_locale=profile,
+                default=DEFAULT_LOCALE,
+            )
+        except KnowledgeError as exc:
+            raise AssistantError(str(exc)) from exc
+
+    def _profile_locale(
+        self, principal: AssistantPrincipal, project_id: str | None
+    ) -> str | None:
+        entries = {
+            entry["memory_key"]: entry
+            for entry in self._store.list_memory(
+                user_id=principal.user_id,
+                tenant_id=principal.tenant_id,
+                project_id=project_id or ORGANIZATION_SCOPE,
+            )
+        }
+        for key in ("locale", "ui.language", "assistant.locale"):
+            entry = entries.get(key)
+            if entry and isinstance(entry.get("value"), Mapping):
+                value = entry["value"]
+                candidate = value.get("locale", value.get("value"))
+                if candidate:
+                    return str(candidate)
+        return None
+
+    def _language_context(
+        self,
+        response_locale: str,
+        question_locale: str,
+        *,
+        translation_status: str,
+        record=None,
+    ) -> LanguageContext:
+        record_locale = response_locale if record is None or record.available() else DEFAULT_LOCALE
+        return LanguageContext(
+            locale=record_locale,
+            language_code=language_code(record_locale),
+            source_language=SOURCE_LANGUAGE,
+            question_language=question_locale,
+            response_language=response_locale,
+            default_language=DEFAULT_LOCALE,
+            fallback_language=FALLBACK_LOCALE,
+            direction=direction(record_locale),
+            translation_status=translation_status,
+            review_status=(
+                str(record.localization_metadata.get("requested_review_status"))
+                if record is not None
+                and record.localization_metadata.get("requested_review_status")
+                else (record.review_status.value if record is not None else "pending")
+            ),
+            published_language_version=(
+                record.published_language_version if record is not None else None
+            ),
+            technical_glossary=tuple(GLOSSARIES.get(record_locale, ())),
+            localization_metadata=(
+                dict(record.localization_metadata) if record is not None else {}
+            ),
         )
 
     def _scope(self, principal: AssistantPrincipal, project_id: str | None) -> SearchScope:
@@ -490,6 +742,19 @@ class KnowledgeAssistant:
             occurred_at=iso(self._clock()),
             detail=detail,
         )
+
+
+def _detect_card_locale(card) -> str:
+    return detect_locale(
+        " ".join((card.title, card.purpose, " ".join(card.steps)))
+    )
+
+
+def _locale_label(locale: str) -> str:
+    from .locales import locale_definition
+
+    definition = locale_definition(locale)
+    return locale if definition is None else definition.english_name
 
 
 def _mode(value: AssistantMode | str) -> AssistantMode:

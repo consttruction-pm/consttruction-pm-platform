@@ -227,3 +227,164 @@ def test_principal_without_knowledge_role_is_denied(store, policy, clock) -> Non
         assistant.ask(anonymous, "create a project")
     with pytest.raises(AuthorizationError):
         assistant.list_memory(anonymous)
+
+
+# -- multilingual assistant behaviour ---------------------------------------
+
+RU_TRANSLATION = {
+    "title": "Создание проекта",
+    "summary": "Создайте проект, чтобы организовать активности и расписание.",
+    "body": "Проект объединяет активности, ресурсы и календарь.",
+    "steps": ("Выберите «Проект», затем «Создать».", "Введите название проекта и сохраните."),
+    "source_note": "Официальный справочник версии 26.",
+}
+
+
+def _publish_translation(store, card, locale: str, payload: dict, *, approve: bool = True):
+    from construction_pm.knowledge.model import TranslationSource
+    from construction_pm.knowledge.translations import (
+        build_translation,
+        publish_translation,
+        review_translation,
+    )
+
+    record = build_translation(
+        card,
+        locale,
+        {**payload, "translation_source": TranslationSource.HUMAN.value},
+        actor_id="translator-1",
+        now=card.published_at,
+    )
+    store.save_translation(record)
+    if not approve:
+        return record
+    approved = review_translation(record, reviewer="reviewer-1", accept=True, now=card.published_at)
+    store.save_translation(approved)
+    published = publish_translation(
+        card, approved, reviewer="reviewer-1", now=card.published_at
+    )
+    store.save_translation(published)
+    return published
+
+
+def test_approved_russian_translation_answers_in_russian(
+    assistant, viewer, published_card, store
+) -> None:
+    _publish_translation(store, published_card, "ru", RU_TRANSLATION)
+
+    answer = assistant.ask(viewer, "Как создать проект?")
+
+    assert answer.language == "ru"
+    assert answer.response_language == "ru"
+    assert answer.content_language == "ru"
+    assert answer.source_language == "en"
+    assert answer.translation_status == "published"
+    assert answer.fallback_used is False
+    assert "Создание проекта" in answer.message
+    assert "Create a Project" not in answer.message
+    assert answer.card_ids == (published_card.card_id,)
+    assert answer.citations[0].card_id == published_card.card_id
+    assert answer.citations[0].source_url == published_card.source_url
+
+
+def test_missing_translation_is_announced_not_hidden(
+    assistant, viewer, published_card, store
+) -> None:
+    answer = assistant.ask(viewer, "Wie erstelle ich ein Projekt?")
+
+    assert answer.language == "de"
+    assert answer.fallback_used is True
+    assert answer.translation_status == "missing"
+    assert answer.content_language == "en"
+    assert "übersetzt" in answer.message.lower() or "Übersetzung" in answer.message
+    assert "Create a Project" in answer.message  # English source is clearly quoted
+    assert answer.card_ids == (published_card.card_id,)
+
+
+def test_explicit_language_overrides_the_question_language(
+    assistant, viewer, published_card, store
+) -> None:
+    _publish_translation(store, published_card, "ru", RU_TRANSLATION)
+
+    answer = assistant.ask(viewer, "How do I create a project?", language="ru")
+
+    assert answer.language == "ru"
+    assert "Создание проекта" in answer.message
+    assert answer.language_context.question_language == "en"
+    assert answer.language_context.response_language == "ru"
+
+
+def test_unapproved_translation_is_treated_as_fallback(
+    assistant, viewer, published_card, store
+) -> None:
+    _publish_translation(store, published_card, "ru", RU_TRANSLATION, approve=False)
+
+    answer = assistant.ask(viewer, "Как создать проект?")
+
+    assert answer.fallback_used is True
+    assert answer.language == "ru"
+    assert answer.translation_status == "translated"
+    assert answer.content_language == "en"
+
+
+def test_saved_locale_preference_is_used(assistant, viewer, published_card, store) -> None:
+    _publish_translation(store, published_card, "ru", RU_TRANSLATION)
+    assistant.set_preference(viewer, "ui.language", {"value": "ru"})
+
+    answer = assistant.ask(viewer, "How do I create a project?")
+
+    assert answer.language == "ru"
+    assert "Создание проекта" in answer.message
+
+
+def test_unknown_locale_preference_is_rejected(assistant, viewer) -> None:
+    with pytest.raises(AssistantError, match="LOCALE_UNSUPPORTED"):
+        assistant.set_preference(viewer, "ui.language", {"value": "pt-BR"})
+
+
+def test_guide_is_localized_with_approved_translation(
+    assistant, viewer, published_card, store
+) -> None:
+    _publish_translation(store, published_card, "ru", RU_TRANSLATION)
+
+    started = assistant.guide(viewer, published_card.card_id, "start", language="ru")
+
+    assert started.kind == "workflow_step"
+    assert "Шаг 1" in started.message
+    assert "Выберите «Проект»" in started.message
+    assert started.steps == (RU_TRANSLATION["steps"][0],)
+    assert started.language == "ru"
+    assert started.fallback_used is False
+
+
+def test_guide_without_translation_states_the_fallback(
+    assistant, viewer, published_card
+) -> None:
+    started = assistant.guide(viewer, published_card.card_id, "start", language="fa")
+
+    assert started.kind == "workflow_step"
+    assert started.fallback_used is True
+    assert started.language == "fa"
+    assert "ترجمه" in started.message
+    assert CARD_STEPS[0] in started.message
+
+
+def test_guide_progress_is_isolated_per_user(assistant, viewer, published_card, store) -> None:
+    assistant.guide(viewer, published_card.card_id, "next")
+    other = AssistantPrincipal("viewer-2", "tenant-1", frozenset({"viewer"}))
+
+    restarted = assistant.guide(other, published_card.card_id, "start")
+
+    assert "Step 1 of 2" in restarted.message
+    mine = {
+        entry["memory_key"]: entry["value"]
+        for entry in store.list_memory(
+            user_id="viewer-1", tenant_id="tenant-1", project_id=ORGANIZATION_SCOPE
+        )
+    }
+    assert mine[f"guide.{published_card.card_id}"]["step_index"] == 1
+
+
+def test_unknown_language_on_ask_is_rejected(assistant, viewer, published_card) -> None:
+    with pytest.raises(AssistantError, match="LOCALE_UNSUPPORTED"):
+        assistant.ask(viewer, "create a project", language="pt-BR")

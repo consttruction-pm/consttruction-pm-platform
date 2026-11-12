@@ -8,8 +8,8 @@ Usage examples::
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3 --source p6-26-user-guide
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3 --coverage-out coverage.json
 
-Only the five registered official sources are supported. The command is
-resumable: completed pages are skipped unless ``--force`` is supplied.
+Only the two authoritative Version 26 HTML sources are supported. The command
+is resumable: completed pages are skipped unless ``--force`` is supplied.
 """
 
 from __future__ import annotations

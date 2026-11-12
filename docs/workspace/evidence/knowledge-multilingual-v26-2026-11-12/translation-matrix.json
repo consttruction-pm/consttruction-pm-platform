@@ -1,0 +1,141 @@
+{
+  "contract": "cubi-knowledge-translation-matrix.v1",
+  "card_id": "KC-ed2b800ec5d611065c0faa19",
+  "card_title": "Create a project",
+  "seed_written": {
+    "written": 0,
+    "skipped": 9
+  },
+  "locales": [
+    {
+      "locale": "fa",
+      "language_code": "fa",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "ایجاد یک پروژه",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "b75ac175b3b5053433fc8ef4bedc78b81fc104df3c4f6efd8173fd0036fda9be"
+    },
+    {
+      "locale": "en",
+      "language_code": "en",
+      "translation_status": "draft",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "Create a project",
+      "steps": 7,
+      "glossary_terms": 0,
+      "content_hash": "7fea648a3e61f547d147cfb78387b1b442220f3c2e276172ca2bfda0fc40b3fc"
+    },
+    {
+      "locale": "de",
+      "language_code": "de",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "Ein Projekt anlegen",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "afe3b55fedbacf6548adf44912766e150bc056bd71e3af025f10447826d0fd53"
+    },
+    {
+      "locale": "zh-CN",
+      "language_code": "zh",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "创建项目",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "e35806bce83afb635c01db2ac6d825125db1182a2665c864619e5854fd9a8b6c"
+    },
+    {
+      "locale": "zh-TW",
+      "language_code": "zh",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "建立專案",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "83f404c4be0878948c98410e0b0a1a0a664d7d59cafab4960bf4c228fb739369"
+    },
+    {
+      "locale": "ar",
+      "language_code": "ar",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "إنشاء مشروع",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "3cf1fa4eb6060aabb990931c56cbf8872c6d131347ccc358494160a480892cdf"
+    },
+    {
+      "locale": "fr",
+      "language_code": "fr",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "Créer un projet",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "363ed2bbb898e2c6a9c652350bc552ff604ac06eac158f780ddd825b427d3734"
+    },
+    {
+      "locale": "ja",
+      "language_code": "ja",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "プロジェクトを作成する",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "340d6a69756ec44e55929d5f845563e419a6eca8cd5f6c50a4400cee2f6ab795"
+    },
+    {
+      "locale": "ko",
+      "language_code": "ko",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "프로젝트 생성",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "8c5fe2c49b32d3fc98f28ca0681db91fa3cc753c1bd869a597f0b10fe540df3f"
+    },
+    {
+      "locale": "ru",
+      "language_code": "ru",
+      "translation_status": "translated",
+      "review_status": "pending",
+      "translation_version": 1,
+      "published_language_version": null,
+      "machine_translated": false,
+      "title": "Создание проекта",
+      "steps": 7,
+      "glossary_terms": 3,
+      "content_hash": "fc742ba1cf27f4d7e79f6cc2dae1f1232b274cd855da3c432f7f0aba68ee853a"
+    }
+  ]
+}

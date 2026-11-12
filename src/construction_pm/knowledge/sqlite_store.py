@@ -20,15 +20,19 @@ from .model import (
     KnowledgeError,
     KnowledgeScope,
     ParsedTopic,
+    ReviewStatus,
     SourceDefinition,
     TopicLink,
+    TranslationRecord,
+    TranslationSource,
+    TranslationStatus,
     parse_iso,
     sha256_hex,
     text,
     topic_id_for,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = (
     """
@@ -223,6 +227,41 @@ _SCHEMA = (
     """
     CREATE INDEX IF NOT EXISTS idx_assistant_workflow_scope
         ON assistant_workflow(tenant_id, project_id, user_id, status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS knowledge_card_translation (
+        card_id TEXT NOT NULL,
+        locale TEXT NOT NULL,
+        language_code TEXT NOT NULL,
+        source_language TEXT NOT NULL DEFAULT 'en',
+        title TEXT NOT NULL DEFAULT '',
+        summary TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        steps_json TEXT NOT NULL DEFAULT '[]',
+        prerequisites_json TEXT NOT NULL DEFAULT '[]',
+        warnings_json TEXT NOT NULL DEFAULT '[]',
+        limitations_json TEXT NOT NULL DEFAULT '[]',
+        relations_json TEXT NOT NULL DEFAULT '[]',
+        glossary_json TEXT NOT NULL DEFAULT '[]',
+        source_note TEXT NOT NULL DEFAULT '',
+        translation_status TEXT NOT NULL,
+        review_status TEXT NOT NULL,
+        translation_version INTEGER NOT NULL DEFAULT 0,
+        published_language_version INTEGER,
+        translation_source TEXT NOT NULL,
+        machine_translated INTEGER NOT NULL DEFAULT 0,
+        localization_metadata_json TEXT NOT NULL DEFAULT '{}',
+        content_hash TEXT NOT NULL DEFAULT '',
+        reviewer TEXT,
+        reviewed_at TEXT,
+        published_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(card_id, locale)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_card_translation_locale_status
+        ON knowledge_card_translation(locale, translation_status)
     """,
     """
     CREATE TABLE IF NOT EXISTS knowledge_audit (
@@ -807,6 +846,165 @@ class SqliteKnowledgeStore:
             published_at=None if row["published_at"] is None else parse_iso(row["published_at"]),
             revision=int(row["revision"]),
             content_hash=row["content_hash"],
+        )
+
+    # -- per-locale card translations ----------------------------------
+    def save_translation(self, record: TranslationRecord) -> None:
+        record.validate()
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO knowledge_card_translation(
+                    card_id, locale, language_code, source_language, title, summary,
+                    body, steps_json, prerequisites_json, warnings_json,
+                    limitations_json, relations_json, glossary_json, source_note,
+                    translation_status, review_status, translation_version,
+                    published_language_version, translation_source, machine_translated,
+                    localization_metadata_json, content_hash, reviewer, reviewed_at,
+                    published_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(card_id, locale) DO UPDATE SET
+                    language_code=excluded.language_code,
+                    source_language=excluded.source_language,
+                    title=excluded.title,
+                    summary=excluded.summary,
+                    body=excluded.body,
+                    steps_json=excluded.steps_json,
+                    prerequisites_json=excluded.prerequisites_json,
+                    warnings_json=excluded.warnings_json,
+                    limitations_json=excluded.limitations_json,
+                    relations_json=excluded.relations_json,
+                    glossary_json=excluded.glossary_json,
+                    source_note=excluded.source_note,
+                    translation_status=excluded.translation_status,
+                    review_status=excluded.review_status,
+                    translation_version=excluded.translation_version,
+                    published_language_version=excluded.published_language_version,
+                    translation_source=excluded.translation_source,
+                    machine_translated=excluded.machine_translated,
+                    localization_metadata_json=excluded.localization_metadata_json,
+                    content_hash=excluded.content_hash,
+                    reviewer=excluded.reviewer,
+                    reviewed_at=excluded.reviewed_at,
+                    published_at=excluded.published_at,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    record.card_id,
+                    record.locale,
+                    record.language_code,
+                    record.source_language,
+                    record.title,
+                    record.summary,
+                    record.body,
+                    _json(list(record.steps)),
+                    _json(list(record.prerequisites)),
+                    _json(list(record.warnings)),
+                    _json(list(record.limitations)),
+                    _json(list(record.relations)),
+                    _json([[term, definition] for term, definition in record.glossary]),
+                    record.source_note,
+                    record.translation_status.value,
+                    record.review_status.value,
+                    record.translation_version,
+                    record.published_language_version,
+                    record.translation_source.value,
+                    1 if record.machine_translated else 0,
+                    _json(dict(record.localization_metadata)),
+                    record.content_hash,
+                    record.reviewer,
+                    None if record.reviewed_at is None else record.reviewed_at.isoformat(),
+                    None if record.published_at is None else record.published_at.isoformat(),
+                    record.updated_at.isoformat(),
+                ),
+            )
+
+    def get_translation(self, card_id: str, locale: str) -> TranslationRecord | None:
+        row = self._connection.execute(
+            "SELECT * FROM knowledge_card_translation WHERE card_id=? AND locale=?",
+            (card_id, locale),
+        ).fetchone()
+        return None if row is None else self._translation_row(row)
+
+    def list_translations(self, card_id: str) -> tuple[TranslationRecord, ...]:
+        rows = self._connection.execute(
+            "SELECT * FROM knowledge_card_translation WHERE card_id=? ORDER BY locale",
+            (card_id,),
+        ).fetchall()
+        return tuple(self._translation_row(row) for row in rows)
+
+    def list_card_translations(
+        self,
+        *,
+        locale: str | None = None,
+        statuses: Sequence[str] | None = None,
+        limit: int | None = None,
+    ) -> tuple[TranslationRecord, ...]:
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if locale is not None:
+            clauses.append("locale=?")
+            parameters.append(locale)
+        if statuses:
+            clauses.append(
+                "translation_status IN (" + ",".join("?" for _ in statuses) + ")"
+            )
+            parameters.extend(statuses)
+        sql = "SELECT * FROM knowledge_card_translation"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY locale, card_id"
+        if limit is not None:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._connection.execute(sql, parameters).fetchall()
+        return tuple(self._translation_row(row) for row in rows)
+
+    def delete_translation(self, card_id: str, locale: str) -> bool:
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                "DELETE FROM knowledge_card_translation WHERE card_id=? AND locale=?",
+                (card_id, locale),
+            )
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def _translation_row(row: sqlite3.Row) -> TranslationRecord:
+        glossary = [
+            (str(pair[0]), str(pair[1]))
+            for pair in _loads(row["glossary_json"], [])
+            if isinstance(pair, (list, tuple)) and len(pair) == 2
+        ]
+        return TranslationRecord(
+            card_id=row["card_id"],
+            locale=row["locale"],
+            language_code=row["language_code"],
+            source_language=row["source_language"],
+            title=row["title"],
+            summary=row["summary"],
+            body=row["body"],
+            steps=tuple(_strings(_loads(row["steps_json"], []))),
+            prerequisites=tuple(_strings(_loads(row["prerequisites_json"], []))),
+            warnings=tuple(_strings(_loads(row["warnings_json"], []))),
+            limitations=tuple(_strings(_loads(row["limitations_json"], []))),
+            relations=tuple(_strings(_loads(row["relations_json"], []))),
+            glossary=tuple(glossary),
+            source_note=row["source_note"],
+            translation_status=TranslationStatus(row["translation_status"]),
+            review_status=ReviewStatus(row["review_status"]),
+            translation_version=int(row["translation_version"]),
+            published_language_version=(
+                None
+                if row["published_language_version"] is None
+                else int(row["published_language_version"])
+            ),
+            translation_source=TranslationSource(row["translation_source"]),
+            machine_translated=bool(row["machine_translated"]),
+            localization_metadata=_loads(row["localization_metadata_json"], {}),
+            content_hash=row["content_hash"],
+            reviewer=row["reviewer"],
+            reviewed_at=None if row["reviewed_at"] is None else parse_iso(row["reviewed_at"]),
+            published_at=None if row["published_at"] is None else parse_iso(row["published_at"]),
+            updated_at=parse_iso(row["updated_at"]),
         )
 
     # -- project knowledge ----------------------------------------------

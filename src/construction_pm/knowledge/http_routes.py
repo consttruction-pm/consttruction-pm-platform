@@ -131,6 +131,8 @@ class KnowledgeHttpMiddleware:
         session_id: str,
         principal: AssistantPrincipal,
     ):
+        if parts == ["locales"] and method == "GET":
+            return _json(200, self._api.locales(principal))
         if parts == ["coverage"] and method == "GET":
             return _json(200, self._api.coverage(principal))
         if parts == ["search"] and method == "GET":
@@ -140,6 +142,18 @@ class KnowledgeHttpMiddleware:
             project_id = _query_one(query, "project_id")
             if project_id:
                 self._authorize_project(session_id, project_id, Permission.KNOWLEDGE_READ)
+            filters = {
+                key: _query_one(query, key)
+                for key in (
+                    "language",
+                    "category",
+                    "source_id",
+                    "source_version",
+                    "card_type",
+                    "translation_status",
+                )
+                if _query_one(query, key) is not None
+            }
             return _json(
                 200,
                 self._api.search(
@@ -147,6 +161,8 @@ class KnowledgeHttpMiddleware:
                     text,
                     project_id=project_id,
                     limit=_int(_query_one(query, "limit"), default=10),
+                    locale=_query_one(query, "locale"),
+                    filters=filters,
                 ),
             )
         if parts[:1] == ["cards"] and len(parts) == 1 and method == "GET":
@@ -161,7 +177,53 @@ class KnowledgeHttpMiddleware:
                 ),
             )
         if parts[:1] == ["cards"] and len(parts) == 2 and method == "GET":
-            return _json(200, self._api.get_card(principal, parts[1]))
+            return _json(
+                200,
+                self._api.get_card(
+                    principal, parts[1], locale=_query_one(query, "locale")
+                ),
+            )
+        if parts[:1] == ["cards"] and len(parts) == 3 and parts[2] == "translations" and method == "GET":
+            return _json(200, self._api.list_card_translations(principal, parts[1]))
+        if (
+            parts[:1] == ["cards"]
+            and len(parts) == 4
+            and parts[2] == "translations"
+            and method in {"PUT", "POST"}
+        ):
+            return _json(
+                200,
+                self._api.save_translation(
+                    principal, parts[1], parts[3], self._body(environ)
+                ),
+            )
+        if (
+            parts[:1] == ["cards"]
+            and len(parts) == 5
+            and parts[2] == "translations"
+            and parts[4] == "review"
+            and method == "POST"
+        ):
+            body = self._body(environ)
+            accept = body.get("accept", True)
+            if not isinstance(accept, bool):
+                return _error(400, "KNOWLEDGE_REVIEW_ACCEPT_INVALID")
+            return _json(
+                200,
+                self._api.review_translation(
+                    principal, parts[1], parts[3], accept=accept
+                ),
+            )
+        if (
+            parts[:1] == ["cards"]
+            and len(parts) == 5
+            and parts[2] == "translations"
+            and parts[4] == "publish"
+            and method == "POST"
+        ):
+            return _json(
+                200, self._api.publish_translation(principal, parts[1], parts[3])
+            )
         if parts[:1] == ["cards"] and len(parts) == 3 and method == "POST":
             card_id, action = parts[1], parts[2]
             body = self._body(environ)
@@ -236,7 +298,7 @@ class KnowledgeHttpMiddleware:
                 ),
             )
         if (
-            len(parts) == 4
+            len(parts) in {3, 4}
             and parts[:2] == ["assistant", "guide"]
             and method == "POST"
         ):
@@ -251,6 +313,7 @@ class KnowledgeHttpMiddleware:
                     parts[2],
                     _required(body, "action"),
                     project_id=project_id,
+                    language=body.get("language"),
                 ),
             )
         if parts == ["assistant", "workflows"] and method == "GET":
@@ -262,6 +325,7 @@ class KnowledgeHttpMiddleware:
             view = self._api.workflows.start(
                 principal.workflow_principal(),
                 request_key=None if request_key is None else str(request_key),
+                locale=body.get("locale"),
             )
             return _json(201, view.as_dict())
         if len(parts) >= 3 and parts[:2] == ["assistant", "workflows"]:

@@ -120,7 +120,10 @@ def test_missing_session_is_rejected(middleware) -> None:
 def test_coverage_and_search_routes(middleware, store, card_factory, publish_factory) -> None:
     status, payload = call(middleware, "GET", "/api/knowledge/coverage")
     assert status.startswith("200")
-    assert len(payload["sources"]) == 3
+    assert [item["source_id"] for item in payload["sources"]] == [
+        "p6-26-html-help",
+        "p6-26-user-guide",
+    ]
 
     status, payload = call(middleware, "GET", "/api/knowledge/search")
     assert status.startswith("400")
@@ -334,3 +337,200 @@ def test_malformed_json_is_reported(middleware) -> None:
     body = middleware(environ, start_response)
     assert captured["status"].startswith("400")
     assert json.loads(body[0])["code"] == "REQUEST_JSON_INVALID"
+
+
+# -- multilingual HTTP contract ---------------------------------------------
+
+RU_PAYLOAD = {
+    "title": "Создание проекта",
+    "summary": "Создайте проект, чтобы организовать расписание.",
+    "body": "Проект объединяет работы и ресурсы.",
+    "steps": ["Выберите «Проект», затем «Создать»."],
+    "translation_source": "human",
+}
+
+
+def test_locales_endpoint_lists_ten_locales(middleware) -> None:
+    status, payload = call(middleware, "GET", "/api/knowledge/locales", session="viewer-session")
+    assert status.startswith("200")
+    assert [item["locale"] for item in payload["locales"]] == [
+        "fa",
+        "en",
+        "de",
+        "zh-CN",
+        "zh-TW",
+        "ar",
+        "fr",
+        "ja",
+        "ko",
+        "ru",
+    ]
+    russian = next(item for item in payload["locales"] if item["locale"] == "ru")
+    assert russian["language_code"] == "ru"
+    assert russian["source_language"] == "en"
+    assert russian["default_language"] == "en"
+    assert russian["fallback_language"] == "en"
+    persian = next(item for item in payload["locales"] if item["locale"] == "fa")
+    assert persian["direction"] == "rtl"
+
+
+def test_translation_routes_require_the_right_permission(
+    middleware, store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="tr-http.html"))
+    store.save_card(card)
+
+    status, payload = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        session="viewer-session",
+        body=RU_PAYLOAD,
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=RU_PAYLOAD,
+    )
+    assert status.startswith("200")
+    assert payload["translation_status"] == "translated"
+    assert payload["review_status"] == "pending"
+    assert payload["locale"] == "ru"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/publish",
+        body={},
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "KNOWLEDGE_TRANSLATION_NOT_APPROVED"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/review",
+        session="viewer-session",
+        body={"accept": True},
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/review",
+        body={"accept": True},
+    )
+    assert status.startswith("200")
+    assert payload["translation_status"] == "approved"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/publish",
+        body={},
+    )
+    assert status.startswith("200")
+    assert payload["translation_status"] == "published"
+    assert payload["published_language_version"] == 1
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/cards/{card.card_id}/translations",
+        session="viewer-session",
+    )
+    assert status.startswith("200")
+    rows = {item["locale"]: item for item in payload["translations"]}
+    assert list(rows) == ["fa", "en", "de", "zh-CN", "zh-TW", "ar", "fr", "ja", "ko", "ru"]
+    assert rows["ru"]["translation_status"] == "published"
+    assert rows["fa"]["translation_status"] == "missing"
+    assert rows["en"]["translation_status"] == "published"
+
+
+def test_archived_source_locale_cannot_be_edited(middleware, store, card_factory, publish_factory) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="tr-en.html"))
+    store.save_card(card)
+
+    status, payload = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/en",
+        body={"title": "Edited", "summary": "Edited"},
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_NOT_EDITABLE"
+
+
+def test_card_and_search_accept_a_locale(middleware, store, card_factory, publish_factory) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="loc-http.html"))
+    store.save_card(card)
+    call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=RU_PAYLOAD,
+    )
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/cards/{card.card_id}",
+        session="viewer-session",
+        query="locale=ru",
+    )
+    assert status.startswith("200")
+    assert payload["title"] == "Создание проекта"
+    assert payload["requested_locale"] == "ru"
+    assert payload["fallback_used"] is True
+    assert payload["content_language"] == "ru"
+    assert payload["translation_status"] == "translated"
+
+    status, payload = call(
+        middleware,
+        "GET",
+        "/api/knowledge/search",
+        session="viewer-session",
+        query="q=create+project&locale=de",
+    )
+    assert status.startswith("200")
+    assert payload["query_locale"] == "en"
+    assert payload["response_locale"] == "de"
+    assert payload["hits"][0]["fallback_used"] is True
+    assert payload["hits"][0]["language"] == "en"
+
+    status, payload = call(
+        middleware,
+        "GET",
+        "/api/knowledge/search",
+        session="viewer-session",
+        query="q=create+project&locale=pt-BR",
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "KNOWLEDGE_LOCALE_UNSUPPORTED"
+
+
+def test_guide_accepts_language_parameter(middleware, store, card_factory, publish_factory) -> None:
+    card = publish_factory(
+        card_factory(
+            title="Create a Project",
+            steps=("Choose Project, then Create.",),
+            topic_key="guide-http.html",
+        )
+    )
+    store.save_card(card)
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/guide/{card.card_id}",
+        session="viewer-session",
+        body={"action": "start", "language": "ru"},
+    )
+    assert status.startswith("200")
+    assert payload["language"] == "ru"
+    assert payload["fallback_used"] is True
+    assert "Шаг 1" in payload["message"]

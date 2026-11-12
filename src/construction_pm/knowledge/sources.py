@@ -32,8 +32,8 @@ P6_26_USER_GUIDE = SourceDefinition(
     title="Version 26 Professional User Guide",
     kind=SourceKind.USER_GUIDE,
     release="26",
-    landing_url=f"{DOCS_HOME}pro-user/index.html",
-    toc_url=f"{DOCS_HOME}pro-user/toc.htm",
+    landing_url="https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
+    toc_url="https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
 )
 
 P6_26_HTML_HELP = SourceDefinition(
@@ -72,9 +72,8 @@ SOURCES: tuple[SourceDefinition, ...] = (
 )
 
 INGESTABLE_SOURCES: tuple[SourceDefinition, ...] = (
-    P6_26_HELP,
-    P6_26_USER_GUIDE,
     P6_26_HTML_HELP,
+    P6_26_USER_GUIDE,
 )
 
 MANDATORY_TOPIC_COVERAGE: tuple[tuple[str, tuple[str, ...]], ...] = (

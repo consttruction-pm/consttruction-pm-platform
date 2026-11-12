@@ -45,6 +45,8 @@ from .plan import (
     ProjectPlanPort,
     UnavailableProjectPlanPort,
 )
+from .locales import DEFAULT_LOCALE, canonical_locale, direction, language_code, require_locale
+from .messages import step_titles as localized_step_titles
 from .store import KnowledgeStore
 
 ORGANIZATION_SCOPE = "__organization__"
@@ -75,6 +77,24 @@ STEP_TITLES: dict[str, str] = {
     "control": "Final control and verification",
 }
 SKIPPABLE_STEPS = frozenset({"wbs", "activities", "schedule"})
+
+# Thirteen user-facing guidance points. They are a checklist over the workflow,
+# not a second state machine, so the persisted run keeps its stable step keys.
+PROJECT_CREATION_GUIDANCE: tuple[tuple[str, str], ...] = (
+    ("organization_eps", "Organization and EPS"),
+    ("discipline", "Discipline and project type"),
+    ("name", "Project name"),
+    ("identifier", "Unique project identifier"),
+    ("uniqueness", "Identifier uniqueness"),
+    ("calendar", "Working calendar"),
+    ("timezone", "Project timezone"),
+    ("locale", "Project locale"),
+    ("permissions", "Project permissions"),
+    ("summary", "Reviewed summary"),
+    ("approval", "Explicit approval"),
+    ("real_creation", "Real project creation"),
+    ("audit", "Creation audit trail"),
+)
 
 _PROJECT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
@@ -145,6 +165,10 @@ class WorkflowView:
     created_project_id: str | None
     warnings: tuple[str, ...]
     updated_at: str
+    locale: str = DEFAULT_LOCALE
+    language_code: str = "en"
+    direction: str = "ltr"
+    guidance: tuple[Mapping[str, object], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -155,7 +179,11 @@ class WorkflowView:
             "current_step": self.current_step,
             "step_index": self.step_index,
             "version": self.version,
+            "locale": self.locale,
+            "language_code": self.language_code,
+            "direction": self.direction,
             "steps": [step.as_dict() for step in self.steps],
+            "guidance": [dict(item) for item in self.guidance],
             "collected": dict(self.collected),
             "review": None if self.review is None else dict(self.review),
             "approval_ready": self.approval_ready,
@@ -306,9 +334,16 @@ class ProjectCreationWorkflow:
         self._clock = clock
 
     # -- public operations ----------------------------------------------
-    def start(self, principal: WorkflowPrincipal, *, request_key: str | None = None) -> WorkflowView:
+    def start(
+        self,
+        principal: WorkflowPrincipal,
+        *,
+        request_key: str | None = None,
+        locale: str | None = None,
+    ) -> WorkflowView:
         principal.validate()
         self._authorize(principal, Permission.ASSISTANT_ACTION)
+        resolved_locale = require_locale(locale) if locale else DEFAULT_LOCALE
         if request_key:
             existing = self._find_by_request_key(principal, request_key)
             if existing is not None:
@@ -342,6 +377,7 @@ class ProjectCreationWorkflow:
                 "warnings": [],
                 "history": [],
                 "request_key": request_key,
+                "locale": resolved_locale,
             },
             "version": 1,
             "created_at": now,
@@ -616,10 +652,32 @@ class ProjectCreationWorkflow:
             raise ProjectWorkflowError("WORKFLOW_PROJECT_ID_ALREADY_EXISTS")
         if self._gateway.get_project(project_id) is not None:
             raise ProjectWorkflowError("WORKFLOW_PROJECT_ID_ALREADY_EXISTS")
+        timezone = payload.get("timezone")
+        if timezone is None:
+            timezone = run["state"].get("collected", {}).get("timezone") or "UTC"
+        timezone = _text(timezone, "WORKFLOW_TIMEZONE_INVALID", maximum=64)
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_+\-/]{1,63}", timezone):
+            raise ProjectWorkflowError("WORKFLOW_TIMEZONE_INVALID")
+        requested_locale = payload.get("locale")
+        locale = (
+            require_locale(requested_locale)
+            if requested_locale is not None
+            else run["state"].get("locale", DEFAULT_LOCALE)
+        )
+        permissions = payload.get("permissions", run["state"]["collected"].get("permissions", []))
+        permissions = _permission_list(permissions)
         collected = run["state"]["collected"]
         collected.update(
-            {"name": name, "project_id": project_id, "description": " ".join(description.split())}
+            {
+                "name": name,
+                "project_id": project_id,
+                "description": " ".join(description.split()),
+                "timezone": timezone,
+                "locale": locale,
+                "permissions": permissions,
+            }
         )
+        run["state"]["locale"] = locale
         self._invalidate_review(run)
 
     def _apply_review(self, run: dict, principal: WorkflowPrincipal, payload: dict) -> None:
@@ -723,6 +781,13 @@ class ProjectCreationWorkflow:
         calendar_id = payload.get("primary_calendar_id", summary.get("primary_calendar_id"))
         if calendar_id is not None:
             calendar_id = _text(calendar_id, "WORKFLOW_CALENDAR_ID_INVALID", maximum=200)
+        collected = state.get("collected") or {}
+        timezone = payload.get("timezone", collected.get("timezone") or "UTC")
+        timezone = _text(timezone, "WORKFLOW_TIMEZONE_INVALID", maximum=64)
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_+\-/]{1,63}", timezone):
+            raise ProjectWorkflowError("WORKFLOW_TIMEZONE_INVALID")
+        requested_locale = payload.get("locale", collected.get("locale") or state.get("locale"))
+        locale = require_locale(requested_locale) if requested_locale else DEFAULT_LOCALE
         name = str(state["collected"]["name"])
         description = payload.get("description", state["collected"].get("description", ""))
         if not isinstance(description, str) or len(description) > 2000:
@@ -752,8 +817,13 @@ class ProjectCreationWorkflow:
             "start_date": summary.get("start_date", start_date),
             "date_system": summary.get("date_system", date_system),
             "primary_calendar_id": summary.get("primary_calendar_id", calendar_id),
+            "timezone": timezone,
+            "locale": locale,
+            "permissions": list(collected.get("permissions") or ()),
             "settings_revision": summary.get("settings_revision", 0),
         }
+        state["locale"] = locale
+        state["collected"].update({"timezone": timezone, "locale": locale})
         state["steps"]["settings"]["data"] = dict(state["settings"])
 
     def _apply_wbs(self, run: dict, principal: WorkflowPrincipal, payload: dict) -> None:
@@ -1039,10 +1109,12 @@ class ProjectCreationWorkflow:
 
     def _view(self, run: dict) -> WorkflowView:
         state = run["state"]
+        locale = canonical_locale(state.get("locale"), default=DEFAULT_LOCALE) or DEFAULT_LOCALE
+        titles = localized_step_titles(locale)
         steps = tuple(
             WorkflowStepView(
                 key=key,
-                title=STEP_TITLES[key],
+                title=titles.get(key, STEP_TITLES[key]),
                 status=state["steps"][key]["status"],
                 skippable=key in SKIPPABLE_STEPS,
                 data=state["steps"][key].get("data") or {},
@@ -1074,7 +1146,80 @@ class ProjectCreationWorkflow:
             created_project_id=None if not created else str(created.get("project_id")),
             warnings=tuple(state.get("warnings") or ()),
             updated_at=run.get("updated_at") or iso(self._clock()),
+            locale=locale,
+            language_code=language_code(locale),
+            direction=direction(locale),
+            guidance=_guidance(state, run),
         )
+
+
+def _permission_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, Mapping):
+        values = list(value.keys())
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        values = list(value)
+    else:
+        raise ProjectWorkflowError("WORKFLOW_PERMISSIONS_INVALID")
+    result: list[str] = []
+    for item in values:
+        permission = _text(item, "WORKFLOW_PERMISSION_INVALID", minimum=2, maximum=80)
+        if not re.fullmatch(r"[a-z][a-z0-9_.-]{1,79}", permission):
+            raise ProjectWorkflowError("WORKFLOW_PERMISSION_INVALID")
+        if permission not in result:
+            result.append(permission)
+    if len(result) > 100:
+        raise ProjectWorkflowError("WORKFLOW_PERMISSIONS_INVALID")
+    return result
+
+
+def _guidance(state: Mapping[str, object], run: Mapping[str, object]) -> tuple[Mapping[str, object], ...]:
+    collected = state.get("collected") or {}
+    steps = state.get("steps") or {}
+    settings = state.get("settings") or {}
+    created = state.get("created")
+    identity_done = (steps.get("identity") or {}).get("status") in {"completed", "skipped"}
+    checks = {
+        "organization_eps": bool(collected.get("organization") and collected.get("eps_id")),
+        "discipline": bool(collected.get("discipline") and collected.get("project_type")),
+        "name": bool(collected.get("name")),
+        "identifier": bool(collected.get("project_id")),
+        "uniqueness": bool(identity_done and collected.get("project_id")),
+        "calendar": bool(settings.get("primary_calendar_id")),
+        "timezone": bool(collected.get("timezone") or settings.get("timezone")),
+        "locale": bool(collected.get("locale") or settings.get("locale")),
+        "permissions": identity_done,
+        "summary": state.get("review") is not None,
+        "approval": state.get("approval") is not None,
+        "real_creation": created is not None,
+        "audit": bool((run.get("status") == "completed") or state.get("control")),
+    }
+    locale = canonical_locale(state.get("locale"), default=DEFAULT_LOCALE) or DEFAULT_LOCALE
+    titles = localized_step_titles(locale)
+    labels = {
+        "organization_eps": titles.get("organization", "Organization and EPS"),
+        "discipline": titles.get("discipline", "Discipline and project type"),
+        "name": titles.get("identity", "Project name"),
+        "identifier": titles.get("identity", "Project identifier"),
+        "uniqueness": titles.get("identity", "Unique identifier"),
+        "calendar": titles.get("settings", "Working calendar"),
+        "timezone": titles.get("settings", "Project timezone"),
+        "locale": titles.get("settings", "Project locale"),
+        "permissions": titles.get("identity", "Project permissions"),
+        "summary": titles.get("review", "Reviewed summary"),
+        "approval": titles.get("review", "Explicit approval"),
+        "real_creation": titles.get("create", "Real project creation"),
+        "audit": titles.get("control", "Creation audit trail"),
+    }
+    return tuple(
+        {
+            "key": key,
+            "title": labels.get(key, title),
+            "complete": checks.get(key, False),
+        }
+        for key, title in PROJECT_CREATION_GUIDANCE
+    )
 
 
 def _text(value: object, code: str, *, minimum: int = 1, maximum: int = 200) -> str:
@@ -1101,6 +1246,7 @@ def _iso_date(value: object, code: str) -> str:
 __all__ = [
     "LifecycleProjectGateway",
     "ORGANIZATION_SCOPE",
+    "PROJECT_CREATION_GUIDANCE",
     "ProjectCreationWorkflow",
     "ProjectGateway",
     "ProjectGatewayError",

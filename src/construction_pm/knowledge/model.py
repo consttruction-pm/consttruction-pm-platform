@@ -123,17 +123,37 @@ def normalize_terms(value: str) -> str:
         if not unicodedata.combining(character) and character != "\u0640"
     )
     normalized = re.sub(r"[^\w\u0600-\u06FF\s]+", " ", normalized)
+    # Arabic-script punctuation shares the block with letters; it is never part
+    # of a searchable term.
+    normalized = re.sub(r"[\u060C\u061B\u061F\u066A-\u066D\u06D4\u200c\u200d]+", " ", normalized)
     return " ".join(normalized.lower().split())
 
 
 def detect_language(value: str) -> str:
+    """Compatibility entry point for script-based locale identification.
+
+    The full ten-locale detector lives in :mod:`construction_pm.knowledge.locales`;
+    it is imported lazily to keep the model module dependency-free at import
+    time. Existing callers that only distinguish Persian and English keep
+    working, while Russian, Arabic, Chinese, Japanese, Korean, German and French
+    are now identified as well.
+    """
+
     if not isinstance(value, str):
         raise KnowledgeError("KNOWLEDGE_LANGUAGE_INVALID")
     persian = len(_PERSIAN_RANGE.findall(value))
     latin = len(_LATIN_RANGE.findall(value))
+    if not persian and not latin:
+        from .locales import detect_locale
+
+        return detect_locale(value)
     if persian and persian >= latin:
-        return "fa"
-    return "en"
+        from .locales import detect_locale
+
+        return detect_locale(value, default="fa")
+    from .locales import detect_locale
+
+    return detect_locale(value)
 
 
 class SourceKind(str, Enum):
@@ -178,6 +198,31 @@ class CardStatus(str, Enum):
     PUBLISHED = "published"
     REJECTED = "rejected"
     RETIRED = "retired"
+
+
+class TranslationStatus(str, Enum):
+    """Per-locale translation lifecycle; independent for every locale."""
+
+    MISSING = "missing"
+    DRAFT = "draft"
+    TRANSLATED = "translated"
+    REVIEW_REQUIRED = "review_required"
+    APPROVED = "approved"
+    PUBLISHED = "published"
+
+
+class ReviewStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class TranslationSource(str, Enum):
+    OFFICIAL_SOURCE = "official_source"
+    CUBI_AUTHORED = "cubi_authored"
+    HUMAN = "human"
+    MACHINE = "machine"
+    IMPORTED = "imported"
 
 
 class KnowledgeScope(str, Enum):
@@ -433,6 +478,225 @@ class KnowledgeCard:
 
 
 @dataclass(frozen=True)
+class LanguageContext:
+    """Every language field a client needs to render one response correctly.
+
+    ``question_language`` and ``response_language`` are request-scoped; the
+    remaining fields describe the selected content version. Keeping them in one
+    record prevents a UI from guessing the direction or hiding a missing
+    translation.
+    """
+
+    locale: str
+    language_code: str
+    source_language: str
+    question_language: str
+    response_language: str
+    default_language: str
+    fallback_language: str
+    direction: str
+    translation_status: str
+    review_status: str
+    published_language_version: int | None = None
+    technical_glossary: tuple[tuple[str, str], ...] = ()
+    localization_metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "locale": self.locale,
+            "language_code": self.language_code,
+            "source_language": self.source_language,
+            "question_language": self.question_language,
+            "response_language": self.response_language,
+            "default_language": self.default_language,
+            "fallback_language": self.fallback_language,
+            "direction": self.direction,
+            "translation_status": self.translation_status,
+            "review_status": self.review_status,
+            "published_language_version": self.published_language_version,
+            "technical_glossary": [
+                {"term": term, "definition": definition}
+                for term, definition in self.technical_glossary
+            ],
+            "localization_metadata": dict(self.localization_metadata),
+        }
+
+
+@dataclass(frozen=True)
+class TranslationRecord:
+    """Localized content for one Knowledge Card in one locale.
+
+    The record is the unit of translation, review and publication. A card can be
+    published in English while every other locale is still ``missing``; nothing
+    in this model cascades a publication across locales.
+    """
+
+    card_id: str
+    locale: str
+    language_code: str
+    source_language: str
+    title: str
+    summary: str
+    body: str
+    steps: tuple[str, ...]
+    prerequisites: tuple[str, ...]
+    warnings: tuple[str, ...]
+    limitations: tuple[str, ...]
+    relations: tuple[str, ...]
+    glossary: tuple[tuple[str, str], ...]
+    source_note: str
+    translation_status: TranslationStatus
+    review_status: ReviewStatus
+    translation_version: int
+    published_language_version: int | None
+    translation_source: TranslationSource
+    machine_translated: bool
+    localization_metadata: Mapping[str, object]
+    content_hash: str
+    updated_at: datetime
+    reviewer: str | None = None
+    reviewed_at: datetime | None = None
+    published_at: datetime | None = None
+
+    def validate(self) -> None:
+        from .locales import canonical_locale, language_code as locale_language_code, require_locale
+
+        text(self.card_id, "KNOWLEDGE_TRANSLATION_CARD_ID_INVALID", maximum=64)
+        require_locale(self.locale, code="KNOWLEDGE_TRANSLATION_LOCALE_UNSUPPORTED")
+        if self.locale != canonical_locale(self.locale, default=None):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_LOCALE_NOT_CANONICAL")
+        if self.language_code != locale_language_code(self.locale):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_LANGUAGE_CODE_MISMATCH")
+        normalize_language(self.source_language)
+        if not isinstance(self.translation_status, TranslationStatus):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_STATUS_INVALID")
+        if not isinstance(self.review_status, ReviewStatus):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_REVIEW_STATUS_INVALID")
+        if not isinstance(self.translation_source, TranslationSource):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_SOURCE_INVALID")
+        if isinstance(self.translation_version, bool) or not isinstance(self.translation_version, int) or self.translation_version < 0:
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_VERSION_INVALID")
+        if self.published_language_version is not None and (
+            isinstance(self.published_language_version, bool)
+            or not isinstance(self.published_language_version, int)
+            or self.published_language_version < 1
+        ):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_PUBLISHED_VERSION_INVALID")
+        if not isinstance(self.machine_translated, bool):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_MACHINE_FLAG_INVALID")
+        if not isinstance(self.localization_metadata, Mapping):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_METADATA_INVALID")
+        for name, value in (
+            ("steps", self.steps),
+            ("prerequisites", self.prerequisites),
+            ("warnings", self.warnings),
+            ("limitations", self.limitations),
+            ("relations", self.relations),
+        ):
+            _string_tuple(value, f"KNOWLEDGE_TRANSLATION_{name.upper()}_INVALID")
+        if len(self.steps) > MAX_CARD_STEPS:
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_TOO_MANY_STEPS")
+        if self.glossary:
+            for pair in self.glossary:
+                if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+                    raise KnowledgeError("KNOWLEDGE_TRANSLATION_GLOSSARY_INVALID")
+                text(pair[0], "KNOWLEDGE_TRANSLATION_GLOSSARY_INVALID")
+                text(pair[1], "KNOWLEDGE_TRANSLATION_GLOSSARY_INVALID", maximum=MAX_BLOCK_CHARS)
+        if self.content_hash and not re.fullmatch(r"[0-9a-f]{64}", self.content_hash):
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_HASH_INVALID")
+        if not isinstance(self.updated_at, datetime) or self.updated_at.tzinfo is None:
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_UPDATED_AT_INVALID")
+        if self.translation_status is TranslationStatus.MISSING:
+            return
+        text(self.title, "KNOWLEDGE_TRANSLATION_TITLE_INVALID")
+        text(self.summary, "KNOWLEDGE_TRANSLATION_SUMMARY_INVALID", maximum=MAX_BLOCK_CHARS)
+        if len(self.body) > MAX_TEXT_CHARS:
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_BODY_INVALID")
+        if not self.content_hash:
+            raise KnowledgeError("KNOWLEDGE_TRANSLATION_HASH_REQUIRED")
+        if self.translation_status in {
+            TranslationStatus.APPROVED,
+            TranslationStatus.PUBLISHED,
+        }:
+            if self.review_status is not ReviewStatus.APPROVED or not self.reviewer:
+                raise KnowledgeError("KNOWLEDGE_TRANSLATION_REVIEW_REQUIRED")
+            if self.machine_translated:
+                raise KnowledgeError("KNOWLEDGE_TRANSLATION_MACHINE_OUTPUT_CANNOT_BE_APPROVED")
+        if self.translation_status is TranslationStatus.PUBLISHED:
+            if self.reviewed_at is None or self.published_at is None:
+                raise KnowledgeError("KNOWLEDGE_TRANSLATION_PUBLICATION_TIME_REQUIRED")
+            if self.published_language_version is None:
+                raise KnowledgeError("KNOWLEDGE_TRANSLATION_PUBLISHED_VERSION_REQUIRED")
+            if self.source_language == self.locale:
+                raise KnowledgeError("KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_CANNOT_BE_TRANSLATED")
+
+    def available(self) -> bool:
+        return self.translation_status is not TranslationStatus.MISSING
+
+    def approved_for_answer(self) -> bool:
+        """Only reviewed, approved/published content may answer a question."""
+
+        return (
+            self.translation_status in {TranslationStatus.APPROVED, TranslationStatus.PUBLISHED}
+            and self.review_status is ReviewStatus.APPROVED
+            and not self.machine_translated
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "card_id": self.card_id,
+            "locale": self.locale,
+            "language_code": self.language_code,
+            "source_language": self.source_language,
+            "title": self.title,
+            "summary": self.summary,
+            "body": self.body,
+            "steps": list(self.steps),
+            "prerequisites": list(self.prerequisites),
+            "warnings": list(self.warnings),
+            "limitations": list(self.limitations),
+            "relations": list(self.relations),
+            "technical_glossary": [
+                {"term": term, "definition": definition} for term, definition in self.glossary
+            ],
+            "source_note": self.source_note,
+            "translation_status": self.translation_status.value,
+            "review_status": self.review_status.value,
+            "translation_version": self.translation_version,
+            "published_language_version": self.published_language_version,
+            "translation_source": self.translation_source.value,
+            "machine_translated": self.machine_translated,
+            "localization_metadata": dict(self.localization_metadata),
+            "content_hash": self.content_hash,
+            "reviewer": self.reviewer,
+            "reviewed_at": None if self.reviewed_at is None else iso(self.reviewed_at),
+            "published_at": None if self.published_at is None else iso(self.published_at),
+            "updated_at": iso(self.updated_at),
+        }
+
+
+def translation_content_hash(record: TranslationRecord) -> str:
+    payload = "|".join(
+        (
+            record.card_id,
+            record.locale,
+            record.title,
+            record.summary,
+            record.body,
+            "\n".join(record.steps),
+            "\n".join(record.prerequisites),
+            "\n".join(record.warnings),
+            "\n".join(record.limitations),
+            "\n".join(record.relations),
+            "\n".join(f"{term}={definition}" for term, definition in record.glossary),
+            record.source_note,
+            str(record.translation_version),
+        )
+    )
+    return sha256_hex(payload)
+
+
+@dataclass(frozen=True)
 class SearchScope:
     """Trusted retrieval scope resolved by the application, never by a client claim."""
 
@@ -465,6 +729,35 @@ class SearchHit:
     source_url: str | None = None
     card_type: str | None = None
     card_id: str | None = None
+    language: str | None = None
+    source_language: str | None = None
+    translation_status: str | None = None
+    translation_available: bool | None = None
+    fallback_used: bool = False
+    matched_terms: tuple[str, ...] = ()
+    matched_fields: tuple[str, ...] = ()
+    evidence: Mapping[str, object] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "entity_kind": self.entity_kind,
+            "entity_id": self.entity_id,
+            "title": self.title,
+            "snippet": self.snippet,
+            "score": self.score,
+            "scope": self.scope.value,
+            "source_url": self.source_url,
+            "card_type": self.card_type,
+            "card_id": self.card_id,
+            "language": self.language,
+            "source_language": self.source_language,
+            "translation_status": self.translation_status,
+            "translation_available": self.translation_available,
+            "fallback_used": self.fallback_used,
+            "matched_terms": list(self.matched_terms),
+            "matched_fields": list(self.matched_fields),
+            "evidence": dict(self.evidence),
+        }
 
 
 @dataclass(frozen=True)
@@ -472,6 +765,9 @@ class SearchOutcome:
     query: str
     hits: tuple[SearchHit, ...]
     insufficient_knowledge: bool
+    query_locale: str | None = None
+    response_locale: str | None = None
+    filters: Mapping[str, object] = field(default_factory=dict)
 
     def validate(self) -> None:
         if not isinstance(self.query, str) or not self.query.strip():
@@ -505,6 +801,12 @@ class AssistantAnswer:
     insufficient_knowledge: bool = False
     workflow_run_id: str | None = None
     workflow_step: str | None = None
+    source_language: str | None = None
+    response_language: str | None = None
+    content_language: str | None = None
+    translation_status: str | None = None
+    fallback_used: bool = False
+    language_context: LanguageContext | None = None
 
     def validate(self) -> None:
         if self.kind not in {"answer", "knowledge_gap", "clarification", "workflow_step", "action_result"}:
@@ -541,6 +843,14 @@ class AssistantAnswer:
             "insufficient_knowledge": self.insufficient_knowledge,
             "workflow_run_id": self.workflow_run_id,
             "workflow_step": self.workflow_step,
+            "source_language": self.source_language,
+            "response_language": self.response_language,
+            "content_language": self.content_language,
+            "translation_status": self.translation_status,
+            "fallback_used": self.fallback_used,
+            "language_context": (
+                None if self.language_context is None else self.language_context.as_dict()
+            ),
         }
 
 
@@ -599,7 +909,9 @@ __all__ = [
     "KnowledgeCard",
     "KnowledgeError",
     "KnowledgeScope",
+    "LanguageContext",
     "ParsedTopic",
+    "ReviewStatus",
     "SearchHit",
     "SearchOutcome",
     "SearchScope",
@@ -608,6 +920,9 @@ __all__ = [
     "TERMINAL_TOPIC_STATUSES",
     "TopicLink",
     "TopicStatus",
+    "TranslationRecord",
+    "TranslationSource",
+    "TranslationStatus",
     "WorkflowStatus",
     "card_content_hash",
     "card_id_for",

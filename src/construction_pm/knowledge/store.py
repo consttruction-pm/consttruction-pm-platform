@@ -10,7 +10,13 @@ from __future__ import annotations
 
 from typing import Mapping, Protocol, Sequence
 
-from .model import KnowledgeCard, ParsedTopic, SourceDefinition, TopicLink
+from .model import (
+    KnowledgeCard,
+    ParsedTopic,
+    SourceDefinition,
+    TopicLink,
+    TranslationRecord,
+)
 
 
 class KnowledgeStore(Protocol):
@@ -87,6 +93,22 @@ class KnowledgeStore(Protocol):
         occurred_at: str,
         detail: Mapping[str, object],
     ) -> None: ...
+
+    def save_translation(self, record: TranslationRecord) -> None: ...
+
+    def get_translation(self, card_id: str, locale: str) -> TranslationRecord | None: ...
+
+    def list_translations(self, card_id: str) -> tuple[TranslationRecord, ...]: ...
+
+    def list_card_translations(
+        self,
+        *,
+        locale: str | None = None,
+        statuses: Sequence[str] | None = None,
+        limit: int | None = None,
+    ) -> tuple[TranslationRecord, ...]: ...
+
+    def delete_translation(self, card_id: str, locale: str) -> bool: ...
 
     def add_project_knowledge(
         self,

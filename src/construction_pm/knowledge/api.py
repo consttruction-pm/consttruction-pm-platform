@@ -18,17 +18,40 @@ from construction_pm.application.authorization import (
 
 from .assistant import AssistantPrincipal, KnowledgeAssistant
 from .cards import publish_card, retire_card, review_card
+from .glossary import GLOSSARIES
 from .ingest import IngestionPipeline
+from .locales import (
+    DEFAULT_LOCALE,
+    FALLBACK_LOCALE,
+    SOURCE_LANGUAGE,
+    canonical_locale,
+    direction,
+    language_code,
+    locale_registry,
+    require_locale,
+)
 from .model import (
     CardStatus,
     CardType,
     KnowledgeError,
+    LanguageContext,
+    ReviewStatus,
     SearchScope,
     iso,
     utc_now,
 )
-from .search import search
+from .search import SearchFilters, search
 from .store import KnowledgeStore
+from .translations import (
+    TranslationError,
+    build_translation,
+    localized_card_payload,
+    localized_record,
+    publish_translation,
+    review_translation,
+    source_record,
+    translation_coverage,
+)
 from .workflow import ORGANIZATION_SCOPE, ProjectCreationWorkflow
 
 ProjectGuard = Callable[[AssistantPrincipal, str, Permission], None]
@@ -60,10 +83,32 @@ class KnowledgeAPI:
         self._project_guard = project_guard
         self._ingestion = ingestion or IngestionPipeline(store)
 
-    # -- coverage and search --------------------------------------------
+    # -- locales and coverage -------------------------------------------
+    def locales(self, principal: AssistantPrincipal) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        return {
+            "locales": list(locale_registry()),
+            "default_language": DEFAULT_LOCALE,
+            "fallback_language": FALLBACK_LOCALE,
+            "source_language": SOURCE_LANGUAGE,
+        }
+
     def coverage(self, principal: AssistantPrincipal) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_READ)
-        return self._ingestion.coverage_report()
+        report = self._ingestion.coverage_report()
+        cards = self.store.list_cards(
+            scope="central",
+            publication_statuses=[
+                CardStatus.DRAFT.value,
+                CardStatus.VALIDATED.value,
+                CardStatus.PUBLISHED.value,
+            ],
+        )
+        report = dict(report)
+        report["translations"] = translation_coverage(
+            self.store, [card.card_id for card in cards]
+        )
+        return report
 
     def search(
         self,
@@ -72,10 +117,17 @@ class KnowledgeAPI:
         *,
         project_id: str | None = None,
         limit: int = 10,
+        locale: str | None = None,
+        filters: Mapping[str, object] | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_READ)
         if project_id is not None:
             self._guard(principal, project_id, Permission.KNOWLEDGE_READ)
+        resolved_filters = dict(filters or {})
+        if locale is not None:
+            resolved_filters["locale"] = locale
+        elif resolved_filters.get("locale"):
+            resolved_filters["locale"] = require_locale(resolved_filters["locale"])
         outcome = search(
             self.store,
             SearchScope(
@@ -88,24 +140,23 @@ class KnowledgeAPI:
             ),
             query,
             limit=limit,
+            filters=SearchFilters(
+                locale=resolved_filters.get("locale"),
+                language=resolved_filters.get("language"),
+                category=resolved_filters.get("category"),
+                source_id=resolved_filters.get("source_id"),
+                source_version=resolved_filters.get("source_version"),
+                card_type=resolved_filters.get("card_type"),
+                translation_status=resolved_filters.get("translation_status"),
+            ),
         )
         return {
             "query": outcome.query,
+            "query_locale": outcome.query_locale,
+            "response_locale": outcome.response_locale,
+            "filters": dict(outcome.filters),
             "insufficient_knowledge": outcome.insufficient_knowledge,
-            "hits": [
-                {
-                    "entity_kind": hit.entity_kind,
-                    "entity_id": hit.entity_id,
-                    "title": hit.title,
-                    "snippet": hit.snippet,
-                    "score": hit.score,
-                    "scope": hit.scope.value,
-                    "source_url": hit.source_url,
-                    "card_type": hit.card_type,
-                    "card_id": hit.card_id,
-                }
-                for hit in outcome.hits
-            ],
+            "hits": [hit.as_dict() for hit in outcome.hits],
         }
 
     # -- cards -----------------------------------------------------------
@@ -135,7 +186,9 @@ class KnowledgeAPI:
         )
         return {"cards": [_card(card) for card in cards]}
 
-    def get_card(self, principal: AssistantPrincipal, card_id: str) -> dict[str, object]:
+    def get_card(
+        self, principal: AssistantPrincipal, card_id: str, *, locale: str | None = None
+    ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_READ)
         card = self.store.get_card(card_id)
         if card is None:
@@ -145,7 +198,217 @@ class KnowledgeAPI:
             and not self._allowed(principal, Permission.KNOWLEDGE_REVIEW)
         ):
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_PUBLISHED")
-        return _card(card)
+        resolved = canonical_locale(locale, default=DEFAULT_LOCALE) if locale else DEFAULT_LOCALE
+        if resolved is None:
+            raise KnowledgeAPIError("KNOWLEDGE_LOCALE_UNSUPPORTED")
+        record = localized_record(self.store, card, resolved)
+        payload = localized_card_payload(card, record)
+        payload.update(
+            {
+                "requested_locale": resolved,
+                "content_language": record.locale if record.available() else SOURCE_LANGUAGE,
+                "fallback_used": resolved != DEFAULT_LOCALE
+                and not (record.available() and record.approved_for_answer()),
+                "available_locales": self._available_locales(card),
+                "language_context": self._card_language_context(
+                    card, record, resolved
+                ).as_dict(),
+            }
+        )
+        return payload
+
+    def list_card_translations(
+        self, principal: AssistantPrincipal, card_id: str
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        if self.store.get_card(card_id) is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        records = {record.locale: record for record in self.store.list_translations(card_id)}
+        card = self.store.get_card(card_id)
+        rows = []
+        for locale in locale_registry():
+            code = str(locale["locale"])
+            record = records.get(code)
+            if record is None:
+                record = (
+                    source_record(card)
+                    if code == DEFAULT_LOCALE
+                    else localized_record(self.store, card, code)
+                )
+            rows.append(record.as_dict())
+        return {"card_id": card_id, "translations": rows}
+
+    def save_translation(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        locale: str,
+        payload: Mapping[str, object],
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_CONTRIBUTE)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        resolved = require_locale(locale)
+        if resolved == SOURCE_LANGUAGE:
+            raise TranslationError("KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_NOT_EDITABLE")
+        existing = self.store.get_translation(card_id, resolved)
+        record = build_translation(
+            card,
+            resolved,
+            payload,
+            actor_id=principal.user_id,
+            now=self._clock(),
+            existing=existing,
+        )
+        self.store.save_translation(record)
+        self.store.record_card_event(
+            card_id,
+            action="translation_saved",
+            actor_id=principal.user_id,
+            occurred_at=iso(self._clock()),
+            detail={
+                "locale": resolved,
+                "translation_version": record.translation_version,
+                "translation_status": record.translation_status.value,
+            },
+        )
+        self._audit(
+            principal,
+            "knowledge_translation_save",
+            f"{card_id}:{resolved}",
+            "succeeded",
+            {"translation_version": record.translation_version},
+        )
+        return record.as_dict()
+
+    def review_translation(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        locale: str,
+        *,
+        accept: bool,
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_REVIEW)
+        resolved = require_locale(locale)
+        record = self.store.get_translation(card_id, resolved)
+        if record is None:
+            raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        updated = review_translation(
+            record, reviewer=principal.user_id, accept=accept, now=self._clock()
+        )
+        self.store.save_translation(updated)
+        self.store.record_card_event(
+            card_id,
+            action="translation_reviewed" if accept else "translation_rejected",
+            actor_id=principal.user_id,
+            occurred_at=iso(self._clock()),
+            detail={
+                "locale": resolved,
+                "translation_version": updated.translation_version,
+                "translation_status": updated.translation_status.value,
+            },
+        )
+        self._audit(
+            principal,
+            "knowledge_translation_review",
+            f"{card_id}:{resolved}",
+            "succeeded",
+            {"accept": accept, "translation_version": updated.translation_version},
+        )
+        return updated.as_dict()
+
+    def publish_translation(
+        self, principal: AssistantPrincipal, card_id: str, locale: str
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_PUBLISH)
+        resolved = require_locale(locale)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        record = self.store.get_translation(card_id, resolved)
+        if record is None:
+            raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        published = publish_translation(
+            card, record, reviewer=principal.user_id, now=self._clock()
+        )
+        self.store.save_translation(published)
+        self.store.record_card_event(
+            card_id,
+            action="translation_published",
+            actor_id=principal.user_id,
+            occurred_at=iso(self._clock()),
+            detail={
+                "locale": resolved,
+                "published_language_version": published.published_language_version,
+            },
+        )
+        self._audit(
+            principal,
+            "knowledge_translation_publish",
+            f"{card_id}:{resolved}",
+            "succeeded",
+            {
+                "locale": resolved,
+                "published_language_version": published.published_language_version,
+            },
+        )
+        return published.as_dict()
+
+    def _available_locales(self, card) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for definition in locale_registry():
+            locale = str(definition["locale"])
+            if locale == DEFAULT_LOCALE:
+                rows.append(
+                    {
+                        "locale": locale,
+                        "translation_status": source_record(card).translation_status.value,
+                        "review_status": source_record(card).review_status.value,
+                        "available": True,
+                        "source": True,
+                    }
+                )
+                continue
+            record = self.store.get_translation(card.card_id, locale)
+            rows.append(
+                {
+                    "locale": locale,
+                    "translation_status": (
+                        record.translation_status.value
+                        if record is not None
+                        else "missing"
+                    ),
+                    "review_status": (
+                        record.review_status.value if record is not None else "pending"
+                    ),
+                    "published_language_version": (
+                        record.published_language_version if record is not None else None
+                    ),
+                    "available": bool(record is not None and record.available()),
+                    "source": False,
+                }
+            )
+        return rows
+
+    def _card_language_context(self, card, record, requested: str) -> LanguageContext:
+        content_locale = record.locale if record.available() else SOURCE_LANGUAGE
+        return LanguageContext(
+            locale=content_locale,
+            language_code=language_code(content_locale),
+            source_language=SOURCE_LANGUAGE,
+            question_language=requested,
+            response_language=requested,
+            default_language=DEFAULT_LOCALE,
+            fallback_language=FALLBACK_LOCALE,
+            direction=direction(content_locale),
+            translation_status=record.translation_status.value,
+            review_status=record.review_status.value,
+            published_language_version=record.published_language_version,
+            technical_glossary=tuple(GLOSSARIES.get(content_locale, ())),
+            localization_metadata=dict(record.localization_metadata),
+        )
 
     def review(
         self, principal: AssistantPrincipal, card_id: str, *, accept: bool
@@ -278,11 +541,12 @@ class KnowledgeAPI:
         action: str,
         *,
         project_id: str | None = None,
+        language: str | None = None,
     ) -> dict[str, object]:
         if project_id is not None:
             self._guard(principal, project_id, Permission.KNOWLEDGE_READ)
         return self.assistant.guide(
-            principal, card_id, action, project_id=project_id
+            principal, card_id, action, project_id=project_id, language=language
         ).as_dict()
 
     def memory(

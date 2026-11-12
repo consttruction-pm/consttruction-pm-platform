@@ -186,7 +186,10 @@ def test_coverage_report_and_ingest_all(store, clock) -> None:
     assert reports[0].converted == 1
     coverage = pipeline.coverage_report()
     assert coverage["contract_version"] == "cubi-knowledge-coverage.v1"
-    assert len(coverage["sources"]) == 3
+    assert [item["source_id"] for item in coverage["sources"]] == [
+        "p6-26-html-help",
+        "p6-26-user-guide",
+    ]
     assert coverage["card_counts"]["draft"] >= 1
     assert coverage["card_counts"]["published"] == 0
 
@@ -205,3 +208,53 @@ def test_urllib_fetcher_refuses_non_https_and_foreign_hosts() -> None:
     assert fetcher.fetch("https://example.invalid/page.html").error == (
         "KNOWLEDGE_FETCH_HOST_NOT_ALLOWED"
     )
+
+
+def test_identical_topics_from_two_official_roots_are_merged(store, clock) -> None:
+    from construction_pm.knowledge.model import SourceDefinition, SourceKind
+
+    root_a = "https://docs.example.test/help/toc.htm"
+    root_b = "https://docs.example.test/guide/toc.htm"
+    source_a = SourceDefinition(
+        source_id="test-help",
+        title="Help",
+        kind=SourceKind.HELP,
+        release="26",
+        landing_url=root_a,
+        toc_url=root_a,
+    )
+    source_b = SourceDefinition(
+        source_id="test-guide",
+        title="Guide",
+        kind=SourceKind.USER_GUIDE,
+        release="26",
+        landing_url=root_b,
+        toc_url=root_b,
+    )
+    fetcher = FakeFetcher(
+        {
+            root_a: TOC_HTML,
+            root_b: TOC_HTML,
+            "https://docs.example.test/help/create-project.html": CREATE_HTML,
+            "https://docs.example.test/help/schedule.html": SCHEDULE_HTML,
+            "https://docs.example.test/guide/create-project.html": CREATE_HTML,
+            "https://docs.example.test/guide/schedule.html": SCHEDULE_HTML,
+        }
+    )
+    pipeline = IngestionPipeline(store=store, fetcher=fetcher, clock=clock)
+
+    pipeline.run(source_a)
+    pipeline.run(source_b)
+
+    topics = store.list_topics(source_id="test-guide")
+    assert {topic["status"] for topic in topics} == {"converted"}
+    cards = store.list_cards(
+        scope="central",
+        publication_statuses=["draft", "validated", "published"],
+    )
+    assert len(cards) == 2
+    assert all(card.source_url.startswith(root_a.rsplit("/toc", 1)[0]) for card in cards)
+    events = [
+        row for row in store.list_audit(tenant_id=None) if row["action"] == "topic_merged"
+    ]
+    assert len(events) == 2

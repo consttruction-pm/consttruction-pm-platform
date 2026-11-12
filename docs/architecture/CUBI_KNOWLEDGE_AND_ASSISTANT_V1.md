@@ -100,14 +100,83 @@ reviewer, and retirement preserves history. Revisions and card events are kept.
 Thin source pages produce an explicit "no body content" purpose and limitation
 rather than a fabricated procedure.
 
+### 5.1 Ten locales, nine working languages
+
+The product ships `fa`, `en`, `de`, `zh-CN`, `zh-TW`, `ar`, `fr`, `ja`, `ko`
+and `ru` behind the registry in `construction_pm.knowledge.locales`. Simplified
+and Traditional Chinese are separate locales that share the language code `zh`.
+Persian and Arabic are RTL; every other locale is LTR. No subsystem hard-codes a
+locale check: search, assistant, workflow, API and HTTP all resolve through the
+registry, so a new locale is a registry entry, not scattered branching.
+
+The registry also defines `source_language`, `default_language` and
+`fallback_language` (all `en` today) and returns direction/script metadata to the
+client.
+
+### 5.2 Per-locale translation lifecycle
+
+Translation is not a property of a card. Every locale owns one
+`TranslationRecord` with independent content, version, review state and
+publication state:
+
+- status: `missing`, `draft`, `translated`, `review_required`, `approved`,
+  `published`;
+- review: `pending`, `approved`, `rejected`;
+- source: `official_source`, `cubi_authored`, `human`, `machine`, `imported`;
+- fields: `locale`, `language_code`, `source_language`, title, summary, body,
+  steps, prerequisites, warnings, limitations, relations,
+  `technical_glossary`, `source_note`, `translation_status`, `review_status`,
+  `translation_version`, `published_language_version`, `localization_metadata`,
+  `content_hash`, reviewer and timestamps.
+
+Rules enforced by the model and the service layer:
+
+- a locale with no stored record is reported as `missing`, never replaced
+  silently by English;
+- machine output (`machine_translated: true`) can never be approved or
+  published, even when a reviewer accepts it;
+- approval requires a named human reviewer and sets `reviewed_at`;
+- publication requires the source card to be published, the locale record to be
+  approved and not machine output, and records `published_language_version`;
+- publishing one locale never touches another. Russian can be published while
+  Persian remains `translated`;
+- editing an approved translation creates a new version and resets review to
+  `pending`;
+- a client-facing payload that borrows English title/summary/steps lists those
+  fields in `fallback_fields` and sets `mixed_language: true`.
+
+
 ## 6. Search
 
 Search ranks by lexical relevance over title, category, purpose, steps,
-prerequisites, inputs, outputs, warnings and limitations. Persian/Arabic
-character variants and Persian digits are normalized; stopwords are dropped.
-A CUBI-owned engineering glossary expands Persian query terms (for example
-پروژه → project, ایجاد → create) so English official sources remain reachable;
-the glossary never adds content or bypasses the lexical match threshold.
+prerequisites, inputs, outputs, warnings and limitations. The tokenizer is
+script-aware and deterministic:
+
+- Persian/Arabic: letter forms, digits and diacritics are normalized; tanween
+  and the accusative alif are folded so `مشروعاً` matches `مشروع`;
+- Russian: common inflectional suffixes are reduced to one stem (`проект`,
+  `проекта`, `проектом` share an index term);
+- Chinese: no whitespace is required; text is tokenized into characters and
+  bigrams for both Simplified and Traditional;
+- Japanese/Korean: own scripts plus shared Han characters, with particles and
+  verb suffixes stripped;
+- Latin: German, French and English terms expand to the English official term.
+
+The CUBI-owned glossary expands queries in every working language (for example
+پروژه → project, создать → create, 创建 → create) and the same expansion is
+applied at index time, so retrieval works in both directions: a Russian question
+finds an English card, and an English question finds an approved Russian
+translation. Expansion never invents a result; ranking still requires a real
+lexical token match. BM25 (`k1=1.2`, `b=0.75`) with a title bonus is preserved.
+
+Search accepts `locale` and the filters `language`, `category`, `source_id`,
+`source_version`, `card_type` and `translation_status`. When a locale has no
+usable translation, hits report the English content explicitly with
+`fallback_used: true`, `translation_available: false` and the requested
+translation status. Every hit carries retrieval evidence: query/response locale,
+requested locale, content language, source language, translation status and the
+matched terms and fields.
+
 Scope filtering happens before ranking:
 
 - central cards only when requested,
@@ -130,6 +199,24 @@ When no result clears the relevance threshold, the response states
 
 The assistant API accepts text and is voice-transport-ready: a Web, Flutter or
 Windows client may supply recognized text. No voice engine is bundled here.
+
+Language handling in every mode:
+
+- the question locale is detected from script; the response locale is resolved
+  with the precedence explicit request → saved profile locale → detected
+  question language → product default;
+- an explicit unsupported locale fails with `KNOWLEDGE_LOCALE_UNSUPPORTED`;
+- only an approved (or published) translation may answer in that language;
+- when the requested locale is not approved, the answer is still expressed in
+  that language but the quoted content is the official English source, marked
+  with `fallback_used: true`, `content_language: "en"` and the actual
+  `translation_status`; the missing translation is stated in the response text;
+- citations and card ids always point at the same card; source URL and title
+  are preserved;
+- every answer carries a `language_context` with locale, language code, source,
+  question and response language, default/fallback language, direction and
+  translation/review state, so a client never has to guess RTL/LTR or hide a
+  missing translation.
 
 ## 8. Project-creation workflow
 
@@ -163,6 +250,22 @@ Properties:
   `P6RelationshipAPI`, schedule/settings ports). A missing real port fails
   closed; no in-memory project pretends to be persistent.
 
+### 8.1 Thirteen-item creation guidance
+
+Every workflow view carries a `guidance` checklist with thirteen explicit items
+and a localized title: organization/EPS, discipline and project
+type, project name, unique identifier, identifier uniqueness, working calendar,
+timezone, locale, permissions, reviewed summary, explicit approval, real
+creation and creation audit trail. The checklist is derived from actual collected
+state, not from UI assumptions.
+
+Identity collection accepts `timezone`, `locale` and `permissions` in addition to
+name and identifier. The timezone is validated as an IANA-style tag, the locale is
+canonicalized through the locale registry, and permissions are validated
+identifiers. Base settings persist timezone and locale, and the view reports
+`locale`, `language_code` and `direction` so the client renders step titles and
+the form RTL/LTR correctly.
+
 ## 9. Permissions and audit
 
 New permissions: `KNOWLEDGE_READ`, `KNOWLEDGE_CONTRIBUTE`, `KNOWLEDGE_REVIEW`,
@@ -185,20 +288,55 @@ The WSGI middleware owns only `/api/knowledge*` and
 `/api/projects/{id}/knowledge`, delegating every other path unchanged.
 
 - `GET /api/knowledge/coverage`
-- `GET /api/knowledge/search?q=&project_id=&limit=`
+- `GET /api/knowledge/locales`
+- `GET /api/knowledge/search?q=&project_id=&limit=&locale=&language=&category=&source_id=&source_version=&card_type=&translation_status=`
 - `GET /api/knowledge/cards?status=&type=&limit=`
-- `GET /api/knowledge/cards/{id}`
+- `GET /api/knowledge/cards/{id}?locale=`
+- `GET /api/knowledge/cards/{id}/translations`
+- `PUT /api/knowledge/cards/{id}/translations/{locale}`
+- `POST /api/knowledge/cards/{id}/translations/{locale}/review`
+- `POST /api/knowledge/cards/{id}/translations/{locale}/publish`
 - `POST /api/knowledge/cards/{id}/review|publish|retire`
 - `GET|POST /api/knowledge/eps`
 - `GET /api/knowledge/audit`
 - `GET|POST /api/knowledge/memory`
-- `POST /api/knowledge/assistant/ask`
-- `POST /api/knowledge/assistant/guide/{topic_key}`
-- `GET|POST /api/knowledge/assistant/workflows`
+- `POST /api/knowledge/assistant/ask` (body: `question`, `mode`, `project_id`, `language`)
+- `POST /api/knowledge/assistant/guide/{topic_key}` (body: `action`, `project_id`, `language`)
+- `GET|POST /api/knowledge/assistant/workflows` (body may carry `locale`)
 - `GET /api/knowledge/assistant/workflows/{run_id}`
 - `POST /api/knowledge/assistant/workflows/{run_id}/steps/{step}`
 - `POST /api/knowledge/assistant/workflows/{run_id}/approve|skip|back|abandon`
 - `GET|POST /api/projects/{id}/knowledge`
+
+### 10.1 Contract for the workspace/UI owner
+
+- `GET /api/knowledge/locales` returns `{locales: [...]}` in registry order with
+  `locale`, `language_code`, `display_name`, `english_name`, `direction`,
+  `script`, `aliases`, `source_language`, `default_language` and
+  `fallback_language`.
+- Search response: `{query, query_locale, response_locale, filters, hits,
+  insufficient_knowledge}`. Each hit contains `title`, `snippet`, `score`,
+  `source_url`, `card_id`, `language`, `source_language`, `translation_status`,
+  `translation_available`, `fallback_used`, `matched_terms`, `matched_fields`
+  and `evidence`.
+- Card response: localized content plus `requested_locale`,
+  `content_language`, `fallback_used`, `translation_status`, `review_status`,
+  `missing_fields`, `fallback_fields`, `mixed_language`, `available_locales`
+  and `language_context`. Render `fallback_used`/`mixed_language` visibly; do
+  not present borrowed English text as a translation.
+- Translation write/response: `locale`, `language_code`, `source_language`,
+  `translation_status`, `review_status`, `translation_version`,
+  `published_language_version`, `translation_source`, `machine_translated`,
+  `technical_glossary`, `localization_metadata`, `content_hash`.
+- Assistant response: `kind`, `message`, `language`, `source_language`,
+  `response_language`, `content_language`, `translation_status`,
+  `fallback_used`, `citations[]`, `card_ids[]`, `language_context`.
+  `language_context.direction` (`rtl`/`ltr`) rules text alignment.
+- Workflow response: `locale`, `language_code`, `direction`, `steps[]` with
+  localized titles, `guidance[]` with `{key, title, complete}` and the existing
+  `run_id`, `version`, `current_step`, `collected`, `review`, `approval_ready`.
+- Per-locale publishing is explicit: call review per locale, then publish per
+  locale. There is no bulk "publish all locales" endpoint.
 
 Sessions come from the existing `cp_session` cookie. Project routes call the
 real lifecycle `authorize_project`; the middleware never infers project access
@@ -207,18 +345,25 @@ or invalid sessions `401`.
 
 ## 11. Verification and evidence
 
-- Knowledge tests: `python -m pytest -q tests/knowledge` → 94 passed.
-- Full Python suite (excluding three modules whose optional `xlrd`/`xlwt`
-  dependencies are not installed in this image): 3616 passed, 113 skipped.
-- Live Version 26 ingestion: 2,497 topics converted, 0 failed:
-  - help 988/988
-  - user guide 527/527
-  - legacy HTML Help 982/982
-- Mandatory coverage: 31/31 areas covered in help and legacy HTML Help;
-  29/31 in the user guide (combined set covers all 31).
-- Evidence: `docs/workspace/evidence/knowledge-v26-2026-11-12/` contains the
-  SQLite database, coverage JSON, ingestion report JSON, provenance summary,
-  source-status notes and an assistant smoke report.
+- Knowledge tests: `python -m pytest -q tests/knowledge` → 173 passed.
+- Full Python suite: 3719 passed, 113 skipped.
+- Live Version 26 ingestion from the two authoritative HTML sources:
+  - HTML Help (`client_help/en_US/toc.htm`): 982/982 converted, 0 failed.
+  - User Guide (`English/User_Guides/p6_pro_user/toc.htm`): 557/557 converted,
+    0 failed.
+  - 1,539 topics converted in total; 509 cross-source duplicates merged onto
+    canonical cards with `topic_merged` audit records; 1,030 unique cards
+    retained.
+- Mandatory coverage: 31/31 areas covered by HTML Help; 29/31 by the User Guide
+  alone (the combined corpus covers all 31).
+- Multilingual evidence: ten locales, nine seeded translations
+  (`translated`/`pending`, never published in the evidence database), published
+  Russian exercised only in a disposable copy, ten localized searches, Russian
+  and Persian workflow starts.
+- Evidence: `docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/`
+  contains the draft SQLite database, ingestion and coverage reports, the
+  per-locale translation matrix, assistant smoke output, translation seed
+  report and `SOURCE_STATUS.md`.
 
 ## 12. Deliberate non-goals and open items
 

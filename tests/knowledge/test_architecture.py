@@ -89,7 +89,14 @@ def test_user_facing_assistant_text_has_no_third_party_branding() -> None:
 def test_official_source_registry_is_complete() -> None:
     assert len(SOURCES) == 5
     assert len({source.source_id for source in SOURCES}) == 5
-    assert len(INGESTABLE_SOURCES) == 3
+    assert [source.source_id for source in INGESTABLE_SOURCES] == [
+        "p6-26-html-help",
+        "p6-26-user-guide",
+    ]
+    assert [source.toc_url for source in INGESTABLE_SOURCES] == [
+        "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+        "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
+    ]
     for source in SOURCES:
         source.validate()
         assert source.landing_url.startswith("https://docs.oracle.com/")

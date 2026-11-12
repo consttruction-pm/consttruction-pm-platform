@@ -515,3 +515,158 @@ def test_abandon_closes_the_run(workflow, admin_workflow, store) -> None:
             {"organization": "CUBI", "eps": {"code": "OPS", "name": "Ops"}},
             expected_version=view.version,
         )
+
+
+# -- multilingual project creation workflow --------------------------------
+
+GUIDANCE_KEYS = (
+    "organization_eps",
+    "discipline",
+    "name",
+    "identifier",
+    "uniqueness",
+    "calendar",
+    "timezone",
+    "locale",
+    "permissions",
+    "summary",
+    "approval",
+    "real_creation",
+    "audit",
+)
+
+
+def test_start_accepts_a_locale_and_localizes_step_titles(
+    workflow, admin_workflow
+) -> None:
+    view = workflow.start(admin_workflow, locale="ru")
+
+    assert view.locale == "ru"
+    assert view.language_code == "ru"
+    assert view.direction == "ltr"
+    assert view.steps[0].title == "Организация и EPS"
+    assert view.steps[0].title != "Organization and EPS"
+
+
+def test_rtl_locale_is_reported_for_persian(workflow, admin_workflow) -> None:
+    view = workflow.start(admin_workflow, locale="fa")
+    assert view.locale == "fa"
+    assert view.direction == "rtl"
+    assert view.language_code == "fa"
+
+
+def test_unsupported_start_locale_is_rejected(workflow, admin_workflow) -> None:
+    with pytest.raises(ValueError, match="LOCALE_UNSUPPORTED"):
+        workflow.start(admin_workflow, locale="pt-BR")
+
+
+def test_guidance_has_thirteen_explicit_items(workflow, admin_workflow) -> None:
+    view = workflow.start(admin_workflow)
+
+    assert tuple(item["key"] for item in view.guidance) == GUIDANCE_KEYS
+    assert all(item["complete"] is False for item in view.guidance)
+    payload = view.as_dict()
+    assert payload["locale"] == "en"
+    assert len(payload["guidance"]) == 13
+
+
+def test_identity_collects_timezone_locale_and_permissions(workflow, admin_workflow) -> None:
+    view = workflow.start(admin_workflow, locale="ru")
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "organization",
+        {"organization": "CUBI", "eps": {"code": "OPS", "name": "Operations"}},
+        expected_version=view.version,
+    )
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "discipline",
+        {"discipline": "Engineering", "project_type": "Capital Project"},
+        expected_version=view.version,
+    )
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "identity",
+        {
+            "name": "Проект",
+            "project_id": "PRJ-RU-1",
+            "timezone": "Europe/Moscow",
+            "locale": "ru",
+            "permissions": ["project.read", "project.write"],
+        },
+        expected_version=view.version,
+    )
+
+    assert view.collected["timezone"] == "Europe/Moscow"
+    assert view.collected["locale"] == "ru"
+    assert view.collected["permissions"] == ["project.read", "project.write"]
+    completed = {item["key"]: item["complete"] for item in view.guidance}
+    assert completed["name"] is True
+    assert completed["identifier"] is True
+    assert completed["uniqueness"] is True
+    assert completed["timezone"] is True
+    assert completed["locale"] is True
+    assert completed["permissions"] is True
+    assert completed["summary"] is False
+
+
+def test_invalid_timezone_and_locale_are_rejected(workflow, admin_workflow) -> None:
+    view = workflow.start(admin_workflow)
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "organization",
+        {"organization": "CUBI", "eps": {"code": "OPS", "name": "Operations"}},
+        expected_version=view.version,
+    )
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "discipline",
+        {"discipline": "Engineering", "project_type": "Capital Project"},
+        expected_version=view.version,
+    )
+    with pytest.raises(ProjectWorkflowError, match="TIMEZONE_INVALID"):
+        workflow.apply(
+            admin_workflow,
+            view.run_id,
+            "identity",
+            {"name": "Test", "project_id": "PRJ-X-1", "timezone": "bad timezone!"},
+            expected_version=view.version,
+        )
+    with pytest.raises(ValueError, match="LOCALE_UNSUPPORTED"):
+        workflow.apply(
+            admin_workflow,
+            view.run_id,
+            "identity",
+            {"name": "Test", "project_id": "PRJ-X-1", "locale": "pt-BR"},
+            expected_version=view.version,
+        )
+
+
+def test_guidance_marks_real_creation_and_audit_after_completion(
+    workflow, admin_workflow
+) -> None:
+    token, view = _to_created(workflow, admin_workflow)
+    view = workflow.apply(
+        admin_workflow,
+        view.run_id,
+        "settings",
+        {
+            "primary_calendar_id": "CAL-1",
+            "timezone": "Asia/Tehran",
+            "locale": "fa",
+            "start_date": "2026-01-01",
+            "date_system": "jalali",
+        },
+        expected_version=view.version,
+    )
+
+    completed = {item["key"]: item["complete"] for item in view.guidance}
+    assert completed["real_creation"] is True
+    assert completed["calendar"] is True
+    assert view.locale == "fa"
+    assert view.direction == "rtl"

@@ -20,6 +20,8 @@ from .cards import build_card
 from .html import build_parsed_topic, parse_help_page, parse_toc
 from .model import (
     TERMINAL_TOPIC_STATUSES,
+    CardStatus,
+    KnowledgeCard,
     KnowledgeError,
     SourceDefinition,
     SourceKind,
@@ -36,6 +38,34 @@ from .store import KnowledgeStore
 MAX_PAGE_BYTES = 4_000_000
 DEFAULT_TIMEOUT_SECONDS = 30.0
 MAX_RETRIES = 2
+
+
+def _card_signature(card: KnowledgeCard) -> tuple[object, ...]:
+    """Content identity for cross-source de-duplication.
+
+    The official documentation publishes the same page under more than one
+    root. Two cards are the same topic when the page name and every substantive
+    content field match. Source URL, release and breadcrumb (`category`/leading
+    `purpose`) are provenance context and are deliberately excluded: the same
+    page appears as "Tools > Global Change" under one root and "Developing
+    Projects > Global Change" under another.
+    """
+
+    normalize = lambda value: " ".join(str(value).split())
+    page = card.source_url.rstrip("/").rsplit("/", 1)[-1].lower()
+    return (
+        page,
+        card.card_type.value,
+        normalize(card.title),
+        tuple(normalize(step) for step in card.steps),
+        tuple(normalize(item) for item in card.prerequisites),
+        tuple(normalize(item) for item in card.inputs),
+        tuple(normalize(item) for item in card.outputs),
+        tuple(normalize(item) for item in card.warnings),
+        tuple(normalize(item) for item in card.limitations),
+    )
+
+
 _USER_AGENT = "CUBI-Knowledge-Ingestor/1.0 (internal engineering documentation index)"
 
 
@@ -148,6 +178,13 @@ class IngestionPipeline:
     # parallel. Higher values shorten a full documentation ingest without
     # weakening provenance, idempotency or write ordering.
     fetch_workers: int = 1
+    # The same topic is published under more than one official root (for
+    # example client_help and the user guide). Identical content is stored once
+    # per source topic, but only one card is created so duplicates are merged
+    # while every source topic and URL remains recorded.
+    _content_index: dict[tuple[object, ...], str] | None = field(
+        default=None, init=False, repr=False
+    )
 
     def _audit(
         self,
@@ -168,6 +205,21 @@ class IngestionPipeline:
             occurred_at=iso(self.clock()),
             detail=detail,
         )
+
+    def _card_index(self) -> dict[tuple[object, ...], str]:
+        if self._content_index is None:
+            index: dict[tuple[object, ...], str] = {}
+            for card in self.store.list_cards(
+                scope="central",
+                publication_statuses=[
+                    CardStatus.DRAFT.value,
+                    CardStatus.VALIDATED.value,
+                    CardStatus.PUBLISHED.value,
+                ],
+            ):
+                index.setdefault(_card_signature(card), card.card_id)
+            self._content_index = index
+        return self._content_index
 
     # -- discovery -------------------------------------------------------
     def discover(self, source: SourceDefinition) -> tuple[int, int]:
@@ -285,6 +337,30 @@ class IngestionPipeline:
             )
             return "failed", code, False
         existing_card = self.store.get_card(card.card_id)
+        index = self._card_index()
+        signature = _card_signature(card)
+        canonical = index.get(signature)
+        if canonical is not None and canonical != card.card_id:
+            # The same official topic text is already in the knowledge base
+            # under another source root. Keep the canonical card, record this
+            # topic as converted and preserve the duplicate provenance.
+            self.store.save_parsed_topic(
+                parsed,
+                status="converted",
+                http_status=result.status,
+                occurred_at=iso(self.clock()),
+            )
+            self._audit(
+                source_id=source.source_id,
+                action="topic_merged",
+                outcome="succeeded",
+                detail={
+                    "topic_key": topic_key,
+                    "canonical_card_id": canonical,
+                    "duplicate_card_id": card.card_id,
+                },
+            )
+            return "converted", None, False
         unchanged = (
             existing_card is not None
             and existing_card.content_hash == card.content_hash
@@ -301,6 +377,7 @@ class IngestionPipeline:
                     occurred_at=iso(self.clock()),
                     detail={"content_hash": card.content_hash},
                 )
+        index[signature] = card.card_id
         self.store.save_parsed_topic(
             parsed,
             status="converted",
