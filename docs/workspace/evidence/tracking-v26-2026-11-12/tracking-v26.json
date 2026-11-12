@@ -1,0 +1,128 @@
+{
+  "contract": "cubi-tracking-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "testedCodeSha": "dfe1da4df0e2d9d1e5a78d518ec1cee913a37185",
+  "evidenceCommitSha": null,
+  "evidenceDate": "2026-11-12",
+  "project": "preview-rps-01",
+  "startedAt": "2026-11-12T13:49:25.297Z",
+  "viewport": "1280x720",
+  "scenarios": [
+    {
+      "summary": {
+        "activity-count": "14",
+        "not-started": "10",
+        "in-progress": "1",
+        "completed": "3",
+        "critical": "7",
+        "project-finish": "2026-12-03",
+        "mean-percent": "—",
+        "diagnostics": "0"
+      },
+      "rows": 14,
+      "revision": "7",
+      "run": "649385baec94",
+      "id": "01",
+      "name": "the Tracking window reads the published schedule and renders the summary and activity table",
+      "status": "pass",
+      "at": "2026-11-12T13:49:28.625Z"
+    },
+    {
+      "buckets": 10,
+      "first": "2026-09-212 · 0 critical",
+      "id": "02",
+      "name": "the bar chart projects authoritative finish buckets",
+      "status": "pass",
+      "at": "2026-11-12T13:49:28.847Z"
+    },
+    {
+      "buckets": 8,
+      "first": "2026-09-213 · duration 0",
+      "id": "03",
+      "name": "the Gantt/profile view projects start buckets and summed durations",
+      "status": "pass",
+      "at": "2026-11-12T13:49:29.063Z"
+    },
+    {
+      "resources": 0,
+      "empty": true,
+      "unavailable": null,
+      "id": "04",
+      "name": "resource analysis shows only stored assignments and states an honest empty or unavailable case",
+      "status": "pass",
+      "at": "2026-11-12T13:49:29.277Z"
+    },
+    {
+      "groups": 6,
+      "members": 14,
+      "firstFloat": 22,
+      "lastFloat": 0,
+      "id": "05",
+      "name": "WBS grouping, scale and sort change the server projection without inventing values",
+      "status": "pass",
+      "at": "2026-11-12T13:49:30.950Z"
+    },
+    {
+      "direction": "rtl",
+      "rows": 14,
+      "id": "06",
+      "name": "the Tracking window renders in Persian right-to-left at 1280x720",
+      "status": "pass",
+      "at": "2026-11-12T13:49:32.537Z"
+    },
+    {
+      "viewports": [
+        {
+          "width": 1366,
+          "height": 768,
+          "panel": {
+            "x": 350.078125,
+            "y": 250.890625,
+            "width": 965.921875,
+            "height": 268.203125
+          },
+          "toolbar": {
+            "x": 58,
+            "y": 150,
+            "width": 1258,
+            "height": 40
+          }
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "panel": {
+            "x": 476,
+            "y": 250.890625,
+            "width": 1394,
+            "height": 486.609375
+          },
+          "toolbar": {
+            "x": 58,
+            "y": 150,
+            "width": 1812,
+            "height": 40
+          }
+        }
+      ],
+      "id": "07",
+      "name": "the Tracking window fits 1366x768 and 1920x1080 without overflow",
+      "status": "pass",
+      "at": "2026-11-12T13:49:35.331Z"
+    }
+  ],
+  "screenshots": [
+    "01-tracking-1280x720-en.png",
+    "02-tracking-bar-chart.png",
+    "03-tracking-gantt-profile.png",
+    "04-tracking-resource-analysis.png",
+    "05-tracking-wbs-groups.png",
+    "06-tracking-1280x720-fa.png",
+    "07-tracking-1366x768-en.png",
+    "07-tracking-1920x1080-en.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T13:49:35.331Z"
+}
