@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Callable, Mapping
@@ -358,13 +359,14 @@ class ProjectCreationWorkflow:
                 self._require_same_request(existing, fingerprint, resolved_locale)
                 return self._view(existing)
         now = iso(self._clock())
-        run_id = "WF-" + hashlib.sha256(
-            (
-                f"{principal.tenant_id}:{principal.user_id}:key:{request_key}"
-                if request_key
-                else f"{principal.tenant_id}:{principal.user_id}:{now}"
-            ).encode()
-        ).hexdigest()[:24]
+        # Only a request key makes a start deterministic and replayable. Without
+        # one, the nonce keeps two starts in the same second from colliding.
+        seed = (
+            f"{principal.tenant_id}:{principal.user_id}:key:{request_key}"
+            if request_key
+            else f"{principal.tenant_id}:{principal.user_id}:{now}:{uuid.uuid4().hex}"
+        )
+        run_id = "WF-" + hashlib.sha256(seed.encode()).hexdigest()[:24]
         steps = {
             key: {"status": "pending", "data": {}, "decision": None, "updated_at": None}
             for key in STEP_ORDER
@@ -738,7 +740,12 @@ class ProjectCreationWorkflow:
             return
         approval = state.get("approval")
         token = payload.get("approval_token")
-        if not approval or not isinstance(token, str) or token != approval.get("token"):
+        if (
+            not approval
+            or not isinstance(token, str)
+            or token != approval.get("token")
+            or approval.get("approved_by") != principal.user_id
+        ):
             raise ProjectWorkflowError("WORKFLOW_APPROVAL_REQUIRED")
         review = state.get("review")
         review_hash = self._review_hash(state["collected"])
