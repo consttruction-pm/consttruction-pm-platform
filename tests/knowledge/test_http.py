@@ -451,6 +451,117 @@ def test_translation_routes_require_the_right_permission(
     assert rows["en"]["translation_status"] == "published"
 
 
+def test_translation_revision_keeps_previous_content_and_actor(
+    middleware, store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="tr-revision.html"))
+    store.save_card(card)
+
+    status, _ = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=RU_PAYLOAD,
+    )
+    assert status.startswith("200")
+
+    revised = {
+        **RU_PAYLOAD,
+        "title": "Создание нового проекта",
+        "summary": "Обновлённое описание создания проекта.",
+    }
+    status, payload = call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=revised,
+    )
+    assert status.startswith("200")
+    assert payload["translation_version"] == 2
+    assert payload["title"] == "Создание нового проекта"
+    assert payload["localization_metadata"]["translator_id"] == "admin-1"
+    assert payload["localization_metadata"]["translation_source"] == "human"
+    assert payload["localization_metadata"]["machine_translated"] is False
+
+    events = [
+        row
+        for row in store.list_audit(tenant_id="tenant-1", limit=50)
+        if row["action"] == "knowledge_translation_save"
+        and row["entity_id"] == f"{card.card_id}:ru"
+    ]
+    assert len(events) == 2
+    previous = json.loads(events[0]["detail_json"])["previous"]
+    assert previous["translation_version"] == 1
+    assert previous["title"] == RU_PAYLOAD["title"]
+    assert previous["translation_source"] == "human"
+    assert previous["content_hash"] != payload["content_hash"]
+
+
+def test_translation_can_be_retired_without_losing_its_version(
+    middleware, store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(title="Create a Project", topic_key="tr-retire.html"))
+    store.save_card(card)
+    call(
+        middleware,
+        "PUT",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru",
+        body=RU_PAYLOAD,
+    )
+    call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/review",
+        body={"accept": True},
+    )
+    status, _ = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/publish",
+        body={},
+    )
+    assert status.startswith("200")
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/retire",
+        session="viewer-session",
+        body={},
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/retire",
+        body={},
+    )
+    assert status.startswith("200")
+    assert payload["translation_status"] == "retired"
+    assert payload["published_language_version"] == 1
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/cards/{card.card_id}/translations",
+        session="viewer-session",
+    )
+    rows = {item["locale"]: item for item in payload["translations"]}
+    assert rows["ru"]["translation_status"] == "retired"
+    assert rows["de"]["translation_status"] == "missing"
+
+    events = [
+        row
+        for row in store.list_audit(tenant_id="tenant-1", limit=50)
+        if row["action"] == "knowledge_translation_retire"
+    ]
+    assert len(events) == 1
+    detail = json.loads(events[0]["detail_json"])
+    assert detail["published_language_version"] == 1
+    assert detail["previous"]["translation_status"] == "published"
+
+
 def test_archived_source_locale_cannot_be_edited(middleware, store, card_factory, publish_factory) -> None:
     card = publish_factory(card_factory(title="Create a Project", topic_key="tr-en.html"))
     store.save_card(card)

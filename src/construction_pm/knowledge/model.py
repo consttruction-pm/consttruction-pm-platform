@@ -103,7 +103,15 @@ def normalize_language(value: object, default: str = "en") -> str:
 _PERSIAN_RANGE = re.compile(r"[\u0600-\u06FF]")
 _LATIN_RANGE = re.compile(r"[A-Za-z]")
 _DIGIT_MAP = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-_ARABIC_FORMS = {"ي": "ی", "ك": "ک", "ۀ": "ه", "ﻻ": "لا", "ٱ": "ا"}
+_ARABIC_FORMS = {
+    "ي": "ی",
+    "ى": "ی",
+    "ئ": "ی",
+    "ك": "ک",
+    "ۀ": "ه",
+    "ﻻ": "لا",
+    "ٱ": "ا",
+}
 
 
 def normalize_terms(value: str) -> str:
@@ -209,6 +217,7 @@ class TranslationStatus(str, Enum):
     REVIEW_REQUIRED = "review_required"
     APPROVED = "approved"
     PUBLISHED = "published"
+    RETIRED = "retired"
 
 
 class ReviewStatus(str, Enum):
@@ -631,7 +640,10 @@ class TranslationRecord:
                 raise KnowledgeError("KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_CANNOT_BE_TRANSLATED")
 
     def available(self) -> bool:
-        return self.translation_status is not TranslationStatus.MISSING
+        return self.translation_status not in {
+            TranslationStatus.MISSING,
+            TranslationStatus.RETIRED,
+        }
 
     def approved_for_answer(self) -> bool:
         """Only reviewed, approved/published content may answer a question."""

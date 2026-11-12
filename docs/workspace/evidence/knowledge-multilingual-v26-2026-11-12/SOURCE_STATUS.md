@@ -15,6 +15,26 @@ Only these two official Version 26 HTML sources are ingestable
 Both URLs were fetched during the run and returned HTTP 200. No other source
 was ingested into this database and no stale or substitute content is present.
 
+## Source audit and the 527/557 User Guide discrepancy
+
+`source-audit.json` (`cubi-knowledge-source-audit.v1`) re-fetches every official
+HTML TOC and records its HTTP status, content hash and parsed topic count:
+
+| Official URL | Topics | Role |
+| --- | --- | --- |
+| `cd/G48902_01/client_help/en_US/toc.htm` | 982 | authoritative, ingested as `p6-26-html-help` |
+| `cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm` | 557 | authoritative, ingested as `p6-26-user-guide` |
+| `26/pro-help/toc.htm` | 988 | official alternate edition, not ingested |
+| `26/pro-user/toc.htm` | 527 | official alternate edition, not ingested |
+| `26/` and `26/books.html` | landing pages | linked from the registry, no topics ingested |
+
+The earlier 527 and 557 counts are therefore both real but describe **different
+official TOCs**. The earlier evidence database used `pro-user/toc.htm` (527);
+this branch uses the G48902 `p6_pro_user/toc.htm` (557). The source id
+`p6-26-user-guide` maps only to the G48902 edition, so the two topic sets are
+never mixed under one id. The alternate TOCs remain audited and are not claimed
+as ingested.
+
 ## Extraction and merge result
 
 - 1,539 topics discovered and converted, 0 failures.
@@ -57,6 +77,8 @@ was ingested into this database and no stale or substitute content is present.
   failed counts and mandatory-area coverage.
 - `coverage.json` — `cubi-knowledge-coverage.v1` report for the two ingestable
   sources.
+- `source-audit.json` — `cubi-knowledge-source-audit.v1` live audit of every
+  official TOC and landing page, with hashes, counts and the 527/557 resolution.
 - `translation-matrix.json` — `cubi-knowledge-translation-matrix.v1` per-locale
   card content, translation/review status, version and hash.
 - `assistant-smoke.json` — `cubi-multilingual-assistant-smoke.v1` answers for
@@ -78,6 +100,10 @@ python3 tools/knowledge_multilingual_evidence.py \
   --db docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/cubi-knowledge-v26.sqlite3 \
   --out docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12 \
   --copy-db /tmp/cubi-multilingual-smoke.sqlite3
+
+python3 tools/knowledge_source_audit.py \
+  --db docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/cubi-knowledge-v26.sqlite3 \
+  --out docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/source-audit.json
 ```
 
 The evidence tools never write credentials and never create projects in the

@@ -218,6 +218,13 @@ def build_translation(
             elif isinstance(item, (list, tuple)) and len(item) == 2:
                 glossary.append((str(item[0]), str(item[1])))
     metadata = payload.get("localization_metadata")
+    localization_metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
+    # The contributor identity and the origin of the text are part of the
+    # translation record, not only of the surrounding audit entry.
+    localization_metadata.setdefault("translator_id", actor_id)
+    localization_metadata.setdefault("translated_at", now.isoformat())
+    localization_metadata.setdefault("translation_source", translation_source.value)
+    localization_metadata.setdefault("machine_translated", machine)
     record = TranslationRecord(
         card_id=card.card_id,
         locale=resolved,
@@ -239,7 +246,7 @@ def build_translation(
         published_language_version=None,
         translation_source=translation_source,
         machine_translated=machine,
-        localization_metadata=dict(metadata) if isinstance(metadata, Mapping) else {},
+        localization_metadata=localization_metadata,
         content_hash="",
         updated_at=now,
         reviewer=None,
@@ -301,6 +308,35 @@ def publish_translation(
     )
     published.validate()
     return published
+
+
+def retire_translation(
+    record: TranslationRecord,
+    *,
+    reviewer: str,
+    now: datetime,
+) -> TranslationRecord:
+    """Retire a published or approved locale without deleting its history.
+
+    The published language version is retained so an old answer can still point
+    at the version that was live; the record simply stops being answerable.
+    """
+
+    if not reviewer or not reviewer.strip():
+        raise TranslationError("KNOWLEDGE_TRANSLATION_REVIEWER_REQUIRED")
+    if record.translation_status not in {
+        TranslationStatus.APPROVED,
+        TranslationStatus.PUBLISHED,
+    }:
+        raise TranslationError("KNOWLEDGE_TRANSLATION_NOT_RETIRABLE")
+    retired = replace(
+        record,
+        translation_status=TranslationStatus.RETIRED,
+        reviewer=reviewer,
+        updated_at=now,
+    )
+    retired.validate()
+    return retired
 
 
 def answerable_record(

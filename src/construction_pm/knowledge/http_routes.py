@@ -224,6 +224,16 @@ class KnowledgeHttpMiddleware:
             return _json(
                 200, self._api.publish_translation(principal, parts[1], parts[3])
             )
+        if (
+            parts[:1] == ["cards"]
+            and len(parts) == 5
+            and parts[2] == "translations"
+            and parts[4] == "retire"
+            and method == "POST"
+        ):
+            return _json(
+                200, self._api.retire_translation(principal, parts[1], parts[3])
+            )
         if parts[:1] == ["cards"] and len(parts) == 3 and method == "POST":
             card_id, action = parts[1], parts[2]
             body = self._body(environ)

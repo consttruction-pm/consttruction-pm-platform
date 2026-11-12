@@ -37,6 +37,7 @@ from .model import (
     LanguageContext,
     ReviewStatus,
     SearchScope,
+    TranslationRecord,
     iso,
     utc_now,
 )
@@ -48,6 +49,7 @@ from .translations import (
     localized_card_payload,
     localized_record,
     publish_translation,
+    retire_translation,
     review_translation,
     source_record,
     translation_coverage,
@@ -262,23 +264,30 @@ class KnowledgeAPI:
             existing=existing,
         )
         self.store.save_translation(record)
+        detail: dict[str, object] = {
+            "locale": resolved,
+            "translation_version": record.translation_version,
+            "translation_status": record.translation_status.value,
+            "translator_id": record.localization_metadata.get("translator_id"),
+            "translation_source": record.translation_source.value,
+        }
+        if existing is not None:
+            # Keep the replaced content in the immutable event so a published
+            # locale can be audited against the exact version it superseded.
+            detail["previous"] = _translation_snapshot(existing)
         self.store.record_card_event(
             card_id,
             action="translation_saved",
             actor_id=principal.user_id,
             occurred_at=iso(self._clock()),
-            detail={
-                "locale": resolved,
-                "translation_version": record.translation_version,
-                "translation_status": record.translation_status.value,
-            },
+            detail=detail,
         )
         self._audit(
             principal,
             "knowledge_translation_save",
             f"{card_id}:{resolved}",
             "succeeded",
-            {"translation_version": record.translation_version},
+            detail,
         )
         return record.as_dict()
 
@@ -299,23 +308,27 @@ class KnowledgeAPI:
             record, reviewer=principal.user_id, accept=accept, now=self._clock()
         )
         self.store.save_translation(updated)
+        detail = {
+            "locale": resolved,
+            "translation_version": updated.translation_version,
+            "translation_status": updated.translation_status.value,
+            "review_status": updated.review_status.value,
+            "accept": accept,
+            "previous": _translation_snapshot(record),
+        }
         self.store.record_card_event(
             card_id,
             action="translation_reviewed" if accept else "translation_rejected",
             actor_id=principal.user_id,
             occurred_at=iso(self._clock()),
-            detail={
-                "locale": resolved,
-                "translation_version": updated.translation_version,
-                "translation_status": updated.translation_status.value,
-            },
+            detail=detail,
         )
         self._audit(
             principal,
             "knowledge_translation_review",
             f"{card_id}:{resolved}",
             "succeeded",
-            {"accept": accept, "translation_version": updated.translation_version},
+            detail,
         )
         return updated.as_dict()
 
@@ -334,27 +347,63 @@ class KnowledgeAPI:
             card, record, reviewer=principal.user_id, now=self._clock()
         )
         self.store.save_translation(published)
+        detail = {
+            "locale": resolved,
+            "published_language_version": published.published_language_version,
+            "translation_version": published.translation_version,
+            "reviewer": published.reviewer,
+            "previous": _translation_snapshot(record),
+        }
         self.store.record_card_event(
             card_id,
             action="translation_published",
             actor_id=principal.user_id,
             occurred_at=iso(self._clock()),
-            detail={
-                "locale": resolved,
-                "published_language_version": published.published_language_version,
-            },
+            detail=detail,
         )
         self._audit(
             principal,
             "knowledge_translation_publish",
             f"{card_id}:{resolved}",
             "succeeded",
-            {
-                "locale": resolved,
-                "published_language_version": published.published_language_version,
-            },
+            detail,
         )
         return published.as_dict()
+
+    def retire_translation(
+        self, principal: AssistantPrincipal, card_id: str, locale: str
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_PUBLISH)
+        resolved = require_locale(locale)
+        record = self.store.get_translation(card_id, resolved)
+        if record is None:
+            raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        retired = retire_translation(
+            record, reviewer=principal.user_id, now=self._clock()
+        )
+        self.store.save_translation(retired)
+        detail = {
+            "locale": resolved,
+            "translation_version": retired.translation_version,
+            "translation_status": retired.translation_status.value,
+            "published_language_version": retired.published_language_version,
+            "previous": _translation_snapshot(record),
+        }
+        self.store.record_card_event(
+            card_id,
+            action="translation_retired",
+            actor_id=principal.user_id,
+            occurred_at=iso(self._clock()),
+            detail=detail,
+        )
+        self._audit(
+            principal,
+            "knowledge_translation_retire",
+            f"{card_id}:{resolved}",
+            "succeeded",
+            detail,
+        )
+        return retired.as_dict()
 
     def _available_locales(self, card) -> list[dict[str, object]]:
         rows: list[dict[str, object]] = []
@@ -667,6 +716,23 @@ class KnowledgeAPI:
             occurred_at=iso(self._clock()),
             detail=detail,
         )
+
+
+def _translation_snapshot(record: TranslationRecord) -> dict[str, object]:
+    """Compact, JSON-safe copy of a translation version for the audit trail."""
+
+    return {
+        "translation_version": record.translation_version,
+        "translation_status": record.translation_status.value,
+        "review_status": record.review_status.value,
+        "translation_source": record.translation_source.value,
+        "machine_translated": record.machine_translated,
+        "content_hash": record.content_hash,
+        "title": record.title,
+        "summary": record.summary,
+        "steps": list(record.steps),
+        "updated_at": iso(record.updated_at),
+    }
 
 
 def _card(card) -> dict[str, object]:

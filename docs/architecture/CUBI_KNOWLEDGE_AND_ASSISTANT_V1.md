@@ -120,7 +120,7 @@ Translation is not a property of a card. Every locale owns one
 publication state:
 
 - status: `missing`, `draft`, `translated`, `review_required`, `approved`,
-  `published`;
+  `published`, `retired`;
 - review: `pending`, `approved`, `rejected`;
 - source: `official_source`, `cubi_authored`, `human`, `machine`, `imported`;
 - fields: `locale`, `language_code`, `source_language`, title, summary, body,
@@ -141,7 +141,11 @@ Rules enforced by the model and the service layer:
 - publishing one locale never touches another. Russian can be published while
   Persian remains `translated`;
 - editing an approved translation creates a new version and resets review to
-  `pending`;
+  `pending`; the replaced version's title, summary, steps, hash and status are
+  preserved in the immutable audit detail, and the contributor identity and
+  translation source are stored on the record;
+- retiring an approved or published locale keeps `published_language_version`
+  for traceability but removes it from answerable content;
 - a client-facing payload that borrows English title/summary/steps lists those
   fields in `fallback_fields` and sets `mixed_language: true`.
 
@@ -296,6 +300,7 @@ The WSGI middleware owns only `/api/knowledge*` and
 - `PUT /api/knowledge/cards/{id}/translations/{locale}`
 - `POST /api/knowledge/cards/{id}/translations/{locale}/review`
 - `POST /api/knowledge/cards/{id}/translations/{locale}/publish`
+- `POST /api/knowledge/cards/{id}/translations/{locale}/retire`
 - `POST /api/knowledge/cards/{id}/review|publish|retire`
 - `GET|POST /api/knowledge/eps`
 - `GET /api/knowledge/audit`
@@ -345,8 +350,8 @@ or invalid sessions `401`.
 
 ## 11. Verification and evidence
 
-- Knowledge tests: `python -m pytest -q tests/knowledge` → 173 passed.
-- Full Python suite: 3719 passed, 113 skipped.
+- Knowledge tests: `python -m pytest -q tests/knowledge` → 182 passed.
+- Full Python suite: 3,778 passed, 116 skipped, 3 warnings.
 - Live Version 26 ingestion from the two authoritative HTML sources:
   - HTML Help (`client_help/en_US/toc.htm`): 982/982 converted, 0 failed.
   - User Guide (`English/User_Guides/p6_pro_user/toc.htm`): 557/557 converted,
@@ -354,16 +359,22 @@ or invalid sessions `401`.
   - 1,539 topics converted in total; 509 cross-source duplicates merged onto
     canonical cards with `topic_merged` audit records; 1,030 unique cards
     retained.
+- Source audit: every official HTML TOC and landing page was re-fetched and
+  hashed. The alternate `pro-help` (988) and `pro-user` (527) editions are
+  official but not ingested; the 527/557 discrepancy is resolved as two
+  different User Guide TOCs, with only the G48902 edition (557) using the
+  `p6-26-user-guide` id.
 - Mandatory coverage: 31/31 areas covered by HTML Help; 29/31 by the User Guide
   alone (the combined corpus covers all 31).
 - Multilingual evidence: ten locales, nine seeded translations
   (`translated`/`pending`, never published in the evidence database), published
   Russian exercised only in a disposable copy, ten localized searches, Russian
-  and Persian workflow starts.
+  and Persian workflow starts. Translation revisions keep the replaced content
+  in immutable audit detail and a retired locale keeps its published version.
 - Evidence: `docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/`
-  contains the draft SQLite database, ingestion and coverage reports, the
-  per-locale translation matrix, assistant smoke output, translation seed
-  report and `SOURCE_STATUS.md`.
+  contains the draft SQLite database, ingestion and coverage reports, the live
+  source audit, the per-locale translation matrix, assistant smoke output,
+  translation seed report and `SOURCE_STATUS.md`.
 
 ## 12. Deliberate non-goals and open items
 

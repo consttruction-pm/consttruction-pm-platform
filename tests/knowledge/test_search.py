@@ -162,6 +162,76 @@ def test_persian_normalization_matches_arabic_forms(store, card_factory, publish
     assert outcome.hits[0].title == "ایجاد پروژه"
 
 
+def test_arabic_orthographic_variants_share_one_token_form() -> None:
+    assert tokenize("مستشفى") == tokenize("مستشفي") == ("مستشفی",)
+    assert tokenize("إنشاء") == tokenize("انشاء") == ("انشاء",)
+    assert tokenize("مَشْـــروع") == ("مشروع",)
+    assert tokenize("مشروعاً") == ("مشروعا", "مشروع")
+
+
+def test_arabic_normalization_does_not_merge_distinct_persian_words() -> None:
+    assert tokenize("آب") == ("آب",)
+    assert tokenize("اب") == ("اب",)
+    assert tokenize("آب") != tokenize("اب")
+
+
+def test_arabic_hamza_tatweel_and_diacritics_match_the_source_card(
+    store, card_factory, publish_factory
+) -> None:
+    _save_published(
+        store,
+        publish_factory,
+        card_factory,
+        title="إنشاء مشروع",
+        purpose="إنشاء مشروع جديد وإضافته إلى هيكل EPS.",
+        topic_key="ar-project.html",
+    )
+
+    for query in ("انشاء مشروع", "إنشاء مشـــروع", "إِنْشَاء مَشْرُوع"):
+        outcome = search(store, central_scope(), query)
+        assert outcome.insufficient_knowledge is False, query
+        assert outcome.hits[0].title == "إنشاء مشروع", query
+        assert outcome.hits[0].evidence["matched_terms"]
+
+
+def test_arabic_query_and_document_use_the_same_normalization_path(
+    store, card_factory, publish_factory
+) -> None:
+    _save_published(
+        store,
+        publish_factory,
+        card_factory,
+        title="إدارة المستشفى",
+        purpose="إدارة المستشفى في المشروع.",
+        topic_key="ar-hospital.html",
+    )
+
+    plain = search(store, central_scope(), "ادارة المستشفي")
+    variant = search(store, central_scope(), "إدارة المستشفى")
+
+    assert plain.hits and variant.hits
+    assert plain.hits[0].card_id == variant.hits[0].card_id
+    assert plain.hits[0].evidence["matched_terms"] == variant.hits[0].evidence["matched_terms"]
+
+
+def test_arabic_query_does_not_match_an_unrelated_card(
+    store, card_factory, publish_factory
+) -> None:
+    _save_published(
+        store,
+        publish_factory,
+        card_factory,
+        title="مستشفى",
+        purpose="مستشفى ميداني.",
+        topic_key="ar-unrelated.html",
+    )
+
+    outcome = search(store, central_scope(), "مشروع")
+
+    assert outcome.hits == ()
+    assert outcome.insufficient_knowledge is True
+
+
 def test_tokenizer_drops_stopwords_and_normalizes_digits() -> None:
     assert tokenize("How do I create a project?") == ("create", "project")
     assert tokenize("نسخه ۲۶ از ۳") == ("نسخه", "26")
@@ -305,6 +375,18 @@ def test_chinese_query_without_whitespace_retrieves_the_card(
 def test_russian_inflected_forms_reach_the_same_stem() -> None:
     assert tokenize("проект") == tokenize("проекта") == tokenize("проектом")
     assert tokenize("создание") == tokenize("создания") == tokenize("созданием")
+
+
+def test_cjk_tokenization_keeps_technical_terms_without_whitespace() -> None:
+    simplified = tokenize("项目创建")
+    traditional = tokenize("專案建立")
+    japanese = tokenize("プロジェクトを作成するには")
+    korean = tokenize("프로젝트를 어떻게 생성합니까")
+
+    assert {"项", "目", "项目", "创建"} <= set(simplified)
+    assert {"專", "案", "專案", "建立"} <= set(traditional)
+    assert {"プロジェクト", "作成"} <= set(japanese)
+    assert {"프로젝트", "생성"} <= set(korean)
 
 
 def test_locale_filter_returns_the_localized_translation(

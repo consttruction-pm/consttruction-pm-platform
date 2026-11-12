@@ -21,6 +21,7 @@ from construction_pm.knowledge.translations import (
     localized_record,
     missing_record,
     publish_translation,
+    retire_translation,
     review_translation,
     source_record,
     translation_coverage,
@@ -134,6 +135,30 @@ def test_review_and_publish_are_per_locale(store, card_factory, publish_factory)
     assert stored_fa.published_language_version is None
     assert store.get_translation(card.card_id, "ru").translation_status is TranslationStatus.PUBLISHED
     assert store.get_translation(card.card_id, "ru").published_language_version == 1
+
+
+def test_retired_locale_keeps_its_version_and_stops_answering(
+    store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory())
+    russian = _build(card, "ru")
+    approved = review_translation(russian, reviewer="reviewer-1", accept=True, now=NOW)
+    published = publish_translation(card, approved, reviewer="reviewer-1", now=LATER)
+    retired = retire_translation(published, reviewer="retirer-1", now=LATER)
+
+    assert retired.translation_status is TranslationStatus.RETIRED
+    assert retired.published_language_version == 1
+    assert retired.available() is False
+    assert retired.approved_for_answer() is False
+    store.save_translation(retired)
+
+    record, fallback = answerable_record(store, card, "ru")
+    assert fallback is True
+    assert record.locale == "en"
+    assert record.localization_metadata["requested_translation_status"] == "retired"
+
+    with pytest.raises(TranslationError):
+        retire_translation(_build(card, "fa"), reviewer="retirer-1", now=LATER)
 
 
 def test_machine_translation_cannot_be_approved_or_published(card_factory, publish_factory) -> None:

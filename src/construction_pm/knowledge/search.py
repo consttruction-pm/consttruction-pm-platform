@@ -273,39 +273,38 @@ _QUERY_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 # Arabic orthography normalization. Tashkeel (short vowels) and tanween are
-# optional in writing, so they are removed; the accusative tanween leaves a
-# trailing alif that is stripped from the token. Alef/ya/ta-marbuta variants are
-# folded to one form so a query matches the same word written differently.
+# optional in writing and are removed by ``normalize_terms``; tatweel is also
+# stripped there. Alef variants and ta-marbuta are folded here so a query
+# matches the same word written differently. Alef-madda (آ) is deliberately not
+# folded: in Persian it distinguishes real words such as آب and اب.
 _AR_DIACRITICS = re.compile(r"[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]")
-_AR_TANWEEN = re.compile(r"[\u064b-\u064d]")
 _AR_FOLD = {
-    0x0622: "\u0627",  # آ -> ا
     0x0623: "\u0627",  # أ -> ا
     0x0625: "\u0627",  # إ -> ا
     0x0671: "\u0627",  # ٱ -> ا
-    0x0649: "\u064a",  # ى -> ي
-    0x0626: "\u064a",  # ئ -> ي
     0x0624: "\u0648",  # ؤ -> و
     0x0629: "\u0647",  # ة -> ه
 }
 
 
 def _normalize_arabic(token: str) -> str:
-    """Fold Arabic orthographic variants without changing Persian letters."""
+    """Fold Arabic orthographic variants without changing the stored text."""
 
     if not _ARABIC_SCRIPT.search(token):
         return token
-    had_tanween = bool(_AR_TANWEEN.search(token))
-    value = _AR_DIACRITICS.sub("", token).translate(_AR_FOLD)
-    if had_tanween and value.endswith("\u0627") and len(value) > 3:
-        value = value[:-1]
-    return value
+    return _AR_DIACRITICS.sub("", token).translate(_AR_FOLD)
 
 
-# Alias keys are indexed in their normalized form so inflected or unvocalized
-# Arabic queries still expand to the official English term.
+def _canonical_arabic(value: str) -> str:
+    """Apply the exact tokenizer path used for queries and documents."""
+
+    return _normalize_arabic(normalize_terms(value))
+
+
+# Alias keys are indexed in canonical token form so inflected, unvocalized or
+# Arabic-typed spellings still expand to the official English term.
 _AR_ALIASES = {
-    _normalize_arabic(key): value
+    _canonical_arabic(key): value
     for key, value in _QUERY_ALIASES.items()
     if _ARABIC_SCRIPT.search(key)
 }

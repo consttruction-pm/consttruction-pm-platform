@@ -1,0 +1,222 @@
+{
+  "contract": "cubi-knowledge-source-audit.v1",
+  "sources": [
+    {
+      "source_id": "p6-26-html-help",
+      "registry": "P6_26_HTML_HELP",
+      "title": "Version 26 HTML Help table of contents",
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+      "kind": "html_help",
+      "role": "authoritative_ingest",
+      "http_status": 200,
+      "content_hash": "ef78a19c6f3f2a7797456af6d592d5474d0c054692bf75de1392d1d894f1c92e",
+      "content_bytes": 102589,
+      "topic_count": 982,
+      "first_topic": "Title and Copyright Information",
+      "last_topic": "Cookies Policy P6 Professional"
+    },
+    {
+      "source_id": "p6-26-user-guide",
+      "registry": "P6_26_USER_GUIDE",
+      "title": "Version 26 Professional User Guide",
+      "url": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
+      "kind": "user_guide",
+      "role": "authoritative_ingest",
+      "http_status": 200,
+      "content_hash": "c619051559bba3c0e7eb650a21c5b7910f46948ed7e457caa82ba1f252e4be89",
+      "content_bytes": 57952,
+      "topic_count": 557,
+      "first_topic": "Title and Copyright Information",
+      "last_topic": "Launching P6 Visualizer from P6 Professional"
+    },
+    {
+      "source_id": "p6-26-help",
+      "registry": "P6_26_HELP",
+      "title": "Version 26 Professional Help",
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-help/toc.htm",
+      "kind": "help",
+      "role": "official_alternate_not_ingested",
+      "http_status": 200,
+      "content_hash": "00602394c07597172b4f911a5e1ec93a99539627765d5404f017dee58fd52cbf",
+      "content_bytes": 316134,
+      "topic_count": 988,
+      "first_topic": "Title and Copyright Information",
+      "last_topic": "Cookies Policy P6 Professional"
+    },
+    {
+      "source_id": "p6-26-user-guide-pro-user",
+      "registry": "none",
+      "title": "Version 26 Professional User Guide (pro-user TOC)",
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm",
+      "kind": "user_guide",
+      "role": "official_alternate_not_ingested",
+      "http_status": 200,
+      "content_hash": "0d2487c625a532daac46df83b647cf5ff55883389c579d4b046c96f8af168e5b",
+      "content_bytes": 175258,
+      "topic_count": 527,
+      "first_topic": "Title and Copyright Information",
+      "last_topic": "Launching P6 Visualizer from P6 Professional"
+    },
+    {
+      "source_id": "p6-26-docs-home",
+      "registry": "P6_26_DOCS_HOME",
+      "title": "Version 26 documentation set",
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/",
+      "kind": "documentation_home",
+      "role": "landing_not_ingested",
+      "http_status": 200,
+      "content_hash": "303b95c15687fd0e6d777c995295d108a3deb13aacdfab18cd38b0bdbb437fd4",
+      "content_bytes": 23387,
+      "link_count": 25,
+      "links": [
+        "https://docs.oracle.com/",
+        "https://docs.oracle.com/cd/E64687_01/EPPM/EPPM_CFO.html",
+        "https://docs.oracle.com/cd/E64687_01/EPPM/EPPM_CFO.zip",
+        "https://docs.oracle.com/en/industries/construction-engineering/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/admin.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/faq.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/guides.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/previous.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/sp_common/site-template/ohc-site-template/css/site.css",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/support.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/training.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/user.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-wn26/index.html",
+        "https://docs.oracle.com/en/industries/index.html",
+        "https://docs.oracle.com/index.html",
+        "https://docs.oracle.com/pls/topic/lookup?ctx=en/legal&amp;id=about",
+        "https://docs.oracle.com/pls/topic/lookup?ctx=en/legal&amp;id=contact",
+        "https://docs.oracle.com/pls/topic/lookup?ctx=en/legal&amp;id=cpyr",
+        "https://docs.oracle.com/pls/topic/lookup?ctx=en/legal&amp;id=privacy",
+        "https://docs.oracle.com/sp_common/site-template/ohc-common/img/favicon.ico",
+        "https://docs.oracle.com/sp_common/site-template/ohc-site-template/css/site.css"
+      ]
+    },
+    {
+      "source_id": "p6-26-books",
+      "registry": "P6_26_BOOKS",
+      "title": "Version 26 documentation index",
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html",
+      "kind": "document_index",
+      "role": "landing_not_ingested",
+      "http_status": 200,
+      "content_hash": "188ea33e8bf32690d62b9dabd8dacc842e9736c30517e2d5227fc370ea033daf",
+      "content_bytes": 26660,
+      "link_count": 35,
+      "links": [
+        "https://docs.oracle.com/",
+        "https://docs.oracle.com/en/industries/construction-engineering/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/admin.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/faq.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/guides.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/previous.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-admin/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-admin/p6-professional-administration-guide.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-help/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-help/p6-professional-help.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-license/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-license/p6-professional-licensing-information-user-manual.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-reports/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-reports/p6-professional-reporting-guide.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/p6-professional-user-guide.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-viz-help/index.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-viz-help/p6-visualizer-help.pdf",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/sp_common/site-template/ohc-site-template/css/site.css",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/support.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/training.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/user.html",
+        "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/index.html"
+      ]
+    }
+  ],
+  "database": {
+    "card_total": 1030,
+    "card_status_counts": {
+      "draft": 1030
+    },
+    "sources": [
+      {
+        "source_id": "p6-26-html-help",
+        "registered_in_database": true,
+        "status": "converted",
+        "toc_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+        "topic_counts": {
+          "total": 982,
+          "converted": 982
+        },
+        "card_count": 982
+      },
+      {
+        "source_id": "p6-26-user-guide",
+        "registered_in_database": true,
+        "status": "converted",
+        "toc_url": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
+        "topic_counts": {
+          "total": 557,
+          "converted": 557
+        },
+        "card_count": 48
+      },
+      {
+        "source_id": "p6-26-help",
+        "registered_in_database": false,
+        "status": null,
+        "toc_url": null,
+        "topic_counts": {
+          "total": 0
+        },
+        "card_count": 0
+      },
+      {
+        "source_id": "p6-26-user-guide-pro-user",
+        "registered_in_database": false,
+        "status": null,
+        "toc_url": null,
+        "topic_counts": {
+          "total": 0
+        },
+        "card_count": 0
+      },
+      {
+        "source_id": "p6-26-docs-home",
+        "registered_in_database": false,
+        "status": null,
+        "toc_url": null,
+        "topic_counts": {
+          "total": 0
+        },
+        "card_count": 0
+      },
+      {
+        "source_id": "p6-26-books",
+        "registered_in_database": false,
+        "status": null,
+        "toc_url": null,
+        "topic_counts": {
+          "total": 0
+        },
+        "card_count": 0
+      }
+    ]
+  },
+  "user_guide_discrepancy": {
+    "count_527": {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm",
+      "topic_count": 527,
+      "explanation": "legacy pro-user TOC, a separate official edition"
+    },
+    "count_557": {
+      "url": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm",
+      "topic_count": 557,
+      "explanation": "G48902 p6_pro_user TOC, used by this branch and evidence database"
+    },
+    "resolution": "527 and 557 are two different official User Guide TOCs; this branch ingests the G48902 p6_pro_user edition (557) and does not mix the pro-user edition (527) into the same source id."
+  }
+}
