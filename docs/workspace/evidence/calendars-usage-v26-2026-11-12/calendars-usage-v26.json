@@ -1,0 +1,90 @@
+{
+  "contract": "cubi-calendars-usage-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f714cf9453a2742f4d9222cdbbdde506549f712b",
+  "testedCodeSha": "f714cf9453a2742f4d9222cdbbdde506549f712b",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T03:43:34.573Z",
+  "calendarId": "CUBI-RPS-CAL",
+  "assignmentId": "RPS-E2E-CAL-MWD06MJS",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "فهرست استفاده‌کنندگان تقویم، منبع ذخیره‌شده را نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-12T03:43:38.831Z",
+      "total": 1,
+      "counts": {
+        "resource_calendar_assignment": 1
+      }
+    },
+    {
+      "id": "02",
+      "name": "تخصیص منبع با مرجع تقویم ذخیره می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T03:43:40.381Z",
+      "assignmentId": "RPS-E2E-CAL-MWD06MJS",
+      "calendarId": "CUBI-RPS-CAL"
+    },
+    {
+      "id": "03",
+      "name": "استفاده‌کنندگان تقویم پس از تخصیص دو مرجع را می‌شمارند",
+      "status": "pass",
+      "at": "2026-11-12T03:43:41.509Z",
+      "total": 2,
+      "kinds": [
+        "resource_assignment_calendar",
+        "resource_calendar_assignment"
+      ]
+    },
+    {
+      "id": "04",
+      "name": "تقویم ناشناخته و نسخهٔ ناشناخته ۴۰۴ می‌دهند",
+      "status": "pass",
+      "at": "2026-11-12T03:43:41.514Z",
+      "missing": 404,
+      "staleVersion": 404
+    },
+    {
+      "id": "05",
+      "name": "نقش Viewer فهرست استفاده را می‌خواند اما تخصیص نمی‌سازد",
+      "status": "pass",
+      "at": "2026-11-12T03:43:46.173Z",
+      "readTotal": "2",
+      "createStatus": 403
+    },
+    {
+      "id": "06",
+      "name": "زبانهٔ استفاده‌کنندگان در 1280×720 فارسی راست‌به‌چپ بدون بریدگی رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T03:43:50.729Z",
+      "innerWidth": 1280,
+      "direction": "rtl",
+      "heading": "جزئیات تقویم",
+      "usage": {
+        "x": 55,
+        "y": 255.5,
+        "width": 803.90625,
+        "height": 178
+      },
+      "table": {
+        "x": 55,
+        "y": 285,
+        "width": 803.90625,
+        "height": 100
+      },
+      "total": "2"
+    }
+  ],
+  "screenshots": [
+    "01-usage-resource-master.png",
+    "02-assignment-calendar-saved.png",
+    "03-usage-after-assignment.png",
+    "04-viewer-denied.png",
+    "05-usage-1280x720-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T03:43:50.729Z"
+}
