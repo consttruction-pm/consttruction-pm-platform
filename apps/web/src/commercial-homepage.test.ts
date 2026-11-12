@@ -85,6 +85,8 @@ test("the landing language follows its route and persists the accepted preferenc
 test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = string/);
   assert.match(landing, /cubi-language/);
+  assert.match(landing, /<select class="cubi-exact-language" id="cubi-language"/);
+  assert.match(landing, /getLandingHomepageLocales\(\)\.map/);
   assert.match(landing, /getAvailableWorkspaceLocales\(\)/);
   assert.match(landing, /translateWorkspaceText/);
   for (const pattern of [
