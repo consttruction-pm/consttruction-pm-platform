@@ -21,6 +21,8 @@ const capable: DesktopShellCapabilities = {
   canRedoLayout: true,
   hasWbs: true,
   hasSelectedActivity: true,
+  hasMultiSelection: true,
+  hasActivities: true,
   hasRelationships: true,
   hasMultipleWindows: true,
   canOpenFieldChooser: true,
@@ -184,7 +186,7 @@ test("the menu bar mirrors the eight professional workspace menus in order", () 
   );
   assert.deepEqual(
     menus.map((menu) => menu.accessKey),
-    ["w", "e", "v", "p", "o", "t", "a", "h"],
+    ["f", "e", "v", "p", "n", "t", "a", "h"],
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
@@ -384,7 +386,10 @@ test("toolbar commands are real and track layout history and selection", () => {
 
 test("Persian labels are provided for menus, items and window titles", () => {
   const menus = getDesktopMenus(shellState({}, "fa"));
-  assert.equal(menus[0]?.label.fa, "محیط کار");
+  assert.equal(menus[0]?.label.fa, "فایل");
+  assert.equal(menus[0]?.label.en, "File");
+  assert.equal(menus[4]?.label.en, "Enterprise");
+  assert.equal(menus[6]?.label.en, "Admin");
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
 });
@@ -566,7 +571,7 @@ test("menu triggers expose their Alt access key and separators render as separat
     onCommand: () => {},
   });
   const html = recorded.html();
-  for (const key of ["w", "e", "v", "p", "o", "t", "a", "h"]) {
+  for (const key of ["f", "e", "v", "p", "n", "t", "a", "h"]) {
     assert.match(html, new RegExp(`data-desktop-access="${key}"`));
     assert.match(html, new RegExp(`aria-keyshortcuts="Alt\\+${key.toUpperCase()}"`));
   }
@@ -603,4 +608,128 @@ test("logic layouts explain why they are unavailable instead of pretending to wo
   for (const id of ["view.top-table", "view.top-table-gantt", "view.top-network", "view.bottom-details", "view.bottom-trace", "view.bottom-none"]) {
     assert.match(otherWindow?.items.find((item) => item.id === id)?.disabledReason?.en ?? "", /Activities window/i);
   }
+});
+
+test("every application menu item resolves to one recognizable command icon", async () => {
+  const { desktopMenuIcon } = await import("./workspace-command-icons.js");
+  for (const menu of getDesktopMenus(shellState())) {
+    for (const item of menu.items) {
+      if (item.separator) {
+        assert.equal(desktopMenuIcon(item.id), undefined, `${item.id} is a separator`);
+        continue;
+      }
+      assert.ok(desktopMenuIcon(item.id), `${menu.id}/${item.id} must carry an icon`);
+    }
+  }
+  assert.equal(desktopMenuIcon("window.schedule"), "activity");
+  assert.equal(desktopMenuIcon("view.toolbar-layout"), "workspace");
+  assert.equal(desktopMenuIcon("view.theme-classic"), "workspace");
+});
+
+test("the toolbar follows the Version 26 family order and owns each command once", () => {
+  const toolbar = getDesktopToolbar(shellState());
+  const groups = getDesktopToolbarGroups(shellState()).map((group) => group.id);
+  // Reports and the document windows belong to their own windows, so the
+  // Activities context shows the ten families it can actually run.
+  assert.deepEqual(groups, ["workspace", "edit", "layout", "view", "project", "activities", "wbs", "gantt", "resources", "tools"]);
+  const commands = toolbar
+    .map((item) => item.command)
+    .filter((value): value is NonNullable<typeof value> => Boolean(value));
+  assert.equal(new Set(commands).size, commands.length, "a command must appear in exactly one toolbar family");
+  // New and Open are distinct commands that both land on the project window,
+  // so only the window navigation command itself must be unique per target.
+  const windowTargets = toolbar
+    .filter((item) => item.window && !["toolbar.new", "toolbar.open"].includes(item.id))
+    .map((item) => item.window);
+  assert.equal(new Set(windowTargets).size, windowTargets.length, "a destination window must be opened by one family");
+  const layout = toolbar.filter((item) => item.group === "layout").map((item) => item.id);
+  assert.deepEqual(layout, [
+    "toolbar.open-layout",
+    "toolbar.save-layout",
+    "toolbar.save-as",
+    "toolbar.bars",
+    "toolbar.columns",
+    "toolbar.timescale",
+    "toolbar.filters",
+    "toolbar.group-sort",
+    "toolbar.group-wbs",
+    "toolbar.line-numbers",
+    "toolbar.font-row",
+    "toolbar.preferences",
+  ]);
+  assert.equal(toolbar.some((item) => item.id === "toolbar.gantt" && item.group === "layout"), false);
+});
+
+test("the activity grid strip uses four distinct reset and split icons", async () => {
+  const icons = await import("./workspace-icons.js");
+  const names = ["resetTableSplit", "resetDetailsSplit", "resetColumns", "saveAs"] as const;
+  const geometries = names.map((name) => icons.workspaceIcon(name));
+  assert.equal(new Set(geometries).size, names.length, "each reset command needs its own glyph");
+  for (const name of names) assert.ok((icons.WORKSPACE_ICON_NAMES as readonly string[]).includes(name));
+});
+
+test("Edit menu exposes Select All, Link/Unlink and honest long-tail entries", () => {
+  const edit = getDesktopMenus(shellState()).find((menu) => menu.id === "edit");
+  assert.ok(edit);
+  const item = (id: string) => edit.items.find((entry) => entry.id === id);
+  assert.equal(item("edit.select-all")?.command, "edit.select-all");
+  assert.equal(item("edit.select-all")?.shortcut, "Ctrl+A");
+  assert.equal(item("edit.select-all")?.disabledReason, undefined);
+  assert.equal(item("edit.link")?.command, "edit.link");
+  assert.equal(item("edit.unlink")?.command, "edit.unlink");
+  // Fill Down and Dissolve have no safe write contract yet, so they must state
+  // the CUBI equivalent instead of pretending a button is enough.
+  assert.match(item("edit.fill-down")?.disabledReason?.en ?? "", /Activity Details/);
+  assert.match(item("edit.dissolve")?.disabledReason?.en ?? "", /server contract/);
+  assert.match(
+    getDesktopMenus(shellState()).find((menu) => menu.id === "project")?.items
+      .find((entry) => entry.id === "project.additional-activities")?.disabledReason?.en ?? "",
+    /one canonical Activities window/,
+  );
+});
+
+test("Link and Unlink state their real preconditions", () => {
+  const editFor = (patch: Partial<DesktopShellCapabilities>) =>
+    getDesktopMenus(shellState(patch)).find((menu) => menu.id === "edit");
+  const none = editFor({ hasSelectedActivity: false, hasMultiSelection: false });
+  assert.match(none?.items.find((item) => item.id === "edit.link")?.disabledReason?.en ?? "", /Select an activity/i);
+  assert.match(none?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const single = editFor({ hasMultiSelection: false });
+  assert.match(single?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const noRelationships = editFor({ hasRelationships: false });
+  assert.match(noRelationships?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /no persisted relationships/i);
+  assert.equal(editFor({})?.items.find((item) => item.id === "edit.unlink")?.disabledReason, undefined);
+});
+
+test("the edit and display families own Select All, Link/Unlink and Collapse To once", () => {
+  const toolbar = getDesktopToolbar(shellState());
+  const byId = new Map(toolbar.map((item) => [item.id, item]));
+  assert.equal(byId.get("toolbar.select-all")?.command, "edit.select-all");
+  assert.equal(byId.get("toolbar.select-all")?.shortcut, "Ctrl+A");
+  assert.equal(byId.get("toolbar.link")?.command, "edit.link");
+  assert.equal(byId.get("toolbar.unlink")?.command, "edit.unlink");
+  assert.equal(byId.get("toolbar.collapse-to")?.command, "view.collapse-to");
+  assert.ok(byId.get("toolbar.fill-down")?.disabledReason);
+  assert.ok(byId.get("toolbar.dissolve")?.disabledReason);
+  for (const command of ["edit.select-all", "edit.link", "edit.unlink", "view.collapse-to"]) {
+    assert.equal(toolbar.filter((item) => item.command === command).length, 1, `${command} must appear once`);
+  }
+  const noPair = getDesktopToolbar(shellState({ hasMultiSelection: false }));
+  assert.match(noPair.find((item) => item.id === "toolbar.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const noRows = getDesktopToolbar(shellState({ hasActivities: false }));
+  assert.match(noRows.find((item) => item.id === "toolbar.select-all")?.disabledReason?.en ?? "", /Load activities/i);
+});
+
+test("Ctrl+A selects all visible activities through the shortcut catalogue", () => {
+  const shortcuts = getDesktopShortcuts();
+  const shortcut = shortcuts.find((entry) => entry.id === "shortcut.select-all");
+  assert.ok(shortcut);
+  assert.equal(shortcut.command, "edit.select-all");
+  assert.equal(shortcut.keys, "Ctrl+A");
+  assert.equal(matchDesktopShortcut({ key: "a", ctrlKey: true }, shortcuts)?.id, "shortcut.select-all");
+  assert.match(
+    shortcutUnavailableReason(shortcut, shellState({ hasActivities: false }).capabilities)?.en ?? "",
+    /Load activities/i,
+  );
+  assert.equal(shortcutUnavailableReason(shortcut, shellState().capabilities), null);
 });

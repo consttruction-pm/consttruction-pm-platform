@@ -230,3 +230,92 @@ def test_preview_document_approval_is_role_gated_and_permission_checked(tmp_path
         assert json.loads(body)["code"] == "DOCUMENT_NOT_FOUND"
     finally:
         runtime.close()
+
+
+def _binary_request(
+    app,
+    method: str,
+    path: str,
+    *,
+    data: bytes = b"",
+    content_type: str = "",
+    filename: str = "",
+    idempotency_key: str = "",
+    cookie: str | None = None,
+):
+    environ: dict[str, object] = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path.split("?", 1)[0],
+        "QUERY_STRING": path.split("?", 1)[1] if "?" in path else "",
+        "CONTENT_LENGTH": str(len(data)),
+        "wsgi.input": BytesIO(data),
+    }
+    if content_type:
+        environ["CONTENT_TYPE"] = content_type
+    if filename:
+        environ["HTTP_X_FILE_NAME"] = filename
+    if idempotency_key:
+        environ["HTTP_IDEMPOTENCY_KEY"] = idempotency_key
+    if cookie is not None:
+        environ["HTTP_COOKIE"] = f"cp_session={cookie}"
+    captured: dict[str, object] = {}
+
+    def start_response(status, response_headers) -> None:
+        captured["status"] = status
+        captured["headers"] = dict(response_headers)
+
+    chunks = b"".join(app(environ, start_response))
+    return int(str(captured["status"]).split(" ", 1)[0]), captured.get("headers", {}), chunks
+
+
+def test_preview_document_binary_upload_download_and_storage_location(tmp_path: Path) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, body = _request(
+            runtime.app, "POST", DOCUMENTS, body=_payload(), cookie=planner.session_id
+        )
+        assert status == 200, body[:300]
+
+        payload = b"%PDF-1.7\npreview evidence\n%%EOF\n"
+        status, headers, body = _binary_request(
+            runtime.app,
+            "POST",
+            f"{DOCUMENTS}/DOC-PREVIEW-1/content",
+            data=payload,
+            content_type="application/pdf",
+            filename="evidence.pdf",
+            idempotency_key="upload-preview-1",
+            cookie=planner.session_id,
+        )
+        assert status == 201, body[:300]
+        uploaded = json.loads(body)
+        assert uploaded["content"]["version"] == 1
+        assert uploaded["storage_ref"].startswith("local:v1/")
+
+        # Bytes are stored outside SQLite, under the runtime database directory.
+        stored = tmp_path / "document-store" / uploaded["storage_ref"].split("local:v1/", 1)[1]
+        assert stored.is_file()
+        assert stored.read_bytes() == payload
+
+        status, headers, body = _binary_request(
+            runtime.app,
+            "GET",
+            f"{DOCUMENTS}/DOC-PREVIEW-1/content",
+            cookie=planner.session_id,
+        )
+        assert status == 200
+        assert body == payload
+        assert headers["Content-Type"] == "application/pdf"
+        assert "filename*=UTF-8''evidence.pdf" in headers["Content-Disposition"]
+
+        status, body = _request(
+            runtime.app,
+            "GET",
+            f"{DOCUMENTS}/DOC-PREVIEW-1/content/versions",
+            cookie=planner.session_id,
+        )
+        assert status == 200
+        assert json.loads(body)["versions"][0]["byte_size"] == len(payload)
+    finally:
+        runtime.close()

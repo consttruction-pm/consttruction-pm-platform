@@ -98,8 +98,15 @@ Blocking items (a named external dependency or a server capability is required):
 | ID | Class | Gap | Why it blocks |
 | --- | --- | --- | --- |
 | GAP-V26-01 | Evidence | No licensed Version 26 reference run exists in this environment | Numeric parity cannot be claimed; no row can be `IMPLEMENTED_AND_PARITY_TESTED` until an authorized dataset is available |
-| GAP-DOC-02 | Core/server | No binary upload/download route | Documents store metadata plus `storage_ref` and SHA-256 only |
-| GAP-TRK-01 | Core | No tracking read model | The Tracking window remains an honest shell |
+
+Resolved on branch `feat/agent3-core-docs-tracking-storage` (not merged to `main`):
+
+| ID | Delivery | Evidence |
+| --- | --- | --- |
+| GAP-DOC-02 | Binary document upload/download with an allow-listed MIME check, SHA-256 integrity, content-addressed `LocalDocumentStorage`, append-only `project_document_content` versions and idempotent uploads. Routes: `POST/GET .../documents/{id}/content`, `.../content/{version}`, `.../content/versions`; 413/415/409 mappings; WSGI `CONTENT_TYPE` propagation. | `document_storage.py`, `document_content_repository.py`, `document_application.py`, `tests/test_document_binary_storage.py`, preview round-trip in `tests/test_preview_documents.py` |
+| GAP-TRK-01 | Authoritative tracking read model backed by the published schedule facts provider: project table rows, bar-chart buckets, start profile, exact-Decimal resource aggregates and WBS groups, served by `GET /api/projects/{project}/tracking/read` (`tracking-read-model.v1`); the Web Tracking window is wired to the contract with per-view controls, strict payload verification and honest loading/empty/error states | `tracking_read_model.py`, `tests/test_tracking_read_model.py`, `apps/web/src/workspace-tracking.ts`, `apps/web/src/workspace-tracking.test.ts`, `tests/test_project_lifecycle_wsgi.py`, `apps/web/e2e/tracking-v26.mjs` |
+| GAP-RPT-03 | Report-run export pipeline over the stored immutable snapshot: CSV (UTF-8 BOM) and typed XLSX through `GET .../reports/{report_id}/runs/{run_id}/export?format=csv\|xlsx` | `report_export.py`, `tests/test_report_export.py` |
+| GAP-XCH-01 (partial) | Register exchange now exports activities/resources/risks as XLSX and imports resources from XLSX (`format=xlsx`, base64 payload), validated through the same rule set as CSV; CSV remains the default. No XML register import and no activity/WBS import yet. | `exchange_application.py`, `tests/test_exchange_api.py` |
 
 Resolved after the review snapshot: **GAP-BAS-03** — `p6-baseline-capture-api.v1` now captures the latest published schedule snapshot as immutable baseline activities from the Cost Overview; merged implementation `b04d851`, browser-verified at `2a1c6b3` with evidence `1b367ba`. The older GAP-COST-01 browser note that seeded baseline rows manually is superseded by the capture journey.
 
@@ -109,8 +116,8 @@ Also resolved after the review snapshot: **GAP-PRG-02** — `p6-activity-progres
 
 Non-blocking gaps, recorded per surface in the two traceability matrices:
 
-- Exchange imports only resources and only CSV; no XLSX/XML, no remote-project exchange
-  (GAP-XCH-01).
+- Exchange imports only resources; CSV and XLSX are supported, but there is no XML register import
+  and no activity/WBS/assignment/cost import (GAP-XCH-01, partially resolved on the branch below).
 - Backup is project-scoped, non-destructive and without scheduling, retention, encryption or offsite
   copies (GAP-BKP-01).
 - Reports have no scheduling, parameters, grouping, charts or export pipeline.
@@ -133,3 +140,12 @@ permission/revision and browser evidence on the final `main`. The remaining item
 parity blocker, five server-side capability gaps, and the recorded non-blocking product and audit
 gaps above. No module is left as a silent placeholder: each either performs real persisted work or
 states why it cannot.
+
+## 2026-11-12 addendum — Activities chrome
+
+The Activities menu bar, icon toolbar, chart board controls and both vertical rails were re-audited
+and aligned to the Version 26 toolbar topics at code SHA
+`9ddb1fa235eb20c89339e73622719ffb1915cb99`. Twelve requirements measure as MATCH and eight as
+PARTIAL (named command absences, not structural defects); there is no GAP row in this increment.
+Evidence: `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` and
+`docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.

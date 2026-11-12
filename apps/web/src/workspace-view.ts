@@ -160,7 +160,7 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
-const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
+const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 const WORKSPACE_SPLIT_STORAGE_KEY = "cubi:workspace:split";
@@ -670,7 +670,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-command],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -900,11 +900,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       else dialog?.removeAttribute("open");
       return;
     }
-    if (target.dataset.ganttCommand) {
-      const command = target.dataset.ganttCommand;
-      if (command === "bars" || command === "font-row" || command === "user-preferences") options.onGanttCommand?.(command);
-      return;
-    }
     if (target.dataset.ganttScale) {
       const mode = target.dataset.ganttScale;
       if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") options.onGanttScaleChange?.(mode);
@@ -1123,15 +1118,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const depth = Number.parseInt((element as HTMLSelectElement).value, 10);
       storeTraceLogicDepth(depth);
       renderBottomSurface(container, record.state, record.options);
-      return;
-    }
-    if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
-      const value = (element as HTMLSelectElement).value;
-      const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
-      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
-      if (surface) surface.dataset.trackingSurface = value;
-      const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
-      if (heading) heading.textContent = label;
       return;
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
@@ -2145,9 +2131,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                       <button type="button" data-columns-open title="${escapeAttribute(ACTIVITY_CONTEXT_LABELS.columns.en)}" aria-label="${escapeAttribute(uiText(state.locale, "Columns", "ستون‌ها"))}">${workspaceIcon("columns")}</button>
                       <button type="button" data-rail-action="wbs" title="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}" aria-label="${escapeAttribute(uiText(state.locale, "WBS", "ساختار شکست"))}">${workspaceIcon("wbs")}</button>
                       <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
-                      <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}">${workspaceIcon("table")}</button>
-                      <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}">${workspaceIcon("table")}</button>
-                      <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("columns")}</button>
+                      <span class="cp-action-separator" role="separator" aria-orientation="vertical"></span>
+                      <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}">${workspaceIcon("resetTableSplit")}</button>
+                      <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}">${workspaceIcon("resetDetailsSplit")}</button>
+                      <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("resetColumns")}</button>
                     </div>
                   </div>
                   ${renderActivityFilterSort(state, filteredActivities.length, t, groupRows.length, {
@@ -2169,9 +2156,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
-                    <div class="cp-p6-grid-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Gantt toolbar", "نوار ابزار گانت"))}">
-                      <button type="button" data-layout-options-open title="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}" aria-label="${escapeAttribute(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}">${workspaceIcon("settings")}</button>
-                    </div>
                   </div>
                   ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null, state.projectCalendar, selectedActivityIdList(state))}
                 </section>`}`}
@@ -2506,12 +2490,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = `<div class="cp-register-window cp-thresholds-window" data-thresholds-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Thresholds", "آستانه‌های پروژه"))}"></div>`;
       break;
     case "tracking":
-      body = `
-        <div class="cp-tracking-window">
-          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
-          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
-          <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
-        </div>`;
+      body = `<div class="cp-register-window cp-tracking-window" data-tracking-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Tracking", "رهگیری پروژه"))}"></div>`;
       break;
     case "settings":
       body = `
@@ -3702,12 +3681,7 @@ function renderGantt(
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
-  const commandButtons = [
-    ["bars", uiText(locale, "Bar Styles", "سبک میله‌ها")],
-    ["font-row", uiText(locale, "Table Font", "قلم جدول")],
-    ["user-preferences", uiText(locale, "User Preferences", "ترجیحات کاربر")],
-  ].map(([command, label]) => `<button type="button" class="cp-gantt-command-button" data-gantt-command="${command}">${escapeHtml(label)}</button>`).join("");
-  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt commands", "فرمان‌های گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><div class="cp-gantt-command-group" role="group" aria-label="${escapeAttribute(uiText(locale, "Gantt layout commands", "فرمان‌های چیدمان گانت"))}">${commandButtons}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
+  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt chart controls", "کنترل‌های نمودار گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
   const axis = (() => {
     const timescale = presentation.timescale;
     const ordinalStartMs = timescale.ordinalStart
@@ -4182,18 +4156,18 @@ const ACTIVITY_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
+  ["relationships", "Relationships", "روابط"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
-  ["discussion", "Discussion", "گفت‌وگو"],
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
-  ["feedback", "Feedback", "بازخورد"],
-  ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
+  ["wps-docs", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
-  ["summary", "Summary", "خلاصه"],
-  ["relationships", "Relationships", "روابط"],
+  ["issues", "Issues", "مسائل"],
   ["risks", "Risks", "ریسک‌ها"],
+  ["summary", "Summary", "خلاصه"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["update-history", "Update History", "تاریخچه تغییرات"],
+  ["calendar", "Calendar (CUBI)", "تقویم (CUBI)"],
 ] as const;
 
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {

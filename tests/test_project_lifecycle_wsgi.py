@@ -92,3 +92,23 @@ def test_wsgi_carries_report_query_filters_to_the_route_boundary():
     assert seen["status"].startswith("200 ")
     assert body==b"{}"
     assert routes.paths==["/api/projects/p1/reports?subject=resources&search=crew"]
+
+def test_wsgi_carries_tracking_layout_query_to_the_route_boundary():
+    routes=PathCaptureRoutes()
+    wsgi=ProjectLifecycleWsgiApp(routes)
+    environ={
+        "REQUEST_METHOD":"GET",
+        "PATH_INFO":"/api/projects/p1/tracking/read",
+        "QUERY_STRING":"scale=month&group_by=wbs&sort=total_float&direction=desc",
+        "HTTP_COOKIE":"cp_session=s1",
+        "CONTENT_LENGTH":"0",
+        "wsgi.input":io.BytesIO(b""),
+    }
+    seen={}
+    def start(status,headers): seen["status"]=status
+    body=b"".join(wsgi(environ,start))
+    assert seen["status"].startswith("200 ")
+    assert body==b"{}"
+    assert routes.paths==[
+        "/api/projects/p1/tracking/read?scale=month&group_by=wbs&sort=total_float&direction=desc"
+    ]

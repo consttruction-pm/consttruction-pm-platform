@@ -28,6 +28,11 @@ from .report_persistence import (
     ReportStore,
     StoredReportDefinition,
 )
+from .report_export import (
+    ReportExportDocument,
+    ReportExportError,
+    build_report_export,
+)
 
 
 class ReportAuthorizationError(ValueError):
@@ -215,6 +220,26 @@ class ReportApplicationService:
         self.store.get_definition(tenant_id, project_id, report_id)
         return self.store.get_run(tenant_id, project_id, report_id, run_id)
 
+    def export_run(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        run_id: str,
+        export_format: str,
+        context: AuthorizationContext,
+    ) -> ReportExportDocument:
+        """Render an immutable run from its stored snapshot only."""
+        run = self.read_run(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            report_id=report_id,
+            run_id=run_id,
+            context=context,
+        )
+        return build_report_export(run, export_format)
+
     # -- writes -----------------------------------------------------------
     def create_definition(
         self,
@@ -362,6 +387,8 @@ class ReportApplicationService:
         if isinstance(exc, ReportAuthorizationError):
             return authorization_error(str(exc), str(exc))
         if isinstance(exc, (ReportPersistenceError, ReportDatasetError)):
+            return validation_error(str(exc), str(exc))
+        if isinstance(exc, ReportExportError):
             return validation_error(str(exc), str(exc))
         if isinstance(exc, ValueError):
             code = str(exc) or type(exc).__name__

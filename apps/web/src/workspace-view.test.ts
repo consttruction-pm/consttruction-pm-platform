@@ -342,7 +342,7 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "relationships", "codes", "notebook", "steps", "wps-docs", "expenses", "issues", "risks", "summary", "udfs", "update-history", "calendar"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
@@ -1547,9 +1547,11 @@ test("Gantt renders persisted dependency arrows, a dated axis and milestone mark
   assert.match(container.innerHTML, /data-gantt-bar-kind="critical" data-gantt-bar-row="1"/);
   assert.match(container.innerHTML, /data-gantt-bar-kind="milestone" data-gantt-bar-row="1" data-gantt-bar-shape="triangle-down"/);
   assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
-  assert.match(container.innerHTML, /data-gantt-command="bars"/);
-  assert.match(container.innerHTML, /data-gantt-command="font-row"/);
-  assert.match(container.innerHTML, /data-gantt-command="user-preferences"/);
+  // Layout commands live once, in the application toolbar; the chart board
+  // keeps only chart-local scale presets and the relationship toggle.
+  assert.doesNotMatch(container.innerHTML, /data-gantt-command/);
+  assert.match(container.innerHTML, /data-gantt-scale="day"/);
+  assert.match(container.innerHTML, /data-gantt-relationships-toggle/);
 });
 
 test("Gantt axis shows the Jalali display date while keeping canonical tick dates", () => {
@@ -1807,7 +1809,7 @@ test("actual and baseline bars are drawn only from persisted date facts", () => 
   assert.match(progressed.innerHTML, /class="cp-gantt-progress"/);
 });
 
-test("Gantt command buttons open the owning layout dialogs", () => {
+test("Gantt board keeps chart-local controls and does not duplicate layout commands", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const container = {
     innerHTML: "",
@@ -1815,14 +1817,22 @@ test("Gantt command buttons open the owning layout dialogs", () => {
     addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
   };
   const commands: string[] = [];
+  const scales: string[] = [];
+  const relationships: boolean[] = [];
   renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), {
     onGanttCommand: (command) => commands.push(command),
+    onGanttScaleChange: (mode) => scales.push(mode),
+    onGanttRelationshipsChange: (visible) => relationships.push(visible),
   });
-  for (const command of ["bars", "font-row", "user-preferences", "unknown"]) {
-    const button = { dataset: { ganttCommand: command }, closest: () => button };
+  for (const [key, value] of [["ganttCommand", "bars"], ["ganttScale", "week"], ["ganttRelationshipsToggle", "false"]] as const) {
+    const button = { dataset: { [key]: value }, closest: () => button };
     listeners.get("click")?.({ target: button } as unknown as Event);
   }
-  assert.deepEqual(commands, ["bars", "font-row", "user-preferences"]);
+  // Bars/font/preferences are owned once by the application toolbar; the
+  // chart board only answers for scale presets and link visibility.
+  assert.deepEqual(commands, []);
+  assert.deepEqual(scales, ["week"]);
+  assert.deepEqual(relationships, [false]);
 });
 
 test("project settings button dispatches a single open request", () => {
@@ -1908,12 +1918,10 @@ test("Roles is a first-class window mounted on the real role register", () => {
   assert.doesNotMatch(roles, /data-register-tab="roles:rates"/);
   assert.doesNotMatch(roles, /Role management is a visual shell only/);
   const tracking = render("en", "tracking");
-  assert.match(tracking, /Tracking Layout/);
-  assert.match(tracking, /Project Table/);
-  assert.match(tracking, /Project Bar Chart/);
-  assert.match(tracking, /Project Gantt \/ Profile/);
-  assert.match(tracking, /Resource Analysis/);
-  assert.match(tracking, /data-tracking-layout/);
+  assert.match(tracking, /data-tracking-page/);
+  assert.match(tracking, /aria-label="Project Tracking"/);
+  assert.doesNotMatch(tracking, /data-tracking-layout/);
+  assert.doesNotMatch(tracking, /not connected yet/);
 });
 
 test("Calendar Register opens as a first-class window with documented editor controls", () => {

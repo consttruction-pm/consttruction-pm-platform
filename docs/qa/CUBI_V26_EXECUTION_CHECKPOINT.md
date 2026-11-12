@@ -2672,3 +2672,47 @@ Recorded provenance:
   selection and export scope remain.
 - Priority-zero queue continues with Activity Details tab content, per-target context menus and
   duplicated text command bands.
+
+## 2026-11-12 — Activities menu, toolbar and rail alignment
+
+- Menu bar now uses the Version 26 names and order File / Edit / View / Project / Enterprise /
+  Tools / Admin / Help, with one icon per command from `workspace-command-icons.ts` and a reserved
+  check column so toggles never shift labels.
+- One icon toolbar is grouped as Standard, Edit, Layout, Display, Project, Activities, WBS, Chart,
+  Resources and Tools. The Layout family owns Open Layout, Save, Save As, Bars, Columns, Timescale,
+  Filters, Group & Sort, Line Numbers, Table Font and User Preferences once. Duplicate
+  print/import/search/preferences entries and the dead `workspace-command-shell.ts` parallel
+  menubar are removed.
+- The chart board keeps only chart-local scale presets and the relationship toggle; grid head
+  actions use four distinct reset glyphs, a separator and 22px targets. Menu, toolbar and rail
+  sizes were raised for readability in LTR and RTL, and both stylesheet copies remain identical.
+- The Classic Schedule Layout selector was re-verified end to end: stored catalogue, apply and
+  reload restore `Classic Schedule Layout`.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3546 passed, 143 skipped |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 888 `tsx` + 14 Node tests pass, 0 fail |
+| Web bundle | `cd apps/web && npm run build` | bundles written |
+| Toolbar acceptance | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 node e2e/toolbars-v26.mjs` | 6/6 cells, 7 screenshots, 0 exceptions/console errors/5xx |
+| Visual acceptance | `… node e2e/workspace-visual-acceptance-v26.mjs` | 6/6 cells, 0 exceptions/console errors/5xx |
+| Matrix | `docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md` | 12 MATCH / 8 PARTIAL / 0 GAP for this increment |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Implementation commit | `9ddb1fa` |
+| Browser-tested code SHA | `9ddb1fa235eb20c89339e73622719ffb1915cb99` |
+| Toolbar evidence | `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` |
+| Visual evidence | `docs/workspace/evidence/visual-acceptance-v26-2026-11-12/workspace-visual-acceptance-v26.json` |
+
+### Status after this increment
+
+- Menu/toolbar/rail structure is measured and clean; the remaining PARTIAL rows are named in the
+  matrix (long-tail edit/layout/display/project commands and per-command browser click-through).
+- Next queue: Activity Details tab content, GAP-TRK-01 tracking read model, GAP-DOC-02 binary
+  document storage. GAP-V26-01 remains BLOCKED_EXTERNAL.

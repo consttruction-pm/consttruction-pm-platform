@@ -1,4 +1,4 @@
-"""Authoritative CSV export and validated resource import.
+"""Authoritative CSV/XLSX export and validated resource import.
 
 The exchange service reads the same authoritative stores the registers use; it
 never re-derives facts. Import is limited to the resource master in this slice:
@@ -9,12 +9,15 @@ the duplicate rule stay in one place.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import csv
 import hashlib
 import io
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
 from .application.authorization import (
@@ -75,7 +78,23 @@ EXCHANGE_DATASETS: dict[str, dict[str, Any]] = {
 }
 MAX_IMPORT_CHARS = 1_000_000
 PREVIEW_ROWS = 20
+EXCHANGE_EXPORT_FORMATS = ("csv", "xlsx")
+_XLSX_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 _DECIMAL = re.compile(r"^-?\d+(\.\d+)?$")
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+_TYPED_XLSX_COLUMNS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "activities": (
+        frozenset({"duration_value", "percent_complete"}),
+        frozenset({"actual_start", "expected_finish"}),
+    ),
+    "resources": (frozenset({"default_units_per_time"}), frozenset()),
+    "risks": (
+        frozenset({"probability", "impact", "score"}),
+        frozenset({"date_identified"}),
+    ),
+}
 
 
 class ExchangeError(ValueError):
@@ -98,6 +117,16 @@ def _iso(value: object) -> str | None:
     return str(value)
 
 
+def _literal(text: str) -> str:
+    if text.startswith(_FORMULA_PREFIXES):
+        return "'" + text
+    return text
+
+
+def _csv_cell(value: object) -> str:
+    return _literal(_cell_text(value))
+
+
 def _csv(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> str:
     buffer = io.StringIO()
     writer = csv.DictWriter(
@@ -105,8 +134,130 @@ def _csv(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> str:
     )
     writer.writeheader()
     for row in rows:
-        writer.writerow({column: "" if row.get(column) is None else row[column] for column in columns})
+        writer.writerow({column: _csv_cell(row.get(column)) for column in columns})
     return buffer.getvalue()
+
+
+def _cell_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def _xlsx_cell(
+    value: object, *, numeric: bool, date_value: bool
+) -> object:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (bool, int, float, datetime, date)):
+        return value
+    text = str(value)
+    if numeric:
+        try:
+            number = Decimal(text)
+        except (InvalidOperation, ValueError):
+            return _literal(text)
+        return int(number) if number == number.to_integral_value() else float(number)
+    if date_value:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return _literal(text)
+    return _literal(text)
+
+
+def _xlsx(
+    columns: Sequence[str],
+    rows: Sequence[Mapping[str, object]],
+    *,
+    numeric: frozenset[str] = frozenset(),
+    dates: frozenset[str] = frozenset(),
+) -> bytes:
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+        from openpyxl.utils import get_column_letter
+    except ImportError as exc:  # pragma: no cover - declared dependency
+        raise ExchangeError("EXCHANGE_XLSX_UNAVAILABLE") from exc
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "exchange"
+    sheet.append(list(columns))
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    for row in rows:
+        sheet.append(
+            [
+                _xlsx_cell(
+                    row.get(column),
+                    numeric=column in numeric,
+                    date_value=column in dates,
+                )
+                for column in columns
+            ]
+        )
+    for index, column in enumerate(columns, start=1):
+        sheet.column_dimensions[get_column_letter(index)].width = min(
+            48, max(12, len(column) + 2)
+        )
+    sheet.freeze_panes = "A2"
+    if rows:
+        sheet.auto_filter.ref = sheet.dimensions
+    output = io.BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def _decode_xlsx(content: str) -> tuple[list[str], list[dict[str, Any]]]:
+    """Decode a base64 XLSX payload into headers and DictReader-shaped rows."""
+    try:
+        payload = base64.b64decode(content, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
+    try:
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(io.BytesIO(payload), data_only=True)
+    except Exception as exc:  # noqa: BLE001 - bounded file boundary
+        raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
+    sheet = workbook.active
+    values = list(sheet.iter_rows(values_only=True))
+    if not values:
+        return [], []
+    headers = [_cell_text(value).strip() for value in values[0]]
+    if any(not header for header in headers):
+        raise ExchangeError("EXCHANGE_XLSX_INVALID_HEADERS")
+    if len(set(headers)) != len(headers):
+        raise ExchangeError("EXCHANGE_XLSX_DUPLICATE_HEADERS")
+    rows: list[dict[str, Any]] = []
+    for values_row in values[1:]:
+        if all(value is None or _cell_text(value) == "" for value in values_row):
+            continue
+        raw = {
+            header: _cell_text(value)
+            for header, value in zip(headers, values_row)
+        }
+        if any(
+            value is not None and _cell_text(value) != ""
+            for value in values_row[len(headers):]
+        ):
+            raw[None] = "extra"
+        rows.append(raw)
+    return headers, rows
+
+
+def _format(value: object) -> str:
+    if value in (None, ""):
+        return "csv"
+    if not isinstance(value, str) or value not in EXCHANGE_EXPORT_FORMATS:
+        raise ExchangeError("EXCHANGE_FORMAT_UNSUPPORTED")
+    return value
 
 
 def _row_error(row: int, field: str, code: str) -> dict[str, Any]:
@@ -141,19 +292,36 @@ class ExchangeService:
         dataset: str,
         context: AuthorizationContext,
         generated_at: datetime,
+        export_format: str = "csv",
     ) -> dict[str, Any]:
         self._check(scope, context, Permission.PROJECT_READ)
+        resolved = _format(export_format)
         columns, rows = self._export_rows(scope, dataset)
-        content = _csv(columns, rows)
-        return {
+        result: dict[str, Any] = {
             "dataset": dataset,
+            "format": resolved,
             "columns": list(columns),
             "rows": [dict(row) for row in rows[:PREVIEW_ROWS]],
             "row_count": len(rows),
-            "content": content,
             "generated_at": generated_at.isoformat(),
             "project_revision": scope.project_revision,
         }
+        if resolved == "csv":
+            content = _csv(columns, rows)
+            result["content"] = content
+            result["content_type"] = "text/csv; charset=utf-8"
+            result["content_sha256"] = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        else:
+            numeric, dates = _TYPED_XLSX_COLUMNS.get(
+                dataset, (frozenset(), frozenset())
+            )
+            document = _xlsx(
+                columns, rows, numeric=numeric, dates=dates
+            )
+            result["content_base64"] = base64.b64encode(document).decode("ascii")
+            result["content_type"] = _XLSX_CONTENT_TYPE
+            result["content_sha256"] = hashlib.sha256(document).hexdigest()
+        return result
 
     def _export_rows(
         self, scope: BackendScope, dataset: str
@@ -236,14 +404,16 @@ class ExchangeService:
         content: str,
         context: AuthorizationContext,
         occurred_at: datetime,
+        import_format: str = "csv",
     ) -> dict[str, Any]:
         self._check(scope, context, Permission.PROJECT_READ)
-        result = self._validate_import(scope, dataset, content)
+        result = self._validate_import(scope, dataset, content, import_format)
         self._record_run(
             scope=scope,
             dataset=dataset,
             mode="preview",
             content=content,
+            import_format=import_format,
             actor_id=context.user_id,
             occurred_at=occurred_at,
             result=result,
@@ -260,12 +430,13 @@ class ExchangeService:
         idempotency_key: str,
         context: AuthorizationContext,
         occurred_at: datetime,
+        import_format: str = "csv",
     ) -> dict[str, Any]:
         self._check(scope, context, Permission.PROJECT_WRITE)
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             raise ExchangeError("EXCHANGE_IDEMPOTENCY_KEY_REQUIRED")
         key = idempotency_key.strip()
-        request_sha = self._request_sha(dataset, content)
+        request_sha = self._request_sha(dataset, content, import_format)
         existing = self.store.read_idempotency(
             scope.tenant_id, scope.project_id, key
         )
@@ -277,13 +448,14 @@ class ExchangeService:
                 raise ExchangeError("EXCHANGE_RUN_NOT_FOUND")
             return {**run.result, "run_id": run.run_id, "replayed": True}
 
-        result = self._validate_import(scope, dataset, content)
+        result = self._validate_import(scope, dataset, content, import_format)
         if not result["valid"]:
             self._record_run(
                 scope=scope,
                 dataset=dataset,
                 mode="apply",
                 content=content,
+                import_format=import_format,
                 actor_id=context.user_id,
                 occurred_at=occurred_at,
                 result=result,
@@ -323,6 +495,7 @@ class ExchangeService:
             dataset=dataset,
             mode="apply",
             content=content,
+            import_format=import_format,
             actor_id=context.user_id,
             occurred_at=occurred_at,
             result=applied,
@@ -347,24 +520,39 @@ class ExchangeService:
         )
 
     def _validate_import(
-        self, scope: BackendScope, dataset: str, content: str
+        self,
+        scope: BackendScope,
+        dataset: str,
+        content: str,
+        import_format: str = "csv",
     ) -> dict[str, Any]:
         spec = EXCHANGE_DATASETS.get(dataset)
         if spec is None:
             raise ExchangeError("EXCHANGE_DATASET_UNKNOWN")
         if not spec["importable"]:
             raise ExchangeError("EXCHANGE_DATASET_READ_ONLY")
+        resolved = _format(import_format)
         if not isinstance(content, str) or not content.strip():
-            return self._invalid(dataset, spec["columns"], 0, [], [
+            empty = self._invalid(dataset, spec["columns"], 0, [], [
                 {"row": 1, "field": "content", "code": "EXCHANGE_CONTENT_EMPTY"}
             ])
+            empty["format"] = resolved
+            return empty
         if len(content) > MAX_IMPORT_CHARS:
             raise ExchangeError("EXCHANGE_CONTENT_TOO_LARGE")
 
-        reader = csv.DictReader(io.StringIO(content))
-        fieldnames = list(reader.fieldnames or [])
-        errors: list[dict[str, Any]] = []
         columns = spec["columns"]
+        if resolved == "csv":
+            reader = csv.DictReader(io.StringIO(content))
+            fieldnames = list(reader.fieldnames or [])
+            source_rows: list[tuple[int, Mapping[str, Any]]] = list(
+                enumerate(reader, start=2)
+            )
+        else:
+            fieldnames, decoded = _decode_xlsx(content)
+            source_rows = list(enumerate(decoded, start=2))
+
+        errors: list[dict[str, Any]] = []
         for column in columns:
             if column not in fieldnames:
                 errors.append(_row_error(1, column, "EXCHANGE_COLUMN_MISSING"))
@@ -374,7 +562,7 @@ class ExchangeService:
 
         parsed: list[dict[str, Any]] = []
         row_count = 0
-        for offset, raw in enumerate(reader, start=2):
+        for offset, raw in source_rows:
             if None in raw:
                 errors.append(_row_error(offset, "row", "EXCHANGE_ROW_ARITY"))
                 continue
@@ -421,6 +609,7 @@ class ExchangeService:
 
         result = {
             "dataset": dataset,
+            "format": resolved,
             "columns": list(columns),
             "row_count": row_count,
             "accepted": max(0, row_count - len({e["row"] for e in errors if e["row"] > 1})),
@@ -560,6 +749,7 @@ class ExchangeService:
         dataset: str,
         mode: str,
         content: str,
+        import_format: str,
         actor_id: str,
         occurred_at: datetime,
         result: Mapping[str, Any],
@@ -569,6 +759,7 @@ class ExchangeService:
         stored_result = {
             key: value for key, value in result.items() if key != "parsed_rows"
         }
+        stored_result["format"] = import_format
         run = ExchangeImportRun(
             tenant_id=scope.tenant_id,
             project_id=scope.project_id,
@@ -591,7 +782,7 @@ class ExchangeService:
                     tenant_id=scope.tenant_id,
                     project_id=scope.project_id,
                     idempotency_key=idempotency_key,
-                    request_sha256=self._request_sha(dataset, content),
+                    request_sha256=self._request_sha(dataset, content, import_format),
                     run_id=run.run_id,
                     occurred_at=occurred_at.isoformat(),
                 )
@@ -599,9 +790,9 @@ class ExchangeService:
         return run
 
     @staticmethod
-    def _request_sha(dataset: str, content: str) -> str:
+    def _request_sha(dataset: str, content: str, import_format: str = "csv") -> str:
         return hashlib.sha256(
-            f"{dataset}\n{content}".encode("utf-8")
+            f"{dataset}\n{import_format}\n{content}".encode("utf-8")
         ).hexdigest()
 
     def _check(

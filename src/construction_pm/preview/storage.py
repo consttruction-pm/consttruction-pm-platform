@@ -28,7 +28,7 @@ from construction_pm.backend_p0.models import BackendScope
 
 PREVIEW_APPLICATION_ID = 0x43554249  # "CUBI"
 PREVIEW_SCHEMA_VERSION = 1
-PREVIEW_SEED_VERSION = "cubi-preview-seed.v3"
+PREVIEW_SEED_VERSION = "cubi-preview-seed.v4"
 PREVIEW_APPLICATION_MARKER = "cubi-local-preview"
 PREVIEW_TENANT_ID = "cubi-preview-tenant"
 PREVIEW_SESSION_TTL = timedelta(hours=8)
@@ -264,7 +264,14 @@ def open_preview_database(
 
     database = Path(database).expanduser().resolve()
     if database.exists() and database.stat().st_size > 0:
-        _verify_owned_database(database)
+        try:
+            _verify_owned_database(database)
+        except PreviewDatabaseError as exc:
+            # --reset is the documented recovery from a stale seed, so a stale
+            # seed must not block the very reset that replaces it. Ownership and
+            # application markers are still verified above.
+            if not (reset and exc.code == "PREVIEW_DATABASE_STALE_SEED"):
+                raise
         if reset:
             _backup_database(database)
             _build_fresh_database(database, seed=seed)

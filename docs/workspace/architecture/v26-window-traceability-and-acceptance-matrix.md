@@ -255,3 +255,16 @@ For each completed window, attach:
 - Known gaps and disabled commands with reasons.
 - Reviewer findings and resolution.
 - Confirmation that no CUBI branding or product-vendor references leaked into customer UI.
+
+## Activities toolbar/menu increment — 2026-11-12
+
+The canonical Activities shell now renders one Version 26 menu bar (File, Edit, View, Project,
+Enterprise, Tools, Admin, Help) and one icon toolbar (Standard, Edit, Layout, Display, Project,
+Activities, WBS, Chart, Resources, Tools). Menu commands use the closed icon registry in
+`apps/web/src/workspace-command-icons.ts`; layout presentation commands appear only in the Layout
+family; the chart board keeps chart-local scale and link controls; the grid strip uses distinct
+reset glyphs and 22px targets. The Classic Schedule Layout selector was re-verified for catalogue,
+apply and reload persistence. Browser evidence for 1280×720, 1366×768 and 1920×1080 in `en` and
+`fa` is recorded in `docs/workspace/evidence/toolbars-v26-2026-11-12/` at tested SHA
+`9ddb1fa235eb20c89339e73622719ffb1915cb99`; statuses and remaining PARTIAL commands are listed in
+`docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.

@@ -3214,22 +3214,22 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
   display: flex;
   align-items: center;
   gap: 1px;
-  min-height: 32px;
-  padding: 2px 6px;
+  min-height: 34px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--cubi-neutral-divider, #e3e8ee);
   background: #f8fafc;
   border-radius: 8px 8px 0 0;
 }
 .cp-menubar-group { position: relative; }
 .cp-menubar-trigger {
-  min-height: 26px;
-  padding: 3px 9px;
+  min-height: 28px;
+  padding: 4px 10px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
   color: var(--cubi-deep-navy, #14283f);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 650;
   cursor: pointer;
   white-space: nowrap;
@@ -3245,11 +3245,11 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
   inset-inline-start: 0;
   top: calc(100% + 3px);
   z-index: 40;
-  min-width: 264px;
-  max-width: min(92vw, 380px);
+  min-width: 286px;
+  max-width: min(92vw, 420px);
   max-height: min(70vh, 520px);
   overflow: auto;
-  padding: 4px;
+  padding: 5px;
   border: 1px solid var(--cubi-neutral-border, #c8d1dc);
   border-radius: 6px;
   background: #fff;
@@ -3258,23 +3258,41 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-menubar-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 7px;
   width: 100%;
-  min-height: 28px;
-  padding: 5px 8px;
+  min-height: 30px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--cubi-deep-navy, #14283f);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: start;
   cursor: pointer;
 }
 .cp-menubar-item:hover:not(:disabled) { background: #eef5ff; }
-.cp-menubar-item[aria-checked="true"] .cp-menubar-item-label::before { content: "✓ "; color: var(--cubi-engineering-blue, #1769aa); }
 .cp-menubar-item.is-disabled { color: #7c8896; cursor: not-allowed; }
+/* The check column is always reserved so toggling an item never shifts text. */
+.cp-menubar-item-check {
+  flex: 0 0 13px;
+  width: 13px;
+  color: var(--cubi-engineering-blue, #1769aa);
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+}
+.cp-menubar-item-icon {
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #3f5570;
+}
+.cp-menubar-item-icon .cp-icon { width: 15px; height: 15px; }
 .cp-menubar-item-label { flex: 1 1 auto; }
 .cp-menubar-item-shortcut { flex: 0 0 auto; color: #6a7686; font-size: 11px; font-variant-numeric: tabular-nums; }
 .cp-menubar-item-reason { flex: 0 1 auto; max-width: 190px; color: #8a5a1c; font-size: 10.5px; text-align: end; }
@@ -3738,6 +3756,16 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-detail-table-wrap { max-width: 100%; overflow: auto; }
 .cp-detail-none { padding: 8px 10px; background: #fbfcfe; color: #6f7d8c; font-style: italic; text-align: center; }
 .cp-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 8px 0 4px; }
+.cp-detail-form { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--cp-ui-grid); border-radius: 4px; background: #fbfcfe; }
+.cp-detail-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 10px; }
+.cp-detail-form-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: #4b5b6d; }
+.cp-detail-form-field.is-wide { grid-column: 1 / -1; }
+.cp-detail-form-field input,
+.cp-detail-form-field select { min-height: 24px; padding: 2px 6px; border: 1px solid var(--cp-ui-border); border-radius: 3px; background: #fff; font: inherit; color: #26333f; }
+.cp-detail-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.cp-detail-form-message { font-size: 11px; color: #4b5b6d; }
+.cp-detail-form-message[data-state="error"] { color: #a12626; }
+.cp-detail-form-message[data-state="ok"] { color: #23653a; }
 .cp-detail-action {
   min-height: 24px;
   padding: 3px 9px;
@@ -5000,38 +5028,41 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-titlebar-language select option { color: #132b44; background: #fff; }
 .cp-p6 .cp-titlebar-language select:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 .cp-p6 .cp-menubar {
-  height: 18px;
-  min-height: 18px;
-  padding: 0 4px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 6px;
   gap: 0;
   border-radius: 0;
   background: #f6f8fb;
   overflow: visible;
 }
 .cp-p6 .cp-menubar-trigger {
-  height: 17px;
-  min-height: 17px;
-  padding: 0 7px;
+  height: 23px;
+  min-height: 23px;
+  padding: 0 9px;
   border: 0;
   border-radius: 0;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
-  line-height: 17px;
+  line-height: 23px;
 }
 .cp-p6 .cp-menubar-trigger:hover,
 .cp-p6 .cp-menubar-trigger[aria-expanded="true"] { border: 0; background: #dce8f6; }
-.cp-p6 .cp-menubar-popup { top: 100%; min-width: 236px; padding: 3px; border-radius: 0 0 3px 3px; }
-.cp-p6 .cp-menubar-item { min-height: 22px; padding: 2px 7px; font-size: 11px; }
-.cp-p6 .cp-menubar-item-shortcut { font-size: 10px; }
+.cp-p6 .cp-menubar-popup { top: 100%; min-width: 262px; padding: 4px; border-radius: 0 0 3px 3px; }
+.cp-p6 .cp-menubar-item { min-height: 25px; padding: 3px 8px; font-size: 11.5px; gap: 6px; }
+.cp-p6 .cp-menubar-item-check { flex-basis: 12px; width: 12px; font-size: 10px; }
+.cp-p6 .cp-menubar-item-icon { flex-basis: 14px; width: 14px; height: 14px; }
+.cp-p6 .cp-menubar-item-icon .cp-icon { width: 13px; height: 13px; }
+.cp-p6 .cp-menubar-item-shortcut { font-size: 10.5px; }
 
 .cp-p6 .cp-toolbar {
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  height: 24px;
-  min-height: 24px;
-  padding: 0 3px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 4px;
   overflow: visible;
   border-bottom: 1px solid var(--cp-ui-grid);
   background: linear-gradient(180deg, #fbfcfe, #f1f4f8);
@@ -5059,10 +5090,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   align-items: center;
   justify-content: center;
   gap: 0;
-  width: 23px;
-  min-width: 23px;
-  height: 22px;
-  min-height: 22px;
+  width: 25px;
+  min-width: 25px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 2px;
@@ -5093,9 +5124,9 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 23px;
-  height: 22px;
-  min-height: 22px;
+  width: 25px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 2px;
@@ -5110,7 +5141,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-toolbar-overflow-popup {
   position: absolute;
   inset-inline-end: 4px;
-  top: 23px;
+  top: 25px;
   z-index: 60;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5414,34 +5445,42 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  flex: 0 0 18px;
-  height: 18px;
-  min-height: 18px;
-  padding: 0 5px;
+  flex: 0 0 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 6px;
   border-bottom: 1px solid #c3ccd8;
   background: #e6ebf2;
   color: #1f2d3d;
 }
 .cp-p6 .cp-p6-grid-head h2,
-.cp-p6 .cp-p6-gantt-head h2 { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .01em; }
-.cp-p6 .cp-p6-grid-actions { display: inline-flex; gap: 1px; }
+.cp-p6 .cp-p6-gantt-head h2 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .01em; }
+.cp-p6 .cp-p6-grid-actions { display: inline-flex; align-items: center; gap: 2px; }
 .cp-p6 .cp-p6-grid-actions button,
 .cp-p6 .cp-p6-gantt-head button {
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 15px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 3px;
   background: transparent;
   color: #33465c;
   cursor: pointer;
 }
 .cp-p6 .cp-p6-grid-actions button .cp-icon,
-.cp-p6 .cp-p6-gantt-head button .cp-icon { width: 10px; height: 10px; }
+.cp-p6 .cp-p6-gantt-head button .cp-icon { width: 15px; height: 15px; }
 .cp-p6 .cp-p6-grid-actions button:hover,
 .cp-p6 .cp-p6-gantt-head button:hover { border-color: #9db4cc; background: #fff; }
+.cp-p6 .cp-p6-grid-actions button:focus-visible { outline: 2px solid #1769aa; outline-offset: 1px; }
+.cp-p6 .cp-action-separator {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: #b9c5d3;
+}
 .cp-p6 .cp-activity-toolbar {
   display: flex;
   align-items: center;
@@ -5635,38 +5674,23 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
    from the authoritative schedule; the presentation model only chooses colour,
    shape, pattern, row order, height and labels. */
 .cp-p6 .cp-gantt-board { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; padding-top: var(--cp-gantt-top-offset, 0px); }
-.cp-p6 .cp-gantt-toolbar { display: flex; align-items: center; flex: 0 0 20px; height: 20px; min-height: 20px; padding: 1px 4px; gap: 4px; border-bottom: 1px solid #c3ccd8; background: #f5f7fa; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
+.cp-p6 .cp-gantt-toolbar { display: flex; align-items: center; flex: 0 0 26px; height: 26px; min-height: 26px; padding: 2px 6px; gap: 5px; border-bottom: 1px solid #c3ccd8; background: #f5f7fa; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
 .cp-p6 .cp-gantt-scale-controls { display: inline-flex; gap: 1px; flex-wrap: nowrap; }
 .cp-p6 .cp-gantt-scale-button {
-  height: 16px;
-  min-height: 16px;
-  padding: 0 4px;
+  height: 21px;
+  min-height: 21px;
+  padding: 0 7px;
   border: 1px solid #bcc9d8;
   border-radius: 2px;
   background: #fff;
   color: #2b3a4d;
   font: inherit;
-  font-size: 8.5px;
+  font-size: 10px;
   cursor: pointer;
 }
 .cp-p6 .cp-gantt-scale-button.is-active { border-color: #6d9bc9; background: #d9e9f9; color: #0f4f92; }
-.cp-p6 .cp-gantt-command-group { display: inline-flex; gap: 1px; flex-wrap: nowrap; }
-.cp-p6 .cp-gantt-command-button {
-  height: 16px;
-  min-height: 16px;
-  padding: 0 4px;
-  border: 1px solid #bcc9d8;
-  border-radius: 2px;
-  background: #fff;
-  color: #2b3a4d;
-  font: inherit;
-  font-size: 8.5px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.cp-p6 .cp-gantt-command-button:hover { border-color: #6d9bc9; background: #eef5fd; color: #0f4f92; }
-.cp-p6 .cp-gantt-relationships-toggle { display: inline-flex; align-items: center; margin-inline-start: auto; height: 16px; min-height: 16px; padding: 0 4px; gap: 3px; border: 1px solid #bcc9d8; border-radius: 2px; background: #fff; font-size: 8.5px; }
-.cp-p6 .cp-gantt-relationships-toggle strong { font-size: 8px; }
+.cp-p6 .cp-gantt-relationships-toggle { display: inline-flex; align-items: center; margin-inline-start: auto; height: 21px; min-height: 21px; padding: 0 7px; gap: 4px; border: 1px solid #bcc9d8; border-radius: 2px; background: #fff; font-size: 10px; }
+.cp-p6 .cp-gantt-relationships-toggle strong { font-size: 9px; }
 /* The Gantt is a single scroll surface: the timescale axis is sticky inside
    the scroller, so axis ticks, row tracks and bars always share one width even
    when a vertical scrollbar appears. */
@@ -6813,7 +6837,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 /* Desktop workbench composition: expandable navigation tree, window strip,
    contextual command rail and docked page panes. */
 .cp-p6 .cp-p6-shell {
-  grid-template-columns: 46px minmax(0, 1fr) 36px;
+  grid-template-columns: 48px minmax(0, 1fr) 40px;
 }
 .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
   align-items: stretch;
@@ -6860,15 +6884,15 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   gap: 0;
   width: 100%;
   min-width: 0;
-  min-height: 29px;
-  height: 29px;
+  min-height: 32px;
+  height: 32px;
   flex: 0 0 auto;
   padding: 0;
   border-radius: 3px;
   text-align: center;
   font-size: 10px;
 }
-.cp-p6 .cp-navigation-tree .cp-rail-button .cp-icon { width: 16px; height: 16px; }
+.cp-p6 .cp-navigation-tree .cp-rail-button .cp-icon { width: 18px; height: 18px; }
 .cp-p6 .cp-navigation-tree .cp-rail-label { display: none; }
 .cp-p6 .cp-navigation-tree .cp-rail-button:hover { background: #e2ecf7; color: #123f70; }
 .cp-p6 .cp-navigation-tree .cp-rail-button[aria-current="page"] {
@@ -6950,27 +6974,28 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 }
 .cp-p6 .cp-comments-dock-rail.cp-context-command-rail {
   grid-column: 3;
-  width: 36px;
-  min-width: 36px;
+  width: 40px;
+  min-width: 40px;
   align-items: center;
-  padding: 5px 2px;
-  gap: 3px;
+  padding: 6px 3px;
+  gap: 4px;
   overflow: visible;
   z-index: 15;
   background: #edf1f6;
 }
 .cp-p6 .cp-context-command-rail .cp-rail-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  flex-basis: 30px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  flex-basis: 34px;
 }
+.cp-p6 .cp-context-command-rail .cp-rail-button .cp-icon { width: 18px; height: 18px; }
 .cp-p6 .cp-context-add-menu { position: relative; }
 .cp-p6 .cp-context-add-menu > summary {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #b5c4d5;
   border-radius: 4px;
   background: #fff;
@@ -7433,6 +7458,41 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-tracking-chart-head span{color:#718096;font-size:9px}
 .cp-p6 .cp-tracking-empty{display:grid;place-items:center;flex:1 1 auto;padding:18px;color:#77869a;font-size:10px;line-height:1.6;text-align:center}
 @media(max-width:800px){.cp-p6 .cp-tracking-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-tracking-layout>aside{min-height:75px}}
+
+.cp-p6 .cp-tracking-window .cp-tracking-toolbar>div{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.cp-p6 .cp-tracking-views{display:flex;flex-wrap:wrap;gap:2px}
+.cp-p6 .cp-tracking-views button[aria-selected="true"]{border-color:#173d68;background:#fff;color:#173d68;font-weight:700}
+.cp-p6 .cp-tracking-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;padding:5px 8px;border:1px solid #dbe3ec;background:#f8fafc}
+.cp-p6 .cp-tracking-stat{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cp-p6 .cp-tracking-stat span{overflow:hidden;color:#52657a;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.cp-p6 .cp-tracking-stat strong{color:#173d68;font-size:13px;font-variant-numeric:tabular-nums}
+.cp-p6 .cp-tracking-window .cp-table-scroll{min-height:80px;overflow:auto;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-tracking-window .cp-register-table{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-tracking-window .cp-register-table caption{padding:5px 7px 3px;color:#52657a;text-align:start}
+.cp-p6 .cp-tracking-window .cp-register-table th,.cp-p6 .cp-tracking-window .cp-register-table td{padding:4px 7px;border:1px solid #e1e7ee;text-align:start;white-space:nowrap}
+.cp-p6 .cp-tracking-window .cp-register-table thead th{position:sticky;top:0;z-index:1;background:#f1f4f8;color:#52657a}
+.cp-p6 .cp-tracking-window .cp-register-table tbody tr[data-critical="true"]{box-shadow:inset 3px 0 0 #a13a3a}
+.cp-p6 .cp-tracking-window .cp-tracking-groups{margin-bottom:6px}
+.cp-p6 .cp-tracking-window .cp-tracking-groups thead th{position:static}
+.cp-p6 .cp-tracking-bars{display:flex;flex:1 1 auto;flex-direction:column;gap:3px;overflow:auto;padding:8px 9px}
+.cp-p6 .cp-tracking-bar-row{display:grid;grid-template-columns:84px minmax(0,1fr) 96px;align-items:center;gap:6px;color:#31465e;font-size:9px}
+.cp-p6 .cp-tracking-bar-label{overflow:hidden;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
+.cp-p6 .cp-tracking-bar-track{display:flex;height:12px;overflow:hidden;border:1px solid #cbd5e1;background:#eef2f7}
+.cp-p6 .cp-tracking-bar-seg{display:block;height:100%}
+.cp-p6 .cp-tracking-bar-seg.is-completed{background:#2f7d4f}
+.cp-p6 .cp-tracking-bar-seg.is-progress{background:#2f6fa8}
+.cp-p6 .cp-tracking-bar-seg.is-not-started{background:#9aa8b6}
+.cp-p6 .cp-tracking-bar-seg.is-profile{background:#173d68}
+.cp-p6 .cp-tracking-bar-value{color:#52657a;font-variant-numeric:tabular-nums;text-align:end}
+.cp-p6 .cp-tracking-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:0 9px 8px;color:#52657a;font-size:9px}
+.cp-p6 .cp-tracking-key{display:inline-block;width:9px;height:9px;margin-inline-start:6px}
+.cp-p6 .cp-tracking-key.is-completed{background:#2f7d4f}
+.cp-p6 .cp-tracking-key.is-progress{background:#2f6fa8}
+.cp-p6 .cp-tracking-key.is-not-started{background:#9aa8b6}
+.cp-p6 .cp-tracking-hint{margin:0;padding:4px 9px 8px;color:#77869a;font-size:9px;line-height:1.5}
+.cp-p6 .cp-tracking-warnings{margin:0;padding:4px 9px 4px 18px;border:1px solid #e7d8b6;background:#fdf8ec;color:#7a5b12;font-size:9px;line-height:1.6}
+.cp-p6 .cp-tracking-window [data-tracking-resource-unavailable]{padding:14px;line-height:1.6}
+@media(max-width:800px){.cp-p6 .cp-tracking-bar-row{grid-template-columns:70px minmax(0,1fr) 76px}}
 
 
 /* Dedicated WBS window layout. */
