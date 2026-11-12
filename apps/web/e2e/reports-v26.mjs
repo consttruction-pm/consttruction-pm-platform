@@ -334,10 +334,10 @@ async function main() {
       assert(row.cells[3] === "1", `row revision ${JSON.stringify(row.cells)}`);
       const stored = await api(page, "GET", reportsUrl(`/${activityReportId}`));
       assert(stored.status === 200 && stored.body.report_id === activityReportId, `stored definition ${JSON.stringify(stored)}`);
-      assert(stored.body.revision === 1 && stored.body.subject === "activities", `stored revision ${JSON.stringify(stored.body)}`);
+      assert(stored.body.record_revision === 1 && stored.body.subject === "activities", `stored revision ${JSON.stringify(stored.body)}`);
       assert(stored.body.columns.join(",") === "activity_id,name,status,percent_complete", `stored columns ${JSON.stringify(stored.body.columns)}`);
       await capture(page, "02-created-definition");
-      return { revision: stored.body.revision, columns: stored.body.columns };
+      return { revision: stored.body.record_revision, columns: stored.body.columns };
     });
 
     await scenario("03", "اجرایگزارش ۱۴ ردیف دادهٔ مرجع را با ستون‌های دقیق ذخیره می‌کند", async () => {

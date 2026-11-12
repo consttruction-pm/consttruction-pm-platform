@@ -66,3 +66,29 @@ def test_wsgi_forwards_http_headers_to_route_boundary():
     assert seen["status"].startswith("200 ")
     assert body==b"{}"
     assert routes.headers=={"Idempotency-Key":"idem-1","X-Project-Revision":"2"}
+
+class PathCaptureRoutes:
+    def __init__(self):
+        self.paths=[]
+
+    def handle(self, method, path, *, cookies, body, headers):
+        self.paths.append(path)
+        return 200,{"Content-Type":"application/json"},b"{}"
+
+def test_wsgi_carries_report_query_filters_to_the_route_boundary():
+    routes=PathCaptureRoutes()
+    wsgi=ProjectLifecycleWsgiApp(routes)
+    environ={
+        "REQUEST_METHOD":"GET",
+        "PATH_INFO":"/api/projects/p1/reports",
+        "QUERY_STRING":"subject=resources&search=crew",
+        "HTTP_COOKIE":"cp_session=s1",
+        "CONTENT_LENGTH":"0",
+        "wsgi.input":io.BytesIO(b""),
+    }
+    seen={}
+    def start(status,headers): seen["status"]=status
+    body=b"".join(wsgi(environ,start))
+    assert seen["status"].startswith("200 ")
+    assert body==b"{}"
+    assert routes.paths==["/api/projects/p1/reports?subject=resources&search=crew"]
