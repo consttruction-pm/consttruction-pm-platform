@@ -114,10 +114,14 @@ from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_issue_repository import SQLiteP6IssueRepository
 from construction_pm.document_api import DocumentAPI
 from construction_pm.document_application import DocumentApplicationService
+from construction_pm.document_content_repository import (
+    SQLiteDocumentContentRepository,
+)
 from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
 )
+from construction_pm.document_storage import LocalDocumentStorage
 from construction_pm.administration_api import AdministrationAPI
 from construction_pm.administration_application import AdministrationApplicationService
 from construction_pm.administration_persistence import SQLiteAdministrationStore
@@ -387,6 +391,7 @@ class PreviewRepositories:
     financial_period_service: P6FinancialPeriodApplicationService
     issues: SQLiteP6IssueRepository
     documents: SQLiteDocumentStore
+    document_content: SQLiteDocumentContentRepository
     budget: SQLiteBudgetStore
     cost: SQLiteCostStore
     thresholds: SQLiteThresholdStore
@@ -469,6 +474,8 @@ class PreviewRepositories:
         issues = SQLiteP6IssueRepository(connection)
         documents = SQLiteDocumentStore(connection)
         documents.initialize()
+        document_content = SQLiteDocumentContentRepository(connection)
+        document_content.initialize()
         budget = SQLiteBudgetStore(connection)
         budget.initialize()
         cost = SQLiteCostStore(connection)
@@ -533,6 +540,7 @@ class PreviewRepositories:
             financial_period_service=financial_period_service,
             issues=issues,
             documents=documents,
+            document_content=document_content,
             budget=budget,
             cost=cost,
             thresholds=thresholds,
@@ -1690,6 +1698,8 @@ def open_preview_runtime(
         activity_progress_history_repository=repositories.progress_history,
         activity_progress_transaction_manager=repositories.transaction_manager,
         wbs_master_repository=repositories.wbs,
+        tracking_resource_assignment_repository=repositories.resource_assignments,
+        tracking_resource_repository=repositories.resources,
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,
@@ -1765,6 +1775,8 @@ def open_preview_runtime(
                 policy,
                 RolePermissionDocumentLifecycleAuthorizer(),
                 repositories.transaction_manager,
+                storage=LocalDocumentStorage(database.parent / "document-store"),
+                content_repository=repositories.document_content,
             )
         ),
         budget_api=BudgetAPI(

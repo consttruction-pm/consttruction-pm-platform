@@ -6,10 +6,14 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext
 from .api_errors import APIError
-from .document_application import DocumentApplicationService
+from .document_application import (
+    DocumentApplicationService,
+    DocumentContentDownload,
+)
 from .document_persistence import DocumentAuditEvent, DocumentRecord, StoredDocument
 
 DOCUMENT_API_VERSION = "1.0"
+DOCUMENT_CONTENT_API_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,88 @@ class DocumentAPI:
                 event_type=event_type,
                 audit_reason=audit_reason,
             ))
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def upload_content(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        data: bytes,
+        content_type: str,
+        filename: str | None,
+        idempotency_key: str,
+        expected_revision: int | None,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        try:
+            upload = self.service.upload_content(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                data=data,
+                declared_content_type=content_type,
+                filename=filename,
+                idempotency_key=idempotency_key,
+                expected_revision=expected_revision,
+                context=context,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+            return {
+                "contract_version": DOCUMENT_CONTENT_API_VERSION,
+                "document_id": document_id,
+                "content": upload.content.as_dict(),
+                "storage_ref": upload.storage_ref,
+                "idempotent_replay": upload.idempotent_replay,
+            }
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def download_content(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+        version: int | None = None,
+    ) -> DocumentContentDownload | dict[str, Any]:
+        try:
+            return self.service.download_content(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                context=context,
+                version=version,
+            )
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def list_content_versions(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        try:
+            versions = self.service.list_content(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=document_id,
+                context=context,
+            )
+            return {
+                "contract_version": DOCUMENT_CONTENT_API_VERSION,
+                "document_id": document_id,
+                "versions": [version.as_dict() for version in versions],
+            }
         except Exception as exc:
             return _error(self.service.error_dto(exc))
 

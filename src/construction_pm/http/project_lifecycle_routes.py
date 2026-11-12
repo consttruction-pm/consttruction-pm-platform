@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from decimal import Decimal
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -114,6 +115,12 @@ from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..document_api import DocumentAPI
+from ..document_storage import content_disposition
+from ..tracking_read_model import (
+    TrackingReadAPI,
+    TrackingReadModelError,
+    TrackingRequest,
+)
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
@@ -257,6 +264,7 @@ class ProjectLifecycleHttpRoutes:
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         document_api: DocumentAPI | None = None,
+        tracking_read_api: TrackingReadAPI | None = None,
         budget_api: BudgetAPI | None = None,
         cost_api: CostAPI | None = None,
         threshold_api: ThresholdAPI | None = None,
@@ -314,6 +322,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_issue_api = p6_issue_api
         self._document_api = document_api
+        self._tracking_read_api = tracking_read_api
         self._budget_api = budget_api
         self._cost_api = cost_api
         self._threshold_api = threshold_api
@@ -2029,6 +2038,70 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+            if self._tracking_read_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and split.path.endswith(
+                    "/tracking/read"
+                ):
+                    tracking_project_id = split.path[
+                        len("/api/projects/"):-len("/tracking/read")
+                    ].strip("/")
+                    if tracking_project_id and "/" not in tracking_project_id:
+                        if method != "GET":
+                            return self._error(
+                                400, "TRACKING_METHOD_NOT_ALLOWED", "error.request.invalid"
+                            )
+                        try:
+                            context = self._api.open_project(
+                                session_id, tracking_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(
+                                    403, str(exc), "error.authorization.denied"
+                                )
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+                        request = TrackingRequest(
+                            scale=str(query.get("scale") or "week"),
+                            group_by=query.get("group_by") or None,
+                            sort=str(query.get("sort") or "start"),
+                            direction=str(query.get("direction") or "asc"),
+                        )
+                        try:
+                            payload = self._tracking_read_api.read(
+                                BackendScope(
+                                    context.tenant_id,
+                                    context.project_id,
+                                    context.revision,
+                                ),
+                                auth_context=auth,
+                                request=request,
+                            )
+                        except AuthorizationError as exc:
+                            return self._error(
+                                403, str(exc), "error.authorization.denied"
+                            )
+                        except TrackingReadModelError as exc:
+                            code = str(exc)
+                            if code == "TRACKING_SCHEDULE_NOT_PUBLISHED":
+                                return self._error(
+                                    409, code, "error.tracking.schedule.not_published"
+                                )
+                            if code == "TRACKING_SCHEDULE_HAS_NO_ACTIVITIES":
+                                return self._error(
+                                    409, code, "error.tracking.schedule.empty"
+                                )
+                            return self._error(400, code, "error.request.invalid")
+                        return self._json(200, payload)
+
             if self._document_api is not None:
                 split = urlsplit(path)
                 if split.path.startswith("/api/projects/"):
@@ -2062,6 +2135,29 @@ class ProjectLifecycleHttpRoutes:
                                 return self._error(
                                     404, code, "error.document.not_found"
                                 )
+                            if code == "DOCUMENT_CONTENT_NOT_FOUND":
+                                return self._error(
+                                    404, code, "error.document.content.not_found"
+                                )
+                            if code == "DOCUMENT_CONTENT_TOO_LARGE":
+                                return self._error(
+                                    413, code, "error.document.content.too_large"
+                                )
+                            if code in {
+                                "DOCUMENT_CONTENT_TYPE_REJECTED",
+                                "DOCUMENT_CONTENT_TYPE_MISMATCH",
+                                "DOCUMENT_CONTENT_TYPE_UNRECOGNIZED",
+                            }:
+                                return self._error(
+                                    415, code, "error.document.content.type_rejected"
+                                )
+                            if code in {
+                                "DOCUMENT_CONTENT_HASH_MISMATCH",
+                                "DOCUMENT_CONTENT_INTEGRITY_FAILED",
+                            }:
+                                return self._error(
+                                    409, code, "error.document.content.integrity"
+                                )
                             if category == "conflict":
                                 return self._error(
                                     409, code, "error.document.conflict"
@@ -2076,12 +2172,60 @@ class ProjectLifecycleHttpRoutes:
                                 )
                             return self._error(400, code, "error.request.invalid")
 
+                        is_content_upload = (
+                            method == "POST"
+                            and len(parts) == 2
+                            and parts[1] == "content"
+                        )
                         try:
-                            payload = (
-                                json.loads(body.decode("utf-8") or "{}") if body else {}
-                            )
-                            if not isinstance(payload, dict):
-                                raise ValueError("invalid payload")
+                            if is_content_upload:
+                                payload: dict[str, object] = dict(query)
+                            else:
+                                payload = (
+                                    json.loads(body.decode("utf-8") or "{}") if body else {}
+                                )
+                                if not isinstance(payload, dict):
+                                    raise ValueError("invalid payload")
+                            if is_content_upload:
+                                expected_raw = (
+                                    query.get("expected_revision")
+                                    or request_headers.get("X-Expected-Revision")
+                                )
+                                expected_value: int | None = None
+                                if expected_raw not in (None, ""):
+                                    if isinstance(expected_raw, bool):
+                                        raise ValueError(
+                                            "INVALID_EXPECTED_DOCUMENT_REVISION"
+                                        )
+                                    expected_value = int(expected_raw)
+                                result = self._document_api.upload_content(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    data=body,
+                                    content_type=(
+                                        request_headers.get("Content-Type", "")
+                                        or str(query.get("content_type") or "")
+                                    ),
+                                    filename=(
+                                        request_headers.get("X-File-Name")
+                                        or query.get("filename")
+                                    ),
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or str(query.get("idempotency_key") or "")
+                                    ),
+                                    expected_revision=expected_value,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                )
+                                if "content" in result:
+                                    return self._json(
+                                        200 if result.get("idempotent_replay") else 201,
+                                        result,
+                                    )
+                                return _document_reply(result)
                             if method == "GET" and not parts:
                                 result = self._document_api.list(
                                     tenant_id=context.tenant_id,
@@ -2122,6 +2266,48 @@ class ProjectLifecycleHttpRoutes:
                                 if "document_id" in result:
                                     return self._json(200, result)
                                 return _document_reply(result)
+                            if method == "GET" and len(parts) == 3 and parts[1] == "content" and parts[2] == "versions":
+                                result = self._document_api.list_content_versions(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                )
+                                if "versions" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "GET" and len(parts) >= 2 and parts[1] == "content":
+                                content_version = None
+                                if len(parts) == 3:
+                                    content_version = int(parts[2])
+                                elif len(parts) > 3:
+                                    return self._error(
+                                        400,
+                                        "DOCUMENT_REQUEST_INVALID",
+                                        "error.request.invalid",
+                                    )
+                                download = self._document_api.download_content(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                    version=content_version,
+                                )
+                                if not isinstance(download, dict):
+                                    headers = {
+                                        "Content-Type": download.content_type,
+                                        "Content-Disposition": content_disposition(
+                                            download.filename
+                                        ),
+                                        "X-Content-SHA256": download.content_hash,
+                                        "X-Document-Version": (
+                                            ""
+                                            if download.version is None
+                                            else str(download.version)
+                                        ),
+                                    }
+                                    return (200, headers, download.data)
+                                return _document_reply(download)
                             if method == "GET" and len(parts) == 1:
                                 result = self._document_api.read(
                                     tenant_id=context.tenant_id,
@@ -3305,6 +3491,32 @@ class ProjectLifecycleHttpRoutes:
                                 )
                             if (
                                 method == "GET"
+                                and len(parts) == 4
+                                and parts[1] == "runs"
+                                and parts[3] == "export"
+                            ):
+                                export_format = query.get("format") or "csv"
+                                document = self._report_api.export_run(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    report_id=parts[0],
+                                    run_id=parts[2],
+                                    export_format=export_format,
+                                    context=auth,
+                                )
+                                if isinstance(document, dict):
+                                    return _report_reply(document)
+                                headers = {
+                                    "Content-Type": document.content_type,
+                                    "Content-Disposition": content_disposition(
+                                        document.filename
+                                    ),
+                                    "X-Content-SHA256": document.content_sha256,
+                                    "X-Report-Run": document.run_id,
+                                }
+                                return (200, headers, document.data)
+                            if (
+                                method == "GET"
                                 and len(parts) == 2
                                 and parts[1] == "history"
                             ):
@@ -3579,14 +3791,31 @@ class ProjectLifecycleHttpRoutes:
                                 dataset = str(
                                     query.get("dataset") or payload.get("dataset") or ""
                                 )
-                                return _exchange_reply(
-                                    self._exchange_api.export(
-                                        scope=scope,
-                                        dataset=dataset,
-                                        context=auth,
-                                        generated_at=now,
-                                    )
+                                export_format = (
+                                    query.get("format")
+                                    or payload.get("format")
+                                    or "csv"
                                 )
+                                result = self._exchange_api.export(
+                                    scope=scope,
+                                    dataset=dataset,
+                                    context=auth,
+                                    generated_at=now,
+                                    export_format=export_format,
+                                )
+                                if "category" in result:
+                                    return _exchange_reply(result)
+                                encoded = result.pop("content_base64", None)
+                                if encoded is None:
+                                    return self._json(200, result)
+                                headers = {
+                                    "Content-Type": str(result["content_type"]),
+                                    "Content-Disposition": content_disposition(
+                                        f"{dataset}.xlsx"
+                                    ),
+                                    "X-Content-SHA256": str(result["content_sha256"]),
+                                }
+                                return (200, headers, base64.b64decode(encoded))
                             if method == "POST" and parts == ["import", "preview"]:
                                 return _exchange_reply(
                                     self._exchange_api.preview_import(
@@ -3595,6 +3824,9 @@ class ProjectLifecycleHttpRoutes:
                                         content=str(payload.get("content", "")),
                                         context=auth,
                                         occurred_at=now,
+                                        import_format=str(
+                                            payload.get("format") or "csv"
+                                        ),
                                     )
                                 )
                             if method == "POST" and parts == ["import"]:
@@ -3607,6 +3839,9 @@ class ProjectLifecycleHttpRoutes:
                                     ),
                                     context=auth,
                                     occurred_at=now,
+                                    import_format=str(
+                                        payload.get("format") or "csv"
+                                    ),
                                 )
                                 if (
                                     "category" not in result

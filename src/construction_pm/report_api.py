@@ -9,6 +9,7 @@ from typing import Any
 from .api_errors import APIError
 from .application.authorization import AuthorizationContext
 from .report_application import ReportApplicationService
+from .report_export import REPORT_EXPORT_FORMATS, ReportExportDocument
 from .report_persistence import (
     ReportAuditEvent,
     ReportDefinition,
@@ -30,6 +31,7 @@ class ReportAPI:
         return {
             "contract_version": REPORT_API_VERSION,
             "subjects": report_catalogue(),
+            "export_formats": list(REPORT_EXPORT_FORMATS),
         }
 
     def list_definitions(
@@ -243,6 +245,28 @@ class ReportAPI:
                     run_id=run_id,
                     context=context,
                 )
+            )
+        except Exception as exc:
+            return _error(self.service.error_dto(exc))
+
+    def export_run(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        run_id: str,
+        export_format: str,
+        context: AuthorizationContext,
+    ) -> ReportExportDocument | dict[str, Any]:
+        try:
+            return self.service.export_run(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                report_id=report_id,
+                run_id=run_id,
+                export_format=export_format,
+                context=context,
             )
         except Exception as exc:
             return _error(self.service.error_dto(exc))
