@@ -12,7 +12,7 @@ type LandingCopy = {
 };
 const copy: Partial<Record<LandingLocale, LandingCopy>> = {
   en: {
-    nav: ["Home", "Platform", "Solutions", "Resources", "Contact"],
+    nav: ["Home", "Platform", "Solutions", "Resources", "About Us", "Contact"],
     eyebrow: "CONSTRUCTION & BUILDING INTELLIGENCE",
     title: "Control every detail.", accent: "Build with confidence.",
     subtitle: "Plan. Control. Build Smarter.",
@@ -53,7 +53,7 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     footerNote: "Plan. Control. Build Smarter."
   },
   fa: {
-    nav: ["خانه", "پلتفرم", "راهکارها", "منابع", "تماس"],
+    nav: ["خانه", "پلتفرم", "راهکارها", "منابع", "درباره ما", "تماس"],
     eyebrow: "هوشمندی ساخت و مدیریت پروژه",
     title: "جزئیات را کنترل کنید؛", accent: "با اطمینان بسازید.",
     subtitle: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
@@ -434,7 +434,7 @@ function renderLanding(container: HTMLElement): void {
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="CUBI Platform — Plan. Control. Build Smarter." /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="${pricingHref}">${locale === "fa" ? "قیمت‌گذاری" : "Pricing"}</a><a href="./resources/">${t.nav[3]}</a><a href="./contact/">${t.nav[4]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="${pricingHref}">${locale === "fa" ? "قیمت‌گذاری" : "Pricing"}</a><a href="./resources/">${t.nav[3]}</a><a href="./about/">${t.nav[4]}</a><a href="./contact/">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
           <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">${t.language}</button>
@@ -474,7 +474,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${locale === "fa" ? "شرکت" : "Company"}</b><a href="./about/">${locale === "fa" ? "درباره ما" : "About Us"}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
       </div>`;
