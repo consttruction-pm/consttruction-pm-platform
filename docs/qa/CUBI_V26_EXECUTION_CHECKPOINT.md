@@ -2502,7 +2502,7 @@ Recorded provenance:
   Cost page offers no copy/update-from-current-project action.
 - Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
   context menus, duplicated text command bands and the remaining server capabilities
-  (GAP-PRG-02, GAP-TRK-01, GAP-PRJ-02, GAP-DOC-02).
+  (GAP-PRG-02, GAP-TRK-01, GAP-PRJ-02 — resolved 2026-11-12 —, GAP-DOC-02).
 
 ## GAP-PRG-02 — persisted progress history and out-of-sequence review (2026-11-12)
 
@@ -2563,7 +2563,67 @@ Recorded provenance:
 - Honest limits: the review compares persisted actual dates only (no float or calendar calculation, so
   it is not a rescheduled forecast); updates remain per activity with no all/selected bulk apply; the
   Progress page has no period cost/unit actuals and the trend is the persisted percent series.
-- Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-PRJ-02 (project
-  close/archive/status), GAP-DOC-02 (binary document storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
+- Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-PRJ-02 (project close/archive/status; resolved 2026-11-12), GAP-DOC-02 (binary document storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
+- Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
+  context menus and duplicated text command bands.
+
+## GAP-PRJ-02 — audited project status lifecycle (2026-11-12)
+
+Reference: Oracle Primavera P6 Professional Help Version 26 — [General tab - Project Details](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_project_details.htm)
+(Status identifies active/inactive projects and offers What If for analysis and Planned for the planning
+phase) and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/en_US/filter_by_project_status.htm)
+(the same Active/Inactive/Planned/What-If vocabulary used for portfolios and filters).
+
+### Implemented
+
+- `application/project_lifecycle.py`: `ProjectSummary.status`, `PROJECT_STATUSES`
+  (`active|inactive|planned|what_if`), `normalize_project_status`, the append-only
+  `ProjectStatusEvent`, and `set_project_status`/`project_status_history` on the service. The write
+  requires `PROJECT_ADMIN`, honours `settings_revision`, and returns the stored row unchanged
+  (no revision bump, no event) when the requested status equals the stored status.
+- `application/project_lifecycle_api.py` and `http/project_lifecycle_routes.py`:
+  `POST /api/projects/{id}/status` (`project-status-api.v1`) returns the persisted project row;
+  `GET /api/projects/{id}/status-history` (`PROJECT_READ`) returns events with actor, transition,
+  revision and recorded time. `PROJECT_STATUS_INVALID` maps to 400 and a read-back mismatch to 500.
+- Persistence: SQLite preview and PostgreSQL repositories write the conditional status update and
+  the event with `event_id = {project_id}@{new_settings_revision}`, `ON CONFLICT DO NOTHING` and a
+  post-write read-back; `infra/project_lifecycle_schema.sql` adds the `status` column (with CHECK) and
+  `project_lifecycle_status_event` plus its index. Replays are idempotent and history is append-only.
+- `apps/web/src/main.ts`: the Project settings dialog gains a status select, a save control, the
+  configuration revision and the event list; `session-api.ts`/`project-bootstrap.ts` call the new
+  contract, and `bootstrap-labels.ts` supplies en/fa labels. Authorization failures from either the
+  metadata save or the status save now render the permission message instead of a generic failure.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3546 passed, 143 skipped (psycopg installed) |
+| Status service | `PYTHONPATH=src python3 -m pytest tests/test_project_status_lifecycle.py -q` | 7 passed |
+| PostgreSQL repository | `PYTHONPATH=src python3 -m pytest tests/test_postgres_project_lifecycle.py -q` | 8 passed |
+| Live PostgreSQL | `CONSTRUCTION_PM_POSTGRES_DSN=... python3 -m pytest tests/integration/test_project_status_postgres_live.py -q` | 1 passed |
+| Type check | `cd apps/web && npm run typecheck` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 887 `tsx` + 14 `node --test` tests pass, 0 fail |
+| Web bundle | `cd apps/web && npm run build` | three bundles written |
+| Browser suite | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=e1b82363 node e2e/project-status-v26.mjs` | 6/6 scenarios, 6 screenshots, 4 viewport/locale cells, 0 exceptions/console errors/5xx |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Implementation commit | `e1b82363` |
+| Browser-tested code SHA | `e1b82363df2673f3a20de903bfb0ed77d79551d6` |
+| Evidence | `docs/workspace/evidence/project-status-v26-2026-11-12/` (`report.json` `gitHead`) |
+| Branch | `feat/v26-project-lifecycle-status` (merged via PR) |
+
+### Status after this increment
+
+- GAP-PRJ-02: resolved (`WIRED_WRITE`); PRJ-002 updated in the window matrix and the Project row in
+  the surface matrix.
+- Honest limits: no close/archive operation beyond the status field, no EPS/OBS hierarchy, no
+  responsible-manager, leveling-priority, checkout or web-site fields, no status-based project
+  filtering/portfolios, and defaults application is not audited.
+- Remaining server capabilities: GAP-TRK-01 (tracking read model), GAP-DOC-02 (binary document
+  storage); GAP-V26-01 stays `BLOCKED_EXTERNAL`.
 - Priority-zero queue continues with table multi-select, Activity Details tab content, per-target
   context menus and duplicated text command bands.

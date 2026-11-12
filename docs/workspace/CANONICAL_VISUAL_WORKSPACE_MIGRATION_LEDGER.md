@@ -132,7 +132,7 @@ The following reflects the code traceability matrix inspected on 2026-11-05. Re-
 
 | Authenticated window | Evidence-based status | Remaining service/product limitation |
 |---|---|---|
-| Project | Partial / wired-read | No close/archive/status operation; no EPS hierarchy |
+| Project | Wired / partial | Stored, revision-guarded status (Active/Inactive/Planned/What-If) with an append-only event history; no close/archive operation beyond status, no EPS/OBS hierarchy, responsible-manager/leveling-priority/checkout fields absent |
 | WBS | Wired | No reorder/move, budget/milestone/document/EVM/planning-resource models or chart export |
 | Schedule | Implemented / wired | Numeric parity against a licensed V26 reference run not proven; long-tail dialogs need audit |
 | Progress | Wired / partial | Append-only update log with a persisted percent trend and an FS/SS/FF review of persisted actual dates at write time (no float or calendar calculation); no all/selected bulk update, dashboard charts or period actual cost/units |

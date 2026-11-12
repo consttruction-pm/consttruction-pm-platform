@@ -98,11 +98,12 @@ Blocking items (a named external dependency or a server capability is required):
 | ID | Class | Gap | Why it blocks |
 | --- | --- | --- | --- |
 | GAP-V26-01 | Evidence | No licensed Version 26 reference run exists in this environment | Numeric parity cannot be claimed; no row can be `IMPLEMENTED_AND_PARITY_TESTED` until an authorized dataset is available |
-| GAP-PRJ-02 | Core/server | No close/archive/status lifecycle operation | The Project page cannot offer those actions without fabricating them |
 | GAP-DOC-02 | Core/server | No binary upload/download route | Documents store metadata plus `storage_ref` and SHA-256 only |
 | GAP-TRK-01 | Core | No tracking read model | The Tracking window remains an honest shell |
 
 Resolved after the review snapshot: **GAP-BAS-03** — `p6-baseline-capture-api.v1` now captures the latest published schedule snapshot as immutable baseline activities from the Cost Overview; merged implementation `b04d851`, browser-verified at `2a1c6b3` with evidence `1b367ba`. The older GAP-COST-01 browser note that seeded baseline rows manually is superseded by the capture journey.
+
+Also resolved after the review snapshot: **GAP-PRJ-02** — `project-status-api.v1` stores the General-tab project status (Active/Inactive/Planned/What-If) under the `settings_revision` optimistic token and appends one immutable `project_lifecycle_status_event` per accepted change in the same transaction; a same-status save is a no-op, so retries cannot duplicate history. The Project settings dialog loads the stored status and renders the event history in en and fa; browser-verified in `apps/web/e2e/project-status-v26.mjs`, with live PostgreSQL coverage in `tests/integration/test_project_status_postgres_live.py`. What remains under the old gap name is narrower: there is no close/archive operation beyond the status field and no EPS/OBS hierarchy.
 
 Also resolved after the review snapshot: **GAP-PRG-02** — `p6-activity-progress-history-api.v1` appends an immutable progress event inside the same transaction as each revision-guarded activity PATCH and reviews persisted actual dates against stored FS/SS/FF predecessors at write time (a persisted-fact comparison, not a rescheduled forecast). The Progress window renders the event log, the persisted percent-complete trend and a per-event out-of-sequence flag; browser-verified in `apps/web/e2e/progress-history-v26.mjs`, with live PostgreSQL repository coverage in `tests/integration/test_activity_progress_history_postgres_live.py`. Remaining sub-gaps: no all/selected bulk update, no stored EVM or cost/unit period actuals on this page, and the trend is the persisted percent series rather than a schedule-data dashboard.
 
