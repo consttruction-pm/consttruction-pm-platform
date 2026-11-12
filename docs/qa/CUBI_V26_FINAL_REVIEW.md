@@ -133,3 +133,12 @@ permission/revision and browser evidence on the final `main`. The remaining item
 parity blocker, five server-side capability gaps, and the recorded non-blocking product and audit
 gaps above. No module is left as a silent placeholder: each either performs real persisted work or
 states why it cannot.
+
+## 2026-11-12 addendum — Activities chrome
+
+The Activities menu bar, icon toolbar, chart board controls and both vertical rails were re-audited
+and aligned to the Version 26 toolbar topics at code SHA
+`9ddb1fa235eb20c89339e73622719ffb1915cb99`. Twelve requirements measure as MATCH and eight as
+PARTIAL (named command absences, not structural defects); there is no GAP row in this increment.
+Evidence: `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` and
+`docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.
