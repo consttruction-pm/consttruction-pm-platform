@@ -26,7 +26,7 @@ const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4193";
 const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
 const evidenceCommitSha = process.env.CUBI_EVIDENCE_COMMIT_SHA || null;
 const outDir = join(artifactsDir, "gantt-options-v26");
-const durableDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", "gantt-options-v26-2026-11-12");
+const durableDir = process.env.CUBI_GANTT_EVIDENCE_DIR || join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", "gantt-options-v26-2026-11-12");
 mkdirSync(outDir, { recursive: true });
 mkdirSync(durableDir, { recursive: true });
 
