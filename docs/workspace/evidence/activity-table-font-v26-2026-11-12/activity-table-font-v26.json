@@ -1,0 +1,72 @@
+{
+  "contract": "cubi-activity-table-font-v26.v1",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "dbe361aeed4e4e5feb2b48bcd44b8d7db6579db8",
+  "testedCodeSha": "dbe361aeed4e4e5feb2b48bcd44b8d7db6579db8",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T17:45:03.496Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the dialog writes font, colours and a fixed row height to the table",
+      "status": "pass",
+      "at": "2026-11-12T17:45:08.216Z",
+      "revision": 2,
+      "table": {
+        "backgroundColor": "#fdf6e3",
+        "fontFamily": "cairo",
+        "fontSize": 14,
+        "lineNumbers": false,
+        "rowHeight": 26,
+        "rowHeightMode": "fixed",
+        "showIcons": false,
+        "textColor": "#102030"
+      }
+    },
+    {
+      "id": "02",
+      "name": "the saved table presentation survives a full reload",
+      "status": "pass",
+      "at": "2026-11-12T17:45:09.750Z",
+      "rowHeight": 27,
+      "fontSize": "14px"
+    },
+    {
+      "id": "03",
+      "name": "Reset to defaults restores the shipped table and persists",
+      "status": "pass",
+      "at": "2026-11-12T17:45:12.736Z",
+      "revision": 3,
+      "rowHeight": 19
+    },
+    {
+      "id": "04",
+      "name": "the dialog and defaults render in a Persian RTL cell",
+      "status": "pass",
+      "at": "2026-11-12T17:45:14.747Z",
+      "title": "قلم و ردیف جدول",
+      "reset": "بازنشانی به پیش‌فرض",
+      "overflow": 0
+    },
+    {
+      "id": "05",
+      "name": "the table presentation fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-12T17:45:15.778Z",
+      "rows": 7,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-table-font-cairo-26px-en-1366.png",
+    "02-table-font-after-reload-en-1366.png",
+    "03-table-font-reset-en-1366.png",
+    "04-table-font-fa-rtl-1280.png",
+    "05-table-font-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 5,
+  "failed": 0
+}

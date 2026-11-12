@@ -57,6 +57,8 @@ test("Table Font and Row reads font family, colours, row mode and icons", () => 
     rowHeightMode: "content",
     showIcons: "on",
     lineNumbers: "on",
+    tableFields: "1",
+    tableLineNumbers: "1",
   }));
   const table = patch.presentation?.table;
   assert.equal(table?.fontFamily, "cairo");
@@ -624,4 +626,41 @@ test("criterion rows render typed operators, the High value column and local row
   assert.match(text, /does not contain/);
   assert.doesNotMatch(text, /is within range of/);
   assert.doesNotMatch(text, /data-filter-join(?![^>]*hidden)/);
+});
+
+test("Table Font and Row resets every table value to the shipped defaults", () => {
+  const patch = readLayoutPatch(form({
+    rowHeight: "33",
+    fontSize: "15",
+    fontFamily: "cairo",
+    textColor: "#123abc",
+    backgroundColor: "#000000",
+    rowHeightMode: "content",
+    showIcons: "on",
+    lineNumbers: "on",
+    tableFields: "1",
+    tableLineNumbers: "1",
+    tableReset: "1",
+  }));
+  assert.deepEqual(patch.presentation?.table, DEFAULT_PRESENTATION.table);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(patch.presentation?.timescale)),
+    JSON.parse(JSON.stringify(DEFAULT_PRESENTATION.timescale)),
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(patch.presentation?.bars)),
+    JSON.parse(JSON.stringify(DEFAULT_PRESENTATION.bars)),
+  );
+  const html = renderLayoutDialogs(dialogOptions());
+  assert.match(html, /name="tableReset" value="1"/);
+  assert.match(html, /Reset to defaults/);
+});
+
+test("clearing Show activity type icons is persisted, not dropped as an unchecked box", () => {
+  const patch = readLayoutPatch(form({ tableFields: "1" }));
+  assert.equal(patch.showIcons, false);
+  assert.equal(patch.presentation?.table.showIcons, false);
+  const preferences = readLayoutPatch(form({ tableFields: "1", tableLineNumbers: "1" }));
+  assert.equal(preferences.lineNumbers, false);
+  assert.equal(preferences.presentation?.table.lineNumbers, false);
 });
