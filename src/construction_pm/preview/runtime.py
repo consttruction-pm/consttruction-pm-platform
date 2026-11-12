@@ -117,6 +117,10 @@ from construction_pm.document_application import DocumentApplicationService
 from construction_pm.document_content_repository import (
     SQLiteDocumentContentRepository,
 )
+from construction_pm.document_ocr import (
+    DocumentOcrService,
+    SQLiteDocumentOcrRepository,
+)
 from construction_pm.document_persistence import (
     RolePermissionDocumentLifecycleAuthorizer,
     SQLiteDocumentStore,
@@ -417,6 +421,7 @@ class PreviewRepositories:
     activity_step_service: P6ActivityStepApplicationService
     documents: SQLiteDocumentStore
     document_content: SQLiteDocumentContentRepository
+    document_ocr: SQLiteDocumentOcrRepository
     budget: SQLiteBudgetStore
     cost: SQLiteCostStore
     thresholds: SQLiteThresholdStore
@@ -506,6 +511,8 @@ class PreviewRepositories:
         documents.initialize()
         document_content = SQLiteDocumentContentRepository(connection)
         document_content.initialize()
+        document_ocr = SQLiteDocumentOcrRepository(connection)
+        document_ocr.initialize()
         budget = SQLiteBudgetStore(connection)
         budget.initialize()
         cost = SQLiteCostStore(connection)
@@ -575,6 +582,7 @@ class PreviewRepositories:
             activity_step_service=activity_step_service,
             documents=documents,
             document_content=document_content,
+            document_ocr=document_ocr,
             budget=budget,
             cost=cost,
             thresholds=thresholds,
@@ -1860,7 +1868,13 @@ def open_preview_runtime(
                 content_repository=repositories.document_content,
                 scanner=ReferenceDocumentScanner(),
                 require_scanned_content=True,
-            )
+                ocr_store=repositories.document_ocr,
+            ),
+            ocr=DocumentOcrService(
+                repositories.document_ocr,
+                repositories.document_content,
+                policy,
+            ),
         ),
         budget_api=BudgetAPI(
             BudgetApplicationService(
