@@ -22,6 +22,12 @@ from .report_persistence import (
     StoredReportDefinition,
     report_catalogue,
 )
+from .report_schedules import (
+    SCHEDULE_CADENCES,
+    ReportSchedule,
+    ReportScheduleError,
+    ReportScheduleService,
+)
 
 REPORT_API_VERSION = "p6-report-api.v1"
 
@@ -31,6 +37,7 @@ class ReportAPI:
     """Thin DTO boundary over the report application service."""
 
     service: ReportApplicationService
+    schedules: ReportScheduleService | None = None
 
     def catalogue(self) -> dict[str, Any]:
         return {
@@ -39,6 +46,7 @@ class ReportAPI:
             "export_formats": list(REPORT_EXPORT_FORMATS),
             "export_locales": list(REPORT_EXPORT_LOCALES),
             "parameters": parameter_catalogue(),
+            "schedule_cadences": list(SCHEDULE_CADENCES),
         }
 
     def list_definitions(
@@ -282,6 +290,155 @@ class ReportAPI:
         except Exception as exc:
             return _error(self.service.error_dto(exc))
 
+    # -- schedules ---------------------------------------------------------
+    def list_schedules(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        try:
+            return {
+                "contract_version": REPORT_API_VERSION,
+                "report_id": report_id,
+                "schedules": [
+                    _schedule(item)
+                    for item in self._schedules().list(
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        report_id=report_id,
+                        context=context,
+                    )
+                ],
+            }
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def read_schedule(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        schedule_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        try:
+            return _schedule(
+                self._schedules().get(
+                    tenant_id=tenant_id,
+                    project_id=project_id,
+                    report_id=report_id,
+                    schedule_id=schedule_id,
+                    context=context,
+                )
+            )
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def create_schedule(
+        self,
+        schedule: ReportSchedule,
+        *,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        try:
+            return _schedule(
+                self._schedules().create(
+                    schedule,
+                    context=context,
+                    actor_id=actor_id,
+                    occurred_at=occurred_at,
+                )
+            )
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def update_schedule(
+        self,
+        schedule: ReportSchedule,
+        *,
+        expected_revision: int,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        try:
+            return _schedule(
+                self._schedules().update(
+                    schedule,
+                    expected_revision=expected_revision,
+                    context=context,
+                    actor_id=actor_id,
+                    occurred_at=occurred_at,
+                )
+            )
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def delete_schedule(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        schedule_id: str,
+        expected_revision: int,
+        context: AuthorizationContext,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> dict[str, Any]:
+        try:
+            self._schedules().delete(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                report_id=report_id,
+                schedule_id=schedule_id,
+                expected_revision=expected_revision,
+                context=context,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+            return {"contract_version": REPORT_API_VERSION, "deleted": True}
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def schedule_history(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        schedule_id: str,
+        context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        try:
+            return {
+                "contract_version": REPORT_API_VERSION,
+                "schedule_id": schedule_id,
+                "events": [
+                    _event(item)
+                    for item in self._schedules().history(
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        report_id=report_id,
+                        schedule_id=schedule_id,
+                        context=context,
+                    )
+                ],
+            }
+        except Exception as exc:
+            return _error(ReportScheduleService.error_dto(exc))
+
+    def _schedules(self) -> ReportScheduleService:
+        if self.schedules is None:
+            raise ReportScheduleError("REPORT_SCHEDULES_UNAVAILABLE")
+        return self.schedules
+
 
 def _definition(stored: StoredReportDefinition) -> dict[str, Any]:
     return {"contract_version": REPORT_API_VERSION, **stored.as_dict()}
@@ -310,6 +467,10 @@ def _run_summary(run: ReportRun) -> dict[str, Any]:
 
 def _event(event: ReportAuditEvent) -> dict[str, Any]:
     return {"contract_version": REPORT_API_VERSION, **event.as_dict()}
+
+
+def _schedule(schedule: ReportSchedule) -> dict[str, Any]:
+    return {"contract_version": REPORT_API_VERSION, **schedule.as_dict()}
 
 
 def _error(error: APIError) -> dict[str, Any]:

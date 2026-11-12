@@ -340,6 +340,61 @@ class ReportApplicationService:
         self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
         if actor_id != context.user_id:
             raise ReportAuthorizationError("REPORT_ACTOR_MISMATCH")
+        return self._materialize(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            project_revision=project_revision,
+            report_id=report_id,
+            parameters=parameters,
+            actor_id=actor_id,
+            occurred_at=occurred_at,
+            run_id=None,
+        )
+
+    def run_scheduled(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        report_id: str,
+        parameters: Mapping[str, object] | None,
+        actor_id: str,
+        occurred_at: datetime,
+        run_id: str,
+    ) -> ReportRun:
+        """Materialize one durable schedule occurrence.
+
+        This is a trusted internal entry point: the caller is the deployment
+        scheduler, not a user session, so there is no ``AuthorizationContext``.
+        It still validates every persisted input and rechecks that the report
+        definition exists in the caller's tenant/project scope.
+        """
+        if not isinstance(run_id, str) or not run_id.strip():
+            raise ReportPersistenceError("INVALID_REPORT_RUN_ID")
+        return self._materialize(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            project_revision=project_revision,
+            report_id=report_id,
+            parameters=parameters,
+            actor_id=actor_id,
+            occurred_at=occurred_at,
+            run_id=run_id.strip(),
+        )
+
+    def _materialize(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        report_id: str,
+        parameters: Mapping[str, object] | None,
+        actor_id: str,
+        occurred_at: datetime,
+        run_id: str | None,
+    ) -> ReportRun:
         if (
             isinstance(project_revision, bool)
             or not isinstance(project_revision, int)
@@ -362,7 +417,11 @@ class ReportApplicationService:
                 resolved.mapping(),
             )
             run = ReportRun(
-                run_id=self.store.next_run_id(tenant_id, project_id, report_id),
+                run_id=(
+                    run_id
+                    if run_id is not None
+                    else self.store.next_run_id(tenant_id, project_id, report_id)
+                ),
                 tenant_id=tenant_id,
                 project_id=project_id,
                 report_id=report_id,

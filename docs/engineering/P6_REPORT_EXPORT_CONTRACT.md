@@ -139,6 +139,7 @@ A definition may bind a subset of the parameters its subject supports:
 ## Out of scope in this slice
 
 - Durable scheduled runs, retry/idempotent delivery and delivery checksums.
+  The durable schedule contract is `P6_REPORT_SCHEDULES_CONTRACT.md`.
 - A PostgreSQL report store: the report register remains SQLite-only.
 - The Web download wiring (owned by Agent 1); this contract is the backend seam.
 - Persian catalogue labels for table headers: the stored catalogue labels are
