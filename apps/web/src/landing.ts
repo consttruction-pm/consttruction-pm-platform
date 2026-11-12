@@ -269,7 +269,52 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     footerColumns:[{title:"المنصة",links:["التحكم بالمشروع","التخطيط والجدولة","الموارد والتكاليف"]},{title:"الحلول",links:["فرق البناء","قيادة المشروع","تنفيذ المشروع"]},{title:"الموارد",links:["الوثائق","نظرة عامة على المنتج","اتصل بنا"]}],footerNote:"خطّط. تحكّم. ابنِ بذكاء أكبر."
   }
 };
+
+copy["zh-Hans"] = copy.zh!;
+copy["zh-Hant"] = {
+  ...copy.zh!,
+  nav: ["首頁", "平台", "解決方案", "資源", "關於我們", "聯絡我們"],
+  eyebrow: "面向建築、基礎設施與工業領域的專案控制",
+  title: "全面掌握專案每個細節。", accent: "自信交付。",
+  subtitle: "規劃 · 控制 · 更智慧地建設",
+  body: "從建築與基礎設施，到油氣、石化、能源及複雜工業設施，CUBI 將專案範圍、進度計畫、實際進展、資源、成本與專案憑證整合於統一且規範的專案控制環境中。",
+  primary: "探索 CUBI 平台 →", secondary: "了解 CUBI 如何運作",
+  featuresEyebrow: "統一互聯的專案環境",
+  featuresTitle: "連結專案交付所需的關鍵資訊",
+  featuresBody: "在專案全生命週期中連結計畫、績效、團隊、文件與決策，並確保責任明確、資訊可追溯。",
+  features: [
+    { icon: "⌁", title: "專案規劃與進度管理", body: "管理專案範圍、工作分解結構、活動、日曆、邏輯關係、基準計畫與進度更新。" },
+    { icon: "✧", assistantAvatar: true, title: "工程智慧助理", body: "查找相關 CUBI 指南，結合專案情境準備後續步驟；遵循權限規則，並在變更前取得使用者確認。" },
+    { icon: "↗", title: "資源與成本", body: "提升資源需求、分派、預算與成本績效的可視性。" },
+    { icon: "▤", title: "文件與合約", body: "將受控版本、專案紀錄、合約資訊與佐證資料連結至相關工作。" },
+    { icon: "◎", title: "團隊與現場協作", body: "連結專案團隊、現場資訊、待處理事項與管理決策。" },
+    { icon: "☁", title: "報告與協作", body: "依據可追溯的專案資料、角色權限與規範流程進行協作。" }
+  ],
+  techEyebrow: "為複雜專案而打造",
+  techTitle: "支援更佳決策的互聯基礎",
+  techBody: "CUBI 連結專案定義、工作分解結構、活動網路、日曆、基準計畫、進度、資源與成本資訊、受控文件及報告。計算結果與進度日期由權威專案服務提供，而非由助理猜測。",
+  techLink: "查看平台功能 →",
+  techNodes: ["專案控制", "工程指南", "互聯資料", "受控流程"],
+  industriesEyebrow: "從土木工程到複雜流程設施",
+  industriesTitle: "統一的專案控制基礎，服務多元產業。",
+  industriesBody: "CUBI 適用於建築與基礎設施、油氣開發、管線、煉油廠、石化設施、電力與公用事業、工業廠房及 EPC 專案。讓專案結構、日曆、角色與報告配合實際工作需求。",
+  ctaTitle: "以更清晰的專案全貌做出下一個決策。",
+  ctaBody: "在專案全生命週期中連結計畫、人員、數據與佐證資料。",
+  assistantTitle: "CUBI 工程智慧助理",
+  assistantSubtitle: "專案指引，近在咫尺",
+  assistantDescription: "在工作區中查找產品指南與專案情境支援。回答必須遵守存取權限、說明知識缺口，並在變更專案紀錄前取得使用者核准。",
+  assistantWorkspaceAction: "開啟專案工作區 →",
+  assistantClose: "關閉助理",
+  signIn: "登入", start: "立即開始", language: "فارسی",
+  footerColumns: [
+    { title: "平台", links: ["專案控制", "規劃與進度管理", "資源與成本"] },
+    { title: "解決方案", links: ["施工團隊", "專案領導", "專案交付"] },
+    { title: "資源", links: ["文件", "產品概覽", "聯絡我們"] }
+  ],
+  footerNote: "規劃 · 控制 · 更智慧地建設"
+};
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceText } from "./workspace-localization.js";
+import { getLandingChromeCopy, normalizeLandingLocaleTag, type LandingChromeCopy } from "./landing-chrome.js";
 import { cubiAssistantAvatarUrl, cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { LANDING_LOCALE_STORAGE_KEY } from "./workspace-preferences.js";
 /** The un-prefixed landing document is the default language route. */
@@ -356,15 +401,18 @@ function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
   document.documentElement.dir = getWorkspaceLocaleDirection(locale);
 }
-function getLandingCopy(locale: LandingLocale): LandingCopy {
-  const baseline = copy[locale] ?? copy.en!;
+function getLandingCopy(requestedLocale: LandingLocale): LandingCopy & { chrome: LandingChromeCopy } {
+  const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
+  const baseline = copy[normalizedLocale] ?? copy.en!;
+  const chrome = getLandingChromeCopy(normalizedLocale);
   const availableLocales = getLandingLanguageRoutes();
-  const currentLocaleIndex = availableLocales.indexOf(locale);
-  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
-  const translate = (key: string, fallback: string) => translateWorkspaceText(locale, `landing.${key}`, fallback);
-  const localized: LandingCopy = {
+  const currentLocaleIndex = availableLocales.indexOf(normalizedLocale);
+  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? DEFAULT_LANDING_LOCALE;
+  const translate = (key: string, fallback: string) => translateWorkspaceText(normalizedLocale, `landing.${key}`, fallback);
+  const localized: LandingCopy & { chrome: LandingChromeCopy } = {
     ...baseline,
-    nav: baseline.nav.map((value, index) => translate(`nav.${index}`, value)),
+    chrome,
+    nav: chrome.nav.map((value, index) => translate(`nav.${index}`, value)),
     eyebrow: translate("eyebrow", baseline.eyebrow),
     title: translate("title", baseline.title),
     accent: translate("accent", baseline.accent),
@@ -408,6 +456,11 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
   return escapeLandingCopy(localized);
 }
 
+/** Returns the complete, non-route-gated homepage copy for localization QA. */
+export function getLandingCopyForLocale(requestedLocale: string): LandingCopy & { chrome: LandingChromeCopy } {
+  return getLandingCopy(requestedLocale);
+}
+
 function escapeLandingCopy<T>(value: T): T {
   if (typeof value === "string") return escapeHtml(value) as T;
   if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
@@ -423,6 +476,7 @@ function escapeHtml(value: string): string {
 
 function renderLanding(container: HTMLElement): void {
   const t = getLandingCopy(locale);
+  const c = t.chrome;
   setLandingDocumentLocale();
   // Language routes live one level below the site root, so workspace and
   // product links must be resolved against the root instead of the page.
@@ -432,12 +486,12 @@ function renderLanding(container: HTMLElement): void {
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
-        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="CUBI Platform — Plan. Control. Build Smarter." /></a>
-        <nav class="cubi-exact-nav" aria-label="Primary navigation">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="${pricingHref}">${locale === "fa" ? "قیمت‌گذاری" : "Pricing"}</a><a href="./resources/">${t.nav[3]}</a><a href="./about/">${t.nav[4]}</a><a href="./contact/">${t.nav[5]}</a>
+        <a class="cubi-exact-brand" href="./" aria-label="${c.brandAria}"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="${c.brandAlt}" /></a>
+        <nav class="cubi-exact-nav" aria-label="${c.primaryNavigation}">
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="./resources/">${t.nav[3]}</a><a href="./about/">${t.nav[4]}</a><a href="./contact/">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
-          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">${t.language}</button>
+          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="${c.changeLanguage}">${t.language}</button>
           <a href="${workspaceHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
@@ -447,13 +501,13 @@ function renderLanding(container: HTMLElement): void {
             <p class="cubi-exact-eyebrow">${t.eyebrow}</p><h1 id="cubi-hero-title">${t.title}<span>${t.accent}</span></h1><h2>${t.subtitle}</h2><p>${t.body}</p>
             <div class="cubi-exact-hero-actions"><a class="cubi-exact-primary" href="${workspaceHref}">${t.primary}</a><a class="cubi-exact-demo" href="#technology"><span class="play" aria-hidden="true">▶</span>${t.secondary}</a></div>
           </div>
-          <div class="cubi-exact-dashboard" role="img" aria-label="Illustrative CUBI project dashboard showing schedule, progress and performance">
-            <aside class="cubi-dash-sidebar"><img src="${cubiPlatformLogoUrl()}" width="110" height="32" alt="CUBI Platform" /><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
-            <div class="cubi-dash-main"><div class="cubi-dash-title"><strong>Project Control Center</strong><span>PROJECT / 026</span></div>
+          <div class="cubi-exact-dashboard" role="img" aria-label="${c.dashboardAria}">
+            <aside class="cubi-dash-sidebar"><img src="${cubiPlatformLogoUrl()}" width="110" height="32" alt="CUBI Platform" /><span>${c.dashboardSidebar[0]}</span><span>${c.dashboardSidebar[1]}</span><span>${c.dashboardSidebar[2]}</span><span>${c.dashboardSidebar[3]}</span><span>${c.dashboardSidebar[4]}</span></aside>
+            <div class="cubi-dash-main"><div class="cubi-dash-title"><strong>${c.dashboardTitle}</strong><span>${c.projectLabel} / 026</span></div>
               <div class="cubi-gantt" aria-hidden="true"><i style="width:76%"></i><i style="width:58%"></i><i style="width:82%"></i><i style="width:49%"></i><i style="width:67%"></i><i style="width:38%"></i></div>
-              <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>Progress trend</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>Schedule</b><div class="cubi-ring"><strong>78%</strong></div><small>On track</small></div><div class="cubi-ai-card"><b>AI insight</b><div class="cubi-ai-bubble" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="31" height="31" alt="" /></div><small>Review next milestone</small></div></div>
+              <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>${c.progressTrend}</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>${c.schedule}</b><div class="cubi-ring"><strong>78%</strong></div><small>${c.onTrack}</small></div><div class="cubi-ai-card"><b>${c.aiInsight}</b><div class="cubi-ai-bubble" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="31" height="31" alt="" /></div><small>${c.reviewNextMilestone}</small></div></div>
             </div>
-            <aside class="cubi-progress-card"><div class="cubi-progress-ring"><strong>84%</strong></div><b>Project progress</b><div><span>Plan</span><span>Actual</span></div></aside>
+            <aside class="cubi-progress-card"><div class="cubi-progress-ring"><strong>84%</strong></div><b>${c.projectProgress}</b><div><span>${c.plan}</span><span>${c.actual}</span></div></aside>
           </div>
         </section>
         <section class="cubi-exact-features" id="capabilities">
@@ -463,10 +517,10 @@ function renderLanding(container: HTMLElement): void {
         <section class="cubi-exact-features cubi-exact-industries" id="industries" aria-labelledby="cubi-industries-title"><div class="cubi-exact-section-head"><p class="cubi-kicker">${t.industriesEyebrow}</p><h2 id="cubi-industries-title">${t.industriesTitle}</h2><p>${t.industriesBody}</p></div></section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
-            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="29" height="29" alt="" /></b><span>AI</span></div>
+            <div class="cubi-tech-badges" aria-label="${c.platformBlocks}"><b class="plan">PL</b><span>${c.planning}</span><b class="pg">▦</b><span>${c.projectData}</span><b class="ai" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="29" height="29" alt="" /></b><span>${c.aiLabel}</span></div>
             <a class="cubi-exact-outline" href="${workspaceHref}">${t.techLink}</a>
           </div>
-          <div class="cubi-tech-diagram" aria-label="Connected platform capabilities"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
+          <div class="cubi-tech-diagram" aria-label="${c.connectedCapabilities}"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
             <div class="cubi-tech-node n1"><span>${t.techNodes[0]}</span></div><div class="cubi-tech-node n2"><span>${t.techNodes[1]}</span></div><div class="cubi-tech-node n3"><span>${t.techNodes[2]}</span></div><div class="cubi-tech-node n4"><span>${t.techNodes[3]}</span></div>
           </div>
         </section>
@@ -474,8 +528,8 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${locale === "fa" ? "شرکت" : "Company"}</b><a href="./about/">${locale === "fa" ? "درباره ما" : "About Us"}</a></div>
-        <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="./about/">${c.about}</a></div>
+        <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
       </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
