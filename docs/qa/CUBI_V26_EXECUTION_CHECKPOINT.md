@@ -1041,8 +1041,11 @@ Changed files: `apps/web/src/client.ts`, `apps/web/src/workspace-calendars.ts`,
 
 ## Stage E1 — Project Issue register, status graph and history
 
-Status: **implementation complete; PR pending**. Branch `feat/v26-stage-e-risks-thresholds`,
-based on `main` @ `c7a5df64`.
+Status: **merged**. Independent PR
+[#1757](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1757) squash-merged into
+`main` as `c920dc19` on 2026-11-12. Post-merge CI on `c920dc19`: deploy, build, test
+3.11/3.12/3.13, typecheck apps/web, apps/mobile, apps/desktop, apps/client-sync, postgres-sync
+and web all succeeded.
 
 ### What shipped
 
@@ -1109,10 +1112,10 @@ Recorded provenance (two independent facts):
 | --- | --- |
 | Tested code SHA | `f7ff537d4d3d124e5fc58b4ca304974eec54fd84` |
 | Evidence commit | `545ed4a5371d9c85cd6e36b34163a1a6745be3ae` |
-| Branch head at merge | PENDING |
-| PR | PENDING |
-| Merge commit | PENDING |
-| Post-merge CI | PENDING |
+| Branch head at merge | `3028f5211c10fb0059cdc5277b6d39e02f9d2e17` |
+| PR | [#1757](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1757) |
+| Merge commit | `c920dc195cb0cd8aa4c0b1f5440b031e44026d9f` |
+| Post-merge CI | 5/5 workflows success on `c920dc19` |
 
 The evidence report keeps `testedCodeSha` and `evidenceCommitSha` as separate fields: the
 scenarios ran on `f7ff537d`, and the screenshots plus report were committed afterwards.
