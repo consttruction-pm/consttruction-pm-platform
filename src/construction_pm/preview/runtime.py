@@ -121,6 +121,9 @@ from construction_pm.document_persistence import (
 from construction_pm.administration_api import AdministrationAPI
 from construction_pm.administration_application import AdministrationApplicationService
 from construction_pm.administration_persistence import SQLiteAdministrationStore
+from construction_pm.exchange_application import ExchangeService
+from construction_pm.exchange_api import ExchangeAPI
+from construction_pm.exchange_persistence import SQLiteExchangeStore
 from construction_pm.budget_api import BudgetAPI
 from construction_pm.budget_application import BudgetApplicationService
 from construction_pm.budget_persistence import SQLiteBudgetStore
@@ -377,6 +380,7 @@ class PreviewRepositories:
     risks: SQLiteRiskStore
     reports: SQLiteReportStore
     administration: SQLiteAdministrationStore
+    exchange: SQLiteExchangeStore
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -462,6 +466,8 @@ class PreviewRepositories:
         reports.initialize()
         administration = SQLiteAdministrationStore(connection)
         administration.initialize()
+        exchange = SQLiteExchangeStore(connection)
+        exchange.initialize()
         return cls(
             activities=activities,
             wbs=wbs,
@@ -516,6 +522,7 @@ class PreviewRepositories:
             risks=risks,
             reports=reports,
             administration=administration,
+            exchange=exchange,
             transaction_manager=transaction_manager,
         )
 
@@ -1613,6 +1620,20 @@ def open_preview_runtime(
             repositories.administration, policy, repositories.transaction_manager
         )
     )
+    exchange_api = ExchangeAPI(
+        ExchangeService(
+            repositories.exchange,
+            repositories.activities,
+            repositories.resources,
+            P6ResourceAPI(
+                repositories.resources,
+                policy,
+                repositories.calendars,
+            ),
+            repositories.risks,
+            policy,
+        )
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1715,6 +1736,7 @@ def open_preview_runtime(
         risk_api=risk_api,
         report_api=report_api,
         administration_api=administration_api,
+        exchange_api=exchange_api,
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

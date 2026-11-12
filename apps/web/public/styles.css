@@ -8906,3 +8906,13 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-admin-body .cp-register-table button { min-height: 22px; padding: 2px 6px; margin-inline-end: 3px; border: 1px solid #b9c6d5; border-radius: 2px; background: #fff; color: #38536f; font: inherit; font-size: 9px; cursor: pointer; }
 .cp-p6 .cp-admin-body [data-admin-matrix] td { text-align: center; font-variant-numeric: tabular-nums; }
 .cp-p6 .cp-admin-body [data-admin-matrix] th[scope="row"] { white-space: nowrap; text-align: start; }
+
+/* Stage F3 — Import / Export window */
+.cp-p6 .cp-exchange-window .cp-register-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 4px 0 6px; }
+.cp-p6 .cp-exchange-window .cp-register-filters label { display: flex; flex-direction: column; gap: 2px; font-size: 9px; color: #52657a; }
+.cp-p6 .cp-exchange-window .cp-register-filters select,
+.cp-p6 .cp-exchange-window .cp-register-filters input { min-height: 22px; padding: 2px 6px; border: 1px solid #b9c6d5; border-radius: 2px; background: #fff; color: #26394d; font: inherit; font-size: 10px; }
+.cp-p6 .cp-exchange-window [data-exchange-content] { width: 100%; min-height: 96px; padding: 6px; border: 1px solid #b9c6d5; border-radius: 2px; background: #fff; color: #26394d; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; resize: vertical; }
+.cp-p6 .cp-exchange-window [data-exchange-export-table] td,
+.cp-p6 .cp-exchange-window [data-exchange-errors] td,
+.cp-p6 .cp-exchange-window [data-exchange-history] td { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

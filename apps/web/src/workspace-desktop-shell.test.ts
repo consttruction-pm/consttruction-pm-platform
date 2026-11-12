@@ -290,6 +290,7 @@ test("window titles cover every navigation surface and avoid third-party product
     "control",
     "settings",
     "administration",
+    "exchange",
   ]);
   const text = getDesktopMenus(shellState())
     .flatMap((menu) => [menu.label.en, ...menu.items.flatMap((item) => [item.label.en, item.shortcut ?? ""])])

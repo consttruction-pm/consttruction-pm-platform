@@ -31,6 +31,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceNavigationItem[] = [
   { key: "control", status: "partial", label: { en: "Control", fa: "کنترل" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Control Summary", fa: "خلاصه کنترل" }, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }] },
   { key: "settings", status: "partial", label: { en: "Settings", fa: "تنظیمات" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Language", fa: "زبان" }, { en: "Workspace", fa: "محیط کار" }] },
   { key: "administration", status: "preview", label: { en: "Administration", fa: "مدیریت" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Project Preferences", fa: "ترجیحات پروژه" }, { en: "Dictionaries", fa: "فهرست‌های مرجع" }, { en: "Permission Matrix", fa: "ماتریس دسترسی" }, { en: "Financial Periods", fa: "دوره‌های مالی" }] },
+  { key: "exchange", status: "preview", label: { en: "Import / Export", fa: "ورود / خروجی" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "CSV Export", fa: "خروجی CSV" }, { en: "CSV Import", fa: "ورود CSV" }, { en: "Import History", fa: "تاریخچهٔ ورود" }] },
 ];
 
 export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceNavigationItem {

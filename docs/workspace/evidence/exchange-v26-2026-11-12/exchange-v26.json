@@ -1,0 +1,96 @@
+{
+  "contract": "cubi-exchange-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f7fdedcd7bc0d2453a2c48ad29e4d81ae151f79f",
+  "testedCodeSha": "f7fdedcd7bc0d2453a2c48ad29e4d81ae151f79f",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T04:55:05.780Z",
+  "crewId": "E2E-XCH-CREW-MWD2QLOF",
+  "childId": "E2E-XCH-CHILD-MWD2QLOF",
+  "idempotencyKey": "e2e-exchange-MWD2QLOF",
+  "scenarios": [
+    {
+      "datasets": [
+        "activities",
+        "resources",
+        "risks"
+      ],
+      "rowCount": 1,
+      "id": "01",
+      "name": "کاتالوگ مجموعه‌های داده و خروجی منابع از مخزن مرجع خوانده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:55:10.206Z"
+    },
+    {
+      "activityRows": 14,
+      "riskColumns": 11,
+      "id": "02",
+      "name": "خروجی فعالیت‌ها و ریسک‌ها ستون‌های قراردادی خود را دارند",
+      "status": "pass",
+      "at": "2026-11-12T04:55:11.301Z"
+    },
+    {
+      "accepted": "2",
+      "applyDisabled": false,
+      "id": "03",
+      "name": "فایل معتبر منابع اعتبارسنجی می‌شود و اعمال برای نقش نویسنده فعال است",
+      "status": "pass",
+      "at": "2026-11-12T04:55:12.386Z"
+    },
+    {
+      "runId": "EXR-resources-2",
+      "runs": 2,
+      "reuseStatus": 409,
+      "id": "04",
+      "name": "اعمال ایدمپوتنت منابع را می‌نویسد، بازپخش همان اجرا را برمی‌گرداند و تاریخچه ثبت می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T04:55:13.484Z"
+    },
+    {
+      "errors": 4,
+      "id": "05",
+      "name": "فایل نامعتبر خطاهای ردیف و فیلد را نشان می‌دهد و اعمال را می‌بندد",
+      "status": "pass",
+      "at": "2026-11-12T04:55:14.570Z"
+    },
+    {
+      "existingRejected": true,
+      "cycleErrors": 2,
+      "id": "06",
+      "name": "شناسهٔ موجود و چرخهٔ سلسله‌مراتب پیش از نوشتن رد می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T04:55:14.951Z"
+    },
+    {
+      "exportRows": 3,
+      "deniedStatus": 403,
+      "id": "07",
+      "name": "بازبین خروجی و اعتبارسنجی می‌گیرد اما اعمال مستقیم ۴۰۳ است",
+      "status": "pass",
+      "at": "2026-11-12T04:55:19.166Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "ورود / خروجی",
+      "id": "08",
+      "name": "چیدمان فارسی راست‌به‌چپ در ۱۲۸۰×۷۲۰ بدون نشان تجاری بیرونی",
+      "status": "pass",
+      "at": "2026-11-12T04:55:21.136Z"
+    }
+  ],
+  "screenshots": [
+    "01-resource-export.png",
+    "02-activities-and-risks.png",
+    "03-valid-preview.png",
+    "04-applied-and-history.png",
+    "05-invalid-preview.png",
+    "06-rejected-previews.png",
+    "07-viewer-read-only.png",
+    "08-persian-rtl.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "status": "pass",
+  "scenarioCount": 8
+}

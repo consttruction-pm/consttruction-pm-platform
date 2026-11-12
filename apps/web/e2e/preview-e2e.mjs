@@ -2481,7 +2481,7 @@ async function main() {
       "workspace identifies the persisted project revision",
     );
     const menuCount = await page.count(".cp-navigation-tree button[data-menu]");
-    assert(menuCount === 19, "all 19 workspace menus must render");
+    assert(menuCount === 20, "all 20 workspace menus must render");
     const menuLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).map((button) => button.textContent.trim())
     )()`);

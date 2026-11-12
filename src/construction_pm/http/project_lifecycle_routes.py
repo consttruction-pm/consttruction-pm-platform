@@ -117,6 +117,7 @@ from ..risk_persistence import Risk
 from ..report_api import ReportAPI
 from ..report_persistence import ReportDefinition
 from ..administration_api import AdministrationAPI
+from ..exchange_api import ExchangeAPI
 from ..administration_persistence import AdministrationPreferences, DictionaryEntry
 from ..threshold_api import ThresholdAPI
 from ..threshold_persistence import Threshold, parse_threshold_number
@@ -254,6 +255,7 @@ class ProjectLifecycleHttpRoutes:
         risk_api: RiskAPI | None = None,
         report_api: ReportAPI | None = None,
         administration_api: AdministrationAPI | None = None,
+        exchange_api: ExchangeAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -307,6 +309,7 @@ class ProjectLifecycleHttpRoutes:
         self._risk_api = risk_api
         self._report_api = report_api
         self._administration_api = administration_api
+        self._exchange_api = exchange_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -3469,6 +3472,115 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "ADMIN_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._exchange_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/exchange" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    exchange_project_id, marker, exchange_suffix = rest.partition("/exchange")
+                    if (
+                        marker
+                        and exchange_project_id
+                        and (not exchange_suffix or exchange_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, exchange_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        scope = BackendScope(
+                            context.tenant_id, context.project_id, context.revision
+                        )
+                        parts = [
+                            part
+                            for part in exchange_suffix.strip("/").split("/")
+                            if part
+                        ]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _exchange_reply(result: dict[str, object]):
+                            if "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if category == "conflict":
+                                return self._error(409, code, "error.exchange.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and parts == ["datasets"]:
+                                return self._json(200, self._exchange_api.catalogue())
+                            if method == "GET" and parts == ["export"]:
+                                dataset = str(
+                                    query.get("dataset") or payload.get("dataset") or ""
+                                )
+                                return _exchange_reply(
+                                    self._exchange_api.export(
+                                        scope=scope,
+                                        dataset=dataset,
+                                        context=auth,
+                                        generated_at=now,
+                                    )
+                                )
+                            if method == "POST" and parts == ["import", "preview"]:
+                                return _exchange_reply(
+                                    self._exchange_api.preview_import(
+                                        scope=scope,
+                                        dataset=str(payload.get("dataset", "")),
+                                        content=str(payload.get("content", "")),
+                                        context=auth,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "POST" and parts == ["import"]:
+                                result = self._exchange_api.apply_import(
+                                    scope=scope,
+                                    dataset=str(payload.get("dataset", "")),
+                                    content=str(payload.get("content", "")),
+                                    idempotency_key=str(
+                                        payload.get("idempotency_key", "")
+                                    ),
+                                    context=auth,
+                                    occurred_at=now,
+                                )
+                                if (
+                                    "category" not in result
+                                    and result.get("valid") is False
+                                ):
+                                    # Row-level validation failures are a 400 with
+                                    # the full error list, not a generic error code.
+                                    return self._json(400, result)
+                                return _exchange_reply(result)
+                            if method == "GET" and parts == ["imports"]:
+                                return _exchange_reply(
+                                    self._exchange_api.imports(
+                                        scope=scope,
+                                        context=auth,
+                                    )
+                                )
+                            return self._error(
+                                400, "EXCHANGE_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "EXCHANGE_REQUEST_INVALID", "error.request.invalid"
                             )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
