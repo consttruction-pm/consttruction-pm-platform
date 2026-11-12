@@ -4,6 +4,14 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, slice 1 (`agent3/backend-completion-2026-11`)
+
+- **Baseline:** `main` @ `ed1ad03` (Issue #1799 recorded `47cb01d`; `ed1ad03` is Agent 1's tracking-workspace merge and does not change backend contracts). Branch `agent3/backend-completion-2026-11`. No reopened work from PR #1795/#1796.
+- **Tracking production composition (Workstream 1):** `tests/test_tracking_production_composition.py` builds the production WSGI seam with real SQLite Activity/WBS/resource/assignment repositories and a published snapshot, then reads `GET /api/projects/{project}/tracking/read`. It proves exact `Decimal` aggregates (`12.5`, `300.10`), WBS code projection, deterministic resource ordering, explicit `TRACKING_RESOURCE_SOURCE_UNAVAILABLE` when the assignment repository is not configured, cross-project/cross-revision isolation, and a 409 `TRACKING_SCHEDULE_NOT_PUBLISHED` instead of invented rows.
+- **Live PostgreSQL tracking (`tests/integration/test_tracking_postgres_live.py`):** real `PostgresP6ResourceAssignmentRepository`/`PostgresP6ResourceRepository` rows reach the read model with exact decimal totals (`300.20` for `300.10 + 0.10`), and other project/revision/tenant scopes return no resources or `CROSS_SCOPE_ACCESS`.
+- **Test isolation (Workstream 5):** `tests/integration/test_postgres_atomic_conflict_live.py` now derives mutation and idempotency identifiers from a per-run UUID. Two consecutive runs against the same PostgreSQL database pass (3 passed each), removing the fixed-key non-repeatability recorded in the previous checkpoint.
+- **Still open in Issue #1799:** exchange datasets/atomic apply/XML, report PDF/parameterized/scheduled output, object-storage/quarantine/OCR adapters, migration parity audit, and configuration/health hardening. These are tracked as the following slices, not claimed here.
+
 ## Agent 3 execution checkpoint — 2026-11-12 (`be13bbd`, merged as `d0c780c`)
 
 - **Branch:** `feat/agent3-core-docs-tracking-storage`, based on `main` @ `9da69ad`, head `be13bbd`. The branch is preserved on the remote. The earlier V26 review recorded `66e106a`; the real `main` head at checkout was `9da69ad`, so the review's SHA statement is stale and is superseded by this checkpoint.
