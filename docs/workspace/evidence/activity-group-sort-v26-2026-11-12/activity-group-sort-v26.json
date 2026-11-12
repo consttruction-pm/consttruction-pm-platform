@@ -1,0 +1,78 @@
+{
+  "contract": "cubi-activity-group-sort-v26.v1",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "79712844d24317ee843c946a00347f10b93344da",
+  "testCodeSha": "79712844d24317ee843c946a00347f10b93344da",
+  "testedCodeSha": "79712844d24317ee843c946a00347f10b93344da",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T17:37:31.953Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the dialog applies an ordered sort plan and the Gantt follows it",
+      "status": "pass",
+      "at": "2026-11-12T17:37:35.938Z",
+      "rows": 14,
+      "bands": 0,
+      "order": "A210,A200,A190,A180,A160,A170,A155,A140,A145,A150,A130,A120,A110,A100"
+    },
+    {
+      "id": "02",
+      "name": "the saved layout stores the plan and a reload restores it",
+      "status": "pass",
+      "at": "2026-11-12T17:37:37.688Z",
+      "revision": 2,
+      "sortLevels": [
+        {
+          "columnId": "activity.early_start",
+          "direction": "desc"
+        },
+        {
+          "columnId": "activity.name",
+          "direction": "asc"
+        }
+      ],
+      "rows": 14
+    },
+    {
+      "id": "03",
+      "name": "WBS grouping orders activities inside each band and persists",
+      "status": "pass",
+      "at": "2026-11-12T17:37:40.872Z",
+      "bands": 7,
+      "rows": 14
+    },
+    {
+      "id": "04",
+      "name": "the dialog and a sort plan render in a Persian RTL cell",
+      "status": "pass",
+      "at": "2026-11-12T17:37:43.747Z",
+      "dialog": {
+        "title": "گروه‌بندی و ترتیب",
+        "rows": 3,
+        "overflow": 0
+      },
+      "rows": 14
+    },
+    {
+      "id": "05",
+      "name": "the grouped layout fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-12T17:37:44.770Z",
+      "rows": 14,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-group-sort-start-desc-name-asc-en-1366.png",
+    "02-sorted-layout-after-reload-en-1366.png",
+    "03-wbs-group-name-asc-after-reload-en-1366.png",
+    "04-group-sort-fa-rtl-1280.png",
+    "05-group-sort-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 5,
+  "failed": 0
+}
