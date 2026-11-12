@@ -688,6 +688,22 @@ export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceSta
   return setP6Presentation(state, state.p6FieldRegistry, addField(state.p6Layout, field));
 }
 
+export function addP6Fields(state: WorkspaceState, fieldIds: readonly string[]): WorkspaceState {
+  if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  let layout = state.p6Layout;
+  const seen = new Set<string>();
+  for (const fieldId of fieldIds) {
+    if (seen.has(fieldId)) continue;
+    seen.add(fieldId);
+    const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
+    if (!field) throw new Error("P6_FIELD_NOT_FOUND");
+    // addField throws when a visible column already holds the field, so a
+    // caller can never duplicate a column through the bulk path.
+    layout = addField(layout, field);
+  }
+  return setP6Presentation(state, state.p6FieldRegistry, layout);
+}
+
 export function removeP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
   if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
   return setP6Presentation(state, state.p6FieldRegistry, removeField(state.p6Layout, fieldId));

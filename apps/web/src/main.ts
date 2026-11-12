@@ -14,6 +14,7 @@ import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
   addP6Field,
+  addP6Fields,
   applyAuthoritativeScheduleFacts,
   removeP6Field,
   reorderP6Fields,
@@ -2407,6 +2408,7 @@ function renderApp(
       renderApp(container, toggleActivitySortDirection(state), persistence);
     },
     onP6FieldAdd: (fieldId) => mutateLayout(() => addP6Field(state, fieldId)),
+    onP6FieldAddMany: (fieldIds) => mutateLayout(() => addP6Fields(state, fieldIds)),
     onP6FieldReorder: (orderedFieldIds) => mutateLayout(() => reorderP6Fields(state, orderedFieldIds)),
     onP6FieldWidthChange: (fieldId, width) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { width })),
     onP6ColumnWidthsReset: (widths) => mutateLayout(() => {

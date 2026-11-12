@@ -295,7 +295,21 @@ async function main() {
       assert(state.bands > 0, "WBS bands are not rendered");
       assert(state.barCount >= 14, `expected drawn bars, saw ${state.barCount}`);
       const officialTabs = state.tabs.filter((id) => id !== "calendar");
-      assert(officialTabs.length === 17, `expected the 17 official detail tabs, saw ${officialTabs.length}`);
+      // CUBI implements the sixteen desktop tabs from the Version 26
+      // Activity Details topic. Tasks is EPPM-only; Discussion and Feedback are
+      // deferred by docs/workspace/architecture/workspace-window-inventory.md.
+      const expectedTabs = [
+        "general", "status", "resources", "predecessors", "successors", "relationships",
+        "codes", "notebook", "steps", "wps-docs", "expenses", "issues", "risks",
+        "summary", "udfs", "update-history",
+      ];
+      assert(
+        officialTabs.length === expectedTabs.length && expectedTabs.every((id) => officialTabs.includes(id)),
+        `expected the 16 official detail tabs, saw ${officialTabs.length}: ${officialTabs.join(",")}`,
+      );
+      assert(!officialTabs.includes("tasks"), "Tasks is EPPM-only and must not be offered");
+      assert(!officialTabs.includes("discussion"), "Discussion is deferred for the desktop contract");
+      assert(!officialTabs.includes("feedback"), "Feedback is deferred for the desktop contract");
       report.screenshots.push(await capture(page, "01-activities-window-en-1280", 74));
       return { rowIds: state.rowIds, bands: state.bands, tabs: state.tabs, bars: state.barCount };
     });
@@ -553,7 +567,7 @@ async function main() {
       return { group: "wbs", statusField: status.value, bands: state.bands, rows: state.rowIds.length };
     });
 
-    await scenario("10", "بازکردن تمام ۱۷ تب Activity Details", async () => {
+    await scenario("10", "بازکردن تمام ۱۶ تب Activity Details", async () => {
       // The saved custom filter from scenario 8 would hide rows later scenarios
       // need, so return to All Activities first.
       await openDialog(page, "dialog.filters");
@@ -575,7 +589,15 @@ async function main() {
       await sleep(300);
       const tabs = await page.evaluate(`(() => [...document.querySelectorAll("[data-detail-tab]")].map((tab) => tab.dataset.detailTab))()`);
       const official = tabs.filter((id) => id !== "calendar");
-      assert(official.length === 17, `expected the 17 official Activity Details tabs, saw ${official.length} of ${tabs.length}`);
+      const expectedTabs = [
+        "general", "status", "resources", "predecessors", "successors", "relationships",
+        "codes", "notebook", "steps", "wps-docs", "expenses", "issues", "risks",
+        "summary", "udfs", "update-history",
+      ];
+      assert(
+        official.length === expectedTabs.length && expectedTabs.every((id) => official.includes(id)),
+        `expected the 16 official Activity Details tabs, saw ${official.length} of ${tabs.length}: ${official.join(",")}`,
+      );
       const rendered = [];
       for (const id of tabs) {
         const opened = await page.evaluate(`(() => {
@@ -606,8 +628,8 @@ async function main() {
           report.screenshots.push(await capture(page, "14-details-status-en-1280", 87));
         } else if (id === "resources") {
           report.screenshots.push(await capture(page, "15-details-resources-en-1280", 88));
-        } else if (id === "feedback") {
-          report.screenshots.push(await capture(page, "16-details-feedback-en-1280", 89));
+        } else if (id === "steps") {
+          report.screenshots.push(await capture(page, "16-details-steps-en-1280", 89));
         }
       }
       return { tabs, officialCount: official.length, rendered };
