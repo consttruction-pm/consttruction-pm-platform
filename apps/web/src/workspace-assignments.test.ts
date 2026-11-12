@@ -143,6 +143,8 @@ test("assignment create request carries the write contract version and nullable 
     unit: "day",
     plannedCost: "",
     currency: "",
+    calendarId: " CUBI-RPS-CAL ",
+    calendarVersion: " 1 ",
     note: "  ",
   };
   const result = await saveAssignment(
@@ -163,6 +165,8 @@ test("assignment create request carries the write contract version and nullable 
       unit: "day",
       planned_cost: null,
       currency: null,
+      calendar_id: "CUBI-RPS-CAL",
+      calendar_version: "1",
       note: null,
     },
     idempotencyKey: calls.posts[0].idempotencyKey,
@@ -181,6 +185,8 @@ test("assignment create refuses missing identity and malformed decimals without 
     unit: null,
     plannedCost: null,
     currency: null,
+    calendarId: null,
+    calendarVersion: null,
     note: null,
   });
   assert.equal(missing.ok, false);
@@ -195,10 +201,32 @@ test("assignment create refuses missing identity and malformed decimals without 
     unit: null,
     plannedCost: null,
     currency: null,
+    calendarId: null,
+    calendarVersion: null,
     note: null,
   });
   assert.equal(malformed.ok, false);
   if (!malformed.ok) assert.equal(malformed.error.code, "INVALID_ASSIGNMENT_NUMBER");
+  assert.equal(calls.posts.length, 0);
+});
+
+test("assignment calendar reference must be complete before a write", async () => {
+  const calls: Calls = { gets: [], posts: [] };
+  const result = await saveAssignment(transportWith({ ok: true, data: envelope() }, calls), CONTEXT, {
+    assignmentId: "AS-6",
+    activityId: "A110",
+    resourceId: "R1",
+    roleId: null,
+    units: null,
+    unit: null,
+    plannedCost: null,
+    currency: null,
+    calendarId: "CUBI-RPS-CAL",
+    calendarVersion: null,
+    note: null,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INCOMPLETE_CALENDAR_REFERENCE");
   assert.equal(calls.posts.length, 0);
 });
 
@@ -213,6 +241,8 @@ test("assignment payload never invents a value for an empty field", () => {
       unit: null,
       plannedCost: null,
       currency: null,
+      calendarId: null,
+      calendarVersion: null,
       note: null,
     }),
     {
@@ -225,6 +255,8 @@ test("assignment payload never invents a value for an empty field", () => {
       unit: null,
       planned_cost: null,
       currency: null,
+      calendar_id: null,
+      calendar_version: null,
       note: null,
     },
   );
@@ -238,6 +270,8 @@ test("assignment payload never invents a value for an empty field", () => {
       unit: null,
       plannedCost: "12,5",
       currency: null,
+      calendarId: null,
+      calendarVersion: null,
       note: null,
     }),
     /INVALID_ASSIGNMENT_NUMBER/,

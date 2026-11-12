@@ -155,6 +155,7 @@ from construction_pm.p6_baseline_update import P6BaselineUpdateService
 from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_calendar_usage_api import P6CalendarUsageAPI
 from construction_pm.p6_current_activity_value_repository import (
     P6CurrentActivityApplicationService,
     SQLiteP6CurrentActivityRepository,
@@ -1609,6 +1610,13 @@ def open_preview_runtime(
         p6_calendar_read_api=P6CalendarReadAPI(
             repositories.calendars,
             repositories.calendar_snapshots,
+            policy,
+        ),
+        p6_calendar_usage_api=P6CalendarUsageAPI(
+            repositories.calendars,
+            repositories.calendar_assignments,
+            repositories.resources,
+            repositories.resource_assignments,
             policy,
         ),
         p6_calendar_api=P6CalendarAPI(

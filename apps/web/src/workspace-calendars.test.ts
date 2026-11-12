@@ -12,6 +12,8 @@ import {
   loadCalendarCatalogue,
   loadCalendarExceptions,
   loadCalendarSnapshot,
+  loadCalendarUsage,
+  parseCalendarUsage,
   formatWorkdayShifts,
   loadCalendarWorkHours,
   parseWorkdayShifts,
@@ -168,6 +170,33 @@ test("calendar exceptions are read with their stored mode, hours and intervals",
   if (!result.ok) return;
   assert.equal(result.data.length, 2);
   assert.deepEqual(result.data[1].intervals, [["09:00", "12:00"]]);
+});
+
+test("calendar usage lists references and fails closed on drift", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], puts: [], deletes: [] };
+  const payload = {
+    contract_version: "p6-calendar-usage-api.v1",
+    kind: "calendar_usage",
+    calendar: { calendar_id: "CAL-PRJ", calendar_version: "1" },
+    total: 2,
+    counts: { resource_assignment_calendar: 1, resource_calendar_assignment: 1 },
+    usages: [
+      { kind: "resource_assignment_calendar", reference_id: "ASG-1", details: { activity_id: "A100" } },
+      { kind: "resource_calendar_assignment", reference_id: "R1", details: { calendar_version: null } },
+    ],
+  };
+  const ok = await loadCalendarUsage(transportWith({ ok: true, data: payload }, calls), CONTEXT, "CAL-PRJ", "1");
+  assert.equal(ok.ok, true);
+  assert.equal(calls.gets[0].path, "/api/projects/project-1/p6/calendars/CAL-PRJ/1/uses");
+  if (ok.ok) {
+    assert.equal(ok.data.total, 2);
+    assert.equal(ok.data.counts.resource_assignment_calendar, 1);
+    assert.deepEqual(ok.data.usages[1].details, { calendar_version: null });
+  }
+
+  assert.throws(() => parseCalendarUsage({ ...payload, total: 3 }, "CAL-PRJ", "1"), /INVALID_CALENDAR_USAGE/);
+  assert.throws(() => parseCalendarUsage({ ...payload, calendar: { calendar_id: "OTHER", calendar_version: "1" } }, "CAL-PRJ", "1"), /INVALID_CALENDAR_USAGE/);
+  assert.throws(() => parseCalendarUsage({ ...payload, usages: [{ kind: "", reference_id: "X", details: {} }, payload.usages[1]] }, "CAL-PRJ", "1"), /INVALID_CALENDAR_USAGE/);
 });
 
 test("calendar update uses PATCH with the persisted revision and kind", async () => {
