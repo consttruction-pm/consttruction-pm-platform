@@ -25,6 +25,7 @@ import {
   updateP6FieldPresentation,
   selectActivity,
   selectActivityRange,
+  selectedActivityIdList,
   toggleActivitySelection,
   selectWbs,
   setP6Presentation,
@@ -46,7 +47,9 @@ import {
   storeWorkspaceBottomLayout,
   storeWorkspaceTopLayout,
 } from "./workspace-view.js";
-import { collapseAllWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
+import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds, buildWorkspaceDisplayRows } from "./workspace-wbs-display.js";
+import { filterAndSortActivities } from "./workspace-filter-sort.js";
+import { applyActivityFilterState } from "./workspace-activity-filters.js";
 import { fitGanttScale } from "./workspace-gantt.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
 import {
@@ -1232,6 +1235,124 @@ function renderApp(
       case "edit.sort-toggle":
         renderApp(container, toggleActivitySortDirection(state), persistence);
         return;
+      case "edit.select-all": {
+        // Select exactly the rows the table currently shows: the same filter,
+        // sort, grouping and collapse state the renderer applies.
+        const filterApplication = applyActivityFilterState(
+          state.activities,
+          visualPreferences.presentation.filters,
+          state.wbsNodes,
+        );
+        const ordered = filterAndSortActivities(
+          filterApplication.activities,
+          state.activityFilter,
+          state.activitySort,
+          state.activityGroupBy,
+          state.wbsNodes,
+          state.activitySortLevels,
+        );
+        const collapsed = state.activityFilter.trim() || filterApplication.filters.length
+          ? new Set<string>()
+          : getCollapsedWbsIds(state.context.project_id);
+        const visible = buildWorkspaceDisplayRows(ordered, state.wbsNodes, state.activityGroupBy, collapsed)
+          .flatMap((row) => (row.kind === "activity" ? [row.activity.id] : []));
+        if (!visible.length) return;
+        pendingDesktopFocusSelector = "#cp-activity-grid tbody tr[data-activity-id]";
+        renderApp(container, {
+          ...state,
+          selectedActivityId: visible[0] ?? null,
+          selectedActivityIds: visible,
+          selectionAnchorId: visible[0] ?? null,
+        }, persistence);
+        return;
+      }
+      case "edit.link": {
+        const ids = selectedActivityIdList(state);
+        if (!ids.length) return;
+        // The relationship editor is the authoritative link surface. Pre-select
+        // the pair the user already selected; the remaining fields and the
+        // revision-checked write stay in that form.
+        pendingDesktopAction = () => {
+          const form = container.querySelector<HTMLFormElement>("[data-relationship-create-form]");
+          if (!form) return;
+          const predecessor = form.querySelector<HTMLSelectElement>('select[name="predecessor_id"]');
+          const successor = form.querySelector<HTMLSelectElement>('select[name="successor_id"]');
+          const fallback = state.activities.find((activity) => activity.id !== ids[0])?.id;
+          if (predecessor) predecessor.value = ids[0] ?? "";
+          if (successor) successor.value = ids[1] ?? fallback ?? ids[0] ?? "";
+          form.querySelector<HTMLElement>('select[name="relationship_type"]')?.focus();
+        };
+        activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      }
+      case "edit.unlink": {
+        const ids = new Set(selectedActivityIdList(state));
+        if (ids.size < 2) return;
+        const links = state.relationships.filter((relationship) =>
+          ids.has(relationship.predecessorId) && ids.has(relationship.successorId),
+        );
+        if (!links.length) {
+          // Nothing to delete: say so in the logic panel instead of leaving the
+          // command silent.
+          pendingDesktopAction = () => {
+            const panel = container.querySelector<HTMLElement>("#cp-logic");
+            if (!panel) return;
+            let notice = panel.querySelector<HTMLElement>("[data-relationship-notice]");
+            if (!notice) {
+              notice = document.createElement("p");
+              notice.dataset.relationshipNotice = "true";
+              notice.setAttribute("role", "status");
+              panel.prepend(notice);
+            }
+            notice.textContent = translateWorkspaceUiText(
+              state.locale,
+              "No relationship connects the selected activities.",
+              "هیچ رابطه‌ای فعالیت‌های انتخاب‌شده را به هم متصل نمی‌کند.",
+            );
+          };
+          activateWindow("schedule");
+          openWorkspaceDrawer(container, "[data-tools-drawer]");
+          return;
+        }
+        const message = translateWorkspaceUiText(
+          state.locale,
+          `Unlink ${links.length} relationship${links.length === 1 ? "" : "s"} between the selected activities?`,
+          `${links.length} رابطه میان فعالیت‌های انتخاب‌شده قطع شود؟`,
+        );
+        if (typeof window.confirm === "function" && !window.confirm(message)) return;
+        void (async () => {
+          try {
+            if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
+            for (const relationship of links) {
+              const response = await aiTransport.delete<{ expected_revision: number }, unknown>(
+                `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships/${encodeURIComponent(relationship.id)}`,
+                { expected_revision: relationship.recordRevision },
+                state.context,
+              );
+              if (!response.ok) throw new Error(response.error.code);
+            }
+            await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+          } catch (error) {
+            reportRelationshipError(error);
+          }
+        })();
+        return;
+      }
+      case "view.collapse-to": {
+        if (state.activityGroupBy !== "wbs" || !state.wbsNodes.length) return;
+        pendingDesktopAction = () => {
+          const dialog = container.querySelector<HTMLDialogElement>("[data-collapse-to-dialog]");
+          const select = dialog?.querySelector<HTMLSelectElement>("[data-collapse-to-select]");
+          if (select && state.selectedWbsId && state.wbsNodes.some((node) => node.id === state.selectedWbsId)) {
+            select.value = state.selectedWbsId;
+          }
+          if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+          else dialog?.setAttribute("open", "");
+        };
+        activateWindow("schedule");
+        return;
+      }
       case "project.add-wbs":
         pendingDesktopFocusSelector = "[data-wbs-create-form] input[name='code']";
         activateWindow("project");
@@ -1543,6 +1664,8 @@ function renderApp(
         canRedoLayout: Boolean(historyView?.canRedo),
         hasWbs: state.wbsNodes.length > 0,
         hasSelectedActivity: Boolean(state.selectedActivityId),
+        hasMultiSelection: selectedActivityIdList(state).length > 1,
+        hasActivities: state.activities.length > 0,
         hasRelationships: state.relationships.length > 0,
         hasMultipleWindows: getOpenWindows().length > 1,
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
@@ -1940,7 +2063,7 @@ function renderApp(
           runDesktopCommand("project.add-activity");
           return;
         case "link":
-          runDesktopCommand("activity.predecessors");
+          runDesktopCommand("edit.link");
           return;
         case "columns":
           runDesktopCommand("view.fields");

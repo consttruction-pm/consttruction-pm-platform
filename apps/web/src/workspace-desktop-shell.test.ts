@@ -21,6 +21,8 @@ const capable: DesktopShellCapabilities = {
   canRedoLayout: true,
   hasWbs: true,
   hasSelectedActivity: true,
+  hasMultiSelection: true,
+  hasActivities: true,
   hasRelationships: true,
   hasMultipleWindows: true,
   canOpenFieldChooser: true,
@@ -664,4 +666,70 @@ test("the activity grid strip uses four distinct reset and split icons", async (
   const geometries = names.map((name) => icons.workspaceIcon(name));
   assert.equal(new Set(geometries).size, names.length, "each reset command needs its own glyph");
   for (const name of names) assert.ok((icons.WORKSPACE_ICON_NAMES as readonly string[]).includes(name));
+});
+
+test("Edit menu exposes Select All, Link/Unlink and honest long-tail entries", () => {
+  const edit = getDesktopMenus(shellState()).find((menu) => menu.id === "edit");
+  assert.ok(edit);
+  const item = (id: string) => edit.items.find((entry) => entry.id === id);
+  assert.equal(item("edit.select-all")?.command, "edit.select-all");
+  assert.equal(item("edit.select-all")?.shortcut, "Ctrl+A");
+  assert.equal(item("edit.select-all")?.disabledReason, undefined);
+  assert.equal(item("edit.link")?.command, "edit.link");
+  assert.equal(item("edit.unlink")?.command, "edit.unlink");
+  // Fill Down and Dissolve have no safe write contract yet, so they must state
+  // the CUBI equivalent instead of pretending a button is enough.
+  assert.match(item("edit.fill-down")?.disabledReason?.en ?? "", /Activity Details/);
+  assert.match(item("edit.dissolve")?.disabledReason?.en ?? "", /server contract/);
+  assert.match(
+    getDesktopMenus(shellState()).find((menu) => menu.id === "project")?.items
+      .find((entry) => entry.id === "project.additional-activities")?.disabledReason?.en ?? "",
+    /one canonical Activities window/,
+  );
+});
+
+test("Link and Unlink state their real preconditions", () => {
+  const editFor = (patch: Partial<DesktopShellCapabilities>) =>
+    getDesktopMenus(shellState(patch)).find((menu) => menu.id === "edit");
+  const none = editFor({ hasSelectedActivity: false, hasMultiSelection: false });
+  assert.match(none?.items.find((item) => item.id === "edit.link")?.disabledReason?.en ?? "", /Select an activity/i);
+  assert.match(none?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const single = editFor({ hasMultiSelection: false });
+  assert.match(single?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const noRelationships = editFor({ hasRelationships: false });
+  assert.match(noRelationships?.items.find((item) => item.id === "edit.unlink")?.disabledReason?.en ?? "", /no persisted relationships/i);
+  assert.equal(editFor({})?.items.find((item) => item.id === "edit.unlink")?.disabledReason, undefined);
+});
+
+test("the edit and display families own Select All, Link/Unlink and Collapse To once", () => {
+  const toolbar = getDesktopToolbar(shellState());
+  const byId = new Map(toolbar.map((item) => [item.id, item]));
+  assert.equal(byId.get("toolbar.select-all")?.command, "edit.select-all");
+  assert.equal(byId.get("toolbar.select-all")?.shortcut, "Ctrl+A");
+  assert.equal(byId.get("toolbar.link")?.command, "edit.link");
+  assert.equal(byId.get("toolbar.unlink")?.command, "edit.unlink");
+  assert.equal(byId.get("toolbar.collapse-to")?.command, "view.collapse-to");
+  assert.ok(byId.get("toolbar.fill-down")?.disabledReason);
+  assert.ok(byId.get("toolbar.dissolve")?.disabledReason);
+  for (const command of ["edit.select-all", "edit.link", "edit.unlink", "view.collapse-to"]) {
+    assert.equal(toolbar.filter((item) => item.command === command).length, 1, `${command} must appear once`);
+  }
+  const noPair = getDesktopToolbar(shellState({ hasMultiSelection: false }));
+  assert.match(noPair.find((item) => item.id === "toolbar.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  const noRows = getDesktopToolbar(shellState({ hasActivities: false }));
+  assert.match(noRows.find((item) => item.id === "toolbar.select-all")?.disabledReason?.en ?? "", /Load activities/i);
+});
+
+test("Ctrl+A selects all visible activities through the shortcut catalogue", () => {
+  const shortcuts = getDesktopShortcuts();
+  const shortcut = shortcuts.find((entry) => entry.id === "shortcut.select-all");
+  assert.ok(shortcut);
+  assert.equal(shortcut.command, "edit.select-all");
+  assert.equal(shortcut.keys, "Ctrl+A");
+  assert.equal(matchDesktopShortcut({ key: "a", ctrlKey: true }, shortcuts)?.id, "shortcut.select-all");
+  assert.match(
+    shortcutUnavailableReason(shortcut, shellState({ hasActivities: false }).capabilities)?.en ?? "",
+    /Load activities/i,
+  );
+  assert.equal(shortcutUnavailableReason(shortcut, shellState().capabilities), null);
 });

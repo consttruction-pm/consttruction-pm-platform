@@ -1,10 +1,10 @@
 {
   "contract": "cubi-toolbars-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "9ddb1fa235eb20c89339e73622719ffb1915cb99",
-  "testedCodeSha": "9ddb1fa235eb20c89339e73622719ffb1915cb99",
+  "gitHead": "cf86a90c82ae694e92951d970f4b6e9653f7d2c7",
+  "testedCodeSha": "cf86a90c82ae694e92951d970f4b6e9653f7d2c7",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T12:18:53.896Z",
+  "capturedAt": "2026-11-12T13:36:43.759Z",
   "cells": [
     {
       "locale": "en",
@@ -159,8 +159,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -1106,8 +1106,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -2053,8 +2053,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -3000,8 +3000,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -3947,8 +3947,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -4894,8 +4894,8 @@
             "resources",
             "tools"
           ],
-          "buttons": 51,
-          "overflowMirrors": 51,
+          "buttons": 57,
+          "overflowMirrors": 57,
           "minButton": {
             "width": 25,
             "height": 24
@@ -5689,8 +5689,36 @@
       "screenshot": "toolbars-v26/activities-1920x1080-fa.png"
     }
   ],
+  "commands": [
+    {
+      "id": "edit.select-all",
+      "visible": 14,
+      "selected": 14,
+      "focused": "A100"
+    },
+    {
+      "id": "edit.link",
+      "drawerVisible": true,
+      "predecessor": "A100",
+      "successor": "A110",
+      "focused": "relationship_type"
+    },
+    {
+      "id": "view.collapse-to",
+      "open": true,
+      "options": 7
+    },
+    {
+      "id": "edit.unlink",
+      "before": 15,
+      "after": 14,
+      "confirmation": "Unlink 1 relationship between the selected activities?"
+    }
+  ],
   "screenshots": [
     "menu-view-1366x768-en.png",
+    "menu-edit-select-all.png",
+    "menu-edit-unlink.png",
     "activities-1280x720-en.png",
     "activities-1366x768-en.png",
     "activities-1920x1080-en.png",
