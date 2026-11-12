@@ -1,10 +1,10 @@
 {
   "contract": "cubi-toolbars-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "cf86a90c82ae694e92951d970f4b6e9653f7d2c7",
-  "testedCodeSha": "cf86a90c82ae694e92951d970f4b6e9653f7d2c7",
+  "gitHead": "9284958b24a3867e9c52669d5cef77b5e58dd4b6",
+  "testedCodeSha": "9284958b24a3867e9c52669d5cef77b5e58dd4b6",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T13:36:43.759Z",
+  "capturedAt": "2026-11-12T13:37:58.472Z",
   "cells": [
     {
       "locale": "en",
