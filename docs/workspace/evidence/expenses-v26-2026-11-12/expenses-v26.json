@@ -3,7 +3,7 @@
   "baseUrl": "http://127.0.0.1:4193",
   "gitHead": "605678a8547d666f7601c5234222184d23394ad6",
   "testedCodeSha": "605678a8547d666f7601c5234222184d23394ad6",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "49a59396daea5109cd26979f7c034242fba7f072",
   "capturedAt": "2026-11-12T02:18:55.860Z",
   "parentAccountId": "E2E-CA-MWCX5RSZ",
   "childAccountId": "E2E-CA-MWCX5RSZ-CONC",
