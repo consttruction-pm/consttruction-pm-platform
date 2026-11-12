@@ -2011,6 +2011,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     control: "network",
     settings: "settings",
     administration: "administration",
+    exchange: "export",
   };
   const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
   const activeFilterName = appliedFilterName
@@ -2085,6 +2086,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
             ${menuButton("settings", t.settings, state, railMenuIcons.settings)}
             ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, railMenuIcons.administration)}
+            ${menuButton("exchange", uiText(state.locale, "Import / Export", "ورود / خروجی"), state, railMenuIcons.exchange)}
             ${railActionButton("tools", rail.tools, "tools")}
           </div>
         </nav>
@@ -2447,6 +2449,9 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     case "administration":
       body = `<div class="cp-register-window cp-administration-window" data-administration-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Administration", "مدیریت پروژه"))}"></div>`;
       break;
+    case "exchange":
+      body = `<div class="cp-register-window cp-exchange-window" data-exchange-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Import and Export", "ورود و خروجی پروژه"))}"></div>`;
+      break;
     case "issues":
       body = `<div class="cp-register-window cp-issues-window" data-issues-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Issues", "مسائل پروژه"))}"></div>`;
       break;
@@ -2556,6 +2561,7 @@ function renderFullNavigationMenu(state: WorkspaceState, icons: Record<Workspace
       ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
       ${menuButton("settings", t.settings, state, icons.settings)}
       ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, icons.administration)}
+      ${menuButton("exchange", uiText(state.locale, "Import / Export", "ورود / خروجی"), state, icons.exchange)}
       ${railActionButton("tools", uiText(state.locale, "Tools", "ابزارها"), "tools")}
     </div>
   </nav>`;
@@ -2607,6 +2613,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "reports":
       return [];
     case "administration":
+    case "exchange":
       return [];
     case "control":
       return ["#cp-control-summary", "#cp-change-claim"];

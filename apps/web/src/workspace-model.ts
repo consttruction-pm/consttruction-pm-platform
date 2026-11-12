@@ -51,7 +51,8 @@ export type WorkspaceMenuKey =
   | "thresholds"
   | "control"
   | "settings"
-  | "administration";
+  | "administration"
+  | "exchange";
 
 export type WorkspaceColumnDataType =
   | "text"

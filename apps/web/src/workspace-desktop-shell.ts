@@ -201,6 +201,7 @@ export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
   control: { en: "Control", fa: "کنترل" },
   settings: { en: "Settings", fa: "تنظیمات" },
   administration: { en: "Administration", fa: "مدیریت" },
+  exchange: { en: "Import / Export", fa: "ورود / خروجی" },
 };
 
 function language(locale: string): "en" | "fa" {

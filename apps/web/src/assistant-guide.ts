@@ -83,12 +83,13 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
   "[data-workspace-language]",
   "[data-workspace-menu]",
   "[data-administration-page]",
+  "[data-exchange-page]",
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
   "project", "wbs", "schedule", "progress", "resources", "assignments", "roles",
   "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues",
-  "risks", "thresholds", "control", "settings", "administration",
+  "risks", "thresholds", "control", "settings", "administration", "exchange",
 ]);
 
 export function isWorkspaceMenuKey(value: string | undefined): value is WorkspaceMenuKey {
@@ -705,6 +706,35 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
     action: {
       label: { en: "Open project administration", fa: "باز کردن مدیریت پروژه" },
       target: "[data-administration-page]",
+    },
+  },
+
+  exchange: {
+    purpose: {
+      en: "Project import and export: download authoritative activities, resources and risks as CSV, validate a resource file and review import history.",
+      fa: "ورود و خروجی پروژه: بارگیری فعالیت‌ها، منابع و ریسک‌های مرجع به‌صورت CSV، اعتبارسنجی فایل منابع و مرور تاریخچهٔ ورود.",
+    },
+    steps: [
+      {
+        en: "Choose a dataset on the Export tab and export it to preview the rows and download the CSV.",
+        fa: "در زبانهٔ خروجی یک مجموعه داده انتخاب کنید و برای پیش‌نمایش ردیف‌ها و بارگیری CSV آن را صادر کنید.",
+      },
+      {
+        en: "Paste or choose a resource CSV on the Import tab and validate it; the server reports every rejected row and field.",
+        fa: "در زبانهٔ ورود محتوای CSV منابع را جای‌گذاری یا انتخاب و اعتبارسنجی کنید؛ سرور هر ردیف و فیلد ردشده را گزارش می‌کند.",
+      },
+      {
+        en: "Apply is enabled only for a valid file and a write role; a repeated request with the same key returns the original run.",
+        fa: "اعمال فقط برای فایل معتبر و نقش نویسنده فعال است؛ درخواست تکراری با همان کلید اجرای اصلی را برمی‌گرداند.",
+      },
+    ],
+    commonError: {
+      en: "Reader roles can export and validate but applying an import returns 403; duplicate IDs, unknown parents and cycles are rejected before any write.",
+      fa: "نقش‌های خواننده می‌توانند خروجی بگیرند و اعتبارسنجی کنند اما اعمال ورود ۴۰۳ می‌گیرد؛ شناسهٔ تکراری، والد ناشناخته و چرخه پیش از هر نوشتن رد می‌شوند.",
+    },
+    action: {
+      label: { en: "Open project import and export", fa: "باز کردن ورود و خروجی پروژه" },
+      target: "[data-exchange-page]",
     },
   },
 };
