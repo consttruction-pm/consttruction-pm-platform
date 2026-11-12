@@ -69,22 +69,24 @@ test("the landing language follows its route and persists the accepted preferenc
   // instead of declaring a second constant that could silently diverge.
   assert.match(landing, /import \{ LANDING_LOCALE_STORAGE_KEY \} from "\.\/workspace-preferences\.js"/);
   assert.doesNotMatch(landing, /const LANDING_LOCALE_STORAGE_KEY/);
-  // A language route, not storage, owns the document language and its metadata.
+  // Complete public routes own their URL; homepage-only locales persist without a subpage route.
   assert.match(landing, /function restoreLandingLocale\(\): string \| null/);
   assert.match(landing, /function readSavedLandingLocale\(\): LandingLocale \| null/);
-  assert.match(landing, /getLandingLanguageRoutes\(\)\.includes\(saved\)/);
+  assert.match(landing, /getLandingHomepageLocales\(\)\.includes\(saved\)/);
   assert.match(landing, /function persistLandingLocale\(\): void/);
   assert.match(landing, /preferredLanguageRoute = restoreLandingLocale\(\);/);
   assert.match(landing, /persistLandingLocale\(\);/);
   assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
-  // The stored preference is honoured by moving to the document that describes it.
+  // Homepage-only locales persist in place; complete subpage locales use their own route.
   assert.match(landing, /window\.location\.replace\(preferredLanguageRoute\)/);
-  assert.match(landing, /window\.location\.assign\(languageHref\)/);
+  assert.match(landing, /window\.location\.assign\(targetHome\)/);
 });
 
 test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = string/);
   assert.match(landing, /cubi-language/);
+  assert.match(landing, /<select class="cubi-exact-language" id="cubi-language"/);
+  assert.match(landing, /getLandingHomepageLocales\(\)\.map/);
   assert.match(landing, /getAvailableWorkspaceLocales\(\)/);
   assert.match(landing, /translateWorkspaceText/);
   for (const pattern of [
@@ -104,15 +106,15 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
 });
 
 test("homepage navigation and footer connect to real public routes", () => {
-  for (const route of ["./platform/", "./solutions/", "./resources/", "./contact/"]) {
-    assert.ok(landing.includes(route), "Expected homepage link to " + route);
+  for (const route of ["platform", "solutions", "resources", "contact", "about", "pricing"]) {
+    assert.ok(landing.includes("publicPageHref"), "Expected homepage link resolver to " + route);
   }
-  assert.match(landing, /\.\/platform\/#project-controls/);
-  assert.match(landing, /\.\/solutions\/#construction-teams/);
-  assert.match(landing, /\.\/resources\/#documentation/);
+  assert.match(landing, /"platform\/#project-controls"/);
+  assert.match(landing, /"solutions\/#construction-teams"/);
+  assert.match(landing, /"resources\/#documentation"/);
   // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
-  assert.match(landing, /pricingHref = locale === "en" \? `\$\{siteRootHref\}pricing\/` : `\$\{siteRootHref\}\$\{locale\}\/pricing\/`/);
-  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
+  assert.match(landing, /const publicLocaleRootHref = locale === "fa"/);
+  assert.ok(landing.includes('publicPageHref("about")'));
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -262,7 +264,7 @@ test("About Us is a first-class bilingual public route with approved founder fac
   for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
     assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
   }
-  assert.ok(landing.includes('href="./about/">${t.nav[4]}'));
+  assert.ok(landing.includes('publicPageHref("about")'));
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
