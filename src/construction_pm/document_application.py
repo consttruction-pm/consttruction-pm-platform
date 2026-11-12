@@ -13,7 +13,7 @@ from .document_persistence import (
     DocumentRecord,
     DocumentRevisionConflict,
     DocumentLifecycleAuthorizer,
-    PostgresDocumentStore,
+    DocumentStore,
     StoredDocument,
 )
 
@@ -22,7 +22,7 @@ from .document_persistence import (
 class DocumentApplicationService:
     """Application boundary for versioned document/RFI/Submittal operations."""
 
-    store: PostgresDocumentStore
+    store: DocumentStore
     authorization_policy: AuthorizationPolicy
     lifecycle_authorizer: DocumentLifecycleAuthorizer
     transaction_manager: TransactionManager
@@ -56,6 +56,37 @@ class DocumentApplicationService:
         self._check_permission(context, tenant_id, project_id, Permission.PROJECT_READ)
         return self.store.get(tenant_id, project_id, document_id)
 
+    def list(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        context: AuthorizationContext,
+        resource_type: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> tuple[StoredDocument, ...]:
+        self._check_permission(context, tenant_id, project_id, Permission.PROJECT_READ)
+        return self.store.list(
+            tenant_id,
+            project_id,
+            resource_type=resource_type,
+            status=status,
+            search=search,
+        )
+
+    def history(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        context: AuthorizationContext,
+    ):
+        self._check_permission(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self.store.get(tenant_id, project_id, document_id)
+        return self.store.history(tenant_id, project_id, document_id)
+
     def update(
         self,
         document: DocumentRecord,
@@ -69,6 +100,13 @@ class DocumentApplicationService:
     ) -> StoredDocument:
         self._authorize_write(document, context, actor_id)
         with self.transaction_manager.transaction():
+            current = self.store.get(
+                document.tenant_id, document.project_id, document.document_id
+            )
+            if document.status != current.document.status:
+                # Status is an approval decision with its own revision-guarded,
+                # audited transition endpoint. A metadata edit must not bypass it.
+                raise ValueError("DOCUMENT_STATUS_REQUIRES_TRANSITION")
             return self.store.update(
                 document,
                 expected_revision=expected_revision,
@@ -98,6 +136,7 @@ class DocumentApplicationService:
                 document_id=document.document_id,
                 from_status=current.document.status,
                 to_status=document.status,
+                roles=context.roles,
             )
             return self.store.transition_status(
                 document,
@@ -138,12 +177,17 @@ class DocumentApplicationService:
 
     @staticmethod
     def error_dto(exc: Exception) -> APIError:
+        if isinstance(exc, KeyError):
+            code = str(exc.args[0]) if exc.args else "DOCUMENT_NOT_FOUND"
+            return validation_error(code, code)
         if isinstance(exc, DocumentRevisionConflict):
             return conflict_error("DOCUMENT_REVISION_CONFLICT", str(exc), retryable=True)
         if isinstance(exc, DocumentIdempotencyReuse):
             return conflict_error("DOCUMENT_IDEMPOTENCY_KEY_REUSE", str(exc))
         if isinstance(exc, DocumentAuthorizationError):
             return authorization_error(str(exc), str(exc))
-        if isinstance(exc, (DocumentApprovalTransitionError, ValueError)):
-            return validation_error(type(exc).__name__, str(exc))
+        if isinstance(exc, DocumentApprovalTransitionError):
+            return validation_error("DOCUMENT_INVALID_STATUS_TRANSITION", str(exc))
+        if isinstance(exc, ValueError):
+            return validation_error(str(exc) or type(exc).__name__, str(exc))
         return validation_error(type(exc).__name__, str(exc))

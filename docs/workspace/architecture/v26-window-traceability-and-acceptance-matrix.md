@@ -86,7 +86,7 @@ The source-page column identifies the section or chapter in the Version 26 Help 
 | PRO-003 | Earned Value and cost analysis | Help: Earned Value / Analyze Costs | Cost/EVM window | PV/EV/AC/EAC/ETC/indices with missing-input behavior | NOT_AUDITED |
 | TRK-001 | Tracking layout lifecycle and sharing | Help: Tracking Layouts | Tracking window | Save/open/share/import/export/delete tests | NOT_AUDITED |
 | TRK-002 | Tracking top/bottom layout and profiles | Help: Tracking Layouts / Profiles | Tracking | Visibility, column, filter and Gantt/profile tests | NOT_AUDITED |
-| DOC-001 | Document register, categories/status and assignments | Help: Work Products and Documents | Documents window | CRUD, linking, opening and authorization | NOT_AUDITED |
+| DOC-001 | Document register, categories/status and assignments | Help: Work Products and Documents | Documents window | CRUD, linking, opening and authorization | WIRED_WRITE (register, filters, metadata CRUD, audited status graph and history; approval role-gated; binary upload absent; see §2.1) |
 | COST-001 | Expenses, accrual categories and activity assignment | Help: Expenses | Expenses and Activity Details | Create/edit, accrual, category and activity linkage | NOT_AUDITED |
 | COST-002 | Cost Account hierarchy and default | Help: Cost Accounts | Cost Accounts dictionary | Parent/child, default, edit/copy/delete | NOT_AUDITED |
 | COST-003 | Budget, spending and funding sources | Help: Budgeting | Budget/Funding window | Periodized amounts, totals and variance | NOT_AUDITED |

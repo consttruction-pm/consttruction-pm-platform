@@ -1,5 +1,4 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
-import type { WorkspaceDocument } from "./workspace-document.js";
 import type { ProjectSummary } from "./session-api.js";
 import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
@@ -160,8 +159,6 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
-const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
-const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -716,34 +713,6 @@ function bindWorkspaceEvents(container: HTMLElement): void {
           ? renderWbsChart(state.wbsNodes, state.selectedWbsId, labels)
           : renderWbsTree(state.wbsNodes, state.selectedWbsId, labels);
       }
-      return;
-    }
-    if (target.dataset.documentRow) {
-      const documentId = target.dataset.documentRow;
-      selectedDocumentByContainer.set(container, documentId);
-      container.querySelectorAll<HTMLElement>("[data-document-row]").forEach((row) => {
-        const active = row.dataset.documentRow === documentId;
-        row.classList.toggle("is-selected", active);
-        row.setAttribute("aria-current", String(active));
-      });
-      const details = container.querySelector<HTMLElement>("[data-document-details]");
-      if (details) {
-        const document = state.documents.find((item) => item.documentId === documentId) ?? null;
-        details.innerHTML = renderDocumentDetails(state, document, documentDetailsTabByContainer.get(container) ?? "general");
-      }
-      return;
-    }
-    if (target.dataset.documentDetailTab) {
-      const tab = target.dataset.documentDetailTab;
-      documentDetailsTabByContainer.set(container, tab);
-      container.querySelectorAll<HTMLElement>("[data-document-detail-tab]").forEach((button) => {
-        const active = button.dataset.documentDetailTab === tab;
-        button.setAttribute("aria-selected", String(active));
-        button.classList.toggle("is-active", active);
-      });
-      container.querySelectorAll<HTMLElement>("[data-document-detail-panel]").forEach((panel) => {
-        panel.hidden = panel.dataset.documentDetailPanel !== tab;
-      });
       return;
     }
     if (target.dataset.wbsDetailTab) {
@@ -1707,99 +1676,6 @@ function renderWbsChart(
   return `<div class="cp-wbs-chart" data-wbs-chart><ul role="tree" aria-label="${escapeAttribute(labels.wbs)} Chart">${renderChildren(null, 1, new Set())}</ul></div>`;
 }
 
-const DOCUMENT_DETAIL_TABS = [
-  ["general", "General", "عمومی"],
-  ["revisions", "Revisions", "ویرایش‌ها"],
-  ["files", "Files", "فایل‌ها"],
-  ["notebook", "Notes", "یادداشت‌ها"],
-] as const;
-
-function resolveSelectedDocument(state: WorkspaceState, container: HTMLElement): WorkspaceDocument | null {
-  const storedId = selectedDocumentByContainer.get(container);
-  return state.documents.find((document) => document.documentId === storedId)
-    ?? state.documents[0]
-    ?? null;
-}
-
-function renderDocumentDetails(state: WorkspaceState, document: WorkspaceDocument | null, activeTab: string): string {
-  const locale = state.locale;
-  const field = (label: string, value: string): string =>
-    `<div class="cp-document-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
-  const contentFor = (tab: string): string => {
-    if (!document) {
-      return `<p class="cp-document-empty">${escapeHtml(uiText(locale, "Select a document in the register to display its stored metadata.", "برای نمایش اطلاعات ذخیره‌شده، یک سند را در فهرست انتخاب کنید."))}</p>`;
-    }
-    if (tab === "revisions") {
-      return `<div class="cp-document-fields">${field(uiText(locale, "Current revision", "ویرایش جاری"), `R${document.revision}`)}</div><p class="cp-document-empty">${escapeHtml(uiText(locale, "The workspace read model exposes only the current revision. Earlier revisions are held by the document service and are not loaded here.", "مدل خواندن محیط کار فقط ویرایش جاری را ارائه می‌کند. ویرایش‌های پیشین در سرویس اسناد نگهداری می‌شوند و در اینجا بارگذاری نشده‌اند."))}</p>`;
-    }
-    if (tab === "files") {
-      return `<div class="cp-document-fields">${field(uiText(locale, "Content hash", "هش محتوا"), document.contentHash)}${field(uiText(locale, "Storage reference", "مرجع ذخیره‌سازی"), document.hasStorageRef ? uiText(locale, "Present", "موجود") : uiText(locale, "Missing", "ناموجود"))}</div><p class="cp-document-empty">${escapeHtml(uiText(locale, "File bytes remain behind the stored reference. No upload or download route is exposed in this workspace, so no file action is offered.", "بایت‌های فایل پشت مرجع ذخیره‌شده باقی می‌مانند. هیچ مسیر بارگذاری یا دانلود در این محیط کار ارائه نشده است؛ بنابراین هیچ اقدام فایلی نمایش داده نمی‌شود."))}</p>`;
-    }
-    if (tab === "notebook") {
-      return `<p class="cp-document-empty">${escapeHtml(uiText(locale, "Document notes are not stored by the workspace read model.", "یادداشت‌های سند توسط مدل خواندن محیط کار ذخیره نمی‌شوند."))}</p>`;
-    }
-    return `<div class="cp-document-fields">
-      ${field(uiText(locale, "Document ID", "شناسهٔ سند"), document.documentId)}
-      ${field(uiText(locale, "Title", "عنوان"), document.title)}
-      ${field(uiText(locale, "Document type", "نوع سند"), document.resourceType)}
-      ${field(uiText(locale, "Status", "وضعیت"), document.status)}
-      ${field(uiText(locale, "Revision", "ویرایش"), `R${document.revision}`)}
-      ${field(uiText(locale, "Linked references", "مراجع پیوندشده"), document.linkedEntityRefs.length ? document.linkedEntityRefs.join(", ") : uiText(locale, "None", "هیچ"))}
-    </div>`;
-  };
-  return `<div class="cp-documents-details-head"><strong>${escapeHtml(uiText(locale, "Document Details", "جزئیات سند"))}</strong><span>${escapeHtml(document?.documentId ?? uiText(locale, "No selection", "بدون انتخاب"))}</span></div>
-    <div class="cp-documents-tabs" role="tablist" aria-label="${escapeAttribute(uiText(locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">
-      ${DOCUMENT_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" aria-controls="cp-document-detail-panel-${key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(locale, en, fa))}</button>`).join("")}
-    </div>
-    ${DOCUMENT_DETAIL_TABS.map(([key]) => `<section id="cp-document-detail-panel-${key}" class="cp-document-detail-panel" role="tabpanel" data-document-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}`;
-}
-
-function renderDocumentRegisterRow(document: WorkspaceDocument, selected: boolean): string {
-  return `<tr class="${selected ? "is-selected" : ""}" data-document-row="${escapeAttribute(document.documentId)}" tabindex="0" aria-current="${selected ? "true" : "false"}">
-    <th scope="row">${escapeHtml(document.documentId)}</th>
-    <td>${escapeHtml(document.title)}</td>
-    <td>${escapeHtml(document.resourceType)}</td>
-    <td>${escapeHtml(document.status)}</td>
-    <td>R${document.revision}</td>
-  </tr>`;
-}
-
-function renderDocumentsPage(state: WorkspaceState, container: HTMLElement): string {
-  const locale = state.locale;
-  const t = getWorkspaceLabels(locale);
-  const selected = resolveSelectedDocument(state, container);
-  const activeTab = documentDetailsTabByContainer.get(container) ?? "general";
-  const evidence = state.documents.filter((document) => document.resourceType === "evidence");
-  const register = state.documents.length
-    ? `<div class="cp-documents-table-wrap"><table class="cp-documents-register-table">
-        <thead><tr><th>${escapeHtml(uiText(locale, "Document", "سند"))}</th><th>${escapeHtml(uiText(locale, "Title", "عنوان"))}</th><th>${escapeHtml(uiText(locale, "Type", "نوع"))}</th><th>${escapeHtml(uiText(locale, "Status", "وضعیت"))}</th><th>${escapeHtml(uiText(locale, "Revision", "ویرایش"))}</th></tr></thead>
-        <tbody>${state.documents.map((document) => renderDocumentRegisterRow(document, document.documentId === selected?.documentId)).join("")}</tbody>
-      </table></div>`
-    : `<p class="cp-document-empty">${escapeHtml(uiText(locale, "No document records are loaded from the project read model.", "هیچ رکورد سندی از مدل خواندن پروژه بارگذاری نشده است."))}</p>`;
-  const evidenceList = evidence.length
-    ? `<ul class="cp-document-evidence-list">${evidence.map((document) => `<li class="${document.documentId === selected?.documentId ? "is-selected" : ""}" data-document-row="${escapeAttribute(document.documentId)}" tabindex="0" aria-current="${document.documentId === selected?.documentId ? "true" : "false"}"><strong>${escapeHtml(document.documentId)}</strong><span>${escapeHtml(document.title)}</span><small>${escapeHtml(document.status)} · R${document.revision} · ${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)}</small></li>`).join("")}</ul>`
-    : `<p class="cp-document-empty">${escapeHtml(uiText(locale, "No document is classified as evidence in the loaded records.", "هیچ سندی در رکوردهای بارگذاری‌شده به‌عنوان مستند طبقه‌بندی نشده است."))}</p>`;
-  return `<div class="cp-documents-window">
-    <div class="cp-register-toolbar"><strong>${escapeHtml(uiText(locale, "Documents Register", "فهرست اسناد"))}</strong><span class="cp-documents-count">${state.documents.length} ${escapeHtml(uiText(locale, "record(s)", "رکورد"))}</span><div class="cp-p6-module-actions">${moduleButton("tools", "file", uiText(locale, "Open workspace tools", "بازکردن ابزارهای محیط کار"))}</div></div>
-    <div class="cp-documents-layout">
-      <div class="cp-documents-column">
-        <section id="cp-documents-register" class="cp-documents-panel" aria-label="${escapeAttribute(uiText(locale, "Documents register", "فهرست اسناد"))}">
-          <div class="cp-documents-panel-head"><strong>${escapeHtml(uiText(locale, "Documents", "اسناد"))}</strong><span>${escapeHtml(uiText(locale, "Validated project documents", "اسناد معتبر پروژه"))}</span></div>
-          ${register}
-        </section>
-        <section id="cp-documents-evidence" class="cp-documents-panel" aria-label="${escapeAttribute(uiText(locale, "Document evidence", "مستندات اسناد"))}">
-          <div class="cp-documents-panel-head"><strong>${escapeHtml(uiText(locale, "Evidence", "مستندات"))}</strong><span>${evidence.length} ${escapeHtml(uiText(locale, "evidence document(s)", "سند مستند"))}</span></div>
-          ${evidenceList}
-        </section>
-      </div>
-      <section class="cp-documents-panel cp-documents-details" data-document-details aria-label="${escapeAttribute(uiText(locale, "Document details", "جزئیات سند"))}">
-        ${renderDocumentDetails(state, selected, activeTab)}
-      </section>
-    </div>
-    <p class="cp-register-notice">${escapeHtml(uiText(locale, "Document metadata is read from the workspace read model and validated by the shared document contract. Registering, uploading, linking and status changes require the document write route, which the server does not expose yet; no placeholder action is shown.", "فرادادهٔ اسناد از مدل خواندن محیط کار خوانده و با قرارداد مشترک اسناد اعتبارسنجی می‌شود. ثبت، بارگذاری، پیوند و تغییر وضعیت به مسیر نوشتن اسناد نیاز دارد که سرور هنوز ارائه نکرده است؛ هیچ اقدام جایگزینی نمایش داده نمی‌شود."))}</p>
-  </div>`;
-}
-
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
   return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.activitySortLevels === next.activitySortLevels && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
@@ -1829,15 +1705,16 @@ function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, cont
  * cannot disagree and resurrect the pane after a menu change.
  */
 function bottomDetailsVisible(state: WorkspaceState, layout: WorkspaceBottomLayout): boolean {
-  // Roles, Calendars and Issues render a complete detail surface inside their
-  // own window; the shared pane has no reader for them and would only show the
-  // generic "tabs are not implemented" fallback.
+  // Roles, Calendars, Issues and Documents render a complete detail surface
+  // inside their own window; the shared pane has no reader for them and would
+  // only show the generic "tabs are not implemented" fallback.
   return (
     state.visiblePanels.details &&
     layout !== "none" &&
     state.activeMenu !== "roles" &&
     state.activeMenu !== "calendars" &&
-    state.activeMenu !== "issues"
+    state.activeMenu !== "issues" &&
+    state.activeMenu !== "documents"
   );
 }
 
@@ -2541,7 +2418,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = `<div class="cp-register-window" data-expenses-page role="region" aria-label="${escapeHtml(uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"))}"></div>`;
       break;
     case "documents":
-      body = renderDocumentsPage(state, container);
+      body = `<div class="cp-register-window cp-documents-window" data-documents-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Project Documents", "اسناد پروژه"))}"></div>`;
       break;
     case "cost":
       body = `<div class="cp-register-window" data-cost-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Cost Overview", "نمای کلی هزینه"))}"></div>`;
@@ -2636,10 +2513,6 @@ function renderModuleEmptyState(state: WorkspaceState): string {
     copy = locale === "fa"
       ? { title: "هزینه و جریان مالی", message: "نمای هزینه از هزینه‌ها، حساب‌های هزینه، دوره‌های مالی، مبناها و مدل خواندن مشترک ارزش کسب‌شده خوانده می‌شود. نمودارهای مالی تکمیلی هنوز در این پیش‌نمایش وجود ندارند و هیچ محاسبه‌ای در مرورگر انجام نمی‌شود." }
       : { title: "Cost & financial control", message: "The cost overview reads stored expenses, cost accounts, financial periods, baselines and the shared earned-value read model. Additional financial charts are not available in this preview, and no calculation is performed in the browser." };
-  } else if (state.activeMenu === "documents" && state.documents.length === 0) {
-    copy = locale === "fa"
-      ? { title: "اسناد پروژه", message: "هنوز سندی برای این پروژه ثبت یا پیوند داده نشده است. وقتی سندی افزوده شود، در این بخش نمایش داده خواهد شد." }
-      : { title: "Project documents", message: "No project documents have been added or linked yet. Documents will appear here after they are recorded." };
   } else if (state.activeMenu === "control" && !hasControlRecords) {
     copy = locale === "fa"
       ? { title: "کنترل پروژه", message: "هنوز سابقه‌ای برای خلاصه کنترل، گزارش روزانه، بازرسی، مسئله، تغییر یا ادعا در دسترس نیست. با ثبت داده‌های معتبر، این بخش پر می‌شود." }
@@ -2722,6 +2595,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "assignments":
     case "expenses":
     case "issues":
+    case "documents":
     case "risks":
     case "thresholds":
     case "calendars":
@@ -2730,8 +2604,6 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
       return [];
     case "cost":
       return ["#cp-cost-overview", "#cp-cost-registers"];
-    case "documents":
-      return ["#cp-documents-register", "#cp-documents-evidence"];
     case "reports":
       return [];
     case "control":
@@ -2752,12 +2624,6 @@ function navigationTargetAvailable(state: WorkspaceState, anchor: string): boole
       return state.procurementRecords.length > 0;
     case "#cp-change-claim":
       return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
-    case "#cp-documents":
-      return state.documents.length > 0;
-    case "#cp-documents-register":
-      return state.documents.length > 0;
-    case "#cp-documents-evidence":
-      return state.documents.some((document) => document.resourceType === "evidence");
     case "#cp-control-summary":
       return state.controlSummary !== null;
     case "#cp-smart-guide":

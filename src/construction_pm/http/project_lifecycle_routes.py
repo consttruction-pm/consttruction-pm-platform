@@ -107,6 +107,8 @@ from ..p6_formula_column import (
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
+from ..document_api import DocumentAPI
+from ..document_persistence import DocumentRecord
 from ..p6_issue_repository import P6Issue, P6IssuePersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
@@ -222,6 +224,7 @@ class ProjectLifecycleHttpRoutes:
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
+        document_api: DocumentAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
@@ -267,6 +270,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_issue_api = p6_issue_api
+        self._document_api = document_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
         self._p6_wbs_master_api = p6_wbs_master_api
@@ -1907,6 +1911,193 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+            if self._document_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/"):
+                    rest = split.path[len("/api/projects/"):]
+                    document_project_id, marker, document_rest = rest.partition("/documents")
+                    if marker and document_project_id and (
+                        document_rest == "" or document_rest.startswith("/")
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, document_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, str(exc), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [part for part in document_rest.strip("/").split("/") if part]
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+
+                        def _document_reply(result: dict[str, object]):
+                            code = str(result.get("code", "DOCUMENT_REQUEST_INVALID"))
+                            category = str(result.get("category", "validation"))
+                            if code == "DOCUMENT_NOT_FOUND":
+                                return self._error(
+                                    404, code, "error.document.not_found"
+                                )
+                            if category == "conflict":
+                                return self._error(
+                                    409, code, "error.document.conflict"
+                                )
+                            if category == "authorization":
+                                return self._error(
+                                    403, code, "error.authorization.denied"
+                                )
+                            if category == "persistence":
+                                return self._error(
+                                    503, code, "error.document.unavailable"
+                                )
+                            return self._error(400, code, "error.request.invalid")
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and not parts:
+                                result = self._document_api.list(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    context=auth,
+                                    resource_type=query.get("resource_type"),
+                                    status=query.get("status"),
+                                    search=query.get("search"),
+                                )
+                                if "documents" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "POST" and not parts:
+                                record = DocumentRecord(
+                                    document_id=payload.get("document_id", ""),
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    resource_type=payload.get("resource_type", ""),
+                                    title=payload.get("title", ""),
+                                    status=payload.get("status", "draft"),
+                                    storage_ref=payload.get("storage_ref", ""),
+                                    content_hash=payload.get("content_hash", ""),
+                                    linked_entity_refs=tuple(
+                                        payload.get("linked_entity_refs") or ()
+                                    ),
+                                )
+                                result = self._document_api.create(
+                                    record,
+                                    context=auth,
+                                    idempotency_key=(
+                                        request_headers.get("Idempotency-Key")
+                                        or payload.get("idempotency_key")
+                                        or ""
+                                    ),
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                )
+                                if "document_id" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "GET" and len(parts) == 1:
+                                result = self._document_api.read(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                )
+                                if "document_id" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "GET" and len(parts) == 2 and parts[1] == "history":
+                                result = self._document_api.history(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                )
+                                if "events" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method in {"PUT", "PATCH"} and len(parts) == 1:
+                                record = DocumentRecord(
+                                    document_id=parts[0],
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    resource_type=payload.get("resource_type", ""),
+                                    title=payload.get("title", ""),
+                                    status=payload.get("status", ""),
+                                    storage_ref=payload.get("storage_ref", ""),
+                                    content_hash=payload.get("content_hash", ""),
+                                    linked_entity_refs=tuple(
+                                        payload.get("linked_entity_refs") or ()
+                                    ),
+                                )
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool):
+                                    raise ValueError("INVALID_EXPECTED_DOCUMENT_REVISION")
+                                result = self._document_api.update(
+                                    record,
+                                    expected_revision=int(expected)
+                                    if expected is not None
+                                    else 0,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                )
+                                if "document_id" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            if method == "POST" and len(parts) == 2 and parts[1] == "status":
+                                current = self._document_api.read(
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    document_id=parts[0],
+                                    context=auth,
+                                )
+                                if "document_id" not in current:
+                                    return _document_reply(current)
+                                record = DocumentRecord(
+                                    document_id=parts[0],
+                                    tenant_id=context.tenant_id,
+                                    project_id=context.project_id,
+                                    resource_type=current["resource_type"],
+                                    title=current["title"],
+                                    status=payload.get("status", ""),
+                                    storage_ref=current["storage_ref"],
+                                    content_hash=current["content_hash"],
+                                    linked_entity_refs=tuple(
+                                        current.get("linked_entity_refs") or ()
+                                    ),
+                                )
+                                expected = payload.get("expected_revision")
+                                if isinstance(expected, bool):
+                                    raise ValueError("INVALID_EXPECTED_DOCUMENT_REVISION")
+                                result = self._document_api.transition_status(
+                                    record,
+                                    expected_revision=int(expected)
+                                    if expected is not None
+                                    else 0,
+                                    context=auth,
+                                    actor_id=session.user_id,
+                                    occurred_at=now,
+                                    reason=str(payload.get("reason") or ""),
+                                )
+                                if "document_id" in result:
+                                    return self._json(200, result)
+                                return _document_reply(result)
+                            return self._error(
+                                400, "DOCUMENT_REQUEST_INVALID", "error.request.invalid"
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400, "DOCUMENT_REQUEST_INVALID", "error.request.invalid"
+                            )
             if self._p6_issue_api is not None:
                 split = urlsplit(path)
                 if split.path.startswith("/api/projects/") and "/p6/issues" in split.path:

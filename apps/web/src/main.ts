@@ -84,6 +84,7 @@ import {
 } from "./workspace-layout-selector.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
+import { mountWorkspaceDocumentsPage } from "./workspace-documents.js";
 import { mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
@@ -2401,6 +2402,19 @@ function renderApp(
         code: node.localCode,
         name: node.name,
       })),
+    });
+  }
+
+  const documentsPage = workspace.querySelector<HTMLElement>("[data-documents-page]");
+  if (documentsPage) {
+    mountWorkspaceDocumentsPage(documentsPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      // PROJECT_WRITE is granted to planner and project_admin by the default
+      // policy, so the register mirrors that server gate exactly.
+      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canApprove: activeWorkspaceRoles.includes("project_admin"),
     });
   }
 
