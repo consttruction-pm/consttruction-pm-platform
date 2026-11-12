@@ -1882,8 +1882,7 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
 test("empty and preview-only modules show an explicit truthful surface", () => {
   const reports = render("en", "reports");
   assert.match(reports, /data-workspace-menu="reports"/);
-  assert.match(reports, /Reports &amp; print/);
-  assert.match(reports, /not available in this preview yet/);
+  assert.match(reports, /data-reports-page/);
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);

@@ -1,0 +1,110 @@
+{
+  "contract": "cubi-reports-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "bb30ec913f2905eeef6b7c4be5324ca071e1f33e",
+  "testedCodeSha": "bb30ec913f2905eeef6b7c4be5324ca071e1f33e",
+  "evidenceCommitSha": "861c69a3f79ede269a9cd5fb0b2ca2f51232e1aa",
+  "capturedAt": "2026-11-12T04:05:37.492Z",
+  "activityReportId": "E2E-RPT-ACT-MWD0YZBZ",
+  "resourceReportId": "E2E-RPT-RES-MWD0YZBZ",
+  "scenarios": [
+    {
+      "reports": 0,
+      "subjects": [
+        "activities",
+        "resources",
+        "risks"
+      ],
+      "id": "01",
+      "name": "\u0641\u0647\u0631\u0633\u062a \u06af\u0632\u0627\u0631\u0634 \u062e\u0627\u0644\u06cc \u0627\u0633\u062a \u0648 \u06a9\u0627\u062a\u0627\u0644\u0648\u06af \u0633\u0647 \u0645\u0648\u0636\u0648\u0639 \u0648 \u06a9\u0646\u062a\u0631\u0644 \u0633\u0627\u062e\u062a \u062f\u0627\u0631\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:41.402Z"
+    },
+    {
+      "revision": 1,
+      "columns": [
+        "activity_id",
+        "name",
+        "status",
+        "percent_complete"
+      ],
+      "id": "02",
+      "name": "\u062a\u0639\u0631\u06cc\u0641 \u06af\u0632\u0627\u0631\u0634 \u0641\u0639\u0627\u0644\u06cc\u062a \u0628\u0627 \u0633\u062a\u0648\u0646\u200c\u0647\u0627\u06cc \u0627\u0646\u062a\u062e\u0627\u0628\u06cc \u0633\u0627\u062e\u062a\u0647 \u0648 \u0628\u0627\u0632\u062e\u0648\u0627\u0646\u06cc \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:42.255Z"
+    },
+    {
+      "rows": 14,
+      "runId": "RUN-E2E-RPT-ACT-MWD0YZBZ-1",
+      "id": "03",
+      "name": "\u0627\u062c\u0631\u0627\u06cc\u06af\u0632\u0627\u0631\u0634 \u06f1\u06f4 \u0631\u062f\u06cc\u0641 \u062f\u0627\u062f\u0647\u0654 \u0645\u0631\u062c\u0639 \u0631\u0627 \u0628\u0627 \u0633\u062a\u0648\u0646\u200c\u0647\u0627\u06cc \u062f\u0642\u06cc\u0642 \u0630\u062e\u06cc\u0631\u0647 \u0645\u06cc\u200c\u06a9\u0646\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:43.259Z"
+    },
+    {
+      "runs": 2,
+      "readback": "RUN-E2E-RPT-ACT-MWD0YZBZ-1",
+      "id": "04",
+      "name": "\u0627\u062c\u0631\u0627\u06cc \u062f\u0648\u0645 \u0630\u062e\u06cc\u0631\u0647 \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u062e\u0631\u0648\u062c\u06cc \u0627\u062c\u0631\u0627\u06cc \u0627\u0648\u0644 \u0628\u062f\u0648\u0646 \u062a\u063a\u06cc\u06cc\u0631 \u0628\u0627\u0632\u062e\u0648\u0627\u0646\u06cc \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:44.259Z"
+    },
+    {
+      "revision": 2,
+      "staleStatus": 409,
+      "history": 3,
+      "id": "05",
+      "name": "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0628\u0627 \u0646\u0633\u062e\u0647\u0654 \u06f2 \u0627\u0639\u0645\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u0646\u0648\u0634\u062a\u0646 \u0628\u0627 \u0646\u0633\u062e\u0647\u0654 \u06a9\u0647\u0646\u0647 \u06f4\u06f0\u06f9 \u0627\u0633\u062a",
+      "status": "pass",
+      "at": "2026-11-12T04:05:46.291Z"
+    },
+    {
+      "reports": 2,
+      "resourceRows": 1,
+      "id": "06",
+      "name": "\u06af\u0632\u0627\u0631\u0634 \u0645\u0646\u0627\u0628\u0639 \u0633\u0627\u062e\u062a\u0647 \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u0641\u06cc\u0644\u062a\u0631 \u0645\u0648\u0636\u0648\u0639 \u0648 \u062c\u0633\u062a\u062c\u0648 \u062f\u0631 \u0633\u0631\u0648\u0631 \u0627\u0639\u0645\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:48.224Z"
+    },
+    {
+      "remaining": 1,
+      "readStatus": 404,
+      "id": "07",
+      "name": "\u062d\u0630\u0641 \u06af\u0632\u0627\u0631\u0634 \u0628\u0627 \u0646\u0633\u062e\u0647\u0654 \u062c\u0627\u0631\u06cc \u0627\u0646\u062c\u0627\u0645 \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u062e\u0648\u0627\u0646\u062f\u0646 \u0628\u0639\u062f\u06cc \u06f4\u06f0\u06f4 \u0627\u0633\u062a",
+      "status": "pass",
+      "at": "2026-11-12T04:05:49.003Z"
+    },
+    {
+      "createStatus": 403,
+      "runRows": 14,
+      "id": "08",
+      "name": "\u0646\u0642\u0634 Viewer \u0641\u0642\u0637 \u0645\u06cc\u200c\u062e\u0648\u0627\u0646\u062f: \u0627\u062c\u0631\u0627 \u0645\u062c\u0627\u0632 \u0648 \u0646\u0648\u0634\u062a\u0646 \u0645\u0633\u062a\u0642\u06cc\u0645 \u06f4\u06f0\u06f3 \u0627\u0633\u062a",
+      "status": "pass",
+      "at": "2026-11-12T04:05:52.941Z"
+    },
+    {
+      "direction": "rtl",
+      "heading": "\u06af\u0632\u0627\u0631\u0634\u200c\u0647\u0627\u06cc \u067e\u0631\u0648\u0698\u0647",
+      "rows": 1,
+      "id": "09",
+      "name": "\u067e\u0646\u062c\u0631\u0647\u0654 \u06af\u0632\u0627\u0631\u0634 \u062f\u0631 1280\u00d7720 \u0641\u0627\u0631\u0633\u06cc\u060c \u0631\u0627\u0633\u062a\u200c\u0628\u0647\u200c\u0686\u067e \u0648 \u0628\u062f\u0648\u0646 \u0633\u0631\u0631\u06cc\u0632 \u0631\u0646\u062f\u0631 \u0645\u06cc\u200c\u0634\u0648\u062f",
+      "status": "pass",
+      "at": "2026-11-12T04:05:57.530Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created-definition.png",
+    "03-first-run-output.png",
+    "04-stored-run-readback.png",
+    "05-revised-run.png",
+    "06-resource-report.png",
+    "07-deleted-report.png",
+    "08-viewer-read-only.png",
+    "09-reports-1280x720-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T04:05:57.530Z"
+}
