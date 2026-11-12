@@ -1,0 +1,193 @@
+{
+  "contract": "cubi-documents-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "b22c795581d8773f890b12915ed0e078c4153f09",
+  "testedCodeSha": "b22c795581d8773f890b12915ed0e078c4153f09",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-12T01:43:04.787Z",
+  "documentA": "E2E-DOC-MWCVVO1C-A",
+  "documentB": "E2E-DOC-MWCVVO1C-B",
+  "scenarios": [
+    {
+      "rows": 0,
+      "empty": "No project documents are stored for this project.",
+      "id": "01",
+      "name": "پنجرهٔ Documents فهرست خالی، پالایه‌ها و جزئیات بدون انتخاب نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-12T01:43:08.794Z"
+    },
+    {
+      "row": {
+        "id": "E2E-DOC-MWCVVO1C-A",
+        "title": "E2E foundation layout drawing",
+        "type": "drawing",
+        "status": "draft",
+        "links": "2",
+        "revision": "1",
+        "selected": true
+      },
+      "stored": {
+        "document_id": "E2E-DOC-MWCVVO1C-A",
+        "tenant_id": "cubi-preview-tenant",
+        "project_id": "preview-rps-01",
+        "resource_type": "drawing",
+        "title": "E2E foundation layout drawing",
+        "status": "draft",
+        "storage_ref": "s3://cubi-e2e/E2E-DOC-MWCVVO1C-A.pdf",
+        "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "linked_entity_refs": [
+          "WBS-1.1",
+          "ACT-101"
+        ],
+        "contract_version": "1.0",
+        "revision": 1
+      },
+      "id": "02",
+      "name": "ایجاد سند از فرم واقعی به‌صورت پیش‌نویس با نسخهٔ ۱ و هش صریح",
+      "status": "pass",
+      "at": "2026-11-12T01:43:09.397Z"
+    },
+    {
+      "revision": 2,
+      "events": [
+        "created",
+        "updated"
+      ],
+      "id": "03",
+      "name": "ویرایش فراداده با Revision: عنوان ذخیره می‌شود، نسخه ۲ و تاریخچهٔ created/updated ثبت می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:43:10.213Z"
+    },
+    {
+      "code": "DOCUMENT_STATUS_REQUIRES_TRANSITION",
+      "status": "pass",
+      "revision": 2,
+      "id": "04",
+      "name": "نوشتن فراداده نمی‌تواند وضعیت را تغییر دهد: DOCUMENT_STATUS_REQUIRES_TRANSITION و رکورد پیش‌نویس می‌ماند",
+      "at": "2026-11-12T01:43:10.220Z"
+    },
+    {
+      "conflict": "Document was not saved (DOCUMENT_REVISION_CONFLICT)",
+      "title": "E2E competing metadata edit",
+      "revision": "3",
+      "id": "05",
+      "name": "نوشتن همزمان بیرونی: ارسال فرم کهنه 409 می‌دهد و رکورد معتبر حفظ می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:43:11.014Z"
+    },
+    {
+      "status": "pass",
+      "revision": 4,
+      "approvalDisabled": true,
+      "id": "06",
+      "name": "گذار وضعیت مجاز با دلیل ثبت می‌شود و تأیید برای Planner غیرفعال است",
+      "at": "2026-11-12T01:43:11.714Z"
+    },
+    {
+      "status": "pass",
+      "revision": 5,
+      "actor": "preview-admin",
+      "id": "07",
+      "name": "مدیر پروژه سند ارسالی را تأیید می‌کند و تصمیم در تاریخچه ثبت می‌شود",
+      "at": "2026-11-12T01:43:16.366Z"
+    },
+    {
+      "code": "DOCUMENT_INVALID_STATUS_TRANSITION",
+      "status": "pass",
+      "revision": 5,
+      "id": "08",
+      "name": "گذار نامعتبر در نمودار وضعیت با 400 رد می‌شود و رکورد تغییر نمی‌کند",
+      "at": "2026-11-12T01:43:16.376Z"
+    },
+    {
+      "typeRows": 1,
+      "statusRows": 1,
+      "searched": "E2E-DOC-MWCVVO1C-B",
+      "serverFiltered": 1,
+      "id": "09",
+      "name": "پالایه‌ها و جستجوی سمت سرور فقط رکورد مطابق را برمی‌گردانند",
+      "status": "pass",
+      "at": "2026-11-12T01:43:17.463Z"
+    },
+    {
+      "status": "pass",
+      "revision": 6,
+      "editDisabled": true,
+      "id": "10",
+      "name": "سند تأییدشده جایگزین می‌شود، ویرایش غیرفعال و گذار بیشتری پیشنهاد نمی‌شود",
+      "at": "2026-11-12T01:43:18.165Z"
+    },
+    {
+      "rows": 2,
+      "superseded": "superseded",
+      "draft": "draft",
+      "id": "11",
+      "name": "پس از بارگذاری کامل صفحه، رکوردها وضعیت سرور را حفظ می‌کنند",
+      "status": "pass",
+      "at": "2026-11-12T01:43:20.949Z"
+    },
+    {
+      "notice": "DOCUMENT_PERMISSION_DENIED",
+      "createStatus": 403,
+      "updateStatus": 403,
+      "id": "12",
+      "name": "نقش Viewer فقط می‌خواند: دکمهٔ ایجاد غیرفعال و نوشتن مستقیم 403 می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:43:24.905Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "direction": "rtl",
+      "toolbar": {
+        "x": 46,
+        "y": 133,
+        "width": 1178,
+        "height": 39
+      },
+      "filters": {
+        "x": 46,
+        "y": 186,
+        "width": 1178,
+        "height": 52.4375
+      },
+      "register": {
+        "x": 46,
+        "y": 252.4375,
+        "width": 1178,
+        "height": 100
+      },
+      "window": {
+        "x": 46,
+        "y": 133,
+        "width": 1178,
+        "height": 519
+      },
+      "bottomDisplay": "none",
+      "collapsed": "true",
+      "rowCount": 2,
+      "heading": "اسناد پروژه",
+      "id": "13",
+      "name": "پنجرهٔ Documents در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی چیدمان رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T01:43:26.569Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-register.png",
+    "02-created.png",
+    "03-edited-history.png",
+    "05-revision-conflict.png",
+    "06-submitted-planner-gated.png",
+    "07-approved-admin.png",
+    "09-filters.png",
+    "10-superseded-final.png",
+    "11-persisted-after-reload.png",
+    "12-viewer-denied.png",
+    "13-documents-1280x720-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T01:43:26.569Z"
+}
