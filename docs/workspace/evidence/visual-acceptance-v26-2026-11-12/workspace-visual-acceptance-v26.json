@@ -1,10 +1,10 @@
 {
   "contract": "cubi-workspace-visual-acceptance-v26.v1",
   "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "34981bbf4edacb67cc5aac94b84fef24d59446fd",
-  "testedCodeSha": "34981bbf4edacb67cc5aac94b84fef24d59446fd",
+  "gitHead": "9378378b6b22e65f77afa5c9e5892d9de384b88f",
+  "testedCodeSha": "9378378b6b22e65f77afa5c9e5892d9de384b88f",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-12T07:54:36.871Z",
+  "capturedAt": "2026-11-12T08:14:50.545Z",
   "cells": [
     {
       "viewport": {
@@ -84,6 +84,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -170,6 +179,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       }
     },
@@ -251,6 +269,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -337,6 +364,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       }
     },
@@ -418,6 +454,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -504,6 +549,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "windowSwitch": {
@@ -584,6 +638,15 @@
           "labels": 21,
           "clippedLabels": [],
           "unresolvedEdgeLabels": [],
+          "nonWorking": {
+            "total": 11,
+            "weekend": 10,
+            "holiday": 1,
+            "outside": 0,
+            "holidayDates": [
+              "2026-10-28"
+            ]
+          },
           "bars": 24
         }
       }
@@ -666,6 +729,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -752,6 +824,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       }
     },
@@ -833,6 +914,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -919,6 +1009,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       }
     },
@@ -1000,6 +1099,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       },
       "dialog": {
@@ -1086,6 +1194,15 @@
         "labels": 21,
         "clippedLabels": [],
         "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
         "bars": 24
       }
     }
@@ -1116,5 +1233,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-12T07:55:06.759Z"
+  "finishedAt": "2026-11-12T08:15:20.311Z"
 }
