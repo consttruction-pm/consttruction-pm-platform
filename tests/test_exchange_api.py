@@ -456,7 +456,8 @@ def test_xlsx_export_streams_a_typed_workbook(tmp_path: Path) -> None:
         assert status == 200, body[:400]
         workbook = load_workbook(BytesIO(body))
         sheet = workbook.active
-        assert [cell.value for cell in sheet[1]] == [
+        headers = [cell.value for cell in sheet[1]]
+        assert headers == [
             "activity_id",
             "name",
             "activity_type",
@@ -468,6 +469,10 @@ def test_xlsx_export_streams_a_typed_workbook(tmp_path: Path) -> None:
             "percent_complete",
             "wbs_id",
         ]
+        duration_column = headers.index("duration_value") + 1
+        assert isinstance(
+            sheet.cell(row=2, column=duration_column).value, (int, float)
+        )
 
         status, body = _request(
             runtime.app,
@@ -575,5 +580,58 @@ def test_xlsx_resource_import_preview_and_apply(tmp_path: Path) -> None:
         assert {error["code"] for error in missing["errors"]} == {
             "EXCHANGE_COLUMN_MISSING"
         }
+    finally:
+        runtime.close()
+
+
+def test_csv_export_neutralises_formula_injection(tmp_path: Path) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        content = _csv(
+            [_resource(resource_id="E2E-FORMULA", name="=SUM(1,1)")]
+        )
+        status, body = _request(
+            runtime.app,
+            "POST",
+            f"{BASE}/import",
+            body={
+                "dataset": "resources",
+                "content": content,
+                "idempotency_key": "formula-key-1",
+            },
+            cookie=admin.session_id,
+        )
+        assert status == 200, body[:400]
+
+        status, body = _request(
+            runtime.app,
+            "GET",
+            f"{BASE}/export?dataset=resources",
+            cookie=admin.session_id,
+        )
+        assert status == 200, body[:400]
+        exported = _json(body)["content"]
+        parsed = list(csv.reader(io.StringIO(exported)))
+        names = {row[0]: row[1] for row in parsed[1:]}
+        assert names["E2E-FORMULA"] == "'=SUM(1,1)"
+
+        status, body = _request(
+            runtime.app,
+            "GET",
+            f"{BASE}/export?dataset=resources&format=xlsx",
+            cookie=admin.session_id,
+        )
+        assert status == 200, body[:400]
+        from openpyxl import load_workbook
+
+        sheet = load_workbook(BytesIO(body)).active
+        headers = [cell.value for cell in sheet[1]]
+        name_column = headers.index("name") + 1
+        values = [
+            sheet.cell(row=index, column=name_column).value
+            for index in range(2, sheet.max_row + 1)
+        ]
+        assert "'=SUM(1,1)" in values
     finally:
         runtime.close()

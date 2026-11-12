@@ -29,10 +29,27 @@ _CONTENT_TYPES = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 _CSV_BOM = "\ufeff"
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
 class ReportExportError(ValueError):
     """Raised when a run cannot be rendered in the requested format."""
+
+
+def _literal(text: str) -> str:
+    if text.startswith(_FORMULA_PREFIXES):
+        return "'" + text
+    return text
+
+
+def _csv_cell(value: object) -> str:
+    """Render a CSV field and neutralise spreadsheet formula injection.
+
+    A stored value that begins with a formula trigger would be evaluated by
+    spreadsheet software when the file is opened. Prefixing an apostrophe keeps
+    the original text visible while forcing a literal cell.
+    """
+    return _literal(_text(value))
 
 
 @dataclass(frozen=True)
@@ -83,25 +100,25 @@ def _cell(value: object, data_type: str) -> object:
         try:
             return int(text)
         except ValueError:
-            return text
+            return _literal(text)
     if data_type == "decimal":
         try:
             return float(Decimal(text))
         except (InvalidOperation, ValueError):
-            return text
+            return _literal(text)
     if data_type == "boolean":
         lowered = text.strip().lower()
         if lowered in {"true", "1", "yes"}:
             return True
         if lowered in {"false", "0", "no"}:
             return False
-        return text
+        return _literal(text)
     if data_type == "date":
         try:
             return date.fromisoformat(text[:10])
         except ValueError:
-            return text
-    return text
+            return _literal(text)
+    return _literal(text)
 
 
 def _safe_name(value: str) -> str:
@@ -119,7 +136,7 @@ def _csv_document(
     writer = csv.writer(buffer, lineterminator="\n")
     writer.writerow([label for _, label in labels])
     for row in run.rows:
-        writer.writerow([_text(row.get(key)) for key, _ in labels])
+        writer.writerow([_csv_cell(row.get(key)) for key, _ in labels])
     return (_CSV_BOM + buffer.getvalue()).encode("utf-8")
 
 

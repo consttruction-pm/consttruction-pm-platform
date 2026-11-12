@@ -17,6 +17,7 @@ import io
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
 from .application.authorization import (
@@ -82,6 +83,18 @@ _XLSX_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 _DECIMAL = re.compile(r"^-?\d+(\.\d+)?$")
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+_TYPED_XLSX_COLUMNS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "activities": (
+        frozenset({"duration_value", "percent_complete"}),
+        frozenset({"actual_start", "expected_finish"}),
+    ),
+    "resources": (frozenset({"default_units_per_time"}), frozenset()),
+    "risks": (
+        frozenset({"probability", "impact", "score"}),
+        frozenset({"date_identified"}),
+    ),
+}
 
 
 class ExchangeError(ValueError):
@@ -104,6 +117,16 @@ def _iso(value: object) -> str | None:
     return str(value)
 
 
+def _literal(text: str) -> str:
+    if text.startswith(_FORMULA_PREFIXES):
+        return "'" + text
+    return text
+
+
+def _csv_cell(value: object) -> str:
+    return _literal(_cell_text(value))
+
+
 def _csv(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> str:
     buffer = io.StringIO()
     writer = csv.DictWriter(
@@ -111,7 +134,7 @@ def _csv(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> str:
     )
     writer.writeheader()
     for row in rows:
-        writer.writerow({column: "" if row.get(column) is None else row[column] for column in columns})
+        writer.writerow({column: _csv_cell(row.get(column)) for column in columns})
     return buffer.getvalue()
 
 
@@ -127,7 +150,35 @@ def _cell_text(value: object) -> str:
     return str(value)
 
 
-def _xlsx(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> bytes:
+def _xlsx_cell(
+    value: object, *, numeric: bool, date_value: bool
+) -> object:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (bool, int, float, datetime, date)):
+        return value
+    text = str(value)
+    if numeric:
+        try:
+            number = Decimal(text)
+        except (InvalidOperation, ValueError):
+            return _literal(text)
+        return int(number) if number == number.to_integral_value() else float(number)
+    if date_value:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return _literal(text)
+    return _literal(text)
+
+
+def _xlsx(
+    columns: Sequence[str],
+    rows: Sequence[Mapping[str, object]],
+    *,
+    numeric: frozenset[str] = frozenset(),
+    dates: frozenset[str] = frozenset(),
+) -> bytes:
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font
@@ -141,7 +192,16 @@ def _xlsx(columns: Sequence[str], rows: Sequence[Mapping[str, object]]) -> bytes
     for cell in sheet[1]:
         cell.font = Font(bold=True)
     for row in rows:
-        sheet.append([_cell_text(row.get(column)) for column in columns])
+        sheet.append(
+            [
+                _xlsx_cell(
+                    row.get(column),
+                    numeric=column in numeric,
+                    date_value=column in dates,
+                )
+                for column in columns
+            ]
+        )
     for index, column in enumerate(columns, start=1):
         sheet.column_dimensions[get_column_letter(index)].width = min(
             48, max(12, len(column) + 2)
@@ -252,7 +312,12 @@ class ExchangeService:
             result["content_type"] = "text/csv; charset=utf-8"
             result["content_sha256"] = hashlib.sha256(content.encode("utf-8")).hexdigest()
         else:
-            document = _xlsx(columns, rows)
+            numeric, dates = _TYPED_XLSX_COLUMNS.get(
+                dataset, (frozenset(), frozenset())
+            )
+            document = _xlsx(
+                columns, rows, numeric=numeric, dates=dates
+            )
             result["content_base64"] = base64.b64encode(document).decode("ascii")
             result["content_type"] = _XLSX_CONTENT_TYPE
             result["content_sha256"] = hashlib.sha256(document).hexdigest()

@@ -200,3 +200,22 @@ def test_report_run_export_over_http(tmp_path: Path) -> None:
         assert status in {401, 403}, body[:300]
     finally:
         runtime.close()
+
+
+def test_csv_export_neutralises_formula_injection() -> None:
+    run = _run(
+        columns=("activity_id", "name"),
+        rows=(
+            {"activity_id": "A1", "name": "=HYPERLINK(\"http://example.test\")"},
+            {"activity_id": "A2", "name": "@SUM(A1:A2)"},
+        ),
+    )
+    text = build_report_export(run, "csv").data.decode("utf-8").lstrip("\ufeff")
+    reader = list(csv.reader(io.StringIO(text)))
+    assert reader[1][1] == "'=HYPERLINK(\"http://example.test\")"
+    assert reader[2][1] == "'@SUM(A1:A2)"
+
+    workbook = load_workbook(BytesIO(build_report_export(run, "xlsx").data))
+    cell = workbook.active["B2"]
+    assert cell.value == "'=HYPERLINK(\"http://example.test\")"
+    assert cell.data_type == "s"

@@ -166,3 +166,62 @@ def test_document_approval_live_authorization_revision_and_audit() -> None:
         assert history[1].reason == "submit for approval"
         assert history[2].reason == "approved by authorized actor"
         assert history[2].actor_id == "approver"
+
+
+def test_document_content_versions_live_append_isolation_and_idempotency() -> None:
+    from construction_pm.document_content_repository import (
+        DocumentContentPersistenceError,
+        DocumentContentVersion,
+        PostgresDocumentContentRepository,
+    )
+    from construction_pm.document_persistence import DocumentIdempotencyReuse
+
+    suffix = uuid.uuid4().hex
+    tenant = f"live-content-tenant-{suffix}"
+    project = f"live-content-project-{suffix}"
+    document_id = f"doc-{suffix}"
+    occurred = datetime.now(timezone.utc)
+
+    def version(number: int, key: str, digest: str) -> DocumentContentVersion:
+        return DocumentContentVersion(
+            tenant_id=tenant,
+            project_id=project,
+            document_id=document_id,
+            version=number,
+            document_revision=number,
+            storage_ref=f"local://{tenant}/{project}/{digest[:8]}",
+            content_hash=f"sha256:{digest * 64}",
+            content_type="application/pdf",
+            byte_size=100 + number,
+            original_filename=f"plan-{number}.pdf",
+            idempotency_key=key,
+            actor_id="live-actor",
+            uploaded_at=occurred,
+        )
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresDocumentContentRepository(connection)
+        repository.initialize()
+        connection.commit()
+
+        first = repository.append(version(1, f"content-{suffix}-1", "a"))
+        connection.commit()
+        assert repository.append(version(1, f"content-{suffix}-1", "a")) == first
+        connection.commit()
+
+        with pytest.raises(DocumentIdempotencyReuse):
+            repository.append(version(2, f"content-{suffix}-1", "b"))
+        connection.rollback()
+
+        with pytest.raises(DocumentContentPersistenceError):
+            repository.append(version(3, f"content-{suffix}-3", "c"))
+        connection.rollback()
+
+        second = repository.append(version(2, f"content-{suffix}-2", "b"))
+        connection.commit()
+        assert repository.latest(tenant, project, document_id) == second
+        assert [item.version for item in repository.list(tenant, project, document_id)] == [1, 2]
+        assert repository.get(tenant, project, document_id, 1) == first
+        assert repository.get(tenant, project, document_id, 9) is None
+        assert repository.latest(tenant, project, "other-document") is None
+        assert repository.latest("other-tenant", project, document_id) is None
