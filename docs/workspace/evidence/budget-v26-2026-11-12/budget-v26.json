@@ -1,0 +1,287 @@
+{
+  "contract": "cubi-budget-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "32028937fe5be1755331afa21d7d0dc35cfe20b5",
+  "testedCodeSha": "32028937fe5be1755331afa21d7d0dc35cfe20b5",
+  "evidenceCommitSha": "6fd7262393086b4d4b532f5ba74938c7ffa00f34",
+  "capturedAt": "2026-11-12T02:00:33.730Z",
+  "lineId": "E2E-BL-MWCWI5EG",
+  "changeId": "E2E-BC-MWCWI5EG",
+  "rejectedId": "E2E-BC-MWCWI5EG-R",
+  "fundingId": "E2E-FS-MWCWI5EG",
+  "scenarios": [
+    {
+      "lines": 0,
+      "funding": 0,
+      "summaries": 0,
+      "id": "01",
+      "name": "پنل بودجهٔ خالی، خلاصهٔ ارزی و فرم‌های مجاز برای Planner نمایش داده می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:00:37.956Z"
+    },
+    {
+      "row": {
+        "id": "E2E-BL-MWCWI5EG",
+        "description": "E2E concrete works",
+        "currency": "USD",
+        "original": "1000.00",
+        "costAccount": "CA-1",
+        "revision": "R1",
+        "selected": false
+      },
+      "stored": {
+        "contract_version": "p6-budget-api.v1",
+        "budget_line_id": "E2E-BL-MWCWI5EG",
+        "description": "E2E concrete works",
+        "currency": "USD",
+        "original_amount": "1000.00",
+        "cost_account_id": "CA-1",
+        "period_id": "2026",
+        "revision": 1
+      },
+      "id": "02",
+      "name": "ایجاد ردیف بودجه از فرم واقعی با نسخهٔ ۱ و مبلغ دو رقم اعشار",
+      "status": "pass",
+      "at": "2026-11-12T02:00:38.556Z"
+    },
+    {
+      "change": {
+        "id": "E2E-BC-MWCWI5EG",
+        "amount": "-100.00",
+        "reason": "Reduced scope",
+        "status": "pending",
+        "revision": "R1"
+      },
+      "summary": {
+        "currency": "USD",
+        "original": "1000.00",
+        "approved": "0.00",
+        "current": "1000.00",
+        "pending": "-100.00",
+        "funding": "0.00",
+        "balance": "1000.00"
+      },
+      "id": "03",
+      "name": "ثبت تغییر از فرم، وضعیت pending و خلاصهٔ بودجهٔ جاری بدون تغییر",
+      "status": "pass",
+      "at": "2026-11-12T02:00:39.259Z"
+    },
+    {
+      "code": "BUDGET_APPROVAL_REQUIRES_ADMIN",
+      "current": "1000.00",
+      "id": "04",
+      "name": "تأیید تغییر برای Planner ممنوع است: بدون دکمه و پاسخ مستقیم 403",
+      "status": "pass",
+      "at": "2026-11-12T02:00:39.341Z"
+    },
+    {
+      "summary": {
+        "currency": "USD",
+        "original": "1000.00",
+        "approved": "-100.00",
+        "current": "900.00",
+        "pending": "0.00",
+        "funding": "0.00",
+        "balance": "900.00"
+      },
+      "stored": {
+        "contract_version": "p6-budget-api.v1",
+        "change_id": "E2E-BC-MWCWI5EG",
+        "budget_line_id": "E2E-BL-MWCWI5EG",
+        "amount": "-100.00",
+        "reason": "Reduced scope",
+        "status": "approved",
+        "revision": 2
+      },
+      "id": "05",
+      "name": "مدیر پروژه تغییر را تأیید می‌کند و بودجهٔ جاری ۹۰۰٫۰۰ می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:00:44.171Z"
+    },
+    {
+      "rejected": {
+        "id": "E2E-BC-MWCWI5EG-R",
+        "amount": "250.00",
+        "reason": "Rejected extra scope",
+        "status": "rejected",
+        "revision": "R2"
+      },
+      "summary": {
+        "currency": "USD",
+        "original": "1000.00",
+        "approved": "-100.00",
+        "current": "900.00",
+        "pending": "0.00",
+        "funding": "0.00",
+        "balance": "900.00"
+      },
+      "id": "06",
+      "name": "رد تغییر دوم توسط مدیر، بودجهٔ جاری را تغییر نمی‌دهد و در فهرست می‌ماند",
+      "status": "pass",
+      "at": "2026-11-12T02:00:45.491Z"
+    },
+    {
+      "row": {
+        "id": "E2E-FS-MWCWI5EG",
+        "name": "E2E owner equity",
+        "type": "internal",
+        "currency": "USD",
+        "amount": "400.00",
+        "revision": "R1"
+      },
+      "summary": {
+        "currency": "USD",
+        "original": "1000.00",
+        "approved": "-100.00",
+        "current": "900.00",
+        "pending": "0.00",
+        "funding": "400.00",
+        "balance": "500.00"
+      },
+      "id": "07",
+      "name": "ایجاد منبع تأمین مالی و محاسبهٔ ماندهٔ ۵۰۰٫۰۰ توسط سرور",
+      "status": "pass",
+      "at": "2026-11-12T02:00:46.092Z"
+    },
+    {
+      "row": {
+        "id": "E2E-FS-MWCWI5EG",
+        "name": "E2E owner equity",
+        "type": "internal",
+        "currency": "USD",
+        "amount": "450.00",
+        "revision": "R2"
+      },
+      "conflict": "BUDGET_REVISION_CONFLICT",
+      "stored": {
+        "contract_version": "p6-budget-api.v1",
+        "funding_id": "E2E-FS-MWCWI5EG",
+        "name": "E2E owner equity",
+        "source_type": "internal",
+        "currency": "USD",
+        "amount": "450.00",
+        "period_id": "2026",
+        "revision": 2
+      },
+      "id": "08",
+      "name": "ویرایش تأمین مالی با Revision محافظت می‌شود و نوشتن کهنه 409 می‌گیرد",
+      "status": "pass",
+      "at": "2026-11-12T02:00:46.691Z"
+    },
+    {
+      "row": {
+        "id": "E2E-BL-MWCWI5EG",
+        "description": "E2E concrete works revised",
+        "currency": "USD",
+        "original": "1000.00",
+        "costAccount": "CA-1",
+        "revision": "R2",
+        "selected": true
+      },
+      "conflict": "BUDGET_REVISION_CONFLICT",
+      "stored": {
+        "contract_version": "p6-budget-api.v1",
+        "budget_line_id": "E2E-BL-MWCWI5EG",
+        "description": "E2E concrete works revised",
+        "currency": "USD",
+        "original_amount": "1000.00",
+        "cost_account_id": "CA-1",
+        "period_id": "2026",
+        "revision": 2
+      },
+      "id": "09",
+      "name": "ویرایش ردیف بودجه نسخهٔ ۲ می‌سازد و نوشتن هم‌زمان کهنه 409 می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:00:47.391Z"
+    },
+    {
+      "row": {
+        "id": "E2E-BL-MWCWI5EG",
+        "description": "E2E concrete works revised",
+        "currency": "USD",
+        "original": "1000.00",
+        "costAccount": "CA-1",
+        "revision": "R2",
+        "selected": false
+      },
+      "funding": {
+        "id": "E2E-FS-MWCWI5EG",
+        "name": "E2E owner equity",
+        "type": "internal",
+        "currency": "USD",
+        "amount": "450.00",
+        "revision": "R2"
+      },
+      "summary": {
+        "currency": "USD",
+        "original": "1000.00",
+        "approved": "-100.00",
+        "current": "900.00",
+        "pending": "0.00",
+        "funding": "450.00",
+        "balance": "450.00"
+      },
+      "id": "10",
+      "name": "پس از بارگذاری کامل صفحه، بودجه، تغییرات، تأمین مالی و خلاصه حفظ می‌شوند",
+      "status": "pass",
+      "at": "2026-11-12T02:00:50.371Z"
+    },
+    {
+      "createStatus": 403,
+      "fundingStatus": 403,
+      "lines": 1,
+      "id": "11",
+      "name": "نقش Viewer فقط می‌خواند: بدون دکمهٔ نوشتن و پاسخ مستقیم 403",
+      "status": "pass",
+      "at": "2026-11-12T02:00:54.570Z"
+    },
+    {
+      "innerWidth": 1280,
+      "innerHeight": 720,
+      "direction": "rtl",
+      "heading": "بودجهٔ پروژه",
+      "toolbar": {
+        "x": 46,
+        "y": 961.8125,
+        "width": 1178,
+        "height": 39
+      },
+      "summary": {
+        "x": 46,
+        "y": 1090.3125,
+        "width": 1178,
+        "height": 55.59375
+      },
+      "panel": {
+        "x": 46,
+        "y": 961.8125,
+        "width": 1178,
+        "height": 437.28125
+      },
+      "rows": 1,
+      "fundingRows": 1,
+      "id": "12",
+      "name": "پنل بودجه در 1280×720 فارسی، راست‌به‌چپ و بدون بریدگی رندر می‌شود",
+      "status": "pass",
+      "at": "2026-11-12T02:00:56.291Z"
+    }
+  ],
+  "screenshots": [
+    "01-empty-budget.png",
+    "02-created-line.png",
+    "03-pending-change.png",
+    "04-planner-denied.png",
+    "05-approved-admin.png",
+    "06-rejected-change.png",
+    "07-funding.png",
+    "08-funding-revision-conflict.png",
+    "09-line-revision-conflict.png",
+    "10-persisted-after-reload.png",
+    "11-viewer-denied.png",
+    "12-budget-1280x720-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-12T02:00:56.291Z"
+}

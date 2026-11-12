@@ -8821,3 +8821,16 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-document-status[data-status="approved"] { background: #eefaf0; border-color: #9fcfae; }
 .cp-p6 .cp-document-status[data-status="rejected"] { background: #fdecec; border-color: #dda3a3; color: #8d2020; }
 .cp-p6 .cp-document-status[data-status="superseded"] { background: #f0f2f5; border-color: #c2c9d2; color: #8a6d3b; }
+.cp-p6 .cp-budget-status {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-size: 10px;
+  text-transform: capitalize;
+  background: #eef2f7;
+  border: 1px solid #c9d4e1;
+}
+.cp-p6 .cp-budget-status[data-budget-change-status="pending"] { background: #fdf6e3; border-color: #e2c98a; }
+.cp-p6 .cp-budget-status[data-budget-change-status="approved"] { background: #eefaf0; border-color: #9fcfae; }
+.cp-p6 .cp-budget-status[data-budget-change-status="rejected"] { background: #fdecec; border-color: #dda3a3; color: #8d2020; }
+.cp-p6 tr.is-selected { background: #eef4fb; }
