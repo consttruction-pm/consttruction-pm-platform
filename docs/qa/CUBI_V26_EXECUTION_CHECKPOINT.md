@@ -2108,3 +2108,58 @@ Recorded provenance (two independent facts):
 
 Final full review, regression sweep and blocker report — complete in
 [`CUBI_V26_FINAL_REVIEW.md`](CUBI_V26_FINAL_REVIEW.md).
+
+## Priority Zero — Activities / WBS / Gantt visual acceptance (in progress)
+
+Reference: Version 26 HTML Help only — <https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm>.
+No requirement in this section cites a printed PDF page.
+
+### Shipped in this increment
+
+1. **Gantt bar-label edge handling** (`34981bb`). A bar whose configured `right`, `above` or
+   `below` label finishes at or beyond 78% of the rendered timeline track now mirrors the label
+   to the left of the bar instead of pushing it outside the scrollable content. When the bar also
+   starts at the left edge (a full-width WBS summary), the label moves to `inside-right` because a
+   mirrored label would clip on the left. `inside-*` positions are unchanged.
+   - Help: [Change a Gantt Chart bar's label](https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_label_layouts.htm)
+   - Code: `apps/web/src/workspace-gantt.ts` (`resolveGanttLabelPosition`),
+     `apps/web/src/workspace-view.ts` (`renderGanttBar`, `renderGanttWbsRow`),
+     `apps/web/styles.css` + `apps/web/public/styles.css` (`is-left`).
+   - Tests: `workspace-gantt.test.ts` unit matrix; `workspace-view.test.ts` render assertions
+     (mid-timeline label stays `right`, timeline-edge label becomes `left`, full-width summary
+     becomes `inside-right`).
+2. **Independent visual acceptance suite** (`apps/web/e2e/workspace-visual-acceptance-v26.mjs`).
+   It opens the real Activities window in the real preview and measures, per cell: page/body
+   horizontal overflow, toolbar bounds and the presence of a More control when the toolbar
+   scrolls, table/Gantt command-strip containment, details-pane viewport bounds and size,
+   per-row height and first-row offset parity between table and Gantt, WBS band/group counts,
+   bar-label containment and edge resolution, and the Columns dialog bounds. Window switching to
+   Reports and back is exercised in the 1366×768/en cell.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type check | `cd apps/web && npx tsc --noEmit` | clean |
+| Web unit/integration | `cd apps/web && npm test` | 865 `tsx` tests + 14 `node --test` tests pass, 0 fail |
+| Build | `cd apps/web && npm run build` | bundles written to `dist/web/src` |
+| Visual acceptance | `CUBI_CHROME_NO_SANDBOX=1 CUBI_PREVIEW_URL=http://127.0.0.1:4193 CUBI_TESTED_CODE_SHA=34981bb node e2e/workspace-visual-acceptance-v26.mjs` | 6/6 cells pass, 21 screenshots, 0 exceptions, 0 console errors, 0 API 5xx |
+| 1280×720 en + fa | cell 1–2 | 14/14 rows, 7 bands, 21 labels, 0 clipped, details 163–190px, toolbar fits |
+| 1366×768 en + fa | cell 3–4 | 14/14 rows, 7 bands, 21 labels, 0 clipped, details 236–263px, Reports switch round-trip |
+| 1920×1080 en + fa | cell 5–6 | 14/14 rows, 7 bands, 21 labels, 0 clipped, details 441–468px |
+| Evidence bundle | `docs/workspace/evidence/visual-acceptance-v26-2026-11-12/` | `workspace-visual-acceptance-v26.json` + 21 PNGs, contract `cubi-workspace-visual-acceptance-v26.v1` |
+
+Recorded provenance:
+
+| Field | Value |
+| --- | --- |
+| Tested code SHA | `34981bbf4edacb67cc5aac94b84fef24d59446fd` |
+| Evidence commit | `164d9de` (this documentation commit records the merge/CI values) |
+
+### Status after this increment
+
+- ACT-010 label placement: `WIRED_READ` (real browser, three viewports, en/fa).
+- ACT-009 bar shape/fill/height: remains `NOT_AUDITED`.
+- ACT-010 filters, legend and background lines: remain `NOT_AUDITED`.
+- WBS, Activity Details tab content, context-menu completeness, and the large-project
+  calculation-scope tests remain on the priority-zero queue and are **not** claimed as verified.
