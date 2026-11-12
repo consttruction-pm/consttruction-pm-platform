@@ -22,6 +22,11 @@ from construction_pm.p6_user_defined_fields_repository import (
     P6UserDefinedFieldDefinition,
     SQLiteP6UserDefinedFieldRepository,
 )
+from construction_pm.p6_udf_value_api import P6UserDefinedFieldValueAPI
+from construction_pm.p6_user_defined_field_values_repository import (
+    P6UserDefinedFieldValueApplicationService,
+    SQLiteP6UserDefinedFieldValueRepository,
+)
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
@@ -1195,6 +1200,15 @@ def p6_routes(roles=frozenset({"project_admin"})):
         default_project_policy(),
         formula_column_service,
     )
+    udf_repository = SQLiteP6UserDefinedFieldRepository(connection)
+    udf_value_api = P6UserDefinedFieldValueAPI(
+        P6UserDefinedFieldValueApplicationService(
+            SQLiteP6UserDefinedFieldValueRepository(connection),
+            udf_repository,
+            transaction_manager,
+        ),
+        default_project_policy(),
+    )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
     formula_api = P6FormulaAuthorityAPI(
         formula_column_service.field_service,
@@ -1224,6 +1238,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_field_registry_api=field_api,
+        p6_udf_value_api=udf_value_api,
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
         p6_formula_column_api=formula_column_api,
@@ -1940,6 +1955,38 @@ def test_p6_udf_route_returns_authoritative_allowed_values():
     }]
 
 
+def test_p6_udf_route_lists_seeded_lowercase_activity_definitions():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_udf(
+        P6UserDefinedFieldDefinition(
+            scope=scope,
+            registry_version="p6-field-registry.v1",
+            udf_id="activity.seeded_status",
+            subject_area="activity",
+            display_name="Seeded Status",
+            data_type=P6FieldType.STRING,
+            writable=True,
+            nullable=True,
+            unit=None,
+            allowed_values=(),
+        ),
+        auth_context=auth,
+    )
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+
+    assert status == 200
+    assert [item["udf_id"] for item in json.loads(body)["udfs"]] == [
+        "activity.seeded_status"
+    ]
+
+
 def test_p6_udf_route_rejects_cross_scope_project_context():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
@@ -1949,6 +1996,141 @@ def test_p6_udf_route_rejects_cross_scope_project_context():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_p6_udf_value_http_routes_round_trip_typed_values():
+    r, _, _ = p6_routes()
+    definition = {
+        "udf_id": "activity.contract_status",
+        "subject_area": "Activity",
+        "display_name": "Contract Status",
+        "data_type": "enum",
+        "writable": True,
+        "nullable": True,
+        "unit": None,
+        "allowed_values": ["draft", "signed", "closed"],
+    }
+    status, _, _ = r.handle(
+        "POST",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(definition).encode("utf-8"),
+    )
+    assert status == 200
+
+    base = "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity/A-100"
+    status, _, body = r.handle(
+        "PUT",
+        f"{base}/activity.contract_status",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"value": "signed"}).encode("utf-8"),
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["contract_version"] == "p6-udf-value-api.v1"
+    assert saved["kind"] == "user_defined_field_value"
+    assert saved["object_type"] == "activity"
+    assert saved["object_id"] == "A-100"
+    assert saved["udf_id"] == "activity.contract_status"
+    assert saved["value"] == "signed"
+
+    status, _, body = r.handle(
+        "GET", base, cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["kind"] == "user_defined_field_value_list"
+    assert payload["object_type"] == "activity"
+    assert payload["object_id"] == "A-100"
+    assert [item["udf_id"] for item in payload["values"]] == ["activity.contract_status"]
+    assert payload["values"][0]["value"] == "signed"
+
+    status, _, body = r.handle(
+        "PUT",
+        f"{base}/activity.contract_status",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"value": None}).encode("utf-8"),
+    )
+    assert status == 200
+    assert json.loads(body)["value"] is None
+
+
+def test_p6_udf_value_http_routes_reject_invalid_and_unknown_writes():
+    r, _, _ = p6_routes()
+    status, _, _ = r.handle(
+        "POST",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "udf_id": "activity.stage",
+            "subject_area": "Activity",
+            "display_name": "Stage",
+            "data_type": "enum",
+            "writable": True,
+            "nullable": False,
+            "allowed_values": ["draft", "active"],
+        }).encode("utf-8"),
+    )
+    assert status == 200
+    base = "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity/A-100"
+
+    status, _, body = r.handle(
+        "PUT", f"{base}/activity.stage", cookies={"cp_session": "s1"},
+        body=json.dumps({"value": "unknown"}).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "INVALID_ENUM_VALUE"
+
+    status, _, body = r.handle(
+        "PUT", f"{base}/activity.missing", cookies={"cp_session": "s1"},
+        body=json.dumps({"value": "draft"}).encode("utf-8"),
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "UDF_NOT_FOUND"
+
+    status, _, body = r.handle(
+        "PUT", f"{base}/activity.stage", cookies={"cp_session": "s1"},
+        body=b"not-json",
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_UDF_VALUE_REQUEST_INVALID"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udf-values/p6-field-registry.v1/wbs/W-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "UNSUPPORTED_UDF_OBJECT_TYPE"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_UDF_VALUE_REQUEST_INVALID"
+
+
+def test_p6_udf_value_http_routes_gate_writes_by_role_and_session():
+    r, _, _ = p6_routes(frozenset({"viewer"}))
+    base = "/api/projects/p1/p6/udf-values/p6-field-registry.v1/activity/A-100"
+    status, _, body = r.handle("GET", base, cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(body)["values"] == []
+
+    status, _, body = r.handle(
+        "PUT",
+        f"{base}/activity.stage",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"value": "draft"}).encode("utf-8"),
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "P6_UDF_VALUE_PERMISSION_DENIED"
+
+    status, _, body = r.handle("GET", base)
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
 
 
 def test_p6_field_write_route_persists_authenticated_field():

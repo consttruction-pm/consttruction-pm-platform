@@ -55,7 +55,14 @@ class P6UserDefinedFieldValue:
                 raise P6UserDefinedFieldValuePersistenceError(f"INVALID_{name.upper()}")
 
         kind = definition.data_type
-        if kind is P6FieldType.DATE:
+        if self.value is None:
+            if not definition.nullable:
+                raise P6UserDefinedFieldValuePersistenceError("INVALID_NULL_VALUE")
+            return
+        if kind is P6FieldType.STRING:
+            if not isinstance(self.value, str):
+                raise P6UserDefinedFieldValuePersistenceError("INVALID_STRING_VALUE")
+        elif kind is P6FieldType.DATE:
             if not isinstance(self.value, date) or isinstance(self.value, datetime):
                 raise P6UserDefinedFieldValuePersistenceError("INVALID_DATE_VALUE")
         elif kind is P6FieldType.DATETIME:
@@ -278,6 +285,10 @@ class P6UserDefinedFieldValueApplicationService:
 
 
 def _encode_value(data_type: P6FieldType, value: object) -> tuple[str, str]:
+    if value is None:
+        return "null", "null"
+    if data_type is P6FieldType.STRING:
+        return "string", json.dumps(value)
     if data_type is P6FieldType.DATE:
         return "date", json.dumps(value.isoformat())
     if data_type is P6FieldType.DATETIME:
@@ -301,7 +312,12 @@ def _decode_value(data_type: P6FieldType, payload: str, stored_type: str) -> obj
         raw = json.loads(payload)
     except json.JSONDecodeError as exc:
         raise P6UserDefinedFieldValuePersistenceError("INVALID_STORED_UDF_VALUE") from exc
+    if stored_type == "null":
+        if raw is not None:
+            raise P6UserDefinedFieldValuePersistenceError("INVALID_STORED_UDF_VALUE")
+        return None
     expected = {
+        P6FieldType.STRING: "string",
         P6FieldType.DATE: "date",
         P6FieldType.DATETIME: "datetime",
         P6FieldType.DECIMAL: "decimal",
@@ -316,6 +332,10 @@ def _decode_value(data_type: P6FieldType, payload: str, stored_type: str) -> obj
     if expected != stored_type:
         raise P6UserDefinedFieldValuePersistenceError("STORED_VALUE_TYPE_MISMATCH")
     try:
+        if data_type is P6FieldType.STRING:
+            if not isinstance(raw, str):
+                raise ValueError("string required")
+            return raw
         if data_type is P6FieldType.DATE:
             return date.fromisoformat(str(raw))
         if data_type is P6FieldType.DATETIME:

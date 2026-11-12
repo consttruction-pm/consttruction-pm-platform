@@ -279,6 +279,11 @@ from construction_pm.p6_user_defined_fields_repository import (
     P6UserDefinedFieldApplicationService,
     SQLiteP6UserDefinedFieldRepository,
 )
+from construction_pm.p6_udf_value_api import P6UserDefinedFieldValueAPI
+from construction_pm.p6_user_defined_field_values_repository import (
+    P6UserDefinedFieldValueApplicationService,
+    SQLiteP6UserDefinedFieldValueRepository,
+)
 from construction_pm.project_schedule_settings_repository import (
     ProjectScheduleSettings,
     SQLiteProjectScheduleSettingsRepository,
@@ -397,6 +402,8 @@ class PreviewRepositories:
     formula_column_service: P6FormulaColumnService
     udfs: SQLiteP6UserDefinedFieldRepository
     udf_service: P6UserDefinedFieldApplicationService
+    udf_values: SQLiteP6UserDefinedFieldValueRepository
+    udf_value_service: P6UserDefinedFieldValueApplicationService
     mappings: SQLiteP6MappingRegistryRepository
     mapping_service: P6MappingRegistryApplicationService
     layouts: SQLiteP6LayoutRepository
@@ -475,6 +482,10 @@ class PreviewRepositories:
         )
         udfs = SQLiteP6UserDefinedFieldRepository(connection)
         udf_service = P6UserDefinedFieldApplicationService(udfs, transaction_manager)
+        udf_values = SQLiteP6UserDefinedFieldValueRepository(connection)
+        udf_value_service = P6UserDefinedFieldValueApplicationService(
+            udf_values, udfs, transaction_manager
+        )
         mappings = SQLiteP6MappingRegistryRepository(connection)
         mapping_service = P6MappingRegistryApplicationService(
             mappings, transaction_manager
@@ -558,6 +569,8 @@ class PreviewRepositories:
             formula_column_service=formula_column_service,
             udfs=udfs,
             udf_service=udf_service,
+            udf_values=udf_values,
+            udf_value_service=udf_value_service,
             mappings=mappings,
             mapping_service=mapping_service,
             layouts=layouts,
@@ -1794,6 +1807,10 @@ def open_preview_runtime(
             repositories.udf_service,
             policy,
             repositories.formula_column_service,
+        ),
+        p6_udf_value_api=P6UserDefinedFieldValueAPI(
+            repositories.udf_value_service,
+            policy,
         ),
         p6_layout_definition_api=P6LayoutDefinitionAPI(repositories.layouts, policy),
         p6_formula_authority_api=P6FormulaAuthorityAPI(

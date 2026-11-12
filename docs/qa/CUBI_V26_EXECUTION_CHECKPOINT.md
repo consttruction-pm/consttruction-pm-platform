@@ -2716,3 +2716,67 @@ Recorded provenance:
   matrix (long-tail edit/layout/display/project commands and per-command browser click-through).
 - Next queue: Activity Details tab content, GAP-TRK-01 tracking read model, GAP-DOC-02 binary
   document storage. GAP-V26-01 remains BLOCKED_EXTERNAL.
+
+## Typed UDF values in Activity Details (2026-11-12)
+
+Status: **branch-ready** on `feat/activity-udf-value-editing-20261112`, implementation
+`3aec9777`, definition-listing repair `dd5347cb`, evidence `ed34653f`.
+
+Reference: Oracle Primavera P6 Professional Help Version 26 — [Activity Details](https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm)
+(the UDFs tab lives in the bottom details pane) and the [Enterprise menu](https://docs.oracle.com/cd/G48902_01/client_help/en_US/49097.htm)
+(user-defined fields are project data registered before they become activity fields).
+
+### What shipped
+
+1. The typed value repository now persists `STRING` values and clears nullable values; every
+   other type was already validated. Rows are keyed by
+   `tenant/project/project_revision/udf_id/object_type/object_id`.
+2. `P6UserDefinedFieldValueAPI` exposes `read_values` and `save_value` with project-scope,
+   `PROJECT_READ`/`PROJECT_WRITE`, subject-area, writability and type checks. Unknown UDFs are
+   404, unwritable or revision-conflicting writes 409, malformed values 400 with an
+   authoritative code.
+3. HTTP `GET|PUT /api/projects/{project}/p6/udf-values/{registry}/{objectType}/{objectId}[/{udfId}]`
+   is wired through preview and production composition.
+4. The Activity Details UDFs tab reads stored values for the selected activity and renders an
+   editable form only for writable sessions; viewers keep the read-only grid. Saving submits
+   only changed writable definitions and reloads the tab.
+5. UDF definition listings filter subject areas case-insensitively, so preview's seeded
+   `activity` definitions appear for the canonical `Activity` caller. Before the repair the
+   route returned an empty list.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Python suite | `PYTHONPATH=src python3 -m pytest -q` | 3811 passed, 147 skipped |
+| Web unit/integration | `cd apps/web && npm test` | 928 `tsx` + 14 Node tests pass |
+| Type check / build | `cd apps/web && npm run typecheck && npm run build` | clean, bundles written |
+| Browser suite | `… node e2e/activity-udf-values-v26.mjs` | 4/4 scenarios at 1280×720 en, 1366×768 fa RTL, 1920×1080 en, viewer |
+| Evidence SHA | `activity-udf-values-v26.json` | `testedCodeSha` = `dd5347cb38d8a8d1ef6db8995fd95ec65d031d57` |
+
+The five PDF-export tests fail on import when the declared `arabic-reshaper` and `python-bidi`
+dependencies are absent; after installing them the full Python suite passes. That is an
+environment setup condition, not a regression from this change.
+
+### GAP-V26-01 — what licensed evidence must still cover
+
+GAP-V26-01 remains `BLOCKED_EXTERNAL`: this environment has no licensed Version 26 dataset,
+database alias or authorized reference run. No numerical parity is claimed anywhere. The
+following comparisons need that evidence before any row may move from
+`IMPLEMENTED_AND_TESTED` to parity-tested:
+
+- **Schedule arithmetic**: computed start/finish, total/free float, critical path and
+  out-of-sequence flags for the same activities, calendars, constraints and relationships.
+- **Calendar and duration semantics**: work-hour, exception and time-period behavior for
+  8-hour, 24-hour and shift calendars, including cross-calendar relationships.
+- **Resource and cost roll-ups**: assignment units, costs by cost account/expense category,
+  financial-period buckets and summarization results.
+- **Progress and baseline comparisons**: actual dates, percent-complete, baseline variance and
+  earned-value figures after the same progress updates.
+- **Layout and filter parity**: P6 layout/filter/group-sort export evaluated against CUBI's
+  stored layout output on the same project.
+- **Interchange round-trip**: a licensed P6 XML/XER exchange file imported and re-exported with
+  field-level diffing, including UDF and code values.
+
+Without an authorized dataset these remain explicitly unverified; CUBI persists and re-reads
+its own values but does not assert equality with P6 outputs.

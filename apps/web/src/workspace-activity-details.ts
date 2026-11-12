@@ -20,7 +20,8 @@ import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
 import { loadDocuments, type DocumentRecord } from "./workspace-documents.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
-import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
+import { fetchP6ActivityUdfs, fetchP6ActivityUdfValues, saveP6ActivityUdfValue } from "./p6-udf-http.js";
+import type { P6ActivityUdfValue } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
 import { P6_FIELD_REGISTRY_VERSION } from "./p6-field-layout-foundation.js";
 import { listWorkspaceEntityComments } from "./workspace-comments.js";
@@ -198,6 +199,7 @@ export type ActivityDetailsData = {
   risks?: ActivityDetailsLoadState<RiskRecord>;
   steps?: ActivityDetailsLoadState<ActivityStepRecord>;
   udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
+  udfValues?: ActivityDetailsLoadState<P6ActivityUdfValue>;
   history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
   /** Project document register, filtered to this activity's links. */
   documents?: ActivityDetailsLoadState<DocumentRecord>;
@@ -340,6 +342,97 @@ function detailForm(locale: string, kind: string, submitLabel: string, fields: r
         <span class="cp-detail-form-message" data-details-form-message role="status"></span>
       </div>
     </form>`;
+}
+
+function udfDisplayValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "object") {
+    const record = value as { value?: unknown; unit?: unknown };
+    if (typeof record.value === "string" || typeof record.value === "number") {
+      const unit = typeof record.unit === "string" ? record.unit : "";
+      return `${String(record.value)} ${unit}`.trim();
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function udfInputName(udfId: string): string {
+  return `udf:${udfId}`;
+}
+
+function udfValueInput(udf: P6UdfEditorMetadata | P6ActivityUdfValue, value: unknown): string {
+  const name = udfInputName(udf.udf_id);
+  const raw = udfDisplayValue(value);
+  const attribute = `name="${esc(name)}" data-udf-value-input="${esc(udf.udf_id)}"`;
+  if (udf.data_type === "enum" && udf.allowed_values?.length) {
+    const options = udf.allowed_values.map((option) => `<option value="${esc(option)}"${option === raw ? " selected" : ""}>${esc(option)}</option>`).join("");
+    return `<select ${attribute}>${udf.nullable ? `<option value="">—</option>` : ""}${options}</select>`;
+  }
+  if (udf.data_type === "boolean") {
+    const options = [["", "—"], ["true", "true"], ["false", "false"]]
+      .map(([option, label]) => `<option value="${option}"${option === raw.toLowerCase() ? " selected" : ""}>${label}</option>`)
+      .join("");
+    return `<select ${attribute}>${options}</select>`;
+  }
+  const numeric = udf.data_type === "integer"
+    || udf.data_type === "decimal"
+    || udf.data_type === "double"
+    || udf.data_type === "cost"
+    || udf.data_type === "percentage";
+  const type = udf.data_type === "date" ? "date" : numeric ? "number" : "text";
+  const step = udf.data_type === "integer" ? ' step="1"' : numeric ? ' step="any"' : "";
+  const placeholder = udf.data_type === "duration"
+    ? ` placeholder="5 ${esc(udf.unit ?? "day")}"`
+    : udf.data_type === "datetime"
+      ? ` placeholder="2026-11-12T00:00:00+00:00"`
+      : "";
+  return `<input type="${type}" ${attribute} value="${esc(raw)}"${step}${placeholder}${udf.nullable ? "" : " required"}>`;
+}
+
+type UdfFormParse = { skip: true } | { error: string } | { value: unknown };
+
+function parseUdfFormValue(
+  form: FormData,
+  udf: P6UdfEditorMetadata | P6ActivityUdfValue,
+  original: unknown,
+): UdfFormParse {
+  const raw = String(form.get(udfInputName(udf.udf_id)) ?? "").trim();
+  if (!raw) {
+    if (original === null || original === undefined || original === "") return { skip: true };
+    if (udf.nullable) return { value: null };
+    return { error: "VALUE_REQUIRED" };
+  }
+  switch (udf.data_type) {
+    case "string":
+      return { value: raw };
+    case "enum":
+      return udf.allowed_values?.includes(raw) ? { value: raw } : { error: "INVALID_ENUM_VALUE" };
+    case "boolean":
+      return raw === "true" || raw === "false" ? { value: raw === "true" } : { error: "INVALID_BOOLEAN_VALUE" };
+    case "date":
+      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? { value: raw } : { error: "INVALID_DATE_VALUE" };
+    case "datetime":
+      return { value: raw };
+    case "integer":
+      return /^-?\d+$/.test(raw) ? { value: Number(raw) } : { error: "INVALID_INTEGER_VALUE" };
+    case "decimal":
+    case "double":
+    case "cost":
+    case "percentage":
+      return /^-?\d+(\.\d+)?$/.test(raw) ? { value: raw } : { error: "INVALID_DECIMAL_VALUE" };
+    case "duration": {
+      const match = /^(-?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z-]*)?$/.exec(raw);
+      if (!match) return { error: "INVALID_DURATION_VALUE" };
+      return { value: { value: match[1], unit: match[2] ?? udf.unit ?? "day" } };
+    }
+    default:
+      return { error: "UNSUPPORTED_TYPED_UDF_VALUE" };
+  }
+}
+
+function udfValuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function lagText(value: string, unit: string): string {
@@ -840,12 +933,45 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     }
     case "udfs": {
       const data = loadStateOf(input.data?.udfs);
-      const meta = data.records.filter((udf) => udf.subject_area === "activity");
-      const rows = meta.length
-        ? meta.map((udf) => [
+      const values = loadStateOf(input.data?.udfValues);
+      const records: readonly (P6UdfEditorMetadata | P6ActivityUdfValue)[] = values.status === "loaded"
+        ? values.records
+        : data.records.filter((udf) => udf.subject_area.toLowerCase() === "activity");
+      const valueOf = (udf: P6UdfEditorMetadata | P6ActivityUdfValue): unknown => {
+        if ("value" in udf) return udf.value;
+        return cell(activity, udf.udf_id, `udf.${udf.udf_id}`, `activity.${udf.udf_id}`);
+      };
+      const editable = input.canWrite === true
+        && values.status === "loaded"
+        && records.some((udf) => udf.writable);
+      if (records.length && editable) {
+        const rows = records.map((udf) => `<tr data-udf-value-row="${esc(udf.udf_id)}">
+          <td>${esc(udf.display_name)}</td>
+          <td>${esc(udf.data_type)}</td>
+          <td>${udf.writable ? udfValueInput(udf, valueOf(udf)) : `${esc(udfDisplayValue(valueOf(udf))) || "—"}`}</td>
+        </tr>`).join("");
+        return `<form class="cp-detail-form" data-details-form="udf-values" novalidate>
+          <div class="cp-detail-table-wrap"><table class="cp-detail-table" data-udf-value-table>
+            <thead><tr>
+              <th>${esc(t(locale, "User Defined Field", "فیلد سفارشی"))}</th>
+              <th>${esc(t(locale, "Data Type", "نوع داده"))}</th>
+              <th>${esc(t(locale, "Value", "مقدار"))}</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+          <div class="cp-detail-form-actions">
+            <button type="submit" class="cp-detail-action">${esc(t(locale, "Save values", "ذخیره مقادیر"))}</button>
+            ${reloadControl(locale, "udfs")}
+            <span class="cp-detail-form-message" data-details-form-message role="status"></span>
+          </div>
+        </form>
+        <p class="cp-detail-hint">${esc(t(locale, "Values are stored per activity at the current project revision. A blank value clears the field only when the definition is nullable; otherwise the stored value is kept.", "مقادیر برای هر فعالیت در ویرایش فعلی پروژه ذخیره می‌شوند. مقدار خالی تنها زمانی فیلد را پاک می‌کند که تعریف آن اجازه دهد؛ در غیر این صورت مقدار ذخیره‌شده حفظ می‌شود."))}</p>`;
+      }
+      const rows = records.length
+        ? records.map((udf) => [
           udf.display_name,
           udf.data_type,
-          cell(activity, udf.udf_id, `udf.${udf.udf_id}`, `activity.${udf.udf_id}`) || "—",
+          udfDisplayValue(valueOf(udf)) || "—",
         ])
         : Object.entries(activity?.cells ?? {})
           .filter(([key]) => /(^|[._])udf([._]|$)/i.test(key))
@@ -856,7 +982,11 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           rows,
           t(locale, "No activity user-defined fields are defined by the project registry.", "هیچ فیلد سفارشی فعالیتی توسط رجیستری پروژه تعریف نشده است."))
         : loadNotice(locale, data, t(locale, "User-defined field metadata has not been read yet.", "فرادادهٔ فیلدهای سفارشی هنوز خوانده نشده است."));
+      const valueNotice = values.status === "error"
+        ? `<p class="cp-detail-error" role="alert">${esc(t(locale, "Stored UDF values could not be read: ", "مقادیر ذخیره‌شدهٔ فیلدهای سفارشی خوانده نشد: "))}${esc(values.errorCode ?? "UNKNOWN")}</p>`
+        : "";
       return `${table}
+        ${valueNotice}
         ${controlBar(locale, [
           disabledControl(locale, t(locale, "Customize User Defined Fields", "تنظیم فیلدهای سفارشی"), notWritable),
           reloadControl(locale, "udfs"),
@@ -1419,7 +1549,7 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
   const context = input.state?.context;
   if (!transport || !context) return {};
   const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
-  const [assignments, expenses, issues, risks, steps, udfs, history, documents] = await Promise.all([
+  const [assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents] = await Promise.all([
     loadAssignments(transport, context).then(resultState),
     loadExpenses(transport, context, { activityId }).then(resultState),
     loadIssues(transport, context).then(resultState),
@@ -1432,10 +1562,17 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
         records: [],
         errorCode: error instanceof Error ? error.message : "P6_UDF_UNAVAILABLE",
       })),
+    fetchP6ActivityUdfValues(context.project_id, registry, "activity", activityId)
+      .then((response): ActivityDetailsLoadState<P6ActivityUdfValue> => ({ status: "loaded", records: response.values, errorCode: null }))
+      .catch((error: unknown): ActivityDetailsLoadState<P6ActivityUdfValue> => ({
+        status: "error",
+        records: [],
+        errorCode: error instanceof Error ? error.message : "P6_UDF_VALUE_UNAVAILABLE",
+      })),
     readProgressHistory(transport, context, activityId),
     loadDocuments(transport, context).then(resultState),
   ]);
-  return { assignments, expenses, issues, risks, steps, udfs, history, documents };
+  return { assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents };
 }
 
 function detailsDataKey(input: ActivityDetailsInput): string | null {
@@ -1478,6 +1615,7 @@ async function loadDetailsInto(host: HTMLElement, key: string, activityId: strin
         issues: loadingDetailsState(),
         risks: loadingDetailsState(),
         udfs: loadingDetailsState(),
+        udfValues: loadingDetailsState(),
         history: loadingDetailsState(),
         documents: loadingDetailsState(),
       },
@@ -1628,6 +1766,36 @@ export function enhanceActivityDetails(
     };
 
     void (async () => {
+      if (kind === "udf-values") {
+        const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
+        const loaded = input.data?.udfValues?.records ?? [];
+        let failure: string | null = null;
+        for (const udf of loaded) {
+          if (!udf.writable || udf.subject_area.toLowerCase() !== "activity") continue;
+          const parsed = parseUdfFormValue(data, udf, udf.value);
+          if ("skip" in parsed) continue;
+          if ("error" in parsed) {
+            failure = `${udf.udf_id}:${parsed.error}`;
+            break;
+          }
+          if (udfValuesEqual(parsed.value, udf.value)) continue;
+          try {
+            await saveP6ActivityUdfValue(
+              context.project_id,
+              registry,
+              "activity",
+              activityId,
+              udf.udf_id,
+              parsed.value,
+            );
+          } catch (error) {
+            failure = `${udf.udf_id}:${error instanceof Error ? error.message : "P6_UDF_VALUE_WRITE_FAILED"}`;
+            break;
+          }
+        }
+        await finish(failure);
+        return;
+      }
       if (kind === "resources") {
         const saved = await saveAssignment(transport, context, {
           assignmentId: crypto.randomUUID(),
