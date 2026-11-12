@@ -3,6 +3,8 @@ export type LandingChromeCopy = {
   pricing: string;
   company: string;
   about: string;
+  primaryNavigation: string;
+  changeLanguage: string;
   brandAria: string;
   brandAlt: string;
   dashboardAria: string;
@@ -28,7 +30,7 @@ export type LandingChromeCopy = {
 const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   en: {
     nav: ["Home", "Platform", "Solutions", "Resources", "About Us", "Contact"],
-    pricing: "Pricing", company: "Company", about: "About Us",
+    pricing: "Pricing", company: "Company", about: "About Us", primaryNavigation: "Primary navigation", changeLanguage: "Change language",
     brandAria: "CUBI Platform home", brandAlt: "CUBI Platform — Plan. Control. Build Smarter.",
     dashboardAria: "Illustrative CUBI project dashboard showing schedule, progress and performance",
     dashboardSidebar: ["Overview", "Schedule", "Cost control", "Resources", "Documents"],
@@ -42,7 +44,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   fa: {
     nav: ["خانه", "پلتفرم", "راهکارها", "منابع", "درباره ما", "تماس"],
-    pricing: "قیمت‌گذاری", company: "شرکت", about: "درباره ما",
+    pricing: "قیمت‌گذاری", company: "شرکت", about: "درباره ما", primaryNavigation: "پیمایش اصلی", changeLanguage: "تغییر زبان",
     brandAria: "صفحه اصلی پلتفرم کوبی", brandAlt: "پلتفرم کوبی — برنامه‌ریزی، کنترل، ساخت هوشمندتر",
     dashboardAria: "نمای نمونه داشبورد پروژه کوبی شامل زمان‌بندی، پیشرفت و عملکرد",
     dashboardSidebar: ["نمای کلی", "زمان‌بندی", "کنترل هزینه", "منابع", "اسناد"],
@@ -56,7 +58,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   de: {
     nav: ["Startseite", "Plattform", "Lösungen", "Ressourcen", "Über uns", "Kontakt"],
-    pricing: "Preise", company: "Unternehmen", about: "Über uns",
+    pricing: "Preise", company: "Unternehmen", about: "Über uns", primaryNavigation: "Hauptnavigation", changeLanguage: "Sprache ändern",
     brandAria: "CUBI-Plattform Startseite", brandAlt: "CUBI Platform — Planen. Steuern. Besser bauen.",
     dashboardAria: "Beispiel-Dashboard von CUBI mit Terminplan, Fortschritt und Leistung",
     dashboardSidebar: ["Übersicht", "Terminplan", "Kostenkontrolle", "Ressourcen", "Dokumente"],
@@ -70,7 +72,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   fr: {
     nav: ["Accueil", "Plateforme", "Solutions", "Ressources", "À propos", "Contact"],
-    pricing: "Tarifs", company: "Entreprise", about: "À propos",
+    pricing: "Tarifs", company: "Entreprise", about: "À propos", primaryNavigation: "Navigation principale", changeLanguage: "Changer de langue",
     brandAria: "Accueil de la plateforme CUBI", brandAlt: "CUBI Platform — Planifier. Piloter. Construire plus intelligemment.",
     dashboardAria: "Tableau de bord CUBI illustratif présentant le planning, l’avancement et la performance",
     dashboardSidebar: ["Vue d’ensemble", "Planning", "Contrôle des coûts", "Ressources", "Documents"],
@@ -84,7 +86,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   "zh-Hans": {
     nav: ["首页", "平台", "解决方案", "资源", "关于我们", "联系"],
-    pricing: "价格", company: "公司", about: "关于我们",
+    pricing: "价格", company: "公司", about: "关于我们", primaryNavigation: "主导航", changeLanguage: "切换语言",
     brandAria: "CUBI 平台首页", brandAlt: "CUBI 平台 — 规划、控制、更智慧地建设",
     dashboardAria: "CUBI 项目仪表板示意图，展示进度计划、项目进展和绩效",
     dashboardSidebar: ["总览", "进度计划", "成本控制", "资源", "文档"],
@@ -98,7 +100,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   "zh-Hant": {
     nav: ["首頁", "平台", "解決方案", "資源", "關於我們", "聯絡我們"],
-    pricing: "價格", company: "公司", about: "關於我們",
+    pricing: "價格", company: "公司", about: "關於我們", primaryNavigation: "主要導覽", changeLanguage: "切換語言",
     brandAria: "CUBI 平台首頁", brandAlt: "CUBI 平台 — 規劃、控制、更智慧地建設",
     dashboardAria: "CUBI 專案儀表板示意圖，展示進度計畫、專案進展與績效",
     dashboardSidebar: ["總覽", "進度計畫", "成本控制", "資源", "文件"],
@@ -112,7 +114,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   ja: {
     nav: ["ホーム", "プラットフォーム", "ソリューション", "リソース", "会社情報", "お問い合わせ"],
-    pricing: "料金", company: "会社情報", about: "会社情報",
+    pricing: "料金", company: "会社情報", about: "会社情報", primaryNavigation: "メインナビゲーション", changeLanguage: "言語を変更",
     brandAria: "CUBI プラットフォームのホーム", brandAlt: "CUBI Platform — 計画し、管理し、よりスマートに建設する",
     dashboardAria: "工程、進捗、パフォーマンスを示す CUBI プロジェクトダッシュボードのイメージ",
     dashboardSidebar: ["概要", "工程", "コスト管理", "リソース", "ドキュメント"],
@@ -126,7 +128,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   ko: {
     nav: ["홈", "플랫폼", "솔루션", "자료", "회사 소개", "문의"],
-    pricing: "요금", company: "회사", about: "회사 소개",
+    pricing: "요금", company: "회사", about: "회사 소개", primaryNavigation: "주요 탐색", changeLanguage: "언어 변경",
     brandAria: "CUBI 플랫폼 홈", brandAlt: "CUBI 플랫폼 — 계획하고 관리하며 더 스마트하게 건설하세요",
     dashboardAria: "일정, 진척 및 성과를 보여주는 CUBI 프로젝트 대시보드 예시",
     dashboardSidebar: ["개요", "일정", "비용 관리", "자원", "문서"],
@@ -140,7 +142,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   ar: {
     nav: ["الرئيسية", "المنصة", "الحلول", "الموارد", "من نحن", "اتصل بنا"],
-    pricing: "الأسعار", company: "الشركة", about: "من نحن",
+    pricing: "الأسعار", company: "الشركة", about: "من نحن", primaryNavigation: "التنقل الرئيسي", changeLanguage: "تغيير اللغة",
     brandAria: "الصفحة الرئيسية لمنصة CUBI", brandAlt: "منصة CUBI — خطّط وتحكّم وابنِ بذكاء أكبر",
     dashboardAria: "لوحة مشروع توضيحية من CUBI تعرض الجدول والتقدم والأداء",
     dashboardSidebar: ["نظرة عامة", "الجدول", "مراقبة التكلفة", "الموارد", "المستندات"],
@@ -154,7 +156,7 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
   },
   ru: {
     nav: ["Главная", "Платформа", "Решения", "Ресурсы", "О нас", "Контакты"],
-    pricing: "Цены", company: "Компания", about: "О нас",
+    pricing: "Цены", company: "Компания", about: "О нас", primaryNavigation: "Основная навигация", changeLanguage: "Изменить язык",
     brandAria: "Главная страница CUBI Platform", brandAlt: "CUBI Platform — Планируйте. Контролируйте. Стройте эффективнее.",
     dashboardAria: "Иллюстративная панель проекта CUBI: график, ход выполнения и показатели",
     dashboardSidebar: ["Обзор", "Расписание", "Контроль затрат", "Ресурсы", "Документы"],
