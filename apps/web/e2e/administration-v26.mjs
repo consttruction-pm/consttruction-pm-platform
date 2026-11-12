@@ -420,7 +420,7 @@ async function main() {
       assert(filtered.status === 200 && filtered.body.entries.length === 1, `server filter ${JSON.stringify(filtered.body.entries)}`);
       assert(filtered.body.entries[0].entry_id === categoryEntry && filtered.body.entries[0].sequence === 30, `filtered entry ${JSON.stringify(filtered.body.entries[0])}`);
 
-      await page.setSelect('[data-admin-dictionary-filter]', "cost_category");
+      await page.setSelect('select[name="admin-dictionary-filter"]', "cost_category");
       await page.setInput('[data-admin-dict-search]', "E2E Civil");
       await page.evaluate(`(() => {
         const input = document.querySelector('[data-admin-dict-search]');
