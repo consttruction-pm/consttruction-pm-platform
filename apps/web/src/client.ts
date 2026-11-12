@@ -17,6 +17,15 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: ClientError };
 
+/** A binary response together with the integrity headers set by the server. */
+export type DownloadedBinary = {
+  blob: Blob;
+  contentType: string;
+  contentDisposition: string;
+  contentSha256: string;
+  documentVersion: string;
+};
+
 export interface ApiTransport {
   get<T>(path: string, context: ProjectContext): Promise<ApiResult<T>>;
   post<TRequest, TResponse>(
@@ -35,6 +44,16 @@ export interface ApiTransport {
     contentType: string,
     context: ProjectContext,
   ): Promise<ApiResult<TResponse>>;
+  /** Post opaque bytes, such as a document upload, without re-encoding them. */
+  postBytes?<TResponse>(
+    path: string,
+    body: Blob,
+    contentType: string,
+    context: ProjectContext,
+    headers?: Record<string, string>,
+  ): Promise<ApiResult<TResponse>>;
+  /** Read an authenticated binary response with its integrity headers. */
+  download?(path: string, context: ProjectContext): Promise<ApiResult<DownloadedBinary>>;
 }
 
 export class FetchApiTransport implements ApiTransport {
@@ -103,6 +122,72 @@ export class FetchApiTransport implements ApiTransport {
       },
       body,
     });
+  }
+
+  async postBytes<TResponse>(
+    path: string,
+    body: Blob,
+    contentType: string,
+    context: ProjectContext,
+    headers: Record<string, string> = {},
+  ): Promise<ApiResult<TResponse>> {
+    return this.request<TResponse>(path, {
+      method: "POST",
+      headers: {
+        ...this.contextHeaders(context),
+        "Content-Type": contentType,
+        ...headers,
+      },
+      body,
+    });
+  }
+
+  async download(path: string, context: ProjectContext): Promise<ApiResult<DownloadedBinary>> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(new URL(path, this.baseUrl), {
+        method: "GET",
+        headers: this.contextHeaders(context),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        return {
+          ok: false,
+          error: {
+            code: String(payload?.code ?? "API_ERROR"),
+            retryable: Boolean(payload?.retryable ?? false),
+            message_key: String(payload?.message_key ?? "error.api"),
+            available_actions: Array.isArray(payload?.available_actions)
+              ? payload.available_actions.map(String)
+              : [],
+          },
+        };
+      }
+      return {
+        ok: true,
+        data: {
+          blob: await response.blob(),
+          contentType: response.headers.get("Content-Type") ?? "application/octet-stream",
+          contentDisposition: response.headers.get("Content-Disposition") ?? "",
+          contentSha256: response.headers.get("X-Content-SHA256") ?? "",
+          documentVersion: response.headers.get("X-Document-Version") ?? "",
+        },
+      };
+    } catch {
+      return {
+        ok: false,
+        error: {
+          code: controller.signal.aborted ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
+          retryable: true,
+          message_key: "error.network",
+          available_actions: ["retry"],
+        },
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private contextHeaders(context: ProjectContext): Record<string, string> {
