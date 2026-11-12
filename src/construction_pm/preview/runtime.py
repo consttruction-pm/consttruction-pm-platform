@@ -1698,6 +1698,8 @@ def open_preview_runtime(
         activity_progress_history_repository=repositories.progress_history,
         activity_progress_transaction_manager=repositories.transaction_manager,
         wbs_master_repository=repositories.wbs,
+        tracking_resource_assignment_repository=repositories.resource_assignments,
+        tracking_resource_repository=repositories.resources,
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,

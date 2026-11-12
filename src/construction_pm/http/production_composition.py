@@ -76,6 +76,14 @@ from construction_pm.ai_assistant_orchestration import (
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.backend_p0.workspace_read import WorkspaceControlRoomReadService
 from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
+from construction_pm.backend_p0.authoritative_schedule_facts import PublishedScheduleFactsProvider
+from construction_pm.tracking_read_model import (
+    TrackingReadAPI,
+    TrackingReadModelService,
+    TrackingSources,
+)
+from construction_pm.p6_resource_assignment_repository import P6ResourceAssignmentRepository
+from construction_pm.p6_resource_master_repository import P6ResourceRepository
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
@@ -121,6 +129,9 @@ def build_project_lifecycle_wsgi_app(
     p6_financial_period_api: P6FinancialPeriodAPI | None = None,
     p6_issue_api: P6IssueAPI | None = None,
     document_api: DocumentAPI | None = None,
+    tracking_read_api: TrackingReadAPI | None = None,
+    tracking_resource_assignment_repository: P6ResourceAssignmentRepository | None = None,
+    tracking_resource_repository: P6ResourceRepository | None = None,
     budget_api: BudgetAPI | None = None,
     cost_api: CostAPI | None = None,
     threshold_api: ThresholdAPI | None = None,
@@ -204,6 +215,23 @@ def build_project_lifecycle_wsgi_app(
             authorization_policy=authorization_policy,
         )
     )
+    if tracking_read_api is None and activity_master_repository is not None:
+        # Tracking reads the published schedule FACT projection and persisted
+        # assignment facts; it never re-runs CPM or money calculations.
+        tracking_read_api = TrackingReadAPI(
+            TrackingReadModelService(
+                schedule_facts_provider=PublishedScheduleFactsProvider(
+                    snapshot_repository, provider
+                ),
+                sources=TrackingSources(
+                    activity_repository=activity_master_repository,
+                    wbs_repository=wbs_master_repository,
+                    resource_assignment_repository=tracking_resource_assignment_repository,
+                    resource_repository=tracking_resource_repository,
+                ),
+            ),
+            authorization_policy,
+        )
     runtime_config_requested = (
         ai_action_permission_adapter is not None
         or ai_action_transaction_manager is not None
@@ -318,6 +346,7 @@ def build_project_lifecycle_wsgi_app(
         p6_financial_period_api=p6_financial_period_api,
         p6_issue_api=p6_issue_api,
         document_api=document_api,
+        tracking_read_api=tracking_read_api,
         budget_api=budget_api,
         cost_api=cost_api,
         threshold_api=threshold_api,

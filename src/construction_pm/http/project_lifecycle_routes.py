@@ -115,6 +115,11 @@ from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..document_api import DocumentAPI
 from ..document_storage import content_disposition
+from ..tracking_read_model import (
+    TrackingReadAPI,
+    TrackingReadModelError,
+    TrackingRequest,
+)
 from ..document_persistence import DocumentRecord
 from ..budget_api import BudgetAPI
 from ..cost_api import CostAPI
@@ -258,6 +263,7 @@ class ProjectLifecycleHttpRoutes:
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         document_api: DocumentAPI | None = None,
+        tracking_read_api: TrackingReadAPI | None = None,
         budget_api: BudgetAPI | None = None,
         cost_api: CostAPI | None = None,
         threshold_api: ThresholdAPI | None = None,
@@ -315,6 +321,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_issue_api = p6_issue_api
         self._document_api = document_api
+        self._tracking_read_api = tracking_read_api
         self._budget_api = budget_api
         self._cost_api = cost_api
         self._threshold_api = threshold_api
@@ -2030,6 +2037,70 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+            if self._tracking_read_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and split.path.endswith(
+                    "/tracking/read"
+                ):
+                    tracking_project_id = split.path[
+                        len("/api/projects/"):-len("/tracking/read")
+                    ].strip("/")
+                    if tracking_project_id and "/" not in tracking_project_id:
+                        if method != "GET":
+                            return self._error(
+                                400, "TRACKING_METHOD_NOT_ALLOWED", "error.request.invalid"
+                            )
+                        try:
+                            context = self._api.open_project(
+                                session_id, tracking_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(
+                                    403, str(exc), "error.authorization.denied"
+                                )
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        query = {
+                            key: values[-1]
+                            for key, values in parse_qs(
+                                split.query, keep_blank_values=True
+                            ).items()
+                        }
+                        request = TrackingRequest(
+                            scale=str(query.get("scale") or "week"),
+                            group_by=query.get("group_by") or None,
+                            sort=str(query.get("sort") or "start"),
+                            direction=str(query.get("direction") or "asc"),
+                        )
+                        try:
+                            payload = self._tracking_read_api.read(
+                                BackendScope(
+                                    context.tenant_id,
+                                    context.project_id,
+                                    context.revision,
+                                ),
+                                auth_context=auth,
+                                request=request,
+                            )
+                        except AuthorizationError as exc:
+                            return self._error(
+                                403, str(exc), "error.authorization.denied"
+                            )
+                        except TrackingReadModelError as exc:
+                            code = str(exc)
+                            if code == "TRACKING_SCHEDULE_NOT_PUBLISHED":
+                                return self._error(
+                                    409, code, "error.tracking.schedule.not_published"
+                                )
+                            if code == "TRACKING_SCHEDULE_HAS_NO_ACTIVITIES":
+                                return self._error(
+                                    409, code, "error.tracking.schedule.empty"
+                                )
+                            return self._error(400, code, "error.request.invalid")
+                        return self._json(200, payload)
+
             if self._document_api is not None:
                 split = urlsplit(path)
                 if split.path.startswith("/api/projects/"):
