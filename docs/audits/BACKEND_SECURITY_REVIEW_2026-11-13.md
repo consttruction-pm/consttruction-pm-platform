@@ -104,7 +104,7 @@ Threats and primary controls:
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Fixed `9c362d15` |
-| SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Open |
+| SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Fixed `c55b6535` |
 | SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed `8581697` |
 | SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed `8581697` |
 | SEC-023 | Low | Anonymous readiness probe returns per-component detail | Open |
@@ -438,6 +438,13 @@ Threats and primary controls:
 - **Recommendation:** reuse the existing redirect-refusing opener.
 - **Negative test:** a cross-host redirect yields
   `KNOWLEDGE_FETCH_REDIRECT_REFUSED` with no second request.
+- **Resolution:** `UrllibFetcher` now uses an `HTTPRedirectHandler` subclass that
+  raises instead of following a redirect; 301/302/303/307/308 map to the static
+  code `KNOWLEDGE_FETCH_REDIRECT_REFUSED`. The scheme and host allowlist still
+  run before the request. Tests:
+  `test_urllib_fetcher_refuses_a_redirect_without_a_second_request` (local
+  redirect server, target receives zero requests) and
+  `test_urllib_fetcher_maps_a_refused_redirect_to_a_static_code`.
 
 ### SEC-021 — `/api/metrics` auth failures are unlogged and unmetered (Low)
 
@@ -542,10 +549,10 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017,
-  SEC-020 and SEC-023 remain open;
+- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017 and
+  SEC-023 remain open;
   SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
-  SEC-021, SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
+  SEC-020, SEC-021, SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict
