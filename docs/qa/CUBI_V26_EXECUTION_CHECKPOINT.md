@@ -3373,3 +3373,31 @@ Evidence: `docs/workspace/evidence/formula-columns-v26-2026-11-13/`
 (`formula-columns-v26.json`, 10/10 scenarios, 0 exceptions/console errors/5xx,
 interaction writes only validate/create/layout, screenshots 01–10,
 `CHECKLIST.md`).
+
+## Activities Columns dialog — picker lifecycle (2026-11-13)
+
+- **Scope.** ACT-001 picker slice is WIRED_WRITE. Help topic:
+  `define_activity_table_columns.htm`.
+- **Behaviour.** `apps/web/src/p6-columns-dialog.ts` edits a body-level draft:
+  Available Columns / Selected Options, Add / Add All / Remove / Remove All,
+  Move Up/Down, Edit Column (title, 40–800 px width, alignment), visibility,
+  Default, Copy From and OK / Apply / Cancel. Remove/Remove All are disabled at
+  one column and the pure functions still throw `LAST_COLUMN_REQUIRED`.
+- **Persistence.** Only `POST /p6/layouts/{scope}/activity` writes, and the
+  dialog preserves the current scope. Defaults come from the server default
+  route; Copy From lazily reads the other saved scope. No schedule payload is
+  part of the write.
+- **Permissions.** Planner / Project administrator may save; Viewer gets a
+  read-only reason and disabled OK/Apply (local draft still inspectable) and the
+  E2E proves zero writes for Viewer and for Cancel.
+- **Defects fixed.** Copy From was permanently disabled although WS-007 can save
+  a user layout; read-only sessions could press OK and get a server failure;
+  Add All ignored the search/subject filter; the footer claimed no second
+  layout existed even after one was saved.
+- **Known limits.** No drag-and-drop reorder; Copy From copies columns only and
+  only from the other in-project scope; hidden columns remain counted in
+  Selected Options.
+
+Evidence: `docs/workspace/evidence/activity-columns-v26-2026-11-13/`
+(`activity-columns-v26.json`, 11/11 scenarios, 0 exceptions/console errors/5xx,
+screenshots 01–12, `CHECKLIST.md`).

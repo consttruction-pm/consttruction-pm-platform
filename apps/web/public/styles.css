@@ -8067,6 +8067,13 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-columns-footer .cp-dialog-buttons { margin-inline-start: auto; }
 .cp-columns-notice { font-size: 11.5px; color: #2f6b45; min-height: 1em; }
 .cp-columns-notice[data-state="error"] { color: #a63a2b; }
+.cp-columns-readonly { margin: 0 0 8px; padding: 6px 9px; border: 1px solid #d8c27a; background: #fff8e2; color: #6b5413; font-size: 11.5px; }
+.cp-copy-columns-dialog { width: min(430px, calc(100vw - 28px)); }
+.cp-columns-copy-list { display: grid; gap: 6px; margin: 10px 0 4px; }
+.cp-columns-copy-option { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 7px 9px; border: 1px solid #cfd8e0; border-radius: 3px; cursor: pointer; }
+.cp-columns-copy-option input { grid-row: 1 / span 2; align-self: center; }
+.cp-columns-copy-option small { color: #5e7386; font-size: 11px; }
+.cp-copy-columns-dialog .cp-dialog-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
 .cp-columns-footer + .cp-dialog-note { margin-top: 8px; }
 .cp-edit-column-dialog { width: min(430px, calc(100vw - 28px)); }
 .cp-edit-column-dialog .cp-dialog-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }

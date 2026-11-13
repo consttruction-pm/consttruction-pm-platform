@@ -2054,7 +2054,20 @@ function renderApp(
       registry: state.p6FieldRegistry,
       layout: initial,
       locale: state.locale,
+      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
       loadDefaults: () => loadP6DefaultLayout(aiTransport, state.context, initial.scope, initial.view_id),
+      loadCopySources: async () => {
+        const catalog = await loadLayoutCatalog(aiTransport, state.context, "activity");
+        const currentScope = (currentWorkspaceState?.p6Layout ?? initial).scope;
+        const sources: { scope: "project" | "user"; name: string; layout: LayoutDefinition }[] = [];
+        for (const scope of ["project", "user"] as const) {
+          const layout = catalog[scope];
+          if (!layout || layout.scope !== scope || scope === currentScope) continue;
+          const name = typeof layout.metadata?.layoutName === "string" ? layout.metadata.layoutName : "";
+          sources.push({ scope, name, layout });
+        }
+        return sources;
+      },
       commit: async (draft) => {
         const latest = currentWorkspaceState ?? state;
         if (!latest.p6FieldRegistry || !latest.p6Layout) return null;
