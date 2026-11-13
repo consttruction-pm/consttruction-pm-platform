@@ -4,6 +4,37 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Final work handoff and preservation inventory — 2026-11-13 (handoff; no feature scope)
+
+- **Handoff base:** origin/main fetched and verified at **`b70a37bd`** (`docs(security): record SEC-015 fix and checkpoint (#1799) (#1886)`); local main was fast-forwarded from `6ada3daa` with no conflict and no history rewrite. Working tree clean, no stashes, one worktree (`/data/work/repo`). No file, branch or commit was reset, discarded, overwritten or force-pushed during this handoff.
+- **Completed and merged this cycle — ACT-002 multi-level grouping (Issue #1797 / Epic #1722):** branch `act-002-grouping-levels`, tested code **`5945c90723fe63d221d213588fbbfcfd2089475c`**, evidence commit **`f5825f7f`**, squash-merged as **`6ada3daae129ad7f4a0e9eb28d4961292c0f007e`** via PR #1884 (https://github.com/consttruction-pm/consttruction-pm-platform/pull/1884), merged 2026-11-13T04:44:07Z. Status **WIRED_WRITE** — implemented, unit/browser tested and merged; not a VERIFIED Oracle-parity claim. Scope: up to three ordered group levels (`wbs`, `activity_status`, `activity_type`, `is_critical`, `activity_code`, `total_float`), nested field bands under WBS, independent WBS/field-band collapse, stable order, Gantt row alignment, save/reload through layout `metadata.groupSort.groupLevels`, Persian RTL. Code paths: `apps/web/src/workspace-grouping.ts` (new), `workspace-model.ts`, `workspace-wbs-display.ts`, `workspace-filter-sort.ts`, `workspace-layout-settings.ts`, `workspace-dialogs.ts`, `workspace-view.ts`, `main.ts`, `workspace-gantt.ts`, `styles.css`/`public/styles.css`.
+- **Tests and evidence:** at `5945c907` — `apps/web` `npm test` **1016 tsx tests + 14 node tests passed**, `npx tsc --noEmit` clean, `npm run build` produced the served bundle; browser suite `apps/web/e2e/activity-group-sort-v26.mjs` **9/9 scenarios**, contract `cubi-activity-group-sort-v26.v2`, zero exceptions/console errors/API failures, 9 screenshots under `docs/workspace/evidence/activity-group-sort-v26-2026-11-13/`. PR #1884 required checks **8/8 success** (test 3.11/3.12/3.13, typecheck client-sync/desktop/mobile/web, web). Main at `b70a37bd` has ConstructionPM CI, Client Typecheck and PostgreSQL Sync State Integration **success**.
+- **Branch inventory (13 local branches, all accounted for):**
+
+| Local branch | Tip | Disposition |
+| --- | --- | --- |
+| `feat/act-011-gantt-overlays` | `91b2bb42` | Content already merged as #1845 `f07364f0`; ref pushed to origin at handoff |
+| `feat/activity-context-menu-focus-20261112` | `240aced6` | Merged as #1830 `fefd8f6e`; already on origin |
+| `feat/activity-udf-value-editing-20261112` | `5e68a772` | Merged as #1811 `c9c9d1a6`; branch lags later OCR/scan main work, no unique source |
+| `feat/activity-window-parity-remainder` | `1d352128` | Merged as #1874 `58a951bf` (Activity Columns picker lifecycle); already on origin |
+| `feat/documents-binary-v26` | `376c5bb3` | Merged as #1801 `da228469`; already on origin |
+| `feat/v26-stage-d3c-resource-calendar-assignment` | `10a1efe6` | Merged as #1755 `9990d997`; ref pushed to origin at handoff |
+| `feat/v26-stage-d3d-calendar-cycle` | `224685e8` | Merged as #1756 `c7a5df64`; ref pushed to origin at handoff |
+| `feat/v26-stage-e-risks-thresholds` | `3028f521` | Merged as #1757 `c920dc19`; ref pushed to origin at handoff |
+| `preserve-rebased` | `63efddab` | Code merged as #1822 `1864373d`; only older evidence/doc revisions differ; pushed as `preserve/preserve-rebased-20261113` |
+| `ws-007-saved-layout-lifecycle` | `9c17e1f4` | Merged as #1875 `ee4e61a6`; ref pushed to origin at handoff |
+| `pr-1725` | `0289a1b7` | Local copy of open PR #1725 head `feat/v26-activity-window-completion-20261105`; not merged |
+| `pr-1726` | `540f32d1` | Local copy of open PR #1726 head; draft, based on the #1725 branch; not merged |
+| `pr-1728` | `e92e4949` | Local copy of open PR #1728 head; not merged |
+
+- **Containment method:** for every merged branch, the files it changed relative to its merge base were compared byte-for-byte with the corresponding squash merge commit; ten branches matched (`0` differing files) or differed only where main has newer code or evidence. `git cherry` marks every commit `+` because squash merges change patch identity; ancestry and file content, not `cherry`, decided the disposition.
+- **Preservation actions:** six tips were absent from origin and were pushed without force as `feat/act-011-gantt-overlays`, `feat/v26-stage-d3c-resource-calendar-assignment`, `feat/v26-stage-d3d-calendar-cycle`, `feat/v26-stage-e-risks-thresholds`, `preserve/preserve-rebased-20261113` and `ws-007-saved-layout-lifecycle`. No PR was opened for them because their changes are already in main; a PR would duplicate merged work. Four other local tips were already present on origin. No branch was deleted.
+- **Open stale PRs deliberately untouched:** #1725 (`CONFLICTING`, 84 commits), #1726 (draft, `MERGEABLE` only against the #1725 branch) and #1728 (`CONFLICTING`, 9 commits) remain open for traceability. They are older implementations superseded by merged ACT work and were **not** merged, rebased or bulk-integrated.
+- **Uncommitted or untracked work:** none. All generated evidence for the latest slice is committed in `f5825f7f` and is present in main as `6ada3daa`. No recovery bundle or patch was required.
+- **Known limitations (explicit, not VERIFIED):** ACT-002 caps grouping at three levels; the catalog is the six fields above; “No value” is always last regardless of direction; collapse state is browser-local (`cubi:workspace-wbs-collapse`), while the level plan is saved in layout metadata; deleting a stored layout is still unsupported by the layout service, so the UI disables Delete with an explanation (`apps/web/src/workspace-layout-selector.ts`, `canDelete: false`). Select-all/count reconciliation/search-driven selection/export scope remain unaudited (ACT-020). No production deployment, external environment or Oracle numeric parity is claimed.
+- **Exact next implementation task:** ACT-020 remainder — implement and browser-verify **Select All, row-count reconciliation, full-project search and export scope (all / filtered / selected)** against the workspace read API, using the official Help topics for Find, Select All and Export; code paths `apps/web/src/workspace-model.ts`, `workspace-view.ts`, `main.ts` and the Activities toolbar; derive every expected count from the read model rather than fixture constants, and keep selection in-memory until the export/selection contract is defined.
+- **Status vocabulary for this entry:** ACT-002 = WIRED_WRITE (implemented, tested, merged); preserved legacy branches = merged or superseded; stale PRs = open/unmerged; ACT-020 remainder = WIRED_READ → next.
+
 ## Agent 3 checkpoint — Issue #1799, session-credential response fix (SEC-015) — 2026-11-13 (merged; PR #1885)
 
 - **Base and merge:** branch `fix/agent3-session-response-credential` cut from merged `main` `02ae807`, squash-merged as **`67dd5ed`** via PR #1885 after exact-head CI. `main` moved with PR #1884 (`6ada3da`, Agent 1 UI) during the run; the merge landed on top of it.
