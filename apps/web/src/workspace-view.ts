@@ -47,6 +47,7 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { readTraceLogicDepths, renderTraceLogic, storeTraceLogicDepths } from "./workspace-trace-logic.js";
@@ -185,7 +186,7 @@ const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
-const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
+const wbsViewByContainer = new WeakMap<HTMLElement, "table" | "chart">();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -1085,7 +1086,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.wbsView) {
-      const view = target.dataset.wbsView === "chart" ? "chart" : "tree";
+      const view = target.dataset.wbsView === "chart" ? "chart" : "table";
       wbsViewByContainer.set(container, view);
       container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((button) => {
         const active = button.dataset.wbsView === view;
@@ -1096,8 +1097,8 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (hierarchy) {
         const labels = getWorkspaceLabels(state.locale);
         hierarchy.innerHTML = view === "chart"
-          ? renderWbsChart(state.wbsNodes, state.selectedWbsId, labels)
-          : renderWbsTree(state.wbsNodes, state.selectedWbsId, labels);
+          ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, labels)
+          : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, labels);
       }
       return;
     }
@@ -2176,83 +2177,59 @@ function runWorkspaceMenuCommand(
   }
 }
 
-function renderWbsTree(
+function renderWbsTable(
   nodes: WorkspaceState["wbsNodes"],
+  activities: WorkspaceState["activities"],
   selectedWbsId: string | null,
+  locale: WorkspaceState["locale"],
   labels: WorkspaceLabels,
 ): string {
   if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
-  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
-  for (const node of nodes) {
-    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
-    const siblings = children.get(parentId) ?? [];
-    siblings.push(node);
-    children.set(parentId, siblings);
-  }
-  for (const siblings of children.values()) {
-    siblings.sort((a, b) => a.sequenceNumber - b.sequenceNumber || a.id.localeCompare(b.id));
-  }
-  const renderChildren = (
-    parentId: string | null,
-    level: number,
-    ancestors: ReadonlySet<string>,
-  ): string => (children.get(parentId) ?? []).map((node) => {
-    if (ancestors.has(node.id)) {
-      return `<li class="cp-wbs-invalid" role="treeitem"><span class="cp-empty">Invalid WBS hierarchy</span></li>`;
-    }
-    const nested = children.get(node.id) ?? [];
+  const rows = buildWbsHierarchy(nodes);
+  const counts = wbsActivityCounts(activities);
+  const indent = (depth: number): string => `style="padding-inline-start:${(depth - 1) * 18}px"`;
+  const body = rows.map(({ node, depth, orphan }) => {
     const selected = selectedWbsId === node.id;
-    const nextAncestors = new Set(ancestors);
-    nextAncestors.add(node.id);
-    return `<li class="cp-wbs-item" role="treeitem" aria-level="${level}"${nested.length ? ' aria-expanded="true"' : ""}>
-      <button type="button" class="cp-wbs-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">
-        <span class="cp-wbs-code">${escapeHtml(node.localCode)}</span>
-        <span class="cp-wbs-name">${escapeHtml(node.name)}</span>
-      </button>
-      ${nested.length ? `<ul class="cp-wbs-children" role="group">${renderChildren(node.id, level + 1, nextAncestors)}</ul>` : ""}
-    </li>`;
+    const activityCount = counts.get(node.id) ?? 0;
+    return `<tr class="cp-wbs-row${selected ? " is-selected" : ""}${orphan ? " is-orphan" : ""}" data-wbs-id="${escapeAttribute(node.id)}" data-wbs-depth="${depth}" aria-level="${depth}" aria-selected="${selected}">
+      <td class="cp-wbs-code-cell"><span class="cp-wbs-indent" ${indent(depth)}>${escapeHtml(node.localCode)}</span></td>
+      <td class="cp-wbs-name-cell"><button type="button" class="cp-wbs-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">${escapeHtml(node.name)}</button>${orphan ? `<small class="cp-wbs-orphan-note">${escapeHtml(uiText(locale, "Parent not loaded", "والد بارگذاری نشده"))}</small>` : ""}</td>
+      <td class="cp-wbs-count-cell">${activityCount}</td>
+      <td class="cp-wbs-sequence-cell">${node.sequenceNumber}</td>
+      <td class="cp-wbs-revision-cell">R${node.recordRevision}</td>
+    </tr>`;
   }).join("");
-  return `<ul class="cp-wbs-tree" role="tree" aria-label="${escapeAttribute(labels.wbs)}">${renderChildren(null, 1, new Set())}</ul>`;
+  return `<div class="cp-wbs-table-wrap"><table class="cp-wbs-table" data-wbs-table role="treegrid" aria-label="${escapeAttribute(labels.wbs)}">
+    <thead><tr>
+      <th scope="col">${escapeHtml(uiText(locale, "WBS Code", "کد WBS"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "WBS Name", "نام WBS"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Activities", "فعالیت‌ها"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Sequence", "ترتیب"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Rev", "ویرایش"))}</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+  </table></div>`;
 }
 
 function renderWbsChart(
   nodes: WorkspaceState["wbsNodes"],
   selectedWbsId: string | null,
+  locale: WorkspaceState["locale"],
   labels: WorkspaceLabels,
 ): string {
   if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
-  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
-  for (const node of nodes) {
-    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
-    const siblings = children.get(parentId) ?? [];
-    siblings.push(node);
-    children.set(parentId, siblings);
-  }
-  for (const siblings of children.values()) {
-    siblings.sort((a, b) => a.sequenceNumber - b.sequenceNumber || a.id.localeCompare(b.id));
-  }
-  const renderChildren = (
-    parentId: string | null,
-    level: number,
-    ancestors: ReadonlySet<string>,
-  ): string => (children.get(parentId) ?? []).map((node) => {
-    if (ancestors.has(node.id)) {
-      return `<li class="cp-wbs-invalid" role="treeitem"><span class="cp-empty">Invalid WBS hierarchy</span></li>`;
-    }
-    const nested = children.get(node.id) ?? [];
+  const rows = buildWbsHierarchy(nodes);
+  const cards = rows.map(({ node, depth, hasChildren, orphan }) => {
     const selected = selectedWbsId === node.id;
-    const nextAncestors = new Set(ancestors);
-    nextAncestors.add(node.id);
-    return `<li class="cp-wbs-chart-item" role="treeitem" aria-level="${level}"${nested.length ? ' aria-expanded="true"' : ""}>
-      <button type="button" class="cp-wbs-chart-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">
+    return `<li class="cp-wbs-chart-item" role="treeitem" aria-level="${depth}" aria-selected="${selected}"${hasChildren ? ' aria-expanded="true"' : ""}>
+      <button type="button" class="cp-wbs-chart-node${selected ? " is-selected" : ""}${orphan ? " is-orphan" : ""}" data-wbs-id="${escapeAttribute(node.id)}" data-wbs-depth="${depth}" aria-current="${selected ? "true" : "false"}" style="margin-inline-start:${(depth - 1) * 22}px">
         <span class="cp-wbs-chart-code">${escapeHtml(node.localCode)}</span>
         <strong>${escapeHtml(node.name)}</strong>
         <small>R${node.recordRevision} · #${node.sequenceNumber}</small>
       </button>
-      ${nested.length ? `<ul class="cp-wbs-chart-children" role="group">${renderChildren(node.id, level + 1, nextAncestors)}</ul>` : ""}
     </li>`;
   }).join("");
-  return `<div class="cp-wbs-chart" data-wbs-chart><ul role="tree" aria-label="${escapeAttribute(labels.wbs)} Chart">${renderChildren(null, 1, new Set())}</ul></div>`;
+  return `<div class="cp-wbs-chart" data-wbs-chart><ul class="cp-wbs-chart-list" role="tree" aria-label="${escapeAttribute(uiText(locale, "WBS chart", "نمودار WBS"))}">${cards}</ul></div>`;
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
@@ -2396,6 +2373,11 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
       const selected = button.dataset.wbsId === next.selectedWbsId;
       button.classList.toggle("is-selected", selected);
       button.setAttribute("aria-current", selected ? "true" : "false");
+    });
+    // Selection is incremental here, so the table row state must be refreshed
+    // too; otherwise the row keeps the aria-selected value it was rendered with.
+    container.querySelectorAll<HTMLElement>(".cp-wbs-row[data-wbs-id]").forEach((row) => {
+      row.setAttribute("aria-selected", String(row.dataset.wbsId === next.selectedWbsId));
     });
     const wbsDetails = container.querySelector<HTMLElement>(".cp-wbs-details");
     if (wbsDetails) wbsDetails.outerHTML = renderWbsDetails(next, wbsDetailsTabByContainer.get(container) ?? "general");
@@ -2817,7 +2799,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
             <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
               <h2>${escapeHtml(t.wbs)}</h2>
-              ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
+              ${renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}
               ${renderWbsDetails(state, "general")}
               <form class="cp-wbs-editor" data-wbs-create-form>
                 <h3>${escapeHtml(t.wbsCreate)}</h3>
@@ -3230,8 +3212,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     }
     case "wbs": {
-      const wbsView = wbsViewByContainer.get(container) ?? "tree";
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="tree" aria-pressed="${wbsView === "tree"}" class="${wbsView === "tree" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Tree View", "نمای درختی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, t) : renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The tree and chart are generated from the loaded WBS hierarchy; selecting a card reads the same authoritative WBS record. Detail tabs show only fields the WBS core returns, so budget, milestone and document tabs stay explicitly empty until those models are exposed.", "درخت و نمودار از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند و انتخاب هر کارت همان رکورد مرجع WBS را می‌خواند. زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نشان می‌دهند؛ بنابراین زبانه‌های بودجه، نقاط عطف و اسناد تا زمان ارائهٔ آن مدل‌ها صریحاً خالی می‌مانند."))}</p></div>`;
+      const wbsView = wbsViewByContainer.get(container) ?? "table";
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="table" aria-pressed="${wbsView === "table"}" class="${wbsView === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, t) : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The table and chart are generated from one ordered projection of the loaded WBS hierarchy, so both show the same persisted nodes in the same order. Selecting a row or card reads the same authoritative WBS record; detail tabs show only fields the WBS core returns.", "جدول و نمودار از یک نمای مرتب واحد از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند؛ بنابراین هر دو همان گره‌های ذخیره‌شده را با همان ترتیب نشان می‌دهند. انتخاب هر سطر یا کارت همان رکورد مرجع WBS را می‌خواند و زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نمایش می‌دهند."))}</p></div>`;
       break;
     }
     case "calendars":
