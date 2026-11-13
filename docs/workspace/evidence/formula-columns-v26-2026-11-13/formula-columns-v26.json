@@ -1,0 +1,350 @@
+{
+  "contract": "cubi-formula-columns-v26.v1",
+  "baseUrl": "http://127.0.0.1:4210",
+  "gitHead": "99214878ffd156cb863b64241be7bfb4fe7e40b4",
+  "testedCodeSha": "99214878ffd156cb863b64241be7bfb4fe7e40b4",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T03:27:31.714Z",
+  "formula": {
+    "id": "formula.e2e_progress_fraction",
+    "title": "Progress Fraction",
+    "expression": "[activity.duration_percent_complete] / 100",
+    "contextField": "activity.actual_finish"
+  },
+  "invalidExpressions": [
+    {
+      "id": "unknown-field",
+      "expression": "[activity.not_a_registered_field] + 1",
+      "expectCode": "FIELD_NOT_FOUND:activity.not_a_registered_field"
+    },
+    {
+      "id": "missing-operand",
+      "expression": "[activity.duration_percent_complete] +",
+      "expectCode": "EXPECTED_EXPRESSION_AT_"
+    },
+    {
+      "id": "type-mismatch",
+      "expression": "[activity.duration_percent_complete] + [activity.name]",
+      "expectCode": "NUMERIC_OPERANDS_REQUIRED"
+    },
+    {
+      "id": "unsupported-duration",
+      "expression": "[activity.planned_duration] * 2",
+      "expectCode": "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration"
+    }
+  ],
+  "scenarios": [
+    {
+      "hasForm": true,
+      "hasSaveForm": true,
+      "readonlyText": null,
+      "status": "pass",
+      "resultText": "",
+      "resultCode": null,
+      "resultMessage": null,
+      "fieldValue": "activity.actual_finish",
+      "columns": [],
+      "id": "01",
+      "name": "A planner sees the authoritative validation form and the save lifecycle",
+      "at": "2026-11-13T03:27:34.872Z"
+    },
+    {
+      "0": {
+        "id": "unknown-field",
+        "expression": "[activity.not_a_registered_field] + 1",
+        "code": "FIELD_NOT_FOUND:activity.not_a_registered_field",
+        "message": "The expression references the field \"activity.not_a_registered_field\", which is not registered for this view.",
+        "statusText": "Expression is not valid"
+      },
+      "1": {
+        "id": "missing-operand",
+        "expression": "[activity.duration_percent_complete] +",
+        "code": "EXPECTED_EXPRESSION_AT_38",
+        "message": "The expression is incomplete (expected expression); an operand or operator is missing.",
+        "statusText": "Expression is not valid"
+      },
+      "2": {
+        "id": "type-mismatch",
+        "expression": "[activity.duration_percent_complete] + [activity.name]",
+        "code": "NUMERIC_OPERANDS_REQUIRED",
+        "message": "This operation needs numeric operands. A text, date or enum field was used in arithmetic.",
+        "statusText": "Expression is not valid"
+      },
+      "3": {
+        "id": "unsupported-duration",
+        "expression": "[activity.planned_duration] * 2",
+        "code": "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration",
+        "message": "Fields of type \"duration\" cannot be used in an arithmetic expression.",
+        "statusText": "Expression is not valid"
+      },
+      "id": "02",
+      "name": "Invalid expressions show the authoritative code and a plain-language reason",
+      "status": "pass",
+      "at": "2026-11-13T03:27:37.640Z"
+    },
+    {
+      "hasForm": true,
+      "hasSaveForm": true,
+      "readonlyText": null,
+      "status": "pass",
+      "resultText": "Valid expression activity.actual_finish\n    Referenced fields activity.duration_percent_complete\n    Result type double",
+      "resultCode": "activity.actual_finish",
+      "resultMessage": null,
+      "fieldValue": "activity.actual_finish",
+      "columns": [],
+      "id": "03",
+      "name": "A valid expression returns authoritative dependencies and result type",
+      "at": "2026-11-13T03:27:38.973Z"
+    },
+    {
+      "saved": {
+        "id": "formula.e2e_progress_fraction",
+        "version": "Definition version 1",
+        "dataType": "Data type: double",
+        "resultType": "Result type: number",
+        "unit": null,
+        "dependencies": "Referenced fields: activity.duration_percent_complete",
+        "apply": "formula.e2e_progress_fraction",
+        "inLayout": false
+      },
+      "record": {
+        "contract_version": "p6-formula-column-api.v1",
+        "kind": "formula_column",
+        "scope": {
+          "tenant_id": "cubi-preview-tenant",
+          "project_id": "preview-rps-01",
+          "project_revision": 7
+        },
+        "formula": {
+          "formula_id": "formula.e2e_progress_fraction",
+          "version": "1",
+          "title": "Progress Fraction",
+          "expression": "[activity.duration_percent_complete] / 100",
+          "result_type": "number",
+          "data_type": "double",
+          "result_unit": null,
+          "dependencies": [
+            "activity.duration_percent_complete"
+          ]
+        }
+      },
+      "id": "04",
+      "name": "Saving persists the definition and the catalogue shows its full identity",
+      "status": "pass",
+      "at": "2026-11-13T03:27:41.357Z"
+    },
+    {
+      "gridHeader": {
+        "label": "Progress Fractionƒx",
+        "marked": true
+      },
+      "rows": 14,
+      "nonEmpty": 14,
+      "serverCells": [
+        {
+          "activityId": "A100",
+          "value": "1.0"
+        },
+        {
+          "activityId": "A110",
+          "value": "1.0"
+        },
+        {
+          "activityId": "A120",
+          "value": "1.0"
+        },
+        {
+          "activityId": "A130",
+          "value": "0.375"
+        },
+        {
+          "activityId": "A140",
+          "value": null
+        },
+        {
+          "activityId": "A145",
+          "value": null
+        },
+        {
+          "activityId": "A150",
+          "value": null
+        },
+        {
+          "activityId": "A155",
+          "value": null
+        },
+        {
+          "activityId": "A160",
+          "value": null
+        },
+        {
+          "activityId": "A170",
+          "value": null
+        },
+        {
+          "activityId": "A180",
+          "value": null
+        },
+        {
+          "activityId": "A190",
+          "value": null
+        },
+        {
+          "activityId": "A200",
+          "value": null
+        },
+        {
+          "activityId": "A210",
+          "value": null
+        }
+      ],
+      "id": "05",
+      "name": "Applying the column adds it to the layout and every cell is the server value",
+      "status": "pass",
+      "at": "2026-11-13T03:27:43.426Z"
+    },
+    {
+      "rows": 14,
+      "header": {
+        "label": "Progress Fractionƒx",
+        "marked": true
+      },
+      "id": "06",
+      "name": "A full reload restores the saved column, layout and server values",
+      "status": "pass",
+      "at": "2026-11-13T03:27:45.843Z"
+    },
+    {
+      "code": "FORMULA_COLUMN_ALREADY_EXISTS",
+      "message": "A saved formula column already uses this ID with a different expression or title.",
+      "id": "07",
+      "name": "A duplicate id with a different definition is rejected with a meaningful error",
+      "status": "pass",
+      "at": "2026-11-13T03:27:47.640Z"
+    },
+    {
+      "validation": "Valid expression activity.actual_finish\n    Referenced fields activity.duration_percent_complete\n    Result type double",
+      "rows": 14,
+      "emptyCells": 14,
+      "serverValues": [
+        {
+          "activityId": "A100",
+          "value": null
+        },
+        {
+          "activityId": "A110",
+          "value": null
+        },
+        {
+          "activityId": "A120",
+          "value": null
+        },
+        {
+          "activityId": "A130",
+          "value": null
+        },
+        {
+          "activityId": "A140",
+          "value": null
+        },
+        {
+          "activityId": "A145",
+          "value": null
+        },
+        {
+          "activityId": "A150",
+          "value": null
+        },
+        {
+          "activityId": "A155",
+          "value": null
+        },
+        {
+          "activityId": "A160",
+          "value": null
+        },
+        {
+          "activityId": "A170",
+          "value": null
+        },
+        {
+          "activityId": "A180",
+          "value": null
+        },
+        {
+          "activityId": "A190",
+          "value": null
+        },
+        {
+          "activityId": "A200",
+          "value": null
+        },
+        {
+          "activityId": "A210",
+          "value": null
+        }
+      ],
+      "id": "08",
+      "name": "A zero divisor validates but yields empty server cells, never a fabricated number",
+      "status": "pass",
+      "at": "2026-11-13T03:27:51.006Z"
+    },
+    {
+      "readonlyText": "This session can read formula columns but not save them. A planner or project administrator role is required to create or change a formula column.",
+      "validation": "Valid expression activity.actual_finish\n    Referenced fields activity.duration_percent_complete\n    Result type double",
+      "id": "09",
+      "name": "A Viewer can validate but never save or apply a formula column",
+      "status": "pass",
+      "at": "2026-11-13T03:27:54.057Z"
+    },
+    {
+      "writes": [
+        {
+          "method": "POST",
+          "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/formulas/p6-field-registry.v1"
+        },
+        {
+          "method": "POST",
+          "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/formula-columns"
+        },
+        {
+          "method": "POST",
+          "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/layouts/project/activity"
+        }
+      ],
+      "id": "10",
+      "name": "No browser evaluation endpoint is contacted during the lifecycle",
+      "status": "pass",
+      "at": "2026-11-13T03:27:54.057Z"
+    }
+  ],
+  "screenshots": [
+    "01-planner-editor.png",
+    "02-invalid-expression.png",
+    "03-valid-expression.png",
+    "04-saved-column.png",
+    "05-applied-grid.png",
+    "06-reload-restored.png",
+    "07-duplicate-rejected.png",
+    "08-division-by-zero-empty-cells.png",
+    "09-viewer-readonly.png",
+    "10-final.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "interactionWrites": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/formulas/p6-field-registry.v1"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/formula-columns"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4210/api/projects/preview-rps-01/p6/layouts/project/activity"
+    }
+  ]
+}
