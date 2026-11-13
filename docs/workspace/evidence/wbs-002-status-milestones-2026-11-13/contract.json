@@ -2,7 +2,7 @@
   "contract": "cubi-wbs-002-status-milestones.v1",
   "testedCodeSha": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
   "gitHead": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
-  "evidenceCommitSha": null,
+  "evidenceCommitSha": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
   "baseUrl": "http://127.0.0.1:4234",
   "startedAt": "2026-11-13T13:38:55.963Z",
   "scenarios": [
@@ -178,7 +178,7 @@
         "overflow": 0,
         "rows": 4,
         "rollup": "83.33%",
-        "general": "شناسه WBSWBS-RPS-CIVILکد WBS2نام WBSCivil worksوضعیتفعالروش درصد تکمیلنقاط عطف وزنیدرصد تکمیل وزنی83.33%نوع والدعنصر WBSوالد1 — Riverside Pump Station Upgradeترتیب20ویرایش رکورد4\n        \n          وضعیتبرنامه‌ریزی‌شدهفعالغیرفعالفرضی\n          روش درصد تکمیلفعالیت‌هانقاط عطف وزنی\n          ذخیره تنظیمات WBS\n        "
+        "general": "\u0634\u0646\u0627\u0633\u0647 WBSWBS-RPS-CIVIL\u06a9\u062f WBS2\u0646\u0627\u0645 WBSCivil works\u0648\u0636\u0639\u06cc\u062a\u0641\u0639\u0627\u0644\u0631\u0648\u0634 \u062f\u0631\u0635\u062f \u062a\u06a9\u0645\u06cc\u0644\u0646\u0642\u0627\u0637 \u0639\u0637\u0641 \u0648\u0632\u0646\u06cc\u062f\u0631\u0635\u062f \u062a\u06a9\u0645\u06cc\u0644 \u0648\u0632\u0646\u06cc83.33%\u0646\u0648\u0639 \u0648\u0627\u0644\u062f\u0639\u0646\u0635\u0631 WBS\u0648\u0627\u0644\u062f1 \u2014 Riverside Pump Station Upgrade\u062a\u0631\u062a\u06cc\u062820\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0631\u06a9\u0648\u0631\u062f4\n        \n          \u0648\u0636\u0639\u06cc\u062a\u0628\u0631\u0646\u0627\u0645\u0647\u200c\u0631\u06cc\u0632\u06cc\u200c\u0634\u062f\u0647\u0641\u0639\u0627\u0644\u063a\u06cc\u0631\u0641\u0639\u0627\u0644\u0641\u0631\u0636\u06cc\n          \u0631\u0648\u0634 \u062f\u0631\u0635\u062f \u062a\u06a9\u0645\u06cc\u0644\u0641\u0639\u0627\u0644\u06cc\u062a\u200c\u0647\u0627\u0646\u0642\u0627\u0637 \u0639\u0637\u0641 \u0648\u0632\u0646\u06cc\n          \u0630\u062e\u06cc\u0631\u0647 \u062a\u0646\u0638\u06cc\u0645\u0627\u062a WBS\n        "
       }
     },
     {
@@ -251,7 +251,7 @@
       "id": "wbs2-general-reflects-save",
       "name": "the General tab reflects the saved status and technique",
       "ok": true,
-      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete0.00%Parent kindWBS elementParent1 — Riverside Pump Station UpgradeSequence20Record revision2\n        \n          Sta"
+      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete0.00%Parent kindWBS elementParent1 \u2014 Riverside Pump Station UpgradeSequence20Record revision2\n        \n          Sta"
     },
     {
       "id": "wbs2-milestones-empty",
@@ -512,7 +512,7 @@
       "id": "wbs2-fa-localized",
       "name": "the Persian details show the localized status labels",
       "ok": true,
-      "detail": "شناسه WBSWBS-RPS-CIVILکد WBS2نام WBSCivil worksوضعیتفعالروش درصد تکمیلنقاط عطف وزنیدرصد تکمیل وزنی83.33%نوع والدعنصر WBSوالد1 — Riverside Pump Station Upgradeترتیب20ویرایش رکورد4\n        \n          وضعیتبرنامه‌ریزی‌شدهفعالغیرفعالفرضی\n      "
+      "detail": "\u0634\u0646\u0627\u0633\u0647 WBSWBS-RPS-CIVIL\u06a9\u062f WBS2\u0646\u0627\u0645 WBSCivil works\u0648\u0636\u0639\u06cc\u062a\u0641\u0639\u0627\u0644\u0631\u0648\u0634 \u062f\u0631\u0635\u062f \u062a\u06a9\u0645\u06cc\u0644\u0646\u0642\u0627\u0637 \u0639\u0637\u0641 \u0648\u0632\u0646\u06cc\u062f\u0631\u0635\u062f \u062a\u06a9\u0645\u06cc\u0644 \u0648\u0632\u0646\u06cc83.33%\u0646\u0648\u0639 \u0648\u0627\u0644\u062f\u0639\u0646\u0635\u0631 WBS\u0648\u0627\u0644\u062f1 \u2014 Riverside Pump Station Upgrade\u062a\u0631\u062a\u06cc\u062820\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0631\u06a9\u0648\u0631\u062f4\n        \n          \u0648\u0636\u0639\u06cc\u062a\u0628\u0631\u0646\u0627\u0645\u0647\u200c\u0631\u06cc\u0632\u06cc\u200c\u0634\u062f\u0647\u0641\u0639\u0627\u0644\u063a\u06cc\u0631\u0641\u0639\u0627\u0644\u0641\u0631\u0636\u06cc\n      "
     },
     {
       "id": "wbs2-fa-rows",
@@ -533,7 +533,7 @@
       "id": "wbs2-reload-general",
       "name": "the reloaded General tab still shows Active and WBS Milestones",
       "ok": true,
-      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete83.33%Parent kindWBS elementParent1 — Riverside Pump Station UpgradeSequence20Record revision4\n        \n          St"
+      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete83.33%Parent kindWBS elementParent1 \u2014 Riverside Pump Station UpgradeSequence20Record revision4\n        \n          St"
     },
     {
       "id": "wbs2-reload-milestones",
