@@ -1,17 +1,17 @@
 {
   "contract": "cubi-wbs-002-status-milestones.v1",
-  "testedCodeSha": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
-  "gitHead": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
-  "evidenceCommitSha": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
-  "baseUrl": "http://127.0.0.1:4234",
-  "startedAt": "2026-11-13T13:38:55.963Z",
+  "testedCodeSha": "846c217f",
+  "gitHead": "846c217fa5fc44ec11520aa5b7927d714f826033",
+  "evidenceCommitSha": "846c217f",
+  "baseUrl": "http://127.0.0.1:4235",
+  "startedAt": "2026-11-13T13:46:27.464Z",
   "scenarios": [
     {
       "id": "01",
       "name": "WBS details read the persisted status and technique",
       "status": "pass",
-      "at": "2026-11-13T13:38:58.709Z",
-      "durationMs": 791,
+      "at": "2026-11-13T13:46:30.267Z",
+      "durationMs": 780,
       "details": {
         "wbs_id": "WBS-RPS-CIVIL",
         "parent_kind": "wbs",
@@ -29,8 +29,8 @@
       "id": "02",
       "name": "Saving status Active and technique WBS Milestones persists both fields",
       "status": "pass",
-      "at": "2026-11-13T13:39:00.303Z",
-      "durationMs": 1594,
+      "at": "2026-11-13T13:46:31.849Z",
+      "durationMs": 1582,
       "details": {
         "revision": 2
       }
@@ -39,8 +39,8 @@
       "id": "03",
       "name": "The milestone editor rolls up weighted completion before saving",
       "status": "pass",
-      "at": "2026-11-13T13:39:00.867Z",
-      "durationMs": 564,
+      "at": "2026-11-13T13:46:32.415Z",
+      "durationMs": 566,
       "details": {
         "rows": [
           {
@@ -78,8 +78,8 @@
       "id": "04",
       "name": "Saved milestones persist and the roll-up matches the workspace read",
       "status": "pass",
-      "at": "2026-11-13T13:39:02.751Z",
-      "durationMs": 1884,
+      "at": "2026-11-13T13:46:34.301Z",
+      "durationMs": 1886,
       "details": {
         "contract_version": "p6-wbs-master-api.v1",
         "kind": "p6_wbs_milestones",
@@ -127,8 +127,8 @@
       "id": "05",
       "name": "Completing a second milestone advances the revision and the weighted roll-up",
       "status": "pass",
-      "at": "2026-11-13T13:39:04.635Z",
-      "durationMs": 1884,
+      "at": "2026-11-13T13:46:36.183Z",
+      "durationMs": 1882,
       "details": {
         "wbs_id": "WBS-RPS-CIVIL",
         "parent_kind": "wbs",
@@ -146,8 +146,8 @@
       "id": "06",
       "name": "A stale revision cannot overwrite the saved milestone list",
       "status": "pass",
-      "at": "2026-11-13T13:39:04.643Z",
-      "durationMs": 8,
+      "at": "2026-11-13T13:46:36.193Z",
+      "durationMs": 10,
       "details": {
         "status": 409
       }
@@ -156,8 +156,8 @@
       "id": "07",
       "name": "Duplicate IDs and zero weights are rejected in the editor without a request",
       "status": "pass",
-      "at": "2026-11-13T13:39:06.155Z",
-      "durationMs": 1513,
+      "at": "2026-11-13T13:46:37.704Z",
+      "durationMs": 1511,
       "details": {
         "duplicateError": "Each milestone needs a unique ID and a name, with a weight greater than zero.",
         "zero": {
@@ -170,8 +170,8 @@
       "id": "08",
       "name": "Persian RTL shows the milestone editor and status without page overflow",
       "status": "pass",
-      "at": "2026-11-13T13:39:08.072Z",
-      "durationMs": 1916,
+      "at": "2026-11-13T13:46:39.567Z",
+      "durationMs": 1863,
       "details": {
         "dir": "rtl",
         "lang": "fa",
@@ -185,8 +185,8 @@
       "id": "09",
       "name": "A reload restores the persisted status, technique and milestones",
       "status": "pass",
-      "at": "2026-11-13T13:39:11.387Z",
-      "durationMs": 3315,
+      "at": "2026-11-13T13:46:42.872Z",
+      "durationMs": 3305,
       "details": {
         "rows": [
           {
@@ -612,6 +612,6 @@
       "url": "/api/projects/preview-rps-01/open"
     }
   ],
-  "finishedAt": "2026-11-13T13:39:11.387Z",
+  "finishedAt": "2026-11-13T13:46:42.872Z",
   "status": "passed"
 }

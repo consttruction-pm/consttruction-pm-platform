@@ -1,6 +1,6 @@
 # WBS-002 status, percent-complete technique and weighted milestones acceptance — 2026-11-13
 
-Tested code SHA: `154825b0`
+Tested code SHA: `846c217f`
 Contract: `cubi-wbs-002-status-milestones.v1`
 
 PASS — the General tab shows the persisted status and technique instead of placeholders
