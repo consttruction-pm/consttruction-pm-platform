@@ -51,7 +51,9 @@ import {
 import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds, buildWorkspaceDisplayRows } from "./workspace-wbs-display.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
+  readCollapsedWbsMetadata,
   readGroupSortMetadata,
+  withCollapsedWbsMetadata,
   withGroupSortMetadata,
 } from "./workspace-layout-settings.js";
 import { applyActivityFilterState, createActivityFilterDateContext } from "./workspace-activity-filters.js";
@@ -309,6 +311,24 @@ function hydrateGroupSortFromLayout(state: WorkspaceState): WorkspaceState {
   if (next.activityGroupBy !== saved.groupBy) next = setActivityGroupBy(next, saved.groupBy);
   next = setActivitySortLevels(next, saved.sortLevels);
   return next;
+}
+
+/**
+ * Collapsed WBS branches travel with the saved layout as a view preference.
+ * Adopting them once per layout revision restores the tree the author saved
+ * without touching an activity, relationship or date. A layout that never
+ * stored the key leaves the browser-local collapse state alone.
+ */
+let hydratedCollapseKey: string | null = null;
+function hydrateCollapseFromLayout(state: WorkspaceState): void {
+  const layout = state.p6Layout;
+  if (!layout) return;
+  const saved = readCollapsedWbsMetadata(layout.metadata);
+  if (saved === null) return;
+  const key = `${state.context.tenant_id}:${state.context.project_id}:${layout.scope}:${layout.revision}`;
+  if (key === hydratedCollapseKey) return;
+  hydratedCollapseKey = key;
+  setCollapsedWbsIds(state.context.project_id, saved);
 }
 
 /**
@@ -971,6 +991,9 @@ function renderApp(
     }
   }
   state = hydrateGroupSortFromLayout(state);
+  // The layout may also restore which WBS branches were collapsed when it was
+  // saved; apply it before the grid and Gantt read the display rows.
+  hydrateCollapseFromLayout(state);
   currentWorkspaceState = state;
   bindWindowDirtyIndicators(container);
   // The skin is a token set on the document root; applying it before paint
@@ -1808,7 +1831,10 @@ function renderApp(
   const commitLayout = async (next: WorkspaceState): Promise<LayoutDefinition | null> => {
     if (!next.p6Layout || !next.p6FieldRegistry) return null;
     try {
-      const saved = await persistence.save(presentationMetadata(next.p6Layout));
+      const saved = await persistence.save(withCollapsedWbsMetadata(
+        presentationMetadata(next.p6Layout),
+        getCollapsedWbsIds(next.context.project_id),
+      ));
       const savedHistory = getLayoutHistory(next.context, saved);
       const previous = currentWorkspaceState?.p6Layout ?? state.p6Layout;
       if (previous) savedHistory.undo.push(previous);
@@ -1860,7 +1886,7 @@ function renderApp(
       const catalog = await loadLayoutCatalog(aiTransport, state.context, base.view_id);
       const existing = catalog[targetScope];
       const snapshot = currentWorkspaceState ?? state;
-      const saved = await persistence.save(withGroupSortMetadata({
+      const saved = await persistence.save(withCollapsedWbsMetadata(withGroupSortMetadata({
         schema_version: base.schema_version,
         scope: targetScope,
         view_id: base.view_id,
@@ -1872,7 +1898,7 @@ function renderApp(
           presentation: visualPreferences.presentation,
           presentationUpdatedAt: visualPreferences.updatedAt,
         },
-      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()));
+      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()), getCollapsedWbsIds(snapshot.context.project_id)));
       layoutPreviewBase = null;
       layoutPreviewScope = null;
       layoutPreviewContextKey = null;

@@ -1034,9 +1034,21 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (event.key === "Enter" || event.key === " ") {
       const activationTarget = keyTarget && typeof keyTarget.closest === "function"
-        ? keyTarget.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row]")
+        ? keyTarget.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row],[data-wbs-row]")
         : null;
       if (!activationTarget) return;
+      // The toggle is a real button: let its native click handle Enter/Space
+      // rather than toggling twice. Anywhere else on the focused band row
+      // expands or collapses the branch.
+      if (activationTarget.dataset.wbsRow && !keyTarget?.closest?.("[data-wbs-toggle]")) {
+        event.preventDefault();
+        const record = workspaceRenderRecords.get(container);
+        if (!record) return;
+        toggleCollapsedWbs(record.state.context.project_id, activationTarget.dataset.wbsRow);
+        rerenderWorkspaceRows(container);
+        return;
+      }
+      if (activationTarget.dataset.wbsRow) return;
       event.preventDefault();
       if (activationTarget.dataset.documentRow) {
         activationTarget.click();
