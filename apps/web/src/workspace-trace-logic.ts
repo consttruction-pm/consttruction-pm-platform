@@ -7,10 +7,25 @@
 import type { WorkspaceActivityRow, WorkspaceRelationshipRow } from "./workspace-model.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 
+/** Legacy single-depth key, still read so an existing preference survives. */
 export const TRACE_LOGIC_STORAGE_KEY = "cubi:workspace:trace-logic-depth";
+export const TRACE_LOGIC_PREDECESSOR_STORAGE_KEY = "cubi:workspace:trace-logic-predecessor-depth";
+export const TRACE_LOGIC_SUCCESSOR_STORAGE_KEY = "cubi:workspace:trace-logic-successor-depth";
 export const TRACE_LOGIC_MIN_DEPTH = 1;
 export const TRACE_LOGIC_MAX_DEPTH = 5;
 export const TRACE_LOGIC_DEFAULT_DEPTH = 2;
+
+/** Help: Bottom Layout Options specifies the predecessor levels and the
+ * successor levels separately. */
+export type TraceLogicDepths = {
+  predecessors: number;
+  successors: number;
+};
+
+export const TRACE_LOGIC_DEFAULT_DEPTHS: TraceLogicDepths = {
+  predecessors: TRACE_LOGIC_DEFAULT_DEPTH,
+  successors: TRACE_LOGIC_DEFAULT_DEPTH,
+};
 
 export type TraceLogicRow = {
   activity: WorkspaceActivityRow;
@@ -26,12 +41,31 @@ export type TraceLogicModel = {
   selectedId: string | null;
   predecessors: TraceLogicRow[];
   successors: TraceLogicRow[];
-  depth: number;
+  depths: TraceLogicDepths;
   /** A visited activity reappeared, so the walk stopped on that branch. */
   cycleDetected: boolean;
   /** Relationship endpoints that are not loaded as activities. */
   missingReferences: number;
 };
+
+export function normalizeTraceDepth(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return TRACE_LOGIC_DEFAULT_DEPTH;
+  return Math.min(TRACE_LOGIC_MAX_DEPTH, Math.max(TRACE_LOGIC_MIN_DEPTH, Math.trunc(parsed)));
+}
+
+export function normalizeTraceLogicDepths(
+  input: number | Partial<TraceLogicDepths> | null | undefined,
+): TraceLogicDepths {
+  if (typeof input === "number" || input === null || input === undefined) {
+    const depth = normalizeTraceDepth(input);
+    return { predecessors: depth, successors: depth };
+  }
+  return {
+    predecessors: normalizeTraceDepth(input.predecessors),
+    successors: normalizeTraceDepth(input.successors),
+  };
+}
 
 function edgeLabel(type: string, lagValue: string, lagUnit: string, locale: string): string {
   const lag = Number(lagValue);
@@ -50,15 +84,15 @@ export function buildTraceLogic(
   relationships: readonly WorkspaceRelationshipRow[],
   selectedId: string | null,
   locale: string,
-  depth: number = TRACE_LOGIC_DEFAULT_DEPTH,
+  depths: number | Partial<TraceLogicDepths> = TRACE_LOGIC_DEFAULT_DEPTHS,
 ): TraceLogicModel {
   const byId = new Map(activities.map((row) => [row.id, row]));
-  const clamped = Math.min(TRACE_LOGIC_MAX_DEPTH, Math.max(TRACE_LOGIC_MIN_DEPTH, Math.trunc(depth) || TRACE_LOGIC_DEFAULT_DEPTH));
+  const normalized = normalizeTraceLogicDepths(depths);
   const model: TraceLogicModel = {
     selectedId: selectedId && byId.has(selectedId) ? selectedId : null,
     predecessors: [],
     successors: [],
-    depth: clamped,
+    depths: normalized,
     cycleDetected: false,
     missingReferences: 0,
   };
@@ -67,12 +101,13 @@ export function buildTraceLogic(
   const walk = (direction: "predecessor" | "successor"): TraceLogicRow[] => {
     const rows: TraceLogicRow[] = [];
     const selectedId = model.selectedId as string;
+    const limit = direction === "predecessor" ? normalized.predecessors : normalized.successors;
     // Each frontier entry keeps the path that reached it so a repeated activity
     // is only a cycle when it is an ancestor of the branch. Two paths that meet
     // again (a diamond) are a convergence and must not be reported as circular.
     let frontier = new Map<string, ReadonlySet<string>>([[selectedId, new Set([selectedId])]]);
     const visited = new Set([selectedId]);
-    for (let level = 1; level <= clamped && frontier.size; level += 1) {
+    for (let level = 1; level <= limit && frontier.size; level += 1) {
       const next = new Map<string, Set<string>>();
       for (const relationship of relationships) {
         const from = direction === "predecessor" ? relationship.successorId : relationship.predecessorId;
@@ -109,24 +144,53 @@ export function buildTraceLogic(
   return model;
 }
 
-export function readTraceLogicDepth(storage?: Storage): number {
+function resolveStorage(storage?: Storage): Storage | null {
+  if (storage) return storage;
   try {
-    const raw = (storage ?? (typeof window === "undefined" ? null : window.localStorage))?.getItem(TRACE_LOGIC_STORAGE_KEY);
-    const parsed = raw === null || raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
-    if (!Number.isFinite(parsed)) return TRACE_LOGIC_DEFAULT_DEPTH;
-    return Math.min(TRACE_LOGIC_MAX_DEPTH, Math.max(TRACE_LOGIC_MIN_DEPTH, parsed));
+    return typeof window === "undefined" ? null : window.localStorage;
   } catch {
-    return TRACE_LOGIC_DEFAULT_DEPTH;
+    return null;
   }
 }
 
-export function storeTraceLogicDepth(value: number, storage?: Storage): void {
-  const clamped = Math.min(TRACE_LOGIC_MAX_DEPTH, Math.max(TRACE_LOGIC_MIN_DEPTH, Math.trunc(value) || TRACE_LOGIC_DEFAULT_DEPTH));
+function readStoredDepth(key: string, storage?: Storage): number | null {
   try {
-    (storage ?? (typeof window === "undefined" ? null : window.localStorage))?.setItem(TRACE_LOGIC_STORAGE_KEY, String(clamped));
+    const raw = resolveStorage(storage)?.getItem(key);
+    if (raw === null || raw === undefined || raw.trim() === "") return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? normalizeTraceDepth(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readTraceLogicDepths(storage?: Storage): TraceLogicDepths {
+  // A project saved with the first single-depth control keeps that value for
+  // both sides until either side is changed through Bottom Layout Options.
+  const legacy = readStoredDepth(TRACE_LOGIC_STORAGE_KEY, storage);
+  return {
+    predecessors: readStoredDepth(TRACE_LOGIC_PREDECESSOR_STORAGE_KEY, storage)
+      ?? legacy
+      ?? TRACE_LOGIC_DEFAULT_DEPTH,
+    successors: readStoredDepth(TRACE_LOGIC_SUCCESSOR_STORAGE_KEY, storage)
+      ?? legacy
+      ?? TRACE_LOGIC_DEFAULT_DEPTH,
+  };
+}
+
+export function storeTraceLogicDepths(
+  depths: number | Partial<TraceLogicDepths>,
+  storage?: Storage,
+): TraceLogicDepths {
+  const normalized = normalizeTraceLogicDepths(depths);
+  try {
+    const target = resolveStorage(storage);
+    target?.setItem(TRACE_LOGIC_PREDECESSOR_STORAGE_KEY, String(normalized.predecessors));
+    target?.setItem(TRACE_LOGIC_SUCCESSOR_STORAGE_KEY, String(normalized.successors));
   } catch {
     // Preference storage is optional; the chosen depth still applies to this render.
   }
+  return normalized;
 }
 
 function esc(value: string): string {
@@ -141,7 +205,8 @@ function traceRow(row: TraceLogicRow, locale: string, selectedId: string | null)
   const t = (en: string, fa: string): string => translateWorkspaceUiText(locale, en, fa);
   const selected = row.activity.id === selectedId;
   const progress = row.activity.gantt?.progressPercent;
-  return `<li class="cp-trace-row${row.critical ? " is-critical" : ""}${selected ? " is-selected" : ""}" data-trace-activity-id="${esc(row.activity.id)}">
+  const criticalLabel = t("Critical activity", "فعالیت بحرانی");
+  return `<li class="cp-trace-row${row.critical ? " is-critical" : ""}${selected ? " is-selected" : ""}" data-trace-activity-id="${esc(row.activity.id)}"${row.critical ? ` title="${esc(criticalLabel)}"` : ""}>
     <span class="cp-trace-level" aria-label="${esc(t(`Level ${row.level}`, `سطح ${row.level}`))}">${row.level}</span>
     <button type="button" class="cp-trace-goto" data-trace-goto="${esc(row.activity.id)}">
       <strong>${esc(row.activity.id)}</strong> — ${esc(row.activity.name)}
@@ -156,19 +221,27 @@ export function renderTraceLogic(
   relationships: readonly WorkspaceRelationshipRow[],
   locale: string,
   selectedId: string | null,
-  depth: number,
+  depths: number | Partial<TraceLogicDepths> = TRACE_LOGIC_DEFAULT_DEPTHS,
 ): string {
   const t = (en: string, fa: string): string => translateWorkspaceUiText(locale, en, fa);
-  const model = buildTraceLogic(activities, relationships, selectedId, locale, depth);
+  const model = buildTraceLogic(activities, relationships, selectedId, locale, depths);
   const selected = model.selectedId ? activities.find((row) => row.id === model.selectedId) ?? null : null;
 
-  const depthOptions = Array.from({ length: TRACE_LOGIC_MAX_DEPTH - TRACE_LOGIC_MIN_DEPTH + 1 }, (_, index) => TRACE_LOGIC_MIN_DEPTH + index)
-    .map((value) => `<option value="${value}"${value === model.depth ? " selected" : ""}>${value}</option>`)
-    .join("");
+  const depthOptions = (selectedValue: number): string => Array.from(
+    { length: TRACE_LOGIC_MAX_DEPTH - TRACE_LOGIC_MIN_DEPTH + 1 },
+    (_, index) => TRACE_LOGIC_MIN_DEPTH + index,
+  ).map((value) => `<option value="${value}"${value === selectedValue ? " selected" : ""}>${value}</option>`).join("");
+  const depthField = (direction: "predecessors" | "successors", label: string, value: number): string =>
+    `<label class="cp-trace-depth">${esc(label)}
+      <select data-trace-depth="${direction}">${depthOptions(value)}</select>
+    </label>`;
+  const depthsMarkup = `${depthField("predecessors", t("Predecessors", "پیش‌نیازها"), model.depths.predecessors)}
+    ${depthField("successors", t("Successors", "پس‌نیازها"), model.depths.successors)}`;
+  const dataset = `data-trace-logic data-trace-predecessor-depth="${model.depths.predecessors}" data-trace-successor-depth="${model.depths.successors}"`;
 
   if (!selected) {
-    return `<section class="cp-trace-logic" data-trace-logic data-trace-depth-value="${model.depth}">
-      <header class="cp-trace-head"><h2 id="cp-trace-heading">${esc(t("Trace Logic", "ردیابی منطق"))}</h2></header>
+    return `<section class="cp-trace-logic" ${dataset}>
+      <header class="cp-trace-head"><h2 id="cp-trace-heading">${esc(t("Trace Logic", "ردیابی منطق"))}</h2>${depthsMarkup}</header>
       <div class="cp-empty">${esc(t(
         "Select an activity to trace its predecessor and successor chains.",
         "برای ردیابی زنجیرهٔ پیش‌نیازها و پس‌نیازها یک فعالیت انتخاب کنید.",
@@ -203,13 +276,11 @@ export function renderTraceLogic(
       : `<p class="cp-trace-empty">${esc(t("None within depth.", "در این عمق وجود ندارد."))}</p>`}
   </section>`;
 
-  return `<section class="cp-trace-logic" data-trace-logic data-trace-depth-value="${model.depth}">
+  return `<section class="cp-trace-logic" ${dataset}>
     <header class="cp-trace-head">
       <div><h2 id="cp-trace-heading">${esc(t("Trace Logic", "ردیابی منطق"))}</h2>
         <span class="cp-trace-selected" data-trace-selected="${esc(selected.id)}">${esc(selected.id)} — ${esc(selected.name)}</span></div>
-      <label class="cp-trace-depth">${esc(t("Depth", "عمق"))}
-        <select data-trace-depth>${depthOptions}</select>
-      </label>
+      <div class="cp-trace-depths">${depthsMarkup}</div>
     </header>
     ${notices.map((notice) => `<p class="cp-register-notice">${esc(notice)}</p>`).join("")}
     <div class="cp-trace-groups">

@@ -8631,7 +8631,8 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   flex: 0 0 auto;
   min-height: 28px;
   padding: 2px 8px;
@@ -8641,6 +8642,7 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-trace-head h2 { margin: 0; font-size: 11px; color: #1f2d3d; }
 .cp-p6 .cp-trace-selected { display: block; font-size: 9.5px; color: #44536a; }
 .cp-p6 .cp-trace-depth { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; color: #44536a; }
+.cp-p6 .cp-trace-depths { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cp-p6 .cp-trace-depth select { height: 20px; font: inherit; }
 .cp-p6 .cp-trace-groups {
   display: grid;
