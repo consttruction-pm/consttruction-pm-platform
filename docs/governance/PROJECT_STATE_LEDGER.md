@@ -4,6 +4,15 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, external integration readiness hardening — 2026-11-13 (merged; PR #1869)
+
+- **Base and merge:** branch cut from merged `main` `07f68c3`, squash-merged as **`ab0f84f`** via PR #1869 after exact-head CI at `ba75649`. Scope is Workstream E.
+- **Metrics export fail-closed:** `validate_environment` now runs the same `MetricsExportSettings.from_environment` used by the exporter. Enabling export with a missing, weak or malformed token, or an invalid byte/series bound, produces a configuration error mapped to the exact environment variable under the `observability` readiness component. In production that component is required, so the deployment reports `not_ready` rather than silently answering `503` on `/api/metrics`.
+- **Tracing honesty:** `CONSTRUCTION_PM_OTEL_ENDPOINT` is documented as reserved. Setting it now emits the `OTEL_ENDPOINT_NOT_IMPLEMENTED` warning, because the codebase has no span exporter, collector, sampling or trace-context propagation. The production env example and readiness contract no longer imply tracing works.
+- **Configuration documentation:** the production env example lists the metrics export variables as commented, bounded defaults; the readiness contract documents the disabled/configured/unavailable states and the readiness error behavior.
+- **Verification:** Python 3.12.13, `psycopg` 3.3.9, PostgreSQL 16.2. Focused suites (`test_production_readiness.py`, `test_metrics_export.py`, `test_staging_smoke.py`) → 60 passed. Full SQLite suite → **4038 passed, 170 skipped**. Full live PostgreSQL suite on the same database, twice consecutively → **4262 passed, 1 skipped** both runs. Exact-head CI at `ba75649` all 7 triggered checks **success**: test 3.11/3.12/3.13 (`43356942648`), four typechecks (`43356942534`). The PostgreSQL workflow was not triggered because its path filter does not cover this change; the live suite was run locally twice instead. Merged `main` verified at `ab0f84f`.
+- **Status:** implemented, locally tested, PostgreSQL tested, merged. S3, HTTPS scanner, OCR and metrics export remain configurable but **NOT CONFIGURED** in any real environment; no credential, DNS, billing or cloud resource was changed.
+
 ## Agent 3 checkpoint — Issue #1799, operational metrics export — 2026-11-13 (merged; PR #1867)
 
 - **Base and merge:** branch cut from merged `main` `77260c4`, squash-merged as **`8482775`** via PR #1867 after exact-head CI at `d56152e`. Scope is Workstream C.
