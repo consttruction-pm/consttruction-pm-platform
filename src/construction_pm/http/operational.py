@@ -8,7 +8,9 @@ configuration values.
 - ``GET|HEAD /api/health/live``  — process liveness, always 200 while serving.
 - ``GET|HEAD /api/health/ready`` — dependency readiness; 200 for ``ready`` and
   ``degraded``, 503 for ``not_ready``. A degraded response means only optional
-  components are unavailable.
+  components are unavailable. Component names and pass/fail state are public;
+  probe detail strings are returned only when a deployment supplies an
+  authentication callback that approves the request.
 - ``GET|HEAD /api/metrics`` — optional bounded metrics scrape, only when a
   metrics export service is configured. It requires a bearer token, is never
   cached, and is served outside request instrumentation. Health and readiness
@@ -34,6 +36,7 @@ from ..observability import (
     set_correlation_id,
 )
 from ..production_readiness import (
+    ReadinessReport,
     ReadinessService,
     StructuredEventLogger,
     correlation_id_from_environ,
@@ -64,6 +67,22 @@ def route_template(method: str, path: str) -> str:
     if "/documents/" in path:
         return "document"
     return "http"
+
+
+def _public_readiness_payload(report: ReadinessReport) -> dict[str, object]:
+    """Aggregate readiness without per-component detail for anonymous callers."""
+    return {
+        "status": report.status.value,
+        "generated_at": report.generated_at,
+        "components": [
+            {
+                "name": component.name,
+                "requirement": component.requirement.value,
+                "status": "healthy" if component.healthy else "unhealthy",
+            }
+            for component in report.components
+        ],
+    }
 
 
 def _json_response(
@@ -105,6 +124,7 @@ class OperationalMiddleware:
         logger: StructuredEventLogger | None = None,
         metrics: OperationalMetrics | None = None,
         metrics_export: MetricsExportService | None = None,
+        readiness_detail_allowed: Callable[[Mapping[str, object]], bool] | None = None,
     ) -> None:
         if not callable(app):
             raise ValueError("OPERATIONAL_APP_NOT_CALLABLE")
@@ -113,6 +133,7 @@ class OperationalMiddleware:
         self._logger = logger
         self._metrics = metrics
         self._metrics_export = metrics_export
+        self._readiness_detail_allowed = readiness_detail_allowed
 
     def __call__(
         self, environ: dict[str, object], start_response: StartResponse
@@ -123,7 +144,7 @@ class OperationalMiddleware:
         environ["construction_pm.correlation_id"] = correlation_id
         environ["HTTP_X_REQUEST_ID"] = correlation_id
         if path in HEALTH_PATHS:
-            return self._health(method, path, start_response, correlation_id)
+            return self._health(environ, method, path, start_response, correlation_id)
         if path == METRICS_PATH and self._metrics_export is not None:
             return self._scrape(
                 method,
@@ -284,8 +305,17 @@ class OperationalMiddleware:
         )
         return [payload] if include_body else []
 
+    def _readiness_detail_visible(self, environ: Mapping[str, object]) -> bool:
+        if self._readiness_detail_allowed is None:
+            return False
+        try:
+            return bool(self._readiness_detail_allowed(environ))
+        except Exception:  # noqa: BLE001 - an auth callback must never crash the probe
+            return False
+
     def _health(
         self,
+        environ: Mapping[str, object],
         method: str,
         path: str,
         start_response: StartResponse,
@@ -320,7 +350,6 @@ class OperationalMiddleware:
                             "name": "readiness",
                             "requirement": "required",
                             "status": "unhealthy",
-                            "detail": "READINESS_NOT_CONFIGURED",
                         }
                     ],
                 },
@@ -336,7 +365,11 @@ class OperationalMiddleware:
                 include_body=include_body,
             )
         report = self._readiness.report()
-        payload = report.as_dict()
+        payload = (
+            report.as_dict()
+            if self._readiness_detail_visible(environ)
+            else _public_readiness_payload(report)
+        )
         status_code = 200 if report.ready else 503
         return _json_response(
             start_response,
