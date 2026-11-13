@@ -1,0 +1,223 @@
+{
+  "contract": "cubi-activity-relationships-v26.v1",
+  "baseUrl": "http://127.0.0.1:4204",
+  "gitHead": "04fba0298652cd6e29d9e436b665dd615f691314",
+  "testedCodeSha": "04fba0298652cd6e29d9e436b665dd615f691314",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T01:03:53.508Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the persisted network draws every arrow with its stored type and exposes drag handles",
+      "status": "pass",
+      "at": "2026-11-13T01:03:56.232Z",
+      "links": 15,
+      "types": [
+        "FS",
+        "SS"
+      ],
+      "edgeHandles": 28,
+      "primaryBars": 14,
+      "lagBadges": [
+        {
+          "relationshipId": "REL-RPS-170",
+          "text": "+5d"
+        }
+      ]
+    },
+    {
+      "id": "REL-MWE9X7N8-Y207ML",
+      "name": "drawing finish→start creates an FS relationship with a live type hint",
+      "status": "pass",
+      "at": "2026-11-13T01:03:58.746Z",
+      "during": {
+        "active": true,
+        "previewType": "FS",
+        "path": "M 6.25 55.5 H 66.79 V 135.5 H 54.79",
+        "startXPercent": 0.625,
+        "startY": 55.5,
+        "hintVisible": true,
+        "hintText": "FS — Finish to Start",
+        "hintType": "FS",
+        "targetRow": "A120",
+        "bodyHeight": 427,
+        "bodyWidth": 800
+      },
+      "post": {
+        "relationship_id": "REL-MWE9X7N8-Y207ML",
+        "predecessor_id": "A100",
+        "successor_id": "A120",
+        "relationship_type": "FS",
+        "lag_value": "0",
+        "lag_unit": "working-day"
+      }
+    },
+    {
+      "id": "REL-MWE9X924-AHVA6F",
+      "name": "drawing finish→finish creates an FF relationship",
+      "status": "pass",
+      "at": "2026-11-13T01:04:00.502Z",
+      "during": {
+        "hint": "FF — Finish to Finish",
+        "target": "A140"
+      }
+    },
+    {
+      "id": "REL-MWE9XAEQ-55PXV0",
+      "name": "drawing start→start creates an SS relationship",
+      "status": "pass",
+      "at": "2026-11-13T01:04:02.254Z",
+      "during": {
+        "hint": "SS — Start to Start",
+        "target": "A145"
+      }
+    },
+    {
+      "id": "REL-MWE9XBRD-NZEIMH",
+      "name": "drawing start→finish creates an SF relationship",
+      "status": "pass",
+      "at": "2026-11-13T01:04:04.080Z",
+      "during": {
+        "hint": "SF — Start to Finish",
+        "target": "A150"
+      }
+    },
+    {
+      "id": "06",
+      "name": "every drawn relationship survives a full reload with its type and endpoint",
+      "status": "pass",
+      "at": "2026-11-13T01:04:05.930Z",
+      "links": 19,
+      "expected": [
+        [
+          "A100",
+          "A120",
+          "FS"
+        ],
+        [
+          "A110",
+          "A140",
+          "FF"
+        ],
+        [
+          "A120",
+          "A145",
+          "SS"
+        ],
+        [
+          "A140",
+          "A150",
+          "SF"
+        ]
+      ]
+    },
+    {
+      "id": "REL-MWE9X7N8-Y207ML",
+      "name": "the arrow context menu edits type and lag through optimistic revision",
+      "status": "pass",
+      "at": "2026-11-13T01:04:08.796Z",
+      "expectedRevision": 1,
+      "patch": {
+        "expected_revision": 1,
+        "predecessor_id": "A100",
+        "successor_id": "A120",
+        "relationship_type": "SS",
+        "lag_value": "2",
+        "lag_unit": "working-day"
+      },
+      "type": "SS",
+      "lag": "+2d"
+    },
+    {
+      "id": "REL-MWE9XBRD-NZEIMH",
+      "name": "the arrow context menu deletes only after confirmation and the removal persists",
+      "status": "pass",
+      "at": "2026-11-13T01:04:12.745Z",
+      "remaining": 18
+    },
+    {
+      "id": "09",
+      "name": "relationship lines hidden also disable drawing and the gestures persist nothing",
+      "status": "pass",
+      "at": "2026-11-13T01:04:14.566Z",
+      "hiddenCount": 0,
+      "restored": 18,
+      "writes": 6
+    },
+    {
+      "id": "REL-MWE9XMCD-IYDF1S",
+      "name": "fa RTL at 1280 draws from the correct physical edges",
+      "status": "pass",
+      "at": "2026-11-13T01:04:17.808Z",
+      "hint": "FS — پایان به شروع",
+      "dir": "rtl",
+      "overflow": 0
+    },
+    {
+      "id": "REL-MWE9XOU6-CV6SEA",
+      "name": "en at 1920 keeps the same edge semantics and layout",
+      "status": "pass",
+      "at": "2026-11-13T01:04:21.075Z",
+      "links": 20,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-persisted-arrows-en-1366.png",
+    "02-drag-hint-fs-en-1366.png",
+    "03-drawn-four-types-en-1366.png",
+    "04-persisted-after-reload-en-1366.png",
+    "05-edited-type-and-lag-en-1366.png",
+    "06-deleted-arrow-en-1366.png",
+    "07-drag-fa-rtl-1280.png",
+    "08-drawn-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "relationshipWrites": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9X7N8-Y207ML\",\"predecessor_id\":\"A100\",\"successor_id\":\"A120\",\"relationship_type\":\"FS\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9X924-AHVA6F\",\"predecessor_id\":\"A110\",\"successor_id\":\"A140\",\"relationship_type\":\"FF\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9XAEQ-55PXV0\",\"predecessor_id\":\"A120\",\"successor_id\":\"A145\",\"relationship_type\":\"SS\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9XBRD-NZEIMH\",\"predecessor_id\":\"A140\",\"successor_id\":\"A150\",\"relationship_type\":\"SF\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships/REL-MWE9X7N8-Y207ML",
+      "postData": "{\"expected_revision\":1,\"predecessor_id\":\"A100\",\"successor_id\":\"A120\",\"relationship_type\":\"SS\",\"lag_value\":\"2\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships/REL-MWE9XBRD-NZEIMH",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9XMCD-IYDF1S\",\"predecessor_id\":\"A150\",\"successor_id\":\"A190\",\"relationship_type\":\"FS\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4204/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-MWE9XOU6-CV6SEA\",\"predecessor_id\":\"A190\",\"successor_id\":\"A210\",\"relationship_type\":\"SS\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    }
+  ],
+  "scheduleWrites": [],
+  "passed": 11,
+  "failed": 0
+}

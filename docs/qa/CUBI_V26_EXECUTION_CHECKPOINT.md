@@ -3128,3 +3128,42 @@ Evidence: `docs/workspace/evidence/activity-gantt-overlays-v26-2026-11-13/`
 errors/5xx, `testedCodeSha` `10659a0281588f25a95ff50cd092a197c5e7d55b`,
 screenshots 01–07, `CHECKLIST.md`). Web suite at the same code: 968 + 14 tests
 pass; `tsc -p tsconfig.test.json` and `npm run build` pass.
+
+## Gantt relationship drawing and arrow editing (2026-11-13)
+
+- **Scope.** ACT-012 moved from NOT_AUDITED to WIRED_WRITE at code
+  `04fba0298652cd6e29d9e436b665dd615f691314`.
+- **Gesture.** With Show Relationships on, every primary bar exposes a start
+  and a finish handle. A pointer press on either edge starts a drag that draws
+  a dashed elbow preview and a localized hint naming the relationship that will
+  be created. Releasing over a successor bar's edge creates finish→start,
+  finish→finish, start→finish or start→start, exactly the Help table.
+  `relationshipTypeFromEdges` is the single pure encoder of that table.
+- **Hit testing.** The default task bar is a clipped triangle, so
+  `elementFromPoint` cannot find it at mid-height. The row is resolved by the
+  pointer Y against row boxes and the edge by the bar's own box; the successor
+  is resolved geometrically with a bounded reach, which also makes the fa RTL
+  cell use the same physical edges.
+- **Persistence.** The gesture only proposes: it calls the existing
+  `onRelationshipCreate` callback, so writes still go through
+  `P6RelationshipAPI` (`POST/PATCH/DELETE /api/projects/{project}/p6/relationships`)
+  with `PROJECT_WRITE`, duplicate and cycle rejection, and `expected_revision`.
+  Escape (document capture listener) or a drop without a target removes the
+  overlay and writes nothing.
+- **Verified behaviour.** A reset preview draws all 15 stored arrows with their
+  FS/SS types and the `+5d` badge; dragging A100→A120, A110→A140, A120→A145
+  and A140→A150 creates FS, FF, SS and SF; a full reload keeps all four; the
+  arrow menu edits A100→A120 to SS lag 2 with `expected_revision: 1`; delete
+  sends nothing on cancel and removes exactly one row on confirm; hidden lines
+  remove handles and disable drawing; fa RTL 1280 and en 1920 draw with 0 px
+  overflow. No non-GET schedule or activity request is made.
+- **Known limits.** New arrows start with 0 working days of lag; lag is edited
+  through the arrow context menu afterwards. The hint is a positioned label,
+  not the Oracle hint-window chrome.
+
+Evidence: `docs/workspace/evidence/activity-relationships-v26-2026-11-13/`
+(`activity-relationships-v26.json`, 11/11 scenarios, 0 exceptions/console
+errors/5xx, 0 schedule writes, `testedCodeSha`/`gitHead`
+`04fba0298652cd6e29d9e436b665dd615f691314`, screenshots 01–08, `CHECKLIST.md`).
+Web suite at the same code: 969 + 14 tests pass; `tsc --noEmit` and
+`npm run build` pass.
