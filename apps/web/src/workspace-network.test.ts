@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildActivityNetwork, renderActivityNetwork } from "./workspace-network.js";
+import { buildActivityNetwork, clampNetworkZoom, NETWORK_ZOOM_DEFAULT, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { createWorkspaceState, withActivities, withRelationships } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 
@@ -101,10 +101,47 @@ test("activity network markup is selectable, labelled and honest about missing l
   assert.match(html, /class="cp-network-node is-selected"/);
   assert.match(html, /SS\+5d/);
   assert.match(html, /not recalculated/);
+  assert.match(html, /data-network-relationship-id="R1"/);
+  assert.match(html, /data-network-edge-hit="R1"/);
+  assert.match(html, /<title>SS A → B \(5 working-day\)<\/title>/);
+  assert.match(html, /data-network-zoom="1"/);
+  assert.match(html, /data-network-zoom-label>100%/);
   assert.doesNotMatch(html, /No persisted relationships/);
 
   const withoutLogic = renderActivityNetwork([activity("A", "Kickoff")], [], "en", null);
   assert.match(withoutLogic, /No persisted relationships are loaded; only activity nodes are shown\./);
+});
+
+test("network zoom is a clamped presentation preference", () => {
+  assert.equal(NETWORK_ZOOM_DEFAULT, 1);
+  assert.equal(clampNetworkZoom(0.1), 0.2);
+  assert.equal(clampNetworkZoom(9), 2);
+  assert.equal(clampNetworkZoom(Number.NaN), 1);
+  assert.equal(clampNetworkZoom(1.26), 1.25);
+
+  const store = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => { store.set(key, value); },
+  } as unknown as Storage;
+  assert.equal(readNetworkZoom("k", storage), 1);
+  assert.equal(storeNetworkZoom("k", 1.4, storage), 1.4);
+  assert.equal(readNetworkZoom("k", storage), 1.4);
+  store.set("k", "not-a-number");
+  assert.equal(readNetworkZoom("k", storage), 1);
+
+  const zoomed = renderActivityNetwork(
+    [activity("A", "Kickoff"), activity("B", "Design")],
+    [relationship("R1", "A", "B")],
+    "en",
+    null,
+    1.5,
+    "k",
+  );
+  assert.match(zoomed, /data-network-zoom="1.5"/);
+  assert.match(zoomed, /data-network-zoom-label>150%/);
+  assert.match(zoomed, /data-network-storage-key="k"/);
+  assert.match(zoomed, /width="792"/);
 });
 
 test("layout options enable the network only with persisted logic and the choice renders it", () => {

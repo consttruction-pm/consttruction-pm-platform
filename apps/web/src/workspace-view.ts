@@ -30,7 +30,7 @@ import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.gen
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
-import { renderActivityNetwork } from "./workspace-network.js";
+import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { readTraceLogicDepth, renderTraceLogic, storeTraceLogicDepth } from "./workspace-trace-logic.js";
 import {
   DEFAULT_PRESENTATION,
@@ -207,6 +207,15 @@ function topLayoutStorageKey(state: WorkspaceState): string {
 function bottomLayoutStorageKey(state: WorkspaceState): string {
   return [
     WORKSPACE_BOTTOM_LAYOUT_STORAGE_KEY,
+    encodeURIComponent(state.context.tenant_id ?? ""),
+    encodeURIComponent(state.context.project_id),
+    state.activeMenu,
+  ].join(":");
+}
+
+function networkZoomStorageKey(state: WorkspaceState): string {
+  return [
+    "cubi:workspace:network-zoom",
     encodeURIComponent(state.context.tenant_id ?? ""),
     encodeURIComponent(state.context.project_id),
     state.activeMenu,
@@ -725,6 +734,39 @@ function beginGanttLinkDrag(container: HTMLElement, event: PointerEvent, barEl: 
   drag.path.setAttribute("d", `M ${ganttRound(drag.startPercent * 10)} ${ganttRound(startY)} L ${ganttRound(drag.startPercent * 10)} ${ganttRound(startY)}`);
 }
 
+/** Applies the presentation-only network zoom to the rendered SVG. */
+function applyNetworkZoom(section: HTMLElement, nextZoom: number): void {
+  const svg = section.querySelector<SVGSVGElement>(".cp-network-svg");
+  if (!svg) return;
+  const baseWidth = Number(section.dataset.networkBaseWidth);
+  const baseHeight = Number(section.dataset.networkBaseHeight);
+  if (!Number.isFinite(baseWidth) || !Number.isFinite(baseHeight) || baseWidth <= 0 || baseHeight <= 0) return;
+  const zoom = clampNetworkZoom(nextZoom);
+  svg.setAttribute("width", String(Math.round(baseWidth * zoom)));
+  svg.setAttribute("height", String(Math.round(baseHeight * zoom)));
+  section.dataset.networkZoom = String(zoom);
+  const label = section.querySelector<HTMLElement>("[data-network-zoom-label]");
+  if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+  section.querySelectorAll<HTMLButtonElement>("[data-network-zoom]").forEach((button) => {
+    if (button.dataset.networkZoom === "in") button.disabled = zoom >= NETWORK_ZOOM_MAX;
+    else if (button.dataset.networkZoom === "out") button.disabled = zoom <= NETWORK_ZOOM_MIN;
+  });
+  const storageKey = section.dataset.networkStorageKey ?? "";
+  if (storageKey) storeNetworkZoom(storageKey, zoom);
+}
+
+function fitNetworkZoom(section: HTMLElement): number {
+  const scroll = section.querySelector<HTMLElement>(".cp-network-scroll");
+  if (!scroll) return 1;
+  const baseWidth = Number(section.dataset.networkBaseWidth);
+  const baseHeight = Number(section.dataset.networkBaseHeight);
+  if (!Number.isFinite(baseWidth) || !Number.isFinite(baseHeight) || baseWidth <= 0 || baseHeight <= 0) return 1;
+  const availableWidth = (scroll.clientWidth || 0) - 8;
+  const availableHeight = (scroll.clientHeight || 0) - 8;
+  if (availableWidth <= 0 || availableHeight <= 0) return 1;
+  return clampNetworkZoom(Math.min(availableWidth / baseWidth, availableHeight / baseHeight, 1));
+}
+
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
@@ -911,7 +953,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1157,6 +1199,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") options.onGanttScaleChange?.(mode);
       return;
     }
+    if (target.dataset.networkZoom) {
+      const section = target.closest<HTMLElement>("[data-network-view]");
+      if (!section) return;
+      const mode = target.dataset.networkZoom;
+      const current = Number(section.dataset.networkZoom) || 1;
+      const next = mode === "fit" ? fitNetworkZoom(section) : mode === "in" ? current + 0.1 : mode === "out" ? current - 0.1 : current;
+      applyNetworkZoom(section, next);
+      return;
+    }
     if (target.dataset.ganttRelationshipsToggle !== undefined) {
       options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
       return;
@@ -1252,7 +1303,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("dblclick", (event) => {
     const target = event.target as HTMLElement | null;
-    const wbsRow = target && typeof target.closest === "function" ? target.closest<HTMLElement>("[data-wbs-row]") : null;
+    if (!target || typeof target.closest !== "function") return;
+    const networkEdge = target.closest<SVGGraphicsElement>("[data-network-relationship-id]");
+    if (networkEdge) {
+      const relationshipId = networkEdge.getAttribute("data-network-relationship-id") ?? "";
+      if (!relationshipId) return;
+      event.preventDefault();
+      openRelationshipEditor(container, relationshipId);
+      return;
+    }
+    const wbsRow = target.closest<HTMLElement>("[data-wbs-row]");
     if (!wbsRow?.dataset.wbsRow) return;
     event.preventDefault();
     const record = workspaceRenderRecords.get(container);
@@ -1274,7 +1334,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (event.key === "Enter" || event.key === " ") {
       const activationTarget = keyTarget && typeof keyTarget.closest === "function"
-        ? keyTarget.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row],[data-wbs-row]")
+        ? keyTarget.closest<HTMLElement>("[data-network-relationship-id],[data-gantt-activity-id],[data-activity-id],[data-document-row],[data-wbs-row]")
         : null;
       if (!activationTarget) return;
       // The toggle is a real button: let its native click handle Enter/Space
@@ -1290,6 +1350,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       if (activationTarget.dataset.wbsRow) return;
       event.preventDefault();
+      if (activationTarget.dataset.networkRelationshipId) {
+        openRelationshipEditor(container, activationTarget.dataset.networkRelationshipId);
+        return;
+      }
       if (activationTarget.dataset.documentRow) {
         activationTarget.click();
         return;
@@ -1428,7 +1492,9 @@ export type WorkspaceContextKind =
   | "gantt-link"
   | "gantt-wbs"
   | "gantt-empty"
-  | "gantt-timescale";
+  | "gantt-timescale"
+  | "network-activity"
+  | "network-link";
 
 export type WorkspaceContextTarget = {
   kind: WorkspaceContextKind;
@@ -1448,6 +1514,18 @@ function workspaceContextAt(target: HTMLElement): WorkspaceContextTarget | null 
       return null;
     }
   };
+  const network = closest<HTMLElement>("[data-network-view]");
+  if (network) {
+    const edge = closest<SVGGraphicsElement>("[data-network-relationship-id]");
+    const relationshipId = edge?.getAttribute("data-network-relationship-id") ?? "";
+    if (relationshipId) {
+      return { kind: "network-link", relationshipId, anchor: edge as unknown as HTMLElement };
+    }
+    const node = closest<HTMLElement>("[data-network-view] [data-gantt-activity-id]");
+    const activityId = node?.dataset.ganttActivityId ?? "";
+    if (activityId) return { kind: "network-activity", activityId, anchor: node as HTMLElement };
+    return null;
+  }
   const link = closest<SVGPathElement>("[data-gantt-link],[data-gantt-link-hit]");
   const relationshipId = link?.dataset.ganttLink ?? link?.dataset.ganttLinkHit;
   if (relationshipId) {
@@ -1697,6 +1775,8 @@ export function workspaceMenuItems(record: WorkspaceRenderRecord, context: Works
     }
     case "gantt-activity": return activityMenuItems(state, context.activityId, true, lineNumbers);
     case "gantt-link": return ganttLinkMenuItems(state, context.relationshipId);
+    case "network-activity": return activityMenuItems(state, context.activityId, true, lineNumbers);
+    case "network-link": return ganttLinkMenuItems(state, context.relationshipId);
     case "gantt-wbs": {
       const collapsed = getCollapsedWbsIds(state.context.project_id).has(context.wbsId ?? "");
       return wbsMenuItems(state, context.wbsId, collapsed);
@@ -1716,6 +1796,8 @@ const CONTEXT_MENU_LABELS: Record<WorkspaceContextKind, { en: string; fa: string
   "gantt-wbs": { en: "Gantt WBS Summary", fa: "خلاصهٔ ساختار شکست در گانت" },
   "gantt-empty": { en: "Gantt Chart", fa: "نمودار گانت" },
   "gantt-timescale": { en: "Timescale", fa: "مقیاس زمانی" },
+  "network-activity": { en: "Network Activity", fa: "فعالیت شبکه" },
+  "network-link": { en: "Relationship", fa: "رابطه" },
 };
 
 function openWorkspaceContextMenu(
@@ -2434,7 +2516,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 </section>
                 ${topLayout === "table-only" ? "" : `<div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(topLayout === "activity-network" ? uiText(state.locale, "Resize table and Activity Network", "تغییر اندازهٔ جدول و شبکهٔ فعالیت‌ها") : uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}" aria-valuemin="${MIN_TABLE_SPLIT}" aria-valuemax="${MAX_TABLE_SPLIT}" aria-valuenow="${tableSplit.toFixed(0)}" data-resize-handle="table-gantt"><span></span></div>
                 ${topLayout === "activity-network"
-                  ? renderActivityNetwork(state.activities, state.relationships, state.locale, state.selectedActivityId)
+                  ? renderActivityNetwork(state.activities, state.relationships, state.locale, state.selectedActivityId, readNetworkZoom(networkZoomStorageKey(state)), networkZoomStorageKey(state))
                   : `<section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule" tabindex="-1">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
