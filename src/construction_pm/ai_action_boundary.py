@@ -131,11 +131,19 @@ class AIActionAuditSink(Protocol):
 
 
 class ReferenceAIToolPermissionAdapter:
+    """Test-only allow-list adapter; never wire this in production.
+
+    Authorization requires an authenticated subject as well as a listed tool so
+    that a caller cannot be authorized on a tool name alone.
+    """
+
     def __init__(self, allowed_tools: set[str]) -> None:
         self.allowed_tools = frozenset(allowed_tools)
 
     def allowed(self, proposal: AIActionProposal, *, subject_id: str | None = None) -> bool:
         proposal.validate()
+        if not isinstance(subject_id, str) or not subject_id.strip():
+            return False
         return proposal.tool_name in self.allowed_tools
 
 

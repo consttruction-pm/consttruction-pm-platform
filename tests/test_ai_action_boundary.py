@@ -194,6 +194,13 @@ def test_permission_service_ignores_spoofed_requester_and_requires_authenticated
     assert sink.records[-1][1].actor_id == "user-7"
 
 
+def test_reference_adapter_never_authorizes_a_tool_without_a_subject():
+    adapter = ReferenceAIToolPermissionAdapter({"document.search"})
+    assert adapter.allowed(proposal(), subject_id=None) is False
+    assert adapter.allowed(proposal(), subject_id="   ") is False
+    assert adapter.allowed(proposal(), subject_id="user-7") is True
+
+
 def test_every_permission_adapter_requires_authenticated_subject_before_allowing_action():
     sink = InMemoryAIActionAuditSink()
     svc = AIActionApprovalService(ReferenceAIToolPermissionAdapter({"document.search"}), sink)
