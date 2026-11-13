@@ -12,14 +12,18 @@
  *   node e2e/activity-details-v26.mjs
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { Page, launchChrome, waitForHttp, artifactsDir } from "./preview-e2e.mjs";
+import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./preview-e2e.mjs";
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4193";
+const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-13";
+const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
 const outDir = join(artifactsDir, "activity-details-v26");
+const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", `activity-details-tabs-v26-${evidenceDate}`);
 mkdirSync(outDir, { recursive: true });
+mkdirSync(evidenceDir, { recursive: true });
 
 const REQUIRED_TABS = [
   "general", "status", "resources", "predecessors", "successors", "relationships",
@@ -28,7 +32,21 @@ const REQUIRED_TABS = [
 ];
 const DATA_TABS = ["resources", "expenses", "issues", "risks", "steps", "udfs", "update-history"];
 
-const report = { url: baseUrl, tabs: [], data: {}, writes: {}, customize: null, exceptions: [], consoleErrors: [], apiFailures: [] };
+const report = {
+  contract: "cubi-activity-details-tabs-v26.v1",
+  url: baseUrl,
+  testedCodeSha,
+  gitHead: gitHead(),
+  capturedAt: new Date().toISOString(),
+  tabs: [],
+  data: {},
+  writes: {},
+  customize: null,
+  screenshots: [],
+  exceptions: [],
+  consoleErrors: [],
+  apiFailures: [],
+};
 
 function assert(condition, message) {
   if (!condition) throw new Error(`ASSERTION_FAILED: ${message}`);
@@ -209,7 +227,11 @@ async function main() {
   })()`);
 
   await page.screenshot("activity-details-v26/details-en-1366.png");
+  copyFileSync(join(outDir, "details-en-1366.png"), join(evidenceDir, "details-en-1366.png"));
+  report.screenshots.push("details-en-1366.png");
+  report.finishedAt = new Date().toISOString();
   writeFileSync(join(outDir, "report.json"), JSON.stringify(report, null, 2));
+  writeFileSync(join(evidenceDir, "activity-details-tabs-v26.json"), JSON.stringify(report, null, 2));
   assert(report.exceptions.length === 0, `browser exceptions: ${report.exceptions.join(" | ")}`);
   assert(report.consoleErrors.length === 0, `console errors: ${report.consoleErrors.join(" | ")}`);
   assert(report.apiFailures.length === 0, `api failures: ${JSON.stringify(report.apiFailures)}`);
@@ -218,7 +240,10 @@ async function main() {
 }
 
 main().catch(async (error) => {
-  writeFileSync(join(outDir, "report.json"), JSON.stringify({ ...report, failure: String(error) }, null, 2));
+  report.finishedAt = new Date().toISOString();
+  report.failure = String(error);
+  writeFileSync(join(outDir, "report.json"), JSON.stringify(report, null, 2));
+  writeFileSync(join(evidenceDir, "activity-details-tabs-v26.json"), JSON.stringify(report, null, 2));
   process.stderr.write(`${error?.stack ?? error}\n`);
   process.exit(1);
 });
