@@ -3086,3 +3086,45 @@ Evidence: `docs/workspace/evidence/activity-wbs-collapse-v26-2026-11-13/`
 `testedCodeSha` `98e309c02604a956de37ef504b319c6dcd6e0c85`, screenshots 01–09,
 `CHECKLIST.md`). Web suite at the same code: 966 + 14 tests pass; `tsc --noEmit`
 and `npm run build` pass.
+
+## Data Date and Gantt overlays (2026-11-13)
+
+- **Scope.** ACT-011: the authoritative project Data Date, the Data Date line,
+  the progress-point line and the always-present critical bar display.
+- **Defect fixed.** The server already published
+  `schedule_options.data_date = "2026-10-12"` through
+  `GET /api/projects/{id}/p6/schedule/settings`, but `apps/web/src/main.ts`
+  hard-coded `"—"`/`null` for the status bar, the Gantt, Activity Details and
+  the filter date context. `loadActiveProjectDataDate` now reads the existing
+  `loadScheduleDataDate` adapter once per opened project, keeps the value keyed
+  by project id, clears it when the project changes, leaves it unset on a failed
+  or malformed read, and re-renders preserving drafts. One value now feeds all
+  four consumers, so the Bars-dialog Data Date fieldset and the rendered line
+  stop being disabled, and the `CD` token receives a real date.
+- **Progress line.** A new `progressPointRelation` helper classifies each saved
+  `% complete` point against the Data Date (left = behind, within half a day =
+  on, right = ahead), matching the P6 Help wording. The layer exposes the date
+  and the three counts; the Bars-dialog note now states the positional rule
+  instead of claiming the model has no date.
+- **Verified behaviour.** On the Day timescale the line sits at 28.8 %, the
+  exact position the axis ticks assign to 12 Oct 2026, and stays inside the
+  chart body at 1366, 1280 RTL and 1920. The status bar reads
+  `Data Date: 2026-10-12` and Activity Details shows the same value. Enabling
+  the progress line draws 14 points: 4 behind, 0 on, 10 ahead. Dashed 4 px
+  renders as a 1 px dashed line; solid 4 px renders 4 px in the chosen colour.
+  Save Layout stores `dataDateLine` (solid, 3 px, `#112233`) and `progressLine`
+  (visible, 2 px, `#ff8800`), and a full reload restores both. Seven critical
+  bars stay drawn. No overlay edit issues a schedule write; the only write is
+  the explicit Save Layout.
+- **Known limits.** No baseline snapshot or baseline activity dates exist in the
+  project, so baseline bars cannot be drawn; the Bars editor says so and the
+  suite asserts zero baseline bars. The progress line keeps one configured
+  colour (ahead/behind is positional). A non-solid Data Date style stays 1 px,
+  as the dialog documents. The `CD` token now has a date but is not exercised
+  end-to-end by this suite.
+
+Evidence: `docs/workspace/evidence/activity-gantt-overlays-v26-2026-11-13/`
+(`activity-gantt-overlays-v26.json`, 7/7 scenarios, 0 exceptions/console
+errors/5xx, `testedCodeSha` `10659a0281588f25a95ff50cd092a197c5e7d55b`,
+screenshots 01–07, `CHECKLIST.md`). Web suite at the same code: 968 + 14 tests
+pass; `tsc -p tsconfig.test.json` and `npm run build` pass.
