@@ -1,6 +1,7 @@
 import pytest
 
 from construction_pm.ai_action_boundary import (
+    AIActionApprovalPolicy,
     AIActionApprovalService,
     AIActionBoundaryError,
     AIActionProposal,
@@ -11,8 +12,17 @@ from construction_pm.ai_action_boundary import (
 )
 
 
-def proposal(*, approval=True, tool="document.search"):
-    return AIActionProposal("tenant-1","project-1","proposal-1",tool,"search",approval,evidence_refs=("doc-1",))
+def proposal(*, approval=True, tool="document.search", requested_by=None):
+    return AIActionProposal(
+        "tenant-1",
+        "project-1",
+        "proposal-1",
+        tool,
+        "search",
+        approval,
+        requested_by=requested_by,
+        evidence_refs=("doc-1",),
+    )
 
 
 def service():
@@ -211,3 +221,52 @@ def test_every_permission_adapter_requires_authenticated_subject_before_allowing
     assert len(sink.records) == 1
     assert sink.records[0][1].decision == "denied"
     assert sink.records[0][1].actor_id == "user-7"
+
+
+def test_policy_refuses_self_approval_and_audits_the_denial():
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(
+        ReferenceAIToolPermissionAdapter({"document.search"}),
+        sink,
+        policy=AIActionApprovalPolicy(allow_self_approval=False),
+    )
+    item = proposal(requested_by="user-7")
+
+    with pytest.raises(AIActionBoundaryError, match="AI_ACTION_SELF_APPROVAL_FORBIDDEN"):
+        svc.decide(item, actor_id="user-7", approved=True, subject_id="user-7")
+    assert sink.records[-1][1].decision == "denied"
+    assert sink.records[-1][1].actor_id == "user-7"
+
+    # A different authenticated subject may still approve the same proposal.
+    assert svc.decide(item, actor_id="user-8", approved=True, subject_id="user-8").decision == "approved"
+    # The proposer may always reject their own proposal.
+    assert svc.decide(item, actor_id="user-7", approved=False, subject_id="user-7").decision == "rejected"
+
+
+def test_policy_can_require_a_distinct_approver_for_listed_tools_only():
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(
+        ReferenceAIToolPermissionAdapter({"document.search", "document.delete"}),
+        sink,
+        policy=AIActionApprovalPolicy(
+            require_distinct_approver_for=frozenset({"document.delete"})
+        ),
+    )
+
+    assert svc.decide(
+        proposal(requested_by="user-7"), actor_id="user-7", approved=True, subject_id="user-7"
+    ).decision == "approved"
+    with pytest.raises(AIActionBoundaryError, match="AI_ACTION_SELF_APPROVAL_FORBIDDEN"):
+        svc.decide(
+            proposal(tool="document.delete", requested_by="user-7"),
+            actor_id="user-7",
+            approved=True,
+            subject_id="user-7",
+        )
+
+
+def test_default_policy_preserves_self_approval_for_existing_deployments():
+    svc, _ = service()
+    assert svc.decide(
+        proposal(requested_by="user-7"), actor_id="user-7", approved=True, subject_id="user-7"
+    ).decision == "approved"

@@ -157,10 +157,36 @@ class InMemoryAIActionAuditSink:
         self.records.append((proposal, decision))
 
 
+@dataclass(frozen=True)
+class AIActionApprovalPolicy:
+    """Controls whether the proposer may approve their own proposal.
+
+    Self-approval stays permitted by default so existing single-operator
+    deployments keep working. An operator can disable it globally, or require a
+    distinct approver only for destructive tools by listing them in
+    ``require_distinct_approver_for``.
+    """
+
+    allow_self_approval: bool = True
+    require_distinct_approver_for: frozenset[str] = frozenset()
+
+    def requires_distinct_approver(self, proposal: AIActionProposal) -> bool:
+        if not self.allow_self_approval:
+            return True
+        return proposal.tool_name in self.require_distinct_approver_for
+
+
 class AIActionApprovalService:
-    def __init__(self, permission_adapter: AIToolPermissionAdapter, audit_sink: AIActionAuditSink) -> None:
+    def __init__(
+        self,
+        permission_adapter: AIToolPermissionAdapter,
+        audit_sink: AIActionAuditSink,
+        *,
+        policy: AIActionApprovalPolicy | None = None,
+    ) -> None:
         self.permission_adapter = permission_adapter
         self.audit_sink = audit_sink
+        self.policy = policy or AIActionApprovalPolicy()
 
     def decide(
         self,
@@ -215,6 +241,22 @@ class AIActionApprovalService:
             denied.validate()
             self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_ACTION_APPROVAL_REQUIRES_ACTOR")
+        if (
+            approved
+            and trusted_actor_id is not None
+            and proposal.requested_by
+            and trusted_actor_id == proposal.requested_by
+            and self.policy.requires_distinct_approver(proposal)
+        ):
+            denied = AIActionDecision(
+                proposal_id=proposal.proposal_id,
+                decision="denied",
+                actor_id=trusted_actor_id,
+                audit_event="ai_action_decision",
+            )
+            denied.validate()
+            self.audit_sink.record(proposal, denied)
+            raise AIActionBoundaryError("AI_ACTION_SELF_APPROVAL_FORBIDDEN")
         decision = AIActionDecision(
             proposal_id=proposal.proposal_id,
             decision="approved" if approved else "rejected",
