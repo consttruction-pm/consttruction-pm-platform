@@ -214,7 +214,11 @@ test("About Us ships approved localized routes in all eight product languages", 
     assert.ok(html.includes('hreflang="ar"') && html.includes('hreflang="fr"'), `${file} Arabic/French alternates`);
     assert.ok(html.includes('hreflang="ja"') && html.includes('hreflang="ko"'), `${file} Japanese/Korean alternates`);
     assert.ok(html.includes("global-assistant-launcher.bundle.js"), `${file} shared assistant launcher`);
-    if (locale === "fa") {\n      assert.ok(html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد"), `${file} approved Persian founder facts`);\n    } else {\n      assert.ok(html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard"), `${file} approved founder facts`);\n    }
+    if (locale === "fa") {
+      assert.ok(html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد"), `${file} approved Persian founder facts`);
+    } else {
+      assert.ok(html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard"), `${file} approved founder facts`);
+    }
     assert.match(html, /<h1>[^<\u0600-\u06FF]*[^<]+<\/h1>/);
   }
   assert.ok(readDoc("apps/web/src/landing.ts").includes('["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)'));
