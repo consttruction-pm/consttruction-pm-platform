@@ -138,6 +138,26 @@ Provide a visual, block-based content editor for public website pages so the own
 
 The content editor must not permit arbitrary unsafe scripts or untrusted HTML injection. Separate editable content from application layout/components.
 
+
+### 5.4 Visual asset replacement with exact size guidance
+
+The Owner / Super Admin panel must include a dedicated **Visual Assets / Brand & Media** area for safely replacing the website logo, photos, illustrations, banners, and icons without editing code.
+
+For every editable image/logo/icon slot shown in the page editor or asset manager:
+- Display the exact recommended pixel dimensions (width × height) beside that slot's **Replace / Upload** control. Where useful, also show the rendered display size, aspect ratio, supported file formats, maximum file size, and whether transparent background is supported.
+- Show a thumbnail/preview of the currently published asset and a preview of the newly selected asset before saving.
+- Provide a clearly labeled **Replace** button and a separate **Upload** action where a new asset is being added. The upload/replace control must be adjacent to the dimensions guidance so the owner can see the required size at the moment of selection.
+- Validate dimensions, aspect ratio, format, file size, and image integrity before accepting the asset. Explain any mismatch in plain language; do not silently stretch, crop, or distort the image.
+- Offer a safe crop/fit preview (contain/cover or approved focal-point crop) where the slot allows it. Preserve original uploads and generate optimized responsive derivatives; do not destructively overwrite the source file.
+- Show where the asset is used (for example header logo, footer logo, hero banner, feature card, news thumbnail, app icon, favicon) so replacing it does not unexpectedly alter unrelated locations.
+- Allow the owner to choose whether the replacement applies only to the selected page/slot or to all explicitly linked uses. Require a clear confirmation before global replacement.
+- Support draft preview before publishing, and preserve asset revision history so the owner can restore the previous image/logo/icon.
+- Provide alt text/accessibility description fields and localized asset metadata where relevant.
+- If an asset is hidden/removed, ensure the public page uses an approved fallback or intentionally omits the slot; never show a broken-image placeholder.
+- Protect the live published asset while an upload is incomplete or fails. Only publish a fully validated replacement after explicit owner confirmation.
+
+The exact pixel dimensions must be defined per asset slot in the CMS design system and maintained as visible metadata, not left for the owner to guess. Include dimensions for desktop/tablet/mobile variants where responsive assets differ. The owner must be able to replace logos, photos, and icons directly from the relevant page/slot as well as from the central media library.
+
 ### 5.3 Announcements and group messaging
 
 The owner panel must allow the owner to:
