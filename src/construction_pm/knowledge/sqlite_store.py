@@ -475,6 +475,17 @@ class SqliteKnowledgeStore:
         if self._owns_connection:
             self._connection.close()
 
+    # -- concurrency hooks -----------------------------------------------
+    def _lock_card(self, connection, card_id: str) -> None:
+        """Reserve the card for the rest of the transaction.
+
+        SQLite serializes writers with ``BEGIN IMMEDIATE``, so the reference
+        store needs no extra lock. Stores without that guarantee override this.
+        """
+
+    def _lock_translation(self, connection, card_id: str, locale: str) -> None:
+        """Reserve one translation for the rest of the transaction."""
+
     # -- sources ---------------------------------------------------------
     def upsert_source(
         self,
@@ -811,6 +822,7 @@ class SqliteKnowledgeStore:
 
         card.validate()
         with self._transaction() as connection:
+            self._lock_card(connection, card.card_id)
             row = connection.execute(
                 "SELECT revision FROM knowledge_card WHERE card_id=?",
                 (card.card_id,),
@@ -1110,6 +1122,7 @@ class SqliteKnowledgeStore:
     ) -> None:
         record.validate()
         with self._transaction() as connection:
+            self._lock_translation(connection, record.card_id, record.locale)
             row = connection.execute(
                 "SELECT translation_version FROM knowledge_card_translation "
                 "WHERE card_id=? AND locale=?",
