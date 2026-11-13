@@ -1,0 +1,106 @@
+{
+  "contract": "cubi-activity-wbs-collapse-v26.v1",
+  "baseUrl": "http://127.0.0.1:4200",
+  "gitHead": "98e309c02604a956de37ef504b319c6dcd6e0c85",
+  "testedCodeSha": "98e309c02604a956de37ef504b319c6dcd6e0c85",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T00:14:13.016Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "one band toggle hides exactly its activities in both panes",
+      "status": "pass",
+      "at": "2026-11-13T00:14:15.815Z",
+      "bands": 7,
+      "visibleActivities": 9,
+      "storage": [
+        "WBS-RPS-CIVIL"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the root band collapses the whole tree and reopens it",
+      "status": "pass",
+      "at": "2026-11-13T00:14:17.049Z",
+      "rootBands": 1,
+      "restored": 14
+    },
+    {
+      "id": "03",
+      "name": "a nested child stays collapsed when its ancestor reopens",
+      "status": "pass",
+      "at": "2026-11-13T00:14:18.247Z",
+      "bands": 7,
+      "activities": 9
+    },
+    {
+      "id": "04",
+      "name": "the toolbar and the band context menu drive the same state",
+      "status": "pass",
+      "at": "2026-11-13T00:14:19.981Z",
+      "bands": 7,
+      "menuLabel": "Collapse This Branch",
+      "afterMenu": 0
+    },
+    {
+      "id": "05",
+      "name": "the saved layout restores collapsed branches after local state is cleared",
+      "status": "pass",
+      "at": "2026-11-13T00:14:22.297Z",
+      "revision": 2,
+      "stored": [
+        "WBS-RPS-CIVIL"
+      ],
+      "activities": 9
+    },
+    {
+      "id": "06",
+      "name": "a layout saved with every branch open restores the full tree",
+      "status": "pass",
+      "at": "2026-11-13T00:14:24.632Z",
+      "revision": 3,
+      "activities": 14
+    },
+    {
+      "id": "07",
+      "name": "the keyboard toggles a focused band exactly once",
+      "status": "pass",
+      "at": "2026-11-13T00:14:26.215Z",
+      "toggle": "+",
+      "activities": 9
+    },
+    {
+      "id": "08",
+      "name": "Persian RTL at 1280 keeps the collapsed tree and its controls aligned",
+      "status": "pass",
+      "at": "2026-11-13T00:14:28.158Z",
+      "dir": "rtl",
+      "overflow": 0,
+      "activities": 9
+    },
+    {
+      "id": "09",
+      "name": "the collapsed tree stays in step at 1920x1080",
+      "status": "pass",
+      "at": "2026-11-13T00:14:30.170Z",
+      "overflow": 0,
+      "activities": 9
+    }
+  ],
+  "screenshots": [
+    "01-one-band-collapsed-en-1366.png",
+    "02-root-collapsed-en-1366.png",
+    "03-nested-collapse-after-ancestor-expand-en-1366.png",
+    "04-context-menu-root-collapsed-en-1366.png",
+    "05-layout-restored-collapse-en-1366.png",
+    "06-layout-restored-expanded-en-1366.png",
+    "07-keyboard-collapse-en-1366.png",
+    "08-collapsed-fa-rtl-1280.png",
+    "09-collapsed-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 9,
+  "failed": 0
+}

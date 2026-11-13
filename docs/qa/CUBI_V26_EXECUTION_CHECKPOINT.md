@@ -3044,3 +3044,45 @@ Evidence: `docs/workspace/evidence/activity-wbs-band-v26-2026-11-12/`
 `testedCodeSha` `138208c805ec2ee52bc3a85cb16e949868a103d4`, screenshots 01–06,
 `CHECKLIST.md`). Web suite at the same code: 963 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
+
+## WBS expand/collapse and Gantt row mapping (2026-11-13)
+
+- **Scope.** ACT-006 and ACT-007 moved from NOT_AUDITED to WIRED_WRITE at code
+  `98e309c0`.
+- **Controls.** The band `+`/`−` button, a double-click on the band, the toolbar
+  Expand All / Collapse All / Collapse To actions, the `table-wbs` context menu,
+  Ctrl+Numpad +/− and Enter/Space on a focused band all drive the same collapsed
+  set. Nested children keep their own state when an ancestor collapses and
+  reopens; Collapse All leaves the top-level bands open, as the desktop grid
+  does.
+- **Persistence.** `cubi:workspace-wbs-collapse` remains the immediate view
+  store; the same ids now travel with the saved layout as
+  `metadata.wbsCollapse` (trimmed, deduplicated, capped at 500, absent means no
+  opinion, `[]` means fully expanded). `commitLayout` and Save As merge the block
+  on every write, and `hydrateCollapseFromLayout` applies it once per
+  `tenant:project:scope:revision`, so a reload or layout switch restores the tree
+  even after the browser-local state is cleared.
+- **Defects fixed.** Collapse state existed only in localStorage, so Save Layout,
+  a layout switch and another browser lost it. The focusable band row also
+  ignored Enter/Space; the key handler now toggles it and skips the native
+  button activation to avoid a double toggle.
+- **Verified behaviour.** The fixture starts with 7 bands and 14 activities. The
+  Civil works branch collapses to 9 activities in both the table and the Gantt,
+  and its summary band stays; the root collapses to one band and no activity
+  rows; a nested Civil works branch survives a root collapse/reopen; Collapse
+  All / Expand All and Collapse This Branch behave identically; Save Layout
+  stores the branch, an emptied local store plus a reload still restores it, and
+  saving an expanded tree restores all 14; no collapse step issues a non-GET
+  `/api/` request. Every visible table row keeps its Gantt row id, kind, height
+  and ≤2 px offset in en and fa; Persian RTL at 1280×720 and en at 1920×1080
+  show 0 px overflow.
+- **Known limits.** No server-side per-user tree preference outside a layout
+  revision; the Gantt group row is display-only rather than a toggle target;
+  Collapse All keeps top-level bands open and Collapse To is the only level
+  control.
+
+Evidence: `docs/workspace/evidence/activity-wbs-collapse-v26-2026-11-13/`
+(`activity-wbs-collapse-v26.json`, 9/9 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `98e309c02604a956de37ef504b319c6dcd6e0c85`, screenshots 01–09,
+`CHECKLIST.md`). Web suite at the same code: 966 + 14 tests pass; `tsc --noEmit`
+and `npm run build` pass.
