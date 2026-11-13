@@ -475,6 +475,35 @@ test("All Activities clears the visible selection without deleting filters", () 
   assert.deepEqual(patch.presentation?.filters.selectedIds, ["custom:civil-open"]);
 });
 
+test("All Activities wins over a loaded builder draft", () => {
+  const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
+    filterAllActivities: "on",
+    filterName: "Civil open",
+    filterEditingId: "custom:civil-open",
+    "filter.field.0": "wbs",
+    "filter.operator.0": "contains",
+    "filter.value.0": "Civil",
+  }), previous);
+  assert.equal(patch.presentation?.filters.allActivities, true);
+  assert.deepEqual(patch.presentation?.filters.selectedIds, ["custom:civil-open"]);
+  assert.equal(patch.presentation?.filters.saved.length, 1);
+});
+
 test("a custom filter is saved with its category and becomes selected", () => {
   const patch = readLayoutPatch(form({
     filterList: "v26",

@@ -4,6 +4,16 @@ import type { ProjectSummary } from "./session-api.js";
 import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
+  ACTIVITY_EXPORT_SCOPES,
+  activitiesForExport,
+  activitiesToCsv,
+  activityExportFileName,
+  activityExportScopeCount,
+  computeActivityCounts,
+  type ActivityCounts,
+  type ActivityExportScope,
+} from "./workspace-activity-scope.js";
+import {
   applyActivityFilterState,
   createActivityFilterDateContext,
   describeActivityFilter,
@@ -989,11 +999,33 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.activitySelectAll !== undefined) {
+      // The scope contract lives in the main shell so the menu command and the
+      // toolbar button take exactly the same state transition.
+      options.onSelectAll?.();
+      return;
+    }
+    if (target.dataset.activityExportOpen !== undefined) {
+      openActivityExportDialog(container);
+      return;
+    }
+    if (target.dataset.activityExportCancel !== undefined) {
+      target.closest<HTMLDialogElement>("[data-activity-export-dialog]")?.close();
+      return;
+    }
+    if (target.dataset.activityExportScope !== undefined) {
+      selectActivityExportScope(container, target.dataset.activityExportScope as ActivityExportScope);
+      return;
+    }
+    if (target.dataset.activityExportDownload !== undefined) {
+      downloadActivityExport(container);
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
@@ -2272,6 +2304,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     row.classList.toggle("is-selected", selected);
     row.setAttribute("aria-pressed", selected ? "true" : "false");
   });
+  updateActivityScopeCounts(container, next, options, nextSelection);
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = getWorkspaceLabels(next.locale);
@@ -2354,6 +2387,8 @@ export type WorkspaceRendererOptions = {
   /** Switches the open project from the Projects window. */
   onProjectOpen?: (projectId: string) => void;
   onActivityFilterChange?: (filterText: string) => void;
+  /** Selects every activity in the current filter/search scope, not just painted rows. */
+  onSelectAll?: () => void;
   onActivitySortChange?: (columnId: string | null) => void;
   /** Sets both the sort column and direction in one state transition. */
   onActivitySortSet?: (columnId: string, direction: "asc" | "desc") => void;
@@ -2434,6 +2469,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activityGroupLevels,
     state.locale,
   );
+  const visibleActivityIds = displayRows.flatMap((row) => (row.kind === "activity" ? [row.activity.id] : []));
+  const activityCounts = computeActivityCounts({
+    activities: state.activities,
+    filterMatchedIds: filterApplication.matchedIds,
+    scopeActivities: filteredActivities,
+    visibleIds: visibleActivityIds,
+    selectedIds: selectedActivityIdList(state),
+  });
   const groupRows = displayRows.filter(isWorkspaceBandRow);
   const treeColumnId = state.columns.find((column) => column.id === "activity_id" || column.id === "activity.id")?.id
     ?? state.columns.find((column) => column.id === "activity_name" || column.id === "activity.name")?.id
@@ -2623,12 +2666,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                       <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}">${workspaceIcon("resetColumns")}</button>
                     </div>
                   </div>
-                  ${renderActivityFilterSort(state, filteredActivities.length, t, groupRows.length, {
+                  ${renderActivityFilterSort(state, activityCounts, t, groupRows.length, {
                     filterIds: filterApplication.filters.map((filter) => filter.id).join(","),
                     mode: filterApplication.highlight ? "highlight" : "replace",
                     title: activeFilterTitle,
                     stateLabel: activityFilterLabel,
                   })}
+                  ${renderActivityExportDialog(activityCounts, t, state)}
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="true" style="width:${activityTableWidth}px">
                       <thead><tr role="row">${lineNumbers ? `<th role="columnheader" scope="col" class="cp-p6-line-number">#</th>` : ""}${state.columns.map((column) => `<th role="columnheader" scope="col" tabindex="-1" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}"><span class="cp-p6-column-label">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</span><span class="cp-p6-column-resize" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${localizeWorkspaceLabel(state.locale, column.label)} column`, `تغییر عرض ستون ${localizeWorkspaceLabel(state.locale, column.label)}`))}" aria-valuemin="${MIN_COLUMN_WIDTH}" aria-valuemax="${MAX_COLUMN_WIDTH}" aria-valuenow="${column.width}" tabindex="0" data-resize-handle="column"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
@@ -3657,7 +3701,7 @@ function renderChangeClaimControl(
 
 function renderActivityFilterSort(
   state: WorkspaceState,
-  visibleCount: number,
+  counts: ActivityCounts,
   t: WorkspaceLabels,
   groupCount: number,
   filterState?: { filterIds: string; mode: string; title: string; stateLabel: string },
@@ -3680,6 +3724,14 @@ function renderActivityFilterSort(
         return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}</option>`;
       }),
   ].join("");
+  // Select All covers the whole current scope, including branches that are
+  // collapsed, so a filtered or grouped table cannot silently select only the
+  // rows the DOM happens to paint.
+  const selectAllTitle = uiText(
+    state.locale,
+    `Select all ${counts.searchMatched} activities in the current filter and search scope; collapsed rows are included`,
+    `انتخاب همهٔ ${counts.searchMatched} فعالیت در محدودهٔ فیلتر و جست‌وجوی فعلی؛ ردیف‌های جمع‌شده نیز شامل می‌شوند`,
+  );
   return `<div class="cp-activity-toolbar" role="search">
     <label class="cp-activity-filter">
       <span>${escapeHtml(t.activityFilter)}</span>
@@ -3704,8 +3756,248 @@ function renderActivityFilterSort(
     <button type="button" data-activity-sort-direction title="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" aria-label="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" ${sort ? "" : "disabled"}>${direction === "asc" ? "↑" : "↓"}</button>
     ${treeActions}
     ${filterState ? `<output class="cp-activity-filter-state" data-active-filter="${escapeAttribute(filterState.filterIds)}" data-filter-mode="${escapeAttribute(filterState.mode)}" title="${escapeAttribute(filterState.title)}">${escapeHtml(t.activityFilter)}: ${escapeHtml(filterState.stateLabel)}</output>` : ""}
-    <output data-activity-count aria-live="polite">${visibleCount} / ${state.activities.length} ${escapeHtml(t.matchingActivities)}</output>
+    <span class="cp-activity-scope-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Selection and export", "انتخاب و خروجی"))}">
+      <button type="button" class="cp-activity-select-all" data-activity-select-all title="${escapeAttribute(selectAllTitle)}" aria-label="${escapeAttribute(uiText(state.locale, "Select all activities in scope", "انتخاب همهٔ فعالیت‌های محدوده"))}" ${counts.searchMatched ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Select All", "انتخاب همه"))}</button>
+      <button type="button" data-activity-export-open title="${escapeAttribute(uiText(state.locale, "Export all, filtered or selected activities", "خروجی همه، فیلترشده یا انتخاب‌شده"))}" aria-label="${escapeAttribute(uiText(state.locale, "Export activities", "خروجی فعالیت‌ها"))}" ${counts.total ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Export…", "خروجی…"))}</button>
+    </span>
+    <span class="cp-activity-counts" data-activity-counts
+      data-count-total="${counts.total}" data-count-filter="${counts.filterMatched}"
+      data-count-search="${counts.searchMatched}" data-count-visible="${counts.visible}"
+      data-count-selected="${counts.selected}" data-count-selected-scope="${counts.selectedInScope}" aria-live="polite">
+      <output data-activity-count title="${escapeAttribute(uiText(state.locale, "Painted rows / project activities", "ردیف‌های نمایش‌داده‌شده / فعالیت‌های پروژه"))}">${counts.visible} / ${counts.total} ${escapeHtml(t.matchingActivities)}</output>
+      <span data-count-item="total" title="${escapeAttribute(uiText(state.locale, "Activities in the allowed project read model", "فعالیت‌های مدل خواندنی مجاز پروژه"))}">${escapeHtml(uiText(state.locale, "Total", "کل"))} <strong>${counts.total}</strong></span>
+      <span data-count-item="filter" title="${escapeAttribute(uiText(state.locale, "Activities matching the checked Activity Filters", "فعالیت‌های منطبق با فیلترهای فعال"))}">${escapeHtml(uiText(state.locale, "Filter", "فیلتر"))} <strong>${counts.filterMatched}</strong></span>
+      <span data-count-item="search" title="${escapeAttribute(uiText(state.locale, "Activities matching the filter and the quick search", "فعالیت‌های منطبق با فیلتر و جست‌وجوی سریع"))}">${escapeHtml(uiText(state.locale, "Search", "جست‌وجو"))} <strong>${counts.searchMatched}</strong></span>
+      <span data-count-item="visible" title="${escapeAttribute(uiText(state.locale, "Activity rows painted after grouping and collapse", "ردیف‌های فعالیت پس از گروه‌بندی و جمع‌شدن"))}">${escapeHtml(uiText(state.locale, "Visible", "قابل مشاهده"))} <strong>${counts.visible}</strong></span>
+      <span data-count-item="selected" title="${escapeAttribute(uiText(state.locale, "Selected activities in the project", "فعالیت‌های انتخاب‌شده در پروژه"))}">${escapeHtml(uiText(state.locale, "Selected", "انتخاب‌شده"))} <strong>${counts.selected}</strong></span>
+      <span data-count-item="selected-scope" title="${escapeAttribute(uiText(state.locale, "Selected activities inside the current scope", "فعالیت‌های انتخاب‌شده در محدودهٔ فعلی"))}">${escapeHtml(uiText(state.locale, "In scope", "در محدوده"))} <strong>${counts.selectedInScope}</strong></span>
+    </span>
   </div>`;
+}
+
+/**
+ * Scope confirmation before any file is produced. Every number comes from the
+ * same read model the table and Gantt consume; choosing a scope never adds a
+ * row outside it and zero-row scopes stay disabled.
+ */
+function renderActivityExportDialog(
+  counts: ActivityCounts,
+  t: WorkspaceLabels,
+  state: WorkspaceState,
+): string {
+  const scopeCopy: Record<ActivityExportScope, { en: string; fa: string }> = {
+    all: { en: "All activities", fa: "همهٔ فعالیت‌ها" },
+    filtered: { en: "Filtered activities", fa: "فعالیت‌های فیلترشده" },
+    selected: { en: "Selected activities", fa: "فعالیت‌های انتخاب‌شده" },
+  };
+  const rows = ACTIVITY_EXPORT_SCOPES.map((scope) => {
+    const count = activityExportScopeCount(scope, counts);
+    const active = scope === "all";
+    return `<button type="button" class="cp-activity-export-scope${active ? " is-active" : ""}" role="radio" aria-checked="${active ? "true" : "false"}" data-activity-export-scope="${scope}" ${count ? "" : "disabled"}>
+      <span>${escapeHtml(uiText(state.locale, scopeCopy[scope].en, scopeCopy[scope].fa))}</span>
+      <strong data-export-scope-count>${count}</strong>
+    </button>`;
+  }).join("");
+  return `<dialog class="cp-activity-export-dialog" data-activity-export-dialog data-activity-export-active="all" data-export-total="${counts.total}" data-export-filter="${counts.filterMatched}" data-export-search="${counts.searchMatched}" data-export-selected="${counts.selected}" aria-labelledby="cp-activity-export-title">
+    <h3 id="cp-activity-export-title">${escapeHtml(uiText(state.locale, "Export activities", "خروجی فعالیت‌ها"))}</h3>
+    <p>${escapeHtml(uiText(state.locale, "Counts come from the authoritative project read model before any file is produced. Collapsed rows stay part of the filtered and all scopes.", "شمارش‌ها پیش از تولید فایل از مدل خواندنی مرجع پروژه گرفته می‌شوند. ردیف‌های جمع‌شده در محدودهٔ همه و فیلترشده باقی می‌مانند."))}</p>
+    <div class="cp-activity-export-scopes" role="radiogroup" aria-label="${escapeAttribute(uiText(state.locale, "Export scope", "محدودهٔ خروجی"))}">${rows}</div>
+    <p class="cp-activity-export-summary" data-activity-export-summary aria-live="polite">${escapeHtml(uiText(state.locale, `All activities: ${counts.total} rows · ${counts.selected} selected`, `همهٔ فعالیت‌ها: ${counts.total} ردیف · ${counts.selected} انتخاب‌شده`))}</p>
+    <footer>
+      <button type="button" data-activity-export-cancel>${escapeHtml(uiText(state.locale, "Cancel", "انصراف"))}</button>
+      <button type="button" class="cp-dialog-primary" data-activity-export-download ${counts.total ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Download CSV", "دریافت CSV"))}</button>
+    </footer>
+  </dialog>`;
+}
+
+/** The filter and search scope the table, Gantt, counts and exports all share. */
+function activityScopeForState(
+  state: WorkspaceState,
+  options: WorkspaceRendererOptions,
+): { filterApplication: ActivityFilterApplication; filtered: readonly WorkspaceActivityRow[] } {
+  const presentation = options.presentation ?? DEFAULT_PRESENTATION;
+  const filterApplication = applyActivityFilterState(
+    state.activities,
+    presentation.filters,
+    state.wbsNodes,
+    createActivityFilterDateContext(state.activities, options.dataDate ?? null),
+  );
+  const filtered = filterAndSortActivities(
+    filterApplication.activities,
+    state.activityFilter,
+    state.activitySort,
+    state.activityGroupBy,
+    state.wbsNodes,
+    state.activitySortLevels,
+    state.activityGroupLevels,
+  );
+  return { filterApplication, filtered };
+}
+
+function activityExportSummaryText(scope: ActivityExportScope, count: number, locale: string): string {
+  const labels: Record<ActivityExportScope, { en: string; fa: string }> = {
+    all: { en: "All activities", fa: "همهٔ فعالیت‌ها" },
+    filtered: { en: "Filtered activities", fa: "فعالیت‌های فیلترشده" },
+    selected: { en: "Selected activities", fa: "فعالیت‌های انتخاب‌شده" },
+  };
+  return uiText(
+    locale,
+    `${labels[scope].en}: ${count} rows will be exported from the authoritative read model`,
+    `${labels[scope].fa}: ${count} ردیف از مدل خواندنی مرجع خروجی گرفته می‌شود`,
+  );
+}
+
+/**
+ * Recomputes the dialog counts when it opens. Selection changes take the
+ * incremental render path, which repaints toolbar counters but not a closed
+ * dialog; without this refresh, "Export selected" could name the selection
+ * from an older render.
+ */
+function refreshActivityExportDialog(container: HTMLElement): void {
+  const record = workspaceRenderRecords.get(container);
+  const dialog = container.querySelector<HTMLElement>("[data-activity-export-dialog]");
+  if (!record || !dialog) return;
+  const { filterApplication, filtered } = activityScopeForState(record.state, record.options);
+  const visibleIds = [...container.querySelectorAll<HTMLElement>("#cp-activity-grid tbody tr[data-activity-id]")]
+    .flatMap((row) => (row.dataset.activityId ? [row.dataset.activityId] : []));
+  const counts = computeActivityCounts({
+    activities: record.state.activities,
+    filterMatchedIds: filterApplication.matchedIds,
+    scopeActivities: filtered,
+    visibleIds,
+    selectedIds: selectedActivityIdList(record.state),
+  });
+  dialog.dataset.exportTotal = String(counts.total);
+  dialog.dataset.exportFilter = String(counts.filterMatched);
+  dialog.dataset.exportSearch = String(counts.searchMatched);
+  dialog.dataset.exportSelected = String(counts.selected);
+  for (const button of dialog.querySelectorAll<HTMLElement>("[data-activity-export-scope]")) {
+    const scope = button.dataset.activityExportScope as ActivityExportScope | undefined;
+    if (!scope || !ACTIVITY_EXPORT_SCOPES.includes(scope)) continue;
+    const count = activityExportScopeCount(scope, counts);
+    const counter = button.querySelector<HTMLElement>("[data-export-scope-count]");
+    if (counter) counter.textContent = String(count);
+    button.toggleAttribute("disabled", count === 0);
+  }
+  let active = (dialog.dataset.activityExportActive ?? "all") as ActivityExportScope;
+  if (!ACTIVITY_EXPORT_SCOPES.includes(active) || activityExportScopeCount(active, counts) === 0) {
+    active = "all";
+  }
+  dialog.dataset.activityExportActive = active;
+  dialog.querySelectorAll<HTMLElement>("[data-activity-export-scope]").forEach((entry) => {
+    const selected = entry.dataset.activityExportScope === active;
+    entry.classList.toggle("is-active", selected);
+    entry.setAttribute("aria-checked", selected ? "true" : "false");
+  });
+  const summary = dialog.querySelector<HTMLElement>("[data-activity-export-summary]");
+  if (summary) summary.textContent = activityExportSummaryText(active, activityExportScopeCount(active, counts), record.state.locale);
+  const download = dialog.querySelector<HTMLButtonElement>("[data-activity-export-download]");
+  if (download) download.disabled = counts.total === 0;
+}
+
+function openActivityExportDialog(container: HTMLElement): void {
+  const dialog = container.querySelector<HTMLDialogElement>("[data-activity-export-dialog]");
+  if (!dialog) return;
+  refreshActivityExportDialog(container);
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+function selectActivityExportScope(container: HTMLElement, scope: ActivityExportScope): void {
+  const dialog = container.querySelector<HTMLElement>("[data-activity-export-dialog]");
+  if (!dialog) return;
+  const button = dialog.querySelector<HTMLElement>(`[data-activity-export-scope="${scope}"]`);
+  if (!button || button.hasAttribute("disabled")) return;
+  dialog.dataset.activityExportActive = scope;
+  dialog.querySelectorAll<HTMLElement>("[data-activity-export-scope]").forEach((entry) => {
+    const active = entry.dataset.activityExportScope === scope;
+    entry.classList.toggle("is-active", active);
+    entry.setAttribute("aria-checked", active ? "true" : "false");
+  });
+  const counts: Record<ActivityExportScope, number> = {
+    all: Number(dialog.dataset.exportTotal ?? 0),
+    filtered: Number(dialog.dataset.exportSearch ?? 0),
+    selected: Number(dialog.dataset.exportSelected ?? 0),
+  };
+  const summary = dialog.querySelector<HTMLElement>("[data-activity-export-summary]");
+  if (summary) {
+    const locale = workspaceRenderRecords.get(container)?.state.locale ?? "en";
+    summary.textContent = activityExportSummaryText(scope, counts[scope], locale);
+  }
+}
+
+/**
+ * Keeps the toolbar counts truthful when only the in-memory selection changed
+ * and the renderer took the incremental path instead of repainting the toolbar.
+ */
+function updateActivityScopeCounts(
+  container: HTMLElement,
+  state: WorkspaceState,
+  options: WorkspaceRendererOptions,
+  selectedIds: readonly string[],
+): void {
+  const host = container.querySelector<HTMLElement>("[data-activity-counts]");
+  if (!host) return;
+  const { filterApplication, filtered } = activityScopeForState(state, options);
+  const visibleIds = [...container.querySelectorAll<HTMLElement>("#cp-activity-grid tbody tr[data-activity-id]")]
+    .flatMap((row) => (row.dataset.activityId ? [row.dataset.activityId] : []));
+  const counts = computeActivityCounts({
+    activities: state.activities,
+    filterMatchedIds: filterApplication.matchedIds,
+    scopeActivities: filtered,
+    visibleIds,
+    selectedIds,
+  });
+  host.dataset.countTotal = String(counts.total);
+  host.dataset.countFilter = String(counts.filterMatched);
+  host.dataset.countSearch = String(counts.searchMatched);
+  host.dataset.countVisible = String(counts.visible);
+  host.dataset.countSelected = String(counts.selected);
+  host.dataset.countSelectedScope = String(counts.selectedInScope);
+  const values: Record<string, number> = {
+    total: counts.total,
+    filter: counts.filterMatched,
+    search: counts.searchMatched,
+    visible: counts.visible,
+    selected: counts.selected,
+    "selected-scope": counts.selectedInScope,
+  };
+  for (const [key, value] of Object.entries(values)) {
+    const target = host.querySelector<HTMLElement>(`[data-count-item="${key}"] strong`);
+    if (target) target.textContent = String(value);
+  }
+  const visibleOutput = host.querySelector<HTMLElement>("[data-activity-count]");
+  if (visibleOutput) {
+    const labels = getWorkspaceLabels(state.locale);
+    visibleOutput.textContent = `${counts.visible} / ${counts.total} ${labels.matchingActivities}`;
+  }
+  const selectAll = container.querySelector<HTMLButtonElement>("[data-activity-select-all]");
+  if (selectAll) selectAll.disabled = counts.searchMatched === 0;
+}
+
+function downloadActivityExport(container: HTMLElement): void {  const record = workspaceRenderRecords.get(container);
+  const dialog = container.querySelector<HTMLDialogElement>("[data-activity-export-dialog]");
+  if (!record || !dialog) return;
+  const scope = (dialog.dataset.activityExportActive ?? "all") as ActivityExportScope;
+  if (!ACTIVITY_EXPORT_SCOPES.includes(scope)) return;
+  const { state, options } = record;
+  const { filtered } = activityScopeForState(state, options);
+  const sources = {
+    activities: state.activities,
+    filtered,
+    selectedIds: selectedActivityIdList(state),
+  };
+  const rows = activitiesForExport(scope, sources);
+  // A zero-row scope never produces a file or a success message.
+  if (rows.length === 0) return;
+  const csv = activitiesToCsv(rows, state.columns);
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = activityExportFileName(scope, state.context.project_id);
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  dialog.close();
 }
 
 function renderSettingsLayoutAdministration(state: WorkspaceState, options: WorkspaceRendererOptions): string {
@@ -4233,17 +4525,21 @@ function renderGantt(
   projectCalendar: WorkspaceProjectCalendar | null = null,
   selectedActivityIds?: readonly string[],
 ): string {
-  if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
+  if (!rows.length) {
+    return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
+  }
+  // A scope whose activities carry no schedule dates still has one Gantt row
+  // per table row. There is no timeline to scale, so the rows keep empty tracks
+  // under a neutral axis instead of being replaced by a "no schedule" claim.
+  const hasTimeline = scale !== null;
+  const viewScale: GanttScale = scale ?? { startMs: 0, endMs: 1, rangeMs: 1 };
 
   const activities = rows
     .filter((row): row is Extract<WorkspaceDisplayRow, { kind: "activity" }> => row.kind === "activity")
     .map((row) => row.activity);
   const bars = activities
-    .map((activity) => createGanttBarGeometry(activity, scale))
+    .map((activity) => createGanttBarGeometry(activity, viewScale))
     .filter((bar): bar is GanttBarGeometry => bar !== null);
-  if (!bars.length && !rows.some((row) => row.kind === "wbs")) {
-    return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
-  }
 
   const gantt = presentation.gantt;
   const rowHeight = ganttRowPitch(presentation.table.rowHeight);
@@ -4258,7 +4554,7 @@ function renderGantt(
   rows.forEach((row, index) => {
     if (row.kind === "activity") rowIndexByActivity.set(row.activity.id, index);
   });
-  const ticks = createGanttAxisTicks(scale, ganttScale);
+  const ticks = hasTimeline ? createGanttAxisTicks(viewScale, ganttScale) : [];
   const links = createGanttLinkGeometry(relationships, bars, rowIndexByActivity, { rowHeight, rowCenters, xUnits: 10 });
   const scaleModeLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
@@ -4268,11 +4564,11 @@ function renderGantt(
     year: t.scaleYear,
   };
   const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt chart controls", "کنترل‌های نمودار گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
-  const axis = (() => {
+  const axis = hasTimeline ? (() => {
     const timescale = presentation.timescale;
     const ordinalStartMs = timescale.ordinalStart
       ? Date.parse(`${timescale.ordinalStart}T00:00:00Z`)
-      : scale.startMs;
+      : viewScale.startMs;
     const groupLabel = (unit: "year" | "quarter" | "month" | "week", group: GanttPeriodGroup): string => {
       if (unit === "year") {
         const formatted = formatWorkspaceCalendarDate(group.date, calendarMode);
@@ -4306,7 +4602,7 @@ function renderGantt(
     // print the same text twice, so the duplicated row is omitted.
     const renderedGroupUnits = groupUnits.filter((unit) => unit !== ganttScale);
     const groupsByUnit = new Map(
-      renderedGroupUnits.map((unit) => [unit, createGanttPeriodGroups(scale, unit)]),
+      renderedGroupUnits.map((unit) => [unit, createGanttPeriodGroups(viewScale, unit)]),
     );
     const axisHeight = Math.max(20, 19 + renderedGroupUnits.length * 18);
     const groupRows = renderedGroupUnits.map((unit) => `<div class="cp-gantt-timescale-groups" data-timescale-group-unit="${unit}" style="height:18px">${
@@ -4346,7 +4642,7 @@ function renderGantt(
     return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${compactDay ? " is-day" : ""}${compactMonth ? " is-month" : ""}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(label)}</span>`;
     }).join("");
     return `<div class="cp-gantt-axis" tabindex="-1" data-timescale-lines="${timescale.lines}" data-timescale-format="${timescale.dateFormat}" data-timescale-interval="${timescale.interval}" data-timescale-type="${timescale.type}" style="height:${axisHeight}px;--cp-timescale-height:${axisHeight}px;--cp-timescale-font-size:${timescale.fontSize}px;--cp-timescale-color:${timescale.textColor};--cp-timescale-bg:${timescale.backgroundColor}"><div class="cp-gantt-axis-track">${groupRows}<div class="cp-gantt-timescale-ticks">${tickMarkup}</div></div></div>`;
-  })();
+  })() : `<div class="cp-gantt-axis is-unscheduled" aria-hidden="true" style="height:20px;--cp-timescale-height:20px"></div>`;
   const linkSvg = showRelationships && links.length
     ? `<svg class="cp-gantt-links" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}" style="height:${rowsHeight}px"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" data-link-from-x="${link.fromX}" data-link-to-x="${link.toX}" data-link-lane-x="${link.laneX}" data-link-from-y="${link.fromY}" data-link-to-y="${link.toY}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"><title>${escapeHtml(`${link.type} ${link.predecessorId} → ${link.successorId}${link.lag ? ` (${ganttLagText(link.lag)}${link.lag.unit === "percent" ? "" : " " + link.lag.unit})` : ""}`)}</title></path><path class="cp-gantt-link-hit" data-gantt-link-hit="${escapeAttribute(link.relationshipId)}" d="${escapeAttribute(link.path)}" aria-hidden="true"></path>`).join("")}</svg>`
     : "";
@@ -4359,9 +4655,9 @@ function renderGantt(
   // follow month lengths, so the DOM carries exact percentages.
   // The reference chart has no fine vertical grid: only the period boundaries
   // (month starts, or year starts at the year zoom) are drawn, as dashed lines.
-  const gridLines = createGanttAxisTicks(scale, ganttScale === "year" ? "year" : "month")
+  const gridLines = hasTimeline ? createGanttAxisTicks(viewScale, ganttScale === "year" ? "year" : "month")
     .map((tick) => `<span class="cp-gantt-grid-line" data-gantt-grid="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
-    .join("");
+    .join("") : "";
   // Sight Lines tab: minor vertical lines follow the visible tick resolution.
   const minorVertical = gantt.sightLines.minorVertical
     ? ticks
@@ -4371,8 +4667,8 @@ function renderGantt(
     : "";
   // Non-working shading comes from the primary calendar's persisted snapshot.
   // It paints behind grid lines and rows and never changes a schedule date.
-  const nonWorkingBands = projectCalendar?.status === "loaded"
-    ? createGanttNonWorkingBands(scale, {
+  const nonWorkingBands = hasTimeline && projectCalendar?.status === "loaded"
+    ? createGanttNonWorkingBands(viewScale, {
       workingWeekdays: projectCalendar.workingWeekdays,
       holidays: projectCalendar.holidays,
     })
@@ -4397,8 +4693,8 @@ function renderGantt(
   // The Data Date is computed first so each point can be read against it: left
   // of the date is behind schedule, on it is on schedule, right of it is ahead.
   const dataDateMs = dataDate ? Date.parse(`${dataDate.slice(0, 10)}T00:00:00Z`) : Number.NaN;
-  const dataDatePercent = Number.isFinite(dataDateMs)
-    ? ((dataDateMs - scale.startMs) / scale.rangeMs) * 100
+  const dataDatePercent = hasTimeline && Number.isFinite(dataDateMs)
+    ? ((dataDateMs - viewScale.startMs) / viewScale.rangeMs) * 100
     : Number.NaN;
   const progressRelations = { behind: 0, on: 0, ahead: 0 };
   const progressPoints = gantt.progressLine.visible
@@ -4409,7 +4705,7 @@ function renderGantt(
         if (!bar) return null;
         const share = Math.min(100, Math.max(0, bar.progressPercent)) / 100;
         const x = bar.leftPercent + bar.widthPercent * share;
-        const relation = progressPointRelation(x, dataDatePercent, scale.rangeMs);
+        const relation = progressPointRelation(x, dataDatePercent, viewScale.rangeMs);
         if (relation) progressRelations[relation] += 1;
         return { x, y: rowMetrics[index]?.center ?? 0 };
       })
@@ -4434,7 +4730,7 @@ function renderGantt(
     : "";
   const legendTop = gantt.legend.visible && gantt.legend.position === "top" ? legend : "";
   const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
-  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, scale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null, showRelationships);
+  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, viewScale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null, showRelationships);
 
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }

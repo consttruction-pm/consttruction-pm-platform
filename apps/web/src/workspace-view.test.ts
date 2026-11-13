@@ -44,6 +44,26 @@ test("workspace shell uses the canonical CUBI logo and focused module layout con
   assert.match(html, /id="cp-activity-grid"/);
   assert.match(html, /id="cp-gantt"/);
 });
+test("Gantt keeps one row per filtered activity even when none has schedule dates", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const withRows = withActivities(base, [
+    { id: "A-1", wbsId: "W1", code: "A-1", name: "Unscheduled one" },
+    { id: "A-2", wbsId: "W1", code: "A-2", name: "Unscheduled two" },
+  ]);
+  const state = {
+    ...withWbsNodes(withRows, [
+      { id: "W1", parentKind: "project" as const, parentWbsId: null, localCode: "W1", name: "Work", sequenceNumber: 1, recordRevision: 1 },
+    ]),
+    activeMenu: "schedule" as const,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /data-gantt-activity-id="A-1"/);
+  assert.match(html, /data-gantt-activity-id="A-2"/);
+  assert.ok(!html.includes("No scheduled activities"));
+});
+
 test("WBS panel renders localized create controls and permits creating a project root", () => {
   const english = render("en", "project");
   assert.match(english, /data-wbs-create-form/);

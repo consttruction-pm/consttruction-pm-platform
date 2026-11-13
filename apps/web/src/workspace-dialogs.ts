@@ -1281,8 +1281,13 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
       filters = copyActivityFilterAsLayout(filters, targetId);
       filters = selectNewestActivityFilter(filters);
     } else {
-      const draft = buildFilterDraft(data, editingId, scope);
-      if (draft) filters = upsertActivityFilter(filters, draft);
+      // All Activities is the applied state; the editor may still hold the
+      // previously loaded draft, and re-upserting it would silently undo the
+      // user's choice. Only a draft is persisted when All Activities is off.
+      if (!allActivities) {
+        const draft = buildFilterDraft(data, editingId, scope);
+        if (draft) filters = upsertActivityFilter(filters, draft);
+      }
     }
 
     const signature = (state: typeof filters): string => JSON.stringify({
