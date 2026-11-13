@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GANTT_CONTENT_WIDTH, GANTT_SCALE_ORDER, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, fitGanttScale, ganttDisplayMetrics, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, GANTT_SCALE_ORDER, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, fitGanttScale, ganttDisplayMetrics, ganttRowCenter, ganttRowPitch, ganttRowsHeight, progressPointRelation, resolveGanttLabelPosition } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -350,4 +350,15 @@ test("non-working bands refuse to invent a workweek or read an absurd range", ()
   assert.deepEqual(createGanttNonWorkingBands(scale, { workingWeekdays: [], holidays: [] }), []);
   assert.deepEqual(createGanttNonWorkingBands(scale, { workingWeekdays: [0, 1, 2, 3, 4], holidays: [] }, 5), []);
   assert.deepEqual(createGanttNonWorkingBands({ startMs: Number.NaN, endMs, rangeMs: 1 }, { workingWeekdays: [0], holidays: [] }), []);
+});
+
+test("progress points read their side of the Data Date with a half-day tolerance", () => {
+  const tenDays = 10 * 86_400_000;
+  assert.equal(progressPointRelation(40, 50, tenDays), "behind");
+  assert.equal(progressPointRelation(50, 50, tenDays), "on");
+  // Half a day on a ten-day scale is five percent.
+  assert.equal(progressPointRelation(54, 50, tenDays), "on");
+  assert.equal(progressPointRelation(56, 50, tenDays), "ahead");
+  assert.equal(progressPointRelation(40, Number.NaN, tenDays), null);
+  assert.equal(progressPointRelation(40, 50, 0), null);
 });

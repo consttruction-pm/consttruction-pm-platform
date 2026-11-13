@@ -1,7 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -3868,8 +3868,13 @@ function renderGantt(
     }
   }
   // Completion-percentage point line over the persisted progress of every bar.
-  // Ahead/behind wording needs the Data Date, which is a separate line and is
-  // only drawn when the project exposes an authoritative date.
+  // The Data Date is computed first so each point can be read against it: left
+  // of the date is behind schedule, on it is on schedule, right of it is ahead.
+  const dataDateMs = dataDate ? Date.parse(`${dataDate.slice(0, 10)}T00:00:00Z`) : Number.NaN;
+  const dataDatePercent = Number.isFinite(dataDateMs)
+    ? ((dataDateMs - scale.startMs) / scale.rangeMs) * 100
+    : Number.NaN;
+  const progressRelations = { behind: 0, on: 0, ahead: 0 };
   const progressPoints = gantt.progressLine.visible
     ? rows
       .map((row, index) => {
@@ -3877,17 +3882,19 @@ function renderGantt(
         const bar = barById.get(row.activity.id);
         if (!bar) return null;
         const share = Math.min(100, Math.max(0, bar.progressPercent)) / 100;
-        return { x: bar.leftPercent + bar.widthPercent * share, y: rowMetrics[index]?.center ?? 0 };
+        const x = bar.leftPercent + bar.widthPercent * share;
+        const relation = progressPointRelation(x, dataDatePercent, scale.rangeMs);
+        if (relation) progressRelations[relation] += 1;
+        return { x, y: rowMetrics[index]?.center ?? 0 };
       })
       .filter((point): point is { x: number; y: number } => point !== null)
     : [];
-  const progressLine = progressPoints.length > 1
-    ? `<svg class="cp-gantt-progress-line-layer" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" style="height:${rowsHeight}px;--cp-progress-color:${gantt.progressLine.color};--cp-progress-width:${gantt.progressLine.thickness}px" aria-hidden="true"><path class="cp-gantt-progress-line" data-gantt-progress-line="${progressPoints.length}" d="${progressPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${ganttRound(point.x * 10)} ${ganttRound(point.y)}`).join(" ")}"/></svg>`
+  const progressDateAttributes = Number.isFinite(dataDatePercent)
+    ? ` data-gantt-progress-data-date="${escapeAttribute(dataDate!.slice(0, 10))}" data-gantt-progress-behind="${progressRelations.behind}" data-gantt-progress-on="${progressRelations.on}" data-gantt-progress-ahead="${progressRelations.ahead}"`
     : "";
-  const dataDateMs = dataDate ? Date.parse(`${dataDate.slice(0, 10)}T00:00:00Z`) : Number.NaN;
-  const dataDatePercent = Number.isFinite(dataDateMs)
-    ? ((dataDateMs - scale.startMs) / scale.rangeMs) * 100
-    : Number.NaN;
+  const progressLine = progressPoints.length > 1
+    ? `<svg class="cp-gantt-progress-line-layer" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" style="height:${rowsHeight}px;--cp-progress-color:${gantt.progressLine.color};--cp-progress-width:${gantt.progressLine.thickness}px" aria-hidden="true"${progressDateAttributes}><path class="cp-gantt-progress-line" data-gantt-progress-line="${progressPoints.length}" d="${progressPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${ganttRound(point.x * 10)} ${ganttRound(point.y)}`).join(" ")}"/></svg>`
+    : "";
   const dataDateLine = gantt.dataDateLine.visible && Number.isFinite(dataDatePercent) && dataDatePercent >= 0 && dataDatePercent <= 100
     ? `<span class="cp-gantt-data-date is-${gantt.dataDateLine.style}" data-gantt-data-date="${escapeAttribute(dataDate!.slice(0, 10))}" style="left:${ganttRound(dataDatePercent)}%;--cp-data-date-color:${gantt.dataDateLine.color};--cp-data-date-width:${gantt.dataDateLine.thickness}px"><span class="cp-gantt-data-date-label">${escapeHtml(uiText(locale, "Data Date", "تاریخ داده"))}</span></span>`
     : "";

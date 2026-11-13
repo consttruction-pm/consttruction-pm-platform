@@ -333,7 +333,7 @@ test("Gantt chart options render with an honest Data Date state", () => {
   assert.match(withoutDate, /<fieldset class="cp-dialog-group" disabled>\s*<legend>Data Date line/);
 
   const withDate = renderLayoutDialogs(dialogOptions({ dataDate: "2026-09-03" }));
-  assert.match(withDate, /The Data Date line marks the project data date/);
+  assert.match(withDate, /The line marks the project Data Date \(2026-09-03\)/);
   assert.match(withDate, /<fieldset class="cp-dialog-group">\s*<legend>Data Date line/);
   assert.match(withDate, /name="gantt\.dataDateLine\.style"/);
 });

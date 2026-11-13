@@ -107,7 +107,7 @@ import { mountWorkspaceBackupPage } from "./workspace-backup.js";
 import { mountWorkspaceThresholdsPage } from "./workspace-thresholds.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
 import { mountWorkspaceDocumentsPage } from "./workspace-documents.js";
-import { mountWorkspaceCostPage } from "./workspace-cost.js";
+import { loadScheduleDataDate, mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
@@ -179,6 +179,10 @@ let currentBootstrap: ProjectBootstrap | null = null;
 /** Authoritative metadata of the open project, read from the session service. */
 let activeProjectSummary: ProjectSummary | null = null;
 let activeProjectSummaryProjectId: string | null = null;
+/** Data Date published by the open project's schedule settings, never guessed. */
+let activeProjectDataDate: string | null = null;
+let activeProjectDataDateProjectId: string | null = null;
+const activeProjectDataDateInflight = new Set<string>();
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Signed-in user for browser-local preferences that must not leak between profiles. */
@@ -1295,7 +1299,7 @@ function renderApp(
           state.activities,
           visualPreferences.presentation.filters,
           state.wbsNodes,
-          createActivityFilterDateContext(state.activities, chromeProject.dataDate === "—" ? null : chromeProject.dataDate),
+          createActivityFilterDateContext(state.activities, projectDataDate),
         );
         const ordered = filterAndSortActivities(
           filterApplication.activities,
@@ -1587,9 +1591,12 @@ function renderApp(
   if (tabsWithActive.length !== openTabs.length) rememberOpenWindows(tabsWithActive);
 
   const t = (en: string, persian: string): string => translateWorkspaceUiText(state.locale, en, persian);
+  // Only the server's schedule-settings record supplies the project Data Date.
+  // Until that read resolves every overlay and the CD filter token stay unset.
+  const projectDataDate = activeProjectDataDateFor(state.context.project_id);
   const chromeProject = {
     name: activeProjectLabel(state.context.project_id),
-    dataDate: "—",
+    dataDate: projectDataDate ?? "—",
     baseline: "—",
     user: "—",
     database: t("Preview", "پیش‌نمایش"),
@@ -1742,7 +1749,7 @@ function renderApp(
       activityBottomLayout: state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : undefined,
       theme: activeWorkspaceTheme,
       dataAvailability: presentationDataAvailability(state.activities),
-      dataDate: chromeProject.dataDate === "—" ? null : chromeProject.dataDate,
+      dataDate: projectDataDate,
       activities: state.activities,
       wbsNodes: state.wbsNodes,
     },
@@ -2128,9 +2135,6 @@ function renderApp(
     }
   };
 
-  // The workspace read model exposes no project Data Date, so the Gantt must
-  // not invent one; the line stays absent until an authoritative date exists.
-  const projectDataDate = chromeProject.dataDate === "—" ? null : chromeProject.dataDate;
   renderMainWorkspace(workspace, state, {
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
@@ -2157,7 +2161,7 @@ function renderApp(
           selectedActivityId: detailsState.selectedActivityId,
           relationships: detailsState.relationships,
           projectName: activeProjectLabel(detailsState.context.project_id),
-          dataDate: "—",
+          dataDate: projectDataDate ?? "—",
           calendarMode: detailsState.calendarMode,
           transport: getDetailsTransport(),
           state: detailsState,
@@ -3021,6 +3025,33 @@ async function loadActiveProjectSummary(
   }
 }
 
+/**
+ * Reads the Data Date once per opened project from the schedule settings the
+ * server owns. A missing or failed read leaves the Gantt without a Data Date
+ * line instead of inventing a project reference date.
+ */
+async function loadActiveProjectDataDate(container: HTMLElement, context: ProjectContext): Promise<void> {
+  const projectId = context.project_id;
+  if (activeProjectDataDateInflight.has(projectId)) return;
+  activeProjectDataDateInflight.add(projectId);
+  try {
+    const result = await loadScheduleDataDate(new FetchApiTransport(window.location.origin), context);
+    if (!result.ok) return;
+    const current = currentWorkspaceState;
+    if (!current || current.context.project_id !== projectId) return;
+    if (activeProjectDataDateProjectId === projectId && activeProjectDataDate === result.data) return;
+    activeProjectDataDate = result.data;
+    activeProjectDataDateProjectId = projectId;
+    renderAppPreservingDrafts(container, current);
+  } finally {
+    activeProjectDataDateInflight.delete(projectId);
+  }
+}
+
+function activeProjectDataDateFor(projectId: string): string | null {
+  return activeProjectDataDateProjectId === projectId ? activeProjectDataDate : null;
+}
+
 /** The name the server already gave us for this project, from record or session list. */
 function activeProjectLabel(projectId: string): string {
   if (activeProjectSummary && activeProjectSummaryProjectId === projectId && activeProjectSummary.name) {
@@ -3048,8 +3079,13 @@ function renderBootstrapState(
     rememberOpenedProject(state.userId, state.context.project_id);
     if (activeProjectSummaryProjectId !== state.context.project_id) activeProjectSummary = null;
     activeProjectSummaryProjectId = state.context.project_id;
+    if (activeProjectDataDateProjectId !== state.context.project_id) {
+      activeProjectDataDate = null;
+      activeProjectDataDateProjectId = null;
+    }
     renderApp(container, applyRememberedMenu(state.workspace));
     void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
+    void loadActiveProjectDataDate(container, state.context);
     return;
   }
 

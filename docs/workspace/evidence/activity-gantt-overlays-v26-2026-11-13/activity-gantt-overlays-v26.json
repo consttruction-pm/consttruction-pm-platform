@@ -1,0 +1,120 @@
+{
+  "contract": "cubi-activity-gantt-overlays-v26.v1",
+  "baseUrl": "http://127.0.0.1:4201",
+  "gitHead": "10659a0281588f25a95ff50cd092a197c5e7d55b",
+  "testedCodeSha": "10659a0281588f25a95ff50cd092a197c5e7d55b",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T00:39:13.962Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the server Data Date reaches the chrome, Details and the Gantt line",
+      "status": "pass",
+      "at": "2026-11-13T00:39:17.303Z",
+      "linePercent": 28.8,
+      "expectedPercent": 28.8,
+      "statusBar": "Data Date: 2026-10-12",
+      "lineHeight": 427,
+      "criticalBars": 7
+    },
+    {
+      "id": "02",
+      "name": "the Bars dialog is enabled by the real date and draws the progress line",
+      "status": "pass",
+      "at": "2026-11-13T00:39:18.620Z",
+      "points": 14,
+      "behind": 4,
+      "on": 0,
+      "ahead": 10,
+      "stroke": "rgb(255, 136, 0)"
+    },
+    {
+      "id": "03",
+      "name": "Data Date style, thickness and colour reach the drawn line",
+      "status": "pass",
+      "at": "2026-11-13T00:39:21.170Z",
+      "dashed": {
+        "width": "1px",
+        "color": "#00aa55",
+        "className": "cp-gantt-data-date is-dashed"
+      },
+      "solidWidth": "4px",
+      "solidColor": "rgb(17, 34, 51)"
+    },
+    {
+      "id": "04",
+      "name": "the overlay settings survive Save Layout and a full reload",
+      "status": "pass",
+      "at": "2026-11-13T00:39:24.557Z",
+      "layoutRevision": 6,
+      "savedGantt": {
+        "dataDateLine": {
+          "color": "#112233",
+          "style": "solid",
+          "thickness": 3,
+          "visible": true
+        },
+        "labelColor": "#000000",
+        "labelFontSize": 10,
+        "legend": {
+          "position": "bottom",
+          "visible": false
+        },
+        "progressLine": {
+          "color": "#ff8800",
+          "thickness": 2,
+          "visible": true
+        },
+        "showBarLabels": true,
+        "sightLines": {
+          "beforeSummaries": false,
+          "minorVertical": false,
+          "rowInterval": 0
+        }
+      },
+      "restoredLineWidth": "3px",
+      "restoredProgressPoints": 14
+    },
+    {
+      "id": "05",
+      "name": "baseline bars stay absent and honest without baseline dates",
+      "status": "pass",
+      "at": "2026-11-13T00:39:25.525Z",
+      "baselineNote": true,
+      "baselineBars": 0
+    },
+    {
+      "id": "06",
+      "name": "the overlays hold in fa RTL at 1280",
+      "status": "pass",
+      "at": "2026-11-13T00:39:27.847Z",
+      "linePercent": 28.8,
+      "expectedPercent": 28.8,
+      "label": "تاریخ داده",
+      "overflow": 0
+    },
+    {
+      "id": "07",
+      "name": "the overlays hold at 1920 with critical bars intact",
+      "status": "pass",
+      "at": "2026-11-13T00:39:29.801Z",
+      "linePercent": 28.8,
+      "expectedPercent": 28.8,
+      "criticalBars": 7,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-data-date-line-and-tick-en-1366.png",
+    "02-progress-line-en-1366.png",
+    "03-data-date-solid-4px-en-1366.png",
+    "04-overlays-restored-after-reload-en-1366.png",
+    "06-data-date-line-fa-rtl-1280.png",
+    "07-data-date-line-and-progress-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 7,
+  "failed": 0
+}
