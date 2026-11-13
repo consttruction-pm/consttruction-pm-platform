@@ -101,7 +101,7 @@ Threats and primary controls:
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Fixed `2b2873b3` |
-| SEC-017 | Low | Internal exception text reflected as the response `code` | Fixed `8bd70e23` |
+| SEC-017 | Low | Internal exception text reflected as the response `code` | Fixed `7d12efe6` |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Fixed `ebaec38a` |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Fixed `9c362d15` |
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Fixed `c55b6535` |
@@ -612,7 +612,7 @@ Threats and primary controls:
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
 - **Open Medium/Low findings.** None remain: SEC-010 (`42484541`) and SEC-017
-  (`8bd70e23`) are fixed on main; SEC-001–SEC-025 are fixed, accepted as
+  (`7d12efe6`) are fixed on main; SEC-001–SEC-025 are fixed, accepted as
   literals-only, or informational. Fixed findings carry negative tests and are
   marked in the register above.
 
