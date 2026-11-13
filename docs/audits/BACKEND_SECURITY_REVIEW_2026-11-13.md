@@ -92,23 +92,23 @@ Threats and primary controls:
 | SEC-005 | Info | Internal DDL helper interpolates table names | Accepted (literals only) |
 | SEC-006 | High | Retention disposal deleted a shared content-addressed object | Fixed (this change) |
 | SEC-007 | Medium | Legal-hold changes and disposition need only `PROJECT_WRITE` | Open |
-| SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed (this change) |
-| SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed (this change) |
+| SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed `8581697` |
+| SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed `8581697` |
 | SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
-| SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed (this change) |
+| SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed `8581697` |
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
-| SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed (this change) |
+| SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Open |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Open |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Open |
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Open |
-| SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed (this change) |
-| SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed (this change) |
+| SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed `8581697` |
+| SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed `8581697` |
 | SEC-023 | Low | Anonymous readiness probe returns per-component detail | Open |
-| SEC-024 | Low | WSGI short-read body is accepted as complete | Fixed (this change) |
+| SEC-024 | Low | WSGI short-read body is accepted as complete | Fixed `8581697` |
 | SEC-025 | Info | `ReferenceAIToolPermissionAdapter` authorizes on tool name only (unused) | Open |
 
 ### SEC-001 — S3 client followed redirects and re-sent signed credentials
