@@ -14,7 +14,9 @@ import type {
 
 export const GROUP_SORT_METADATA_KEY = "groupSort";
 export const GROUP_SORT_UPDATED_KEY = "groupSortUpdatedAt";
+export const WBS_COLLAPSE_METADATA_KEY = "wbsCollapse";
 export const MAX_LAYOUT_SORT_LEVELS = 3;
+export const MAX_SAVED_COLLAPSED_WBS = 500;
 
 export type SavedGroupSort = {
   groupBy: WorkspaceActivityGroupBy;
@@ -79,6 +81,55 @@ export function withGroupSortMetadata(
     metadata: {
       ...(layout.metadata ?? {}),
       ...groupSortMetadata(groupBy, sortLevels, updatedAt),
+    },
+  };
+}
+
+/**
+ * Reads the collapsed WBS branches a layout was saved with. A missing key means
+ * the layout never stored a collapse preference (the current view stays as it
+ * is); an empty array means the author saved every branch expanded.
+ */
+export function readCollapsedWbsMetadata(
+  metadata: Readonly<Record<string, unknown>> | undefined,
+): ReadonlySet<string> | null {
+  const raw = metadata?.[WBS_COLLAPSE_METADATA_KEY];
+  if (raw === undefined || raw === null || !Array.isArray(raw)) return null;
+  const ids = new Set<string>();
+  for (const item of raw) {
+    if (ids.size >= MAX_SAVED_COLLAPSED_WBS) break;
+    if (typeof item !== "string") continue;
+    const id = item.trim();
+    if (id !== "") ids.add(id);
+  }
+  return ids;
+}
+
+/** Collapsed WBS ids to store inside a layout definition that is being saved. */
+export function collapsedWbsMetadata(ids: Iterable<string>): Readonly<Record<string, unknown>> {
+  const collapsed: string[] = [];
+  const seen = new Set<string>();
+  for (const item of ids) {
+    if (typeof item !== "string") continue;
+    const id = item.trim();
+    if (id === "" || seen.has(id) || collapsed.length >= MAX_SAVED_COLLAPSED_WBS) continue;
+    seen.add(id);
+    collapsed.push(id);
+  }
+  collapsed.sort();
+  return { [WBS_COLLAPSE_METADATA_KEY]: collapsed };
+}
+
+/** Returns the layout with the current collapsed branches merged into metadata. */
+export function withCollapsedWbsMetadata(
+  layout: LayoutDefinition,
+  ids: Iterable<string>,
+): LayoutDefinition {
+  return {
+    ...layout,
+    metadata: {
+      ...(layout.metadata ?? {}),
+      ...collapsedWbsMetadata(ids),
     },
   };
 }

@@ -5,8 +5,13 @@ import { P6_LAYOUT_SCHEMA_VERSION, type LayoutDefinition } from "./p6-field-layo
 import {
   GROUP_SORT_METADATA_KEY,
   GROUP_SORT_UPDATED_KEY,
+  MAX_SAVED_COLLAPSED_WBS,
+  WBS_COLLAPSE_METADATA_KEY,
+  collapsedWbsMetadata,
   groupSortMetadata,
+  readCollapsedWbsMetadata,
   readGroupSortMetadata,
+  withCollapsedWbsMetadata,
   withGroupSortMetadata,
 } from "./workspace-layout-settings.js";
 
@@ -93,4 +98,42 @@ test("writing metadata caps the plan at three levels and keeps other keys", () =
   const merged = withGroupSortMetadata(layout(), "wbs", [], 10);
   assert.equal(merged.metadata?.layoutName, "Baseline");
   assert.deepEqual(readGroupSortMetadata(merged.metadata), { groupBy: "wbs", sortLevels: [] });
+});
+
+test("a saved layout restores the collapsed WBS branches it was saved with", () => {
+  const saved = withCollapsedWbsMetadata(layout(), ["WBS-RPS-CIVIL", " WBS-RPS-PROF ", "WBS-RPS-CIVIL", ""]);
+  assert.equal(saved.scope, "project");
+  assert.equal(saved.revision, 3);
+  assert.equal(saved.metadata?.layoutName, "Baseline");
+  assert.deepEqual(saved.metadata?.[WBS_COLLAPSE_METADATA_KEY], ["WBS-RPS-CIVIL", "WBS-RPS-PROF"]);
+  const restored = readCollapsedWbsMetadata(saved.metadata);
+  assert.deepEqual([...(restored ?? [])].sort(), ["WBS-RPS-CIVIL", "WBS-RPS-PROF"]);
+});
+
+test("an absent collapse block leaves the view alone but an empty one expands everything", () => {
+  assert.equal(readCollapsedWbsMetadata(undefined), null);
+  assert.equal(readCollapsedWbsMetadata({}), null);
+  assert.equal(readCollapsedWbsMetadata({ [WBS_COLLAPSE_METADATA_KEY]: "WBS-RPS-CIVIL" }), null);
+  assert.equal(readCollapsedWbsMetadata({ [WBS_COLLAPSE_METADATA_KEY]: { id: "x" } }), null);
+  const empty = readCollapsedWbsMetadata({ [WBS_COLLAPSE_METADATA_KEY]: [] });
+  assert.equal(empty?.size, 0);
+  const filtered = readCollapsedWbsMetadata({
+    [WBS_COLLAPSE_METADATA_KEY]: ["WBS-A", 7, null, " ", "WBS-B", "WBS-A"],
+  });
+  assert.deepEqual([...(filtered ?? [])].sort(), ["WBS-A", "WBS-B"]);
+});
+
+test("collapse metadata is capped and never replaces the other layout keys", () => {
+  const ids = Array.from({ length: MAX_SAVED_COLLAPSED_WBS + 20 }, (_, index) => `WBS-${index}`);
+  const metadata = collapsedWbsMetadata(ids);
+  const stored = metadata[WBS_COLLAPSE_METADATA_KEY] as string[];
+  assert.equal(stored.length, MAX_SAVED_COLLAPSED_WBS);
+  const merged = withCollapsedWbsMetadata(layout(), ids.slice(0, 2));
+  assert.equal(merged.metadata?.layoutName, "Baseline");
+  const both = withCollapsedWbsMetadata(
+    withGroupSortMetadata(layout(), "wbs", [], 10),
+    ["WBS-RPS-CIVIL"],
+  );
+  assert.deepEqual(readGroupSortMetadata(both.metadata), { groupBy: "wbs", sortLevels: [] });
+  assert.deepEqual([...(readCollapsedWbsMetadata(both.metadata) ?? [])], ["WBS-RPS-CIVIL"]);
 });
