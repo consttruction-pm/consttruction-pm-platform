@@ -23,7 +23,10 @@ from .ingest import IngestionPipeline
 from .locales import (
     DEFAULT_LOCALE,
     FALLBACK_LOCALE,
+    LEGACY_LOCALES,
+    PRODUCT_LOCALES,
     SOURCE_LANGUAGE,
+    TARGET_LOCALES,
     canonical_locale,
     direction,
     language_code,
@@ -93,6 +96,9 @@ class KnowledgeAPI:
         self._require(principal, Permission.KNOWLEDGE_READ)
         return {
             "locales": list(locale_registry()),
+            "product_locales": list(PRODUCT_LOCALES),
+            "target_locales": list(TARGET_LOCALES),
+            "legacy_locales": list(LEGACY_LOCALES),
             "default_language": DEFAULT_LOCALE,
             "fallback_language": FALLBACK_LOCALE,
             "source_language": SOURCE_LANGUAGE,
@@ -562,24 +568,15 @@ class KnowledgeAPI:
                     }
                 )
                 continue
-            record = self.store.get_translation(card.card_id, locale)
+            record = localized_record(self.store, card, locale)
             rows.append(
                 {
                     "locale": locale,
-                    "translation_status": (
-                        record.translation_status.value
-                        if record is not None
-                        else "missing"
-                    ),
-                    "review_status": (
-                        record.review_status.value if record is not None else "pending"
-                    ),
-                    "published_language_version": (
-                        record.published_language_version if record is not None else None
-                    ),
+                    "translation_status": record.translation_status.value,
+                    "review_status": record.review_status.value,
+                    "published_language_version": record.published_language_version,
                     "available": bool(
                         answerable_card
-                        and record is not None
                         and record.approved_for_answer()
                         and source_binding_current(card, record)
                     ),

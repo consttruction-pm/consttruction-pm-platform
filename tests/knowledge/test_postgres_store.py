@@ -189,6 +189,141 @@ def test_owned_connection_persists_writes_made_after_a_read(
         second.close()
 
 
+def test_owned_connection_persists_translation_and_audit_after_a_read(
+    pg_dsn, schema, card_factory
+) -> None:
+    first = _owned_store(pg_dsn, schema)
+    card = _card(card_factory, topic_key="owned-translation.html")
+    try:
+        first.list_topics(source_id="p6-26-html-help")
+        first.save_card(card)
+        first.save_translation(_translation(card.card_id))
+        first.append_audit(
+            tenant_id="tenant-1",
+            project_id=None,
+            actor_id="tester",
+            action="translation_saved",
+            entity_kind="knowledge_card_translation",
+            entity_id=card.card_id,
+            outcome="succeeded",
+            occurred_at="2026-02-01T00:00:00+00:00",
+            detail={"locale": "fa"},
+        )
+    finally:
+        first.close()
+
+    second = _owned_store(pg_dsn, schema)
+    try:
+        record = second.get_translation(card.card_id, "fa")
+        assert record is not None and record.translation_version == 1
+        audits = second.list_audit(limit=10)
+        assert [row["action"] for row in audits] == ["translation_saved"]
+    finally:
+        second.close()
+
+
+def test_caller_owned_connection_respects_caller_transaction_and_close(
+    pg_dsn, schema, card_factory
+) -> None:
+    conn = psycopg.connect(pg_dsn, options=f"-c search_path={schema}")
+    rolled_back = _card(card_factory, topic_key="caller-rollback.html")
+    store = PostgresKnowledgeStore(conn)
+    try:
+        store.list_topics(source_id="p6-26-html-help")
+        store.save_card(rolled_back)
+        store.record_card_event(
+            rolled_back.card_id,
+            action="created",
+            actor_id="tester",
+            occurred_at="2026-02-01T00:00:00+00:00",
+            detail={},
+        )
+    finally:
+        store.close()
+    assert not conn.closed  # the store never owns a caller's connection
+    conn.rollback()
+
+    committed = _card(card_factory, topic_key="caller-commit.html")
+    store = PostgresKnowledgeStore(conn)
+    try:
+        store.save_card(committed)
+    finally:
+        store.close()
+    conn.commit()
+    conn.close()
+
+    reopened = _owned_store(pg_dsn, schema)
+    try:
+        assert reopened.get_card(rolled_back.card_id) is None
+        assert reopened.get_card(committed.card_id) is not None
+    finally:
+        reopened.close()
+
+
+def test_nested_savepoint_keeps_the_outer_write_and_discards_the_inner(
+    pg_dsn, schema, card_factory
+) -> None:
+    conn = psycopg.connect(pg_dsn, options=f"-c search_path={schema}")
+    store = PostgresKnowledgeStore(conn)
+    outer = _card(card_factory, topic_key="savepoint-outer.html")
+    inner = _card(card_factory, topic_key="savepoint-inner.html")
+    try:
+        with conn.transaction():
+            store.save_card(outer)
+            with pytest.raises(RuntimeError):
+                with conn.transaction():
+                    store.save_card(inner)
+                    raise RuntimeError("abort only the inner scope")
+        conn.commit()
+    finally:
+        store.close()
+        if not conn.closed:
+            conn.close()
+
+    reopened = _owned_store(pg_dsn, schema)
+    try:
+        assert reopened.get_card(outer.card_id) is not None
+        assert reopened.get_card(inner.card_id) is None
+    finally:
+        reopened.close()
+
+
+def test_failed_transaction_leaves_no_card_event_or_audit(
+    pg_dsn, schema, card_factory
+) -> None:
+    store = _owned_store(pg_dsn, schema)
+    card = _card(card_factory, topic_key="rollback-all.html")
+    try:
+        with pytest.raises(RuntimeError):
+            with store._transaction():
+                store.save_card(card)
+                store.record_card_event(
+                    card.card_id,
+                    action="created",
+                    actor_id="tester",
+                    occurred_at="2026-02-01T00:00:00+00:00",
+                    detail={},
+                )
+                store.append_audit(
+                    tenant_id="tenant-1",
+                    project_id=None,
+                    actor_id="tester",
+                    action="ingest_run",
+                    entity_kind="knowledge_source",
+                    entity_id="p6-26-html-help",
+                    outcome="succeeded",
+                    occurred_at="2026-02-01T00:00:00+00:00",
+                    detail={},
+                )
+                raise RuntimeError("abort the business operation")
+        assert store.get_card(card.card_id) is None
+        events, _ = store.list_card_events(card.card_id)
+        assert events == ()
+        assert store.list_audit(limit=10) == ()
+    finally:
+        store.close()
+
+
 def test_card_round_trip_preserves_content_and_timestamps(store, card_factory) -> None:
     card = _card(card_factory)
     store.save_card(card)
@@ -579,7 +714,7 @@ def test_v2_database_migrates_to_v3_without_losing_records(
             "translation_status, review_status, translation_version, translation_source, "
             "machine_translated, updated_at) VALUES (%s, %s, %s, 'translated', 'pending', "
             "1, 'human', 0, 'now')",
-            (card.card_id, ["fa", "ar", "de", "fr", "ja", "ko", "ru", "zh-CN", "zh-TW"][index % 9], "fa"),
+            (card.card_id, ["fa", "ar", "de", "fr", "ja", "ko", "ru", "zh-Hans", "zh-CN"][index % 9], "fa"),
         ) if index < 9 else None
     for index in range(513):
         connection.execute(

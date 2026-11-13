@@ -104,18 +104,22 @@ source pages produce an explicit "no body content" purpose and limitation
 rather than a fabricated procedure. Card reads are tenant-checked; the central
 corpus is shared, a project card is not.
 
-### 5.1 Ten locales, nine working languages
+### 5.1 Eight product locales, seven translation targets
 
-The product ships `fa`, `en`, `de`, `zh-CN`, `zh-TW`, `ar`, `fr`, `ja`, `ko`
-and `ru` behind the registry in `construction_pm.knowledge.locales`. Simplified
-and Traditional Chinese are separate locales that share the language code `zh`.
+The product ships `fa`, `en` (source), `de`, `zh-Hans`, `ar`, `fr`, `ja` and
+`ko` behind the registry in `construction_pm.knowledge.locales`. Chinese is one
+product language: `zh-CN`, `zh-TW`, `zh-Hant` and regional tags all resolve to
+`zh-Hans`, and a card therefore has exactly one Chinese translation slot.
 Persian and Arabic are RTL; every other locale is LTR. No subsystem hard-codes a
 locale check: search, assistant, workflow, API and HTTP all resolve through the
-registry, so a new locale is a registry entry, not scattered branching.
+registry, so a policy change is a registry entry, not scattered branching.
 
-The registry also defines `source_language`, `default_language` and
-`fallback_language` (all `en` today) and returns direction/script metadata to the
-client.
+`ru` remains a readable legacy locale. Previously stored Russian records are
+preserved and still answer, but Russian is not a product language and is
+excluded from coverage denominators and the product locale list. The registry
+exposes `PRODUCT_LOCALES`, `TARGET_LOCALES` (product minus source) and
+`LEGACY_LOCALES`, plus `source_language`, `default_language`,
+`fallback_language` (all `en` today) and direction/script metadata.
 
 ### 5.2 Per-locale translation lifecycle
 

@@ -17,7 +17,21 @@ import sqlite3
 import sys
 from pathlib import Path
 
-LOCALES = ("fa", "en", "de", "zh-CN", "zh-TW", "ar", "fr", "ja", "ko", "ru")
+LOCALES = ("fa", "en", "de", "zh-Hans", "ar", "fr", "ja", "ko")
+LEGACY_LOCALES = ("ru",)
+# Persisted Chinese codes that the current registry folds into one slot.
+LOCALE_ALIASES = {
+    "zh": "zh-Hans",
+    "zh-cn": "zh-Hans",
+    "zh-tw": "zh-Hans",
+    "zh-hant": "zh-Hans",
+    "zh-hk": "zh-Hans",
+    "zh-mo": "zh-Hans",
+}
+
+
+def _canonical_stored_locale(value: str) -> str:
+    return LOCALE_ALIASES.get(value.strip().replace("_", "-").lower(), value)
 
 
 class _Row:
@@ -119,12 +133,35 @@ def measure_reader(reader: _SqliteReader | _PostgresReader) -> dict[str, object]
     )
 
     matrix: dict[str, dict[str, int]] = {locale: {} for locale in LOCALES}
+    legacy_matrix: dict[str, dict[str, int]] = {locale: {} for locale in LEGACY_LOCALES}
+    storage_codes: dict[str, int] = {}
     machine = 0
     stale = 0
     bound_rows = 0
+    normalized_legacy = 0
+    # One card has at most one row per product slot. When both a legacy and a
+    # canonical Chinese code exist, keep the canonical row rather than counting
+    # the same slot twice.
+    per_card: dict[tuple[str, str], tuple[str, str]] = {}
     for row in rows:
-        bucket = matrix.setdefault(str(row["locale"]), {})
-        bucket[str(row["translation_status"])] = bucket.get(str(row["translation_status"]), 0) + 1
+        stored = str(row["locale"])
+        canonical = _canonical_stored_locale(stored)
+        storage_codes[stored] = storage_codes.get(stored, 0) + 1
+        if canonical != stored:
+            normalized_legacy += 1
+        status = str(row["translation_status"])
+        if canonical in matrix:
+            key = (str(row["card_id"]), canonical)
+            current = per_card.get(key)
+            rank = {"published": 6, "approved": 5, "translated": 4, "review_required": 3, "draft": 2, "retired": 1, "missing": 0}
+            if current is None or (rank.get(status, 0), stored == canonical) > (
+                rank.get(current[0], 0),
+                current[1] == canonical,
+            ):
+                per_card[key] = (status, stored)
+        elif canonical in legacy_matrix:
+            bucket = legacy_matrix[canonical]
+            bucket[status] = bucket.get(status, 0) + 1
         if int(row["machine_translated"]):
             machine += 1
         metadata = json.loads(row["localization_metadata_json"] or "{}")
@@ -133,22 +170,25 @@ def measure_reader(reader: _SqliteReader | _PostgresReader) -> dict[str, object]
             bound_rows += 1
             if bound_hash != card_hashes.get(str(row["card_id"])):
                 stale += 1
+    for (card_id, locale), (status, _stored) in per_card.items():
+        bucket = matrix[locale]
+        bucket[status] = bucket.get(status, 0) + 1
     approved = sum(
-        value for locale in matrix.values() for key, value in locale.items() if key == "approved"
+        value for bucket in matrix.values() for key, value in bucket.items() if key == "approved"
     )
     published_translations = sum(
-        value for locale in matrix.values() for key, value in locale.items() if key == "published"
+        value for bucket in matrix.values() for key, value in bucket.items() if key == "published"
     )
     rejected = sum(
-        value for locale in matrix.values() for key, value in locale.items() if key == "review_required"
+        value for bucket in matrix.values() for key, value in bucket.items() if key == "review_required"
     )
     slots = total_cards * (len(LOCALES) - 1)
     filled = sum(
         1
-        for row in rows
-        if str(row["translation_status"]) not in {"missing", "retired"}
-        and str(row["locale"]) != "en"
+        for status, _stored in per_card.values()
+        if status not in {"missing", "retired"}
     )
+    legacy_records = sum(sum(bucket.values()) for bucket in legacy_matrix.values())
     return {
         "database": {
             **reader.metadata(),
@@ -174,10 +214,15 @@ def measure_reader(reader: _SqliteReader | _PostgresReader) -> dict[str, object]
         },
         "translations": {
             "locales": list(LOCALES),
+            "legacy_locales": list(LEGACY_LOCALES),
             "source_language": "en",
             "records": len(rows),
             "cards_with_translations": len({str(row["card_id"]) for row in rows}),
             "by_locale": matrix,
+            "legacy_by_locale": legacy_matrix,
+            "legacy_records": legacy_records,
+            "normalized_legacy_records": normalized_legacy,
+            "stored_locale_codes": storage_codes,
             "approved": approved,
             "published": published_translations,
             "review_required_or_rejected": rejected,

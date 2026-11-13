@@ -20,11 +20,16 @@ from typing import Mapping, Sequence
 from .locales import (
     DEFAULT_LOCALE,
     FALLBACK_LOCALE,
+    LEGACY_LOCALES,
+    PRODUCT_LOCALES,
     SOURCE_LANGUAGE,
+    SUPPORTED_LOCALES,
+    TARGET_LOCALES,
     canonical_locale,
     detect_locale,
     language_code,
     require_locale,
+    translation_locale_candidates,
 )
 from .model import (
     CardStatus,
@@ -131,33 +136,54 @@ def localized_record(
     resolved = require_locale(locale)
     if resolved == DEFAULT_LOCALE:
         return source_record(card)
-    stored = store.get_translation(card.card_id, resolved)
-    if stored is not None:
-        return stored
+    for candidate in translation_locale_candidates(resolved):
+        stored = store.get_translation(card.card_id, candidate)
+        if stored is not None:
+            return _canonicalize_record(stored, resolved)
     return missing_record(card.card_id, resolved, updated_at=card.extracted_at)
+
+
+def _canonicalize_record(record: TranslationRecord, locale: str) -> TranslationRecord:
+    """Present a legacy-code row under the one canonical product locale.
+
+    The stored row is left untouched. Only the in-memory view is normalized, and
+    the content hash is recomputed so the record stays internally consistent if
+    a reviewer later saves a new version under the canonical code.
+    """
+
+    normalized = replace(
+        record,
+        locale=locale,
+        language_code=language_code(locale),
+    )
+    if record.locale == locale and record.language_code == normalized.language_code:
+        return record
+    return replace(normalized, content_hash=translation_content_hash(normalized))
 
 
 def translation_coverage(
     store: KnowledgeStore, cards: Sequence[KnowledgeCard | str]
 ) -> dict[str, object]:
-    """Measure every locale against the full card set, without inventing content.
+    """Measure every product locale against the full card set.
 
-    The denominator is the number of cards that should be localized, so a
-    database that holds one translated card is reported as 1 of 9,270 slots, not
-    as "one locale covered". ``answerable`` applies the same rule the assistant
-    uses — published card, approved non-machine translation whose source binding
-    is current — so a coverage number can never promise an answer the retrieval
-    path would refuse to give.
+    The denominator is the number of cards that should be localized times the
+    seven product translation targets. Chinese is one target: legacy ``zh-CN``
+    and ``zh-TW`` rows for the same card collapse into a single ``zh-Hans``
+    slot. Retired locales such as Russian are reported separately and never
+    inflate the denominator.
+
+    ``answerable`` applies the same rule the assistant uses — published card,
+    approved non-machine translation whose source binding is current — so a
+    coverage number can never promise an answer the retrieval path would refuse
+    to give.
     """
-
-    from .locales import SUPPORTED_LOCALES
 
     card_objects: list[KnowledgeCard] = []
     for item in cards:
         card = item if isinstance(item, KnowledgeCard) else store.get_card(str(item))
         if card is not None:
             card_objects.append(card)
-    target_locales = [locale for locale in SUPPORTED_LOCALES if locale != DEFAULT_LOCALE]
+    target_locales = list(TARGET_LOCALES)
     counts: dict[str, dict[str, int]] = {
         locale: {status.value: 0 for status in TranslationStatus}
         for locale in SUPPORTED_LOCALES
@@ -176,18 +202,28 @@ def translation_coverage(
         }
         for locale in target_locales
     }
+    legacy_inventory: dict[str, dict[str, int]] = {
+        code: {"records": 0, "published": 0, "approved": 0, "answerable": 0}
+        for code in LEGACY_LOCALES
+    }
+    storage_codes: dict[str, int] = {}
+    legacy_records = 0
     by_card: dict[str, dict[str, TranslationRecord]] = {}
-    for record in store.list_card_translations(limit=1_000_000):
-        by_card.setdefault(record.card_id, {})[record.locale] = record
+    for card in card_objects:
+        for record in store.list_translations(card.card_id):
+            storage_codes[record.locale] = storage_codes.get(record.locale, 0) + 1
+            canonical = canonical_locale(record.locale, default=record.locale)
+            if canonical != record.locale:
+                legacy_records += 1
+            existing = by_card.setdefault(card.card_id, {}).get(canonical)
+            if existing is None or _prefer_record(record, existing):
+                by_card[card.card_id][canonical] = record
     for card in card_objects:
         records = by_card.get(card.card_id, {})
-        for record in records.values():
-            bucket = counts.setdefault(
-                record.locale, {status.value: 0 for status in TranslationStatus}
-            )
-            bucket[record.translation_status.value] = (
-                bucket.get(record.translation_status.value, 0) + 1
-            )
+        for locale, record in records.items():
+            if locale in counts:
+                row = counts[locale]
+                row[record.translation_status.value] = row.get(record.translation_status.value, 0) + 1
         for locale in target_locales:
             row = inventory[locale]
             record = records.get(locale)
@@ -217,6 +253,25 @@ def translation_coverage(
                     row["answerable"] = int(row["answerable"]) + 1
                 else:
                     row["stale_source_binding"] = int(row["stale_source_binding"]) + 1
+        for locale in LEGACY_LOCALES:
+            record = records.get(locale)
+            row = legacy_inventory.setdefault(
+                locale, {"records": 0, "published": 0, "approved": 0, "answerable": 0}
+            )
+            if record is None:
+                continue
+            row["records"] += 1
+            if record.translation_status is TranslationStatus.PUBLISHED:
+                row["published"] += 1
+            if record.translation_status is TranslationStatus.APPROVED:
+                row["approved"] += 1
+            if (
+                card.publication_status is CardStatus.PUBLISHED
+                and record.approved_for_answer()
+                and not record.machine_translated
+                and source_binding_current(card, record)
+            ):
+                row["answerable"] += 1
     total_cards = len(card_objects)
     available = total_cards * len(target_locales)
     filled = sum(int(row["filled"]) for row in inventory.values())
@@ -226,7 +281,9 @@ def translation_coverage(
         "locales": counts,
         "cards": total_cards,
         "source_language": SOURCE_LANGUAGE,
+        "product_locales": list(PRODUCT_LOCALES),
         "target_locales": target_locales,
+        "legacy_locales": list(LEGACY_LOCALES),
         "available_slots": available,
         "filled_slots": filled,
         "published_slots": published,
@@ -234,7 +291,41 @@ def translation_coverage(
         "missing_slots": available - filled,
         "coverage_percent": round(filled * 100.0 / available, 2) if available else 0.0,
         "inventory": inventory,
+        "legacy": {
+            "locales": list(LEGACY_LOCALES),
+            "records": sum(int(row["records"]) for row in legacy_inventory.values()),
+            "published": sum(int(row["published"]) for row in legacy_inventory.values()),
+            "approved": sum(int(row["approved"]) for row in legacy_inventory.values()),
+            "by_locale": legacy_inventory,
+            "storage_codes": storage_codes,
+            "normalized_records": legacy_records,
+        },
     }
+
+
+def _prefer_record(candidate: TranslationRecord, current: TranslationRecord) -> bool:
+    """Choose one persisted row when legacy and canonical codes both exist."""
+
+    rank = {
+        TranslationStatus.PUBLISHED: 6,
+        TranslationStatus.APPROVED: 5,
+        TranslationStatus.TRANSLATED: 4,
+        TranslationStatus.REVIEW_REQUIRED: 3,
+        TranslationStatus.DRAFT: 2,
+        TranslationStatus.RETIRED: 1,
+        TranslationStatus.MISSING: 0,
+    }
+    candidate_key = (
+        rank.get(candidate.translation_status, 0),
+        candidate.translation_version,
+        candidate.locale == canonical_locale(candidate.locale, default=candidate.locale),
+    )
+    current_key = (
+        rank.get(current.translation_status, 0),
+        current.translation_version,
+        current.locale == canonical_locale(current.locale, default=current.locale),
+    )
+    return candidate_key > current_key
 
 
 def completeness(record: TranslationRecord, *, card_type: str | None = None) -> dict[str, object]:

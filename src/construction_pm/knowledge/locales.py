@@ -1,9 +1,16 @@
 """CUBI knowledge and assistant locale registry.
 
-The product ships ten locales and nine working languages behind one explicit
-registry. Nothing in the knowledge, search, assistant or workflow layers may
-hard-code a locale check; every subsystem resolves language through this module
-so that adding a locale is a registry change, not a set of scattered branches.
+The product ships eight locales and seven translation targets behind one
+explicit registry: ``fa``, ``en`` (source), ``de``, ``zh-Hans``, ``ar``, ``fr``,
+``ja`` and ``ko``. Chinese is a single product language; ``zh-Hant``/``zh-TW``
+content resolves to the canonical ``zh-Hans`` locale instead of forming a
+parallel translation slot. ``ru`` remains readable as a legacy locale so
+previously stored records are never deleted or mislabelled, but it is not a
+product target and is excluded from coverage denominators.
+
+Nothing in the knowledge, search, assistant or workflow layers may hard-code a
+locale check; every subsystem resolves language through this module so that
+changing the policy is a registry change, not a set of scattered branches.
 
 The registry itself is CUBI-owned product metadata. It contains no third-party
 provider name, model name or remote translation dependency.
@@ -32,6 +39,12 @@ class LocaleDefinition:
     direction: str
     script: str
     aliases: tuple[str, ...] = ()
+    product: bool = True
+    legacy: bool = False
+    # Persisted codes that this canonical locale supersedes. They stay readable
+    # so a database written under an older registry is never rewritten or
+    # reported as a separate product slot.
+    legacy_codes: tuple[str, ...] = ()
 
     @property
     def is_rtl(self) -> bool:
@@ -46,6 +59,9 @@ class LocaleDefinition:
             "direction": self.direction,
             "script": self.script,
             "aliases": list(self.aliases),
+            "product": self.product,
+            "legacy": self.legacy,
+            "legacy_codes": list(self.legacy_codes),
             "source_language": SOURCE_LANGUAGE,
             "default_language": DEFAULT_LOCALE,
             "fallback_language": FALLBACK_LOCALE,
@@ -56,17 +72,46 @@ _LOCALE_DEFINITIONS: tuple[LocaleDefinition, ...] = (
     LocaleDefinition("fa", "fa", "فارسی", "Persian", "rtl", "Arabic", ("fa-ir", "prs", "persian", "farsi")),
     LocaleDefinition("en", "en", "English", "English", "ltr", "Latin", ("en-us", "en-gb", "english")),
     LocaleDefinition("de", "de", "Deutsch", "German", "ltr", "Latin", ("de-de", "german")),
-    LocaleDefinition("zh-CN", "zh", "简体中文", "Simplified Chinese", "ltr", "Han-Simplified", ("zh", "zh-hans", "zh-sg", "chinese-simplified")),
-    LocaleDefinition("zh-TW", "zh", "繁體中文", "Traditional Chinese", "ltr", "Han-Traditional", ("zh-hant", "zh-hk", "zh-mo", "chinese-traditional")),
+    LocaleDefinition(
+        "zh-Hans",
+        "zh",
+        "简体中文",
+        "Simplified Chinese",
+        "ltr",
+        "Han-Simplified",
+        # Traditional Chinese folds into the same product locale. The legacy
+        # scripts are aliases, not separate slots: one card has one Chinese
+        # translation target.
+        (
+            "zh",
+            "zh-cn",
+            "zh-sg",
+            "zh-tw",
+            "zh-hant",
+            "zh-hk",
+            "zh-mo",
+            "chinese",
+            "chinese-simplified",
+            "chinese-traditional",
+        ),
+        legacy_codes=("zh-CN", "zh-TW"),
+    ),
     LocaleDefinition("ar", "ar", "العربية", "Arabic", "rtl", "Arabic", ("ar-sa", "ar-ae", "arabic")),
     LocaleDefinition("fr", "fr", "Français", "French", "ltr", "Latin", ("fr-fr", "french")),
     LocaleDefinition("ja", "ja", "日本語", "Japanese", "ltr", "Japanese", ("ja-jp", "japanese")),
     LocaleDefinition("ko", "ko", "한국어", "Korean", "ltr", "Hangul", ("ko-kr", "korean")),
-    LocaleDefinition("ru", "ru", "Русский", "Russian", "ltr", "Cyrillic", ("ru-ru", "russian")),
+    # Russian is retained only to read legacy records. It is not a product
+    # language and never contributes to a coverage denominator.
+    LocaleDefinition("ru", "ru", "Русский", "Russian", "ltr", "Cyrillic", ("ru-ru", "russian"), product=False, legacy=True),
 )
 
 LOCALES: tuple[LocaleDefinition, ...] = _LOCALE_DEFINITIONS
 SUPPORTED_LOCALES: tuple[str, ...] = tuple(item.locale for item in LOCALES)
+PRODUCT_LOCALES: tuple[str, ...] = tuple(item.locale for item in LOCALES if item.product)
+TARGET_LOCALES: tuple[str, ...] = tuple(
+    item.locale for item in LOCALES if item.product and item.locale != DEFAULT_LOCALE
+)
+LEGACY_LOCALES: tuple[str, ...] = tuple(item.locale for item in LOCALES if item.legacy)
 SUPPORTED_LANGUAGE_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(item.language_code for item in LOCALES)
 )
@@ -91,10 +136,11 @@ def supported_locale(value: object) -> bool:
 def canonical_locale(value: object, *, default: str | None = DEFAULT_LOCALE) -> str | None:
     """Resolve any supported tag or alias to one canonical locale.
 
-    ``zh`` maps to Simplified Chinese and ``zh-Hant``/``zh-TW`` to Traditional
-    Chinese, because the product ships them as separate locales. An unknown tag
-    returns ``default`` (or ``None`` when no default is supplied); callers that
-    accept client input must pass ``default=None`` and reject the value.
+    ``zh``, ``zh-CN``, ``zh-TW``, ``zh-Hant`` and every regional Chinese tag
+    resolve to the single product locale ``zh-Hans``. Chinese orthography is a
+    content property, not a separate translation slot. An unknown tag returns
+    ``default`` (or ``None`` when no default is supplied); callers that accept
+    client input must pass ``default=None`` and reject the value.
     """
 
     if value is None or (isinstance(value, str) and not value.strip()):
@@ -110,6 +156,26 @@ def canonical_locale(value: object, *, default: str | None = DEFAULT_LOCALE) -> 
     if base in _ALIASES and base not in {"zh"}:
         return _ALIASES[base]
     return default
+
+
+def is_product_locale(value: object) -> bool:
+    resolved = canonical_locale(value, default=None)
+    return resolved is not None and _BY_LOCALE[resolved].product
+
+
+def translation_locale_candidates(locale: object) -> tuple[str, ...]:
+    """Persisted locale codes to try when reading one canonical locale.
+
+    The canonical code comes first, then any codes the older registry used for
+    the same language. Reads never rewrite the stored row, so legacy data stays
+    intact while the product exposes exactly one slot per language.
+    """
+
+    resolved = canonical_locale(locale, default=None)
+    if resolved is None:
+        return ()
+    definition = _BY_LOCALE[resolved]
+    return tuple(dict.fromkeys((resolved, *definition.legacy_codes)))
 
 
 def require_locale(value: object, *, code: str = "KNOWLEDGE_LOCALE_UNSUPPORTED") -> str:
@@ -154,10 +220,8 @@ _CYRILLIC = re.compile(r"[\u0400-\u04ff]")
 _ARABIC_SCRIPT = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]")
 _LATIN = re.compile(r"[A-Za-z\u00c0-\u024f]")
 
-# Characters that only occur in one Chinese orthography. These are seed sets,
-# not an exhaustive dictionary; shared characters fall back to Simplified.
-_SIMPLIFIED_ONLY = set("这为说时过来还们么与东车门书见长国产业务开发运进问题会话负责")
-_TRADITIONAL_ONLY = set("這為說時過來還們麼與東車門書見長國產業務開發運進問題會話負責專體應該網路設計階段標準備註冊機構")
+# Characters that only occur in one Chinese orthography are no longer a locale
+# signal: both scripts belong to the single ``zh-Hans`` product locale.
 
 _GERMAN_HINTS = {
     "der", "die", "das", "und", "nicht", "mit", "für", "auf", "ist", "den",
@@ -186,14 +250,6 @@ def _latin_words(value: str) -> set[str]:
     return {word.lower() for word in re.findall(r"[A-Za-z\u00c0-\u024f]+", value)}
 
 
-def _han_orthography(value: str) -> str:
-    simplified = sum(1 for character in value if character in _SIMPLIFIED_ONLY)
-    traditional = sum(1 for character in value if character in _TRADITIONAL_ONLY)
-    if traditional > simplified:
-        return "zh-TW"
-    return "zh-CN"
-
-
 def detect_locale(value: str, *, default: str = DEFAULT_LOCALE) -> str:
     """Identify the locale of a question or a stored text record.
 
@@ -217,7 +273,8 @@ def detect_locale(value: str, *, default: str = DEFAULT_LOCALE) -> str:
     if kana:
         return "ja"
     if han and han >= max(latin, cyrillic, arabic):
-        return _han_orthography(text)
+        # Both Chinese orthographies are the same product language.
+        return "zh-Hans"
     if cyrillic and cyrillic >= max(latin, arabic):
         return "ru"
     if arabic and arabic >= latin:
@@ -303,17 +360,21 @@ def text_direction(locale: object) -> Mapping[str, object]:
 __all__ = [
     "DEFAULT_LOCALE",
     "FALLBACK_LOCALE",
+    "LEGACY_LOCALES",
     "LOCALES",
+    "PRODUCT_LOCALES",
     "RTL_LOCALES",
     "SOURCE_LANGUAGE",
     "SUPPORTED_LANGUAGES",
     "SUPPORTED_LANGUAGE_CODES",
     "SUPPORTED_LOCALES",
+    "TARGET_LOCALES",
     "LocaleDefinition",
     "canonical_locale",
     "detect_locale",
     "detect_question_locale",
     "direction",
+    "is_product_locale",
     "is_rtl",
     "language_code",
     "locale_definition",
@@ -323,6 +384,7 @@ __all__ = [
     "resolve_response_locale",
     "supported_locale",
     "text_direction",
+    "translation_locale_candidates",
 ]
 
 SUPPORTED_LANGUAGES = SUPPORTED_LANGUAGE_CODES

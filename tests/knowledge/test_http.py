@@ -483,26 +483,39 @@ RU_PAYLOAD = {
 }
 
 
-def test_locales_endpoint_lists_ten_locales(middleware) -> None:
+def test_locales_endpoint_separates_product_and_legacy_locales(middleware) -> None:
     status, payload = call(middleware, "GET", "/api/knowledge/locales", session="viewer-session")
     assert status.startswith("200")
     assert [item["locale"] for item in payload["locales"]] == [
         "fa",
         "en",
         "de",
-        "zh-CN",
-        "zh-TW",
+        "zh-Hans",
         "ar",
         "fr",
         "ja",
         "ko",
         "ru",
     ]
+    assert payload["product_locales"] == [
+        "fa",
+        "en",
+        "de",
+        "zh-Hans",
+        "ar",
+        "fr",
+        "ja",
+        "ko",
+    ]
+    assert payload["target_locales"] == ["fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]
+    assert payload["legacy_locales"] == ["ru"]
     russian = next(item for item in payload["locales"] if item["locale"] == "ru")
     assert russian["language_code"] == "ru"
-    assert russian["source_language"] == "en"
-    assert russian["default_language"] == "en"
-    assert russian["fallback_language"] == "en"
+    assert russian["product"] is False
+    assert russian["legacy"] is True
+    chinese = next(item for item in payload["locales"] if item["locale"] == "zh-Hans")
+    assert chinese["product"] is True
+    assert "zh-hant" in chinese["aliases"]
     persian = next(item for item in payload["locales"] if item["locale"] == "fa")
     assert persian["direction"] == "rtl"
 
@@ -589,7 +602,7 @@ def test_translation_routes_require_the_right_permission(
     )
     assert status.startswith("200")
     rows = {item["locale"]: item for item in payload["translations"]}
-    assert list(rows) == ["fa", "en", "de", "zh-CN", "zh-TW", "ar", "fr", "ja", "ko", "ru"]
+    assert list(rows) == ["fa", "en", "de", "zh-Hans", "ar", "fr", "ja", "ko", "ru"]
     assert rows["ru"]["translation_status"] == "published"
     assert rows["fa"]["translation_status"] == "missing"
     assert rows["en"]["translation_status"] == "published"

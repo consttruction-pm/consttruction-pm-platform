@@ -346,8 +346,6 @@ class SearchFilters:
         if self.language:
             if canonical_locale(self.language, default=None):
                 return canonical_locale(self.language)
-            if self.language.lower() in {"zh"}:
-                return "zh-CN"
         return None
 
     def as_dict(self) -> dict[str, object]:

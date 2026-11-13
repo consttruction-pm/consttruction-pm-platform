@@ -31,7 +31,8 @@ from construction_pm.knowledge.assistant import (  # noqa: E402
 )
 from construction_pm.knowledge.cards import publish_card, review_card  # noqa: E402
 from construction_pm.knowledge.locales import (  # noqa: E402
-    SUPPORTED_LOCALES,
+    LEGACY_LOCALES,
+    PRODUCT_LOCALES,
     locale_registry,
 )
 from construction_pm.knowledge.model import SearchScope  # noqa: E402
@@ -51,13 +52,11 @@ QUESTIONS = {
     "fa": "چگونه یک پروژه ایجاد کنم؟",
     "en": "How do I create a project?",
     "de": "Wie erstelle ich ein Projekt?",
-    "zh-CN": "如何创建项目？",
-    "zh-TW": "如何建立專案？",
+    "zh-Hans": "如何创建项目？",
     "ar": "كيف أنشئ مشروعاً؟",
     "fr": "Comment créer un projet ?",
     "ja": "プロジェクトを作成するには？",
     "ko": "프로젝트를 어떻게 생성합니까?",
-    "ru": "Как создать проект?",
 }
 
 
@@ -105,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         card = _flagship(store)
         rows = []
-        for locale in SUPPORTED_LOCALES:
+        for locale in PRODUCT_LOCALES:
             record = localized_record(store, card, locale)
             rows.append(
                 {
@@ -163,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         admin = AssistantPrincipal("evidence-admin", "tenant-evidence", frozenset({"project_admin"}))
 
         asks = []
-        for locale in SUPPORTED_LOCALES:
+        for locale in PRODUCT_LOCALES:
             answer = assistant.ask(viewer, QUESTIONS[locale])
             asks.append(
                 {
@@ -220,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
 
         scope = _scope()
         searches = []
-        for locale in SUPPORTED_LOCALES:
+        for locale in PRODUCT_LOCALES:
             outcome = search(smoke, scope, QUESTIONS[locale], limit=3, locale=locale)
             top = outcome.hits[0] if outcome.hits else None
             searches.append(
@@ -244,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
                 "database": "disposable copy with one published card and one published Russian translation",
                 "card_id": published.card_id,
                 "published_translation_locales": published_locales,
+                "legacy_locales": list(LEGACY_LOCALES),
                 "locales": locale_registry(),
                 "asks": asks,
                 "guide": guide_payload,

@@ -278,22 +278,23 @@ def test_coverage_counts_each_locale_independently(store, card_factory, publish_
     second = publish_factory(card_factory(topic_key="b.html", title="Create a Resource"))
     store.save_card(first)
     store.save_card(second)
-    store.save_translation(_build(first, "ru"))
-    approved = review_translation(_build(second, "ru"), reviewer="reviewer-1", accept=True, now=NOW)
+    store.save_translation(_build(first, "fa"))
+    approved = review_translation(_build(second, "fa"), reviewer="reviewer-1", accept=True, now=NOW)
     store.save_translation(publish_translation(second, approved, reviewer="reviewer-1", now=LATER))
 
     coverage = translation_coverage(store, [first.card_id, second.card_id])
     assert coverage["cards"] == 2
-    assert coverage["locales"]["ru"]["translated"] == 1
-    assert coverage["locales"]["ru"]["published"] == 1
-    assert coverage["locales"]["fa"]["missing"] == 0  # a missing record is not stored
-    assert coverage["locales"]["fa"]["translated"] == 0
+    assert coverage["locales"]["fa"]["translated"] == 1
+    assert coverage["locales"]["fa"]["published"] == 1
+    assert coverage["locales"]["de"]["missing"] == 0  # a missing record is not stored
+    assert coverage["locales"]["de"]["translated"] == 0
+    assert coverage["legacy"]["records"] == 0
 
 
 def test_coverage_reports_slots_and_answerable_per_locale(
     store, card_factory, publish_factory
 ) -> None:
-    """Coverage must use the whole card set as the denominator.
+    """Coverage must use the whole card set and the product target set.
 
     Regression: the previous report counted only stored records, so one
     translated card looked like full locale coverage and a translated-but-
@@ -305,25 +306,27 @@ def test_coverage_reports_slots_and_answerable_per_locale(
     store.save_card(published)
     store.save_card(draft)
     approved = review_translation(
-        _build(published, "ru"), reviewer="reviewer-1", accept=True, now=NOW
+        _build(published, "fa"), reviewer="reviewer-1", accept=True, now=NOW
     )
     store.save_translation(publish_translation(published, approved, reviewer="reviewer-1", now=LATER))
-    store.save_translation(_build(draft, "ru"))
+    store.save_translation(_build(draft, "fa"))
 
     coverage = translation_coverage(store, [published.card_id, draft.card_id])
-    slots = 2 * 9
+    slots = 2 * 7  # seven product targets, English is the source
     assert coverage["available_slots"] == slots
+    assert coverage["target_locales"] == ["fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]
     assert coverage["filled_slots"] == 2
     assert coverage["published_slots"] == 1
     assert coverage["missing_slots"] == slots - 2
     assert coverage["coverage_percent"] == round(2 * 100.0 / slots, 2)
     inventory = coverage["inventory"]
-    assert inventory["ru"]["records"] == 2
-    assert inventory["ru"]["published"] == 1
-    assert inventory["ru"]["answerable"] == 1
-    assert inventory["ru"]["missing_slots"] == 0
-    assert inventory["fa"]["missing_slots"] == 2
-    assert inventory["fa"]["answerable"] == 0
+    assert inventory["fa"]["records"] == 2
+    assert inventory["fa"]["published"] == 1
+    assert inventory["fa"]["answerable"] == 1
+    assert inventory["fa"]["missing_slots"] == 0
+    assert inventory["de"]["missing_slots"] == 2
+    assert inventory["de"]["answerable"] == 0
+    assert "ru" not in inventory
 
 
 def test_coverage_does_not_count_a_stale_translation_as_answerable(
@@ -331,15 +334,76 @@ def test_coverage_does_not_count_a_stale_translation_as_answerable(
 ) -> None:
     card = publish_factory(card_factory(topic_key="a.html"))
     store.save_card(card)
-    approved = review_translation(_build(card, "ru"), reviewer="reviewer-1", accept=True, now=NOW)
+    approved = review_translation(_build(card, "fa"), reviewer="reviewer-1", accept=True, now=NOW)
     store.save_translation(publish_translation(card, approved, reviewer="reviewer-1", now=LATER))
     changed = replace(card, revision=card.revision + 1, content_hash="f" * 64)
     store.save_card(changed, expected_version=card.revision)
 
     coverage = translation_coverage(store, [changed])
-    assert coverage["inventory"]["ru"]["published"] == 1
-    assert coverage["inventory"]["ru"]["answerable"] == 0
-    assert coverage["inventory"]["ru"]["stale_source_binding"] == 1
+    assert coverage["inventory"]["fa"]["published"] == 1
+    assert coverage["inventory"]["fa"]["answerable"] == 0
+    assert coverage["inventory"]["fa"]["stale_source_binding"] == 1
+
+
+def test_legacy_chinese_row_fills_the_single_chinese_slot(
+    store, card_factory
+) -> None:
+    """A stored zh-TW row is preserved and read as the zh-Hans product slot."""
+
+    card = card_factory()
+    store.save_card(card)
+    record = _build(card, "zh-Hans")
+    store._connection.execute(  # simulate a row written by the older registry
+        "INSERT INTO knowledge_card_translation(card_id, locale, language_code, title, "
+        "summary, translation_status, review_status, translation_version, translation_source, "
+        "machine_translated, content_hash, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            card.card_id,
+            "zh-TW",
+            "zh",
+            record.title,
+            record.summary,
+            record.translation_status.value,
+            record.review_status.value,
+            record.translation_version,
+            record.translation_source.value,
+            0,
+            record.content_hash,
+            NOW.isoformat(),
+        ),
+    )
+    store._connection.commit()
+
+    localized = localized_record(store, card, "zh-Hant")
+    assert localized.locale == "zh-Hans"
+    assert localized.title == record.title
+
+    coverage = translation_coverage(store, [card.card_id])
+    assert coverage["inventory"]["zh-Hans"]["records"] == 1
+    assert coverage["inventory"]["zh-Hans"]["filled"] == 1
+    assert coverage["legacy"]["normalized_records"] == 1
+    assert coverage["legacy"]["storage_codes"] == {"zh-TW": 1}
+    assert coverage["filled_slots"] == 1
+    assert coverage["available_slots"] == 7
+
+
+def test_legacy_russian_is_reported_outside_the_product_denominator(
+    store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(topic_key="legacy.html"))
+    store.save_card(card)
+    approved = review_translation(_build(card, "ru"), reviewer="reviewer-1", accept=True, now=NOW)
+    store.save_translation(publish_translation(card, approved, reviewer="reviewer-1", now=LATER))
+
+    coverage = translation_coverage(store, [card.card_id])
+    assert coverage["available_slots"] == 7
+    assert coverage["filled_slots"] == 0
+    assert coverage["legacy"]["by_locale"]["ru"]["records"] == 1
+    assert coverage["legacy"]["by_locale"]["ru"]["published"] == 1
+    assert coverage["legacy"]["by_locale"]["ru"]["answerable"] == 1
+    # The legacy record still answers; it simply is not a product slot.
+    record, fallback = answerable_record(store, card, "ru")
+    assert fallback is False and record.locale == "ru"
 
 
 def test_localized_payload_marks_fields_borrowed_from_english(card_factory) -> None:

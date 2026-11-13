@@ -46,7 +46,7 @@ QUESTIONS = {
     "en": "How do I create a project?",
     "fa": "چگونه یک پروژه ایجاد کنم؟",
     "de": "Wie erstelle ich ein Projekt?",
-    "zh-CN": "如何创建项目？",
+    "zh-Hans": "如何创建项目？",
     "ar": "كيف أنشئ مشروعاً؟",
     "fr": "Comment créer un projet ?",
     "ja": "プロジェクトを作成するには？",
