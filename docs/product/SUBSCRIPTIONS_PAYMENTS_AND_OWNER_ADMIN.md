@@ -202,3 +202,122 @@ The following are not approved yet and must be discussed before production prici
 - tax/VAT/invoice requirements for supported markets.
 
 **Implementation instruction:** First integrate this specification into the product requirements and admin/payment-page design. Do not publish invented prices or enable unverified payment rails. The visible payment-method set must be controlled by the owner panel. Full provider integration should follow after the deferred payment decisions are approved.
+
+
+## 8. End-user panels, project-role views, and report delivery
+
+This section defines the actual user-facing panels and reporting experience for subscribers, organization members, project participants, and external workflow participants. It supplements Section 2; it is not permission to create another professional workspace or a separate dashboard engine.
+
+### 8.1 One adaptive panel system, not plan-specific duplicate products
+
+- Implement one shared CUBI application shell and one shared dynamic dashboard/panel engine. The single approved CUBI Visual Workspace remains the only professional workspace.
+- After sign-in, resolve the user's active subscription entitlement, organization memberships, project memberships, project-specific roles, explicit permissions, and current data scope. Render the appropriate navigation, dashboard cards, actions, reports, and inbox from that authorization context.
+- Subscription determines available product capabilities and capacity; organization/project role and scope determine which records, cards, actions, and reports the user can see or perform. A paid plan must never bypass project permissions, and a project role must never grant capabilities excluded by the account's entitlement.
+- A person may hold different roles in different projects or multiple explicitly assigned roles in one project. Provide a clear active organization/project/scope switcher where the user is authorized for more than one scope. Switching scope must refresh all cards, lists, reports, counts, exports, and actions.
+- Do not create separate dashboard implementations for Free, Pro, Team, Enterprise, or each job title. Use configurable role/scope-aware panels and navigation presets backed by server-side authorization.
+- If the user has no professional project membership, show only their permitted personal account area or operational inbox. Do not expose project names, metadata, counts, or existence when the user lacks access.
+
+### 8.2 Subscription-aware user panel behavior
+
+**Free personal account**
+- Show account/profile, plan and usage status, the one personal project allowance, Activity and storage usage/limits, and the Form Builder learning area (up to 10 forms, with create/save/edit/preview).
+- Keep the Free personal experience clearly limited; do not imply access to the paid professional CUBI workspace or paid operational workflow authoring/sending.
+- When invited as a workflow participant, show the assigned-work inbox described below. This participant view is separate from and must not expand the user's personal Free entitlement.
+
+**Free invited workflow participant**
+- Show only assigned forms, requested submissions, assigned approval/review actions (approve/reject/request correction only when explicitly granted), relevant messages, due dates, and the status/history of those assigned items.
+- Include clear action-needed, due-soon, overdue, submitted, returned-for-correction, approved, and completed states as applicable.
+- Do not show general project dashboards, WBS/Activities, Gantt, project documents/search, resources/equipment, costs/financial information, management reports, or other participants' submissions unless an explicit separate permission is granted by the product's access model. A Free invitation is not project membership.
+
+**Pro individual subscriber**
+- Provide the full professional CUBI workspace and project controls available to the Pro entitlement: projects, WBS, Activities, scheduling/Gantt, relationships/CPM, calendars, resources, cost/progress, documents, forms/workflows, and professional reports.
+- The personal home/dashboard summarizes only projects and work the Pro user owns or is explicitly authorized to access, with tasks, milestones, schedule/progress exceptions, assigned resources/cost information where permitted, approvals, notifications, storage/plan usage, and report subscriptions.
+- A Pro user's invitation into Team/Enterprise does not automatically grant organization-wide visibility and does not consume an organization-paid seat. Organization data is visible only within the specific organization/project permissions granted.
+
+**Team organization member**
+- Provide the same professional engineering capabilities as Pro, within the Team organization's purchased capacity and explicit organization/project permissions.
+- The landing panel may show only the projects, departments/units, reports, tasks, and organization summaries within that member's granted scope. Team plan does not automatically make every member an organization-wide administrator.
+- Organization owners/admins can manage membership, project assignment, and delegated organization-level permissions within Team limits; this does not grant global CUBI site-owner powers.
+
+**Enterprise Cloud organization member**
+- Provide the same professional engineering capabilities as Pro/Team, with organization/EPS/company/holding structures and scope aggregation only where explicitly authorized.
+- Holding-level authorized roles may see consolidated, permitted cross-company/EPS/project summaries. Company, department, project, WBS, and individual contributors see only their authorized lower-level scopes.
+- Enterprise subscription alone does not grant every employee holding-wide visibility. Access must be explicitly assigned and enforced by the API/data layer.
+
+### 8.3 Role- and scope-based panel presets
+
+Provide configurable panel presets for at least the following role families. Exact job titles may be localized/configurable, but each assignment must carry a defined scope and permission set.
+
+| Role / panel preset | Default landing information (only within authorized scope) | Typical reports and actions |
+|---|---|---|
+| Platform Owner / Super Admin | Platform-wide subscription, payment, CMS, announcement, service and audit operations | Global administration, payment-method visibility, plan/content management, transaction review and platform announcements; never mixed with ordinary customer organization panels |
+| Organization Owner / Organization Admin | Organization plan/seat/storage usage, member and project overview, organization alerts, approval queues | Manage organization members and project access, organization-level reports and permitted exports; no platform-global payment/provider/CMS authority |
+| Holding / Executive Manager | Consolidated EPS/company/project portfolio, overall progress, major milestones, schedule/cost/risk exceptions and decision items | Portfolio/holding summary, cross-company comparisons and exception reports, only for explicitly assigned entities |
+| Company Manager | Company project portfolio, company progress, resource/cost summaries where authorized, overdue and risk indicators | Company performance, project status, resource/cost and issue reports; no unrelated company data |
+| Department / Unit Manager | Assigned department/unit workload, active projects, discipline progress, staff/resource assignments and overdue actions | Department progress, workload/resource utilization, deliverable and exception reports |
+| Project Manager | Project summary, data date/status, milestones, critical/near-critical work, progress, constraints, risks/issues, resources/costs and pending decisions | Project status, schedule, look-ahead, critical path, progress, variance, resource, cost, risk/issue, change and action reports; manage only permitted project data |
+| WBS / Section Manager | Assigned WBS branch, child sections/Activities, progress, dependencies, constraints, handoffs and assigned actions | WBS/section progress, short-term look-ahead, late/at-risk Activities, blockers and handover reports; no sibling branches outside scope |
+| Discipline / Package / Area Lead | Assigned discipline/package/area work, interfaces, deliverables, dates, constraints and responsible teams | Discipline/package progress, interface, procurement/delivery and overdue reports as permitted |
+| Professional Member / Activity Owner | Assigned Activities/tasks, dates, predecessors/successors where allowed, deliverables, personal workload, requests and notifications | My tasks, upcoming/overdue Activities, assigned deliverables, timesheet/progress updates where enabled, and reports explicitly shared with them |
+| Resource / Equipment Manager | Assigned resources/equipment, availability, allocation, utilization and conflicts | Resource loading, allocation, utilization, over-allocation and equipment availability reports within scope |
+| Cost / Commercial / Finance Role | Authorized budgets, commitments, actuals, forecasts, changes and cost breakdowns | Cost, cash-flow, commitment, forecast and variance reports only when the relevant financial permission is granted |
+| Quality / HSE / Risk / Document Controller | Assigned registers, inspections, nonconformities, incidents, risks, document reviews and due actions | Relevant quality/HSE/risk/document registers and exception reports; no unrelated commercial or personnel data |
+| Client / Consultant / Read-only Observer | Explicitly shared progress, milestone, deliverable, document and report snapshots | View/download only the specific reports/documents shared with them; no edit, internal notes, unrelated project data, or hidden financial data |
+| Reviewer / Approver | Items awaiting their review, assigned forms/documents/submittals, due dates, comments and decision history | Review, approve, reject, or request correction only for assigned workflow stages and within delegated authority |
+| Free Workflow Participant | Assigned forms, requests, approvals, messages, due dates and statuses | Submit requested information and perform explicitly assigned approval actions only |
+
+These presets are starting configurations, not hard-coded job-title assumptions. Organization administrators may configure role names and permitted cards/actions within the platform's permission model, but may not grant themselves or others platform-owner privileges.
+
+### 8.4 Report catalog and report visibility
+
+Support a governed report catalog with report definitions, scope, owner, audience, delivery policy, data date/as-of time, filters, status, and revision/version metadata. At minimum, the catalog must be capable of supporting these report families when the underlying product module and permissions are enabled:
+
+- Portfolio / holding / EPS / company project summary.
+- Project status and executive summary.
+- WBS and section progress.
+- Baseline vs current schedule, milestones, critical path and near-critical path.
+- Look-ahead (for configurable periods), late/overdue Activities, constraints, blockers and dependencies.
+- Progress, planned vs actual, variance, forecast and earned-value reports where EVM data is configured.
+- Resource and equipment allocation, availability, utilization and overload.
+- Cost, budget, commitments, actuals, forecast, cash flow and cost variance, restricted to authorized financial roles.
+- Risk, issue, change, decision, action and claims registers/reports.
+- Quality, inspection, nonconformance, HSE and incident reports where those modules are enabled.
+- Procurement, package, material, delivery and interface status where configured.
+- Document/submittal/transmittal review and overdue-document reports.
+- Forms, workflow submissions, approval/rejection/correction outcomes and pending-review reports.
+- Personal task, assignment, due-date and notification summaries.
+- Subscription, seat, storage and usage reports for the account/organization owner; platform transaction and provider reports only for Platform Owner/Super Admin.
+
+A report must not become visible merely because it exists in the catalog. Each report run, saved report, export, subscription, and delivered copy must enforce the recipient's current scope and field-level permissions. Sensitive columns and totals must not leak through aggregation, charts, PDF/Excel exports, email attachments, cached results, or drill-down links.
+
+### 8.5 Reports received, report subscriptions, and delivery center
+
+- Give every signed-in user a **Reports & Notifications / Inbox** area appropriate to their entitlement and role. Distinguish reports generated by the user, reports explicitly shared with the user, and reports automatically delivered through a subscription.
+- Users may view reports shared with them or assigned to them; they may subscribe only to report types and scopes they are authorized to access. Organization/report owners may distribute a report only to permitted recipients and scopes.
+- Support one-time report sharing and recurring/event-triggered report subscriptions. Configurable delivery cadence may include on-demand, event-triggered, daily, weekly, and monthly, subject to product configuration. Do not assume every report type supports every cadence.
+- Support in-app delivery as the baseline. Email, push, or other channels are available only when configured and when the recipient's preferences and applicable consent allow them.
+- Each delivered report item should show report title/type, project or scope label (only if visible to that recipient), sender/owner, data date/as-of timestamp, generated/delivered timestamp, status, and available actions (open, acknowledge, comment, download/export if authorized).
+- Provide clear states: new/unread, read, acknowledged (where required), action required, delivery failed, superseded/updated, expired/revoked, and archived. Keep delivery and acknowledgement history.
+- Allow recipients to manage permitted subscriptions and notification preferences, pause/resume or unsubscribe where appropriate, without allowing them to expand their data scope.
+- For recurring reports, show the next scheduled delivery and last successful/failed run where appropriate. Avoid duplicate delivery for the same report run/recipient/event using idempotent delivery keys.
+- If a user's role, project membership, subscription entitlement, or permission is revoked/reduced, future report runs and downloads must immediately respect the new authorization. Previously delivered sensitive reports must be subject to revocation/expiry policy; do not leave permanent public links. Re-authorize on every open/download.
+- Report sharing must not expose one recipient's comments, private messages, personal data, or other recipients' identities unless explicitly intended and authorized.
+
+### 8.6 Panel configuration and user experience
+
+- Show only navigation items, dashboard cards, quick actions, report categories, and filters that the current user can access. Empty or unauthorized modules must not be shown as if included in the subscription.
+- Provide a configurable but controlled card layout (reorder/hide permitted cards, save personal layout, reset to role default) without allowing layout customization to bypass permissions.
+- Show actionable summaries rather than decorative counts: each card should link to the authorized filtered records behind its count.
+- Include a unified task/approval/notification center with filters for due soon, overdue, unread, assigned to me, and scope, as appropriate.
+- Clearly distinguish personal tasks, project tasks, organization actions, and workflow approvals.
+- Support multilingual labels, RTL/LTR, accessible keyboard navigation, responsive desktop/tablet/mobile layouts, and consistent CUBI visual identity.
+- Respect the single approved professional workspace and its current navigation/shell decisions. A dashboard card may deep-link into that one workspace; it must not create a duplicate planner, project shell, or alternate professional entry point.
+
+### 8.7 Authorization, privacy, and audit acceptance
+
+- Resolve entitlements and role/scope permissions on the server for every dashboard query, report generation, saved report, export, subscription, notification, and download. UI hiding is not authorization.
+- Apply tenant isolation and scope filters before aggregation; prevent cross-tenant, cross-company, cross-project, sibling-WBS, and unauthorized financial/HR/document data leakage.
+- Use least privilege. A role assignment is scoped to a specific organization/entity/project/WBS/workflow as applicable; do not infer broader scope from a job title or subscription tier.
+- Record audit events for role and scope assignments/changes, report creation/configuration/sharing, subscription changes, delivery attempts, acknowledgements, exports/downloads of sensitive reports, and permission-based revocations.
+- Test each plan and role preset, multiple roles across different projects, scope switching, downgrade/expiry, revoked membership, Free participant isolation, report export parity, recurring delivery idempotency, and unauthorized access via direct API/deep link.
+- Acceptance requires role-by-role test fixtures and an explicit matrix mapping plan entitlement × role × scope × report/action. No panel or report may be marked complete based only on screenshots or front-end visibility tests.
