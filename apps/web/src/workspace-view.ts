@@ -2596,6 +2596,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     if (kind) kind.textContent = next.activeMenu === "schedule" ? uiText(next.locale, "Activity workspace", "محیط کار فعالیت") : uiText(next.locale, "Workspace page", "صفحهٔ محیط کار");
     const stage = container.querySelector<HTMLElement>("#cp-p6-module-stage");
     if (stage) stage.outerHTML = renderP6ModuleStage(container, next, labels, options);
+    refreshContextAddMenu(container, next, options);
     container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
@@ -2657,6 +2658,9 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     row.setAttribute("aria-pressed", selected ? "true" : "false");
   });
   updateActivityScopeCounts(container, next, options, nextSelection);
+  // Add Relationship depends on the selected activity, so the rail follows the
+  // incremental selection instead of keeping its first-paint disabled state.
+  refreshContextAddMenu(container, next, options);
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = getWorkspaceLabels(next.locale);
@@ -2943,13 +2947,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       ? options.projectSummary
       : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
   const headerProjectLabel = headerProject?.name || state.context.project_id;
-  const addCommands = contextAddCommands({
-    activeMenu: state.activeMenu,
-    canWrite: options.canWrite === true,
-    hasWbs: state.wbsNodes.length > 0,
-    hasSelectedActivity: Boolean(state.selectedActivityId),
-    hasCalendarCatalog: state.calendarCatalog.calendars.length > 0,
-  });
+  const addCommands = contextAddCommands(contextAddState(state, options));
 
 
   container.innerHTML = `
@@ -5995,6 +5993,30 @@ function menuButton(key: WorkspaceState["activeMenu"], label: string, state: Wor
 
 function railActionButton(action: string, label: string, icon: WorkspaceIconName): string {
   return `<button type="button" class="cp-rail-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
+}
+
+/** One projection of the state facts the contextual Add menu depends on. */
+function contextAddState(state: WorkspaceState, options: WorkspaceRendererOptions): Parameters<typeof contextAddCommands>[0] {
+  return {
+    activeMenu: state.activeMenu,
+    canWrite: options.canWrite === true,
+    hasWbs: state.wbsNodes.length > 0,
+    hasSelectedActivity: Boolean(state.selectedActivityId),
+    hasCalendarCatalog: state.calendarCatalog.calendars.length > 0,
+  };
+}
+
+/**
+ * The incremental menu/selection path must rebuild the rail commands from the
+ * same projection as a full render; otherwise the previous window's commands
+ * would stay clickable after switching windows.
+ */
+function refreshContextAddMenu(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions): void {
+  const current = typeof container.querySelector === "function"
+    ? container.querySelector<HTMLElement>("[data-context-add]")
+    : null;
+  if (!current) return;
+  current.outerHTML = renderContextAddMenu(contextAddCommands(contextAddState(state, options)), state);
 }
 
 /**

@@ -600,6 +600,7 @@ test("menu-only rerenders replace only the navigation surface", () => {
     "en",
   );
   const navigation = { outerHTML: "" };
+  const addMenu = { outerHTML: "" };
   const menuButtons = [
     { dataset: { menu: "schedule" }, setAttribute: () => {} },
     { dataset: { menu: "reports" }, setAttribute: () => {} },
@@ -607,7 +608,9 @@ test("menu-only rerenders replace only the navigation surface", () => {
   const container = {
     innerHTML: "",
     querySelectorAll: (selector: string) => selector === "[data-menu]" ? menuButtons : [],
-    querySelector: (selector: string) => selector === ".cp-navigation-surface" ? navigation : null,
+    querySelector: (selector: string) => selector === ".cp-navigation-surface"
+      ? navigation
+      : selector === "[data-context-add]" ? addMenu : null,
     addEventListener: () => {},
   };
 
@@ -618,6 +621,9 @@ test("menu-only rerenders replace only the navigation surface", () => {
   assert.equal(container.innerHTML, initialHtml);
   assert.ok(navigation.outerHTML.includes("<strong>Reports</strong>"));
   assert.ok(navigation.outerHTML.includes('data-surface-status="preview"'));
+  // The incremental path repaints the contextual Add menu for the new window.
+  assert.match(addMenu.outerHTML, /This window has no create action\./);
+  assert.doesNotMatch(addMenu.outerHTML, /project\.add-activity/);
 });
 
 test("incremental selection rerenders avoid workspace innerHTML replacement", () => {
