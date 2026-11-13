@@ -5,6 +5,7 @@ import {
   addAvailableColumn,
   availableColumns,
   columnHasCustomTitle,
+  copyColumnsFrom,
   createP6ColumnsDraft,
   draftToLayout,
   moveSelectedColumn,
@@ -192,6 +193,42 @@ test("reset replaces the draft with server defaults that exist in the registry",
   assert.deepEqual(reset.columns.map((column) => column.field_id), ["activity.name", "activity.id"]);
   assert.deepEqual(reset.columns.map((column) => column.order), [0, 1]);
   assert.equal(reset.selected_selection, "activity.name");
+});
+
+test("add all only adds the currently listed available columns", () => {
+  let draft = createP6ColumnsDraft(registry, layout());
+  draft = setColumnSubjectArea(draft, "WBS");
+  draft = addAllAvailableColumns(draft);
+
+  assert.deepEqual(draft.columns.map((column) => column.field_id), [
+    "activity.id",
+    "activity.name",
+    "wbs.code",
+  ]);
+  assert.equal(draft.available_selection, null);
+});
+
+test("copy from replaces the draft with a saved layout's known columns", () => {
+  const draft = createP6ColumnsDraft(registry, layout());
+  const copied = copyColumnsFrom(draft, [
+    { field_id: "wbs.code", visible: true, order: 3, label: "WBS", width: 150, alignment: "center", pinned: true, frozen: false },
+    { field_id: "missing.field", visible: true, order: 0, width: 90, alignment: "start", pinned: false, frozen: false },
+    { field_id: "activity.planned_duration", visible: false, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+  ]);
+
+  assert.deepEqual(copied.columns.map((column) => column.field_id), [
+    "activity.planned_duration",
+    "wbs.code",
+  ]);
+  assert.deepEqual(copied.columns.map((column) => column.order), [0, 1]);
+  assert.equal(copied.columns[1]?.label, "WBS");
+  assert.equal(copied.columns[1]?.pinned, true);
+  assert.equal(copied.columns[0]?.visible, false);
+  assert.equal(copied.selected_selection, "activity.planned_duration");
+  assert.throws(
+    () => copyColumnsFrom(draft, [{ field_id: "missing.field", visible: true, order: 0, width: 90, alignment: "start", pinned: false, frozen: false }]),
+    /NO_SOURCE_COLUMNS/,
+  );
 });
 
 test("draft to layout normalizes order without inventing a revision", () => {

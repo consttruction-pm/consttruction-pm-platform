@@ -28,12 +28,23 @@ export type P6ColumnsDraft = {
   selected_selection: string | null;
 };
 
+/** A saved layout the Columns dialog can copy its column set from. */
+export type P6ColumnsCopySource = {
+  scope: "project" | "user";
+  name: string;
+  layout: LayoutDefinition;
+};
+
 export type P6ColumnsDialogOptions = {
   registry: FieldRegistry;
   layout: LayoutDefinition;
   locale: string;
+  /** The session may persist a layout; false keeps OK/Apply disabled. */
+  canWrite?: boolean;
   /** Authoritative default columns for this view, or null when none exists. */
   loadDefaults: () => Promise<LayoutDefinition | null>;
+  /** Other saved layouts for Copy From; omitted when the view has none. */
+  loadCopySources?: () => Promise<readonly P6ColumnsCopySource[]>;
   /** Persist the draft and return the saved layout, or null on failure. */
   commit: (draft: LayoutDefinition) => Promise<LayoutDefinition | null>;
   onClosed?: () => void;
@@ -137,9 +148,9 @@ export function addAvailableColumn(draft: P6ColumnsDraft, fieldId: string): P6Co
 }
 
 export function addAllAvailableColumns(draft: P6ColumnsDraft): P6ColumnsDraft {
-  const selected = new Set(draft.columns.map((column) => column.field_id));
-  const additions = draft.registry.fields
-    .filter((field) => !selected.has(field.field_id))
+  // Add all adds exactly what the available pane currently lists, so a search
+  // or subject filter is never silently bypassed.
+  const additions = availableColumns(draft)
     .map((field, index) => createColumnPresentation(field, draft.columns.length + index));
   if (!additions.length) return draft;
   return {
@@ -233,6 +244,32 @@ export function resetDraftColumns(
   };
 }
 
+/**
+ * Replace the draft column set with another saved layout's columns. Unknown
+ * fields are dropped and duplicate ids collapse, so a source from an older
+ * registry cannot publish a column the current view does not have.
+ */
+export function copyColumnsFrom(
+  draft: P6ColumnsDraft,
+  source: readonly ColumnPresentation[],
+): P6ColumnsDraft {
+  const seen = new Set<ColumnPresentation["field_id"]>();
+  const columns: ColumnPresentation[] = [];
+  for (const column of [...source].sort((a, b) => a.order - b.order)) {
+    if (seen.has(column.field_id)) continue;
+    if (!draft.registry.fields.some((field) => field.field_id === column.field_id)) continue;
+    seen.add(column.field_id);
+    columns.push({ ...column, order: columns.length });
+  }
+  if (!columns.length) throw new Error("NO_SOURCE_COLUMNS");
+  return {
+    ...draft,
+    columns,
+    available_selection: null,
+    selected_selection: columns[0]?.field_id ?? null,
+  };
+}
+
 export function draftToLayout(draft: P6ColumnsDraft, base: LayoutDefinition): LayoutDefinition {
   return normalizeLayout({ ...base, columns: draft.columns });
 }
@@ -255,9 +292,19 @@ type DialogUi = {
   editColumn: string;
   copyFrom: string;
   copyFromReason: string;
+  copyFromHint: string;
+  copyFromEmpty: string;
+  copyFromTitle: string;
+  copySourceProject: string;
+  copySourceUser: string;
+  copy: string;
+  copying: string;
+  copyDone: string;
+  copyFailed: string;
   defaultAction: string;
   defaultsLoading: string;
   defaultsUnavailable: string;
+  readonlyReason: string;
   apply: string;
   ok: string;
   cancel: string;
@@ -299,8 +346,34 @@ function labels(locale: string): DialogUi {
     copyFrom: t(locale, "Copy From…", "رونوشت از…"),
     copyFromReason: t(
       locale,
-      "Copy From needs a second saved activity layout. This project exposes one layout per view, so there is nothing to copy from.",
-      "رونوشت از به یک چیدمان ذخیره‌شدهٔ دوم نیاز دارد. این پروژه برای هر نما یک چیدمان ارائه می‌کند؛ بنابراین چیزی برای رونوشت وجود ندارد.",
+      "Copy From needs a second saved activity layout. Save the current columns as a user layout first.",
+      "رونوشت از به یک چیدمان ذخیره‌شدهٔ دوم نیاز دارد. ابتدا ستون‌های کنونی را به‌عنوان چیدمان کاربر ذخیره کنید.",
+    ),
+    copyFromHint: t(
+      locale,
+      "Copy From replaces the draft with the column set of another saved layout; OK or Apply saves it.",
+      "رونوشت از، پیش‌نویس را با مجموعهٔ ستون‌های یک چیدمان ذخیره‌شدهٔ دیگر جایگزین می‌کند؛ تأیید یا اعمال آن را ذخیره می‌کند.",
+    ),
+    copyFromEmpty: t(
+      locale,
+      "No other saved activity layout is available to copy from.",
+      "هیچ چیدمان ذخیره‌شدهٔ دیگری برای رونوشت وجود ندارد.",
+    ),
+    copyFromTitle: t(locale, "Copy columns from", "رونوشت ستون‌ها از"),
+    copySourceProject: t(locale, "Project layout", "چیدمان پروژه"),
+    copySourceUser: t(locale, "User layout", "چیدمان کاربر"),
+    copy: t(locale, "Copy", "رونوشت"),
+    copying: t(locale, "Reading saved layouts…", "در حال خواندن چیدمان‌های ذخیره‌شده…"),
+    copyDone: t(
+      locale,
+      "Columns copied into the draft. OK or Apply saves them.",
+      "ستون‌ها در پیش‌نویس رونوشت شدند. تأیید یا اعمال آن‌ها را ذخیره می‌کند.",
+    ),
+    copyFailed: t(locale, "The saved layouts could not be read.", "چیدمان‌های ذخیره‌شده خوانده نشدند."),
+    readonlyReason: t(
+      locale,
+      "Your role can inspect columns but cannot save an activity layout.",
+      "نقش شما می‌تواند ستون‌ها را ببیند اما نمی‌تواند چیدمان فعالیت را ذخیره کند.",
     ),
     defaultAction: t(locale, "Default", "پیش‌فرض"),
     defaultsLoading: t(locale, "Loading default columns…", "در حال بارگذاری ستون‌های پیش‌فرض…"),
@@ -366,14 +439,21 @@ function subjectOptions(draft: P6ColumnsDraft, ui: DialogUi): string {
   ).join("")}`;
 }
 
-function renderDialogBody(draft: P6ColumnsDraft, ui: DialogUi): string {
+function renderDialogBody(
+  draft: P6ColumnsDraft,
+  ui: DialogUi,
+  canWrite: boolean,
+  hasCopySources: boolean,
+): string {
   const available = availableColumns(draft);
   const selected = draft.selected_selection;
   const selectedIndex = selected ? draft.columns.findIndex((column) => column.field_id === selected) : -1;
   const canRemove = selectedIndex >= 0 && draft.columns.length > 1;
   const canRemoveAll = draft.columns.length > 1;
+  const copyTitle = hasCopySources ? ui.copyFrom : ui.copyFromReason;
   return `<form method="dialog" data-columns-form>
     <h2 id="cp-columns-heading">${esc(ui.dialogTitle)}</h2>
+    ${canWrite ? "" : `<p class="cp-columns-readonly" role="status" data-columns-readonly>${esc(ui.readonlyReason)}</p>`}
     <div class="cp-columns-body">
       <section class="cp-columns-pane cp-columns-available" aria-label="${esc(ui.availableColumns)}">
         <label class="cp-columns-search"><span>${esc(ui.search)}</span>
@@ -404,17 +484,17 @@ function renderDialogBody(draft: P6ColumnsDraft, ui: DialogUi): string {
     </div>
     <div class="cp-columns-footer">
       <button type="button" data-columns-action="edit" ${selectedIndex >= 0 ? "" : "disabled"}>${esc(ui.editColumn)}</button>
-      <button type="button" data-columns-action="copy-from" disabled title="${esc(ui.copyFromReason)}" aria-describedby="cp-columns-copy-note">${esc(ui.copyFrom)}</button>
+      <button type="button" data-columns-action="copy-from" title="${esc(copyTitle)}" ${hasCopySources ? "" : "disabled"} aria-describedby="cp-columns-copy-note">${esc(ui.copyFrom)}</button>
       <button type="button" data-columns-action="default">${esc(ui.defaultAction)}</button>
       <span class="cp-columns-notice" role="status" aria-live="polite" data-columns-notice></span>
       <span class="cp-dialog-buttons">
-        <button type="submit" class="cp-dialog-primary" data-columns-ok>${esc(ui.ok)}</button>
-        <button type="button" data-columns-apply>${esc(ui.apply)}</button>
+        <button type="submit" class="cp-dialog-primary" data-columns-ok ${canWrite ? "" : `disabled title="${esc(ui.readonlyReason)}"`}>${esc(ui.ok)}</button>
+        <button type="button" data-columns-apply ${canWrite ? "" : `disabled title="${esc(ui.readonlyReason)}"`}>${esc(ui.apply)}</button>
         <button type="button" data-columns-cancel>${esc(ui.cancel)}</button>
         <button type="button" data-columns-help title="${esc(t("", "Columns help", "راهنمای ستون‌ها"))}">${esc(ui.help)}</button>
       </span>
     </div>
-    <p class="cp-dialog-note" id="cp-columns-copy-note">${esc(ui.copyFromReason)}</p>
+    <p class="cp-dialog-note" id="cp-columns-copy-note">${esc(ui.copyFromHint)}</p>
   </form>`;
 }
 
@@ -433,6 +513,8 @@ function helpText(locale: string): string {
 export function openP6ColumnsDialog(options: P6ColumnsDialogOptions): void {
   document.querySelectorAll<HTMLElement>("[data-p6-columns-dialog], [data-p6-edit-column-dialog]").forEach((element) => element.remove());
   const ui = labels(options.locale);
+  const canWrite = options.canWrite !== false;
+  const hasCopySources = typeof options.loadCopySources === "function";
   let draft = createP6ColumnsDraft(options.registry, options.layout);
   let base = options.layout;
   let busy = false;
@@ -454,7 +536,7 @@ export function openP6ColumnsDialog(options: P6ColumnsDialogOptions): void {
     const active = document.activeElement as HTMLElement | null;
     const preserveSearch = Boolean(active?.matches("[data-columns-search]"));
     const caret = preserveSearch ? (active as HTMLInputElement).selectionStart : null;
-    dialog.innerHTML = renderDialogBody(draft, ui);
+    dialog.innerHTML = renderDialogBody(draft, ui, canWrite, hasCopySources);
     if (preserveSearch || focusSearch) {
       const search = dialog.querySelector<HTMLInputElement>("[data-columns-search]");
       if (search) {
@@ -478,7 +560,7 @@ export function openP6ColumnsDialog(options: P6ColumnsDialogOptions): void {
   };
 
   const commit = async (closeAfter: boolean): Promise<void> => {
-    if (busy) return;
+    if (busy || !canWrite) return;
     busy = true;
     const target = draftToLayout(draft, base);
     let saved: LayoutDefinition | null = null;
@@ -568,6 +650,80 @@ export function openP6ColumnsDialog(options: P6ColumnsDialogOptions): void {
     editor.querySelector<HTMLInputElement>('input[name="title"]')?.select();
   };
 
+  /**
+   * Copy From lists the other saved layout scopes for this view. It only
+   * replaces the draft; persistence still goes through OK/Apply so Cancel
+   * always wins.
+   */
+  const openCopyFrom = async (): Promise<void> => {
+    if (!options.loadCopySources) {
+      notice(ui.copyFromReason, true);
+      return;
+    }
+    notice(ui.copying);
+    let sources: readonly P6ColumnsCopySource[] = [];
+    try {
+      sources = await options.loadCopySources();
+    } catch (error) {
+      console.error("P6 layout catalog read failed", error);
+      notice(ui.copyFailed, true);
+      return;
+    }
+    if (!sources.length) {
+      notice(ui.copyFromEmpty, true);
+      return;
+    }
+    notice("");
+    const picker = document.createElement("dialog");
+    picker.className = "cp-desktop-dialog cp-copy-columns-dialog";
+    picker.dataset.p6CopyColumnsDialog = "";
+    const scopeLabel = (scope: P6ColumnsCopySource["scope"]): string =>
+      scope === "user" ? ui.copySourceUser : ui.copySourceProject;
+    picker.innerHTML = `<form method="dialog" data-copy-columns-form>
+      <h2>${esc(ui.copyFromTitle)}</h2>
+      <div class="cp-columns-copy-list" role="radiogroup" aria-label="${esc(ui.copyFromTitle)}">
+        ${sources.map((source, index) => `<label class="cp-columns-copy-option">
+          <input type="radio" name="source" value="${index}"${index === 0 ? " checked" : ""}>
+          <span>${esc(source.name || scopeLabel(source.scope))}</span>
+          <small>${esc(scopeLabel(source.scope))} · r${source.layout.revision} · ${source.layout.columns.length}</small>
+        </label>`).join("")}
+      </div>
+      <div class="cp-dialog-buttons">
+        <button type="submit" class="cp-dialog-primary" data-copy-columns-accept>${esc(ui.copy)}</button>
+        <button type="button" data-copy-columns-cancel>${esc(ui.cancel)}</button>
+      </div>
+    </form>`;
+    document.body.append(picker);
+    const removePicker = (): void => picker.remove();
+    picker.addEventListener("close", removePicker);
+    picker.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-copy-columns-cancel]")) {
+        if (picker.open) picker.close();
+        else removePicker();
+      }
+    });
+    picker.querySelector("form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = picker.querySelector("form");
+      const raw = form ? new FormData(form).get("source") : null;
+      const source = sources[Number(raw)];
+      if (!source) return;
+      try {
+        draft = copyColumnsFrom(draft, source.layout.columns);
+        if (picker.open) picker.close();
+        else removePicker();
+        render();
+        notice(ui.copyDone);
+      } catch (error) {
+        if (error instanceof Error && error.message === "NO_SOURCE_COLUMNS") notice(ui.copyFromEmpty, true);
+        else console.error("P6 copy columns failed", error);
+      }
+    });
+    if (typeof picker.showModal === "function") picker.showModal();
+    else picker.setAttribute("open", "");
+  };
+
   dialog.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -620,6 +776,9 @@ export function openP6ColumnsDialog(options: P6ColumnsDialogOptions): void {
           break;
         case "edit":
           if (draft.selected_selection) openEdit(draft.selected_selection);
+          return;
+        case "copy-from":
+          void openCopyFrom();
           return;
         case "default":
           void applyDefaults();
