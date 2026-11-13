@@ -268,3 +268,27 @@ test("About Us is a first-class bilingual public route with approved founder fac
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
+
+
+test("homepage security section discloses verified hosting controls and all six approved capability areas", () => {
+  for (const marker of [
+    'id="security"',
+    'aria-labelledby="cubi-security-title"',
+    'title: "Secure SSL Connection"',
+    'title: "Cloud Firewall Protection"',
+    'title: "DDoS Protection"',
+    'title: "Automatic Cloud Backup"',
+    'title: "Infrastructure Monitoring"',
+    'title: "Data Recovery"',
+    'status: "ACTIVE — HOST MANAGED"',
+    'status: "NOT VERIFIED"',
+    "No Render Postgres database",
+    "Free web-service filesystems are ephemeral",
+    "successful restore drill",
+    "getLandingSecurityCopyForLocale",
+  ]) assert.ok(landing.includes(marker), "Missing security disclosure requirement: " + marker);
+  assert.match(landing, /cubi-security-disclosure/);
+  assert.match(landing, /securitySectionCopy\[normalizedLocale\] \?\? securitySectionCopy\.en/);
+  assert.match(styles, /\.cubi-security-disclosure/);
+  assert.match(styles, /\.cubi-security-status/);
+});
