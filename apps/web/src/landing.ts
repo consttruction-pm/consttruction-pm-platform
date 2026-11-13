@@ -474,6 +474,45 @@ export function getLandingCopyForLocale(requestedLocale: string): LandingCopy & 
   return getLandingCopy(requestedLocale);
 }
 
+export type LandingSecurityCard = { icon: string; title: string; body: string; status: string };
+export type LandingSecurityCopy = { eyebrow: string; title: string; intro: string; cards: LandingSecurityCard[]; disclosure: string };
+
+const securitySectionCopy: Record<string, LandingSecurityCopy> = {
+  en: {
+    eyebrow: "SECURITY & RELIABILITY",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "Manage your projects in a secure and always-accessible environment. With cloud infrastructure, security capabilities, and backup services, CUBI helps you manage your project information and records with greater confidence.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Encrypted connection between your browser and CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "Infrastructure protection against unauthorized access. This control is not yet verified for the current deployment." },
+      { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Protection against attacks that disrupt service availability, provided by the hosting platform." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Render logs and service events are available; independent alert coverage is not verified." },
+      { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
+    ],
+    disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected Render workspace currently has two Free web services in Frankfurt and no Render Postgres instance. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
+  },
+  fa: {
+    eyebrow: "امنیت و پایداری",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "مدیریت پروژه‌های خود را به محیطی امن و همیشه در دسترس بسپارید.\nCUBI با بهره‌گیری از زیرساخت ابری، امکانات امنیتی و خدمات پشتیبان‌گیری، به شما کمک می‌کند اطلاعات و سوابق پروژه‌های خود را با اطمینان بیشتری مدیریت کنید.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "ارتباط امن و رمزنگاری‌شده با CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "محافظت زیرساخت در برابر دسترسی‌های غیرمجاز. فعال بودن این کنترل برای استقرار فعلی هنوز تأیید نشده است." },
+      { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "محافظت در برابر حملات مختل‌کننده سرویس؛ این قابلیت توسط زیرساخت میزبان ارائه می‌شود." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "پشتیبان‌گیری خودکار برای کاهش خطر از دست رفتن اطلاعات. پیکربندی پشتیبان‌گیری کوبی هنوز تأیید نشده و فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای Render در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
+      { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "امکان بازیابی اطلاعات از نسخه‌های پشتیبان. منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی هنوز ثبت نشده است." }
+    ],
+    disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل Render، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه Render Postgres مشاهده نشد. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
+  }
+};
+
+export function getLandingSecurityCopyForLocale(requestedLocale: string): LandingSecurityCopy {
+  const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
+  return securitySectionCopy[normalizedLocale] ?? { ...securitySectionCopy.en!, eyebrow: "SECURITY & RELIABILITY" };
+}
+
 function escapeLandingCopy<T>(value: T): T {
   if (typeof value === "string") return escapeHtml(value) as T;
   if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
@@ -489,6 +528,7 @@ function escapeHtml(value: string): string {
 
 function renderLanding(container: HTMLElement): void {
   const t = getLandingCopy(locale);
+  const security = getLandingSecurityCopyForLocale(locale);
   const c = t.chrome;
   setLandingDocumentLocale();
   // Language routes live one level below the site root, so workspace and
@@ -499,12 +539,16 @@ function renderLanding(container: HTMLElement): void {
   const publicLocaleRootHref = locale === "fa" ? resolveLandingLanguageHref("fa", window.location.pathname) : publicRootHref;
   const publicPageHref = (route: string) => `${publicLocaleRootHref}${route}/`;
   const pricingHref = publicPageHref("pricing");
+  const aboutLocale = locale === "zh-Hant" ? "zh-Hans" : locale;
+  const aboutPageHref = ["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)
+    ? `${resolveLandingLanguageHref(aboutLocale, window.location.pathname)}about/`
+    : `${publicRootHref}about/`;
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="${c.brandAria}"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="${c.brandAlt}" /></a>
         <nav class="cubi-exact-nav" aria-label="${c.primaryNavigation}">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${aboutPageHref}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
           <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
@@ -530,6 +574,11 @@ function renderLanding(container: HTMLElement): void {
           <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
           <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon${f.assistantAvatar ? " cubi-feature-icon-assistant" : ""}" aria-hidden="true">${f.assistantAvatar ? `<img src="${cubiAssistantAvatarUrl()}" width="50" height="50" alt="" />` : f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
+        <section class="cubi-exact-features cubi-security-section" id="security" aria-labelledby="cubi-security-title">
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">${security.eyebrow}</p><h2 id="cubi-security-title">${security.title}</h2><p>${security.intro}</p></div>
+          <div class="cubi-exact-feature-grid cubi-security-grid">${security.cards.map((card) => `<article><div class="cubi-feature-icon" aria-hidden="true">${card.icon}</div><h3>${card.title}</h3><p class="cubi-security-status"><strong>${card.status}</strong></p><p>${card.body}</p></article>`).join("")}</div>
+          <p class="cubi-security-disclosure">${security.disclosure}</p>
+        </section>
         <section class="cubi-exact-features cubi-exact-industries" id="industries" aria-labelledby="cubi-industries-title"><div class="cubi-exact-section-head"><p class="cubi-kicker">${t.industriesEyebrow}</p><h2 id="cubi-industries-title">${t.industriesTitle}</h2><p>${t.industriesBody}</p></div></section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
@@ -544,7 +593,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="${c.brandAlt}" /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${publicPageHref("about")}">${c.about}</a></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${aboutPageHref}">${c.about}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
       </div>`;
