@@ -64,6 +64,28 @@ test("Gantt keeps one row per filtered activity even when none has schedule date
   assert.ok(!html.includes("No scheduled activities"));
 });
 
+test("the activity grid keeps one roving tab stop on the primary activity row", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const withRows = withActivities(base, [
+    { id: "A-1", wbsId: "W1", code: "A-1", name: "First" },
+    { id: "A-2", wbsId: "W1", code: "A-2", name: "Second" },
+  ]);
+  const state = {
+    ...withWbsNodes(withRows, [
+      { id: "W1", parentKind: "project" as const, parentWbsId: null, localCode: "W1", name: "Work", sequenceNumber: 1, recordRevision: 1 },
+    ]),
+    activeMenu: "schedule" as const,
+  };
+  const tabStops = (candidate: typeof state): Array<[string, string]> => {
+    const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+    renderMainWorkspace(container as unknown as HTMLElement, candidate);
+    return [...container.innerHTML.matchAll(/<tr role="row" data-activity-id="([^"]+)"[^>]*tabindex="(-?\d+)"/g)]
+      .map((match) => [match[1], match[2]] as [string, string]);
+  };
+  assert.deepEqual(tabStops(state), [["A-1", "0"], ["A-2", "-1"]], "with no selection the first activity carries the tab stop");
+  assert.deepEqual(tabStops({ ...state, selectedActivityId: "A-2" }), [["A-1", "-1"], ["A-2", "0"]], "the primary selection owns the tab stop");
+});
+
 test("WBS panel renders localized create controls and permits creating a project root", () => {
   const english = render("en", "project");
   assert.match(english, /data-wbs-create-form/);

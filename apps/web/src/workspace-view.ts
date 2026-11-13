@@ -1412,6 +1412,35 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       openWorkspaceContextMenu(container, context, point.x, point.y, context.anchor);
       return;
     }
+    const gridRow = keyTarget?.closest?.<HTMLElement>("#cp-activity-grid tbody tr[tabindex]") ?? null;
+    if (gridRow && ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"].includes(event.key)) {
+      const rows = Array.from(container.querySelectorAll<HTMLElement>("#cp-activity-grid tbody tr[tabindex]"));
+      const index = rows.indexOf(gridRow);
+      if (index >= 0) {
+        event.preventDefault();
+        const page = 10;
+        let next = index;
+        if (event.key === "ArrowDown") next = Math.min(rows.length - 1, index + 1);
+        else if (event.key === "ArrowUp") next = Math.max(0, index - 1);
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = rows.length - 1;
+        else if (event.key === "PageDown") next = Math.min(rows.length - 1, index + page);
+        else if (event.key === "PageUp") next = Math.max(0, index - page);
+        const targetRow = rows[next];
+        if (!targetRow) return;
+        const record = workspaceRenderRecords.get(container);
+        const activityId = targetRow.dataset.activityId;
+        // Band rows stay selectable only with Enter; moving onto them keeps the
+        // current activity selection so a band never becomes a primary record.
+        if (activityId && record?.options.onActivitySelect && !event.ctrlKey && !event.metaKey) {
+          const orderedIds = rows.flatMap((row) => (row.dataset.activityId ? [row.dataset.activityId] : []));
+          record.options.onActivitySelect(activityId, event.shiftKey ? { range: true, orderedIds } : undefined);
+        } else {
+          targetRow.focus();
+        }
+      }
+      return;
+    }
     if (event.key === "Enter" || event.key === " ") {
       const activationTarget = keyTarget && typeof keyTarget.closest === "function"
         ? keyTarget.closest<HTMLElement>("[data-network-relationship-id],[data-gantt-activity-id],[data-activity-id],[data-document-row],[data-wbs-row]")
@@ -2298,6 +2327,11 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     const selected = nextSelectionSet.has(row.dataset.activityId ?? "");
     row.classList.toggle("is-selected", selected);
     row.setAttribute("aria-selected", selected ? "true" : "false");
+    if (row.tagName === "TR" && next.selectedActivityId) {
+      // Move the grid's single tab stop with the primary row so Tab and the
+      // arrow keys agree after an incremental selection update.
+      row.setAttribute("tabindex", row.dataset.activityId === next.selectedActivityId ? "0" : "-1");
+    }
   });
   container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
     const selected = nextSelectionSet.has(row.dataset.ganttActivityId ?? "");
@@ -2507,11 +2541,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.columns.reduce((total, column) => total + column.width, 0) + (lineNumbers ? 40 : 0);
   const treeGuides = buildWbsTreeGuides(displayRows);
   let activityLineNumber = 0;
+  // Roving tabindex: the activity rows share one Tab stop, and the primary
+  // row (or the first activity when nothing is selected yet) receives it.
+  const tabbableRowId = state.selectedActivityId
+    ?? displayRows.find((row) => row.kind === "activity")?.activity.id
+    ?? null;
   const activityRowMarkup = displayRows.map((row, index) => {
     if (row.kind === "wbs") return renderWbsGroupRow(row, state, stickyOffsets, presentation, t, treeGuides[index]);
     if (row.kind === "fieldGroup") return renderFieldGroupRow(row, state, stickyOffsets, presentation, t, treeGuides[index]);
     activityLineNumber += 1;
-    return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId, treeGuides[index]);
+    return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId, treeGuides[index], row.activity.id === tabbableRowId);
   }).join("");
 
   const rail = {
@@ -4198,6 +4237,7 @@ function renderActivityRow(
   indentDepth = 0,
   treeColumnId: string | null = null,
   guide: WbsTreeGuide = { depth: indentDepth, rails: [], lastChild: true, hasChildren: false, collapsed: false },
+  tabbable = true,
 ): string {
   const selected = selectedActivityIdList(state).includes(activity.id);
   const predecessors = predecessorSummary(activity.id, state);
@@ -4225,7 +4265,7 @@ function renderActivityRow(
   const lineNumberCell = presentation.table.lineNumbers
     ? `<td role="gridcell" class="cp-p6-line-number">${rowNumber}</td>`
     : "";
-  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" data-wbs-depth="${indentDepth}" data-wbs-level="${Math.min(6, guide.depth + 1)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="${tabbable ? "0" : "-1"}" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" data-wbs-depth="${indentDepth}" data-wbs-level="${Math.min(6, guide.depth + 1)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
 }
 
 /**

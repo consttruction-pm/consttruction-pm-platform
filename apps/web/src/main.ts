@@ -399,6 +399,24 @@ function rememberOpenWindows(next: readonly WorkspaceMenuKey[]): void {
 }
 
 /**
+ * A selection re-renders the grid, so restore focus to the primary activity
+ * row on the next frame. Without this the first arrow-key move would leave
+ * focus on <body> and the next key would fall back to the shell bindings.
+ */
+function focusActivityRow(container: HTMLElement, activityId: string): void {
+  if (typeof requestAnimationFrame !== "function") return;
+  requestAnimationFrame(() => {
+    const rows = container.querySelectorAll<HTMLElement>("#cp-activity-grid tbody tr[data-activity-id]");
+    for (const row of rows) {
+      if (row.dataset.activityId === activityId) {
+        row.focus({ preventScroll: false });
+        return;
+      }
+    }
+  });
+}
+
+/**
  * Panels mount asynchronously (schedule options, formula editor), so a command
  * that targets a control inside them may run before that control exists. Retry
  * briefly instead of failing without feedback.
@@ -2634,6 +2652,7 @@ function renderApp(
           ? toggleActivitySelection(state, activityId)
           : selectActivity(state, activityId);
       renderApp(container, next, persistence);
+      focusActivityRow(container, activityId);
     },
     onGanttActivitySelect: (activityId, selection) => {
       const next = selection?.range
@@ -2642,6 +2661,7 @@ function renderApp(
           ? toggleActivitySelection(state, activityId)
           : selectActivity(state, activityId);
       renderApp(container, next, persistence);
+      focusActivityRow(container, activityId);
     },
     onGanttScaleChange: (ganttScale) => {
       renderApp(container, setGanttScale(state, ganttScale), persistence);
