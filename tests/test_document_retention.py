@@ -34,6 +34,7 @@ from construction_pm.document_retention import (
     DocumentRetentionLegalHold,
     DocumentRetentionNotEligible,
     DocumentRetentionNotFound,
+    DocumentRetentionReferenceCheckFailed,
     DocumentRetentionRevisionConflict,
     DocumentRetentionService,
     SQLiteDocumentRetentionStore,
@@ -283,6 +284,91 @@ def test_dispose_deletes_bytes_blocks_download_and_is_idempotent(tmp_path) -> No
     )
     assert [item["version"] for item in summary["dispositions"]] == [1]
     assert summary["eligibility"][0]["reason"] == "disposed"
+
+
+def test_dispose_preserves_bytes_shared_with_a_live_sibling(tmp_path) -> None:
+    harness = _Harness(tmp_path)
+    harness.add_document("DOC-2")
+    harness.upload(document_id="DOC-2", key="upload-2")
+    first = harness.content.get("t1", "p1", "DOC-1", 1)
+    sibling = harness.content.get("t1", "p1", "DOC-2", 1)
+    assert first is not None and sibling is not None
+    # Identical bytes are deduplicated into one content-addressed object.
+    assert first.storage_ref == sibling.storage_ref
+
+    harness.set_policy(retain_days=0)
+    harness.set_policy(retain_days=0, document_id="DOC-2")
+    harness.dispose(occurred_at=NOW + timedelta(minutes=1))
+
+    assert (
+        harness.storage.read(
+            sibling.storage_ref,
+            tenant_id="t1",
+            project_id="p1",
+            expected_content_hash=sibling.content_hash,
+        )
+        == TEXT_BYTES
+    )
+    with pytest.raises(DocumentContentDisposed):
+        harness.service.download_content(
+            tenant_id="t1",
+            project_id="p1",
+            document_id="DOC-1",
+            context=harness.context,
+        )
+    assert (
+        harness.service.download_content(
+            tenant_id="t1",
+            project_id="p1",
+            document_id="DOC-2",
+            context=harness.context,
+        ).data
+        == TEXT_BYTES
+    )
+
+    # The last live reference removes the object.
+    harness.dispose(
+        document_id="DOC-2",
+        confirm="DOC-2:1",
+        occurred_at=NOW + timedelta(minutes=2),
+    )
+    with pytest.raises(DocumentContentNotFound):
+        harness.storage.read(
+            sibling.storage_ref,
+            tenant_id="t1",
+            project_id="p1",
+            expected_content_hash=sibling.content_hash,
+        )
+
+
+def test_dispose_refuses_to_guess_when_reference_metadata_is_unreadable(
+    tmp_path, monkeypatch
+) -> None:
+    harness = _Harness(tmp_path)
+    harness.set_policy(retain_days=0)
+    stored = harness.content.get("t1", "p1", "DOC-1", 1)
+    assert stored is not None
+
+    def broken(**_kwargs):
+        raise sqlite3.OperationalError("metadata unavailable")
+
+    monkeypatch.setattr(harness.content, "list_all", broken)
+    with pytest.raises(DocumentRetentionReferenceCheckFailed):
+        harness.dispose(occurred_at=NOW + timedelta(minutes=1))
+
+    # Fail closed: bytes intact and no disposition was recorded.
+    assert (
+        harness.storage.read(
+            stored.storage_ref,
+            tenant_id="t1",
+            project_id="p1",
+            expected_content_hash=stored.content_hash,
+        )
+        == TEXT_BYTES
+    )
+    assert (
+        harness.retention_store.get_disposition("t1", "p1", "DOC-1", 1) is None
+    )
 
 
 def test_read_allowed_for_viewer_but_policy_and_disposition_require_write(tmp_path) -> None:
