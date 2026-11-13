@@ -416,3 +416,42 @@ def test_operational_middleware_logs_path_without_query_string() -> None:
     assert record["path"] == "/api/projects/P-1"
     assert "secret-value" not in stream.getvalue()
     assert record["status"] == 200
+
+
+def test_metrics_export_configuration_is_validated_fail_closed() -> None:
+    enabled_without_token = validate_environment(
+        {"CONSTRUCTION_PM_METRICS_EXPORT_ENABLED": "true"}
+    )
+    assert enabled_without_token.valid is False
+    assert enabled_without_token.components["observability"] is False
+    issue = enabled_without_token.errors[0]
+    assert issue.code == "METRICS_EXPORT_TOKEN_MISSING"
+    assert issue.variable == "CONSTRUCTION_PM_METRICS_EXPORT_TOKEN"
+
+    weak = validate_environment(
+        {
+            "CONSTRUCTION_PM_METRICS_EXPORT_ENABLED": "true",
+            "CONSTRUCTION_PM_METRICS_EXPORT_TOKEN": "short",
+        }
+    )
+    assert weak.valid is False
+    assert weak.errors[0].code == "METRICS_EXPORT_TOKEN_INVALID"
+
+    valid = validate_environment(
+        {
+            "CONSTRUCTION_PM_METRICS_EXPORT_ENABLED": "true",
+            "CONSTRUCTION_PM_METRICS_EXPORT_TOKEN": "scrape-token-0123456789",
+        }
+    )
+    assert valid.errors == ()
+    assert valid.components["observability"] is True
+
+
+def test_otel_endpoint_is_reported_as_reserved_not_implemented() -> None:
+    validation = validate_environment(
+        {"CONSTRUCTION_PM_OTEL_ENDPOINT": "https://collector.example.invalid:4317"}
+    )
+    assert validation.valid is True
+    codes = {issue.code for issue in validation.warnings}
+    assert "OTEL_ENDPOINT_NOT_IMPLEMENTED" in codes
+    assert validation.components["observability"] is True
