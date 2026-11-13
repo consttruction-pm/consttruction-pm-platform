@@ -203,6 +203,17 @@ def _resolve_insert_conflict(
     return existing
 
 
+MAX_REFERENCE_SNAPSHOT_ROWS = 200_000
+
+
+def validate_snapshot_scope(tenant_id: str | None, project_id: str | None) -> None:
+    """Reject an unscoped snapshot; a reference snapshot must name a tenant."""
+    if tenant_id is None and project_id is None:
+        raise ValueError("DOCUMENT_SCOPE_REQUIRED")
+    if project_id is not None and tenant_id is None:
+        raise ValueError("DOCUMENT_SCOPE_REQUIRED")
+
+
 class DocumentContentRepository(Protocol):
     def append(self, version: DocumentContentVersion) -> DocumentContentVersion: ...
 
@@ -320,6 +331,7 @@ class SQLiteDocumentContentRepository:
         return tuple(_from_json(row[0]) for row in rows)
 
     def list_all(self, *, tenant_id: str | None = None, project_id: str | None = None):
+        validate_snapshot_scope(tenant_id, project_id)
         statement = (
             "SELECT content_json FROM project_document_content"
         )
@@ -334,7 +346,11 @@ class SQLiteDocumentContentRepository:
         if clauses:
             statement += " WHERE " + " AND ".join(clauses)
         statement += " ORDER BY tenant_id, project_id, document_id, version"
+        statement += " LIMIT ?"
+        parameters.append(MAX_REFERENCE_SNAPSHOT_ROWS + 1)
         rows = self.connection.execute(statement, tuple(parameters)).fetchall()
+        if len(rows) > MAX_REFERENCE_SNAPSHOT_ROWS:
+            raise ValueError("DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE")
         return tuple(_from_json(row[0]) for row in rows)
 
     def get_by_idempotency(
@@ -437,6 +453,7 @@ class PostgresDocumentContentRepository:
         return tuple(_from_json(_json_value(row[0])) for row in rows)
 
     def list_all(self, *, tenant_id: str | None = None, project_id: str | None = None):
+        validate_snapshot_scope(tenant_id, project_id)
         statement = "SELECT content_json FROM project_document_content"
         clauses: list[str] = []
         parameters: list[object] = []
@@ -449,7 +466,11 @@ class PostgresDocumentContentRepository:
         if clauses:
             statement += " WHERE " + " AND ".join(clauses)
         statement += " ORDER BY tenant_id, project_id, document_id, version"
+        statement += " LIMIT %s"
+        parameters.append(MAX_REFERENCE_SNAPSHOT_ROWS + 1)
         rows = self.connection.execute(statement, tuple(parameters)).fetchall()
+        if len(rows) > MAX_REFERENCE_SNAPSHOT_ROWS:
+            raise ValueError("DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE")
         return tuple(_from_json(_json_value(row[0])) for row in rows)
 
     def get_by_idempotency(

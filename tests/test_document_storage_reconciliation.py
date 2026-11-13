@@ -44,6 +44,7 @@ from construction_pm.document_storage_reconciliation import (
     SIZE_MISMATCH,
     UNKNOWN_OBJECT,
     DocumentStorageInventoryError,
+    DocumentStorageReconciliationError,
     DocumentStorageReconciler,
     LocalDocumentObjectInventory,
     ReconciliationPolicy,
@@ -186,7 +187,7 @@ def _dispose(env: Env, document_id: str, version: int, content_hash: str) -> Non
 def test_matching_object_is_reported_and_retained(env: Env) -> None:
     ref, content_hash = _seed(env, "doc-1", PDF_ONE)
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.status == COMPLETED
     assert report.count(MATCH) == 1
@@ -205,7 +206,7 @@ def test_metadata_without_object_is_reported_but_never_deleted(env: Env) -> None
     ref, _ = _seed(env, "doc-1", PDF_ONE)
     _object_path(env, ref).unlink()
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.count(METADATA_ONLY) == 1
     assert report.deleted == 0
@@ -219,7 +220,7 @@ def test_size_mismatch_is_reported_and_never_deleted(env: Env) -> None:
     path = _object_path(env, ref)
     path.write_bytes(PDF_ONE + b"tampered")
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.count(SIZE_MISMATCH) == 1
     assert report.deleted == 0
@@ -234,13 +235,13 @@ def test_checksum_mismatch_requires_byte_verification(env: Env) -> None:
     assert len(replacement) == len(PDF_ONE)
     path.write_bytes(replacement)
 
-    without = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    without = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
     assert without.count(MATCH) == 1
     assert without.count(CHECKSUM_MISMATCH) == 0
 
     with_bytes = _reconciler(
         env, policy=ReconciliationPolicy(grace_period=timedelta(0), verify_bytes=True)
-    ).reconcile(now=NOW, dry_run=False)
+    ).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
     assert with_bytes.count(CHECKSUM_MISMATCH) == 1
     assert with_bytes.deleted == 0
     assert path.exists()
@@ -253,14 +254,14 @@ def test_incomplete_upload_staging_file_is_identified(env: Env) -> None:
     staging = directory / ".upload-abandoned"
     staging.write_bytes(b"partial")
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.count(INCOMPLETE_UPLOAD) == 1
     first = env.state.list_cleanup(TENANT, PROJECT)
     assert first == ()
     assert staging.exists()
 
-    report = _reconciler(env).reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert report.deleted == 1
     assert not staging.exists()
 
@@ -273,7 +274,7 @@ def test_dry_run_is_non_mutating(env: Env) -> None:
     orphan = _orphan(env, PDF_TWO)
 
     for _ in range(2):
-        report = _reconciler(env).reconcile(now=NOW, dry_run=True)
+        report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=True)
         assert report.dry_run is True
         assert report.count(ORPHAN_OBJECT) == 1
         assert report.deleted == 0
@@ -287,7 +288,7 @@ def test_destructive_cleanup_requires_repeated_observation(env: Env) -> None:
     orphan = _orphan(env, PDF_TWO)
     reconciler = _reconciler(env)
 
-    first = reconciler.reconcile(now=NOW, dry_run=False)
+    first = reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
     assert first.count(ORPHAN_OBJECT) == 1
     assert first.deleted == 0
     assert first.entries[0].eligibility == AWAITING_REPEATED_OBSERVATION
@@ -296,7 +297,7 @@ def test_destructive_cleanup_requires_repeated_observation(env: Env) -> None:
     state = env.state.get(TENANT, PROJECT, orphan)
     assert state is not None and state.observations == 1
 
-    second = reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    second = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert second.deleted == 1
     assert not _object_path(env, orphan).exists()
 
@@ -308,14 +309,14 @@ def test_grace_period_delays_cleanup(env: Env) -> None:
         env, policy=ReconciliationPolicy(grace_period=timedelta(hours=1))
     )
 
-    reconciler.reconcile(now=NOW, dry_run=False)
-    still_grace = reconciler.reconcile(now=NOW + timedelta(minutes=30), dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
+    still_grace = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(minutes=30), dry_run=False)
     assert still_grace.deleted == 0
     assert still_grace.entries[0].eligibility == IN_GRACE_PERIOD
     assert still_grace.skipped == 1
     assert _object_path(env, orphan).exists()
 
-    after_grace = reconciler.reconcile(now=NOW + timedelta(hours=2), dry_run=False)
+    after_grace = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(hours=2), dry_run=False)
     assert after_grace.deleted == 1
     assert after_grace.entries[0].eligibility == ELIGIBLE
     assert not _object_path(env, orphan).exists()
@@ -337,8 +338,8 @@ def test_failed_deletion_is_recorded_and_retried(env: Env) -> None:
             return super().delete(item, tenant_id=tenant_id, project_id=project_id)
 
     reconciler = _reconciler(env, inventory=FlakyInventory(env.root))
-    reconciler.reconcile(now=NOW, dry_run=False)
-    failed = reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
+    failed = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert failed.deleted == 0
     assert failed.failed == 1
     records = env.state.list_cleanup(TENANT, PROJECT, object_ref=orphan)
@@ -346,7 +347,7 @@ def test_failed_deletion_is_recorded_and_retried(env: Env) -> None:
     assert records[0].actor_id == "storage-reconciler"
     assert _object_path(env, orphan).exists()
 
-    retried = reconciler.reconcile(now=NOW + timedelta(seconds=2), dry_run=False)
+    retried = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=2), dry_run=False)
     assert retried.deleted == 1
     records = env.state.list_cleanup(TENANT, PROJECT, object_ref=orphan)
     assert [record.status for record in records] == ["failed", "deleted"]
@@ -357,12 +358,12 @@ def test_repeated_execution_after_deletion_is_idempotent(env: Env) -> None:
     _seed(env, "doc-1", PDF_ONE)
     orphan = _orphan(env, PDF_TWO)
     reconciler = _reconciler(env)
-    reconciler.reconcile(now=NOW, dry_run=False)
-    reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert not _object_path(env, orphan).exists()
 
     for offset in (2, 3):
-        report = reconciler.reconcile(now=NOW + timedelta(seconds=offset), dry_run=False)
+        report = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=offset), dry_run=False)
         assert report.deleted == 0
         assert report.count(ORPHAN_OBJECT) == 0
     assert len(env.state.list_cleanup(TENANT, PROJECT)) == 1
@@ -444,8 +445,8 @@ def test_reappeared_object_restarts_observation_window(env: Env) -> None:
     _seed(env, "doc-1", PDF_ONE)
     orphan = _orphan(env, PDF_TWO)
     reconciler = _reconciler(env)
-    reconciler.reconcile(now=NOW, dry_run=False)
-    reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
+    reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert not _object_path(env, orphan).exists()
 
     # The same bytes are written again without metadata some time later.
@@ -453,24 +454,27 @@ def test_reappeared_object_restarts_observation_window(env: Env) -> None:
     state = env.state.get(TENANT, PROJECT, orphan)
     assert state is not None and state.status == "deleted"
 
-    report = reconciler.reconcile(now=NOW + timedelta(hours=1), dry_run=False)
+    report = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(hours=1), dry_run=False)
     assert report.deleted == 0
     state = env.state.get(TENANT, PROJECT, orphan)
     assert state is not None
     assert state.observations == 1
     assert _object_path(env, orphan).exists()
 
-    report = reconciler.reconcile(now=NOW + timedelta(hours=1, seconds=1), dry_run=False)
+    report = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(hours=1, seconds=1), dry_run=False)
     assert report.deleted == 1
 
 
 def test_unknown_scope_object_is_never_deleted(env: Env) -> None:
     _seed(env, "doc-1", PDF_ONE)
-    unknown = _orphan(env, PDF_TWO, tenant="tenant-never-recorded", project="project-x")
+    unknown_tenant = "tenant-never-recorded"
+    unknown = _orphan(env, PDF_TWO, tenant=unknown_tenant, project="project-x")
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=unknown_tenant, now=NOW, dry_run=False)
     assert report.count(UNKNOWN_OBJECT) == 1
-    report = _reconciler(env).reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    report = _reconciler(env).reconcile(
+        tenant_id=unknown_tenant, now=NOW + timedelta(seconds=1), dry_run=False
+    )
     assert report.count(UNKNOWN_OBJECT) == 1
     assert report.deleted == 0
     assert report.entries[0].detail == "unmapped_scope"
@@ -498,9 +502,15 @@ def test_tenant_scope_filter_does_not_touch_other_tenants(env: Env) -> None:
     assert env.state.list_cleanup(OTHER_TENANT, OTHER_PROJECT) == ()
 
     for offset in (2, 3):
-        report = reconciler.reconcile(now=NOW + timedelta(seconds=offset), dry_run=False)
-    assert report.count(MATCH) == 2
-    assert not _object_path(env, foreign_orphan).exists()
+        report = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=offset), dry_run=False)
+    assert report.count(MATCH) == 1
+    assert _object_path(env, foreign_orphan).exists()
+    assert env.state.list_cleanup(OTHER_TENANT, OTHER_PROJECT) == ()
+
+    other = reconciler.reconcile(
+        tenant_id=OTHER_TENANT, now=NOW, dry_run=True
+    )
+    assert other.count(MATCH) == 1
 
 
 # --- retention protection ---------------------------------------------------
@@ -512,7 +522,7 @@ def test_object_shared_with_a_live_version_is_retained(env: Env) -> None:
     assert shared == ref
     _dispose(env, "doc-1", 1, content_hash)
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.count(MATCH) == 1
     assert report.count(PENDING_DELETION) == 0
@@ -524,13 +534,13 @@ def test_pending_deletion_runs_only_when_every_version_is_disposed(env: Env) -> 
     _dispose(env, "doc-1", 1, content_hash)
     reconciler = _reconciler(env)
 
-    first = reconciler.reconcile(now=NOW, dry_run=False)
+    first = reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
     assert first.count(PENDING_DELETION) == 1
     assert first.count(METADATA_ONLY) == 0
     assert first.deleted == 0
     assert _object_path(env, ref).exists()
 
-    second = reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+    second = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
     assert second.deleted == 1
     assert not _object_path(env, ref).exists()
 
@@ -554,7 +564,7 @@ def test_legal_hold_always_wins(env: Env) -> None:
     reconciler = _reconciler(env)
 
     for offset in range(3):
-        report = reconciler.reconcile(now=NOW + timedelta(seconds=offset), dry_run=False)
+        report = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=offset), dry_run=False)
         assert report.count(RETENTION_PROTECTED) == 1
         assert report.deleted == 0
     assert _object_path(env, ref).exists()
@@ -588,7 +598,7 @@ def test_metadata_failure_aborts_before_listing_objects(env: Env) -> None:
         state_store=env.state,
     )
 
-    report = reconciler.reconcile(now=NOW, dry_run=False)
+    report = reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.status == ABORTED
     assert report.reason.startswith("metadata_unavailable")
@@ -600,7 +610,7 @@ def test_inventory_failure_aborts_without_deleting(env: Env) -> None:
     orphan = _orphan(env, PDF_TWO)
     reconciler = _reconciler(env, inventory=_BrokenInventory(env.root))
 
-    report = reconciler.reconcile(now=NOW, dry_run=False)
+    report = reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
 
     assert report.status == ABORTED
     assert report.reason.startswith("inventory_unavailable")
@@ -612,7 +622,7 @@ def test_report_never_emits_storage_references(env: Env) -> None:
     _seed(env, "doc-1", PDF_ONE)
     _orphan(env, PDF_TWO)
 
-    report = _reconciler(env).reconcile(now=NOW, dry_run=False)
+    report = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
     serialized = json.dumps(report.as_dict(), sort_keys=True)
 
     assert "local:v1" not in serialized
@@ -812,13 +822,12 @@ def test_s3_inventory_classifies_and_removes_only_orphans(env: Env) -> None:
         server.objects["/document-bucket/documents/not-a-scope/junk"] = b"unexpected"
 
         reconciler = _reconciler(env, inventory=S3DocumentObjectInventory(storage))
-        first = reconciler.reconcile(now=NOW, dry_run=False)
+        first = reconciler.reconcile(tenant_id=TENANT, now=NOW, dry_run=False)
         assert first.count(MATCH) == 1
         assert first.count(ORPHAN_OBJECT) == 1
-        assert first.count(UNKNOWN_OBJECT) == 1
         assert first.deleted == 0
 
-        second = reconciler.reconcile(now=NOW + timedelta(seconds=1), dry_run=False)
+        second = reconciler.reconcile(tenant_id=TENANT, now=NOW + timedelta(seconds=1), dry_run=False)
         assert second.deleted == 1
         assert server.key_for(orphan) not in server.objects
         assert server.key_for(matched) in server.objects
@@ -850,12 +859,12 @@ def test_document_record_only_reference_is_never_treated_as_an_orphan(env: Env) 
     )
 
     # Control: without document metadata the legacy object looks like an orphan.
-    control = _reconciler(env).reconcile(now=NOW, dry_run=True)
+    control = _reconciler(env).reconcile(tenant_id=TENANT, now=NOW, dry_run=True)
     assert control.count(ORPHAN_OBJECT) == 1
     assert control.count(MATCH) == 1
 
     report = _reconciler(env, document_store=documents).reconcile(
-        now=NOW, dry_run=False
+        tenant_id=TENANT, now=NOW, dry_run=False
     )
     assert report.count(ORPHAN_OBJECT) == 0
     assert report.count(MATCH) == 2
@@ -891,12 +900,38 @@ def test_document_list_all_respects_scope(env: Env) -> None:
             occurred_at=UPLOADED,
         )
 
-    assert [stored.document.document_id for stored in documents.list_all()] == [
-        "doc-a",
-        "doc-b",
-        "doc-c",
-    ]
+    with pytest.raises(ValueError, match="DOCUMENT_SCOPE_REQUIRED"):
+        documents.list_all()
+    assert [
+        stored.document.document_id for stored in documents.list_all(tenant_id=TENANT)
+    ] == ["doc-a", "doc-b"]
     assert [
         stored.document.document_id
         for stored in documents.list_all(tenant_id=TENANT, project_id=PROJECT)
     ] == ["doc-a"]
+
+
+def test_unscoped_reconciliation_is_refused(env: Env) -> None:
+    _seed(env, "doc-1", PDF_ONE)
+
+    with pytest.raises(
+        DocumentStorageReconciliationError, match="INVALID_RECONCILIATION_SCOPE"
+    ):
+        _reconciler(env).reconcile(now=NOW, dry_run=True)
+
+
+def test_content_reference_snapshot_requires_a_tenant_and_stays_bounded(
+    env: Env, monkeypatch
+) -> None:
+    import construction_pm.document_content_repository as repository_module
+
+    _seed(env, "doc-1", PDF_ONE)
+    with pytest.raises(ValueError, match="DOCUMENT_SCOPE_REQUIRED"):
+        env.content.list_all()
+    with pytest.raises(ValueError, match="DOCUMENT_SCOPE_REQUIRED"):
+        env.content.list_all(project_id=PROJECT)
+    assert len(env.content.list_all(tenant_id=TENANT)) == 1
+
+    monkeypatch.setattr(repository_module, "MAX_REFERENCE_SNAPSHOT_ROWS", 0)
+    with pytest.raises(ValueError, match="DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE"):
+        env.content.list_all(tenant_id=TENANT)

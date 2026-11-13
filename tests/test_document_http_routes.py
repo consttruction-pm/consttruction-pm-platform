@@ -256,3 +256,22 @@ def test_document_http_rejects_unknown_project_and_invalid_filter() -> None:
     status, invalid = _call(router, "GET", "/api/projects/p1/documents?status=unknown")
     assert status == 400, invalid
     assert invalid["code"] == "INVALID_DOCUMENT_STATUS_FILTER"
+
+
+def test_document_list_route_is_bounded_and_validates_the_page_limit() -> None:
+    router = routes()
+    for index in range(3):
+        _call(
+            router,
+            "POST",
+            "/api/projects/p1/documents",
+            _payload(document_id=f"DOC-{index}"),
+        )
+
+    status, limited = _call(router, "GET", "/api/projects/p1/documents?limit=2")
+    assert status == 200
+    assert [item["document_id"] for item in limited["documents"]] == ["DOC-0", "DOC-1"]
+
+    status, rejected = _call(router, "GET", "/api/projects/p1/documents?limit=0")
+    assert status == 400
+    assert rejected["code"] == "INVALID_DOCUMENT_PAGE_LIMIT"

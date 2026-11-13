@@ -206,3 +206,33 @@ def test_invalid_metadata_is_rejected_before_write(store) -> None:
     with pytest.raises(ValueError, match="INVALID_DOCUMENT_AUDIT_TIMESTAMP"):
         store.persist(document(), idempotency_key="k-1", actor_id="user-1", occurred_at=datetime(2026, 11, 12))
     assert store.list("tenant-1", "project-1") == ()
+
+
+def test_list_is_bounded_to_a_page_and_validates_the_limit(store) -> None:
+    for index in range(205):
+        store.persist(
+            document(document_id=f"DOC-{index:03d}"),
+            idempotency_key=f"idem-{index}",
+            actor_id="user-1",
+            occurred_at=NOW,
+        )
+
+    page = store.list("tenant-1", "project-1")
+    assert len(page) == 200
+    assert [item.document.document_id for item in page] == [
+        f"DOC-{index:03d}" for index in range(200)
+    ]
+    assert len(store.list("tenant-1", "project-1", limit=5)) == 5
+    for invalid in (0, -1, 501, True, "10"):
+        with pytest.raises(ValueError, match="INVALID_DOCUMENT_PAGE_LIMIT"):
+            store.list("tenant-1", "project-1", limit=invalid)
+
+
+def test_list_all_requires_a_tenant_scope(store) -> None:
+    store.persist(document(), idempotency_key="idem-1", actor_id="user-1", occurred_at=NOW)
+
+    with pytest.raises(ValueError, match="DOCUMENT_SCOPE_REQUIRED"):
+        store.list_all()
+    with pytest.raises(ValueError, match="DOCUMENT_SCOPE_REQUIRED"):
+        store.list_all(project_id="project-1")
+    assert len(store.list_all(tenant_id="tenant-1")) == 1

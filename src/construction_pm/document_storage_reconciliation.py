@@ -228,8 +228,6 @@ class LocalDocumentObjectInventory:
     def _scoped_keys(
         self, tenant_id: str | None, project_id: str | None
     ) -> tuple[str | None, str | None]:
-        if project_id is not None and tenant_id is None:
-            raise DocumentStorageReconciliationError("INVALID_RECONCILIATION_SCOPE")
         return (
             None if tenant_id is None else storage_scope_key(tenant_id),
             None if project_id is None else storage_scope_key(project_id),
@@ -1091,7 +1089,9 @@ class DocumentStorageReconciler:
         reason: str = "scheduled storage reconciliation",
     ) -> ReconciliationReport:
         started = monotonic()
-        if project_id is not None and tenant_id is None:
+        # Reference snapshots must be scoped; a tenant-wide sweep iterates
+        # tenants explicitly instead of materialising every row at once.
+        if tenant_id is None:
             raise DocumentStorageReconciliationError("INVALID_RECONCILIATION_SCOPE")
         for name, value, limit in (
             ("ACTOR", actor_id, MAX_ACTOR_LENGTH),

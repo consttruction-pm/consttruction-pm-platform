@@ -277,6 +277,19 @@ Threats and primary controls:
   document list route.
 - **Negative test:** `list_all()` with no scope raises; `store.list` never
   exceeds the page size.
+- **Resolution:** document and content `list_all` now require a tenant
+  (`DOCUMENT_SCOPE_REQUIRED`) and fetch at most
+  `MAX_REFERENCE_SNAPSHOT_ROWS + 1`, raising
+  `DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE` so reconciliation fails closed instead
+  of truncating its reference set. `DocumentStorageReconciler.reconcile`
+  requires a tenant scope (`INVALID_RECONCILIATION_SCOPE`). `DocumentStore.list`
+  and the document list route accept `limit` (default 200, max 500) and reject
+  invalid values with `INVALID_DOCUMENT_PAGE_LIMIT`. Tests:
+  `test_list_is_bounded_to_a_page_and_validates_the_limit`,
+  `test_list_all_requires_a_tenant_scope`,
+  `test_content_reference_snapshot_requires_a_tenant_and_stays_bounded`,
+  `test_unscoped_reconciliation_is_refused`,
+  `test_document_list_route_is_bounded_and_validates_the_page_limit`.
 
 ### SEC-011 — S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule (Medium)
 
@@ -581,7 +594,7 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010 and SEC-017 remain open;
+- **Open Medium/Low findings.** SEC-017 remains open;
   SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
   SEC-020, SEC-021, SEC-022, SEC-023, SEC-024 and SEC-025 are fixed with
   negative tests. Open findings are recorded here rather than

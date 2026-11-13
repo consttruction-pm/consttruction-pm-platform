@@ -75,8 +75,12 @@ class DocumentAPI:
         resource_type: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         try:
+            kwargs: dict[str, Any] = {}
+            if limit is not None:
+                kwargs["limit"] = limit
             documents = self.service.list(
                 tenant_id=tenant_id,
                 project_id=project_id,
@@ -84,6 +88,7 @@ class DocumentAPI:
                 resource_type=resource_type,
                 status=status,
                 search=search,
+                **kwargs,
             )
             return {
                 "contract_version": DOCUMENT_API_VERSION,

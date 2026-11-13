@@ -2297,6 +2297,7 @@ class ProjectLifecycleHttpRoutes:
                                     )
                                 return _document_reply(result)
                             if method == "GET" and not parts:
+                                limit_raw = query.get("limit")
                                 result = self._document_api.list(
                                     tenant_id=context.tenant_id,
                                     project_id=context.project_id,
@@ -2304,6 +2305,11 @@ class ProjectLifecycleHttpRoutes:
                                     resource_type=query.get("resource_type"),
                                     status=query.get("status"),
                                     search=query.get("search"),
+                                    limit=(
+                                        int(limit_raw)
+                                        if limit_raw not in {None, ""}
+                                        else None
+                                    ),
                                 )
                                 if "documents" in result:
                                     return self._json(200, result)

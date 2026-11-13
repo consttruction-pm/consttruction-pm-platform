@@ -8,6 +8,24 @@ from typing import Any, Protocol
 
 
 MAX_SAFE_REVISION = 9_007_199_254_740_991
+# Document-list responses are paged; a client may narrow, never remove, the cap.
+DEFAULT_DOCUMENT_PAGE_SIZE = 200
+MAX_DOCUMENT_PAGE_SIZE = 500
+# Reference snapshots must stay bounded; an oversized scope aborts instead of
+# materialising an unbounded row set.
+MAX_REFERENCE_SNAPSHOT_ROWS = 200_000
+
+
+def _validate_snapshot_scope(tenant_id: str | None, project_id: str | None) -> None:
+    if tenant_id is None:
+        raise ValueError("DOCUMENT_SCOPE_REQUIRED")
+
+
+def _validate_page_limit(limit: int) -> None:
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise ValueError("INVALID_DOCUMENT_PAGE_LIMIT")
+    if limit < 1 or limit > MAX_DOCUMENT_PAGE_SIZE:
+        raise ValueError("INVALID_DOCUMENT_PAGE_LIMIT")
 DOCUMENT_TYPES = {"contract", "drawing", "correspondence", "rfi", "submittal", "delay_claim", "evidence"}
 DOCUMENT_STATUSES = {"draft", "submitted", "approved", "rejected", "superseded"}
 DOCUMENT_APPROVAL_TRANSITIONS = {
@@ -216,6 +234,7 @@ class DocumentStore(Protocol):
         resource_type: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        limit: int = DEFAULT_DOCUMENT_PAGE_SIZE,
     ) -> tuple[StoredDocument, ...]: ...
 
     def list_all(
@@ -341,8 +360,10 @@ class PostgresDocumentStore:
         resource_type: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        limit: int = DEFAULT_DOCUMENT_PAGE_SIZE,
     ) -> tuple[StoredDocument, ...]:
         _validate_document_filters(resource_type, status, search)
+        _validate_page_limit(limit)
         query = (
             "SELECT document_json, revision FROM project_documents "
             "WHERE tenant_id=%s AND project_id=%s"
@@ -358,7 +379,8 @@ class PostgresDocumentStore:
             query += " AND (LOWER(document_id) LIKE %s ESCAPE '\\' OR LOWER(document_json::json->>'title') LIKE %s ESCAPE '\\')"
             needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
-        query += " ORDER BY document_id"
+        query += " ORDER BY document_id LIMIT %s"
+        params.append(limit)
         rows = self.connection.execute(query, tuple(params)).fetchall()
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 
@@ -368,7 +390,8 @@ class PostgresDocumentStore:
         tenant_id: str | None = None,
         project_id: str | None = None,
     ) -> tuple[StoredDocument, ...]:
-        """Every document in scope, for reference snapshots rather than listing routes."""
+        """Every document in one tenant scope, for reference snapshots."""
+        _validate_snapshot_scope(tenant_id, project_id)
         query = "SELECT document_json, revision FROM project_documents"
         clauses: list[str] = []
         params: list[object] = []
@@ -380,8 +403,11 @@ class PostgresDocumentStore:
             params.append(project_id)
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
-        query += " ORDER BY tenant_id, project_id, document_id"
+        query += " ORDER BY tenant_id, project_id, document_id LIMIT %s"
+        params.append(MAX_REFERENCE_SNAPSHOT_ROWS + 1)
         rows = self.connection.execute(query, tuple(params)).fetchall()
+        if len(rows) > MAX_REFERENCE_SNAPSHOT_ROWS:
+            raise ValueError("DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE")
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 
     def update(
@@ -619,8 +645,10 @@ class SQLiteDocumentStore:
         resource_type: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        limit: int = DEFAULT_DOCUMENT_PAGE_SIZE,
     ) -> tuple[StoredDocument, ...]:
         _validate_document_filters(resource_type, status, search)
+        _validate_page_limit(limit)
         query = (
             "SELECT document_json, revision FROM project_documents "
             "WHERE tenant_id=? AND project_id=?"
@@ -636,7 +664,8 @@ class SQLiteDocumentStore:
             query += " AND (LOWER(document_id) LIKE ? ESCAPE '\\' OR LOWER(json_extract(document_json, '$.title')) LIKE ? ESCAPE '\\')"
             needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
-        query += " ORDER BY document_id"
+        query += " ORDER BY document_id LIMIT ?"
+        params.append(limit)
         rows = self.connection.execute(query, tuple(params)).fetchall()
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 
@@ -646,7 +675,8 @@ class SQLiteDocumentStore:
         tenant_id: str | None = None,
         project_id: str | None = None,
     ) -> tuple[StoredDocument, ...]:
-        """Every document in scope, for reference snapshots rather than listing routes."""
+        """Every document in one tenant scope, for reference snapshots."""
+        _validate_snapshot_scope(tenant_id, project_id)
         query = "SELECT document_json, revision FROM project_documents"
         clauses: list[str] = []
         params: list[object] = []
@@ -658,8 +688,11 @@ class SQLiteDocumentStore:
             params.append(project_id)
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
-        query += " ORDER BY tenant_id, project_id, document_id"
+        query += " ORDER BY tenant_id, project_id, document_id LIMIT ?"
+        params.append(MAX_REFERENCE_SNAPSHOT_ROWS + 1)
         rows = self.connection.execute(query, tuple(params)).fetchall()
+        if len(rows) > MAX_REFERENCE_SNAPSHOT_ROWS:
+            raise ValueError("DOCUMENT_REFERENCE_SNAPSHOT_TOO_LARGE")
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 
     def update(
