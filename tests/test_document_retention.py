@@ -49,6 +49,7 @@ from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRo
 NOW = datetime(2026, 11, 12, 12, 30, tzinfo=timezone.utc)
 TEXT_BYTES = b"retained content\n"
 VIEWER = AuthorizationContext("t1", "p1", "viewer-1", frozenset({"viewer"}))
+PLANNER = AuthorizationContext("t1", "p1", "planner-1", frozenset({"planner"}))
 
 
 class _Harness:
@@ -61,7 +62,7 @@ class _Harness:
         self.retention_store = SQLiteDocumentRetentionStore(self.connection)
         self.retention_store.initialize()
         self.storage = LocalDocumentStorage(tmp_path / "store")
-        self.context = AuthorizationContext("t1", "p1", "u1", frozenset({"planner"}))
+        self.context = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
         self.service = DocumentApplicationService(
             self.store,
             default_project_policy(),
@@ -385,6 +386,35 @@ def test_read_allowed_for_viewer_but_policy_and_disposition_require_write(tmp_pa
         harness.dispose(context=VIEWER)
 
 
+def test_legal_hold_and_disposition_require_project_admin(tmp_path) -> None:
+    harness = _Harness(tmp_path)
+    harness.set_policy(retain_days=0)
+
+    with pytest.raises(DocumentAuthorizationError):
+        harness.set_policy(
+            retain_days=0,
+            legal_hold=True,
+            expected_revision=1,
+            context=PLANNER,
+        )
+    harness.set_policy(retain_days=0, legal_hold=True, expected_revision=1)
+
+    with pytest.raises(DocumentAuthorizationError):
+        harness.dispose(context=PLANNER)
+    with pytest.raises(DocumentAuthorizationError):
+        harness.set_policy(
+            retain_days=0,
+            legal_hold=False,
+            expected_revision=2,
+            context=PLANNER,
+        )
+
+    lifted = harness.set_policy(
+        retain_days=0, legal_hold=False, expected_revision=2
+    )
+    assert lifted.legal_hold is False
+
+
 # --- HTTP ------------------------------------------------------------------
 
 
@@ -410,7 +440,7 @@ class _Projects:
 
 
 class _HttpHarness:
-    def __init__(self, tmp_path, roles=frozenset({"planner"}), *, create=True) -> None:
+    def __init__(self, tmp_path, roles=frozenset({"project_admin"}), *, create=True) -> None:
         self.connection = sqlite3.connect(":memory:")
         self.store = SQLiteDocumentStore(self.connection)
         self.store.initialize()

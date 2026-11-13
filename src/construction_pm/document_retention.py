@@ -572,6 +572,12 @@ class DocumentRetentionService:
         from .application.authorization import Permission
 
         self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        current = self.store.get_policy(tenant_id, project_id, document_id)
+        # A legal hold is an evidentiary control: placing, lifting or changing a
+        # policy while one is active is an administrative act, not a routine
+        # project write, so a planner cannot release it and then dispose.
+        if legal_hold or (current is not None and current.legal_hold):
+            self._check(context, tenant_id, project_id, Permission.PROJECT_ADMIN)
         if actor_id != context.user_id:
             raise DocumentAuthorizationError("DOCUMENT_ACTOR_MISMATCH")
         stored = self.document_store.get(tenant_id, project_id, document_id)
@@ -613,7 +619,9 @@ class DocumentRetentionService:
     ) -> DocumentDisposition:
         from .application.authorization import Permission
 
-        self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        # Disposition deletes stored bytes irreversibly, so it requires the
+        # project administrative grant rather than ordinary project write.
+        self._check(context, tenant_id, project_id, Permission.PROJECT_ADMIN)
         if actor_id != context.user_id:
             raise DocumentAuthorizationError("DOCUMENT_ACTOR_MISMATCH")
         if confirm != f"{document_id}:{version}":
