@@ -4,12 +4,15 @@
 Usage examples::
 
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3
+    python tools/ingest_v26_help.py --dsn postgresql://user@host/knowledge
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3 --max-pages 20
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3 --source p6-26-user-guide
     python tools/ingest_v26_help.py --db data/knowledge.sqlite3 --coverage-out coverage.json
 
 Only the two authoritative Version 26 HTML sources are supported. The command
 is resumable: completed pages are skipped unless ``--force`` is supplied.
+``--dsn`` ingests into the PostgreSQL store instead of SQLite; both stores share
+one implementation of the ingestion rules, so the output must be equivalent.
 """
 
 from __future__ import annotations
@@ -29,9 +32,22 @@ from construction_pm.knowledge.sources import (  # noqa: E402
 from construction_pm.knowledge.sqlite_store import SqliteKnowledgeStore  # noqa: E402
 
 
+def _open_store(args: argparse.Namespace):
+    if args.dsn:
+        from construction_pm.knowledge.postgres_store import PostgresKnowledgeStore
+
+        return PostgresKnowledgeStore(args.dsn)
+    return SqliteKnowledgeStore(args.db)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", required=True, help="Path to the knowledge SQLite database")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--db", help="Path to the knowledge SQLite database")
+    target.add_argument(
+        "--dsn",
+        help="PostgreSQL DSN; the schema is migrated before ingestion",
+    )
     parser.add_argument(
         "--source",
         action="append",
@@ -57,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.source
         else INGESTABLE_SOURCES
     )
-    store = SqliteKnowledgeStore(args.db)
+    store = _open_store(args)
     try:
         pipeline = IngestionPipeline(
             store=store,

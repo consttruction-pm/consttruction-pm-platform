@@ -17,6 +17,7 @@ import threading
 import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import pytest
 
@@ -143,10 +144,54 @@ def test_schema_v3_is_created_and_repeated_migration_is_safe(store, connection) 
         assert name in tables
 
 
+def _owned_store(pg_dsn: str, schema: str) -> PostgresKnowledgeStore:
+    """A store that owns its connection, like the CLI and production wiring."""
+
+    separator = "&" if "?" in pg_dsn else "?"
+    dsn = f"{pg_dsn}{separator}options={quote(f'-c search_path={schema}')}"
+    return PostgresKnowledgeStore(dsn)
+
+
+def test_owned_connection_persists_writes_made_after_a_read(
+    pg_dsn, schema, card_factory
+) -> None:
+    """A read must never turn later writes into an uncommitted savepoint.
+
+    Regression: with ``autocommit=False`` the store's first SELECT opened an
+    implicit transaction, every later ``transaction()`` became a savepoint
+    inside it, and closing the connection rolled the whole session back. The
+    caller saw successful writes that were gone on reopen — which is exactly
+    what a full-corpus ingestion would do at the end of a run.
+    """
+
+    first = _owned_store(pg_dsn, schema)
+    card = _card(card_factory, topic_key="owned.html")
+    try:
+        first.list_topics(source_id="p6-26-html-help")  # a plain read first
+        first.save_card(card)
+        first.record_card_event(
+            card.card_id,
+            action="created",
+            actor_id="tester",
+            occurred_at="2026-02-01T00:00:00+00:00",
+            detail={"revision": 0},
+        )
+    finally:
+        first.close()
+
+    second = _owned_store(pg_dsn, schema)
+    try:
+        stored = second.get_card(card.card_id)
+        assert stored is not None and stored.content_hash == card.content_hash
+        events, _ = second.list_card_events(card.card_id)
+        assert [event["action"] for event in events] == ["created"]
+    finally:
+        second.close()
+
+
 def test_card_round_trip_preserves_content_and_timestamps(store, card_factory) -> None:
     card = _card(card_factory)
     store.save_card(card)
-
     stored = store.get_card(card.card_id)
     assert stored == card
     assert stored.extracted_at == card.extracted_at

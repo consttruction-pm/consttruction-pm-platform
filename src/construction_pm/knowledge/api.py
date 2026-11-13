@@ -110,9 +110,7 @@ class KnowledgeAPI:
             ],
         )
         report = dict(report)
-        report["translations"] = translation_coverage(
-            self.store, [card.card_id for card in cards]
-        )
+        report["translations"] = translation_coverage(self.store, cards)
         return report
 
     def search(

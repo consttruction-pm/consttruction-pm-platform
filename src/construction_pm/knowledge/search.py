@@ -32,6 +32,7 @@ from .locales import (
     canonical_locale,
     detect_locale,
 )
+from .translations import source_binding_current
 from .model import (
     CardStatus,
     KnowledgeError,
@@ -551,7 +552,14 @@ def _document_for_card(store, card, filters: SearchFilters) -> _Document:
                 source_language=translation.source_language,
                 translation_status=translation.translation_status.value,
                 translation_available=True,
-                fallback_used=False,
+                # The localized text may match the query, but only a reviewed,
+                # published translation bound to the current source may answer.
+                # An unapproved record is exposed as a fallback so the assistant
+                # never presents unreviewed content as a published translation.
+                fallback_used=not (
+                    translation.approved_for_answer()
+                    and source_binding_current(card, translation)
+                ),
                 glossary_text=glossary_text,
             )
         return _Document(

@@ -819,10 +819,25 @@ class AssistantAnswer:
     translation_status: str | None = None
     fallback_used: bool = False
     language_context: LanguageContext | None = None
+    # What the retrieval path actually established. ``verified`` means a
+    # published, validated card answered the question; ``unpublished`` means a
+    # match exists but is not published (only reported to reviewers);
+    # ``missing`` means nothing matched; ``insufficient`` means candidates were
+    # too weak to answer; ``conflicting`` means two published cards share a
+    # title but disagree, so no single answer is authoritative.
+    evidence_state: str = "verified"
 
     def validate(self) -> None:
         if self.kind not in {"answer", "knowledge_gap", "clarification", "workflow_step", "action_result"}:
             raise KnowledgeError("KNOWLEDGE_ANSWER_KIND_INVALID")
+        if self.evidence_state not in {
+            "verified",
+            "unpublished",
+            "missing",
+            "insufficient",
+            "conflicting",
+        }:
+            raise KnowledgeError("KNOWLEDGE_ANSWER_EVIDENCE_STATE_INVALID")
         if not isinstance(self.message, str) or not self.message.strip():
             raise KnowledgeError("KNOWLEDGE_ANSWER_MESSAGE_INVALID")
         if len(self.citations) > MAX_CITATIONS:
@@ -860,6 +875,7 @@ class AssistantAnswer:
             "content_language": self.content_language,
             "translation_status": self.translation_status,
             "fallback_used": self.fallback_used,
+            "evidence_state": self.evidence_state,
             "language_context": (
                 None if self.language_context is None else self.language_context.as_dict()
             ),

@@ -1,0 +1,214 @@
+{
+  "locales": {
+    "fa": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "en": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "de": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "zh-CN": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "zh-TW": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ar": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "fr": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ja": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ko": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ru": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 1,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    }
+  },
+  "cards": 1030,
+  "source_language": "en",
+  "target_locales": [
+    "fa",
+    "de",
+    "zh-CN",
+    "zh-TW",
+    "ar",
+    "fr",
+    "ja",
+    "ko",
+    "ru"
+  ],
+  "available_slots": 9270,
+  "filled_slots": 9,
+  "published_slots": 0,
+  "approved_slots": 0,
+  "missing_slots": 9261,
+  "coverage_percent": 0.1,
+  "inventory": {
+    "fa": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "de": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "zh-CN": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "zh-TW": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "ar": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "fr": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "ja": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "ko": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    },
+    "ru": {
+      "records": 1,
+      "filled": 1,
+      "published": 0,
+      "approved": 0,
+      "complete": 1,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1029
+    }
+  }
+}

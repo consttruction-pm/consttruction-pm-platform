@@ -389,7 +389,7 @@ def test_cjk_tokenization_keeps_technical_terms_without_whitespace() -> None:
     assert {"프로젝트", "생성"} <= set(korean)
 
 
-def test_locale_filter_returns_the_localized_translation(
+def test_unreviewed_localized_translation_matches_but_is_marked_as_fallback(
     store, card_factory, publish_factory
 ) -> None:
     from construction_pm.knowledge.model import TranslationSource
@@ -417,7 +417,10 @@ def test_locale_filter_returns_the_localized_translation(
     assert outcome.hits[0].title == "Создание проекта"
     assert outcome.hits[0].language == "ru"
     assert outcome.hits[0].translation_available is True
-    assert outcome.hits[0].fallback_used is False
+    # The translated text can be searched, but it has not been reviewed or
+    # published, so it may not answer; the hit reports that fallback explicitly.
+    assert outcome.hits[0].fallback_used is True
+    assert outcome.hits[0].translation_status == "translated"
     assert outcome.filters["locale"] == "ru"
 
 

@@ -1,0 +1,174 @@
+{
+  "contract": "cubi-knowledge-retrieval-evidence.v1",
+  "corpus": "docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/cubi-knowledge-v26.sqlite3",
+  "published_card": {
+    "Create a project": "KC-6f20596c572833fd50e076f2"
+  },
+  "questions": [
+    {
+      "locale": "en",
+      "question": "How do I create a project?",
+      "kind": "answer",
+      "response_language": "en",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": false,
+      "translation_status": "published",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "fa",
+      "question": "چگونه یک پروژه ایجاد کنم؟",
+      "kind": "answer",
+      "response_language": "fa",
+      "direction": "rtl",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "de",
+      "question": "Wie erstelle ich ein Projekt?",
+      "kind": "answer",
+      "response_language": "de",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "zh-CN",
+      "question": "如何创建项目？",
+      "kind": "answer",
+      "response_language": "zh-CN",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ar",
+      "question": "كيف أنشئ مشروعاً؟",
+      "kind": "answer",
+      "response_language": "ar",
+      "direction": "rtl",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "fr",
+      "question": "Comment créer un projet ?",
+      "kind": "answer",
+      "response_language": "fr",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ja",
+      "question": "プロジェクトを作成するには？",
+      "kind": "answer",
+      "response_language": "ja",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ko",
+      "question": "프로젝트를 어떻게 생성합니까?",
+      "kind": "answer",
+      "response_language": "ko",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    }
+  ],
+  "unpublished_probe": {
+    "question": "How is a threshold used?",
+    "viewer": {
+      "kind": "knowledge_gap",
+      "evidence_state": "missing",
+      "citations": 0
+    },
+    "reviewer": {
+      "kind": "knowledge_gap",
+      "evidence_state": "unpublished",
+      "citations": 0
+    }
+  }
+}

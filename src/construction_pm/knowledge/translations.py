@@ -137,24 +137,104 @@ def localized_record(
     return missing_record(card.card_id, resolved, updated_at=card.extracted_at)
 
 
-def translation_coverage(store: KnowledgeStore, card_ids: Sequence[str]) -> dict[str, object]:
-    """Per-locale counts for a set of cards, without inventing missing content."""
+def translation_coverage(
+    store: KnowledgeStore, cards: Sequence[KnowledgeCard | str]
+) -> dict[str, object]:
+    """Measure every locale against the full card set, without inventing content.
+
+    The denominator is the number of cards that should be localized, so a
+    database that holds one translated card is reported as 1 of 9,270 slots, not
+    as "one locale covered". ``answerable`` applies the same rule the assistant
+    uses — published card, approved non-machine translation whose source binding
+    is current — so a coverage number can never promise an answer the retrieval
+    path would refuse to give.
+    """
 
     from .locales import SUPPORTED_LOCALES
 
+    card_objects: list[KnowledgeCard] = []
+    for item in cards:
+        card = item if isinstance(item, KnowledgeCard) else store.get_card(str(item))
+        if card is not None:
+            card_objects.append(card)
+    target_locales = [locale for locale in SUPPORTED_LOCALES if locale != DEFAULT_LOCALE]
     counts: dict[str, dict[str, int]] = {
         locale: {status.value: 0 for status in TranslationStatus}
         for locale in SUPPORTED_LOCALES
     }
-    for card_id in card_ids:
-        for record in store.list_translations(card_id):
+    inventory: dict[str, dict[str, int | float]] = {
+        locale: {
+            "records": 0,
+            "filled": 0,
+            "published": 0,
+            "approved": 0,
+            "complete": 0,
+            "answerable": 0,
+            "machine_translated": 0,
+            "stale_source_binding": 0,
+            "missing_slots": 0,
+        }
+        for locale in target_locales
+    }
+    by_card: dict[str, dict[str, TranslationRecord]] = {}
+    for record in store.list_card_translations(limit=1_000_000):
+        by_card.setdefault(record.card_id, {})[record.locale] = record
+    for card in card_objects:
+        records = by_card.get(card.card_id, {})
+        for record in records.values():
             bucket = counts.setdefault(
                 record.locale, {status.value: 0 for status in TranslationStatus}
             )
             bucket[record.translation_status.value] = (
                 bucket.get(record.translation_status.value, 0) + 1
             )
-    return {"locales": counts, "cards": len(list(card_ids))}
+        for locale in target_locales:
+            row = inventory[locale]
+            record = records.get(locale)
+            if record is None:
+                row["missing_slots"] = int(row["missing_slots"]) + 1
+                continue
+            row["records"] = int(row["records"]) + 1
+            if record.translation_status not in {
+                TranslationStatus.MISSING,
+                TranslationStatus.RETIRED,
+            }:
+                row["filled"] = int(row["filled"]) + 1
+            if record.translation_status is TranslationStatus.PUBLISHED:
+                row["published"] = int(row["published"]) + 1
+            if record.translation_status is TranslationStatus.APPROVED:
+                row["approved"] = int(row["approved"]) + 1
+            if record.machine_translated:
+                row["machine_translated"] = int(row["machine_translated"]) + 1
+            if completeness(record, card_type=card.card_type.value)["complete"]:
+                row["complete"] = int(row["complete"]) + 1
+            if (
+                card.publication_status is CardStatus.PUBLISHED
+                and record.approved_for_answer()
+                and not record.machine_translated
+            ):
+                if source_binding_current(card, record):
+                    row["answerable"] = int(row["answerable"]) + 1
+                else:
+                    row["stale_source_binding"] = int(row["stale_source_binding"]) + 1
+    total_cards = len(card_objects)
+    available = total_cards * len(target_locales)
+    filled = sum(int(row["filled"]) for row in inventory.values())
+    published = sum(int(row["published"]) for row in inventory.values())
+    approved = sum(int(row["approved"]) for row in inventory.values())
+    return {
+        "locales": counts,
+        "cards": total_cards,
+        "source_language": SOURCE_LANGUAGE,
+        "target_locales": target_locales,
+        "available_slots": available,
+        "filled_slots": filled,
+        "published_slots": published,
+        "approved_slots": approved,
+        "missing_slots": available - filled,
+        "coverage_percent": round(filled * 100.0 / available, 2) if available else 0.0,
+        "inventory": inventory,
+    }
 
 
 def completeness(record: TranslationRecord, *, card_type: str | None = None) -> dict[str, object]:

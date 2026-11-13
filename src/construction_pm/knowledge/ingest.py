@@ -40,7 +40,7 @@ DEFAULT_TIMEOUT_SECONDS = 30.0
 MAX_RETRIES = 2
 
 
-def _card_signature(card: KnowledgeCard) -> tuple[object, ...]:
+def card_signature(card: KnowledgeCard) -> tuple[object, ...]:
     """Content identity for cross-source de-duplication.
 
     Two cards are the same topic only when every substantive content field
@@ -219,7 +219,7 @@ class IngestionPipeline:
                     CardStatus.PUBLISHED.value,
                 ],
             ):
-                index.setdefault(_card_signature(card), card.card_id)
+                index.setdefault(card_signature(card), card.card_id)
             self._content_index = index
         return self._content_index
 
@@ -340,7 +340,7 @@ class IngestionPipeline:
             return "failed", code, False
         existing_card = self.store.get_card(card.card_id)
         index = self._card_index()
-        signature = _card_signature(card)
+        signature = card_signature(card)
         canonical = index.get(signature)
         if canonical is not None and canonical != card.card_id:
             # The same official topic text is already in the knowledge base
@@ -618,5 +618,6 @@ __all__ = [
     "IngestionPipeline",
     "IngestionReport",
     "UrllibFetcher",
+    "card_signature",
     "ingest_all",
 ]

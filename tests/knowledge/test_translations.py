@@ -290,6 +290,58 @@ def test_coverage_counts_each_locale_independently(store, card_factory, publish_
     assert coverage["locales"]["fa"]["translated"] == 0
 
 
+def test_coverage_reports_slots_and_answerable_per_locale(
+    store, card_factory, publish_factory
+) -> None:
+    """Coverage must use the whole card set as the denominator.
+
+    Regression: the previous report counted only stored records, so one
+    translated card looked like full locale coverage and a translated-but-
+    unpublished locale looked usable.
+    """
+
+    published = publish_factory(card_factory(topic_key="a.html"))
+    draft = card_factory(topic_key="b.html", title="Create a Resource")
+    store.save_card(published)
+    store.save_card(draft)
+    approved = review_translation(
+        _build(published, "ru"), reviewer="reviewer-1", accept=True, now=NOW
+    )
+    store.save_translation(publish_translation(published, approved, reviewer="reviewer-1", now=LATER))
+    store.save_translation(_build(draft, "ru"))
+
+    coverage = translation_coverage(store, [published.card_id, draft.card_id])
+    slots = 2 * 9
+    assert coverage["available_slots"] == slots
+    assert coverage["filled_slots"] == 2
+    assert coverage["published_slots"] == 1
+    assert coverage["missing_slots"] == slots - 2
+    assert coverage["coverage_percent"] == round(2 * 100.0 / slots, 2)
+    inventory = coverage["inventory"]
+    assert inventory["ru"]["records"] == 2
+    assert inventory["ru"]["published"] == 1
+    assert inventory["ru"]["answerable"] == 1
+    assert inventory["ru"]["missing_slots"] == 0
+    assert inventory["fa"]["missing_slots"] == 2
+    assert inventory["fa"]["answerable"] == 0
+
+
+def test_coverage_does_not_count_a_stale_translation_as_answerable(
+    store, card_factory, publish_factory
+) -> None:
+    card = publish_factory(card_factory(topic_key="a.html"))
+    store.save_card(card)
+    approved = review_translation(_build(card, "ru"), reviewer="reviewer-1", accept=True, now=NOW)
+    store.save_translation(publish_translation(card, approved, reviewer="reviewer-1", now=LATER))
+    changed = replace(card, revision=card.revision + 1, content_hash="f" * 64)
+    store.save_card(changed, expected_version=card.revision)
+
+    coverage = translation_coverage(store, [changed])
+    assert coverage["inventory"]["ru"]["published"] == 1
+    assert coverage["inventory"]["ru"]["answerable"] == 0
+    assert coverage["inventory"]["ru"]["stale_source_binding"] == 1
+
+
 def test_localized_payload_marks_fields_borrowed_from_english(card_factory) -> None:
     card = card_factory()
     partial = _build(card, "ru", payload={"steps": ()})

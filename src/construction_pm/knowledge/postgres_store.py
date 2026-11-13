@@ -473,7 +473,14 @@ class PostgresKnowledgeStore(SqliteKnowledgeStore):
         if isinstance(location, str):
             if not location.startswith(("postgresql://", "postgres://")):
                 raise KnowledgeError("KNOWLEDGE_POSTGRES_DSN_INVALID")
-            self._raw = psycopg.connect(location, autocommit=False)
+            # autocommit keeps reads outside a transaction. With
+            # ``autocommit=False`` a plain SELECT opens an implicit transaction,
+            # every later ``transaction()`` becomes a savepoint inside it, and
+            # closing the connection rolls the whole session back — writes that
+            # the caller already observed would silently disappear. Every write
+            # path goes through ``_transaction``, which now issues a real
+            # BEGIN/COMMIT because the connection is idle when it is entered.
+            self._raw = psycopg.connect(location, autocommit=True)
             self._owns_connection = True
         else:
             self._raw = location
