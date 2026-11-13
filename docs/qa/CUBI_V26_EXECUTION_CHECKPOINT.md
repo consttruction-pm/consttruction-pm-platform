@@ -3251,15 +3251,58 @@ errors/5xx, 0 schedule writes, 0 relationship writes, `testedCodeSha`/`gitHead`
   A145 from the Gantt both redraw the chain; a critical row is marked; A100
   shows an explicit empty predecessor group; fa RTL 1280 and en 1920 keep the
   chain with 0 px overflow. No schedule or relationship write is issued.
-- **Known limits.** The Activity Usage Spreadsheet/Profile is still disabled, so
-  the usage-spreadsheet selection source from the Help topic cannot be
-  exercised yet. There is no dedicated Bottom Layout Options dialog and the
-  depth pair is browser-local rather than saved layout metadata. The chain is a
-  two-list layout, not the graphical activity-box diagram.
+- **Known limits.** At the time of this slice the Activity Usage
+  Spreadsheet/Profile was not implemented; ACT-015 (below) now supplies it and
+  its selection source. There is no dedicated Bottom Layout Options dialog and
+  the depth pair is browser-local rather than saved layout metadata. The chain
+  is a two-list layout, not the graphical activity-box diagram.
 
 Evidence: `docs/workspace/evidence/activity-trace-logic-v26-2026-11-13/`
 (`activity-trace-logic-v26.json`, 9/9 scenarios, 0 exceptions/console errors/5xx,
 0 schedule writes, 0 relationship writes, `testedCodeSha`/`gitHead`
 `446de0e970f304916adde1cfc7e03ed17db8f707`, screenshots 01–08,
 `CHECKLIST.md`). Web suite at the same code: 971 + 14 tests pass;
+`tsc --noEmit` and `npm run build` pass.
+
+## Activity Usage Spreadsheet and Profile (2026-11-13)
+
+- **Scope.** ACT-015 moved from NOT_AUDITED to WIRED_READ at code
+  `218977dc72405061b4fc3d0f228db7e70df7e140`, covering the Help topics The
+  Activity Usage Spreadsheet, Display the Activity Usage Spreadsheet, The
+  Activity Usage Profile, Display the Activity Usage Profile and Define the
+  Activity Usage Profile.
+- **Source binding.** Both views are a read-only projection of the stored
+  assignment periods read from
+  `GET /api/projects/{id}/p6/resource-assignment-periods` (`PROJECT_READ`) via
+  `loadAssignmentPeriods`. `buildActivityUsageSpreadsheet` groups the rows by
+  activity and `period_start` and sums units or cost with the shared
+  `addDecimalText` helper; nothing is spread across activity dates and no zero
+  is invented. The profile aggregates the same period totals into vertical
+  bars with value labels and a total/peak summary.
+- **Controls.** Units/Cost and All/Selected scope are presentation-only; they
+  persist under `cubi:workspace:activity-usage:<tenant>:<project>`. The bottom
+  layout itself uses `cubi:workspace:bottom-layout:<tenant>:<project>:<menu>`.
+  The View menu (`view.bottom-usage-spreadsheet`, `view.bottom-usage-profile`)
+  and Bottom Layout Options expose the views only after a successful non-empty
+  period read; loading, error, empty and scope-empty states are explicit.
+- **Verified behaviour.** The browser suite seeds 4 assignments and 6 periods
+  through the write API, then checks units A130 5/3=8, A160 4/–/6=10, A170
+  –/1/–=1 with period totals 11/4/6 and grand total 21; cost totals
+  1100.25/390/640.5 and grand total 2130.75 restore after a reload; A160-only
+  scope gives 4/6 and grand 10; the profile bars are 11/4/6 at 100/36/55 %
+  with `Units: total 21 · peak 11 over 3 period(s)`; Refresh picks up a newly
+  stored 2027-01-01 period (4 columns, grand 23); A100 shows scope-empty; fa
+  RTL 1280×720 and en 1920×1080 render with 0 px overflow. No non-GET `/api/`
+  request is issued while using the views.
+- **Known limits.** The desktop two-pane split is one table whose first column
+  is the activity; there is no user-defined calendar bucket, cumulative curve,
+  bar/background styling, past-period-actual switch or right-pane field
+  chooser, and the profile overlays no resource limits. Refresh re-reads the
+  project collection rather than receiving pushes.
+
+Evidence: `docs/workspace/evidence/activity-usage-v26-2026-11-13/`
+(`activity-usage-v26.json`, 11/11 scenarios, 0 exceptions/console errors/5xx,
+0 interaction writes, `testedCodeSha`/`gitHead`
+`218977dc72405061b4fc3d0f228db7e70df7e140`, screenshots 01–10b,
+`CHECKLIST.md`). Web suite at the same code: 981 + 14 tests pass;
 `tsc --noEmit` and `npm run build` pass.
