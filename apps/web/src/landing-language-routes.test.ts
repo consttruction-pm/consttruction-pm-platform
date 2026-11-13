@@ -161,6 +161,7 @@ test("no public document links to a route that is not shipped", () => {
     { file: "public/fa/index.html", from: "https://cubi.test/fa/" },
     ...MARKETING_ROUTES.map((route) => ({ file: `public/${route}/index.html`, from: `https://cubi.test/${route}/` })),
     ...MARKETING_ROUTES.map((route) => ({ file: `public/fa/${route}/index.html`, from: `https://cubi.test/fa/${route}/` })),
+    ...["de", "zh-Hans", "ar", "fr", "ja", "ko"].map((locale) => ({ file: `public/${locale}/about/index.html`, from: `https://cubi.test/${locale}/about/` })),
   ];
   for (const document of documents) {
     const html = readDoc(document.file);
