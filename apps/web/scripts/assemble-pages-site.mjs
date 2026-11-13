@@ -256,6 +256,7 @@ for (const [locale, route] of Object.entries(localizedAboutRoutes)) {
   for (const [alternateLocale, alternateRoute] of Object.entries(localizedAboutRoutes)) {
     assert(html.includes('hreflang="' + alternateLocale + '" href="' + baseUrl + alternateRoute + '"'), route + " missing alternate " + alternateLocale);
   }
+  assert(html.includes('hreflang="x-default" href="' + baseUrl + localizedAboutRoutes.en + '"'), route + " missing x-default alternate");
   assert(html.includes("global-assistant-launcher.bundle.js"), route + " must mount the shared assistant");
   const hasApprovedProfiles = locale === "fa"
     ? html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد")
