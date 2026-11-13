@@ -1,0 +1,812 @@
+{
+  "contract": "cubi-prj-003-project-tabs.v1",
+  "testedCodeSha": "915601d9",
+  "gitHead": "915601d91566180d7ab8b8d2d7cb8e0ef103572d",
+  "evidenceCommitSha": "915601d9",
+  "baseUrl": "http://127.0.0.1:4195",
+  "startedAt": "2026-11-13T13:11:48.826Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "The open project has one tab and no close control",
+      "status": "pass",
+      "at": "2026-11-13T13:11:51.048Z",
+      "durationMs": 86,
+      "details": {
+        "tab": {
+          "id": "preview-rps-01",
+          "active": true,
+          "name": "Riverside Pump Station Upgrade"
+        },
+        "title": "Riverside Pump Station Upgrade"
+      }
+    },
+    {
+      "id": "02",
+      "name": "Opening a second project adds an active tab",
+      "status": "pass",
+      "at": "2026-11-13T13:11:52.970Z",
+      "durationMs": 1922,
+      "details": {
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": false,
+            "name": "Riverside Pump Station Upgrade"
+          },
+          {
+            "id": "preview-nse-02",
+            "active": true,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ],
+        "title": "نوسازی سامانه شرقی"
+      }
+    },
+    {
+      "id": "03",
+      "name": "Each project tab restores its own desktop window set",
+      "status": "pass",
+      "at": "2026-11-13T13:11:57.315Z",
+      "durationMs": 4345,
+      "details": {
+        "firstWindows": [
+          "schedule"
+        ],
+        "secondWindows": [
+          "project",
+          "schedule"
+        ],
+        "restored": [
+          "schedule"
+        ]
+      }
+    },
+    {
+      "id": "04",
+      "name": "Unsaved project work asks before a switch and survives cancel",
+      "status": "pass",
+      "at": "2026-11-13T13:12:01.468Z",
+      "durationMs": 4153,
+      "details": {
+        "cancelled": [
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade"
+          },
+          {
+            "id": "preview-nse-02",
+            "active": false,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ],
+        "confirmed": [
+          {
+            "id": "preview-rps-01",
+            "active": false,
+            "name": "Riverside Pump Station Upgrade"
+          },
+          {
+            "id": "preview-nse-02",
+            "active": true,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ]
+      }
+    },
+    {
+      "id": "05",
+      "name": "Closing an inactive tab keeps context; closing the active tab switches",
+      "status": "pass",
+      "at": "2026-11-13T13:12:05.337Z",
+      "durationMs": 3869,
+      "details": {
+        "afterInactive": {
+          "count": 1,
+          "tabs": [
+            {
+              "id": "preview-nse-02",
+              "active": true,
+              "name": "نوسازی سامانه شرقی"
+            }
+          ],
+          "closeButtons": 0,
+          "title": "نوسازی سامانه شرقی",
+          "windows": [
+            "project",
+            "schedule"
+          ],
+          "dir": "ltr",
+          "lang": "en",
+          "overflow": 0
+        },
+        "afterActive": {
+          "count": 1,
+          "tabs": [
+            {
+              "id": "preview-nse-02",
+              "active": true,
+              "name": "نوسازی سامانه شرقی"
+            }
+          ],
+          "closeButtons": 0,
+          "title": "نوسازی سامانه شرقی",
+          "windows": [
+            "project",
+            "schedule"
+          ],
+          "dir": "ltr",
+          "lang": "en",
+          "overflow": 0
+        }
+      }
+    },
+    {
+      "id": "06",
+      "name": "A reload restores the open tabs and the active project",
+      "status": "pass",
+      "at": "2026-11-13T13:12:08.672Z",
+      "durationMs": 3335,
+      "details": {
+        "tabs": [
+          {
+            "id": "preview-nse-02",
+            "active": false,
+            "name": "نوسازی سامانه شرقی"
+          },
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade"
+          }
+        ],
+        "title": "Riverside Pump Station Upgrade"
+      }
+    },
+    {
+      "id": "07",
+      "name": "Switching re-reads the project record and rejects a stale revision",
+      "status": "pass",
+      "at": "2026-11-13T13:12:11.820Z",
+      "durationMs": 3148,
+      "details": {
+        "revision": 0,
+        "renamed": "Riverside Pump Station Upgrade — switched MWEZX8IF",
+        "stale": 409
+      }
+    },
+    {
+      "id": "08",
+      "name": "Persian renders the project tabs right-to-left at 1280x720",
+      "status": "pass",
+      "at": "2026-11-13T13:12:13.452Z",
+      "durationMs": 1632,
+      "details": {
+        "dir": "rtl",
+        "aria": "پروژه‌های باز",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "09",
+      "name": "A Viewer can only switch among the session's projects",
+      "status": "pass",
+      "at": "2026-11-13T13:12:14.819Z",
+      "durationMs": 1367,
+      "details": {
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade — switched MWEZX8IF"
+          }
+        ],
+        "authorized": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ],
+        "denied": 403
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "prj3-single-tab",
+      "name": "one tab exists for the opened project",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade"
+          }
+        ],
+        "closeButtons": 0,
+        "title": "Riverside Pump Station Upgrade",
+        "windows": [
+          "schedule",
+          "project"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-single-active",
+      "name": "that tab is active and named from the session list",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-rps-01",
+          "active": true,
+          "name": "Riverside Pump Station Upgrade"
+        }
+      ]
+    },
+    {
+      "id": "prj3-single-no-close",
+      "name": "the last project tab has no close control",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "id": "prj3-single-title",
+      "name": "the title bar names the same project",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade"
+          }
+        ],
+        "closeButtons": 0,
+        "title": "Riverside Pump Station Upgrade",
+        "windows": [
+          "schedule",
+          "project"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-second-tab",
+      "name": "the strip now holds both projects",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-rps-01",
+          "active": false,
+          "name": "Riverside Pump Station Upgrade"
+        },
+        {
+          "id": "preview-nse-02",
+          "active": true,
+          "name": "نوسازی سامانه شرقی"
+        }
+      ]
+    },
+    {
+      "id": "prj3-second-active",
+      "name": "the opened project is the active tab and the title",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": false,
+            "name": "Riverside Pump Station Upgrade"
+          },
+          {
+            "id": "preview-nse-02",
+            "active": true,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ],
+        "closeButtons": 2,
+        "title": "نوسازی سامانه شرقی",
+        "windows": [
+          "schedule",
+          "project"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-second-close",
+      "name": "both tabs are closable",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "id": "prj3-second-open-write",
+      "name": "the switch went through the server open endpoint",
+      "ok": true,
+      "detail": [
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "PATCH",
+          "url": "/api/projects/preview-rps-01"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "PATCH",
+          "url": "/api/projects/preview-rps-01"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/open"
+        },
+        {
+          "method": "POST",
+          "url": "/api/projects/not-a-member-project/open"
+        }
+      ]
+    },
+    {
+      "id": "prj3-windows-first-closed",
+      "name": "the first project lost its Projects window",
+      "ok": true,
+      "detail": [
+        "schedule"
+      ]
+    },
+    {
+      "id": "prj3-windows-second-default",
+      "name": "a project opened for the first time gets the default window set",
+      "ok": true,
+      "detail": [
+        "project",
+        "schedule"
+      ]
+    },
+    {
+      "id": "prj3-windows-restored",
+      "name": "switching back restores the first project's window set",
+      "ok": true,
+      "detail": [
+        "schedule"
+      ]
+    },
+    {
+      "id": "prj3-dirty-cancel",
+      "name": "a cancelled switch keeps the current project and its editor",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-rps-01",
+          "active": true,
+          "name": "Riverside Pump Station Upgrade"
+        },
+        {
+          "id": "preview-nse-02",
+          "active": false,
+          "name": "نوسازی سامانه شرقی"
+        }
+      ]
+    },
+    {
+      "id": "prj3-dirty-confirm",
+      "name": "accepting the prompt switches projects",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-rps-01",
+          "active": false,
+          "name": "Riverside Pump Station Upgrade"
+        },
+        {
+          "id": "preview-nse-02",
+          "active": true,
+          "name": "نوسازی سامانه شرقی"
+        }
+      ]
+    },
+    {
+      "id": "prj3-dirty-discarded",
+      "name": "the discarded editor is not left on the new project",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj3-close-inactive",
+      "name": "closing an inactive tab keeps the open project",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "tabs": [
+          {
+            "id": "preview-nse-02",
+            "active": true,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ],
+        "closeButtons": 0,
+        "title": "نوسازی سامانه شرقی",
+        "windows": [
+          "project",
+          "schedule"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-close-inactive-no-open",
+      "name": "closing a tab issues no project open transition",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "id": "prj3-close-active",
+      "name": "closing the active tab opens its neighbour",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "tabs": [
+          {
+            "id": "preview-nse-02",
+            "active": true,
+            "name": "نوسازی سامانه شرقی"
+          }
+        ],
+        "closeButtons": 0,
+        "title": "نوسازی سامانه شرقی",
+        "windows": [
+          "project",
+          "schedule"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-close-active-authorized",
+      "name": "the neighbour was re-authorized through the server",
+      "ok": true,
+      "detail": [
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-nse-02/open"
+        }
+      ]
+    },
+    {
+      "id": "prj3-reload-tabs",
+      "name": "the same two tabs return after a full reload",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-nse-02",
+          "active": false,
+          "name": "نوسازی سامانه شرقی"
+        },
+        {
+          "id": "preview-rps-01",
+          "active": true,
+          "name": "Riverside Pump Station Upgrade"
+        }
+      ]
+    },
+    {
+      "id": "prj3-reload-active",
+      "name": "the active project is restored",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "tabs": [
+          {
+            "id": "preview-nse-02",
+            "active": false,
+            "name": "نوسازی سامانه شرقی"
+          },
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade"
+          }
+        ],
+        "closeButtons": 2,
+        "title": "Riverside Pump Station Upgrade",
+        "windows": [
+          "project",
+          "schedule"
+        ],
+        "dir": "ltr",
+        "lang": "en",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-revision-saved",
+      "name": "an external save advances the project revision",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "revision": 0,
+        "body": 1
+      }
+    },
+    {
+      "id": "prj3-revision-refreshed",
+      "name": "the register shows the record saved by the other writer",
+      "ok": true,
+      "detail": {
+        "cells": [
+          "preview-rps-01",
+          "Riverside Pump Station Upgrade — switched MWEZX8IF",
+          "Infrastructure",
+          "2026-09-21",
+          "Gregorian",
+          "—",
+          "Open"
+        ],
+        "revision": "R1"
+      }
+    },
+    {
+      "id": "prj3-revision-visible",
+      "name": "the selection card shows the advanced configuration revision",
+      "ok": true,
+      "detail": {
+        "cells": [
+          "preview-rps-01",
+          "Riverside Pump Station Upgrade — switched MWEZX8IF",
+          "Infrastructure",
+          "2026-09-21",
+          "Gregorian",
+          "—",
+          "Open"
+        ],
+        "revision": "R1"
+      }
+    },
+    {
+      "id": "prj3-revision-stale",
+      "name": "a stale revision cannot overwrite the newer record",
+      "ok": true,
+      "detail": {
+        "status": 409,
+        "body": {
+          "code": "PROJECT_REVISION_CONFLICT",
+          "retryable": false,
+          "message_key": "error.project.revision_conflict",
+          "available_actions": []
+        }
+      }
+    },
+    {
+      "id": "prj3-fa-rtl",
+      "name": "the Persian workspace is right-to-left",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "tabs": [
+          {
+            "id": "preview-nse-02",
+            "active": false,
+            "name": "نوسازی سامانه شرقی"
+          },
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade — switched MWEZX8IF"
+          }
+        ],
+        "closeButtons": 2,
+        "title": "Riverside Pump Station Upgrade — switched MWEZX8IF",
+        "windows": [
+          "project",
+          "schedule"
+        ],
+        "dir": "rtl",
+        "lang": "fa",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj3-fa-tabs",
+      "name": "both project tabs remain and one is active",
+      "ok": true,
+      "detail": [
+        {
+          "id": "preview-nse-02",
+          "active": false,
+          "name": "نوسازی سامانه شرقی"
+        },
+        {
+          "id": "preview-rps-01",
+          "active": true,
+          "name": "Riverside Pump Station Upgrade — switched MWEZX8IF"
+        }
+      ]
+    },
+    {
+      "id": "prj3-fa-label",
+      "name": "the tab strip is labelled in Persian",
+      "ok": true,
+      "detail": "پروژه‌های باز"
+    },
+    {
+      "id": "prj3-fa-overflow",
+      "name": "the strip does not overflow the 1280 viewport",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "id": "prj3-viewer-tabs",
+      "name": "every open tab belongs to the Viewer's own list",
+      "ok": true,
+      "detail": {
+        "tabs": [
+          {
+            "id": "preview-rps-01",
+            "active": true,
+            "name": "Riverside Pump Station Upgrade — switched MWEZX8IF"
+          }
+        ],
+        "authorized": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ]
+      }
+    },
+    {
+      "id": "prj3-viewer-denied",
+      "name": "opening a project the session does not list is denied",
+      "ok": true,
+      "detail": {
+        "status": 403,
+        "body": {
+          "code": "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED",
+          "retryable": false,
+          "message_key": "error.authorization.denied",
+          "available_actions": []
+        }
+      }
+    }
+  ],
+  "screenshots": [
+    "01-single-project-tab.png",
+    "02-two-project-tabs.png",
+    "03-per-project-windows.png",
+    "04-dirty-switch.png",
+    "05-close-active-tab.png",
+    "06-reload-restores-tabs.png",
+    "07-revision-refresh.png",
+    "08-project-tabs-fa-rtl-1280.png",
+    "09-viewer-project-tabs.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/not-a-member-project/open"
+    }
+  ],
+  "passed": 30,
+  "failed": 0,
+  "status": "passed",
+  "finishedAt": "2026-11-13T13:12:14.820Z"
+}

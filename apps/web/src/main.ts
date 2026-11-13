@@ -131,12 +131,19 @@ import {
   type WorkspacePresentation,
 } from "./workspace-presentation.js";
 import {
+  DEFAULT_OPEN_WINDOWS,
   closeWorkspaceWindow,
   openWorkspaceWindow,
+  readProjectWorkspaceWindows,
   readWorkspaceWindows,
+  rememberProjectWorkspaceWindows,
   rememberWorkspaceWindowOrder,
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
+import {
+  readProjectTabs,
+  rememberProjectTabs,
+} from "./workspace-project-tabs.js";
 import {
   isWorkspaceToolbarGroup,
   readHiddenToolbarGroups,
@@ -194,6 +201,8 @@ let activeAssignmentPeriodsError: string | null = null;
 const activeAssignmentPeriodsInflight = new Set<string>();
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
+/** Project whose per-project window set the shell currently reads. */
+let activeWorkspaceProjectId: string | null = null;
 /** Signed-in user for browser-local preferences that must not leak between profiles. */
 let activeWorkspaceUserId = "";
 /** Roles from the authenticated session; administration menus are gated by these. */
@@ -396,6 +405,29 @@ function getOpenWindows(): WorkspaceMenuKey[] {
 function rememberOpenWindows(next: readonly WorkspaceMenuKey[]): void {
   openWindowKeys = [...next];
   rememberWorkspaceWindows(openWindowKeys);
+  if (activeWorkspaceProjectId) {
+    rememberProjectWorkspaceWindows(activeWorkspaceProjectId, openWindowKeys);
+  }
+}
+
+/**
+ * Each project tab owns its desktop windows. Saving the outgoing set before
+ * loading the incoming one keeps project A's layout intact when the user
+ * switches to B and back, instead of one shared tab set for every project.
+ */
+function switchProjectWindows(projectId: string): void {
+  if (!projectId) return;
+  if (!activeWorkspaceProjectId) {
+    activeWorkspaceProjectId = projectId;
+    openWindowKeys = readProjectWorkspaceWindows(projectId);
+    return;
+  }
+  if (activeWorkspaceProjectId === projectId) return;
+  rememberProjectWorkspaceWindows(activeWorkspaceProjectId, getOpenWindows());
+  activeWorkspaceProjectId = projectId;
+  // A project that has never been open starts from the default window set,
+  // not from whatever the previous project happened to leave open.
+  openWindowKeys = readProjectWorkspaceWindows(projectId, undefined, DEFAULT_OPEN_WINDOWS);
 }
 
 /**
@@ -1273,6 +1305,64 @@ function renderApp(
     );
   };
 
+  /**
+   * A project switch discards the whole rendered project context, so typed but
+   * unsubmitted values are protected by an explicit confirmation. The server
+   * still authorizes the transition: a denial surfaces as the bootstrap error.
+   */
+  const confirmProjectDiscard = (english: string, persian: string): boolean => {
+    if (!workspaceHasPendingEdits(container)) return true;
+    const prompt = translateWorkspaceUiText(state.locale, english, persian);
+    return typeof window.confirm === "function" ? window.confirm(prompt) : true;
+  };
+
+  const switchProjectTab = (projectId: string): void => {
+    const bootstrap = currentBootstrap;
+    if (!bootstrap || projectId === state.context.project_id) return;
+    if (!confirmProjectDiscard(
+      "This project has unsaved changes. Discard them and switch projects?",
+      "این پروژه تغییرات ذخیره‌نشده دارد. آن‌ها را دور بریزیم و پروژه عوض شود؟",
+    )) return;
+    void bootstrap.selectProject(projectId, state.locale).then((next) => {
+      if (next && currentBootstrap === bootstrap) {
+        renderBootstrapState(container, next, bootstrap, state.locale);
+      }
+    });
+  };
+
+  const closeProjectTab = (projectId: string): void => {
+    const bootstrap = currentBootstrap;
+    if (!bootstrap) return;
+    const tabs = bootstrap.projectTabs();
+    // The last project tab cannot close: the workspace always has one context.
+    if (tabs.open.length <= 1) return;
+    if (projectId === state.context.project_id && !confirmProjectDiscard(
+      "This project has unsaved changes. Discard them and close the project tab?",
+      "این پروژه تغییرات ذخیره‌نشده دارد. آن‌ها را دور بریزیم و زبانه بسته شود؟",
+    )) return;
+    void bootstrap.closeProject(projectId, state.locale).then((next) => {
+      if (currentBootstrap !== bootstrap) return;
+      if (next) {
+        renderBootstrapState(container, next, bootstrap, state.locale);
+        return;
+      }
+      // Closing an inactive tab only changes the strip; the open context stays.
+      renderApp(container, state, persistence);
+    });
+  };
+
+  const projectTabsForShell = (): { id: string; name: string; active: boolean }[] => {
+    const bootstrap = currentBootstrap;
+    const tabs = bootstrap?.projectTabs();
+    if (!bootstrap || !tabs?.open.length) return [];
+    const projects = bootstrap.openableProjects();
+    return tabs.open.map((id) => ({
+      id,
+      name: projects.find((project) => project.project_id === id)?.name || activeProjectLabel(id),
+      active: id === state.context.project_id,
+    }));
+  };
+
   /** Tabs keep the user's order in memory and in the per-browser preference. */
   const reorderDesktopWindows = (open: readonly WorkspaceMenuKey[]): void => {
     const next = [...open];
@@ -1813,6 +1903,7 @@ function renderApp(
       locale: state.locale,
       activeWindow: state.activeMenu,
       openWindows: getOpenWindows(),
+      projectTabs: projectTabsForShell(),
       capabilities: {
         canUndoLayout: Boolean(historyView?.canUndo),
         canRedoLayout: Boolean(historyView?.canRedo),
@@ -1852,6 +1943,8 @@ function renderApp(
       onWindowOpen: activateWindow,
       onWindowClose: closeDesktopWindow,
       onWindowReorder: reorderDesktopWindows,
+      onProjectTabOpen: switchProjectTab,
+      onProjectTabClose: closeProjectTab,
       onCommand: runDesktopCommand,
       onLayoutOptions: applyLayoutOptions,
       onLocaleChange: (locale) => changeLocale(locale),
@@ -2351,10 +2444,7 @@ function renderApp(
       void loadActiveAssignmentPeriods(container, state.context, true);
     },
     onProjectOpen: (projectId) => {
-      if (!currentBootstrap) return;
-      void currentBootstrap.selectProject(projectId, state.locale).then((next) => {
-        if (next) renderBootstrapState(container, next, currentBootstrap!, state.locale);
-      });
+      switchProjectTab(projectId);
     },
     // The interactive Details surface may only replace the pane while it is
     // actually showing Details; Trace Logic and a hidden pane are untouched.
@@ -3396,6 +3486,12 @@ function renderBootstrapState(
       activeAssignmentPeriodsStatus = "loaded";
       activeAssignmentPeriodsError = null;
     }
+    // A project transition discards the previous project's unsaved overlay:
+    // it is bound to the old context and must not be saved against the new one.
+    container.querySelector<HTMLElement>("[data-project-settings-panel]")?.remove();
+    // A project tab owns its windows and layout; restore that set before the
+    // first paint so the outgoing project's tabs never flash on the new one.
+    switchProjectWindows(state.context.project_id);
     renderApp(container, applyRememberedMenu(state.workspace));
     void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
     void loadActiveProjectDataDate(container, state.context);
@@ -3890,6 +3986,8 @@ async function boot(): Promise<void> {
     p6PresentationLoader: (state, context) =>
       loadP6Presentation(state, new FetchApiTransport(window.location.origin), context),
     preferredProjectIdForUser: (userId) => readWorkspaceProjectPreference(userId),
+    projectTabsForUser: (userId) => readProjectTabs(userId),
+    rememberProjectTabsForUser: (userId, state) => rememberProjectTabs(userId, state),
   });
 
   const initialLocale = getInitialLocale();

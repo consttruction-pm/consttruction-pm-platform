@@ -80,6 +80,71 @@ test("desktop chrome owns exactly one persisted window tab strip and dispatches 
   assert.deepEqual(closed, ["project"]);
 });
 
+test("project tabs render above the window tabs and dispatch open and close", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const opened: string[] = [];
+  const closed: string[] = [];
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(
+    host as unknown as HTMLElement,
+    {
+      ...shellState(),
+      projectTabs: [
+        { id: "p1", name: "Alpha", active: true },
+        { id: "p2", name: "Beta", active: false },
+      ],
+    },
+    {
+      onWindowOpen: () => {},
+      onWindowClose: () => {},
+      onProjectTabOpen: (projectId) => opened.push(projectId),
+      onProjectTabClose: (projectId) => closed.push(projectId),
+      onCommand: () => {},
+    },
+  );
+  assert.equal((host.innerHTML.match(/class="cp-project-tabs"/g) ?? []).length, 1);
+  assert.match(host.innerHTML, /role="tab" aria-selected="true" data-project-tab="p1"/);
+  assert.match(host.innerHTML, /aria-selected="false" data-project-tab="p2"/);
+  assert.match(host.innerHTML, /data-project-tab-open="p2"[^>]*>Beta</);
+  assert.match(host.innerHTML, /data-project-tab-close="p1"/);
+
+  const openTarget = {
+    dataset: { projectTabOpen: "p2" },
+    closest: (selector: string) => selector === "[data-project-tab-open]" ? openTarget : null,
+  };
+  listeners.get("click")?.({ target: openTarget, stopPropagation: () => {} } as unknown as Event);
+  const closeTarget = {
+    dataset: { projectTabClose: "p1" },
+    closest: (selector: string) => selector === "[data-project-tab-close]" ? closeTarget : null,
+  };
+  listeners.get("click")?.({ target: closeTarget, stopPropagation: () => {} } as unknown as Event);
+  assert.deepEqual(opened, ["p2"]);
+  assert.deepEqual(closed, ["p1"]);
+});
+
+test("a single project tab has no close control", () => {
+  const host = {
+    innerHTML: "",
+    addEventListener: () => {},
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(
+    host as unknown as HTMLElement,
+    { ...shellState(), projectTabs: [{ id: "p1", name: "Alpha", active: true }] },
+    { onWindowOpen: () => {}, onWindowClose: () => {}, onCommand: () => {} },
+  );
+  assert.match(host.innerHTML, /data-project-tab="p1"/);
+  assert.doesNotMatch(host.innerHTML, /data-project-tab-close/);
+});
+
 test("layout commands from the global menu open their owning desktop dialog", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let opened = false;

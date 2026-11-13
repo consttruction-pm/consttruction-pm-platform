@@ -476,3 +476,107 @@ test("the Projects window can only offer projects the session service returned",
   assert.deepEqual(bootstrap.openableProjects(), projects);
   assert.ok(bootstrap.openableProjects().every((project) => projects.some((listed) => listed.project_id === project.project_id)));
 });
+
+function tabSetup(initial: { open: string[]; active: string } | null) {
+  const opened: string[] = [];
+  const remembered: Array<{ open: readonly string[]; active: string }> = [];
+  const setup = deps({
+    listProjects: async () => ok({ projects }),
+    openProject: async (projectId) => {
+      opened.push(projectId);
+      return ok({
+        context: { tenant_id: "t1", project_id: projectId, revision: 1, user_id: "u1" },
+      });
+    },
+  });
+  setup.dependencies.projectTabsForUser = () => initial;
+  setup.dependencies.rememberProjectTabsForUser = (_userId, state) => remembered.push(state);
+  return { setup, opened, remembered, bootstrap: new ProjectBootstrap(setup.dependencies) };
+}
+
+test("stored project tabs restore their order and active project", async () => {
+  const setup = tabSetup({ open: ["p2", "p1"], active: "p1" });
+
+  const state = await setup.bootstrap.start();
+
+  assert.equal(state?.status, "ready");
+  assert.deepEqual(setup.opened, ["p1"]);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p2", "p1"], active: "p1" });
+  assert.deepEqual(setup.remembered.at(-1), { open: ["p2", "p1"], active: "p1" });
+});
+
+test("a stored tab the session no longer lists is dropped", async () => {
+  const setup = tabSetup({ open: ["p9", "p2"], active: "p9" });
+
+  // The stale active id cannot be opened, so bootstrap falls back to the normal
+  // selection screen instead of guessing which remaining tab the user wanted.
+  const state = await setup.bootstrap.start();
+
+  assert.equal(state?.status, "selecting");
+  assert.deepEqual(setup.opened, []);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p2"], active: "p2" });
+});
+
+test("opening a project from the register adds and activates its tab", async () => {
+  const setup = tabSetup({ open: ["p1"], active: "p1" });
+  await setup.bootstrap.start();
+
+  const next = await setup.bootstrap.selectProject("p2");
+
+  assert.equal(next?.status, "ready");
+  assert.deepEqual(setup.opened, ["p1", "p2"]);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p1", "p2"], active: "p2" });
+});
+
+test("closing the active project tab authorizes and opens its neighbour", async () => {
+  const setup = tabSetup({ open: ["p1", "p2"], active: "p2" });
+  await setup.bootstrap.start();
+
+  const next = await setup.bootstrap.closeProject("p2");
+
+  assert.equal(next?.status, "ready");
+  assert.deepEqual(setup.opened, ["p2", "p1"]);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p1"], active: "p1" });
+});
+
+test("closing an inactive project tab keeps the open context", async () => {
+  const setup = tabSetup({ open: ["p1", "p2"], active: "p1" });
+  await setup.bootstrap.start();
+
+  const next = await setup.bootstrap.closeProject("p2");
+
+  assert.equal(next, null);
+  assert.deepEqual(setup.opened, ["p1"]);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p1"], active: "p1" });
+});
+
+test("the last project tab cannot be closed", async () => {
+  const setup = tabSetup({ open: ["p1"], active: "p1" });
+  await setup.bootstrap.start();
+
+  const next = await setup.bootstrap.closeProject("p1");
+
+  assert.equal(next, null);
+  assert.deepEqual(setup.opened, ["p1"]);
+  assert.deepEqual(setup.bootstrap.projectTabs(), { open: ["p1"], active: "p1" });
+});
+
+test("a project switch refreshes the session list before opening", async () => {
+  let calls = 0;
+  const setup = tabSetup({ open: ["p1"], active: "p1" });
+  setup.setup.dependencies.sessionApi.listProjects = async () => {
+    calls += 1;
+    return ok({
+      projects: calls === 1
+        ? projects
+        : [{ ...projects[0], name: "Renamed elsewhere", settings_revision: 4 }, projects[1]],
+    });
+  };
+  await setup.bootstrap.start();
+
+  const next = await setup.bootstrap.selectProject("p2");
+
+  assert.equal(calls, 2);
+  assert.equal(next?.status, "ready");
+  assert.equal(setup.bootstrap.openableProjects()[0]?.name, "Renamed elsewhere");
+});

@@ -3324,6 +3324,52 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-toolbar-button[aria-pressed="true"] { border-color: #bad5f4; background: #eaf3ff; color: #125da7; }
 .cp-toolbar-button:disabled { opacity: .48; cursor: not-allowed; }
 .cp-toolbar-button:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: 2px; }
+.cp-project-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 30px;
+  padding: 4px 8px 0;
+  overflow-x: auto;
+  background: #e9eef5;
+  border-bottom: 1px solid var(--cubi-neutral-border, #c8d1dc);
+}
+.cp-project-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+}
+.cp-project-tab.is-active {
+  border-color: var(--cubi-neutral-border, #c8d1dc);
+  background: #fff;
+  box-shadow: 0 -2px 0 var(--cubi-engineering-blue, #1769aa) inset;
+}
+.cp-project-tab-label,
+.cp-project-tab-close {
+  border: 0;
+  background: transparent;
+  color: var(--cubi-deep-navy, #14283f);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cp-project-tab-label {
+  min-height: 28px;
+  max-width: 220px;
+  padding: 3px 9px 3px 11px;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-project-tab-close { min-width: 22px; min-height: 22px; padding: 0 5px; border-radius: 4px; color: #5b6878; font-size: 15px; line-height: 1; }
+.cp-project-tab-close:hover { background: #dfe6ef; color: #9b2c2c; }
+.cp-project-tab-label:focus-visible,
+.cp-project-tab-close:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: -2px; }
 .cp-window-tabs {
   display: flex;
   align-items: flex-end;

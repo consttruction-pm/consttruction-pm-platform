@@ -5,6 +5,12 @@ import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
 import type { WorkspaceReadClient } from "./workspace-read-api.js";
 import type { loadP6Presentation } from "./p6-api.js";
+import {
+  closeProjectTab,
+  normalizeProjectTabs,
+  openProjectTab,
+  type ProjectTabState,
+} from "./workspace-project-tabs.js";
 
 export type ProjectBootstrapState =
   | { status: "loading" }
@@ -27,6 +33,9 @@ export type ProjectBootstrapDependencies = {
   p6PresentationLoader?: (state: WorkspaceState, context: ProjectContext) => ReturnType<typeof loadP6Presentation>;
   /** Per-user project preference. The list from the server still decides access. */
   preferredProjectIdForUser?: (userId: string) => string | null;
+  /** Browser-local open project tabs for this user; re-validated against the session list. */
+  projectTabsForUser?: (userId: string) => ProjectTabState | null;
+  rememberProjectTabsForUser?: (userId: string, state: ProjectTabState) => void;
 };
 
 function localError(code: string, messageKey: string, actions: string[] = []): ClientError {
@@ -59,6 +68,8 @@ export class ProjectBootstrap {
   private generation = 0;
   private projects: readonly ProjectSummary[] = [];
   private roles: readonly string[] = [];
+  private userId = "";
+  private tabs: ProjectTabState = { open: [], active: "" };
 
   constructor(private readonly dependencies: ProjectBootstrapDependencies) {}
 
@@ -78,20 +89,31 @@ export class ProjectBootstrap {
     if (!projects.ok) return { status: "error", error: projects.error };
 
     this.projects = projects.data.projects;
+    this.userId = session.data.user_id;
 
     if (this.projects.length === 0) {
+      this.tabs = { open: [], active: "" };
       return { status: "empty" };
     }
 
     // A remembered project is only honoured when the server's own list for this
     // session still contains it. A stale id must fall back to the normal
     // selection instead of opening a project the user no longer owns.
+    const storedTabs = this.dependencies.projectTabsForUser?.(session.data.user_id) ?? null;
     const remembered = preferredProjectId
+      ?? storedTabs?.active
       ?? this.dependencies.preferredProjectIdForUser?.(session.data.user_id)
       ?? null;
     const preferred = remembered
       ? this.projects.find((project) => project.project_id === remembered)
       : undefined;
+    const authorized = this.projects.map((project) => project.project_id);
+    this.setTabs(normalizeProjectTabs(
+      storedTabs?.open ?? [],
+      preferred?.project_id ?? remembered ?? "",
+      authorized,
+    ));
+
     if (preferred) return this.openProject(preferred.project_id, generation, locale);
 
     if (this.projects.length > 1) {
@@ -206,6 +228,39 @@ export class ProjectBootstrap {
     return this.projects;
   }
 
+  /** Open project tabs in the user's order; the active tab is the current context. */
+  projectTabs(): ProjectTabState {
+    return { open: [...this.tabs.open], active: this.tabs.active };
+  }
+
+  private authorizedProjectIds(): string[] {
+    return this.projects.map((project) => project.project_id);
+  }
+
+  private setTabs(next: ProjectTabState): void {
+    this.tabs = next;
+    if (this.userId) {
+      this.dependencies.rememberProjectTabsForUser?.(this.userId, next);
+    }
+  }
+
+  /**
+   * Close one project tab. The last tab stays open and the current context is
+   * unchanged; closing the active tab opens and authorizes its neighbour.
+   */
+  async closeProject(
+    projectId: string,
+    locale: WorkspaceLocale = "en",
+  ): Promise<ProjectBootstrapState | null> {
+    const before = this.tabs;
+    const next = closeProjectTab(before, projectId, this.authorizedProjectIds());
+    if (next.open.length === before.open.length) return null;
+    this.setTabs(next);
+    if (next.active === before.active) return null;
+    const generation = ++this.generation;
+    return this.openProject(next.active, generation, locale);
+  }
+
   async selectProject(
     projectId: string,
     locale: WorkspaceLocale = "en",
@@ -220,6 +275,20 @@ export class ProjectBootstrap {
           ["select_project"],
         ),
       };
+    }
+
+    // The register and tab labels are read from this list, so a switch refreshes
+    // it before opening: another session may have renamed the project or moved
+    // its configuration revision, and the UI must not show the stale record.
+    const listed = await this.dependencies.sessionApi.listProjects();
+    if (!this.isCurrent(generation)) return null;
+    if (listed.ok) {
+      this.projects = listed.data.projects;
+      this.setTabs(normalizeProjectTabs(
+        this.tabs.open,
+        projectId,
+        this.authorizedProjectIds(),
+      ));
     }
 
     return this.openProject(projectId, generation, locale);
@@ -280,6 +349,16 @@ export class ProjectBootstrap {
     }
 
     if (!this.isCurrent(generation)) return null;
+    const authorized = this.authorizedProjectIds();
+    if (authorized.includes(projectContext.project_id)) {
+      // The server confirmed this context, so the tab becomes active. A project
+      // that left the session list is never re-added here.
+      this.setTabs(normalizeProjectTabs(
+        openProjectTab(this.tabs, projectContext.project_id, authorized).open,
+        projectContext.project_id,
+        authorized,
+      ));
+    }
     return {
       status: "ready",
       context,

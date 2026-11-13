@@ -173,6 +173,49 @@ export function rememberWorkspaceWindows(
   );
 }
 
+/**
+ * Each project tab owns the set of windows it had open. The set is stored apart
+ * from the shared default so switching projects restores that project's
+ * workspace instead of overwriting it with the previous project's windows.
+ */
+export function projectWorkspaceWindowsStorageKey(projectId: string): string {
+  return `${WORKSPACE_WINDOWS_STORAGE_KEY}:${projectId}`;
+}
+
+export function readProjectWorkspaceWindows(
+  projectId: string,
+  storage: PreferenceStorage | null = browserStorage(),
+  fallback: readonly WorkspaceMenuKey[] = readWorkspaceWindows(storage),
+): WorkspaceMenuKey[] {
+  const fallbackWindows = [...fallback];
+  const raw = readStoredValue(projectWorkspaceWindowsStorageKey(projectId), storage);
+  if (!raw) return fallbackWindows;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return fallbackWindows;
+    const stored = sanitizeOpenWindows(
+      parsed.filter((value): value is string => typeof value === "string").slice(0, MAX_OPEN_WINDOWS),
+    );
+    if (!stored.length) return fallbackWindows;
+    return normalizeOpenWindows(stored);
+  } catch {
+    return fallbackWindows;
+  }
+}
+
+export function rememberProjectWorkspaceWindows(
+  projectId: string,
+  open: readonly WorkspaceMenuKey[],
+  storage: PreferenceStorage | null = browserStorage(),
+): void {
+  if (!projectId.trim()) return;
+  writeStoredValue(
+    projectWorkspaceWindowsStorageKey(projectId),
+    JSON.stringify(normalizeOpenWindows(open)),
+    storage,
+  );
+}
+
 function browserStorage(): PreferenceStorage | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;
