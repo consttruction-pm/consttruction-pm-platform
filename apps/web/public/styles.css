@@ -5828,6 +5828,16 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-endpoint.is-none,
 .cp-p6 .cp-gantt-endpoint.is-bar { display: none; }
 .cp-p6 .cp-gantt-progress { position: absolute; left: 0; display: block; background: rgba(8, 28, 50, .55); pointer-events: none; }
+/* Relationship drawing: only the primary bar exposes the two authoritative
+   edge handles. Drawing shows a routed preview and the relationship type the
+   V26 Help says will be created; nothing is persisted until pointer release. */
+.cp-p6 .cp-gantt-link-edge { position: absolute; top: -2px; bottom: -2px; width: 7px; z-index: 4; cursor: crosshair; }
+.cp-p6 .cp-gantt-link-edge.is-start { left: -4px; }
+.cp-p6 .cp-gantt-link-edge.is-finish { right: -4px; }
+.cp-p6 .cp-gantt-link-preview-layer { position: absolute; inset: 0; z-index: 5; width: 100%; pointer-events: none; }
+.cp-p6 .cp-gantt-link-preview { fill: none; stroke: #1f4e79; stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.cp-p6 .cp-gantt-link-hint { position: absolute; z-index: 6; padding: 2px 5px; border: 1px solid #1f4e79; background: #fff; color: #123; font-size: 10px; line-height: 1.3; white-space: nowrap; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.cp-p6 .cp-gantt-row.is-link-target { outline: 1px dashed #1f4e79; outline-offset: -1px; }
 /* Nonwork necking: one black divider per calendar week boundary in the bar. */
 .cp-p6 .cp-gantt-bar-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #000; opacity: .9; pointer-events: none; }
 .cp-p6 .cp-gantt-bar-label { position: absolute; z-index: 2; font-size: var(--cp-bar-label-size, 11px); line-height: 1; white-space: nowrap; pointer-events: none; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }

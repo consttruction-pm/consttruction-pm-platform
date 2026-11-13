@@ -1,7 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -519,6 +519,212 @@ function startColumnResize(container: HTMLElement, handle: HTMLElement, event: P
   handle.addEventListener("pointercancel", stop);
 }
 
+/** Which of a bar's two authoritative edges sits under the pointer. */
+function ganttLinkEdgeAt(bar: HTMLElement, clientX: number): GanttLinkEdge | null {
+  const rect = bar.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0) return null;
+  // A narrow bar (including a milestone) still needs a usable middle zone, so
+  // the edge band never exceeds a quarter of the bar on each side.
+  const zone = Math.min(6, Math.max(3, rect.width * 0.25));
+  if (clientX <= rect.left + zone) return "start";
+  if (clientX >= rect.right - zone) return "finish";
+  return null;
+}
+
+function ganttLinkTypeLabel(locale: string, type: WorkspaceRelationshipType): string {
+  const names: Record<WorkspaceRelationshipType, readonly [string, string]> = {
+    FS: ["Finish to Start", "پایان به شروع"],
+    SS: ["Start to Start", "شروع به شروع"],
+    FF: ["Finish to Finish", "پایان به پایان"],
+    SF: ["Start to Finish", "شروع به پایان"],
+  };
+  const [en, fa] = names[type];
+  return `${type} — ${uiText(locale, en, fa)}`;
+}
+
+type GanttLinkTarget = { activityId: string; edge: GanttLinkEdge; type: WorkspaceRelationshipType; row: HTMLElement };
+
+type GanttLinkDrag = {
+  pointerId: number;
+  predecessorId: string;
+  fromEdge: GanttLinkEdge;
+  body: HTMLElement;
+  path: SVGPathElement;
+  overlay: SVGSVGElement;
+  hint: HTMLElement;
+  startPercent: number;
+  startY: number;
+  startClientX: number;
+  startClientY: number;
+  moved: boolean;
+  target: GanttLinkTarget | null;
+  move: (event: PointerEvent) => void;
+  finish: (event: PointerEvent) => void;
+  cancel: () => void;
+  onKey: (event: KeyboardEvent) => void;
+};
+
+const ganttLinkDrags = new WeakMap<HTMLElement, GanttLinkDrag>();
+
+function ganttLinkPercent(body: HTMLElement, clientX: number): number {
+  const rect = body.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0) return 0;
+  return Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+}
+
+/**
+ * Draws a relationship between two persisted bars, as the V26 Help describes:
+ * the source edge decides the start, the edge released over decides the end.
+ * The gesture only proposes a relationship; persistence stays with the caller.
+ */
+function beginGanttLinkDrag(container: HTMLElement, event: PointerEvent, barEl: HTMLElement, rowEl: HTMLElement, edge: GanttLinkEdge): void {
+  const record = workspaceRenderRecords.get(container);
+  const body = rowEl.closest?.(".cp-gantt-body") as HTMLElement | null;
+  if (!record || !body) return;
+  if (ganttLinkDrags.has(container)) return;
+  const barRect = barEl.getBoundingClientRect();
+  const startClientX = edge === "start" ? barRect.left : barRect.right;
+  const startY = rowEl.offsetTop + rowEl.offsetHeight / 2;
+  const namespace = "http://www.w3.org/2000/svg";
+  const overlay = document.createElementNS(namespace, "svg");
+  overlay.setAttribute("class", "cp-gantt-link-preview-layer");
+  overlay.setAttribute("viewBox", `0 0 1000 ${Math.max(1, body.offsetHeight)}`);
+  overlay.setAttribute("preserveAspectRatio", "none");
+  overlay.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(namespace, "path");
+  path.setAttribute("class", "cp-gantt-link-preview");
+  path.setAttribute("data-gantt-link-preview", "");
+  overlay.append(path);
+  const hint = document.createElement("div");
+  hint.className = "cp-gantt-link-hint";
+  hint.dataset.ganttLinkHint = "";
+  hint.setAttribute("role", "status");
+  hint.hidden = true;
+  body.append(overlay, hint);
+  container.dataset.ganttLinkDragging = "true";
+
+  const drag: GanttLinkDrag = {
+    pointerId: event.pointerId,
+    predecessorId: (rowEl.dataset.ganttActivityId ?? "").trim(),
+    fromEdge: edge,
+    body,
+    path,
+    overlay,
+    hint,
+    startPercent: ganttLinkPercent(body, startClientX),
+    startY,
+    startClientX,
+    startClientY: event.clientY,
+    moved: false,
+    target: null,
+    move: () => undefined,
+    finish: () => undefined,
+    cancel: () => undefined,
+    onKey: () => undefined,
+  };  const clearTargetHighlight = (): void => {
+    body.querySelectorAll<HTMLElement>("[data-gantt-activity-id].is-link-target").forEach((row) => row.classList.remove("is-link-target"));
+  };
+  drag.move = (moveEvent: PointerEvent): void => {
+    if (moveEvent.pointerId !== drag.pointerId) return;
+    const distance = Math.hypot(moveEvent.clientX - drag.startClientX, moveEvent.clientY - drag.startClientY);
+    if (distance > 3) drag.moved = true;
+    const bodyRect = body.getBoundingClientRect();
+    const pointerX = ganttLinkPercent(body, moveEvent.clientX);
+    const pointerY = Math.min(body.offsetHeight, Math.max(0, moveEvent.clientY - bodyRect.top));
+    // The target is resolved against row geometry for the same reason as the
+    // source: shaped bars are clipped and the link layer is transparent to the
+    // eye but present in hit testing.
+    let target: GanttLinkTarget | null = null;
+    let targetEndPercent = pointerX;
+    for (const targetRow of body.querySelectorAll<HTMLElement>("[data-gantt-activity-id]")) {
+      const rowRect = targetRow.getBoundingClientRect();
+      if (moveEvent.clientY < rowRect.top || moveEvent.clientY > rowRect.bottom) continue;
+      const activityId = (targetRow.dataset.ganttActivityId ?? "").trim();
+      if (!activityId || activityId === drag.predecessorId) continue;
+      const targetBar = targetRow.querySelector<HTMLElement>(".cp-gantt-bar[data-gantt-bar-primary='true']");
+      if (!targetBar) continue;
+      const targetRect = targetBar.getBoundingClientRect();
+      const targetEdge = ganttLinkEdgeAt(targetBar, moveEvent.clientX)
+        ?? (moveEvent.clientX <= targetRect.left + targetRect.width / 2 ? "start" : "finish");
+      const endX = ganttLinkPercent(body, targetEdge === "start" ? targetRect.left : targetRect.right);
+      // Releasing over the bar, or within a short reach of either edge, targets
+      // that activity; empty track space stays an uncommitted drag.
+      const reach = Math.max(12, targetRect.width * 0.25);
+      if (moveEvent.clientX < targetRect.left - reach || moveEvent.clientX > targetRect.right + reach) continue;
+      target = { activityId, edge: targetEdge, type: relationshipTypeFromEdges(drag.fromEdge, targetEdge), row: targetRow };
+      targetEndPercent = endX;
+      break;
+    }
+    drag.target = target;
+    clearTargetHighlight();
+    if (target) target.row.classList.add("is-link-target");
+    // Route like the persisted links: a horizontal run from the source edge to
+    // just beside the target edge, then vertically to the target row.
+    let endX = targetEndPercent;
+    let endY = pointerY;
+    if (target) {
+      endY = target.row.offsetTop + target.row.offsetHeight / 2;
+    }
+    const startX = drag.startPercent;
+    const laneX = Math.max(0.2, Math.min(99.8, endX + (endX >= startX ? 1.2 : -1.2)));
+    drag.path.setAttribute(
+      "d",
+      `M ${ganttRound(startX * 10)} ${ganttRound(drag.startY)} H ${ganttRound(laneX * 10)} V ${ganttRound(endY)} H ${ganttRound(endX * 10)}`,
+    );
+    drag.overlay.dataset.ganttLinkPreview = target ? target.type : "";
+    if (target) {
+      drag.hint.hidden = false;
+      drag.hint.dataset.ganttLinkType = target.type;
+      drag.hint.textContent = ganttLinkTypeLabel(record.state.locale, target.type);
+      drag.hint.style.left = `${Math.round(moveEvent.clientX - bodyRect.left + 12)}px`;
+      drag.hint.style.top = `${Math.round(pointerY + 10)}px`;
+    } else {
+      drag.hint.hidden = true;
+      drag.hint.textContent = "";
+      drag.hint.removeAttribute("data-gantt-link-type");
+    }
+  };
+  const teardown = (): void => {
+    clearTargetHighlight();
+    drag.overlay.remove();
+    drag.hint.remove();
+    delete container.dataset.ganttLinkDragging;
+    container.removeEventListener("pointermove", drag.move);
+    container.removeEventListener("pointerup", drag.finish);
+    container.removeEventListener("pointercancel", drag.cancel);
+    document.removeEventListener("keydown", drag.onKey, true);
+    try { barEl.releasePointerCapture?.(drag.pointerId); } catch { /* optional pointer capture */ }
+    ganttLinkDrags.delete(container);
+  };
+  drag.onKey = (keyEvent: KeyboardEvent): void => {
+    if (keyEvent.key !== "Escape") return;
+    keyEvent.preventDefault();
+    keyEvent.stopPropagation();
+    drag.cancel();
+  };
+  drag.finish = (finishEvent: PointerEvent): void => {
+    if (finishEvent.pointerId !== drag.pointerId) return;
+    const committed = drag.moved ? drag.target : null;
+    teardown();
+    if (!committed) return;
+    record.options.onRelationshipCreate?.({
+      predecessorId: drag.predecessorId,
+      successorId: committed.activityId,
+      type: committed.type,
+      lagValue: "0",
+      lagUnit: "working-day",
+    });
+  };
+  drag.cancel = (): void => teardown();
+  ganttLinkDrags.set(container, drag);
+  try { barEl.setPointerCapture?.(event.pointerId); } catch { /* optional pointer capture */ }
+  container.addEventListener("pointermove", drag.move);
+  container.addEventListener("pointerup", drag.finish);
+  container.addEventListener("pointercancel", drag.cancel);
+  document.addEventListener("keydown", drag.onKey, true);
+  drag.path.setAttribute("d", `M ${ganttRound(drag.startPercent * 10)} ${ganttRound(startY)} L ${ganttRound(drag.startPercent * 10)} ${ganttRound(startY)}`);
+}
+
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
@@ -555,6 +761,40 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const detailsSplitter = target?.closest?.<HTMLElement>("[data-details-splitter]");
     if (detailsSplitter) {
       startDetailsResize(detailsSplitter, event);
+      return;
+    }
+    // Drawing a relationship starts on an authoritative bar edge, and only
+    // while relationship lines are shown, as the V26 Help documents. The link
+    // layer sits above the rows and shaped bars are clipped, so the pointer is
+    // resolved geometrically against the row's primary duration bar. Secondary
+    // buttons keep their context-menu behaviour.
+    if (event.button !== 0) return;
+    const gantt = target?.closest?.<HTMLElement>("#cp-gantt");
+    let primaryBar: HTMLElement | null = null;
+    let activityRow: HTMLElement | null = null;
+    if (gantt) {
+      for (const row of gantt.querySelectorAll<HTMLElement>("[data-gantt-activity-id]")) {
+        const rowRect = row.getBoundingClientRect();
+        if (event.clientY < rowRect.top || event.clientY > rowRect.bottom) continue;
+        const bar = row.querySelector<HTMLElement>(".cp-gantt-bar[data-gantt-bar-primary='true']");
+        if (!bar) continue;
+        const barRect = bar.getBoundingClientRect();
+        if (event.clientY < barRect.top || event.clientY > barRect.bottom) continue;
+        primaryBar = bar;
+        activityRow = row;
+        break;
+      }
+    }
+    if (primaryBar && activityRow) {
+      const record = workspaceRenderRecords.get(container);
+      if (record?.state.showGanttRelationships) {
+        const handle = target?.closest?.<HTMLElement>("[data-gantt-link-edge]")?.dataset.ganttLinkEdge;
+        const edge = handle === "start" || handle === "finish" ? handle : ganttLinkEdgeAt(primaryBar, event.clientX);
+        if (edge) {
+          event.preventDefault();
+          beginGanttLinkDrag(container, event, primaryBar, activityRow, edge);
+        }
+      }
     }
   });
   container.addEventListener("input", (event) => {
@@ -3637,7 +3877,7 @@ function ganttDateSpan(activity: WorkspaceActivityRow, scale: GanttScale, prefix
   return null;
 }
 
-function renderGanttBar(layer: GanttBarLayer, top: number, height: number, progressOverlay: string, activity: WorkspaceActivityRow | undefined, bar: GanttBarGeometry, t: WorkspaceLabels, locale: string, format: GanttLabelFormat, weekDividers: readonly number[] = []): string {
+function renderGanttBar(layer: GanttBarLayer, top: number, height: number, progressOverlay: string, activity: WorkspaceActivityRow | undefined, bar: GanttBarGeometry, t: WorkspaceLabels, locale: string, format: GanttLabelFormat, weekDividers: readonly number[] = [], primary = false, linkHandles = false): string {
   const style = layer.style;
   const kindLabel = translateWorkspaceUiText(locale, ...GANTT_KIND_LABELS[layer.kind]);
   const width = layer.milestone ? Math.max(10, height) : layer.widthPercent;
@@ -3661,7 +3901,12 @@ function renderGanttBar(layer: GanttBarLayer, top: number, height: number, progr
     ? weekDividers.map((percent) => `<span class="cp-gantt-bar-tick" style="left:${ganttRound(percent)}%" aria-hidden="true"></span>`).join("")
     : "";
   const title = `${bar.activityId} · ${kindLabel} · ${bar.progressPercent}%${bar.critical ? " · " + t.critical : ""}${bar.milestone ? " · " + t.milestone : ""}`;
-  return `<div class="cp-gantt-bar cp-gantt-bar-${layer.kind}${bar.critical ? " is-critical" : ""} is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-bar-kind="${layer.kind}" data-gantt-bar-row="${style.row}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="${geometryStyle}--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${startMarker}${finishMarker}${progressOverlay}${dividers}${label}</div>`;
+  // Only the primary duration bar carries the relationship drag handles: its
+  // edges are the authoritative start and finish, unlike a stacked overlay.
+  const handles = primary && linkHandles
+    ? `<span class="cp-gantt-link-edge is-start" data-gantt-link-edge="start" aria-hidden="true"></span><span class="cp-gantt-link-edge is-finish" data-gantt-link-edge="finish" aria-hidden="true"></span>`
+    : "";
+  return `<div class="cp-gantt-bar cp-gantt-bar-${layer.kind}${bar.critical ? " is-critical" : ""} is-body-${style.bodyShape} is-pattern-${style.pattern}"${primary ? ' data-gantt-bar-primary="true"' : ""} data-gantt-bar-kind="${layer.kind}" data-gantt-bar-row="${style.row}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="${geometryStyle}--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${startMarker}${finishMarker}${progressOverlay}${dividers}${label}${handles}</div>`;
 }
 
 function ganttRound(value: number): number {
@@ -3908,7 +4153,7 @@ function renderGantt(
     : "";
   const legendTop = gantt.legend.visible && gantt.legend.position === "top" ? legend : "";
   const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
-  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, scale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null);
+  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, scale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null, showRelationships);
 
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
@@ -3926,6 +4171,7 @@ function renderGanttRows(
   scale: GanttScale,
   calendarMode: WorkspaceCalendarMode,
   selectedIds: ReadonlySet<string> | null = null,
+  showRelationships = false,
 ): string {
   return rows.map((row, index) => {
     const next = rows[index + 1];
@@ -3935,7 +4181,7 @@ function renderGanttRows(
     const metric = rowMetrics[index];
     return row.kind === "wbs"
       ? renderGanttWbsRow(row, presentation, t, locale, scale, calendarMode, groupEnd, Math.max(14, (metric?.height ?? presentation.wbs.rowHeight) - 1))
-      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, metric?.height ?? rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds);
+      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, metric?.height ?? rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds, showRelationships);
   }).join("");
 }
 
@@ -4009,6 +4255,7 @@ function renderGanttActivityRow(
   depth: number,
   groupEnd: boolean,
   selectedIds: ReadonlySet<string> | null = null,
+  showRelationships = false,
 ): string {
   const selected = selectedIds ? selectedIds.has(activity.id) : activity.id === selectedActivityId;
   const rowTitle = `${activity.id}${activity.name ? " — " + activity.name : ""}`;
@@ -4074,7 +4321,7 @@ function renderGanttActivityRow(
 
   const layerMarkup = layers.map((layer, index) => {
     const height = heights[index];
-    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind && layer.style.necking ? weekDividers : []);
+    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind && layer.style.necking ? weekDividers : [], layer.kind === primaryKind, showRelationships);
     top += height + gap;
     return markup;
   }).join("");
