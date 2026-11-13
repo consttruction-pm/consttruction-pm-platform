@@ -554,7 +554,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
+  assert.deepEqual(registrations, ["scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -2166,12 +2166,75 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
   assert.match(html, /data-columns-open/);
   assert.match(html, /class="cp-p6-grid-actions"/);
   assert.doesNotMatch(html, /class="cp-window-tabs"/);
-  assert.doesNotMatch(html, /class="cp-context-add-menu"/);
+  assert.match(html, /class="cp-context-add-menu"/);
   assert.doesNotMatch(html, /class="cp-window-tab\b/);
   assert.match(html, /Calendars/);
   assert.match(html, /Roles/);
   assert.match(html, /Tracking/);
   assert.match(html, /Thresholds/);
+});
+
+test("the right rail leads with one Add command menu and never repeats left navigation", () => {
+  const html = render("en", "schedule");
+  const railStart = html.indexOf('<aside class="cp-comments-dock-rail cp-context-command-rail"');
+  assert.ok(railStart > -1, "the context command rail must be rendered");
+  const railEnd = html.indexOf("</aside>", railStart);
+  const rail = html.slice(railStart, railEnd);
+
+  // The Add menu is the fixed first control in the rail in both directions.
+  assert.match(rail, /^<aside[^>]*>\s*<details class="cp-context-add-menu"/);
+  assert.match(rail, /<summary role="button" aria-haspopup="menu" aria-expanded="false"[^>]*>\+<\/summary>/);
+  assert.match(rail, /data-context-add-popup role="menu"/);
+  // Contextual create commands dispatch through stable desktop command ids.
+  assert.match(rail, /data-desktop-command="project.add-activity"/);
+  assert.match(rail, /data-desktop-command="edit.link"/);
+  // The rail adds record-level commands; the left rail keeps destinations only.
+  assert.doesNotMatch(rail, /data-menu=/);
+  assert.match(rail, /data-rail-action="assistant"/);
+  assert.match(rail, /data-rail-action="details"/);
+  assert.match(rail, /data-rail-action="notebook"/);
+  assert.match(rail, /data-comments-toggle/);
+  // No write capability means every command stays visible but disabled with a
+  // reason the user can read; nothing pretends the action succeeded.
+  assert.match(rail, /data-desktop-command="project.add-activity" disabled aria-disabled="true"/);
+  assert.match(rail, /Requires the project planner or administrator role\./);
+});
+
+test("contextual Add commands follow the active window, selection and stored data", () => {
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const renderWith = (menu: WorkspaceMenuKey, options: Parameters<typeof renderMainWorkspace>[2]): string => {
+    const container = { innerHTML: "", querySelectorAll: () => [] };
+    renderMainWorkspace(container as unknown as HTMLElement, { ...state, activeMenu: menu }, options);
+    return container.innerHTML;
+  };
+
+  const schedule = renderWith("schedule", { canWrite: true });
+  assert.match(schedule, /data-desktop-command="project.add-activity"/);
+  assert.match(schedule, /data-desktop-command="edit.link"/);
+  // Without a selected activity the relationship command explains why it is off.
+  assert.match(schedule, /data-desktop-command="edit.link" disabled aria-disabled="true"[^>]*>/);
+  assert.match(schedule, /Select an activity in the register first\./);
+
+  const wbs = renderWith("wbs", { canWrite: true });
+  assert.match(wbs, /data-desktop-command="project.add-wbs"/);
+  assert.match(wbs, /data-desktop-command="project.add-activity" disabled aria-disabled="true"/);
+  assert.match(wbs, /Add a WBS element before creating activities\./);
+
+  const resources = renderWith("resources", { canWrite: true });
+  assert.match(resources, /data-desktop-command="resource.create"/);
+
+  const calendars = renderWith("calendars", { canWrite: true });
+  assert.match(calendars, /data-desktop-command="calendar.create" disabled aria-disabled="true"/);
+  assert.match(calendars, /A base calendar must exist before a calendar can be created\./);
+
+  const reports = renderWith("reports", { canWrite: true });
+  assert.match(reports, /This window has no create action\./);
+  assert.doesNotMatch(reports, /data-desktop-command=/);
+
+  // A viewer sees the same commands disabled instead of write controls vanishing
+  // behind an ambiguous empty rail.
+  const viewer = renderWith("documents", { canWrite: false });
+  assert.match(viewer, /data-desktop-command="document.create" disabled aria-disabled="true"/);
 });
 
 test("desktop workbench exposes real keyboard-operable resize separators and reset commands instead of disabled placeholders", () => {

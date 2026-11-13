@@ -27,10 +27,10 @@ const auditDir = join(artifactsDir, "audit");
 mkdirSync(auditDir, { recursive: true });
 
 const MENUS = [
-  "project", "eps", "wbs", "schedule", "activities", "progress", "resources",
+  "project", "wbs", "schedule", "progress", "resources",
   "assignments", "calendars", "roles", "cost", "expenses", "documents",
   "reports", "tracking", "control", "thresholds", "risks", "issues", "forms",
-  "settings", "tools",
+  "settings", "administration", "exchange", "backup", "tools",
 ];
 
 const REPORT = {
@@ -188,7 +188,7 @@ async function main() {
 
     // Window catalogue at 1280x720.
     for (const key of MENUS) {
-      const selector = key === "eps" || key === "activities" || key === "forms" || key === "tools"
+      const selector = key === "forms" || key === "tools"
         ? `[data-rail-action="${key}"]`
         : `[data-menu="${key}"]`;
       const clicked = await page.evaluate(`(() => {
@@ -211,7 +211,7 @@ async function main() {
       await page.evaluate(`document.querySelector("[data-fb-close]")?.click()`);
       await sleep(250);
       // Return to the activities window so the next rail action starts clean.
-      if (key !== "activities") {
+      if (key !== "schedule") {
         await page.evaluate(`document.querySelector('.cp-p6-rail [data-menu="schedule"]')?.click()`);
         await sleep(300);
       }

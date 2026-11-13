@@ -312,6 +312,126 @@ async function main() {
     check("the workspace displays the Riverside project name", {});
     await page.screenshot("vercel-preview-workspace-1280x720.png");
 
+    // --- Two-rail contract ---------------------------------------------------
+    const rail = await page.evaluate(`(() => {
+      const left = document.querySelector(".cp-navigation-tree");
+      const right = document.querySelector(".cp-context-command-rail");
+      const rightFirst = right?.firstElementChild;
+      const leftGlyphs = Array.from(left?.querySelectorAll("[data-menu]") ?? []).map((node) => {
+        const icon = node.querySelector("[data-cp-icon]");
+        return {
+          menu: node.dataset.menu,
+          icon: icon?.dataset.cpIcon ?? "",
+          path: icon?.querySelector("path")?.getAttribute("d") ?? "",
+        };
+      });
+      const byPath = new Map();
+      for (const entry of leftGlyphs) byPath.set(entry.path, [...(byPath.get(entry.path) ?? []), entry.menu]);
+      return {
+        leftWindows: leftGlyphs.length,
+        duplicateGlyphs: [...byPath.values()].filter((owners) => owners.length > 1),
+        addIsFirst: rightFirst?.matches?.("[data-context-add]") === true,
+        addSummary: rightFirst?.querySelector?.("summary")?.textContent?.trim() ?? "",
+        addExpanded: rightFirst?.querySelector?.("summary")?.getAttribute("aria-expanded") ?? "",
+        rightDestinations: Array.from(right?.querySelectorAll("[data-menu]") ?? []).length,
+        rightActions: Array.from(right?.querySelectorAll("[data-rail-action]") ?? []).map((node) => node.dataset.railAction),
+        legacyLauncher: document.querySelectorAll("#cubi-assistant-launcher, .cubi-assistant-launcher").length,
+        actionPanelVisible: Boolean(document.querySelector("#cp-ai-action-panel")?.offsetParent),
+      };
+    })()`);
+    assert(rail.leftWindows === 21, `left rail renders 21 window destinations, got ${rail.leftWindows}`);
+    assert(rail.duplicateGlyphs.length === 0, `left rail glyphs are unique: ${JSON.stringify(rail.duplicateGlyphs)}`);
+    assert(rail.addIsFirst, "the Add menu is the first control in the right rail");
+    assert(rail.addSummary === "+", "the right rail starts with a real Add (+) button");
+    assert(rail.addExpanded === "false", "the closed Add menu reports aria-expanded=false");
+    assert(rail.rightDestinations === 0, "the right rail never repeats left navigation destinations");
+    assert(rail.rightActions.includes("assistant"), "the right rail carries the assistant entry");
+    assert(rail.legacyLauncher === 0, "the floating assistant launcher is not mounted on /app");
+    assert(!rail.actionPanelVisible, "the closed AI action pill does not float over the workspace");
+    check("two rails: unique left glyphs, Add first, no duplicate destinations", {
+      left_windows: rail.leftWindows,
+      right_actions: rail.rightActions.join(","),
+    });
+
+    await page.evaluate(`document.querySelector("[data-context-add] > summary")?.click()`);
+    const addMenu = await page.waitFor(
+      `(() => {
+        const menu = document.querySelector("[data-context-add][open]");
+        if (!menu) return null;
+        const items = Array.from(menu.querySelectorAll("[data-desktop-command]"));
+        return {
+          open: menu.open,
+          expanded: menu.querySelector("summary")?.getAttribute("aria-expanded"),
+          commands: items.map((item) => item.dataset.desktopCommand),
+          enabled: items.filter((item) => !item.disabled).map((item) => item.dataset.desktopCommand),
+          reasons: items.filter((item) => item.disabled).map((item) => item.querySelector(".cp-context-add-reason")?.textContent?.trim() ?? ""),
+        };
+      })()`,
+      "contextual Add menu opens",
+      15000,
+    );
+    assert(addMenu.open && addMenu.expanded === "true", "the Add menu reports its open state");
+    assert(addMenu.commands.includes("project.add-activity"), "Add menu offers Add Activity in the Activities window");
+    assert(addMenu.commands.includes("edit.link"), "Add menu offers Add Relationship in the Activities window");
+    assert(
+      addMenu.commands.every((command) => !command.includes(" ") && command.includes(".")),
+      "every Add item dispatches a stable desktop command id",
+    );
+    for (const reason of addMenu.reasons) assert(reason.length > 0, "a disabled Add item always states its reason");
+    await page.screenshot("vercel-preview-context-add-menu.png");
+    check("contextual Add menu lists real desktop commands", { commands: addMenu.commands.join(","), enabled: addMenu.enabled.join(",") });
+
+    const keyboard = await page.evaluate(`(() => {
+      const menu = document.querySelector("[data-context-add]");
+      const summary = menu?.querySelector("summary");
+      summary?.focus();
+      summary?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      const focused = document.activeElement?.dataset?.desktopCommand ?? "";
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return {
+        focused,
+        closed: menu?.open === false,
+        restored: document.activeElement === summary,
+      };
+    })()`);
+    assert(keyboard.focused.length > 0, "ArrowDown moves focus into the first enabled Add command");
+    assert(keyboard.closed, "Escape closes the Add menu");
+    assert(keyboard.restored, "Escape returns focus to the Add button");
+    check("Add menu keyboard: ArrowDown focuses, Escape closes and restores focus", keyboard);
+
+    const helpDialog = await page.evaluate(`(async () => {
+      document.querySelector('[data-rail-action="help"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const dialog = document.querySelector('dialog[data-desktop-dialog="shortcuts"]');
+      const open = Boolean(dialog?.open);
+      dialog?.close();
+      return { open, railButton: Boolean(document.querySelector('[data-rail-action="help"]')) };
+    })()`);
+    assert(helpDialog.railButton, "the rail exposes one Help command");
+    assert(helpDialog.open, "the Help rail command opens the real shortcuts dialog");
+    check("the rail Help command reaches the desktop shortcuts dialog", helpDialog);
+
+    // The Add command must reach the real create control, not a new handler.
+    const openedActivityForm = await page.evaluate(`(async () => {
+      const trigger = Array.from(document.querySelectorAll("[data-desktop-command]"))
+        .find((item) => item.dataset.desktopCommand === "project.add-activity" && !item.disabled);
+      if (!trigger) return { dispatched: false };
+      document.querySelector("[data-context-add] > summary")?.click();
+      trigger.click();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return {
+        dispatched: true,
+        form: Boolean(document.querySelector("[data-tools-drawer] [data-activity-create-form], #cp-activity-grid [data-activity-create-form]")),
+        menuClosed: document.querySelector("[data-context-add]")?.open === false,
+      };
+    })()`);
+    if (openedActivityForm.dispatched) {
+      assert(openedActivityForm.form, "Add Activity reaches the real activity create form");
+      assert(openedActivityForm.menuClosed, "dispatching a command closes the menu");
+      check("Add Activity dispatches through the desktop command registry", openedActivityForm);
+      await page.evaluate(`document.querySelector("[data-tools-close]")?.click()`);
+    }
+
     // Each window must show loaded data, not just an active tab: wait for the
     // register rows (or tracking layout) the deployed API feeds.
     const windowContent = {
@@ -354,8 +474,22 @@ async function main() {
         throw new Error(`${menu} window never loaded its data${failure ? ` (${failure})` : ""}: ${error.message}`);
       }
       assert(rows > 0, `${menu} window has data rows`);
+      const addState = await page.evaluate(`(() => {
+        const panel = document.querySelector("[data-context-add]");
+        return {
+          commands: Array.from(panel?.querySelectorAll("[data-desktop-command]") ?? []).map((node) => node.dataset.desktopCommand),
+          empty: Boolean(panel?.querySelector(".cp-context-add-empty")),
+        };
+      })()`);
+      if (menu === "resources") {
+        assert(addState.commands.includes("resource.create"), "Resources Add menu offers the real New Resource command");
+      } else {
+        // Progress and Tracking have no create service; the menu says so instead
+        // of inventing a WBS or activity command that belongs elsewhere.
+        assert(addState.empty, `${menu} Add menu shows its no-create state`);
+      }
       await page.screenshot(`vercel-preview-${menu}-window.png`);
-      check(`workspace window ${menu} opens with data`, { active, rows });
+      check(`workspace window ${menu} opens with data`, { active, rows, add: addState.commands.join(",") });
     }
 
     await page.evaluate(`document.querySelector('[data-menu="schedule"]')?.click()`);
@@ -380,6 +514,26 @@ async function main() {
     await page.screenshot("vercel-preview-workspace-1366x768.png");
     check("workspace renders at 1366x768", {});
 
+    await page.viewport(1920, 1080);
+    await page.screenshot("vercel-preview-workspace-1920x1080.png");
+    const addAt1920 = await page.evaluate(`(() => {
+      const menu = document.querySelector("[data-context-add]");
+      const rail = document.querySelector(".cp-context-command-rail");
+      const rect = rail?.getBoundingClientRect();
+      return {
+        first: rail?.firstElementChild?.matches?.("[data-context-add]") === true,
+        railWidth: Math.round(rect?.width ?? 0),
+        railRight: Math.round(rect?.right ?? 0),
+        viewport: window.innerWidth,
+      };
+    })()`);
+    assert(addAt1920.first, "Add stays the first rail control at 1920x1080");
+    assert(addAt1920.railWidth >= 32 && addAt1920.railWidth <= 48, "the rail keeps its compact width at 1920");
+    assert(addAt1920.railRight <= addAt1920.viewport + 1, "the rail stays inside the viewport");
+    check("workspace renders at 1920x1080 with a compact rail", addAt1920);
+
+    await page.viewport(1280, 720);
+
     const rtl = await page.evaluate(
       `(() => {
         const select = document.querySelector(".cp-workspace-language");
@@ -396,8 +550,19 @@ async function main() {
         15000,
       );
       assert(direction === "rtl", "Persian switches the workspace to RTL");
+      const rtlRail = await page.evaluate(`(() => {
+        const rail = document.querySelector(".cp-context-command-rail");
+        const summary = rail?.querySelector("[data-context-add] > summary");
+        return {
+          first: rail?.firstElementChild?.matches?.("[data-context-add]") === true,
+          label: summary?.getAttribute("aria-label") ?? "",
+          side: getComputedStyle(rail).gridColumnStart,
+        };
+      })()`);
+      assert(rtlRail.first, "Add stays the first control in the RTL rail");
+      assert(rtlRail.label.length > 0, "the Add button keeps its accessible name in RTL");
       await page.screenshot("vercel-preview-workspace-fa-rtl.png");
-      check("Persian locale renders right-to-left", { direction });
+      check("Persian locale renders right-to-left", { direction, rail: rtlRail });
     }
 
     assert(page.events.exceptions.length === 0, `browser exceptions: ${page.events.exceptions.join(" | ")}`);

@@ -47,6 +47,9 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import { WORKSPACE_WINDOW_ICONS } from "./workspace-command-icons.js";
+import { contextAddCommands, type ContextAddItem } from "./workspace-context-add.js";
+import type { DesktopCommand } from "./workspace-desktop-shell.js";
 import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
 import { weightedPercentComplete, wbsStatusLabel, wbsTechniqueLabel } from "./workspace-wbs-milestones.js";
 import {
@@ -844,6 +847,30 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const desired = Math.max(0, Math.min(maxScroll, target.scrollTop + delta));
     if (Math.abs(other.scrollTop - desired) > 0.5) other.scrollTop = desired;
   }, true);
+  // A contextual Add menu closes on any click that lands outside it and when
+  // focus leaves its own subtree, so it can never sit stale over the table.
+  if (typeof document !== "undefined") {
+    document.addEventListener("click", (event) => {
+      if (!container.isConnected) return;
+      const node = event.target as Node | null;
+      container.querySelectorAll<HTMLDetailsElement>("[data-context-add][open]").forEach((menu) => {
+        if (!node || !menu.contains(node)) menu.open = false;
+      });
+    });
+  }
+  container.addEventListener("focusout", (event) => {
+    const menu = (event.target as HTMLElement | null)?.closest?.<HTMLDetailsElement>("[data-context-add]");
+    if (!menu) return;
+    const next = event.relatedTarget as Node | null;
+    if (!next || !menu.contains(next)) menu.open = false;
+  });
+  container.addEventListener("toggle", (event) => {
+    const menu = event.target as HTMLDetailsElement | null;
+    if (!menu?.matches?.("[data-context-add]")) return;
+    const summary = menu.querySelector<HTMLElement>("summary");
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    summary?.toggleAttribute("data-open", menu.open);
+  }, true);
   container.addEventListener("pointerdown", (event) => {
     const target = event.target as HTMLElement | null;
     const columnHandle = target?.closest?.<HTMLElement>("[data-column-resize]");
@@ -1119,7 +1146,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-cut],[data-wbs-copy],[data-wbs-paste],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-desktop-command],[data-context-add] summary,[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-cut],[data-wbs-copy],[data-wbs-paste],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1322,6 +1349,25 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
     if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
     if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
+    if (typeof target.matches === "function" && target.matches("[data-context-add] > summary")) {
+      const menu = target.parentElement as HTMLDetailsElement | null;
+      // Focus the first enabled command after the native toggle so keyboard
+      // users can continue without pressing Tab through the rail again.
+      window.setTimeout(() => {
+        if (!menu?.open) return;
+        menu.querySelector<HTMLButtonElement>("[role='menuitem']:not([disabled])")?.focus({ preventScroll: true });
+      }, 0);
+      return;
+    }
+    if (target.dataset.desktopCommand) {
+      const menu = target.closest<HTMLDetailsElement>("[data-context-add]");
+      if (menu) {
+        menu.open = false;
+        menu.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+      }
+      options.onDesktopCommand?.(target.dataset.desktopCommand as DesktopCommand);
+      return;
+    }
     if (target.dataset.railAction) {
       const action = target.dataset.railAction;
       if (action === "navigation") {
@@ -1633,6 +1679,35 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("keydown", (event) => {
     const keyTarget = event.target as HTMLElement | null;
+    const addMenu = keyTarget?.closest?.<HTMLElement>("[data-context-add]") ?? null;
+    if (addMenu && typeof addMenu.querySelector === "function") {
+      const details = addMenu as HTMLDetailsElement;
+      const summary = addMenu.querySelector<HTMLElement>("summary");
+      const commands = () => Array.from(addMenu.querySelectorAll<HTMLButtonElement>("[role='menuitem']:not([disabled])"));
+      if (event.key === "Escape" && details.open) {
+        event.preventDefault();
+        event.stopPropagation();
+        details.open = false;
+        summary?.focus({ preventScroll: true });
+        return;
+      }
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        const items = commands();
+        if (items.length) {
+          event.preventDefault();
+          const current = items.indexOf(document.activeElement as HTMLButtonElement);
+          const last = items.length - 1;
+          let next = current;
+          if (event.key === "ArrowDown") next = current >= last ? 0 : current + 1;
+          else if (event.key === "ArrowUp") next = current <= 0 ? last : current - 1;
+          else if (event.key === "Home") next = 0;
+          else next = last;
+          if (!details.open) details.open = true;
+          items[next].focus({ preventScroll: true });
+          return;
+        }
+      }
+    }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       if (!keyTarget || typeof keyTarget.closest !== "function") return;
       if (keyTarget.closest("#cp-details")) return;
@@ -2694,6 +2769,13 @@ export type WorkspaceRendererOptions = {
     revisions?: readonly { revision: number; columnCount: number }[];
   };
   onRailAction?: (action: string) => void;
+  /** Authenticated write capability for this project (planner/administrator). */
+  canWrite?: boolean;
+  /**
+   * Dispatches a stable desktop command id. The contextual rail uses the same
+   * ids as the toolbar and application menu, never a second action handler.
+   */
+  onDesktopCommand?: (command: DesktopCommand) => void;
   presentation?: WorkspacePresentation;
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
@@ -2829,29 +2911,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     layout: uiText(state.locale, "Layout", "چیدمان"),
     noDataDate: uiText(state.locale, "Not provided", "ارائه نشده"),
   };
-  const railMenuIcons: Record<WorkspaceState["activeMenu"], WorkspaceIconName> = {
-    project: "folder",
-    wbs: "wbs",
-    schedule: "activity",
-    progress: "progress",
-    resources: "resource",
-    assignments: "link",
-    roles: "resource",
-    calendars: "calendar",
-    cost: "money",
-    expenses: "money",
-    documents: "file",
-    reports: "print",
-    tracking: "progress",
-    issues: "warning",
-    risks: "warning",
-    thresholds: "network",
-    control: "network",
-    settings: "settings",
-    administration: "administration",
-    exchange: "export",
-    backup: "file",
-  };
+  // One shared window→glyph table, so the rail, the flyout and the desktop
+  // shell can never show two different shapes for the same destination.
+  const railMenuIcons = WORKSPACE_WINDOW_ICONS;
   const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
   const activeFilterName = appliedFilterName
     ? state.activityFilter.trim()
@@ -2881,6 +2943,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       ? options.projectSummary
       : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
   const headerProjectLabel = headerProject?.name || state.context.project_id;
+  const addCommands = contextAddCommands({
+    activeMenu: state.activeMenu,
+    canWrite: options.canWrite === true,
+    hasWbs: state.wbsNodes.length > 0,
+    hasSelectedActivity: Boolean(state.selectedActivityId),
+    hasCalendarCatalog: state.calendarCatalog.calendars.length > 0,
+  });
 
 
   container.innerHTML = `
@@ -2896,12 +2965,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <button type="button" class="cp-nav-tree-title" data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true" title="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></button>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
             ${menuButton("project", t.project, state, railMenuIcons.project)}
-            ${railActionButton("eps", rail.eps, "portfolio")}
             ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, railMenuIcons.wbs)}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
             ${menuButton("schedule", t.schedule, state, railMenuIcons.schedule)}
-            ${railActionButton("activities", rail.activities, "activity")}
             ${menuButton("progress", t.progress, state, railMenuIcons.progress)}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
@@ -3024,10 +3091,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </div>
         <aside class="cp-comments-dock-rail cp-context-command-rail" aria-label="${escapeAttribute(uiText(state.locale, "Contextual commands", "فرمان‌های زمینه‌ای"))}">
+          ${renderContextAddMenu(addCommands, state)}
           <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="documents" title="${escapeAttribute(rail.documents)}" aria-label="${escapeAttribute(rail.documents)}">${workspaceIcon("file")}<span class="cp-rail-label">${escapeHtml(rail.documents)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="risks" title="${escapeAttribute(rail.risks)}" aria-label="${escapeAttribute(rail.risks)}">${workspaceIcon("warning")}<span class="cp-rail-label">${escapeHtml(rail.risks)}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="details" title="${escapeAttribute(uiText(state.locale, "Record details", "جزئیات رکورد"))}" aria-label="${escapeAttribute(uiText(state.locale, "Record details", "جزئیات رکورد"))}">${workspaceIcon("details")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Details", "جزئیات"))}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="proposals" aria-expanded="false" title="${escapeAttribute(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}" aria-label="${escapeAttribute(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}">${workspaceIcon("proposal")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="assistant" aria-expanded="false" title="${escapeAttribute(uiText(state.locale, "CUBI assistant", "دستیار CUBI"))}" aria-label="${escapeAttribute(uiText(state.locale, "CUBI assistant", "دستیار CUBI"))}">${workspaceIcon("assistant")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Assistant", "دستیار"))}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="help" title="${escapeAttribute(uiText(state.locale, "Help and keyboard shortcuts", "راهنما و کلیدهای میانبر"))}" aria-label="${escapeAttribute(uiText(state.locale, "Help and keyboard shortcuts", "راهنما و کلیدهای میانبر"))}">${workspaceIcon("help")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</span></button>
         </aside>
       </div>
       <div class="cp-p6-flyout" data-nav-flyout hidden>${renderFullNavigationMenu(state, railMenuIcons)}${renderNavigationSurface(state)}</div>
@@ -3585,12 +3655,10 @@ function renderFullNavigationMenu(state: WorkspaceState, icons: Record<Workspace
   return `<nav class="cp-p6-flyout-tree" aria-label="${escapeAttribute(t.mainMenu)}">
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
       ${menuButton("project", t.project, state, icons.project)}
-      ${railActionButton("eps", uiText(state.locale, "EPS / Portfolio", "EPS / سبد پروژه"), "portfolio")}
       ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, icons.wbs)}
     </div>
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
       ${menuButton("schedule", t.schedule, state, icons.schedule)}
-      ${railActionButton("activities", uiText(state.locale, "Activities", "فعالیت‌ها"), "activity")}
       ${menuButton("progress", t.progress, state, icons.progress)}
     </div>
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
@@ -5927,6 +5995,34 @@ function menuButton(key: WorkspaceState["activeMenu"], label: string, state: Wor
 
 function railActionButton(action: string, label: string, icon: WorkspaceIconName): string {
   return `<button type="button" class="cp-rail-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
+}
+
+/**
+ * The single "Add" entry at the top of the contextual rail. It opens a menu of
+ * real desktop commands for the active window; unavailable commands stay with
+ * their reason instead of disappearing behind a decorative button.
+ */
+function renderContextAddMenu(items: readonly ContextAddItem[], state: WorkspaceState): string {
+  const localized = (value: { en: string; fa: string }): string =>
+    state.locale.toLowerCase().startsWith("fa") ? value.fa : value.en;
+  const label = uiText(state.locale, "Add", "افزودن");
+  const entries = items.map((item) => {
+    const disabled = item.disabledReason ? " disabled aria-disabled=\"true\"" : "";
+    const reason = item.disabledReason
+      ? `<small class="cp-context-add-reason">${escapeHtml(localized(item.disabledReason))}</small>`
+      : "";
+    const title = item.disabledReason ? `${localized(item.label)} — ${localized(item.disabledReason)}` : localized(item.label);
+    return `<button type="button" role="menuitem" data-desktop-command="${escapeAttribute(item.command)}"${disabled} title="${escapeAttribute(title)}">${workspaceIcon(item.icon)}<span>${escapeHtml(localized(item.label))}</span>${reason}</button>`;
+  });
+  return `<details class="cp-context-add-menu" data-context-add>
+    <summary role="button" aria-haspopup="menu" aria-expanded="false" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(label)}">+</summary>
+    <div class="cp-context-add-popup" data-context-add-popup role="menu" aria-label="${escapeAttribute(label)}">
+      <strong>${escapeHtml(label)}</strong>
+      ${entries.length
+        ? entries.join("")
+        : `<p class="cp-context-add-empty">${escapeHtml(uiText(state.locale, "This window has no create action.", "این پنجره فرمان ایجاد ندارد."))}</p>`}
+    </div>
+  </details>`;
 }
 
 function escapeHtml(value: string): string {

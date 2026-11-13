@@ -9,28 +9,33 @@
 import type { WorkspaceIconName } from "./workspace-icons.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 
-const WINDOW_ICONS: Record<WorkspaceMenuKey, WorkspaceIconName> = {
+/**
+ * The one window→glyph map. The navigation rail, the full-menu flyout and the
+ * desktop shell all read this table so a destination can never look like a
+ * different one depending on where it is drawn.
+ */
+export const WORKSPACE_WINDOW_ICONS: Record<WorkspaceMenuKey, WorkspaceIconName> = {
   project: "folder",
   wbs: "wbs",
-  schedule: "activity",
+  schedule: "gantt",
   progress: "progress",
   resources: "resource",
-  assignments: "link",
-  roles: "resource",
+  assignments: "assignment",
+  roles: "roles",
   calendars: "calendar",
   cost: "money",
-  expenses: "money",
-  documents: "file",
-  reports: "print",
-  tracking: "progress",
-  issues: "warning",
-  risks: "warning",
-  thresholds: "network",
-  control: "network",
+  expenses: "expense",
+  documents: "documents",
+  reports: "reports",
+  tracking: "tracking",
+  issues: "issues",
+  risks: "risks",
+  thresholds: "thresholds",
+  control: "control",
   settings: "settings",
   administration: "administration",
-  exchange: "export",
-  backup: "file",
+  exchange: "exchange",
+  backup: "backup",
 };
 
 const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
@@ -119,8 +124,8 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "tools.search": "find",
   "tools.preferences": "settings",
   "tools.reports": "reports",
-  "tools.import-export": "export",
-  "tools.backup": "file",
+  "tools.import-export": "exchange",
+  "tools.backup": "backup",
   "tools.print-preview": "print",
   "tools.generate-report": "reports",
   "tools.language": "language",
@@ -137,7 +142,7 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "admin.currencies": "money",
   "admin.periods": "calendar",
   "admin.audit": "book",
-  "admin.recovery": "file",
+  "admin.recovery": "backup",
   // Help
   "help.shortcuts": "help",
   "help.about": "help",
@@ -152,7 +157,7 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
  */
 export function desktopMenuIcon(id: string): WorkspaceIconName | undefined {
   if (id.startsWith("window.")) {
-    return WINDOW_ICONS[id.slice("window.".length) as WorkspaceMenuKey];
+    return WORKSPACE_WINDOW_ICONS[id.slice("window.".length) as WorkspaceMenuKey];
   }
   if (id.startsWith("view.toolbar-") || id.startsWith("view.theme-")) {
     return "workspace";

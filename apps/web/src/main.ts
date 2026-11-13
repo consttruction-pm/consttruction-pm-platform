@@ -1593,6 +1593,44 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
+      // Module create commands open the owning window and activate the same
+      // "new" control a user would click. No second create flow is introduced.
+      case "resource.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-resource-action="new"]')?.click();
+        activateWindow("resources");
+        return;
+      case "assignment.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-assignment-action="new"]')?.click();
+        activateWindow("assignments");
+        return;
+      case "role.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-role-action="new"]')?.click();
+        activateWindow("roles");
+        return;
+      case "calendar.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-calendar-action="new"]')?.click();
+        activateWindow("calendars");
+        return;
+      case "document.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-document-action="new"]')?.click();
+        activateWindow("documents");
+        return;
+      case "risk.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-risk-action="new"]')?.click();
+        activateWindow("risks");
+        return;
+      case "issue.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-issue-action="new"]')?.click();
+        activateWindow("issues");
+        return;
+      case "expense.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-expense-action="new"]')?.click();
+        activateWindow("expenses");
+        return;
+      case "threshold.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-threshold-action="new"]')?.click();
+        activateWindow("thresholds");
+        return;
       case "project.edit-activity": {
         const activityId = state.selectedActivityId;
         if (!activityId) return;
@@ -2440,6 +2478,10 @@ function renderApp(
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     dataDate: projectDataDate,
+    // The contextual rail derives its Add commands from the same session roles
+    // and dispatches the same desktop commands as the toolbar and menus.
+    canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+    onDesktopCommand: (command) => runDesktopCommand(command),
     // The Projects window renders the session's own project list and the
     // authoritative metadata row; both come from the server, never from a guess.
     projects: currentBootstrap?.openableProjects() ?? [],
@@ -2917,6 +2959,25 @@ function renderApp(
     onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
     onRailAction: (action) => {
       switch (action) {
+        case "details":
+          runDesktopCommand("view.bottom-details");
+          return;
+        case "help":
+          openDesktopDialog(desktopHost, "shortcuts");
+          return;
+        case "assistant":
+        case "proposals": {
+          // Both are workspace overlays with real behaviour; the rail button is
+          // the only floating entry, so its pressed state mirrors the panel.
+          const selector = action === "assistant" ? "#cp-ai-assistant-chat" : "#cp-ai-action-panel";
+          const panel = document.querySelector<HTMLDetailsElement>(selector);
+          if (!panel) return;
+          panel.open = !panel.open;
+          const button = container.querySelector<HTMLElement>(`[data-rail-action="${action}"]`);
+          button?.setAttribute("aria-expanded", String(panel.open));
+          if (panel.open) panel.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+          return;
+        }
         case "projects":
         case "eps":
           activateWindow("project");
@@ -2939,7 +3000,7 @@ function renderApp(
           activateWindow("documents");
           return;
         case "expenses":
-          activateWindow("cost");
+          activateWindow("expenses");
           return;
         case "risks":
         case "issues":
