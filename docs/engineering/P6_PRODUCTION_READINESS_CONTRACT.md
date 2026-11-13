@@ -104,10 +104,22 @@ It does not log bodies, headers, cookies, tokens, file content or query strings.
 at 512 characters and bearer/basic credentials are scrubbed. A failed request
 logs `http.request.failed` with the exception class name only.
 
-Application-level events for uploads, exchange runs, report runs, scheduled
-jobs and storage reconciliation should use the same logger and correlation id;
-the shared middleware supplies the id through
-`environ["construction_pm.correlation_id"]`.
+Application-level events use the same logger and inherit the request
+correlation id from the context variable:
+
+| Event | Emitted by | Fields (all bounded) |
+| --- | --- | --- |
+| `document.content.uploaded` | document upload | `document_id`, `version`, `content_type`, `byte_size`, `scan_status`, `replay` |
+| `document.ocr.job` | OCR runner | `document_id`, `version`, `status`, `engine`, `char_count` |
+| `exchange.run` | exchange preview/apply/export | `operation`, `dataset`, `status`, `format`, `valid`, `row_count`, `accepted`, `rejected`, `run_id`, optional export `content_sha256` |
+| `report.run.completed` | report materialization | `report_id`, `run_id`, `source`, `report_revision`, `project_revision`, `row_count` |
+| `report.schedule.run` | schedule runner | `schedule_id`, `state`, `run_id`, `content_sha256` |
+
+Counter metrics `document_uploads_total`, `document_ocr_jobs_total`,
+`exchange_runs_total`, `report_runs_total`, `report_schedule_runs_total`,
+`document_storage_reconciliation_total`, `http_requests_total` and the
+`http_request_duration_ms` / `document_storage_reconciliation_ms` observations
+live in the bounded in-process `OperationalMetrics` registry.
 
 ## Staging smoke test
 

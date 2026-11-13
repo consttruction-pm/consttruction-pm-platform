@@ -38,6 +38,8 @@ from .report_parameters import (
     apply_parameters,
     resolve_parameters,
 )
+from .observability import OperationalMetrics
+from .production_readiness import StructuredEventLogger
 
 
 class ReportAuthorizationError(ValueError):
@@ -173,6 +175,30 @@ class ReportApplicationService:
     dataset: ReportDatasetSource
     authorization_policy: AuthorizationPolicy
     transaction_manager: object
+    metrics: OperationalMetrics | None = None
+    logger: StructuredEventLogger | None = None
+
+    def _record_run(self, run: ReportRun, *, scheduled: bool) -> None:
+        source = "scheduled" if scheduled else "interactive"
+        if self.metrics is not None:
+            try:
+                self.metrics.increment(
+                    "report_runs_total", labels={"source": source, "status": "succeeded"}
+                )
+            except ValueError:
+                pass
+        if self.logger is not None:
+            self.logger.emit(
+                "report.run.completed",
+                fields={
+                    "report_id": run.report_id,
+                    "run_id": run.run_id,
+                    "source": source,
+                    "report_revision": run.report_revision,
+                    "project_revision": run.project_revision,
+                    "row_count": len(run.rows),
+                },
+            )
 
     # -- reads ------------------------------------------------------------
     def list_definitions(
@@ -435,7 +461,9 @@ class ReportApplicationService:
                 parameters=resolved.values,
                 parameter_sources=resolved.sources,
             )
-            return self.store.save_run(run)
+            saved = self.store.save_run(run)
+        self._record_run(saved, scheduled=run_id is not None)
+        return saved
 
     # -- helpers ----------------------------------------------------------
     def _check(
