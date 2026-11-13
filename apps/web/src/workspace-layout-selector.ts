@@ -13,6 +13,8 @@ import { createP6LayoutPersistence } from "./p6-api.js";
 import { normalizeLayout, validateLayout } from "./p6-field-layout-foundation.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
+import { readGroupSortMetadata } from "./workspace-layout-settings.js";
+import { normalizePresentation } from "./workspace-presentation.js";
 
 export const LAYOUT_SELECTION_STORAGE_PREFIX = "cubi:workspace-layout-selection";
 
@@ -140,6 +142,46 @@ export function writeLayoutSelection(
   return JSON.stringify({ ...store, [selectionKey(tenantId, projectId)]: selection });
 }
 
+export type LayoutViewSnapshot = {
+  layout: LayoutDefinition | null;
+  groupBy: "wbs" | "none";
+  sortLevels: readonly { columnId: string; direction: "asc" | "desc" }[];
+  presentation: unknown;
+};
+
+/**
+ * True when the window holds view changes that are not part of the stored
+ * layout revision yet.
+ *
+ * Column edits are appended by the layout service as they happen, so the only
+ * local-only state is the group/sort plan and the table/Gantt presentation,
+ * which Save publishes with the layout metadata. A stored revision that never
+ * carried a plan is compared against the Activities defaults, so a freshly
+ * loaded layout is not reported as dirty.
+ */
+export function layoutHasUnsavedChanges(view: LayoutViewSnapshot): boolean {
+  const layout = view.layout;
+  if (!layout) return false;
+  const saved = readGroupSortMetadata(layout.metadata) ?? {
+    groupBy: "wbs" as const,
+    sortLevels: [{ columnId: "wbs", direction: "asc" as const }],
+  };
+  if (saved.groupBy !== view.groupBy) return true;
+  if (saved.sortLevels.length !== view.sortLevels.length) return true;
+  for (let index = 0; index < saved.sortLevels.length; index += 1) {
+    const stored = saved.sortLevels[index];
+    const current = view.sortLevels[index];
+    if (!current || stored.columnId !== current.columnId || stored.direction !== current.direction) return true;
+  }
+  const savedPresentation = layout.metadata?.presentation;
+  if (savedPresentation && typeof savedPresentation === "object") {
+    const stored = JSON.stringify(normalizePresentation(savedPresentation));
+    const current = JSON.stringify(normalizePresentation(view.presentation));
+    if (stored !== current) return true;
+  }
+  return false;
+}
+
 
 function exchangeName(layout: LayoutDefinition | null, locale: Locale): string {
   return layoutDisplayName(layout, locale);
@@ -203,6 +245,11 @@ export type LayoutSelectorOptions = {
   previewScope: StoredLayoutScope | null;
   canSave: boolean;
   saveReason?: string;
+  /** The window holds group/sort or presentation changes not yet saved. */
+  dirty?: boolean;
+  /** False while the layout service has no delete route. */
+  canDelete?: boolean;
+  deleteReason?: string;
   loadCatalog: () => Promise<LayoutCatalog>;
   onPreview: (entry: LayoutCatalogEntry) => void;
   onApply: () => void;
@@ -210,9 +257,14 @@ export type LayoutSelectorOptions = {
   onSave: () => void;
   onSaveAs: (name: string) => void;
   onRename: (name: string) => void;
+  onNew: (name: string) => void;
+  onResetDefault: () => void;
+  onDelete?: () => void;
   onExport: () => void;
   onImport: (text: string) => void;
   onReload: (scope: StoredLayoutScope) => void;
+  /** Returns true when the user accepts discarding unsaved layout changes. */
+  confirmDiscard?: (message: string) => boolean;
   onError?: (message: string) => void;
 };
 
@@ -234,6 +286,9 @@ export function renderLayoutSelectorMarkup(options: {
   previewScope: StoredLayoutScope | null;
   canSave: boolean;
   saveReason?: string;
+  dirty?: boolean;
+  canDelete?: boolean;
+  deleteReason?: string;
   entries: LayoutCatalogEntry[];
   loaded: boolean;
   error: string | null;
@@ -268,6 +323,12 @@ export function renderLayoutSelectorMarkup(options: {
   const previewMarkup = previewing
     ? `<span class="cp-layout-state" data-layout-state="preview">${escapeHtml(t(locale, "Preview — not saved", "پیش‌نمایش — ذخیره نشده"))}</span>`
     : "";
+  const dirtyMarkup = options.dirty && !previewing
+    ? `<span class="cp-layout-state" data-layout-state="dirty">${escapeHtml(t(locale, "Unsaved changes", "تغییرات ذخیره‌نشده"))}</span>`
+    : "";
+  const deleteDisabled = !options.canDelete;
+  const deleteReason = options.deleteReason
+    ?? t(locale, "The layout service does not support deleting a stored layout yet", "سرویس چیدمان هنوز حذف چیدمان ذخیره‌شده را پشتیبانی نمی‌کند");
   return `<div class="cp-layout-selector" role="group" aria-label="${escapeHtml(t(locale, "Layout", "چیدمان"))}" data-layout-selector data-preview="${previewing ? "true" : "false"}">
     <span class="cp-layout-selector-key">${escapeHtml(t(locale, "Layout", "چیدمان"))}</span>
     <button type="button" class="cp-layout-selector-trigger" data-layout-trigger aria-haspopup="menu" aria-expanded="false" ${disabled ? "disabled" : ""} title="${escapeHtml(
@@ -277,7 +338,7 @@ export function renderLayoutSelectorMarkup(options: {
       <span class="cp-layout-selector-scope" data-layout-scope>${escapeHtml(layoutScopeLabel(scope, locale))} · r${revision}</span>
       <span class="cp-layout-selector-caret" aria-hidden="true">▾</span>
     </button>
-    ${previewMarkup}
+    ${previewMarkup}${dirtyMarkup}
     <div class="cp-layout-menu" data-layout-menu role="menu" hidden aria-label="${escapeHtml(t(locale, "Available layouts", "چیدمان‌های در دسترس"))}">
       <div class="cp-layout-menu-heading">${escapeHtml(t(locale, "Stored layouts for this project", "چیدمان‌های ذخیره‌شدهٔ این پروژه"))}</div>
       ${loadingMarkup}${emptyMarkup}${optionMarkup}
@@ -288,6 +349,9 @@ export function renderLayoutSelectorMarkup(options: {
         <button type="button" data-layout-action="save" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Write this layout to the server", "نوشتن این چیدمان روی سرور") : saveReason)}">${escapeHtml(t(locale, "Save", "ذخیره"))}</button>
         <button type="button" data-layout-action="save-as" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Save a copy under its own layout name", "ذخیرهٔ نسخه‌ای با نام چیدمان خودش") : saveReason)}">${escapeHtml(t(locale, "Save As…", "ذخیره با نام…"))}</button>
         <button type="button" data-layout-action="rename" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Rename this stored layout", "تغییر نام این چیدمان ذخیره‌شده") : saveReason)}">${escapeHtml(t(locale, "Rename…", "تغییر نام…"))}</button>
+        <button type="button" data-layout-action="new" ${canSave ? "" : "disabled"} title="${escapeHtml(canSave ? t(locale, "Create a new layout from the canonical default columns", "ساخت چیدمان تازه از ستون‌های پیش‌فرض") : saveReason)}">${escapeHtml(t(locale, "New…", "تازه…"))}</button>
+        <button type="button" data-layout-action="reset-default" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Reset the window to the canonical default layout", "بازنشانی پنجره به چیدمان پیش‌فرض") : saveReason)}">${escapeHtml(t(locale, "Reset to Default", "بازنشانی به پیش‌فرض"))}</button>
+        <button type="button" data-layout-action="delete" ${deleteDisabled ? "disabled" : ""} title="${escapeHtml(deleteDisabled ? deleteReason : t(locale, "Delete this stored layout", "حذف این چیدمان ذخیره‌شده"))}">${escapeHtml(t(locale, "Delete…", "حذف…"))}</button>
         <button type="button" data-layout-action="export" ${current ? "" : "disabled"} title="${escapeHtml(t(locale, "Download this layout as a file", "بارگیری این چیدمان به‌صورت پرونده"))}">${escapeHtml(t(locale, "Export…", "برون‌بری…"))}</button>
         <button type="button" data-layout-action="import" ${saveDisabled ? "disabled" : ""} title="${escapeHtml(canSave && current ? t(locale, "Save an exported layout file into the user scope", "ذخیرهٔ پروندهٔ چیدمان برون‌بری‌شده در دامنهٔ کاربر") : saveReason)}">${escapeHtml(t(locale, "Import…", "درون‌ریزی…"))}</button>
         <input type="file" accept="application/json,.json" data-layout-import hidden aria-hidden="true" tabindex="-1">
@@ -325,6 +389,9 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
       previewScope: options.previewScope,
       canSave: options.canSave,
       saveReason: options.saveReason,
+      dirty: options.dirty,
+      canDelete: options.canDelete,
+      deleteReason: options.deleteReason,
       entries,
       loaded,
       error,
@@ -344,6 +411,16 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
     const menu = host.querySelector<HTMLElement>("[data-layout-menu]");
     if (menu) menu.hidden = true;
     if (trigger) trigger.setAttribute("aria-expanded", "false");
+  };
+
+  const confirmDiscard = (): boolean => {
+    if (!options.dirty) return true;
+    const message = translateWorkspaceUiText(
+      options.locale,
+      "This layout has changes that are not saved. Discard them?",
+      "این چیدمان تغییرات ذخیره‌نشده دارد. آن‌ها دور ریخته شوند؟",
+    );
+    return options.confirmDiscard ? options.confirmDiscard(message) : window.confirm(message);
   };
 
   const openMenu = async (): Promise<void> => {
@@ -383,6 +460,10 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
       const scope = option.dataset.layoutOption as StoredLayoutScope | undefined;
       const entry = entries.find((item) => item.scope === scope);
       if (entry) {
+        if (!confirmDiscard()) {
+          closeMenu();
+          return;
+        }
         closeMenu();
         options.onPreview(entry);
       }
@@ -410,11 +491,27 @@ export function mountWorkspaceLayoutSelector(host: HTMLElement, options: LayoutS
       );
       const trimmed = name?.trim();
       if (trimmed && trimmed !== suggested) options.onRename(trimmed);
+    } else if (action === "new") {
+      if (!confirmDiscard()) return;
+      const name = window.prompt(
+        translateWorkspaceUiText(options.locale, "Name for the new layout", "نام چیدمان تازه"),
+        translateWorkspaceUiText(options.locale, "New layout", "چیدمان تازه"),
+      );
+      const trimmed = name?.trim();
+      if (trimmed) options.onNew(trimmed);
+    } else if (action === "reset-default") {
+      if (!confirmDiscard()) return;
+      options.onResetDefault();
+    } else if (action === "delete") {
+      options.onDelete?.();
     } else if (action === "export") {
       options.onExport();
     } else if (action === "import") {
       host.querySelector<HTMLInputElement>("[data-layout-import]")?.click();
-    } else if (action === "reload") options.onReload(currentScope(options.current));
+    } else if (action === "reload") {
+      if (!confirmDiscard()) return;
+      options.onReload(currentScope(options.current));
+    }
   });
 
   host.addEventListener("change", (event) => {

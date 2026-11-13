@@ -88,6 +88,7 @@ import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
 import {
   LAYOUT_SELECTION_STORAGE_PREFIX,
   layoutDisplayName,
+  layoutHasUnsavedChanges,
   loadLayoutCatalog,
   mountWorkspaceLayoutSelector,
   parseLayoutDocument,
@@ -1477,7 +1478,11 @@ function renderApp(
       }
       case "layout.open":
         activateWindow("schedule");
-        openColumnsDialog();
+        // "Open Layout" opens the stored-layout chooser, not the Columns
+        // dialog: the chooser previews, applies, saves and cancels revisions.
+        window.setTimeout(() => {
+          container.querySelector<HTMLElement>("[data-layout-trigger]")?.click();
+        }, 0);
         return;
       case "layout.save":
         void saveCurrentLayout();
@@ -1487,7 +1492,7 @@ function renderApp(
           translateWorkspaceUiText(state.locale, "Name for the saved layout", "نام چیدمان ذخیره‌شده"),
           state.p6Layout?.metadata?.layoutName ? String(state.p6Layout.metadata.layoutName) : "",
         );
-        if (name && name.trim()) void saveCurrentLayout(name.trim());
+        if (name && name.trim()) void saveLayoutAs(name.trim());
         return;
       }
       case "view.zoom-in":
@@ -1996,8 +2001,103 @@ function renderApp(
     }
   };
 
-  const reloadStoredLayout = async (scope: StoredLayoutScope): Promise<void> => {
-    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+  /**
+   * Creates the user's own Activity layout from the canonical default column
+   * set. The layout service keeps one user document per view, so creating a
+   * new one replaces the previous user layout after confirming that loss; the
+   * shared project layout is never touched.
+   */
+  const newLayoutFromDefault = async (name: string): Promise<void> => {
+    const snapshot = currentWorkspaceState ?? state;
+    const registry = snapshot.p6FieldRegistry;
+    const base = snapshot.p6Layout;
+    if (!registry || !base) return;
+    try {
+      const [defaults, catalog] = await Promise.all([
+        loadP6DefaultLayout(aiTransport, snapshot.context, "user", base.view_id),
+        loadLayoutCatalog(aiTransport, snapshot.context, base.view_id),
+      ]);
+      if (!defaults) throw new Error("P6_LAYOUT_DEFAULT_NOT_DEFINED");
+      const existing = catalog.user;
+      if (existing && !window.confirm(translateWorkspaceUiText(
+        snapshot.locale,
+        `The user layout “${layoutDisplayName(existing, snapshot.locale)}” will be replaced. Continue?`,
+        `چیدمان کاربری «${layoutDisplayName(existing, snapshot.locale)}» جایگزین می‌شود. ادامه می‌دهید؟`,
+      ))) return;
+      const saved = await persistence.save(withCollapsedWbsMetadata(withGroupSortMetadata({
+        ...defaults,
+        scope: "user",
+        view_id: base.view_id,
+        revision: existing ? existing.revision + 1 : 0,
+        metadata: {
+          ...(defaults.metadata ?? {}),
+          layoutName: name,
+          presentation: visualPreferences.presentation,
+          presentationUpdatedAt: visualPreferences.updatedAt,
+        },
+      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()), getCollapsedWbsIds(snapshot.context.project_id)));
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(snapshot.context, saved);
+      renderApp(container, setP6Presentation(currentWorkspaceState ?? state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  /**
+   * Restores the canonical default column set, presentation and group/sort plan
+   * into the user layout scope. Reset never rewrites the shared project layout;
+   * the existing user layout name is kept so the user can recognise the result.
+   */
+  const resetLayoutToDefault = async (): Promise<void> => {
+    const snapshot = currentWorkspaceState ?? state;
+    const registry = snapshot.p6FieldRegistry;
+    const base = snapshot.p6Layout;
+    if (!registry || !base) return;
+    try {
+      const [defaults, catalog] = await Promise.all([
+        loadP6DefaultLayout(aiTransport, snapshot.context, "user", base.view_id),
+        loadLayoutCatalog(aiTransport, snapshot.context, base.view_id),
+      ]);
+      if (!defaults) throw new Error("P6_LAYOUT_DEFAULT_NOT_DEFINED");
+      const existing = catalog.user;
+      const storedName = existing && typeof existing.metadata?.layoutName === "string"
+        ? existing.metadata.layoutName.trim()
+        : "";
+      const savedAt = Date.now();
+      const presentation = normalizePresentation(undefined);
+      const saved = await persistence.save(withCollapsedWbsMetadata(withGroupSortMetadata({
+        ...defaults,
+        scope: "user",
+        view_id: base.view_id,
+        revision: existing ? existing.revision + 1 : 0,
+        metadata: {
+          ...(defaults.metadata ?? {}),
+          layoutName: storedName || layoutDisplayName(base, snapshot.locale),
+          presentation,
+          presentationUpdatedAt: savedAt,
+        },
+      }, "wbs", [{ columnId: "wbs", direction: "asc" }], savedAt), new Set<string>()));
+      rememberVisualPreferences({
+        density: visualPreferences.density,
+        presentation,
+        updatedAt: savedAt,
+      });
+      layoutPreviewBase = null;
+      layoutPreviewScope = null;
+      layoutPreviewContextKey = null;
+      rememberStoredLayoutSelection(snapshot.context, saved);
+      let next = setActivityGroupBy(currentWorkspaceState ?? state, "wbs");
+      next = setActivitySortLevels(next, [{ columnId: "wbs", direction: "asc" }]);
+      renderApp(container, setP6Presentation(next, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const reloadStoredLayout = async (scope: StoredLayoutScope): Promise<void> => {    const base = currentWorkspaceState?.p6Layout ?? state.p6Layout;
     const registry = currentWorkspaceState?.p6FieldRegistry ?? state.p6FieldRegistry;
     if (!base || !registry) return;
     try {
@@ -2724,6 +2824,14 @@ function renderApp(
   }
   const layoutSelectorHost = workspace.querySelector<HTMLElement>("[data-layout-selector-host]");
   if (layoutSelectorHost && state.activeMenu === "schedule") {
+    // Group/sort and presentation edits stay local until Save, so the selector
+    // reports them instead of claiming the stored revision already contains them.
+    const layoutDirty = layoutPreviewScope === null && layoutHasUnsavedChanges({
+      layout: state.p6Layout,
+      groupBy: state.activityGroupBy,
+      sortLevels: state.activitySortLevels,
+      presentation: visualPreferences.presentation,
+    });
     mountWorkspaceLayoutSelector(layoutSelectorHost, {
       locale: state.locale,
       current: state.p6Layout,
@@ -2731,6 +2839,16 @@ function renderApp(
       // The default policy grants layout writes (PROJECT_WRITE) to these roles
       // and to none else, so the control mirrors the server gate.
       canSave: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      dirty: layoutDirty,
+      // Delete needs a layout-service route that does not exist yet; the button
+      // states that truthfully instead of pretending a removal happened.
+      canDelete: false,
+      deleteReason: translateWorkspaceUiText(
+        state.locale,
+        "Deleting a stored layout needs a layout-service delete endpoint; it is not available yet.",
+        "حذف چیدمان ذخیره‌شده به نقطهٔ پایانی حذف در سرویس چیدمان نیاز دارد؛ هنوز در دسترس نیست.",
+      ),
+      confirmDiscard: (message) => window.confirm(message),
       loadCatalog: () => loadLayoutCatalog(aiTransport, state.context, "activity"),
       onPreview: (entry) => {
         if (!state.p6FieldRegistry) return;
@@ -2767,6 +2885,12 @@ function renderApp(
       },
       onRename: (name) => {
         void saveCurrentLayout(name);
+      },
+      onNew: (name) => {
+        void newLayoutFromDefault(name);
+      },
+      onResetDefault: () => {
+        void resetLayoutToDefault();
       },
       onExport: exportCurrentLayout,
       onImport: (text) => {

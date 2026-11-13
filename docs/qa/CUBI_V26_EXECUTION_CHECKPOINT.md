@@ -3401,3 +3401,44 @@ interaction writes only validate/create/layout, screenshots 01–10,
 Evidence: `docs/workspace/evidence/activity-columns-v26-2026-11-13/`
 (`activity-columns-v26.json`, 11/11 scenarios, 0 exceptions/console errors/5xx,
 screenshots 01–12, `CHECKLIST.md`).
+
+## Activities saved-layout lifecycle — WS-007 completion (2026-11-13)
+
+- **Scope.** WS-007 is WIRED_WRITE for the Activities layout selector; Delete is
+  **BLOCKED_EXTERNAL** (no layout delete route). Help topics:
+  `customizingactivitylayouts.htm`, `open_a_layout.htm`,
+  `create_a_new_activity_layout.htm`,
+  `save_a_layout_in_the_activities_or_rsrc_assignments_window.htm`,
+  `delete_a_layout.htm`.
+- **Behaviour.** `apps/web/src/workspace-layout-selector.ts` now exposes
+  New, Reset to Default and Delete beside Open/Apply/Cancel/Save/Save As/
+  Rename/Export/Import/Reload. `layoutHasUnsavedChanges` compares the window's
+  group mode, ordered sort levels and presentation with the stored
+  `groupSort`/`presentation` metadata (a revision without a plan is compared
+  with the Activities defaults). The selector renders an `Unsaved changes` chip
+  and asks `confirmDiscard` before previewing another layout, Reload, New or
+  Reset. `layout.open` opens this chooser rather than the Columns dialog.
+- **Persistence.** New reads `GET /p6/layouts/user/activity/default` and writes
+  the canonical default columns to the user scope under the prompted name;
+  Reset to Default writes default columns, `normalizePresentation(undefined)`
+  and the `wbs`/`wbs asc` plan to the user scope while keeping the stored name.
+  Both append a revision through `createP6LayoutPersistence`; the project
+  layout is never rewritten. Delete is disabled with the truthful reason and
+  the contract request `docs/workspace/architecture/p6-layout-lifecycle-contract-request.md`
+  (`p6-layout-lifecycle-api.v1`).
+- **Permissions.** New/Reset/Save/Save As/Rename/Import require Planner or
+  Project administrator (`PROJECT_WRITE`); Viewer sees every write disabled
+  with `Your role cannot save layouts` and opening the menu appends nothing.
+- **Preserved.** Preview/Apply/Cancel, Save, Save As, Rename, Export/Import,
+  revision-conflict recovery (`REVISION_CONFLICT` /
+  `IMMUTABLE_LAYOUT_REVISION` reload the authoritative head) and per-user,
+  per-project reload restoration are unchanged.
+- **Known limits.** The service keeps one user document per project/view, so
+  New/Save As/Import replace that slot (New confirms replacement); there is no
+  named layout collection. Dirty state covers group/sort and presentation only
+  because column edits append immediately. Resource Assignments/Tracking
+  layouts remain out of scope.
+
+Evidence: `docs/workspace/evidence/layout-selector-v26-2026-11-13/`
+(`layout-selector-v26.json`, 15/15 scenarios, 0 exceptions/console errors/5xx,
+screenshots 01–18, `CHECKLIST.md`).
