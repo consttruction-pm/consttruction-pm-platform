@@ -36,6 +36,7 @@ Content version inserts use `INSERT ... ON CONFLICT DO NOTHING` and then resolve
 - SQLite `tests/test_database_migration_parity.py`: fresh install of all audited stores, double `initialize()`, row preservation, a pre-scan `project_document_content` JSON row upgraded to `unscanned` defaults, creation of the new OCR/retention tables, and index creation after a simulated legacy database.
 - Live PostgreSQL `tests/integration/test_database_parity_postgres_live.py`: the same upgrade path in a disposable schema, double `initialize()`, preserved legacy exchange runs and content JSON, plus the parity catalog comparison.
 - Existing store-specific tests cover the report parameter and report-schedule column additions on SQLite.
+- Live PostgreSQL `tests/integration/test_report_postgres_live.py` covers the PostgreSQL report definition/run and schedule stores: idempotency, revisions, append-only audit, immutable runs, CRUD, two-thread claim exclusivity, lease reclaim, failure backoff, rollback and an explicit SQLite/PostgreSQL output parity check.
 
 ## Concurrency invariants
 
@@ -56,6 +57,8 @@ python -m pytest tests/integration -q   # second run, same database
 
 `tests/integration/test_postgres_atomic_conflict_live.py` already generates a per-process `RUN_ID`, so fixed-key collisions between runs are gone.
 
-## Known limitation
+## Report store parity
 
-The report definition/run store and the report-schedule store remain SQLite-only in the preview runtime. They are additive-schema migrated and tested on SQLite, but no PostgreSQL twin exists yet, so this contract does not claim report parity. Adding those twins is tracked as the next parity slice; it is not described as complete here.
+`PostgresReportStore` and `PostgresReportScheduleStore` are behavioral twins of the SQLite stores. They use `%s` placeholders, `TEXT` timestamps and JSON columns, never commit implicitly, and create their schema additively with `CREATE TABLE/INDEX IF NOT EXISTS` plus `information_schema`-guarded `ADD COLUMN` upgrades. Definition and schedule writes use conditional `UPDATE`/`DELETE ... WHERE revision = expected` so a competing writer receives the same revision-conflict code instead of a lost update. Lease claims use a conditional `UPDATE` on `claim_token`/`claimed_until`; `complete`/`fail` verify the token, and `commit_claim()` makes the lease durable before execution.
+
+The preview runtime (`preview/runtime.py`) still composes SQLite stores for its in-process demo. A production PostgreSQL runtime must select the PostgreSQL twins explicitly; this contract does not claim that composition is wired.
