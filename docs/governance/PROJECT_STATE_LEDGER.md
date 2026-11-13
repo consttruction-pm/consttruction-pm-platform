@@ -4,6 +4,41 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 final handoff inventory — Issue #1799 — 2026-11-13
+
+### Preservation status
+
+- **Merged `main`:** `b70a37b` (PR #1886). Working tree of `/data/agent3-1799` is clean; there are **no uncommitted or unpushed changes**.
+- **Local branches:** every local Agent 3 branch tip equals the head SHA of a **merged** PR (verified by comparing `git rev-parse` with each PR's `headRefOid`). No Agent 3 PR is open. Nothing unpublished exists in this worktree or in `/data/repo` (clean at `be13bbd`, PR #1795 merged as `d0c780c`).
+- **Secondary artifact:** `/data/artifacts/AGENT3_EXECUTION_SUMMARY.md` and `agent3-core-branch.patch` are a superseded 2026-11-12 snapshot; the branch they describe was later pushed and merged (PR #1795). They are not current truth and are not copied into the repository.
+
+### Merged slices delivered for Issue #1799 (this continuation)
+
+| PR | Merge SHA | Head branch | Scope |
+| --- | --- | --- | --- |
+| #1886 | `b70a37b` | `docs/agent3-sec015-ledger` | SEC-015 docs, SEC-006 status correction, checkpoint |
+| #1885 | `67dd5ed` | `fix/agent3-session-response-credential` | SEC-015: `/api/session` stops echoing the session credential |
+| #1883 | `02ae807` | `docs/agent3-security-batch-ledger` | register + checkpoint for the hardening batch |
+| #1882 | `8581697` | `fix/agent3-security-hardening-batch` | SEC-008/009/011/014/021/022/024 |
+| #1881 | `59bd98b` | `docs/agent3-sec006-ledger` | SEC-006 and independent-review checkpoint |
+| #1880 | `cdc9999` | `fix/agent3-sec006-retention-shared-bytes` | SEC-006 retention shared-object fix |
+
+Earlier merged slices for this issue are recorded in the per-workstream checkpoints below (Workstreams A–E, PRs #1824, #1843–#1878); all are on `main`.
+
+### Implemented / tested / merged / production status
+
+- **Implemented and merged:** Workstreams A (PostgreSQL report register and schedules), B (object-storage reconciliation), C (metrics export), D (backend security review plus SEC-001…SEC-006, SEC-008, SEC-009, SEC-011, SEC-014, SEC-015, SEC-021, SEC-022, SEC-024 fixed), E (external integration readiness).
+- **Locally tested and PostgreSQL tested:** every slice above; the latest full runs are 4074 passed / 176 skipped (SQLite) and 4305 passed / 1 skipped twice on PostgreSQL 16.2 against the same database, at Python 3.12.13 with `psycopg` 3.3.9.
+- **Production verified:** **none.** No production deployment, bucket, proxy, session store, scanner endpoint or metrics target was configured or exercised. No production environment claim is made anywhere in this ledger.
+- **Partially completed implementations:** none in the tree. All code that was started for this issue is either merged or explicitly recorded below as deferred.
+- **Known defects / open findings (tracked, not hidden):** SEC-007 (legal-hold/disposition permission level), SEC-010 (unscoped/unbounded metadata loads), SEC-012 (client-supplied `storage_ref`), SEC-013 (reconciliation ignores document-record-only references), SEC-016 (LIKE escaping), SEC-017 (exception text as response code), SEC-018 (`error_dto` catch-alls), SEC-019 (AI self-approval), SEC-020 (knowledge ingestion redirects), SEC-023 (anonymous readiness detail), SEC-025 (single-tool-name AI authorization, unused). Details and required negative tests are in `docs/audits/BACKEND_SECURITY_REVIEW_2026-11-13.md`.
+
+### External blockers and remaining work
+
+- **Workstream F (V26 reference parity):** blocked externally — no `toc.htm`, pro-user `index.html` or `user.html` was mounted, so no parity was implemented or claimed.
+- **Runtime and production gates:** DAST/fuzzing, dependency CVE scanning, penetration testing, production configuration and deployment-authentication review remain open.
+- **Exact next recommended task:** implement **SEC-007** — require an administrative project permission (not `PROJECT_WRITE`) for legal-hold changes and irreversible disposition, with a negative test showing a planner receives `403 DOCUMENT_AUTHORIZATION_REQUIRED` for both operations, coordinating the permission name with the Agent 1 UI before changing the contract. After that, **SEC-013** (include document-record storage references in the reconciliation snapshot via a cross-scope document listing).
+
 ## Final work handoff and preservation inventory — 2026-11-13 (handoff; no feature scope)
 
 - **Handoff base:** origin/main fetched and verified at **`b70a37bd`** (`docs(security): record SEC-015 fix and checkpoint (#1799) (#1886)`); local main was fast-forwarded from `6ada3daa` with no conflict and no history rewrite. Working tree clean, no stashes, one worktree (`/data/work/repo`). No file, branch or commit was reset, discarded, overwritten or force-pushed during this handoff.
