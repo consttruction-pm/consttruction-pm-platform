@@ -1,10 +1,12 @@
 import type {
   WorkspaceActivityGroupBy,
+  WorkspaceActivityGroupLevel,
   WorkspaceActivityRow,
   WorkspaceActivitySort,
   WorkspaceCellValue,
   WorkspaceWbsNode,
 } from "./workspace-model.js";
+import { groupFieldAliases } from "./workspace-grouping.js";
 
 function cellValue(activity: WorkspaceActivityRow, columnId: string): WorkspaceCellValue {
   if (columnId === "activity_id") return activity.id;
@@ -40,6 +42,7 @@ export function filterAndSortActivities(
   groupBy: WorkspaceActivityGroupBy = "none",
   wbsNodes: readonly WorkspaceWbsNode[] = [],
   sortLevels: readonly WorkspaceActivitySort[] = [],
+  groupLevels: readonly WorkspaceActivityGroupLevel[] = [],
 ): readonly WorkspaceActivityRow[] {
   const tokens = filterText
     .trim()
@@ -55,9 +58,21 @@ export function filterAndSortActivities(
     });
   }
 
-  const levels = sortLevels.length > 0 ? sortLevels : sort ? [sort] : [];
   const wbsOrder = buildWbsOrder(wbsNodes);
   const wbsRanks = new Map(wbsOrder.map((id, index) => [id, index] as const));
+
+  if (groupLevels.length > 0) {
+    // The display builder owns group adjacency, so the sort plan only orders
+    // activities inside the innermost band. Fields that already group are
+    // removed: comparing them again cannot change their band's membership.
+    const grouped = new Set(groupLevels.flatMap((level) => groupFieldAliases(level.fieldId)));
+    const memberLevels = (sortLevels.length > 0 ? sortLevels : sort ? [sort] : [])
+      .filter((level) => !grouped.has(level.columnId));
+    if (memberLevels.length === 0) return rows;
+    return [...rows].sort((left, right) => compareRowsByLevels(left, right, memberLevels, wbsRanks));
+  }
+
+  const levels = sortLevels.length > 0 ? sortLevels : sort ? [sort] : [];
 
   if (groupBy === "wbs") {
     const groups = new Map<string, WorkspaceActivityRow[]>();

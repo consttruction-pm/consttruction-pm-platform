@@ -145,6 +145,8 @@ export function writeLayoutSelection(
 export type LayoutViewSnapshot = {
   layout: LayoutDefinition | null;
   groupBy: "wbs" | "none";
+  /** Ordered group plan; when omitted it is derived from ``groupBy``. */
+  groupLevels?: readonly { fieldId: string; direction: "asc" | "desc" }[];
   sortLevels: readonly { columnId: string; direction: "asc" | "desc" }[];
   presentation: unknown;
 };
@@ -164,9 +166,18 @@ export function layoutHasUnsavedChanges(view: LayoutViewSnapshot): boolean {
   if (!layout) return false;
   const saved = readGroupSortMetadata(layout.metadata) ?? {
     groupBy: "wbs" as const,
+    groupLevels: [{ fieldId: "wbs", direction: "asc" as const }],
     sortLevels: [{ columnId: "wbs", direction: "asc" as const }],
   };
   if (saved.groupBy !== view.groupBy) return true;
+  const currentLevels = view.groupLevels
+    ?? (view.groupBy === "wbs" ? [{ fieldId: "wbs", direction: "asc" as const }] : []);
+  if (saved.groupLevels.length !== currentLevels.length) return true;
+  for (let index = 0; index < saved.groupLevels.length; index += 1) {
+    const stored = saved.groupLevels[index];
+    const current = currentLevels[index];
+    if (!current || stored.fieldId !== current.fieldId || stored.direction !== current.direction) return true;
+  }
   if (saved.sortLevels.length !== view.sortLevels.length) return true;
   for (let index = 0; index < saved.sortLevels.length; index += 1) {
     const stored = saved.sortLevels[index];

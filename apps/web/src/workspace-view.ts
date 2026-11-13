@@ -1,4 +1,4 @@
-import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
+import type { WorkspaceActivityGroupLevel, WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
 import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
@@ -16,13 +16,21 @@ import {
   collapseToWbsIds,
   collectWbsGroupIds,
   getCollapsedWbsIds,
+  isWorkspaceBandRow,
   setCollapsedWbsIds,
   toggleCollapsedWbs,
   wbsNodeDepths,
   type WbsTreeGuide,
   type WorkspaceDisplayRow,
+  type WorkspaceFieldGroupRow,
   type WorkspaceWbsGroupRow,
 } from "./workspace-wbs-display.js";
+import {
+  WORKSPACE_GROUP_FIELDS,
+  groupFieldLabel,
+  isWorkspaceGroupFieldId,
+  type WorkspaceGroupField,
+} from "./workspace-grouping.js";
 import { formatWorkspaceCalendarDate } from "./workspace-calendar-display.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
 import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiText } from "./workspace-localization.js";
@@ -981,7 +989,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1259,6 +1267,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       rerenderWorkspaceRows(container);
       return;
     }
+    if (target.dataset.bandToggle) {
+      const projectId = state.context.project_id;
+      toggleCollapsedWbs(projectId, target.dataset.bandToggle);
+      rerenderWorkspaceRows(container);
+      return;
+    }
     if (target.dataset.wbsExpandAll !== undefined) {
       setCollapsedWbsIds(state.context.project_id, []);
       rerenderWorkspaceRows(container);
@@ -1529,7 +1543,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const record = workspaceRenderRecords.get(container);
       if (!record) return;
       const value = (element as HTMLSelectElement).value;
-      if (value === "wbs" || value === "none") record.options.onActivityGroupByChange?.(value);
+      const direction = record.state.activityGroupLevels[0]?.direction ?? "asc";
+      // The toolbar is the single-level shortcut; the Group and Sort dialog
+      // owns multi-level plans and persists them with the layout.
+      if (value === "none") record.options.onActivityGroupLevelsChange?.([]);
+      else if (value === "wbs") record.options.onActivityGroupLevelsChange?.([{ fieldId: "wbs", direction }]);
+      else if (isWorkspaceGroupFieldId(value)) record.options.onActivityGroupLevelsChange?.([{ fieldId: value, direction }]);
       return;
     }
     const isSortSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activitySort");
@@ -2097,7 +2116,7 @@ function renderWbsChart(
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
-  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.activitySortLevels === next.activitySortLevels && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
+  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activityGroupLevels === next.activityGroupLevels && previous.activitySort === next.activitySort && previous.activitySortLevels === next.activitySortLevels && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
 
 function usagePrefs(state: WorkspaceState) {
@@ -2339,6 +2358,8 @@ export type WorkspaceRendererOptions = {
   /** Sets both the sort column and direction in one state transition. */
   onActivitySortSet?: (columnId: string, direction: "asc" | "desc") => void;
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
+  /** Ordered group plan from the toolbar or the Group and Sort dialog. */
+  onActivityGroupLevelsChange?: (levels: readonly WorkspaceActivityGroupLevel[]) => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
   /** Adds every available registry field in one layout transition. */
@@ -2398,6 +2419,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activityGroupBy,
     state.wbsNodes,
     state.activitySortLevels,
+    state.activityGroupLevels,
   );
   // An active filter always reveals matching descendants; collapse is a view
   // preference for browsing the unfiltered schedule, never a way to hide hits.
@@ -2409,8 +2431,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.wbsNodes,
     state.activityGroupBy,
     collapsedWbsIds,
+    state.activityGroupLevels,
+    state.locale,
   );
-  const groupRows = displayRows.filter((row): row is WorkspaceWbsGroupRow => row.kind === "wbs");
+  const groupRows = displayRows.filter(isWorkspaceBandRow);
   const treeColumnId = state.columns.find((column) => column.id === "activity_id" || column.id === "activity.id")?.id
     ?? state.columns.find((column) => column.id === "activity_name" || column.id === "activity.name")?.id
     ?? state.columns[0]?.id
@@ -2442,6 +2466,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   let activityLineNumber = 0;
   const activityRowMarkup = displayRows.map((row, index) => {
     if (row.kind === "wbs") return renderWbsGroupRow(row, state, stickyOffsets, presentation, t, treeGuides[index]);
+    if (row.kind === "fieldGroup") return renderFieldGroupRow(row, state, stickyOffsets, presentation, t, treeGuides[index]);
     activityLineNumber += 1;
     return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId, treeGuides[index]);
   }).join("");
@@ -3663,8 +3688,10 @@ function renderActivityFilterSort(
     <label class="cp-activity-group">
       <span>${escapeHtml(t.groupBy)}</span>
       <select data-activity-group aria-label="${escapeAttribute(t.groupBy)}">
-        <option value="wbs"${state.activityGroupBy === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>
-        <option value="none"${state.activityGroupBy === "none" ? " selected" : ""}>${escapeHtml(t.groupNone)}</option>
+        <option value="none"${state.activityGroupLevels.length === 0 ? " selected" : ""}>${escapeHtml(t.groupNone)}</option>
+        <option value="wbs"${state.activityGroupLevels[0]?.fieldId === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>
+        ${WORKSPACE_GROUP_FIELDS.filter((field) => field.id !== "wbs").map((field) =>
+          `<option value="${escapeAttribute(field.id)}"${state.activityGroupLevels[0]?.fieldId === field.id ? " selected" : ""}>${escapeHtml(groupFieldLabel(field.id, state.locale))}</option>`).join("")}
       </select>
     </label>
     <label class="cp-activity-sort">
@@ -3909,6 +3936,83 @@ function renderActivityRow(
   return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" data-wbs-depth="${indentDepth}" data-wbs-level="${Math.min(6, guide.depth + 1)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
 }
 
+/**
+ * A band produced by a non-WBS group level (for example Activity Status). It
+ * carries the same derived rollups as a WBS band and its own collapse toggle;
+ * the band never changes the activity rows it contains.
+ */
+function renderFieldGroupRow(
+  row: WorkspaceFieldGroupRow,
+  state: WorkspaceState,
+  stickyOffsets: ReadonlyMap<string, number>,
+  presentation: WorkspacePresentation,
+  t: WorkspaceLabels,
+  guide: WbsTreeGuide,
+): string {
+  const nameColumnId = state.columns.find((column) => column.id === "activity_name" || column.id === "activity.name")?.id ?? null;
+  const treeColumnId = state.columns.find((column) => column.id === "activity_id" || column.id === "activity.id")?.id
+    ?? nameColumnId
+    ?? state.columns[0]?.id
+    ?? null;
+  const formatMs = (ms: number): string =>
+    formatWorkspaceCalendarDate(new Date(ms).toISOString().slice(0, 10), state.calendarMode);
+  const rollupTitle = uiText(
+    state.locale,
+    `Derived for display from ${row.summary.activityCount} persisted child activities`,
+    `برای نمایش از ${row.summary.activityCount} فعالیت فرزند ذخیره‌شده محاسبه شده است`,
+  );
+  const fieldLabel = groupFieldLabel(row.fieldId, state.locale);
+  const count = row.summary.activityCount;
+  const toggleTitle = row.collapsed
+    ? uiText(state.locale, "Expand group", "بازکردن گروه")
+    : uiText(state.locale, "Collapse group", "بستن گروه");
+  // The toggle stays in the tree column so it lines up with the hierarchy
+  // spine; the value and its count sit in the name column, where the band has
+  // room to show a long status or code without clipping.
+  const toggleMarkup = `<button type="button" class="cp-p6-wbs-toggle" data-band-toggle="${escapeAttribute(row.bandKey)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(toggleTitle)}">${row.collapsed ? "+" : "−"}</button>`;
+  const labelMarkup = `<span class="cp-p6-group-cell"><span class="cp-p6-group-label" data-group-field="${escapeAttribute(row.fieldId)}">${escapeHtml(row.label)}</span><span class="cp-p6-group-count" title="${escapeAttribute(uiText(state.locale, `${count} activities`, `${count} فعالیت`))}">(${count})</span></span>`;
+  const cells = state.columns.map((column) => {
+    const last = column.id.split(".").pop() ?? column.id;
+    const isStart = last === "start";
+    const isFinish = last === "finish";
+    const isDuration = last === "duration";
+    const isProgress = last === "progress" || last === "percent_complete" || last === "percentcomplete";
+    let content = "";
+    let derived = false;
+    const isTree = column.id === treeColumnId;
+    if (isTree) {
+      const inline = nameColumnId === column.id ? `${toggleMarkup}${labelMarkup}` : toggleMarkup;
+      content = treeCellMarkup(guide, presentation.wbs, inline, guide.depth);
+    } else if (column.id === nameColumnId) {
+      content = labelMarkup;
+    } else if (isStart && row.summary.startMs !== null) {
+      content = escapeHtml(formatMs(row.summary.startMs));
+      derived = true;
+    } else if (isFinish && row.summary.finishMs !== null) {
+      content = escapeHtml(formatMs(row.summary.finishMs));
+      derived = true;
+    } else if (isDuration && row.summary.duration !== null) {
+      content = escapeHtml(String(row.summary.duration));
+      derived = true;
+    } else if (isProgress && row.summary.progressPercent !== null) {
+      content = `${row.summary.progressPercent}%`;
+      derived = true;
+    }
+    return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}"${derived ? ` data-rollup="display" title="${escapeAttribute(rollupTitle)}"` : ""} class="cp-p6-column cp-p6-wbs-cell-td${isTree ? " cp-p6-tree-cell" : ""}${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
+  }).join("");
+  const lineNumberCell = presentation.table.lineNumbers ? `<td role="gridcell" class="cp-p6-line-number"></td>` : "";
+  const levelColor = wbsLevelColor(presentation.wbs, row.depth);
+  const levelInk = wbsBandInk(presentation.wbs, row.depth);
+  const bandStyle = [
+    `--cp-wbs-level:${levelColor}`,
+    `--cp-wbs-ink:${levelInk}`,
+    `--cp-wbs-font-family:${presentationFontFamily(presentation.wbs.fontFamily)}`,
+    `--cp-wbs-font-size:${presentation.wbs.fontSize}px`,
+    `--cp-wbs-row-height:${presentation.wbs.rowHeight}px`,
+  ].join(";");
+  return `<tr role="row" data-field-group-row="${escapeAttribute(row.bandKey)}" data-group-field="${escapeAttribute(row.fieldId)}" data-group-level="${row.level}" data-group-value="${escapeAttribute(row.valueKey)}" data-band-depth="${row.depth}" data-band-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${fieldLabel}: ${row.label}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band cp-p6-field-band${row.collapsed ? " is-collapsed" : ""}" style="${escapeAttribute(bandStyle)}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
+}
+
 /** A leaf activity belongs to the branch one level above its indent. */
 function branchLevel(guide: WbsTreeGuide): number {
   return guide.depth > 0 ? guide.depth - 1 : 0;
@@ -3953,7 +4057,7 @@ function renderWbsGroupRow(
       content = treeCellMarkup(
         guide,
         presentation.wbs,
-        `<span class="cp-p6-wbs-cell"><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.wbsId)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span>${titleMarkup}${codeMarkup}</span>`,
+        `<span class="cp-p6-wbs-cell"><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.bandKey)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span>${titleMarkup}${codeMarkup}</span>`,
         guide.depth,
       );
     } else if (column.id === "activity_name" || column.id === "activity.name") {
@@ -3983,7 +4087,7 @@ function renderWbsGroupRow(
     `--cp-wbs-font-size:${presentation.wbs.fontSize}px`,
     `--cp-wbs-row-height:${presentation.wbs.rowHeight}px`,
   ].join(";");
-  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band${row.collapsed ? " is-collapsed" : ""}" style="${escapeAttribute(bandStyle)}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
+  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-band-key="${escapeAttribute(row.bandKey)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band${row.collapsed ? " is-collapsed" : ""}" style="${escapeAttribute(bandStyle)}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
 }
 
 function activityTypeKind(activity: WorkspaceActivityRow): "milestone" | "summary" | "loe" | "task" {
@@ -4352,13 +4456,17 @@ function renderGanttRows(
 ): string {
   return rows.map((row, index) => {
     const next = rows[index + 1];
-    // The reference rules a dashed line only where a WBS branch finishes, not
+    // The reference rules a dashed line only where a group branch finishes, not
     // around every row, so branch extents read without a full row grid.
-    const groupEnd = !next || next.depth < row.depth || (row.kind === "wbs" && next.depth <= row.depth);
+    const groupEnd = !next || next.depth < row.depth || (isWorkspaceBandRow(row) && next.depth <= row.depth);
     const metric = rowMetrics[index];
-    return row.kind === "wbs"
-      ? renderGanttWbsRow(row, presentation, t, locale, scale, calendarMode, groupEnd, Math.max(14, (metric?.height ?? presentation.wbs.rowHeight) - 1))
-      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, metric?.height ?? rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds, showRelationships);
+    if (row.kind === "wbs") {
+      return renderGanttWbsRow(row, presentation, t, locale, scale, calendarMode, groupEnd, Math.max(14, (metric?.height ?? presentation.wbs.rowHeight) - 1));
+    }
+    if (row.kind === "fieldGroup") {
+      return renderGanttFieldGroupRow(row, presentation, locale, scale, calendarMode, groupEnd, Math.max(14, (metric?.height ?? presentation.wbs.rowHeight) - 1));
+    }
+    return renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, metric?.height ?? rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds, showRelationships);
   }).join("");
 }
 
@@ -4416,6 +4524,61 @@ function renderGanttWbsRow(
   // The group row uses the band height, so it stays level with the table band
   // even when the band typography needs a taller row.
   return `<div class="cp-gantt-row cp-gantt-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" tabindex="-1" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color};--cp-gantt-row-height:${rowHeight}px" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
+}
+
+function fieldGroupSummaryLabelText(field: GanttBarStyle["labelField"], row: WorkspaceFieldGroupRow, format: { calendarMode?: WorkspaceCalendarMode; locale?: string } = {}): string {
+  switch (field) {
+    case "activity-id":
+    case "activity-name": return row.label;
+    case "finish-id-name": {
+      const finish = row.summary.finishMs === null ? "" : new Date(row.summary.finishMs).toISOString().slice(0, 10);
+      return ganttFinishIdName(finish, "", row.label, format);
+    }
+    case "duration": return row.summary.duration === null ? "" : String(row.summary.duration);
+    case "progress": return row.summary.progressPercent === null ? "" : `${Math.round(row.summary.progressPercent)}%`;
+    default: return "";
+  }
+}
+
+/**
+ * Gantt summary row for a field-group band. Geometry, style and label come
+ * from the persisted Bar Styles summary style, exactly like a WBS band; only
+ * the identity text differs.
+ */
+function renderGanttFieldGroupRow(
+  row: WorkspaceFieldGroupRow,
+  presentation: WorkspacePresentation,
+  locale: string,
+  scale: GanttScale,
+  calendarMode: WorkspaceCalendarMode,
+  groupEnd: boolean,
+  rowHeight: number,
+): string {
+  const style = presentation.bars.summary;
+  const hasSpan = row.summary.startMs !== null && row.summary.finishMs !== null && row.summary.finishMs >= row.summary.startMs;
+  const geometry = style.visible && hasSpan ? ganttPercent(row.summary.startMs as number, row.summary.finishMs as number, scale) : null;
+  const fieldLabel = groupFieldLabel(row.fieldId, locale);
+  const title = `${fieldLabel}: ${row.label} — ` + (locale.toLowerCase().startsWith("fa")
+    ? `خلاصهٔ مشتق‌شده از ${row.summary.activityCount} فعالیت ذخیره‌شده`
+    : `summary derived from ${row.summary.activityCount} persisted activities`);
+  const height = Math.max(3, Math.min(24, style.height));
+  const endpoint = (shape: GanttBarStyle["startShape"], color: string, edge: "start" | "finish"): string =>
+    shape !== "none" && shape !== "bar"
+      ? `<span class="cp-gantt-endpoint is-${edge} is-${shape}" style="--cp-gantt-endpoint:${color}"></span>`
+      : "";
+  const caps = style.startShape === "bar" && style.finishShape === "bar"
+    ? `<span class="cp-gantt-summary-cap is-start" aria-hidden="true"></span><span class="cp-gantt-summary-cap is-finish" aria-hidden="true"></span>`
+    : `${endpoint(style.startShape, style.startColor, "start")}${endpoint(style.finishShape, style.finishColor, "finish")}`;
+  const labelText = fieldGroupSummaryLabelText(style.labelField, row, { calendarMode, locale });
+  const labelPosition = resolveGanttLabelPosition(style.labelPosition, geometry ?? { leftPercent: 0, widthPercent: 0 });
+  const label = labelText
+    ? `<span dir="ltr" class="cp-gantt-bar-label is-${labelPosition}" data-gantt-label-position="${labelPosition}">${escapeHtml(labelText)}</span>`
+    : "";
+  const bar = geometry
+    ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-field-band="${escapeAttribute(row.bandKey)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`
+    : "";
+  const color = wbsLevelColor(presentation.wbs, row.depth);
+  return `<div class="cp-gantt-row cp-gantt-group-row cp-gantt-field-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-field-group="${escapeAttribute(row.bandKey)}" data-group-field="${escapeAttribute(row.fieldId)}" data-gantt-depth="${row.depth}" tabindex="-1" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color};--cp-gantt-row-height:${rowHeight}px" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
 }
 
 function renderGanttActivityRow(

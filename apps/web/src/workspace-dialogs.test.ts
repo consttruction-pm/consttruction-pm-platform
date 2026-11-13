@@ -782,3 +782,54 @@ test("clearing Show activity type icons is persisted, not dropped as an unchecke
   assert.equal(preferences.lineNumbers, false);
   assert.equal(preferences.presentation?.table.lineNumbers, false);
 });
+
+test("Group and Sort edits an ordered multi-level group plan", () => {
+  const html = renderLayoutDialogs(dialogOptions({
+    groupLevels: [
+      { fieldId: "wbs", direction: "asc" },
+      { fieldId: "activity_status", direction: "desc" },
+    ],
+  }));
+  for (const index of [0, 1, 2]) {
+    assert.match(html, new RegExp(`name="group\\.field\\.${index}"`));
+    assert.match(html, new RegExp(`name="group\\.direction\\.${index}"`));
+  }
+  assert.match(html, /name="group\.field\.0"[\s\S]*?<option value="wbs" selected>WBS<\/option>/);
+  assert.match(html, /name="group\.field\.1"[\s\S]*?<option value="activity_status" selected>Activity Status<\/option>/);
+  assert.match(html, /name="group\.direction\.1"[\s\S]*?<option value="desc" selected>Descending<\/option>/);
+  assert.match(html, /name="group\.field\.0"[\s\S]*?<option value="activity_status">Activity Status<\/option>/);
+
+  const patch = readLayoutPatch(form({
+    "group.field.0": "wbs",
+    "group.direction.0": "asc",
+    "group.field.1": "activity_status",
+    "group.direction.1": "desc",
+    "group.field.2": "",
+  }));
+  assert.deepEqual(patch.groupLevels, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+  ]);
+  assert.equal(patch.groupBy, "wbs");
+
+  const fieldFirst = readLayoutPatch(form({
+    "group.field.0": "is_critical",
+    "group.direction.0": "desc",
+    "group.field.1": "activity_status",
+    "group.direction.1": "asc",
+  }));
+  assert.deepEqual(fieldFirst.groupLevels, [
+    { fieldId: "is_critical", direction: "desc" },
+    { fieldId: "activity_status", direction: "asc" },
+  ]);
+  // A field-first plan is not a WBS hierarchy, so the legacy flag is honest.
+  assert.equal(fieldFirst.groupBy, "none");
+
+  const flat = readLayoutPatch(form({ "group.field.0": "", "group.direction.0": "asc" }));
+  assert.deepEqual(flat.groupLevels, []);
+  assert.equal(flat.groupBy, "none");
+
+  const junk = readLayoutPatch(form({ "group.field.0": "not_a_field", "group.direction.0": "asc" }));
+  assert.deepEqual(junk.groupLevels, []);
+  assert.equal(junk.groupBy, "none");
+});

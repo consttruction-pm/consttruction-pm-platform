@@ -9,9 +9,18 @@
  */
 import type {
   WorkspaceActivityGroupBy,
+  WorkspaceActivityGroupLevel,
   WorkspaceActivityRow,
+  WorkspaceCellValue,
   WorkspaceWbsNode,
 } from "./workspace-model.js";
+import {
+  compareGroupBands,
+  groupFieldValue,
+  groupValueKey,
+  groupValueLabel,
+  naturalCompare,
+} from "./workspace-grouping.js";
 
 export type WorkspaceWbsGroupSummary = {
   /** Earliest persisted child start, or null when no child has schedule data. */
@@ -29,6 +38,14 @@ export type WorkspaceWbsGroupSummary = {
 export type WorkspaceWbsGroupRow = {
   kind: "wbs";
   wbsId: string;
+  /**
+   * Collapse token for this band. A top-level WBS band uses the node id (the
+   * long-standing view preference); a WBS band nested under a field band is
+   * prefixed with its parent path so each occurrence collapses independently.
+   */
+  bandKey: string;
+  /** Zero-based group plan level that produced this band. */
+  level: number;
   node: WorkspaceWbsNode;
   /** 0 for a root WBS band. */
   depth: number;
@@ -37,15 +54,43 @@ export type WorkspaceWbsGroupRow = {
   summary: WorkspaceWbsGroupSummary;
 };
 
+/**
+ * A band produced by a non-WBS group level. Its label is the persisted value
+ * of the grouped field; the summary is derived from the same child activities
+ * the project read model returned.
+ */
+export type WorkspaceFieldGroupRow = {
+  kind: "fieldGroup";
+  bandKey: string;
+  fieldId: string;
+  /** Canonical value key (``\u0000none`` for rows without a value). */
+  valueKey: string;
+  /** Localized display label for the band. */
+  label: string;
+  /** Zero-based group plan level that produced this band. */
+  level: number;
+  /** 0 for an outer band. */
+  depth: number;
+  hasChildren: boolean;
+  collapsed: boolean;
+  summary: WorkspaceWbsGroupSummary;
+};
+
+export type WorkspaceBandRow = WorkspaceWbsGroupRow | WorkspaceFieldGroupRow;
+
 export type WorkspaceActivityDisplayRow = {
   kind: "activity";
   activity: WorkspaceActivityRow;
-  /** 0 without WBS grouping, otherwise the band depth plus one. */
+  /** 0 without grouping, otherwise one deeper than the innermost band. */
   depth: number;
   wbsId: string;
 };
 
-export type WorkspaceDisplayRow = WorkspaceWbsGroupRow | WorkspaceActivityDisplayRow;
+export type WorkspaceDisplayRow = WorkspaceBandRow | WorkspaceActivityDisplayRow;
+
+export function isWorkspaceBandRow(row: WorkspaceDisplayRow): row is WorkspaceBandRow {
+  return row.kind === "wbs" || row.kind === "fieldGroup";
+}
 
 export type WbsTreeGuide = {
   depth: number;
@@ -92,8 +137,8 @@ export function buildWbsTreeGuides(rows: readonly WorkspaceDisplayRow[]): readon
       depth: rowDepth,
       rails: Object.freeze(rails),
       lastChild: last[index],
-      hasChildren: row.kind === "wbs" ? row.hasChildren : false,
-      collapsed: row.kind === "wbs" ? row.collapsed : false,
+      hasChildren: row.kind === "wbs" || row.kind === "fieldGroup" ? row.hasChildren : false,
+      collapsed: row.kind === "wbs" || row.kind === "fieldGroup" ? row.collapsed : false,
     });
   });
 }
@@ -230,17 +275,29 @@ function summarize(activities: readonly WorkspaceActivityRow[]): WorkspaceWbsGro
 }
 
 /**
- * Builds the ordered table/Gantt rows. WBS bands are only emitted when
- * grouping by WBS and at least one node exists; without that, the table is the
- * flat filtered activity list and no synthetic hierarchy is invented.
+ * Builds the ordered table/Gantt rows for an ordered group plan.
+ *
+ * Bands are emitted only for groups that really contain at least one filtered
+ * activity, so a group level never invents an empty band. WBS levels walk the
+ * persisted node tree in sequence order; field levels order sibling bands by
+ * the persisted value with the configured direction. Rows inside the innermost
+ * band keep the caller's sort order — the builder never re-sorts activities.
+ *
+ * ``groupLevels`` wins when present; otherwise the legacy ``groupBy`` flag is
+ * mapped to the single-level WBS plan it has always meant.
  */
 export function buildWorkspaceDisplayRows(
   activities: readonly WorkspaceActivityRow[],
   wbsNodes: readonly WorkspaceWbsNode[],
   groupBy: WorkspaceActivityGroupBy,
   collapsedWbsIds: ReadonlySet<string> = new Set(),
+  groupLevels: readonly WorkspaceActivityGroupLevel[] = [],
+  locale = "en",
 ): WorkspaceDisplayRow[] {
-  if (groupBy !== "wbs" || wbsNodes.length === 0) {
+  const levels = groupLevels.length > 0
+    ? groupLevels
+    : groupBy === "wbs" ? [{ fieldId: "wbs", direction: "asc" as const }] : [];
+  if (levels.length === 0) {
     return activities.map((activity) => ({
       kind: "activity" as const,
       activity,
@@ -249,68 +306,151 @@ export function buildWorkspaceDisplayRows(
     }));
   }
 
-  const nodeById = new Map(wbsNodes.map((node) => [node.id, node]));
-  const children = sortedChildren(wbsNodes);
-  const activitiesByWbs = new Map<string, WorkspaceActivityRow[]>();
-  const orphanActivities: WorkspaceActivityRow[] = [];
-  for (const activity of activities) {
-    if (!nodeById.has(activity.wbsId)) {
-      orphanActivities.push(activity);
-      continue;
-    }
-    const group = activitiesByWbs.get(activity.wbsId) ?? [];
-    group.push(activity);
-    activitiesByWbs.set(activity.wbsId, group);
-  }
-
-  // One bottom-up pass computes each node's full activity set; a node is shown
-  // only when it really contains at least one filtered activity.
-  const subtree = new Map<string, WorkspaceActivityRow[]>();
-  const collect = (node: WorkspaceWbsNode, guard: Set<string>): WorkspaceActivityRow[] => {
-    const cached = subtree.get(node.id);
-    if (cached) return cached;
-    if (guard.has(node.id)) return [];
-    guard.add(node.id);
-    const members = [...(activitiesByWbs.get(node.id) ?? [])];
-    for (const child of children.get(node.id) ?? []) {
-      members.push(...collect(child, guard));
-    }
-    subtree.set(node.id, members);
-    return members;
-  };
-  for (const node of wbsNodes) collect(node, new Set());
-
   const rows: WorkspaceDisplayRow[] = [];
-  const visit = (node: WorkspaceWbsNode, depth: number): void => {
-    const members = subtree.get(node.id) ?? [];
+  const index = wbsNodes.length > 0 ? buildWbsIndex(wbsNodes) : null;
+
+  const emit = (members: readonly WorkspaceActivityRow[], levelIndex: number, depth: number, parentKey: string): void => {
     if (members.length === 0) return;
-    const direct = activitiesByWbs.get(node.id) ?? [];
-    const childGroups = (children.get(node.id) ?? []).filter((child) => (subtree.get(child.id)?.length ?? 0) > 0);
-    const hasChildren = direct.length > 0 || childGroups.length > 0;
-    const collapsed = hasChildren && collapsedWbsIds.has(node.id);
-    rows.push({
-      kind: "wbs",
-      wbsId: node.id,
-      node,
-      depth,
-      hasChildren,
-      collapsed,
-      summary: summarize(members),
-    });
-    if (collapsed) return;
-    for (const child of childGroups) visit(child, depth + 1);
-    for (const activity of direct) {
-      rows.push({ kind: "activity", activity, depth: depth + 1, wbsId: node.id });
+    if (levelIndex >= levels.length) {
+      for (const activity of members) {
+        rows.push({ kind: "activity", activity, depth, wbsId: activity.wbsId });
+      }
+      return;
+    }
+    const level = levels[levelIndex];
+    if (level.fieldId === "wbs") {
+      emitWbs(members, levelIndex, depth, parentKey);
+      return;
+    }
+    emitField(members, level, levelIndex, depth, parentKey);
+  };
+
+  const emitField = (
+    members: readonly WorkspaceActivityRow[],
+    level: WorkspaceActivityGroupLevel,
+    levelIndex: number,
+    depth: number,
+    parentKey: string,
+  ): void => {
+    const groups = new Map<string, { value: WorkspaceCellValue; members: WorkspaceActivityRow[] }>();
+    for (const activity of members) {
+      const value = groupFieldValue(activity, level.fieldId);
+      const key = groupValueKey(value);
+      const group = groups.get(key) ?? { value, members: [] };
+      group.members.push(activity);
+      groups.set(key, group);
+    }
+    const ordered = [...groups.entries()].sort(([leftKey, left], [rightKey, right]) =>
+      compareGroupBands(left.value, right.value, level.direction) || naturalCompare(leftKey, rightKey));
+    for (const [key, group] of ordered) {
+      const bandKey = parentKey ? `${parentKey}>${level.fieldId}:${key}` : `field:${level.fieldId}:${key}`;
+      const collapsed = collapsedWbsIds.has(bandKey);
+      rows.push({
+        kind: "fieldGroup",
+        bandKey,
+        fieldId: level.fieldId,
+        valueKey: key,
+        label: groupValueLabel(level.fieldId, group.value, locale),
+        level: levelIndex,
+        depth,
+        hasChildren: true,
+        collapsed,
+        summary: summarize(group.members),
+      });
+      if (collapsed) continue;
+      emit(group.members, levelIndex + 1, depth + 1, bandKey);
     }
   };
-  for (const root of children.get(null) ?? []) visit(root, 0);
-  for (const node of wbsNodes) {
-    if (node.parentKind !== "project" && !nodeById.has(node.parentWbsId ?? "")) visit(node, 0);
-  }
-  for (const activity of orphanActivities) {
-    rows.push({ kind: "activity", activity, depth: 0, wbsId: activity.wbsId });
-  }
+
+  const emitWbs = (
+    members: readonly WorkspaceActivityRow[],
+    levelIndex: number,
+    depth: number,
+    parentKey: string,
+  ): void => {
+    const tree = index;
+    if (!tree) {
+      // No WBS hierarchy is loaded, so this level cannot form bands. Skip it
+      // and keep the deeper levels / activities rather than inventing bands
+      // from raw database ids (the table stays flat for a bare project).
+      emit(members, levelIndex + 1, depth, parentKey);
+      return;
+    }
+    const activitiesByWbs = new Map<string, WorkspaceActivityRow[]>();
+    const orphans: WorkspaceActivityRow[] = [];
+    for (const activity of members) {
+      if (!tree.nodeById.has(activity.wbsId)) {
+        orphans.push(activity);
+        continue;
+      }
+      const group = activitiesByWbs.get(activity.wbsId) ?? [];
+      group.push(activity);
+      activitiesByWbs.set(activity.wbsId, group);
+    }
+    // One bottom-up pass computes each node's full activity set; a node is
+    // shown only when it really contains at least one filtered activity.
+    const subtree = new Map<string, WorkspaceActivityRow[]>();
+    const collect = (node: WorkspaceWbsNode, guard: Set<string>): WorkspaceActivityRow[] => {
+      const cached = subtree.get(node.id);
+      if (cached) return cached;
+      if (guard.has(node.id)) return [];
+      guard.add(node.id);
+      const collected = [...(activitiesByWbs.get(node.id) ?? [])];
+      for (const child of tree.children.get(node.id) ?? []) {
+        collected.push(...collect(child, guard));
+      }
+      subtree.set(node.id, collected);
+      return collected;
+    };
+    for (const node of wbsNodes) collect(node, new Set());
+
+    const visit = (node: WorkspaceWbsNode, nodeDepth: number): void => {
+      const nodeMembers = subtree.get(node.id) ?? [];
+      if (nodeMembers.length === 0) return;
+      const direct = activitiesByWbs.get(node.id) ?? [];
+      const childGroups = (tree.children.get(node.id) ?? []).filter((child) => (subtree.get(child.id)?.length ?? 0) > 0);
+      const hasChildren = direct.length > 0 || childGroups.length > 0;
+      // A top-level WBS band keeps the node id so the long-standing per-project
+      // collapse preference and "Collapse To" continue to address it.
+      const bandKey = parentKey ? `${parentKey}>wbs:${node.id}` : node.id;
+      const collapsed = hasChildren && collapsedWbsIds.has(bandKey);
+      rows.push({
+        kind: "wbs",
+        wbsId: node.id,
+        bandKey,
+        level: levelIndex,
+        node,
+        depth: depth + nodeDepth,
+        hasChildren,
+        collapsed,
+        summary: summarize(nodeMembers),
+      });
+      if (collapsed) return;
+      for (const child of childGroups) visit(child, nodeDepth + 1);
+      if (direct.length > 0) emit(direct, levelIndex + 1, depth + nodeDepth + 1, bandKey);
+    };
+    for (const root of tree.children.get(null) ?? []) visit(root, 0);
+    for (const node of wbsNodes) {
+      if (node.parentKind !== "project" && !tree.nodeById.has(node.parentWbsId ?? "")) visit(node, 0);
+    }
+    // Orphans keep the caller's order and sit outside the tree, as before.
+    emit(orphans, levelIndex + 1, depth, parentKey);
+  };
+
+  emit(activities, 0, 0, "");
   return rows;
+}
+
+type WbsIndex = {
+  nodeById: ReadonlyMap<string, WorkspaceWbsNode>;
+  children: ReadonlyMap<string | null, WorkspaceWbsNode[]>;
+};
+
+function buildWbsIndex(wbsNodes: readonly WorkspaceWbsNode[]): WbsIndex {
+  return {
+    nodeById: new Map(wbsNodes.map((node) => [node.id, node])),
+    children: sortedChildren(wbsNodes),
+  };
 }
 
 /** Every WBS node that currently contains a filtered activity (any depth). */

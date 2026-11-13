@@ -219,7 +219,7 @@ test("Control page renders the stored control-room metrics, findings and actions
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
   const english = render("en", "schedule");
-  assert.match(english, /<select data-activity-group aria-label="Group by">\s*<option value="wbs" selected>WBS<\/option>/);
+  assert.match(english, /<select data-activity-group aria-label="Group by">\s*<option value="none">No grouping<\/option>\s*<option value="wbs" selected>WBS<\/option>/);
   assert.match(english, /<select data-activity-sort aria-label="Sort by">\s*<option value="">Original order<\/option>\s*<option value="wbs" selected>WBS<\/option>/);
 
   const persian = render("fa", "schedule");
@@ -2260,9 +2260,9 @@ test("activity grid renders colored WBS bands with expand controls and matching 
   renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
   const html = container.innerHTML;
 
-  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00;--cp-wbs-font-family:Tahoma, &quot;Segoe UI&quot;, sans-serif;--cp-wbs-font-size:11px;--cp-wbs-row-height:22px"/);
-  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000;--cp-wbs-font-family:Tahoma/);
-  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff;--cp-wbs-font-family:Tahoma/);
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-band-key="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00;--cp-wbs-font-family:Tahoma, &quot;Segoe UI&quot;, sans-serif;--cp-wbs-font-size:11px;--cp-wbs-row-height:22px"/);
+  assert.match(html, /data-wbs-row="W-A" data-band-key="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000;--cp-wbs-font-family:Tahoma/);
+  assert.match(html, /data-wbs-row="W-A1" data-band-key="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff;--cp-wbs-font-family:Tahoma/);
   // The band carries its own label composition: code and name by default, and
   // the "WBS" title only when Show Title is enabled.
   assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
@@ -2326,7 +2326,7 @@ test("collapsing a WBS branch removes its table rows and Gantt bars together", (
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
   const html = container.innerHTML;
-  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1" data-wbs-collapsed="true"/);
+  assert.match(html, /data-wbs-row="W-A" data-band-key="W-A" data-wbs-level="2" data-wbs-depth="1" data-wbs-collapsed="true"/);
   assert.match(html, /data-wbs-toggle="W-A" aria-expanded="false"[^>]*>\+</);
   assert.doesNotMatch(html, /data-activity-id="A-1"/);
   assert.doesNotMatch(html, /data-activity-id="A-2"/);

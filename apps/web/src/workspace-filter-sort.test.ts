@@ -165,3 +165,31 @@ test("the sort plan keeps the first level as primary and deduplicates fields", (
   const quick = setActivitySort(toggled, "activity_id", "asc");
   assert.deepEqual(quick.activitySortLevels, [{ columnId: "activity_id", direction: "asc" }]);
 });
+
+test("a group plan removes its own fields from the in-band sort plan", () => {
+  const rows = [
+    { id: "A-10", wbsId: "2 Civil", code: "A-10", name: "Earthworks", cells: { "activity.status": "In Progress", "activity.total_float": 12 } },
+    { id: "A-11", wbsId: "2 Civil", code: "A-11", name: "Piling", cells: { "activity.status": "In Progress", "activity.total_float": 3 } },
+    { id: "A-2", wbsId: "1 Project management", code: "A-2", name: "Kickoff", cells: { "activity.status": "Completed", "activity.total_float": 0 } },
+  ];
+  const wbsNodes = [
+    { id: "1 Project management", parentKind: "project" as const, parentWbsId: null, localCode: "1", name: "Project management", sequenceNumber: 0, recordRevision: 1 },
+    { id: "2 Civil", parentKind: "project" as const, parentWbsId: null, localCode: "2", name: "Civil", sequenceNumber: 1, recordRevision: 1 },
+  ];
+  // Grouping by status owns the status order, so the remaining plan sorts by
+  // float inside each band instead of repeating the grouped field.
+  const sorted = filterAndSortActivities(
+    rows, "", null, "none", wbsNodes,
+    [{ columnId: "activity.status", direction: "asc" }, { columnId: "activity.total_float", direction: "desc" }],
+    [{ fieldId: "activity_status", direction: "asc" }],
+  );
+  assert.deepEqual(sorted.map((row) => row.id), ["A-10", "A-11", "A-2"]);
+
+  const onlyGrouped = filterAndSortActivities(
+    rows, "", null, "none", wbsNodes,
+    [{ columnId: "activity.status", direction: "asc" }],
+    [{ fieldId: "activity_status", direction: "asc" }],
+  );
+  // Every requested sort field is grouped, so the persisted order is kept.
+  assert.deepEqual(onlyGrouped.map((row) => row.id), ["A-10", "A-11", "A-2"]);
+});

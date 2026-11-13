@@ -14,6 +14,8 @@ import {
   setGanttScale,
   setGanttRelationshipsVisible,
   setLocale,
+  setActivityGroupBy,
+  setActivityGroupLevels,
   setControlSummary,
   setSmartGuide,
   setFieldOperations,
@@ -837,4 +839,54 @@ test("Gantt relationship visibility toggles presentation only and defaults on", 
   assert.equal(hidden.relationships, state.relationships);
   assert.strictEqual(setGanttRelationshipsVisible(hidden, false), hidden);
   assert.equal(setGanttRelationshipsVisible(hidden, true).showGanttRelationships, true);
+});
+
+test("grouping keeps an ordered plan and mirrors only the outer band", () => {
+  const state = createWorkspaceState(context, "en");
+  assert.deepEqual(state.activityGroupLevels, [{ fieldId: "wbs", direction: "asc" }]);
+  assert.equal(state.activityGroupBy, "wbs");
+
+  const twoLevels = setActivityGroupLevels(state, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+  ]);
+  assert.deepEqual(twoLevels.activityGroupLevels, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+  ]);
+  assert.equal(twoLevels.activityGroupBy, "wbs");
+  assert.strictEqual(setActivityGroupLevels(twoLevels, twoLevels.activityGroupLevels), twoLevels);
+
+  // Toggling WBS off is a flat table; toggling it on restores the outer band
+  // without reviving a previously removed deeper level.
+  const flat = setActivityGroupBy(twoLevels, "none");
+  assert.deepEqual(flat.activityGroupLevels, []);
+  assert.equal(flat.activityGroupBy, "none");
+  const wbsOnly = setActivityGroupBy(flat, "wbs");
+  assert.deepEqual(wbsOnly.activityGroupLevels, [{ fieldId: "wbs", direction: "asc" }]);
+
+  const fieldFirst = setActivityGroupLevels(state, [
+    { fieldId: "activity_type", direction: "asc" },
+    { fieldId: "wbs", direction: "asc" },
+  ]);
+  assert.equal(fieldFirst.activityGroupBy, "none");
+  assert.deepEqual(fieldFirst.activityGroupLevels.map((level) => level.fieldId), ["activity_type", "wbs"]);
+});
+
+test("a group plan is trimmed to three unique non-empty levels", () => {
+  const state = createWorkspaceState(context, "en");
+  const next = setActivityGroupLevels(state, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "wbs", direction: "desc" },
+    { fieldId: "activity_status", direction: "desc" },
+    { fieldId: "activity_type", direction: "asc" },
+    { fieldId: "total_float", direction: "asc" },
+    { fieldId: "  ", direction: "asc" },
+  ]);
+  assert.deepEqual(next.activityGroupLevels, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+    { fieldId: "activity_type", direction: "asc" },
+  ]);
+  assert.ok(Object.isFrozen(next.activityGroupLevels));
 });

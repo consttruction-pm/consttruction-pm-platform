@@ -164,6 +164,8 @@ export type DesktopShellState = {
   sortColumnId?: string | null;
   sortDirection?: "asc" | "desc";
   sortLevels?: readonly { columnId: string; direction: "asc" | "desc" }[];
+  /** Ordered group plan the Group and Sort dialog edits. */
+  groupLevels?: readonly { fieldId: string; direction: "asc" | "desc" }[];
   presentation?: WorkspacePresentation;
   /** Bottom Details pane visibility; drives the View command label and state. */
   detailsVisible?: boolean;
@@ -1022,6 +1024,7 @@ export function renderDesktopShell(
     sortColumnId: state.sortColumnId ?? null,
     sortDirection: state.sortDirection ?? "asc",
     sortLevels: state.sortLevels ?? [],
+    groupLevels: state.groupLevels ?? [],
     rowHeight: (state.presentation ?? DEFAULT_PRESENTATION).table.rowHeight,
     fontSize: (state.presentation ?? DEFAULT_PRESENTATION).table.fontSize,
     barHeight: (state.presentation ?? DEFAULT_PRESENTATION).bars.task.height,

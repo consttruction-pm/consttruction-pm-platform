@@ -115,13 +115,14 @@ export function ganttRowsHeight(count: number, rowHeight: number): number {
   return Math.max(0, count) * ganttRowPitch(rowHeight);
 }
 
-/** Per-row vertical metrics; WBS bands may be taller than activity rows. */
+/** Per-row vertical metrics; grouped bands may be taller than activity rows. */
 export type GanttRowMetric = { height: number; top: number; center: number };
 
 /**
  * Cumulative row geometry for a display list. Activity rows use the table row
- * pitch; WBS bands use the band height from the band presentation so the table
- * band and its Gantt summary row keep the same vertical extent.
+ * pitch; WBS and field-group bands use the band height from the band
+ * presentation so the table band and its Gantt summary row keep the same
+ * vertical extent.
  */
 export function ganttDisplayMetrics(
   rows: readonly { kind: string }[],
@@ -134,7 +135,7 @@ export function ganttDisplayMetrics(
   const band = ganttRowPitch(bandHeight) + 1;
   let top = 0;
   const metrics = rows.map((row) => {
-    const height = row.kind === "wbs" ? band : pitch;
+    const height = row.kind === "wbs" || row.kind === "fieldGroup" ? band : pitch;
     const metric = Object.freeze({ height, top, center: top + height / 2 });
     top += height;
     return metric;
