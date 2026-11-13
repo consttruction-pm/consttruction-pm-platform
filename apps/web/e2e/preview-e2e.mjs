@@ -5215,8 +5215,8 @@ async function main() {
       "[data-interchange-import-result]",
     );
     assert(
-      (viewerImportError ?? "").includes("authorization denied") &&
-        (viewerImportError ?? "").includes("project.write"),
+      (viewerImportError ?? "").includes("denied this operation") &&
+        (viewerImportError ?? "").includes("AUTHORIZATION_PERMISSION_DENIED"),
       `viewer import must surface the denied permission, got ${viewerImportError}`,
     );
     assert(
@@ -5249,7 +5249,7 @@ async function main() {
     );
     assert(
       (viewerCapacityError ?? "").includes("denied this operation") &&
-        (viewerCapacityError ?? "").includes("project.write"),
+        (viewerCapacityError ?? "").includes("AUTHORIZATION_PERMISSION_DENIED"),
       `viewer capacity write must surface the denied permission, got ${viewerCapacityError}`,
     );
     await page.setInput("[data-capacity-resolve-period]", "2026-11-02");

@@ -363,7 +363,7 @@ async function main() {
         percent_complete: 90,
       });
       assert(denied.status === 403, `viewer write status ${denied.status}`);
-      assert(String(denied.body?.code ?? "").includes("project.write"), `viewer code ${JSON.stringify(denied.body)}`);
+      assert(String(denied.body?.code ?? "") === "AUTHORIZATION_PERMISSION_DENIED", `viewer code ${JSON.stringify(denied.body)}`);
       await capture(page, "06-progress-viewer-1366");
       cells.push({ viewport: "1366x768", locale: "en", result: "viewer read-only history; PATCH 403" });
       return { events: state.historyCount, writeStatus: denied.status };
