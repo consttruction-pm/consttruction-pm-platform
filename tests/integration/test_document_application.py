@@ -115,7 +115,10 @@ def test_rfi_create_and_read_are_context_scoped_and_versioned():
     assert dto["contract_version"] == "1.0"
     assert dto["resource_type"] == "rfi"
     assert dto["revision"] == 1
-    assert svc.error_dto(Exception("x")).category is APIErrorCategory.VALIDATION
+    internal = svc.error_dto(RuntimeError("connection reset"))
+    assert internal.category is APIErrorCategory.PERSISTENCE
+    assert internal.code == "DOCUMENT_INTERNAL_ERROR"
+    assert internal.message == ""
     connection.close()
 
 

@@ -387,6 +387,14 @@ Threats and primary controls:
 
 ### SEC-018 — `error_dto` catch-alls turn unexpected faults into 4xx (Low)
 
+- **Resolution:** the document and report `error_dto` fall-throughs now return
+  a fixed `DOCUMENT_INTERNAL_ERROR` / `REPORT_INTERNAL_ERROR` persistence error
+  with an empty message instead of `validation_error(type(exc).__name__, str(exc))`.
+  Known domain errors keep their existing mappings. Covered by the updated
+  `test_document_application` assertion and
+  `test_unexpected_report_fault_is_a_server_error_without_internal_text`.
+  SEC-017 (per-site reflected codes) remains open; this closes only the two
+  catch-all fall-throughs.
 - **Evidence:** `document_application.error_dto` and
   `report_application.error_dto` fall through to
   `validation_error(type(exc).__name__, str(exc))`, and `DocumentAPI` wraps
@@ -524,9 +532,9 @@ Threats and primary controls:
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
 - **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017,
-  SEC-018, SEC-019, SEC-020 and SEC-023 remain open;
-  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-021, SEC-022,
-  SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
+  SEC-019, SEC-020 and SEC-023 remain open;
+  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-021,
+  SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict

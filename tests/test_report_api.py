@@ -312,3 +312,13 @@ def test_report_runs_read_resource_and_risk_subjects(tmp_path: Path) -> None:
         ]
     finally:
         runtime.close()
+
+
+def test_unexpected_report_fault_is_a_server_error_without_internal_text() -> None:
+    from construction_pm.api_errors import APIErrorCategory
+    from construction_pm.report_application import ReportApplicationService
+
+    error = ReportApplicationService.error_dto(RuntimeError("password=hunter2"))
+    assert error.category is APIErrorCategory.PERSISTENCE
+    assert error.code == "REPORT_INTERNAL_ERROR"
+    assert error.message == ""

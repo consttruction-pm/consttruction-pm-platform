@@ -738,3 +738,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Finding:** `ReferenceAIToolPermissionAdapter.allowed` returned only `proposal.tool_name in self.allowed_tools`, ignoring `subject_id` and scope; nothing in `src/` or `apps/` instantiates it.
 - **Fix (code `3754a0af`):** the class is documented as test-only and returns `False` when `subject_id` is missing or blank. Covered by `test_reference_adapter_never_authorizes_a_tool_without_a_subject` (None, whitespace, and a valid subject). `pytest tests/test_ai_action_boundary.py` = **16 passed**.
 - **Docs:** security register and SEC-025 section updated; SEC-025 removed from the open-findings gate. No runtime wiring changed.
+
+## SEC-018 unexpected document/report faults now 5xx — 2026-11-13
+
+- **Finding:** `document_application.error_dto` and `report_application.error_dto` fell through to `validation_error(type(exc).__name__, str(exc))`, so adapter/driver failures became 400 responses carrying internal class names and text.
+- **Fix (code `ebaec38a`):** both fall-throughs return a fixed persistence error (`DOCUMENT_INTERNAL_ERROR`, `REPORT_INTERNAL_ERROR`) with an empty message. Known domain mappings are unchanged.
+- **Tests:** the existing integration assertion now expects `APIErrorCategory.PERSISTENCE` and `DOCUMENT_INTERNAL_ERROR`; new `test_unexpected_report_fault_is_a_server_error_without_internal_text` proves the report message does not leak. `pytest tests/integration/test_document_application.py tests/test_report_api.py` = **11 passed**.
+- **Boundary:** SEC-017 (per-site reflected codes across 125 `_error` call sites) stays open; this change closes only the catch-all fall-throughs.
+- **Docs:** security register and SEC-018 section updated; SEC-018 removed from the open-findings gate.
