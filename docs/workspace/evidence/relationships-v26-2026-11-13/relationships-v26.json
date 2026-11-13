@@ -1,0 +1,181 @@
+{
+  "contract": "cubi-relationships-v26.v1",
+  "baseUrl": "http://127.0.0.1:34659",
+  "project": "preview-rps-01",
+  "gitHead": "cdf27afbe3b97a12cd69cb8156ad7a64376d4a38",
+  "testedCodeSha": "cdf27afb",
+  "capturedAt": "2026-11-13T10:00:05.197Z",
+  "scenarios": [
+    {
+      "count": 15,
+      "sample": [
+        {
+          "id": "REL-RPS-100",
+          "pair": "A100 → A110",
+          "type": "FS",
+          "lag": "0 Working day",
+          "revision": 1
+        },
+        {
+          "id": "REL-RPS-110",
+          "pair": "A110 → A120",
+          "type": "FS",
+          "lag": "0 Working day",
+          "revision": 1
+        },
+        {
+          "id": "REL-RPS-120",
+          "pair": "A120 → A130",
+          "type": "FS",
+          "lag": "0 Working day",
+          "revision": 1
+        }
+      ],
+      "id": "01",
+      "name": "the Logic panel lists every persisted relationship with pair, type and lag",
+      "status": "pass",
+      "at": "2026-11-13T10:00:08.102Z"
+    },
+    {
+      "notice": "A relationship needs two different activities.",
+      "id": "02",
+      "name": "submitting one activity twice is reported instead of silently ignored",
+      "status": "pass",
+      "at": "2026-11-13T10:00:08.452Z"
+    },
+    {
+      "relationship": {
+        "id": "REL-MWET2QYV-ISD66U",
+        "pair": "A100 → A120",
+        "type": "SS",
+        "lag": "2 Working day",
+        "revision": 1,
+        "predecessor": "A100",
+        "successor": "A120"
+      },
+      "id": "03",
+      "name": "a new relationship is created with its type and lag",
+      "status": "pass",
+      "at": "2026-11-13T10:00:08.793Z"
+    },
+    {
+      "id": "04",
+      "type": "SS",
+      "name": "the created relationship survives a full reload",
+      "status": "pass",
+      "at": "2026-11-13T10:00:11.651Z"
+    },
+    {
+      "id": "05",
+      "type": "FF",
+      "lag": "3 Working day",
+      "revision": 2,
+      "name": "editing type and lag in the Logic panel persists",
+      "status": "pass",
+      "at": "2026-11-13T10:00:11.992Z"
+    },
+    {
+      "successorView": true,
+      "predecessorView": true,
+      "id": "06",
+      "name": "Activity Details shows the pair under Predecessors and Successors",
+      "status": "pass",
+      "at": "2026-11-13T10:00:13.576Z"
+    },
+    {
+      "confirmCalls": 2,
+      "remaining": 15,
+      "id": "07",
+      "name": "deleting a relationship asks first and only then removes it",
+      "status": "pass",
+      "at": "2026-11-13T10:00:15.226Z"
+    },
+    {
+      "notice": "P6_RELATIONSHIP_REQUEST_INVALID",
+      "id": "08",
+      "name": "a duplicate relationship is rejected with a visible notice",
+      "status": "pass",
+      "at": "2026-11-13T10:00:15.576Z"
+    },
+    {
+      "remaining": 15,
+      "id": "09",
+      "name": "the deleted relationship stays gone after a reload",
+      "status": "pass",
+      "at": "2026-11-13T10:00:18.434Z"
+    },
+    {
+      "notice": "AUTHORIZATION_PERMISSION_DENIED",
+      "id": "10",
+      "name": "a viewer sees the persisted logic but the server rejects a create",
+      "status": "pass",
+      "at": "2026-11-13T10:00:21.718Z"
+    },
+    {
+      "rejectedWrites": 2,
+      "id": "11",
+      "name": "only the two intentionally rejected writes logged an error",
+      "status": "pass",
+      "at": "2026-11-13T10:00:21.718Z"
+    }
+  ],
+  "screenshots": [
+    "01-persisted-logic.png",
+    "02-self-link-notice.png",
+    "03-created-ss.png",
+    "04-reload-persisted.png",
+    "05-edited-ff.png",
+    "06-details-predecessors-successors.png",
+    "07-delete-cancel.png",
+    "07-delete-accept.png",
+    "08-duplicate-notice.png",
+    "09-deleted-after-reload.png",
+    "10-viewer-denied.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [
+    "Relationship mutation failed Error: P6_RELATIONSHIP_REQUEST_INVALID\n    at Object.onRelationshipCreate (http://127.0.0.1:34659/dist/main.bundle.js:43885:33)",
+    "Relationship mutation failed Error: AUTHORIZATION_PERMISSION_DENIED\n    at Object.onRelationshipCreate (http://127.0.0.1:34659/dist/main.bundle.js:43885:33)"
+  ],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/p6/relationships"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/p6/relationships/REL-MWET2QYV-ISD66U"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/p6/relationships/REL-MWET2QYV-ISD66U"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/p6/relationships"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:34659/api/projects/preview-rps-01/p6/relationships"
+    }
+  ],
+  "finishedAt": "2026-11-13T10:00:21.718Z",
+  "status": "passed"
+}
