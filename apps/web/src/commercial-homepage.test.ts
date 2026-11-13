@@ -301,3 +301,9 @@ test("homepage security section discloses verified hosting controls and all six 
   assert.match(styles, /\.cubi-security-disclosure/);
   assert.match(styles, /\.cubi-security-status/);
 });
+
+
+test("homepage footer links to the public Security and Reliability section", () => {
+  assert.match(landing, /href="#security"/);
+  assert.match(landing, /Security & Reliability/);
+});
