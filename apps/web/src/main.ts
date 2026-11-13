@@ -20,6 +20,7 @@ import {
   reorderP6Fields,
   setActivityFilter,
   setActivityGroupBy,
+  setActivityGroupLevels,
   setActivitySort,
   setActivitySortLevels,
   toggleActivitySortDirection,
@@ -320,7 +321,7 @@ function hydrateGroupSortFromLayout(state: WorkspaceState): WorkspaceState {
   if (key === hydratedGroupSortKey) return state;
   hydratedGroupSortKey = key;
   let next = state;
-  if (next.activityGroupBy !== saved.groupBy) next = setActivityGroupBy(next, saved.groupBy);
+  next = setActivityGroupLevels(next, saved.groupLevels);
   next = setActivitySortLevels(next, saved.sortLevels);
   return next;
 }
@@ -1651,7 +1652,8 @@ function renderApp(
 
   const applyLayoutOptions = (patch: DesktopLayoutPatch): void => {
     let next = state;
-    if (patch.groupBy) next = setActivityGroupBy(next, patch.groupBy);
+    if (patch.groupLevels) next = setActivityGroupLevels(next, patch.groupLevels);
+    else if (patch.groupBy) next = setActivityGroupBy(next, patch.groupBy);
     if (patch.sortLevels) {
       next = setActivitySortLevels(next, patch.sortLevels);
     } else if (patch.sortColumnId !== undefined) {
@@ -1767,6 +1769,7 @@ function renderApp(
       sortColumnId: state.activitySort?.columnId ?? null,
       sortDirection: state.activitySort?.direction ?? "asc",
       sortLevels: state.activitySortLevels,
+      groupLevels: state.activityGroupLevels,
       presentation: visualPreferences.presentation,
       detailsVisible: state.visiblePanels.details && !(state.activeMenu === "schedule" && readWorkspaceBottomLayout(state, activeActivityUsageSource(state.context.project_id)) === "none"),
       activityTopLayout: state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : undefined,
@@ -1892,7 +1895,7 @@ function renderApp(
         presentation: visualPreferences.presentation,
         presentationUpdatedAt: visualPreferences.updatedAt,
       },
-    }, state.activityGroupBy, state.activitySortLevels, Date.now());
+    }, state.activityGroupBy, state.activitySortLevels, Date.now(), state.activityGroupLevels);
     const saved = await commitLayout(setP6Presentation(state, state.p6FieldRegistry, bumped));
     if (saved) {
       layoutPreviewBase = null;
@@ -1929,7 +1932,7 @@ function renderApp(
           presentation: visualPreferences.presentation,
           presentationUpdatedAt: visualPreferences.updatedAt,
         },
-      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()), getCollapsedWbsIds(snapshot.context.project_id)));
+      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now(), snapshot.activityGroupLevels), getCollapsedWbsIds(snapshot.context.project_id)));
       layoutPreviewBase = null;
       layoutPreviewScope = null;
       layoutPreviewContextKey = null;
@@ -2035,7 +2038,7 @@ function renderApp(
           presentation: visualPreferences.presentation,
           presentationUpdatedAt: visualPreferences.updatedAt,
         },
-      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now()), getCollapsedWbsIds(snapshot.context.project_id)));
+      }, snapshot.activityGroupBy, snapshot.activitySortLevels, Date.now(), snapshot.activityGroupLevels), getCollapsedWbsIds(snapshot.context.project_id)));
       layoutPreviewBase = null;
       layoutPreviewScope = null;
       layoutPreviewContextKey = null;
@@ -2079,7 +2082,7 @@ function renderApp(
           presentation,
           presentationUpdatedAt: savedAt,
         },
-      }, "wbs", [{ columnId: "wbs", direction: "asc" }], savedAt), new Set<string>()));
+      }, "wbs", [{ columnId: "wbs", direction: "asc" }], savedAt, [{ fieldId: "wbs", direction: "asc" }]), new Set<string>()));
       rememberVisualPreferences({
         density: visualPreferences.density,
         presentation,
@@ -2653,6 +2656,9 @@ function renderApp(
     onActivityGroupByChange: (groupBy) => {
       renderApp(container, setActivityGroupBy(state, groupBy), persistence);
     },
+    onActivityGroupLevelsChange: (levels) => {
+      renderApp(container, setActivityGroupLevels(state, levels), persistence);
+    },
     onActivitySortChange: (columnId) => {
       const direction = state.activitySort?.columnId === columnId
         ? state.activitySort.direction
@@ -2829,6 +2835,7 @@ function renderApp(
     const layoutDirty = layoutPreviewScope === null && layoutHasUnsavedChanges({
       layout: state.p6Layout,
       groupBy: state.activityGroupBy,
+      groupLevels: state.activityGroupLevels,
       sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
     });

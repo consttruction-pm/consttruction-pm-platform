@@ -182,8 +182,22 @@ export type WorkspaceActivitySort = {
 /** One ordered sort level; the first level is the toolbar's primary field. */
 export type WorkspaceActivitySortLevel = WorkspaceActivitySort;
 
-/** Activity-table grouping; WBS is the professional default for schedule views. */
+/**
+ * Activity-table grouping; WBS is the professional default for schedule views.
+ * The value mirrors the primary group level: it stays ``"wbs"`` while a WBS
+ * band is the outer band, and ``"none"`` for a flat table or a field-first plan.
+ * The ordered plan itself lives in ``activityGroupLevels``.
+ */
 export type WorkspaceActivityGroupBy = "wbs" | "none";
+
+/**
+ * One ordered group level. ``fieldId`` is ``"wbs"`` or a groupable activity
+ * field (see ``workspace-grouping.ts``). Direction only orders sibling bands.
+ */
+export type WorkspaceActivityGroupLevel = {
+  readonly fieldId: string;
+  readonly direction: "asc" | "desc";
+};
 
 /** Presentation-only zoom of the Gantt time axis; schedule dates never change. */
 export type WorkspaceGanttScale = "day" | "week" | "month" | "quarter" | "year";
@@ -216,6 +230,11 @@ export type WorkspaceState = {
   relationships: readonly WorkspaceRelationshipRow[];
   activityFilter: string;
   activityGroupBy: WorkspaceActivityGroupBy;
+  /**
+   * Ordered group plan from the Group and Sort dialog (max three levels).
+   * An empty plan is a flat table. ``activityGroupBy`` mirrors its first level.
+   */
+  activityGroupLevels: readonly WorkspaceActivityGroupLevel[];
   activitySort: WorkspaceActivitySort | null;
   /** Ordered multi-level sort from the Group and Sort dialog (max three). */
   activitySortLevels: readonly WorkspaceActivitySortLevel[];
@@ -297,6 +316,7 @@ export function createWorkspaceState(
     relationships: [],
     activityFilter: "",
     activityGroupBy: "wbs",
+    activityGroupLevels: Object.freeze([Object.freeze({ fieldId: "wbs", direction: "asc" as const })]),
     activitySort: Object.freeze({ columnId: "wbs", direction: "asc" }),
     activitySortLevels: Object.freeze([Object.freeze({ columnId: "wbs", direction: "asc" })]),
     controlSummary: null,
@@ -465,8 +485,46 @@ export function setActivityGroupBy(
   groupBy: WorkspaceActivityGroupBy,
 ): WorkspaceState {
   if (groupBy !== "wbs" && groupBy !== "none") throw new Error("INVALID_ACTIVITY_GROUP_BY");
-  if (state.activityGroupBy === groupBy) return state;
-  return { ...state, activityGroupBy: groupBy };
+  // WBS toggling replaces the outer band but keeps any deeper field levels the
+  // user added in the Group and Sort dialog.
+  const levels = groupBy === "wbs"
+    ? [{ fieldId: "wbs", direction: "asc" as const }, ...state.activityGroupLevels.filter((level) => level.fieldId !== "wbs")]
+    : [];
+  return setActivityGroupLevels(state, levels);
+}
+
+/**
+ * Replaces the ordered group plan. Levels are trimmed to three, a field can
+ * appear only once, and an empty plan is a flat table. The legacy
+ * ``activityGroupBy`` flag mirrors whether the outer band is WBS so the tree
+ * actions, menus and chrome keep their existing meaning.
+ */
+export function setActivityGroupLevels(
+  state: WorkspaceState,
+  levels: readonly WorkspaceActivityGroupLevel[],
+): WorkspaceState {
+  const seen = new Set<string>();
+  const normalized: WorkspaceActivityGroupLevel[] = [];
+  for (const level of levels) {
+    if (normalized.length >= 3) break;
+    const fieldId = typeof level.fieldId === "string" ? level.fieldId.trim() : "";
+    if (fieldId === "" || seen.has(fieldId)) continue;
+    seen.add(fieldId);
+    normalized.push(Object.freeze({
+      fieldId,
+      direction: level.direction === "desc" ? "desc" : "asc",
+    }));
+  }
+  const groupBy: WorkspaceActivityGroupBy = normalized[0]?.fieldId === "wbs" ? "wbs" : "none";
+  const sameLevels = state.activityGroupLevels.length === normalized.length
+    && state.activityGroupLevels.every((level, index) =>
+      level.fieldId === normalized[index]?.fieldId && level.direction === normalized[index]?.direction);
+  if (sameLevels && state.activityGroupBy === groupBy) return state;
+  return {
+    ...state,
+    activityGroupBy: groupBy,
+    activityGroupLevels: Object.freeze(normalized),
+  };
 }
 
 export function toggleActivitySortDirection(state: WorkspaceState): WorkspaceState {

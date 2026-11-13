@@ -7834,12 +7834,19 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 [data-table-row-mode="content"] .cp-p6-tree-guides { height: auto; }
 .cp-p6 [data-table-row-mode="content"] .cp-p6-wbs-spine { height: auto; align-self: stretch; }
 .cp-p6 .cp-p6-tree-guides > .cp-p6-wbs-cell,
+.cp-p6 .cp-p6-tree-guides > .cp-p6-group-cell,
 .cp-p6 .cp-p6-tree-guides > .cp-p6-activity-cell { padding-inline-start: 2px; }
 .cp-p6 .cp-p6-tree-cell .cp-p6-wbs-icon,
 .cp-p6 .cp-p6-tree-cell .cp-p6-wbs-code,
+.cp-p6 .cp-p6-tree-cell .cp-p6-group-label,
 .cp-p6 .cp-p6-tree-cell .cp-p6-wbs-name { color: inherit; }
 
 .cp-p6 .cp-p6-wbs-cell { display: inline-flex; align-items: center; gap: 3px; min-width: 0; vertical-align: middle; }
+/* A field-group band names the persisted value and how many activities it
+   holds; it keeps the same band colours and row height as a WBS band. */
+.cp-p6 .cp-p6-group-cell { display: inline-flex; align-items: center; gap: 4px; min-width: 0; vertical-align: middle; }
+.cp-p6 .cp-p6-group-label { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-p6 .cp-p6-group-count { opacity: .75; font-weight: 400; flex: none; }
 .cp-p6 .cp-p6-wbs-toggle {
   display: inline-flex; align-items: center; justify-content: center;
   flex: none; width: 13px; height: 13px; padding: 0;

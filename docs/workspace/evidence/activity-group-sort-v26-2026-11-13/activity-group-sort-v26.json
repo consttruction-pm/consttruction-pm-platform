@@ -1,0 +1,125 @@
+{
+  "contract": "cubi-activity-group-sort-v26.v2",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "5945c90723fe63d221d213588fbbfcfd2089475c",
+  "testCodeSha": "5945c90723fe63d221d213588fbbfcfd2089475c",
+  "testedCodeSha": "5945c90723fe63d221d213588fbbfcfd2089475c",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T04:40:45.433Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the dialog applies an ordered sort plan and the Gantt follows it",
+      "status": "pass",
+      "at": "2026-11-13T04:40:49.482Z",
+      "rows": 14,
+      "bands": 0,
+      "order": "A210,A200,A190,A180,A160,A170,A155,A140,A145,A150,A130,A120,A110,A100"
+    },
+    {
+      "id": "02",
+      "name": "the saved layout stores the plan and a reload restores it",
+      "status": "pass",
+      "at": "2026-11-13T04:40:51.248Z",
+      "revision": 2,
+      "sortLevels": [
+        {
+          "columnId": "activity.early_start",
+          "direction": "desc"
+        },
+        {
+          "columnId": "activity.name",
+          "direction": "asc"
+        }
+      ],
+      "rows": 14
+    },
+    {
+      "id": "03",
+      "name": "WBS grouping orders activities inside each band and persists",
+      "status": "pass",
+      "at": "2026-11-13T04:40:54.531Z",
+      "bands": 7,
+      "rows": 14
+    },
+    {
+      "id": "04",
+      "name": "the dialog and a sort plan render in a Persian RTL cell",
+      "status": "pass",
+      "at": "2026-11-13T04:40:57.435Z",
+      "dialog": {
+        "title": "گروه‌بندی و ترتیب",
+        "rows": 3,
+        "overflow": 0
+      },
+      "rows": 14
+    },
+    {
+      "id": "05",
+      "name": "the grouped layout fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-13T04:40:58.476Z",
+      "rows": 14,
+      "overflow": 0
+    },
+    {
+      "id": "06",
+      "name": "Activity Status forms ordered bands that collapse independently and persist",
+      "status": "pass",
+      "at": "2026-11-13T04:41:04.435Z",
+      "bands": 3,
+      "counts": [
+        3,
+        1,
+        10
+      ],
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "WBS and Activity Status nest two levels with independent collapse",
+      "status": "pass",
+      "at": "2026-11-13T04:41:11.080Z",
+      "wbsBands": 7,
+      "statusBands": 9,
+      "rows": 14
+    },
+    {
+      "id": "08",
+      "name": "a field-first plan puts WBS bands inside the first field band",
+      "status": "pass",
+      "at": "2026-11-13T04:41:13.311Z",
+      "criticalBands": [
+        "Critical",
+        "Non-critical"
+      ],
+      "wbsBands": 12,
+      "rows": 14
+    },
+    {
+      "id": "09",
+      "name": "a nested plan stays readable in a Persian RTL cell at 1280",
+      "status": "pass",
+      "at": "2026-11-13T04:41:16.438Z",
+      "bands": 16,
+      "rows": 14,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-group-sort-start-desc-name-asc-en-1366.png",
+    "02-sorted-layout-after-reload-en-1366.png",
+    "03-wbs-group-name-asc-after-reload-en-1366.png",
+    "04-group-sort-fa-rtl-1280.png",
+    "05-group-sort-en-1920.png",
+    "06-activity-status-bands-after-reload-en-1366.png",
+    "07-wbs-status-nested-after-reload-en-1366.png",
+    "08-critical-then-wbs-en-1366.png",
+    "09-wbs-status-fa-rtl-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 9,
+  "failed": 0
+}

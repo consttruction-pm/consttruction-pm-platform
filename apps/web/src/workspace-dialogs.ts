@@ -33,6 +33,12 @@ import {
   type WorkspacePresentation,
 } from "./workspace-presentation.js";
 import { timescaleTickScale } from "./workspace-gantt.js";
+import {
+  WORKSPACE_GROUP_FIELDS,
+  isWorkspaceGroupFieldId,
+  normalizeGroupLevels,
+} from "./workspace-grouping.js";
+import type { WorkspaceActivityGroupLevel } from "./workspace-model.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 import {
   ACTIVITY_FILTER_FIELDS,
@@ -70,6 +76,8 @@ export type DesktopSortColumn = { id: string; label: string };
 
 export type DesktopLayoutPatch = {
   groupBy?: "wbs" | "none";
+  /** Ordered group plan from the Group and Sort dialog. */
+  groupLevels?: readonly WorkspaceActivityGroupLevel[];
   sortColumnId?: string | null;
   sortDirection?: "asc" | "desc";
   /** Ordered multi-level sort from the Group and Sort dialog. */
@@ -98,6 +106,8 @@ export type DialogOptions = {
   sortColumnId: string | null;
   sortDirection: "asc" | "desc";
   sortLevels: readonly { columnId: string; direction: "asc" | "desc" }[];
+  /** Ordered group plan currently applied; the dialog edits all three slots. */
+  groupLevels?: readonly WorkspaceActivityGroupLevel[];
   rowHeight: number;
   fontSize: number;
   barHeight: number;
@@ -795,19 +805,33 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
       </label>
     </div>`;
   }).join("");
-  const groupSort = `<fieldset class="cp-dialog-group">
-      <legend>${esc(t(locale, "Group by", "گروه‌بندی بر اساس"))}</legend>
-      <label class="cp-dialog-row"><span>${esc(t(locale, "Group levels", "سطوح گروه"))}</span>
-        <select name="groupBy">
-          <option value="wbs"${layout.groupBy === "wbs" ? " selected" : ""}>WBS</option>
-          <option value="none"${layout.groupBy === "none" ? " selected" : ""}>${esc(t(locale, "No grouping", "بدون گروه‌بندی"))}</option>
+  const groupRows = [0, 1, 2].map((index) => {
+    const level = optionsInput.groupLevels?.[index];
+    const field = level?.fieldId ?? "";
+    const direction = level?.direction ?? "asc";
+    return `<div class="cp-filter-row cp-group-row">
+      <label><span>${esc(t(locale, `Group ${index + 1}`, `گروه ${index + 1}`))}</span>
+        <select name="group.field.${index}" aria-label="${esc(t(locale, `Group field ${index + 1}`, `فیلد گروه ${index + 1}`))}">
+          <option value=""${field ? "" : " selected"}>${esc(index === 0 ? t(locale, "No grouping", "بدون گروه‌بندی") : t(locale, "No field", "بدون فیلد"))}</option>
+          ${WORKSPACE_GROUP_FIELDS.map((option) => `<option value="${esc(option.id)}"${field === option.id ? " selected" : ""}>${esc(t(locale, option.en, option.fa))}</option>`).join("")}
         </select>
       </label>
-      <p class="cp-dialog-note">${esc(t(locale, "WBS is the only grouping hierarchy persisted for this project. Other group categories are not loaded by this runtime.", "سلسله‌مراتب WBS تنها گروه‌بندی ذخیره‌شدهٔ این پروژه است. دسته‌های گروه‌بندی دیگر در این محیط بارگذاری نشده‌اند."))}</p>
+      <label><span>${esc(t(locale, "Order", "جهت"))}</span>
+        <select name="group.direction.${index}" aria-label="${esc(t(locale, `Group order ${index + 1}`, `جهت گروه ${index + 1}`))}">
+          <option value="asc"${direction === "asc" ? " selected" : ""}>${esc(t(locale, "Ascending", "صعودی"))}</option>
+          <option value="desc"${direction === "desc" ? " selected" : ""}>${esc(t(locale, "Descending", "نزولی"))}</option>
+        </select>
+      </label>
+    </div>`;
+  }).join("");
+  const groupSort = `<fieldset class="cp-dialog-group">
+      <legend>${esc(t(locale, "Group by", "گروه‌بندی بر اساس"))}</legend>
+      <p class="cp-dialog-note">${esc(t(locale, "Up to three levels apply in order. WBS walks the persisted hierarchy; the other fields form value bands. Activities inside the innermost band keep the sort plan below.", "حداکثر سه سطح به‌ترتیب اعمال می‌شود. WBS سلسله‌مراتب ذخیره‌شده را پیمایش می‌کند و فیلدهای دیگر باندهای مقداری می‌سازند. فعالیت‌های داخل داخلی‌ترین باند از ترتیب زیر پیروی می‌کنند."))}</p>
+      ${groupRows}
     </fieldset>
     <fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Sort", "ترتیب"))}</legend>
-      <p class="cp-dialog-note">${esc(t(locale, "Up to three fields apply in order; the first field also drives the toolbar sort. Empty rows are ignored.", "حداکثر سه فیلد به‌ترتیب اعمال می‌شود؛ فیلد اول ترتیب نوار ابزار را نیز تعیین می‌کند. ردیف‌های خالی نادیده گرفته می‌شوند."))}</p>
+      <p class="cp-dialog-note">${esc(t(locale, "Up to three fields apply in order; the first field also drives the toolbar sort. Empty rows are ignored; a field that already groups is skipped because it cannot change the band order.", "حداکثر سه فیلد به‌ترتیب اعمال می‌شود؛ فیلد اول ترتیب نوار ابزار را نیز تعیین می‌کند. ردیف‌های خالی نادیده گرفته می‌شوند و فیلدی که خودش گروه‌بندی است نادیده می‌ماند چون ترتیب باندها را تغییر نمی‌دهد."))}</p>
       ${sortRows}
     </fieldset>`;
 
@@ -978,8 +1002,24 @@ function buildFilterDraft(data: FormData, editingId: string, scope: ActivityFilt
 export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: WorkspacePresentation): DesktopLayoutPatch {
   const data = form instanceof FormData ? form : new FormData(form);
   const patch: DesktopLayoutPatch = {};
-  const groupBy = data.get("groupBy");
-  if (groupBy === "wbs" || groupBy === "none") patch.groupBy = groupBy;
+  if (data.has("group.field.0")) {
+    const requested: WorkspaceActivityGroupLevel[] = [];
+    for (const index of [0, 1, 2]) {
+      const field = String(data.get(`group.field.${index}`) ?? "").trim();
+      if (!field || !isWorkspaceGroupFieldId(field)) continue;
+      requested.push({
+        fieldId: field,
+        direction: data.get(`group.direction.${index}`) === "desc" ? "desc" : "asc",
+      });
+    }
+    const groupLevels = normalizeGroupLevels(requested);
+    patch.groupLevels = groupLevels;
+    // Keep the legacy flag honest for chrome, menus and the WBS tree actions.
+    patch.groupBy = groupLevels[0]?.fieldId === "wbs" ? "wbs" : "none";
+  } else {
+    const groupBy = data.get("groupBy");
+    if (groupBy === "wbs" || groupBy === "none") patch.groupBy = groupBy;
+  }
   if (data.has("sort.field.0")) {
     const sortLevels: { columnId: string; direction: "asc" | "desc" }[] = [];
     for (const index of [0, 1, 2]) {
@@ -1272,6 +1312,7 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
 export function defaultLayoutPatch(): DesktopLayoutPatch {
   return {
     groupBy: "wbs",
+    groupLevels: [{ fieldId: "wbs", direction: "asc" }],
     sortColumnId: "wbs",
     sortDirection: "asc",
     sortLevels: [{ columnId: "wbs", direction: "asc" }],

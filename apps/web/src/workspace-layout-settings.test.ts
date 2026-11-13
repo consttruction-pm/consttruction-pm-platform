@@ -41,6 +41,7 @@ test("a saved layout restores the group mode and the ordered sort plan", () => {
   assert.equal(saved.metadata?.layoutName, "Baseline");
   assert.deepEqual(readGroupSortMetadata(saved.metadata), {
     groupBy: "none",
+    groupLevels: [],
     sortLevels: [
       { columnId: "status", direction: "desc" },
       { columnId: "activity_name", direction: "asc" },
@@ -70,6 +71,7 @@ test("a malformed or absent group/sort block is ignored instead of trusted", () 
     }),
     {
       groupBy: "wbs",
+      groupLevels: [{ fieldId: "wbs", direction: "asc" }],
       sortLevels: [
         { columnId: "status", direction: "asc" },
         { columnId: "wbs", direction: "asc" },
@@ -88,6 +90,7 @@ test("writing metadata caps the plan at three levels and keeps other keys", () =
   ], -5);
   assert.deepEqual(metadata[GROUP_SORT_METADATA_KEY], {
     groupBy: "wbs",
+    groupLevels: [{ fieldId: "wbs", direction: "asc" }],
     sortLevels: [
       { columnId: "status", direction: "desc" },
       { columnId: "activity_name", direction: "asc" },
@@ -97,7 +100,7 @@ test("writing metadata caps the plan at three levels and keeps other keys", () =
   assert.equal(metadata[GROUP_SORT_UPDATED_KEY], 0);
   const merged = withGroupSortMetadata(layout(), "wbs", [], 10);
   assert.equal(merged.metadata?.layoutName, "Baseline");
-  assert.deepEqual(readGroupSortMetadata(merged.metadata), { groupBy: "wbs", sortLevels: [] });
+  assert.deepEqual(readGroupSortMetadata(merged.metadata), { groupBy: "wbs", groupLevels: [{ fieldId: "wbs", direction: "asc" }], sortLevels: [] });
 });
 
 test("a saved layout restores the collapsed WBS branches it was saved with", () => {
@@ -134,6 +137,32 @@ test("collapse metadata is capped and never replaces the other layout keys", () 
     withGroupSortMetadata(layout(), "wbs", [], 10),
     ["WBS-RPS-CIVIL"],
   );
-  assert.deepEqual(readGroupSortMetadata(both.metadata), { groupBy: "wbs", sortLevels: [] });
+  assert.deepEqual(readGroupSortMetadata(both.metadata), { groupBy: "wbs", groupLevels: [{ fieldId: "wbs", direction: "asc" }], sortLevels: [] });
   assert.deepEqual([...(readCollapsedWbsMetadata(both.metadata) ?? [])], ["WBS-RPS-CIVIL"]);
+});
+
+test("a multi-level group plan round-trips and unknown fields are dropped", () => {
+  const metadata = groupSortMetadata("wbs", [], 10, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+    { fieldId: "activity_status", direction: "asc" },
+    { fieldId: "not_a_field", direction: "asc" },
+  ]);
+  const saved = readGroupSortMetadata(metadata);
+  assert.deepEqual(saved?.groupLevels, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+  ]);
+  const legacy = readGroupSortMetadata({
+    [GROUP_SORT_METADATA_KEY]: { groupBy: "wbs", sortLevels: [{ columnId: "status", direction: "asc" }] },
+  });
+  assert.deepEqual(legacy?.groupLevels, [{ fieldId: "wbs", direction: "asc" }]);
+  const flat = readGroupSortMetadata({
+    [GROUP_SORT_METADATA_KEY]: { groupBy: "none", groupLevels: [], sortLevels: [] },
+  });
+  assert.deepEqual(flat?.groupLevels, []);
+  const invalidOnly = readGroupSortMetadata({
+    [GROUP_SORT_METADATA_KEY]: { groupBy: "none", groupLevels: [{ fieldId: "bogus" }], sortLevels: [] },
+  });
+  assert.deepEqual(invalidOnly?.groupLevels, []);
 });

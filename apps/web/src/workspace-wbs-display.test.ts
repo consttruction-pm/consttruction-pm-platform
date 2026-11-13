@@ -39,14 +39,19 @@ const activities: WorkspaceActivityRow[] = [
   },
 ];
 
+function rowKey(row: ReturnType<typeof buildWorkspaceDisplayRows>[number]): string {
+  if (row.kind === "wbs") return `wbs:${row.bandKey}`;
+  if (row.kind === "fieldGroup") return `band:${row.bandKey}`;
+  return `act:${row.activity.id}`;
+}
+
 function rowKeys(collapsed: ReadonlySet<string> = new Set()): string[] {
-  return buildWorkspaceDisplayRows(activities, nodes, "wbs", collapsed)
-    .map((row) => row.kind === "wbs" ? `wbs:${row.wbsId}` : `act:${row.activity.id}`);
+  return buildWorkspaceDisplayRows(activities, nodes, "wbs", collapsed).map(rowKey);
 }
 
 test("WBS display rows keep the hierarchy order and indent by real depth", () => {
   const rows = buildWorkspaceDisplayRows(activities, nodes, "wbs");
-  assert.deepEqual(rows.map((row) => row.kind === "wbs" ? `wbs:${row.wbsId}` : `act:${row.activity.id}`), [
+  assert.deepEqual(rows.map(rowKey), [
     "wbs:W-ROOT",
     "wbs:W-A",
     "wbs:W-A1",
@@ -83,7 +88,7 @@ test("tree guides draw one gutter per visible ancestor and stop at the last sibl
   const rows = buildWorkspaceDisplayRows(activities, nodes, "wbs");
   const guides = buildWbsTreeGuides(rows);
   const guideFor = (key: string) => {
-    const index = rows.findIndex((row) => row.kind === "wbs" ? `wbs:${row.wbsId}` === key : `act:${row.activity.id}` === key);
+    const index = rows.findIndex((row) => rowKey(row) === key);
     assert.notEqual(index, -1, `missing display row ${key}`);
     return guides[index];
   };
@@ -143,4 +148,137 @@ test("collapse preference is stored per project and toggles both ways", () => {
   setCollapsedWbsIds("project-collapse-test", ["W-B", "W-A", "W-A"]);
   assert.deepEqual([...getCollapsedWbsIds("project-collapse-test")], ["W-A", "W-B"]);
   setCollapsedWbsIds("project-collapse-test", []);
+});
+
+const statusActivities: WorkspaceActivityRow[] = [
+  {
+    id: "A-1", wbsId: "W-A1", code: "A1", name: "Excavate",
+    cells: { duration: 2, "activity.status": "In Progress" },
+    gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 50, critical: true },
+  },
+  {
+    id: "A-2", wbsId: "W-A1", code: "A2", name: "Haul",
+    cells: { duration: 2, "activity.status": "Completed" },
+    gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 100, critical: false },
+  },
+  {
+    id: "B-1", wbsId: "W-B", code: "B1", name: "Rebar",
+    cells: { duration: 2 },
+    gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-04T00:00:00Z", progressPercent: 0, critical: false },
+  },
+];
+
+test("a field group plan emits value bands in the configured order", () => {
+  const asc = buildWorkspaceDisplayRows(statusActivities, nodes, "none", new Set(), [{ fieldId: "activity_status", direction: "asc" }]);
+  assert.deepEqual(asc.map(rowKey), [
+    "band:field:activity_status:s:Completed",
+    "act:A-2",
+    "band:field:activity_status:s:In Progress",
+    "act:A-1",
+    "band:field:activity_status:e:",
+    "act:B-1",
+  ]);
+  const completed = asc[0];
+  assert.equal(completed.kind, "fieldGroup");
+  if (completed.kind !== "fieldGroup") return;
+  assert.equal(completed.summary.activityCount, 1);
+  assert.equal(completed.label, "Completed");
+  assert.equal(completed.depth, 0);
+  assert.equal(asc[1].kind === "activity" ? asc[1].depth : -1, 1);
+
+  const desc = buildWorkspaceDisplayRows(statusActivities, nodes, "none", new Set(), [{ fieldId: "activity_status", direction: "desc" }]);
+  assert.deepEqual(desc.filter((row) => row.kind === "fieldGroup").map((row) => row.kind === "fieldGroup" ? row.valueKey : ""),
+    ["s:In Progress", "s:Completed", "e:"]);
+  // "No value" stays last whatever the direction.
+  assert.equal(desc[desc.length - 1].kind === "activity" ? desc[desc.length - 1].kind : "", "activity");
+});
+
+test("a WBS plan nests a second field level inside the deepest band", () => {
+  const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "wbs", new Set(), [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "asc" },
+  ]);
+  assert.deepEqual(rows.map(rowKey), [
+    "wbs:W-ROOT",
+    "wbs:W-A",
+    "wbs:W-A1",
+    "band:W-A1>activity_status:s:Completed",
+    "act:A-2",
+    "band:W-A1>activity_status:s:In Progress",
+    "act:A-1",
+    "wbs:W-B",
+    "band:W-B>activity_status:e:",
+    "act:B-1",
+  ]);
+  const nested = rows.find((row) => row.kind === "fieldGroup" && row.valueKey === "s:In Progress");
+  assert.deepEqual(nested?.kind === "fieldGroup" ? [nested.depth, nested.level, nested.bandKey] : [],
+    [3, 1, "W-A1>activity_status:s:In Progress"]);
+});
+
+test("field bands collapse independently and never share a WBS band key", () => {
+  const collapsed = new Set(["W-A1>activity_status:s:In Progress"]);
+  const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "wbs", collapsed, [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "asc" },
+  ]);
+  assert.deepEqual(rows.map(rowKey), [
+    "wbs:W-ROOT",
+    "wbs:W-A",
+    "wbs:W-A1",
+    "band:W-A1>activity_status:s:Completed",
+    "act:A-2",
+    "band:W-A1>activity_status:s:In Progress",
+    "wbs:W-B",
+    "band:W-B>activity_status:e:",
+    "act:B-1",
+  ]);
+  const inProgress = rows.find((row) => row.kind === "fieldGroup" && row.valueKey === "s:In Progress");
+  assert.equal(inProgress?.kind === "fieldGroup" ? inProgress.collapsed : null, true);
+  // The collapsed activity is the only hidden row; its sibling band survives.
+  assert.ok(!rows.map(rowKey).includes("act:A-1"));
+});
+
+test("a field-first plan groups activities before the WBS hierarchy", () => {
+  const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "none", new Set(), [
+    { fieldId: "activity_status", direction: "asc" },
+    { fieldId: "wbs", direction: "asc" },
+  ]);
+  assert.deepEqual(rows.map(rowKey), [
+    "band:field:activity_status:s:Completed",
+    "wbs:field:activity_status:s:Completed>wbs:W-ROOT",
+    "wbs:field:activity_status:s:Completed>wbs:W-A",
+    "wbs:field:activity_status:s:Completed>wbs:W-A1",
+    "act:A-2",
+    "band:field:activity_status:s:In Progress",
+    "wbs:field:activity_status:s:In Progress>wbs:W-ROOT",
+    "wbs:field:activity_status:s:In Progress>wbs:W-A",
+    "wbs:field:activity_status:s:In Progress>wbs:W-A1",
+    "act:A-1",
+    "band:field:activity_status:e:",
+    "wbs:field:activity_status:e:>wbs:W-ROOT",
+    "wbs:field:activity_status:e:>wbs:W-B",
+    "act:B-1",
+  ]);
+  const firstWbs = rows.find((row) => row.kind === "wbs");
+  assert.equal(firstWbs?.kind === "wbs" ? firstWbs.wbsId : "", "W-ROOT");
+  assert.equal(firstWbs?.kind === "wbs" ? firstWbs.level : -1, 1);
+});
+
+test("a WBS level without loaded nodes is skipped instead of inventing bands", () => {
+  const rows = buildWorkspaceDisplayRows(statusActivities, [], "wbs", new Set(), [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "asc" },
+  ]);
+  assert.deepEqual(rows.map((row) => row.kind), ["fieldGroup", "activity", "fieldGroup", "activity", "fieldGroup", "activity"]);
+});
+
+test("tree guides treat field bands as parents with their own collapse state", () => {
+  const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "none", new Set(), [
+    { fieldId: "activity_status", direction: "asc" },
+  ]);
+  const guides = buildWbsTreeGuides(rows);
+  assert.equal(guides[0].hasChildren, true);
+  assert.equal(guides[0].collapsed, false);
+  assert.equal(guides[1].hasChildren, false);
+  assert.deepEqual(guides[1].rails, []);
 });
