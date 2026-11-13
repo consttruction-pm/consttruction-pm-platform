@@ -725,3 +725,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Fix (code `d2aa3419`):** `set_policy` now also requires `PROJECT_ADMIN` when a hold is placed, lifted, or changed while active; `dispose` requires `PROJECT_ADMIN` unconditionally. Ordinary retention-window edits on an unheld document still accept `PROJECT_WRITE`. Denials keep the existing `DOCUMENT_PERMISSION_DENIED` code (the review’s suggested `DOCUMENT_AUTHORIZATION_REQUIRED` name was not introduced, to avoid a second code for the same boundary).
 - **Tests:** `tests/test_document_retention.py::test_legal_hold_and_disposition_require_project_admin` covers planner denial for placing a hold, lifting a hold and disposing, plus a successful admin lift. The retention harness and live PostgreSQL retention test now use the `project_admin` grant. `pytest tests/test_document_retention.py tests/test_document_application_reads.py tests/test_document_http_routes.py tests/test_preview_documents.py tests/test_document_binary_storage.py` = **41 passed**.
 - **Docs:** `docs/audits/BACKEND_SECURITY_REVIEW_2026-11-13.md` register and SEC-007 section updated; SEC-007 removed from the open-findings gate. No UI change.
+
+## SEC-016 document search LIKE escaping — 2026-11-13
+
+- **Finding:** document-list `search` was bound as `%{search}%` without `ESCAPE`, so `%` and `_` acted as wildcards and any length was accepted.
+- **Fix (code `2b2873b3`):** `_escape_like` escapes backslash, `%` and `_`; the Postgres and SQLite queries add `ESCAPE '\'`; `MAX_DOCUMENT_SEARCH_LENGTH = 200` rejects longer terms with the existing `INVALID_DOCUMENT_SEARCH_FILTER` code.
+- **Tests:** `tests/test_document_sqlite_store.py` adds literal matches for `50%` and `A_B`, asserts bare `%` and `_` match nothing, and rejects a 201-character search. `pytest tests/test_document_sqlite_store.py tests/test_document_http_routes.py tests/test_preview_documents.py tests/test_document_retention.py` = **31 passed**.
+- **Docs:** security register and SEC-016 section updated; SEC-016 removed from the open-findings gate.

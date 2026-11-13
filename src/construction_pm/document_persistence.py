@@ -169,6 +169,18 @@ def _coerce_datetime(value: object) -> datetime:
     raise ValueError("INVALID_DOCUMENT_AUDIT_TIMESTAMP")
 
 
+MAX_DOCUMENT_SEARCH_LENGTH = 200
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE metacharacters so user input matches literally."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+
+
 def _validate_document_filters(
     resource_type: str | None, status: str | None, search: str | None
 ) -> None:
@@ -177,6 +189,8 @@ def _validate_document_filters(
     if status is not None and status not in DOCUMENT_STATUSES:
         raise ValueError("INVALID_DOCUMENT_STATUS_FILTER")
     if search is not None and (not isinstance(search, str) or not search.strip()):
+        raise ValueError("INVALID_DOCUMENT_SEARCH_FILTER")
+    if search is not None and len(search) > MAX_DOCUMENT_SEARCH_LENGTH:
         raise ValueError("INVALID_DOCUMENT_SEARCH_FILTER")
 
 
@@ -334,8 +348,8 @@ class PostgresDocumentStore:
             query += " AND document_json::json->>'status'=%s"
             params.append(status)
         if search is not None:
-            query += " AND (LOWER(document_id) LIKE %s OR LOWER(document_json::json->>'title') LIKE %s)"
-            needle = f"%{search.lower()}%"
+            query += " AND (LOWER(document_id) LIKE %s ESCAPE '\\' OR LOWER(document_json::json->>'title') LIKE %s ESCAPE '\\')"
+            needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
         query += " ORDER BY document_id"
         rows = self.connection.execute(query, tuple(params)).fetchall()
@@ -590,8 +604,8 @@ class SQLiteDocumentStore:
             query += " AND json_extract(document_json, '$.status')=?"
             params.append(status)
         if search is not None:
-            query += " AND (LOWER(document_id) LIKE ? OR LOWER(json_extract(document_json, '$.title')) LIKE ?)"
-            needle = f"%{search.lower()}%"
+            query += " AND (LOWER(document_id) LIKE ? ESCAPE '\\' OR LOWER(json_extract(document_json, '$.title')) LIKE ? ESCAPE '\\')"
+            needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
         query += " ORDER BY document_id"
         rows = self.connection.execute(query, tuple(params)).fetchall()
