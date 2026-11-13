@@ -30,6 +30,22 @@
       "destination": "/login.html"
     },
     {
+      "source": "/preview",
+      "destination": "/api?__path=preview"
+    },
+    {
+      "source": "/preview/:path*",
+      "destination": "/api?__path=preview/:path*"
+    },
+    {
+      "source": "/dist/main.bundle.js",
+      "destination": "/dist/web/src/main.bundle.js"
+    },
+    {
+      "source": "/dist/global-assistant-launcher.bundle.js",
+      "destination": "/dist/web/src/global-assistant-launcher.bundle.js"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api?__path=:path*"
     }
@@ -45,6 +61,27 @@
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/preview/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
         }
       ]
     },

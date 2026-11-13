@@ -1,9 +1,14 @@
-"""Vercel entrypoint for the CUBI production API.
+"""Vercel entrypoint for the CUBI API.
 
 The Vercel project is rooted at ``apps/web``; ``vercel-runtime`` is staged by
 ``scripts/prepare-vercel-runtime.mjs`` during the build and contains the
 unmodified repository runtime. Requests arrive here through the
 ``/api/:path*`` rewrite, which carries the original route in ``__path``.
+
+A preview deployment (``VERCEL_ENV=preview``) serves the fixture-backed demo
+workspace described by ``construction_pm.deployment.vercel_preview``. The
+production runtime is unchanged and remains the only runtime a production
+deployment can select.
 """
 
 from __future__ import annotations
@@ -24,6 +29,21 @@ try:  # pragma: no cover - exercised by the Vercel function
 except Exception as error:  # noqa: BLE001 - report, never leak details
     get_runtime = None  # type: ignore[assignment]
     _IMPORT_FAILURE = type(error).__name__
+
+_preview_app = None
+
+
+def _preview_selected() -> bool:
+    """True only for an explicitly non-production preview deployment."""
+
+    def value(name: str) -> str:
+        return os.environ.get(name, "").strip().lower()
+
+    if value("VERCEL_ENV") == "production" or value("VERCEL_TARGET_ENV") == "production":
+        return False
+    if value("CUBI_PREVIEW_RUNTIME") in {"1", "true", "yes"}:
+        return True
+    return value("VERCEL_ENV") == "preview"
 
 
 def _json(start_response, status: int, payload: dict[str, object]):
@@ -56,7 +76,26 @@ def _unavailable(environ, start_response):
     )
 
 
+def _preview(environ, start_response):
+    global _preview_app
+    try:
+        if _preview_app is None:
+            from construction_pm.deployment.vercel_preview import get_preview_application
+
+            _preview_app = get_preview_application()
+        return _preview_app(environ, start_response)
+    except Exception as error:  # noqa: BLE001 - a preview failure stays a preview failure
+        print(f"cubi: preview runtime failed ({type(error).__name__})", file=sys.stderr)
+        return _json(
+            start_response,
+            503,
+            {"status": "not_ready", "code": "PREVIEW_UNAVAILABLE"},
+        )
+
+
 def app(environ, start_response):
+    if _preview_selected():
+        return _preview(environ, start_response)
     if get_runtime is None:
         print(f"cubi: runtime import failed ({_IMPORT_FAILURE})", file=sys.stderr)
         return _unavailable(environ, start_response)
