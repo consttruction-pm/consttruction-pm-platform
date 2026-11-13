@@ -593,7 +593,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="${c.brandAlt}" /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${aboutPageHref}">${c.about}</a></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${aboutPageHref}">${c.about}</a><a href="#security">${locale === "fa" ? "امنیت و پایداری" : "Security & Reliability"}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
       </div>`;
