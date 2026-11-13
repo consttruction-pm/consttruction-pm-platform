@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -287,6 +288,33 @@ def test_runner_executes_once_and_reuses_saved_run(env) -> None:
     assert [item.state for item in replay] == ["succeeded"]
     assert replay[0].run_id == outcomes[0].run_id
     assert len(env.reports.list_runs(TENANT, PROJECT, "RPT-1")) == 1
+
+
+def test_runner_records_metric_and_deterministic_correlation(env) -> None:
+    from construction_pm.observability import OperationalMetrics
+    from construction_pm.production_readiness import StructuredEventLogger
+
+    schedule = env.service.create(
+        _schedule(), context=_context(), actor_id=USER, occurred_at=NOW
+    )
+    stream = io.StringIO()
+    metrics = OperationalMetrics()
+    runner = ReportScheduleRunner(
+        env.store,
+        env.application,
+        metrics=metrics,
+        logger=StructuredEventLogger(stream=stream, clock=lambda: NOW),
+    )
+    due = schedule.next_run_at
+    outcomes = runner.run_due(now=due, worker_id="worker-1")
+    assert [item.state for item in outcomes] == ["succeeded"]
+    event = json.loads(stream.getvalue().splitlines()[0])
+    assert event["event"] == "report.schedule.run"
+    assert event["correlation_id"] == "report-schedule:SCH-1:20260302T090000Z"
+    assert event["run_id"] == outcomes[0].run_id
+    counters = metrics.snapshot()["counters"]
+    assert counters[0]["name"] == "report_schedule_runs_total"
+    assert counters[0]["labels"] == {"state": "succeeded"}
 
 
 def test_claim_lease_reclaim_and_disabled_schedule(env) -> None:

@@ -19,7 +19,11 @@ from typing import Protocol
 
 from .document_persistence import DocumentAuthorizationError
 from .api_errors import APIError, conflict_error, persistence_error, validation_error
-from .observability import OperationalMetrics
+from .observability import (
+    OperationalMetrics,
+    reset_correlation_id,
+    set_correlation_id,
+)
 from .production_readiness import StructuredEventLogger
 
 OCR_STATUSES = ("pending", "running", "succeeded", "failed", "skipped")
@@ -729,16 +733,24 @@ class DocumentOcrRunner:
                 except ValueError:
                     pass
             if self.logger is not None:
-                self.logger.emit(
-                    "document.ocr.job",
-                    fields={
-                        "document_id": job.document_id,
-                        "version": job.version,
-                        "status": job.status,
-                        "engine": job.engine or job.engine_version or "none",
-                        "char_count": job.char_count if job.char_count is not None else 0,
-                    },
+                token = set_correlation_id(
+                    f"ocr:{job.tenant_id}:{job.document_id}:{job.version}"
                 )
+                try:
+                    self.logger.emit(
+                        "document.ocr.job",
+                        fields={
+                            "document_id": job.document_id,
+                            "version": job.version,
+                            "status": job.status,
+                            "engine": job.engine or job.engine_version or "none",
+                            "char_count": (
+                                job.char_count if job.char_count is not None else 0
+                            ),
+                        },
+                    )
+                finally:
+                    reset_correlation_id(token)
 
 
 class DocumentOcrService:

@@ -319,6 +319,27 @@ def test_runner_enforces_text_limit(tmp_path) -> None:
     assert result.detail == "DOCUMENT_OCR_TEXT_TOO_LARGE"
 
 
+def test_runner_logs_deterministic_correlation_for_each_job(tmp_path) -> None:
+    import io
+
+    from construction_pm.production_readiness import StructuredEventLogger
+
+    harness = _Harness(tmp_path)
+    harness.upload()
+    stream = io.StringIO()
+    runner = DocumentOcrRunner(
+        harness.ocr_store,
+        harness.storage,
+        ReferenceDocumentOcrEngine(),
+        logger=StructuredEventLogger(stream=stream, clock=lambda: NOW),
+    )
+    runner.run_due(NOW, "worker-a", 10)
+    event = json.loads(stream.getvalue().splitlines()[0])
+    assert event["event"] == "document.ocr.job"
+    assert event["correlation_id"] == "ocr:t1:DOC-1:1"
+    assert event["status"] == "succeeded"
+
+
 # --- HTTP ------------------------------------------------------------------
 
 
