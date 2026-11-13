@@ -2756,3 +2756,76 @@ test("WBS window renders persisted status and the weighted milestone editor", ()
   assert.match(html, /value="Mobilize"/);
   assert.match(html, /name="milestone_weight" type="number" min="0\.01" step="0\.01" value="9"/);
 });
+
+test("WBS toolbar copies the selected element and pastes beneath the selected target", () => {
+  const base = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [
+      { id: "W-ROOT", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1 },
+      { id: "W-CIVIL", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.1", name: "Civil", sequenceNumber: 0, recordRevision: 1 },
+      { id: "W-CIVIL-SITE", parentKind: "wbs", parentWbsId: "W-CIVIL", localCode: "1.1.1", name: "Site works", sequenceNumber: 0, recordRevision: 1 },
+      { id: "W-PM", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.2", name: "Project management", sequenceNumber: 1, recordRevision: 1 },
+    ],
+  );
+  let clickListener: ((event: Event) => void) | undefined;
+  const clipboard = { textContent: "" };
+  const pasteButton = { disabled: true };
+  const clipboardError = { hidden: true, textContent: "" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (event: string, listener: (event: Event) => void) => {
+      if (event === "click") clickListener = listener;
+    },
+    querySelector: (selector: string) => {
+      if (selector === "[data-wbs-clipboard]") return clipboard;
+      if (selector === "[data-wbs-paste]") return pasteButton;
+      if (selector === "[data-wbs-clipboard-error]") return clipboardError;
+      return null;
+    },
+  };
+  const events: string[] = [];
+  const options = {
+    onWbsUpdate: (wbsId: string, input: { parentWbsId?: string | null }) => {
+      events.push(`update:${wbsId}:${input.parentWbsId ?? ""}`);
+    },
+    onWbsCopy: (wbsId: string, targetParentWbsId: string, rootCode: string) => {
+      events.push(`copy:${wbsId}:${targetParentWbsId}:${rootCode}`);
+    },
+  };
+  // A fresh presentation identity forces the full render path; a real browser
+  // keeps its DOM, while this stub only exposes the rendered string.
+  const paint = (selectedWbsId: string): void => {
+    renderMainWorkspace(
+      container as unknown as HTMLElement,
+      { ...base, activeMenu: "wbs" as const, selectedWbsId },
+      { ...options, presentation: { ...DEFAULT_PRESENTATION } },
+    );
+  };
+  paint("W-CIVIL");
+  assert.match(container.innerHTML, /data-wbs-cut/);
+  assert.match(container.innerHTML, /data-wbs-copy/);
+  assert.match(container.innerHTML, /<button type="button" data-wbs-paste disabled>/);
+  assert.match(container.innerHTML, /Clipboard empty/);
+
+  const copyButton = { dataset: { wbsCopy: "" }, closest: () => copyButton };
+  clickListener?.({ target: copyButton } as unknown as Event);
+  assert.equal(clipboard.textContent, "Clipboard: copy — Civil (1.1)");
+  assert.equal(pasteButton.disabled, false);
+
+  // Selecting a different element keeps the page-local clipboard entry.
+  paint("W-PM");
+  assert.match(container.innerHTML, /Clipboard: copy — Civil \(1\.1\)/);
+  const paste = { dataset: { wbsPaste: "" }, closest: () => paste };
+  clickListener?.({ target: paste } as unknown as Event);
+  assert.deepEqual(events, ["copy:W-CIVIL:W-PM:1.1"]);
+
+  // Cut pastes by moving the existing record to the selected parent.
+  paint("W-CIVIL-SITE");
+  const cutButton = { dataset: { wbsCut: "" }, closest: () => cutButton };
+  clickListener?.({ target: cutButton } as unknown as Event);
+  assert.equal(clipboard.textContent, "Clipboard: cut — Site works (1.1.1)");
+  paint("W-PM");
+  clickListener?.({ target: paste } as unknown as Event);
+  assert.deepEqual(events, ["copy:W-CIVIL:W-PM:1.1", "update:W-CIVIL-SITE:W-PM"]);
+});

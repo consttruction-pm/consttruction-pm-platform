@@ -49,6 +49,12 @@ import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
 import { weightedPercentComplete, wbsStatusLabel, wbsTechniqueLabel } from "./workspace-wbs-milestones.js";
+import {
+  nextWbsCopyCode,
+  wbsClipboardLabels,
+  wbsClipboardText,
+  type WorkspaceWbsClipboardEntry,
+} from "./workspace-wbs-clipboard.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { readTraceLogicDepths, renderTraceLogic, storeTraceLogicDepths } from "./workspace-trace-logic.js";
@@ -188,6 +194,8 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "table" | "chart">();
+// The Cut/Copy clipboard is page-local, one entry per WBS surface container.
+const wbsClipboardByContainer = new WeakMap<HTMLElement, WorkspaceWbsClipboardEntry>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -1111,7 +1119,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-cut],[data-wbs-copy],[data-wbs-paste],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1335,6 +1343,71 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activitySortDirection !== undefined) return void options.onActivitySortDirectionToggle?.();
     if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
     if ("wbsDelete" in target.dataset) { const selectedId = state.selectedWbsId ?? ""; if (selectedId && window.confirm(getWorkspaceLabels(state.locale).wbsDeleteConfirm)) void options.onWbsDelete?.(selectedId); return; }
+    if ("wbsCut" in target.dataset || "wbsCopy" in target.dataset) {
+      const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
+      if (!selected) return;
+      const entry: WorkspaceWbsClipboardEntry = {
+        mode: "wbsCut" in target.dataset ? "cut" : "copy",
+        wbsId: selected.id,
+        code: selected.localCode,
+        name: selected.name,
+      };
+      wbsClipboardByContainer.set(container, entry);
+      const clipboard = container.querySelector<HTMLElement>("[data-wbs-clipboard]");
+      if (clipboard) clipboard.textContent = wbsClipboardText(state.locale, entry);
+      const paste = container.querySelector<HTMLButtonElement>("[data-wbs-paste]");
+      if (paste) paste.disabled = false;
+      const clipboardError = container.querySelector<HTMLElement>("[data-wbs-clipboard-error]");
+      if (clipboardError) { clipboardError.hidden = true; clipboardError.textContent = ""; }
+      return;
+    }
+    if ("wbsPaste" in target.dataset) {
+      const clip = wbsClipboardLabels(state.locale);
+      const entry = wbsClipboardByContainer.get(container);
+      const targetNode = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
+      const clipboardError = container.querySelector<HTMLElement>("[data-wbs-clipboard-error]");
+      const showClipboardError = (message: string): void => {
+        if (!clipboardError) return;
+        clipboardError.hidden = false;
+        clipboardError.textContent = message;
+      };
+      if (!entry) { showClipboardError(clip.selectTarget); return; }
+      if (!targetNode) { showClipboardError(clip.selectTarget); return; }
+      if (entry.mode === "cut") {
+        const source = state.wbsNodes.find((node) => node.id === entry.wbsId);
+        if (!source) {
+          wbsClipboardByContainer.delete(container);
+          const clipboard = container.querySelector<HTMLElement>("[data-wbs-clipboard]");
+          if (clipboard) clipboard.textContent = wbsClipboardText(state.locale, null);
+          const paste = container.querySelector<HTMLButtonElement>("[data-wbs-paste]");
+          if (paste) paste.disabled = true;
+          showClipboardError(clip.selectTarget);
+          return;
+        }
+        if (source.id === targetNode.id) { showClipboardError(clip.cannotPasteIntoSelf); return; }
+        // A cut paste moves the existing record, so its activity assignments
+        // stay attached to the same WBS identity (V26 cut-and-paste topic).
+        wbsClipboardByContainer.delete(container);
+        const clipboard = container.querySelector<HTMLElement>("[data-wbs-clipboard]");
+        if (clipboard) clipboard.textContent = wbsClipboardText(state.locale, null);
+        const paste = container.querySelector<HTMLButtonElement>("[data-wbs-paste]");
+        if (paste) paste.disabled = true;
+        void options.onWbsUpdate?.(source.id, {
+          code: source.localCode,
+          name: source.name,
+          sequenceNumber: source.sequenceNumber,
+          ...(source.status ? { status: source.status } : {}),
+          ...(source.percentCompleteTechnique ? { percentCompleteTechnique: source.percentCompleteTechnique } : {}),
+          parentKind: "wbs",
+          parentWbsId: targetNode.id,
+        });
+        return;
+      }
+      // A copy paste asks the server to duplicate the whole subtree.
+      const rootCode = nextWbsCopyCode(state.wbsNodes, targetNode.id, entry.code);
+      void options.onWbsCopy?.(entry.wbsId, targetNode.id, rootCode);
+      return;
+    }
     if ("wbsMilestoneAdd" in target.dataset) {
       const form = target.closest<HTMLFormElement>("[data-wbs-milestones-form]");
       const body = form?.querySelector<HTMLElement>("[data-wbs-milestone-rows]");
@@ -2481,6 +2554,15 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     });
     const wbsDetails = container.querySelector<HTMLElement>(".cp-wbs-details");
     if (wbsDetails) wbsDetails.outerHTML = renderWbsDetails(next, wbsDetailsTabByContainer.get(container) ?? "general");
+    // The WBS window commands depend on the selected element, so the
+    // incremental selection path must update them too instead of leaving the
+    // disabled state from the initial paint.
+    const hasSelection = Boolean(next.selectedWbsId);
+    container.querySelectorAll<HTMLButtonElement>(".cp-wbs-window [data-wbs-cut], .cp-wbs-window [data-wbs-copy], .cp-wbs-window [data-wbs-delete]").forEach((button) => {
+      button.disabled = !hasSelection;
+    });
+    const pasteButton = container.querySelector<HTMLButtonElement>(".cp-wbs-window [data-wbs-paste]");
+    if (pasteButton) pasteButton.disabled = !hasSelection || !wbsClipboardByContainer.get(container);
     return true;
   }
   const nextSelectionSet = new Set(nextSelection);
@@ -2547,7 +2629,8 @@ export type WorkspaceRendererOptions = {
   onWindowClose?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
-  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number; status?: "planned" | "active" | "inactive" | "what_if"; percentCompleteTechnique?: "activities" | "milestones" }) => void | Promise<void>;
+  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number; status?: "planned" | "active" | "inactive" | "what_if"; percentCompleteTechnique?: "activities" | "milestones"; parentKind?: "project" | "wbs"; parentWbsId?: string | null }) => void | Promise<void>;
+  onWbsCopy?: (wbsId: string, targetParentWbsId: string, rootCode: string) => void | Promise<void>;
   onWbsMilestonesUpdate?: (wbsId: string, milestones: readonly WorkspaceWbsMilestone[], expectedRevision: number) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
   onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
@@ -2936,6 +3019,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <button type="button" data-wbs-delete>${escapeHtml(t.wbsDelete)}</button>
                 </form>`;
               })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
+              <p class="cp-wbs-delete-guidance" data-wbs-delete-guidance role="note" hidden></p>
             </aside>
           </div>
         </div>
@@ -3324,7 +3408,10 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     }
     case "wbs": {
       const wbsView = wbsViewByContainer.get(container) ?? "table";
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="table" aria-pressed="${wbsView === "table"}" class="${wbsView === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, t) : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The table and chart are generated from one ordered projection of the loaded WBS hierarchy, so both show the same persisted nodes in the same order. Selecting a row or card reads the same authoritative WBS record; detail tabs show only fields the WBS core returns.", "جدول و نمودار از یک نمای مرتب واحد از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند؛ بنابراین هر دو همان گره‌های ذخیره‌شده را با همان ترتیب نشان می‌دهند. انتخاب هر سطر یا کارت همان رکورد مرجع WBS را می‌خواند و زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نمایش می‌دهند."))}</p></div>`;
+      const clip = wbsClipboardLabels(state.locale);
+      const clipEntry = wbsClipboardByContainer.get(container) ?? null;
+      const hasSelection = Boolean(state.selectedWbsId);
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-cut ${hasSelection ? "" : "disabled"}>${escapeHtml(clip.cut)}</button><button type="button" data-wbs-copy ${hasSelection ? "" : "disabled"}>${escapeHtml(clip.copy)}</button><button type="button" data-wbs-paste ${hasSelection && clipEntry ? "" : "disabled"}>${escapeHtml(clip.paste)}</button><button type="button" data-wbs-delete ${hasSelection ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span data-wbs-clipboard class="cp-wbs-clipboard">${escapeHtml(wbsClipboardText(state.locale, clipEntry))}</span><p class="cp-wbs-clipboard-error" data-wbs-clipboard-error role="alert" hidden></p><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="table" aria-pressed="${wbsView === "table"}" class="${wbsView === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, t) : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-wbs-delete-guidance" data-wbs-delete-guidance role="note" hidden></p><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The table and chart are generated from one ordered projection of the loaded WBS hierarchy, so both show the same persisted nodes in the same order. Selecting a row or card reads the same authoritative WBS record; detail tabs show only fields the WBS core returns.", "جدول و نمودار از یک نمای مرتب واحد از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند؛ بنابراین هر دو همان گره‌های ذخیره‌شده را با همان ترتیب نشان می‌دهند. انتخاب هر سطر یا کارت همان رکورد مرجع WBS را می‌خواند و زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نمایش می‌دهند."))}</p></div>`;
       break;
     }
     case "calendars":

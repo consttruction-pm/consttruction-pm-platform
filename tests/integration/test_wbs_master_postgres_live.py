@@ -248,3 +248,92 @@ def test_postgres_wbs_status_and_weighted_milestones_round_trip():
                 (scope.tenant_id, scope.project_id),
             )
             connection.commit()
+
+
+def test_postgres_wbs_copy_subtree_creates_new_records_and_milestones():
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSMilestone,
+        WBSStatus,
+        weighted_percent_complete,
+    )
+
+    suffix = uuid4().hex
+    scope = BackendScope(f"tenant-wbs-copy-{suffix}", f"project-wbs-copy-{suffix}", 4)
+
+    with connect() as connection:
+        repo = PostgresWBSMasterRepository(connection)
+        repo.initialize()
+        try:
+            repo.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0))
+            repo.save(
+                WBSMaster(
+                    scope, "W-CIVIL", WBSParentKind.WBS, "W-ROOT", "1.1", "Civil", 0,
+                    status=WBSStatus.ACTIVE,
+                    percent_complete_technique=PercentCompleteTechnique.MILESTONES,
+                )
+            )
+            repo.save(WBSMaster(scope, "W-CIVIL-SITE", WBSParentKind.WBS, "W-CIVIL", "1.1.1", "Site works", 0))
+            repo.save(WBSMaster(scope, "W-PM", WBSParentKind.WBS, "W-ROOT", "1.2", "Project management", 1))
+            repo.replace_milestones(
+                scope,
+                "W-CIVIL",
+                (
+                    WBSMilestone(scope, "W-CIVIL", "M-1", "Design", 9.0, True, 0),
+                    WBSMilestone(scope, "W-CIVIL", "M-2", "Permits", 3.0, False, 1),
+                ),
+                expected_revision=1,
+            )
+            connection.commit()
+
+            copied = repo.copy_subtree(
+                scope,
+                "W-CIVIL",
+                target_parent_wbs_id="W-PM",
+                root_code="1.2.1",
+                expected_revision=2,
+            )
+            connection.commit()
+
+            assert [node.code for node in copied] == ["1.2.1", "1.1.1"]
+            copy_root, copy_child = copied
+            assert copy_root.wbs_id.startswith("WBS-COPY-")
+            assert copy_root.parent_wbs_id == "W-PM"
+            assert copy_root.record_revision == 1
+            assert copy_root.status is WBSStatus.ACTIVE
+            assert copy_root.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+            assert copy_child.parent_wbs_id == copy_root.wbs_id
+            assert weighted_percent_complete(repo.list_milestones(scope, copy_root.wbs_id)) == 75.0
+
+            # The source subtree is untouched and still owns its milestones.
+            source = repo.get(scope, "W-CIVIL")
+            assert source is not None
+            assert source.record_revision == 2
+            assert [item.milestone_id for item in repo.list_milestones(scope, "W-CIVIL")] == ["M-1", "M-2"]
+            assert len(repo.list(scope)) == 6
+
+            with pytest.raises(WBSPersistenceError, match="REVISION_CONFLICT"):
+                repo.copy_subtree(
+                    scope,
+                    "W-CIVIL",
+                    target_parent_wbs_id="W-PM",
+                    root_code="1.2.2",
+                    expected_revision=1,
+                )
+            connection.rollback()
+
+            with pytest.raises(WBSPersistenceError, match="WBS_SIBLING_CODE_CONFLICT"):
+                repo.copy_subtree(
+                    scope,
+                    "W-CIVIL",
+                    target_parent_wbs_id="W-PM",
+                    root_code="1.2.1",
+                    expected_revision=2,
+                )
+            connection.rollback()
+        finally:
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            )
+            connection.commit()

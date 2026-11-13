@@ -1,0 +1,479 @@
+{
+  "contract": "cubi-wbs-003-cut-copy-paste.v1",
+  "testedCodeSha": "888512ca",
+  "gitHead": "888512ca6c9f99348beb985ce2363af26408c542",
+  "evidenceCommitSha": "888512ca",
+  "baseUrl": "http://127.0.0.1:4233",
+  "startedAt": "2026-11-13T14:01:33.221Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Copy a WBS subtree beneath another element",
+      "status": "pass",
+      "at": "2026-11-13T14:01:40.312Z",
+      "durationMs": 3144,
+      "details": {
+        "copiedRootId": "WBS-COPY-16F70297F95F",
+        "copyChild": {
+          "wbs_id": "WBS-COPY-F25E75017D81",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-COPY-16F70297F95F",
+          "code": "2.1",
+          "name": "Site survey",
+          "sequence_number": 0,
+          "record_revision": 1,
+          "status": "planned",
+          "percent_complete_technique": "activities",
+          "percent_complete": null
+        }
+      }
+    },
+    {
+      "id": "02",
+      "name": "Cut and paste moves the record and keeps its activity assignments",
+      "status": "pass",
+      "at": "2026-11-13T14:01:41.779Z",
+      "durationMs": 1467,
+      "details": {
+        "parentWbsId": "WBS-RPS-ENV"
+      }
+    },
+    {
+      "id": "03",
+      "name": "Pasting a cut into its own descendant is rejected as a hierarchy cycle",
+      "status": "pass",
+      "at": "2026-11-13T14:01:44.829Z",
+      "durationMs": 3050,
+      "details": {
+        "notice": "WBS_HIERARCHY_CYCLE"
+      }
+    },
+    {
+      "id": "04",
+      "name": "A sibling code collision is rejected without creating a record",
+      "status": "pass",
+      "at": "2026-11-13T14:01:44.840Z",
+      "durationMs": 11,
+      "details": {
+        "status": 400
+      }
+    },
+    {
+      "id": "05",
+      "name": "Deleting a WBS element in use states the precondition and keeps the record",
+      "status": "pass",
+      "at": "2026-11-13T14:01:47.012Z",
+      "durationMs": 2172,
+      "details": {
+        "guidance": "This WBS element still has child elements or activity assignments. Move or delete its children and reassign its activities to the parent element before deleting it."
+      }
+    },
+    {
+      "id": "06",
+      "name": "Persian RTL shows the WBS clipboard commands without overflow",
+      "status": "pass",
+      "at": "2026-11-13T14:01:48.548Z",
+      "durationMs": 1536,
+      "details": {
+        "dir": "rtl",
+        "lang": "fa",
+        "overflow": 0,
+        "labels": [
+          "برش",
+          "کپی",
+          "چسباندن"
+        ]
+      }
+    },
+    {
+      "id": "07",
+      "name": "A reload restores the copied and moved hierarchy and empties the clipboard",
+      "status": "pass",
+      "at": "2026-11-13T14:01:51.195Z",
+      "durationMs": 2647,
+      "details": {
+        "nodes": 10
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "wbs3-copy-clipboard",
+      "name": "Copy records the selected element in the page-local clipboard",
+      "ok": true,
+      "detail": "Clipboard: copy — Civil works (2)"
+    },
+    {
+      "id": "wbs3-copy-request",
+      "name": "Paste sends one POST to the copy endpoint",
+      "ok": true,
+      "detail": [
+        {
+          "method": "POST",
+          "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/copy"
+        }
+      ]
+    },
+    {
+      "id": "wbs3-copy-root",
+      "name": "the copied root is a new record beneath the selected target with the source code",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-COPY-16F70297F95F",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-PM",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 1,
+        "status": "planned",
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75
+      }
+    },
+    {
+      "id": "wbs3-copy-child",
+      "name": "the copied subtree contains the source child",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-COPY-F25E75017D81",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-COPY-16F70297F95F",
+        "code": "2.1",
+        "name": "Site survey",
+        "sequence_number": 0,
+        "record_revision": 1,
+        "status": "planned",
+        "percent_complete_technique": "activities",
+        "percent_complete": null
+      }
+    },
+    {
+      "id": "wbs3-copy-milestones",
+      "name": "weighted milestones are copied and the copied roll-up is 75%",
+      "ok": true,
+      "detail": {
+        "contract_version": "p6-wbs-master-api.v1",
+        "kind": "p6_wbs_milestones",
+        "wbs_id": "WBS-COPY-16F70297F95F",
+        "record_revision": 1,
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75,
+        "milestones": [
+          {
+            "milestone_id": "M-1",
+            "name": "Design freeze",
+            "weight": 9,
+            "completed": true,
+            "sequence_number": 0,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-2",
+            "name": "Site handover",
+            "weight": 3,
+            "completed": false,
+            "sequence_number": 1,
+            "record_revision": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "wbs3-copy-source-unchanged",
+      "name": "the source record and its revision are unchanged",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-RPS-CIVIL",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 3,
+        "status": "planned",
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75
+      }
+    },
+    {
+      "id": "wbs3-copy-no-activities",
+      "name": "the copied subtree owns no activity assignments",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "wbs3-cut-clipboard",
+      "name": "Cut records the selected element as a cut entry",
+      "ok": true,
+      "detail": "Clipboard: cut — Procurement (3)"
+    },
+    {
+      "id": "wbs3-cut-move",
+      "name": "Paste moves the same record to the selected parent and advances its revision",
+      "ok": true,
+      "detail": {
+        "before": {
+          "wbs_id": "WBS-RPS-PROC",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-RPS-ROOT",
+          "code": "3",
+          "name": "Procurement",
+          "sequence_number": 30,
+          "record_revision": 1,
+          "status": "planned",
+          "percent_complete_technique": "activities",
+          "percent_complete": null
+        },
+        "after": {
+          "wbs_id": "WBS-RPS-PROC",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-RPS-ENV",
+          "code": "3",
+          "name": "Procurement",
+          "sequence_number": 30,
+          "record_revision": 2,
+          "status": "planned",
+          "percent_complete_technique": "activities",
+          "percent_complete": null
+        }
+      }
+    },
+    {
+      "id": "wbs3-cut-request",
+      "name": "Cut paste uses PATCH on the existing WBS record",
+      "ok": true,
+      "detail": [
+        {
+          "method": "PATCH",
+          "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-PROC"
+        }
+      ]
+    },
+    {
+      "id": "wbs3-cut-activities",
+      "name": "the activity assignments stay attached to the moved WBS identity",
+      "ok": true,
+      "detail": {
+        "before": 1,
+        "after": 1
+      }
+    },
+    {
+      "id": "wbs3-cut-clipboard-cleared",
+      "name": "pasting a cut clears the page-local clipboard",
+      "ok": true,
+      "detail": "Clipboard empty"
+    },
+    {
+      "id": "wbs3-cycle-rejected",
+      "name": "the WBS record is not reparented under its descendant",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-RPS-PM",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "1",
+        "name": "Project management",
+        "sequence_number": 10,
+        "record_revision": 1,
+        "status": "planned",
+        "percent_complete_technique": "activities",
+        "percent_complete": null
+      }
+    },
+    {
+      "id": "wbs3-cycle-notice",
+      "name": "the window states the hierarchy-cycle rejection",
+      "ok": true,
+      "detail": "WBS_HIERARCHY_CYCLE"
+    },
+    {
+      "id": "wbs3-sibling-conflict",
+      "name": "copying onto an existing sibling code is rejected with WBS_SIBLING_CODE_CONFLICT",
+      "ok": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "code": "WBS_SIBLING_CODE_CONFLICT",
+          "retryable": false,
+          "message_key": "error.request.invalid",
+          "available_actions": []
+        }
+      }
+    },
+    {
+      "id": "wbs3-sibling-no-write",
+      "name": "the rejected copy leaves the hierarchy unchanged",
+      "ok": true,
+      "detail": {
+        "before": 10,
+        "after": 10
+      }
+    },
+    {
+      "id": "wbs3-delete-guidance",
+      "name": "the delete refusal explains the child/activity precondition instead of the raw code",
+      "ok": true,
+      "detail": "This WBS element still has child elements or activity assignments. Move or delete its children and reassign its activities to the parent element before deleting it."
+    },
+    {
+      "id": "wbs3-delete-intact",
+      "name": "the node in use is still present after the refusal",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-RPS-CIVIL",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 3,
+        "status": "planned",
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75
+      }
+    },
+    {
+      "id": "wbs3-fa-rtl",
+      "name": "the Persian WBS window is right-to-left",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "lang": "fa"
+      }
+    },
+    {
+      "id": "wbs3-fa-labels",
+      "name": "the Cut, Copy and Paste commands are localized",
+      "ok": true,
+      "detail": [
+        "برش",
+        "کپی",
+        "چسباندن"
+      ]
+    },
+    {
+      "id": "wbs3-fa-no-overflow",
+      "name": "the page does not overflow horizontally",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "id": "wbs3-reload-copy",
+      "name": "the copied root and child are still persisted beneath their target",
+      "ok": true,
+      "detail": {
+        "copyRoot": {
+          "wbs_id": "WBS-COPY-16F70297F95F",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-RPS-PM",
+          "code": "2",
+          "name": "Civil works",
+          "sequence_number": 20,
+          "record_revision": 1,
+          "status": "planned",
+          "percent_complete_technique": "milestones",
+          "percent_complete": 75
+        },
+        "copyChild": {
+          "wbs_id": "WBS-COPY-F25E75017D81",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-COPY-16F70297F95F",
+          "code": "2.1",
+          "name": "Site survey",
+          "sequence_number": 0,
+          "record_revision": 1,
+          "status": "planned",
+          "percent_complete_technique": "activities",
+          "percent_complete": null
+        }
+      }
+    },
+    {
+      "id": "wbs3-reload-cut",
+      "name": "the cut element is still persisted beneath its new parent",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-RPS-PROC",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ENV",
+        "code": "3",
+        "name": "Procurement",
+        "sequence_number": 30,
+        "record_revision": 2,
+        "status": "planned",
+        "percent_complete_technique": "activities",
+        "percent_complete": null
+      }
+    },
+    {
+      "id": "wbs3-reload-clipboard",
+      "name": "the page-local clipboard is empty after a reload",
+      "ok": true,
+      "detail": "Clipboard empty"
+    }
+  ],
+  "screenshots": [
+    "01-wbs-copy-clipboard.png",
+    "02-wbs-copy-pasted.png",
+    "03-wbs-cut-pasted.png",
+    "04-wbs-cycle-rejected.png",
+    "05-wbs-delete-guidance.png",
+    "06-wbs-clipboard-fa-rtl.png",
+    "07-wbs-reloaded.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [
+    "WBS mutation failed Error: WBS_HIERARCHY_CYCLE\n    at Object.onWbsUpdate (http://127.0.0.1:4233/dist/main.bundle.js:45042:33)"
+  ],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/wbs"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL"
+    },
+    {
+      "method": "PUT",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/milestones"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/copy"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-PROC"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-PM"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/copy"
+    },
+    {
+      "method": "DELETE",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    }
+  ],
+  "finishedAt": "2026-11-13T14:01:51.195Z",
+  "status": "passed"
+}

@@ -12,6 +12,7 @@ import sqlite3
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
+from uuid import uuid4
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 
@@ -154,6 +155,15 @@ class WBSMasterRepository(Protocol):
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[WBSMaster, ...]: ...
     def list_milestones(self, scope: BackendScope, wbs_id: str) -> tuple[WBSMilestone, ...]: ...
+    def copy_subtree(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        target_parent_wbs_id: str,
+        root_code: str,
+        expected_revision: int,
+    ) -> tuple[WBSMaster, ...]: ...
     def replace_milestones(
         self,
         scope: BackendScope,
@@ -227,6 +237,33 @@ def _decode_row(scope: BackendScope, row: tuple[object, ...]) -> WBSMaster:
         return wbs
     except (TypeError, ValueError) as exc:
         raise WBSPersistenceError("INVALID_STORED_WBS") from exc
+
+
+
+def _collect_subtree(nodes: tuple[WBSMaster, ...], root_id: str) -> tuple[WBSMaster, ...]:
+    """Depth-first copy order: the node, then its children by sequence/code/id."""
+    children: dict[str, list[WBSMaster]] = {}
+    for node in nodes:
+        if node.parent_wbs_id is not None:
+            children.setdefault(node.parent_wbs_id, []).append(node)
+    for group in children.values():
+        group.sort(key=lambda item: (item.sequence_number, item.code, item.wbs_id))
+    ordered: list[WBSMaster] = []
+    stack = [root_id]
+    visited: set[str] = set()
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        node = next((item for item in nodes if item.wbs_id == current), None)
+        if node is None:
+            continue
+        ordered.append(node)
+        stack.extend(
+            child.wbs_id for child in reversed(children.get(current, ()))
+        )
+    return tuple(ordered)
 
 
 class SQLiteWBSMasterRepository:
@@ -560,6 +597,152 @@ class SQLiteWBSMasterRepository:
             if not was_in_transaction and self.connection.in_transaction:
                 self.connection.rollback()
             raise WBSPersistenceError("WBS_IN_USE") from exc
+        except Exception:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
+
+    def copy_subtree(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        target_parent_wbs_id: str,
+        root_code: str,
+        expected_revision: int,
+    ) -> tuple[WBSMaster, ...]:
+        """Copy a WBS subtree beneath a target element as new records.
+
+        The copy keeps each element's local code, name, sequence, status,
+        technique and weighted milestones. Activity assignments are not copied
+        (the browser and API surface that limitation); the new records start at
+        revision 1 and the source records are unchanged.
+        """
+        scope.validate()
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_ID")
+        if not isinstance(target_parent_wbs_id, str) or not target_parent_wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_PARENT")
+        if not isinstance(root_code, str) or not root_code.strip():
+            raise WBSPersistenceError("INVALID_WBS_CODE")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+
+        was_in_transaction = self.connection.in_transaction
+        if not was_in_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            rows = self.connection.execute(
+                f"SELECT {self._SELECT_COLUMNS} FROM wbs_master "
+                "WHERE tenant_id=? AND project_id=?",
+                (scope.tenant_id, scope.project_id),
+            ).fetchall()
+            if not rows:
+                raise WBSPersistenceError("WBS_NOT_FOUND")
+            if any(int(row[9]) != scope.project_revision for row in rows):
+                raise WBSPersistenceError("REVISION_CONFLICT")
+            nodes = tuple(_decode_row(scope, row[:9]) for row in rows)
+            by_id = {node.wbs_id: node for node in nodes}
+            if wbs_id not in by_id:
+                raise WBSPersistenceError("WBS_NOT_FOUND")
+            if by_id[wbs_id].record_revision != expected_revision:
+                raise WBSPersistenceError("REVISION_CONFLICT")
+            if target_parent_wbs_id not in by_id:
+                raise WBSPersistenceError("WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH")
+            if any(
+                child.parent_wbs_id == target_parent_wbs_id and child.code == root_code
+                for child in nodes
+            ):
+                raise WBSPersistenceError("WBS_SIBLING_CODE_CONFLICT")
+
+            subtree = _collect_subtree(nodes, wbs_id)
+            mapping: dict[str, str] = {}
+            used = set(by_id)
+            for node in subtree:
+                while True:
+                    candidate = f"WBS-COPY-{uuid4().hex[:12].upper()}"
+                    if candidate not in used:
+                        used.add(candidate)
+                        mapping[node.wbs_id] = candidate
+                        break
+
+            stored_nodes: list[WBSMaster] = []
+            for index, node in enumerate(subtree):
+                parent_id = (
+                    target_parent_wbs_id
+                    if index == 0
+                    else mapping[str(node.parent_wbs_id)]
+                )
+                stored = WBSMaster(
+                    scope=scope,
+                    wbs_id=mapping[node.wbs_id],
+                    parent_kind=WBSParentKind.WBS,
+                    parent_wbs_id=parent_id,
+                    code=root_code if index == 0 else node.code,
+                    name=node.name,
+                    sequence_number=node.sequence_number,
+                    record_revision=1,
+                    status=node.status,
+                    percent_complete_technique=node.percent_complete_technique,
+                )
+                self.connection.execute(
+                    "INSERT INTO wbs_master "
+                    "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+                    "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        stored.scope.tenant_id,
+                        stored.scope.project_id,
+                        stored.scope.project_revision,
+                        stored.wbs_id,
+                        stored.parent_kind.value,
+                        stored.parent_wbs_id,
+                        stored.code,
+                        stored.name,
+                        stored.sequence_number,
+                        stored.record_revision,
+                        stored.status.value,
+                        stored.percent_complete_technique.value,
+                    ),
+                )
+                stored_nodes.append(stored)
+
+            placeholders = ",".join("?" for _ in subtree)
+            milestone_rows = self.connection.execute(
+                "SELECT wbs_id,milestone_id,name,weight,completed,sequence_number "
+                f"FROM wbs_milestone WHERE tenant_id=? AND project_id=? AND wbs_id IN ({placeholders})",
+                (scope.tenant_id, scope.project_id, *(node.wbs_id for node in subtree)),
+            ).fetchall()
+            for milestone_wbs_id, milestone_id, name, weight, completed, sequence_number in milestone_rows:
+                self.connection.execute(
+                    "INSERT INTO wbs_milestone "
+                    "(tenant_id,project_id,wbs_id,milestone_id,name,weight,completed,"
+                    "sequence_number,record_revision) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (
+                        scope.tenant_id,
+                        scope.project_id,
+                        mapping[str(milestone_wbs_id)],
+                        str(milestone_id),
+                        str(name),
+                        float(weight),
+                        int(completed),
+                        int(sequence_number),
+                        1,
+                    ),
+                )
+
+            if not was_in_transaction:
+                self.connection.commit()
+            return tuple(stored_nodes)
+        except sqlite3.IntegrityError as exc:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            message = str(exc).lower()
+            if "uq_wbs_master_sibling_code" in message or (
+                "wbs_master.parent_wbs_id" in message and "wbs_master.code" in message
+            ):
+                raise WBSPersistenceError("WBS_SIBLING_CODE_CONFLICT") from exc
+            raise WBSPersistenceError("WBS_PERSISTENCE_CONFLICT") from exc
         except Exception:
             if not was_in_transaction and self.connection.in_transaction:
                 self.connection.rollback()
@@ -988,6 +1171,132 @@ class PostgresWBSMasterRepository:
         )
         if getattr(cursor, "rowcount", 1) != 1:
             raise WBSPersistenceError("REVISION_CONFLICT")
+
+    def copy_subtree(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        target_parent_wbs_id: str,
+        root_code: str,
+        expected_revision: int,
+    ) -> tuple[WBSMaster, ...]:
+        """Copy a WBS subtree beneath a target element as new records.
+
+        Mirrors the SQLite contract: local codes, names, sequence, status,
+        technique and weighted milestones are copied, activity assignments are
+        not, and the new records start at revision 1. The caller owns the
+        PostgreSQL transaction, so a failure leaves the rollback to the caller.
+        """
+        scope.validate()
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_ID")
+        if not isinstance(target_parent_wbs_id, str) or not target_parent_wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_PARENT")
+        if not isinstance(root_code, str) or not root_code.strip():
+            raise WBSPersistenceError("INVALID_WBS_CODE")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+
+        rows = self.connection.execute(
+            f"SELECT {self._SELECT_COLUMNS} FROM wbs_master "
+            "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id),
+        ).fetchall()
+        if not rows:
+            raise WBSPersistenceError("WBS_NOT_FOUND")
+        if any(int(row[9]) != scope.project_revision for row in rows):
+            raise WBSPersistenceError("REVISION_CONFLICT")
+        nodes = tuple(_decode_row(scope, row[:9]) for row in rows)
+        by_id = {node.wbs_id: node for node in nodes}
+        if wbs_id not in by_id:
+            raise WBSPersistenceError("WBS_NOT_FOUND")
+        if by_id[wbs_id].record_revision != expected_revision:
+            raise WBSPersistenceError("REVISION_CONFLICT")
+        if target_parent_wbs_id not in by_id:
+            raise WBSPersistenceError("WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH")
+        if any(
+            child.parent_wbs_id == target_parent_wbs_id and child.code == root_code
+            for child in nodes
+        ):
+            raise WBSPersistenceError("WBS_SIBLING_CODE_CONFLICT")
+
+        subtree = _collect_subtree(nodes, wbs_id)
+        mapping: dict[str, str] = {}
+        used = set(by_id)
+        for node in subtree:
+            while True:
+                candidate = f"WBS-COPY-{uuid4().hex[:12].upper()}"
+                if candidate not in used:
+                    used.add(candidate)
+                    mapping[node.wbs_id] = candidate
+                    break
+
+        stored_nodes: list[WBSMaster] = []
+        for index, node in enumerate(subtree):
+            parent_id = (
+                target_parent_wbs_id
+                if index == 0
+                else mapping[str(node.parent_wbs_id)]
+            )
+            stored = WBSMaster(
+                scope=scope,
+                wbs_id=mapping[node.wbs_id],
+                parent_kind=WBSParentKind.WBS,
+                parent_wbs_id=parent_id,
+                code=root_code if index == 0 else node.code,
+                name=node.name,
+                sequence_number=node.sequence_number,
+                record_revision=1,
+                status=node.status,
+                percent_complete_technique=node.percent_complete_technique,
+            )
+            self.connection.execute(
+                "INSERT INTO wbs_master "
+                "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+                "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    stored.scope.tenant_id,
+                    stored.scope.project_id,
+                    stored.scope.project_revision,
+                    stored.wbs_id,
+                    stored.parent_kind.value,
+                    stored.parent_wbs_id,
+                    stored.code,
+                    stored.name,
+                    stored.sequence_number,
+                    stored.record_revision,
+                    stored.status.value,
+                    stored.percent_complete_technique.value,
+                ),
+            )
+            stored_nodes.append(stored)
+
+        placeholders = ",".join("%s" for _ in subtree)
+        milestone_rows = self.connection.execute(
+            "SELECT wbs_id,milestone_id,name,weight,completed,sequence_number "
+            f"FROM wbs_milestone WHERE tenant_id=%s AND project_id=%s AND wbs_id IN ({placeholders})",
+            (scope.tenant_id, scope.project_id, *(node.wbs_id for node in subtree)),
+        ).fetchall()
+        for milestone_wbs_id, milestone_id, name, weight, completed, sequence_number in milestone_rows:
+            self.connection.execute(
+                "INSERT INTO wbs_milestone "
+                "(tenant_id,project_id,wbs_id,milestone_id,name,weight,completed,"
+                "sequence_number,record_revision) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    scope.tenant_id,
+                    scope.project_id,
+                    mapping[str(milestone_wbs_id)],
+                    str(milestone_id),
+                    str(name),
+                    float(weight),
+                    bool(completed),
+                    int(sequence_number),
+                    1,
+                ),
+            )
+        return tuple(stored_nodes)
 
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None:
         scope.validate()

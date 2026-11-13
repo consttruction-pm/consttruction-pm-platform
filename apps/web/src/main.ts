@@ -51,6 +51,7 @@ import {
   storeWorkspaceTopLayout,
 } from "./workspace-view.js";
 import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
+import { wbsClipboardLabels } from "./workspace-wbs-clipboard.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   readCollapsedWbsMetadata,
@@ -2543,8 +2544,8 @@ function renderApp(
           unknown
         >(projectWbsPath(wbsId), {
           expected_revision: node.recordRevision,
-          parent_kind: node.parentKind,
-          parent_wbs_id: node.parentWbsId,
+          parent_kind: input.parentKind ?? node.parentKind,
+          parent_wbs_id: input.parentWbsId !== undefined ? input.parentWbsId : node.parentWbsId,
           code: input.code,
           name: input.name,
           sequence_number: input.sequenceNumber,
@@ -2553,6 +2554,25 @@ function renderApp(
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(wbsId);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
+    },
+    onWbsCopy: async (wbsId, targetParentWbsId, rootCode) => {
+      try {
+        const node = state.wbsNodes.find((item) => item.id === wbsId);
+        if (!node) throw new Error("WBS_NOT_FOUND");
+        const response = await aiTransport.post<Record<string, unknown>, { root_wbs_id: string }>(
+          `${projectWbsPath(wbsId)}/copy`,
+          {
+            expected_revision: node.recordRevision,
+            target_parent_wbs_id: targetParentWbsId,
+            code: rootCode,
+          },
+          state.context,
+        );
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(response.data.root_wbs_id);
       } catch (error) {
         reportWbsMutationError(error);
       }
@@ -2589,7 +2609,20 @@ function renderApp(
         const response = await aiTransport.delete<{ expected_revision: number }, unknown>(
           projectWbsPath(wbsId), { expected_revision: node.recordRevision }, state.context,
         );
-        if (!response.ok) throw new Error(response.error.code);
+        if (!response.ok) {
+          if (response.error.code === "WBS_IN_USE") {
+            // The V26 delete topic offers a cascade or an activity reassignment
+            // decision. This increment refuses the delete and states what must
+            // move first instead of exposing the raw persistence code.
+            const guidance = wbsClipboardLabels(state.locale).deleteGuidance;
+            container.querySelectorAll<HTMLElement>("[data-wbs-delete-guidance]").forEach((element) => {
+              element.hidden = false;
+              element.textContent = guidance;
+            });
+            return;
+          }
+          throw new Error(response.error.code);
+        }
         await refreshWorkspaceAfterWbsMutation(null);
       } catch (error) {
         reportWbsMutationError(error);

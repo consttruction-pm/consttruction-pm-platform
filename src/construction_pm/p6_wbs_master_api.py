@@ -136,6 +136,46 @@ class P6WBSMasterAPI:
             "deleted": True,
         }
 
+    def copy(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        target_parent_wbs_id: str,
+        root_code: str,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Copy a WBS subtree beneath a target element as new records."""
+        _require_scope(scope, auth_context)
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        nodes = self.repository.copy_subtree(
+            scope,
+            wbs_id,
+            target_parent_wbs_id=target_parent_wbs_id,
+            root_code=root_code,
+            expected_revision=expected_revision,
+        )
+        return {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "kind": "p6_wbs_copy",
+            "scope": _scope_dto(scope),
+            "source_wbs_id": wbs_id,
+            "target_parent_wbs_id": target_parent_wbs_id,
+            "root_wbs_id": nodes[0].wbs_id,
+            "wbs_nodes": [
+                _dto(node, self.repository.list_milestones(scope, node.wbs_id))
+                for node in nodes
+            ],
+        }
+
     def get(
         self,
         scope: BackendScope,
