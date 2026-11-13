@@ -769,3 +769,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** four new cases in `tests/test_production_readiness.py` cover anonymous redaction, callback-approved detail, a raising callback, and the unconfigured body. `pytest tests/test_production_readiness.py tests/test_observability.py tests/test_staging_smoke.py tests/test_schedule_query_production_composition.py` = **51 passed**.
 - **Boundary:** the production composition does not currently have a session store at the middleware layer, so it keeps the safe redacted default; exposing detail requires an operator-supplied callback.
 - **Docs:** security register and SEC-023 section updated; SEC-023 removed from the open-findings gate.
+
+## SEC-013 document-record references in reconciliation — 2026-11-13
+
+- **Finding:** `_metadata_references` built the live-reference set only from content versions. An object referenced solely by `DocumentRecord.storage_ref` therefore classified as `orphan_object` and could be deleted by a non-dry run.
+- **Fix (code `c921ac8b`):** `DocumentStore.list_all(tenant_id=..., project_id=...)` was added to the protocol, SQLite and PostgreSQL stores for snapshot use (the route `list` stays bounded by its own filters). `DocumentStorageReconciler` accepts an optional `document_store`, snapshots document-level refs inside the same fail-closed metadata try block, and returns `match` with detail `document_record_reference` when an object has no version row but is still held by a document record.
+- **Tests:** `test_document_record_only_reference_is_never_treated_as_an_orphan` seeds a versioned object to map the scope, then a legacy record-only object; the control run reports one orphan, the fixed run reports two matches, preserves the file and writes no cleanup row. `test_document_list_all_respects_scope` covers unfiltered and tenant/project-filtered order. `pytest tests/test_document_storage_reconciliation.py tests/test_document_sqlite_store.py` = **37 passed**.
+- **Boundary:** the reconciler has no HTTP route; production composition does not construct it, so callers must pass `document_store` to get the protection.
+- **Docs:** security register and SEC-013 section updated; SEC-013 removed from the open-findings gate.

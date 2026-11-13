@@ -97,7 +97,7 @@ Threats and primary controls:
 | SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
 | SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed `8581697` |
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
-| SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
+| SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Fixed `c921ac8b` |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Fixed `2b2873b3` |
@@ -323,6 +323,15 @@ Threats and primary controls:
   treat any ref present in document metadata as non-orphan.
 - **Negative test:** non-dry run preserves such an object and writes no cleanup
   audit row.
+- **Resolution:** `DocumentStore` gained `list_all(tenant_id=..., project_id=...)`
+  (SQLite and PostgreSQL) for scope-wide snapshots; `list` remains the bounded
+  route query. `DocumentStorageReconciler` accepts an optional `document_store`,
+  snapshots `DocumentRecord.storage_ref`, and classifies a version-less object
+  held by a document record as `match` (`document_record_reference`) instead of
+  `orphan_object`. Snapshot failures still abort before any listing. Tests:
+  `test_document_record_only_reference_is_never_treated_as_an_orphan` (control
+  run sees one orphan; the fixed run sees two matches, deletes nothing and
+  writes no cleanup row) and `test_document_list_all_respects_scope`.
 
 ### SEC-014 — Delete completion is not bound to the claim token (Medium)
 
@@ -558,8 +567,7 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013 and SEC-017 remain
-  open;
+- **Open Medium/Low findings.** SEC-010, SEC-012 and SEC-017 remain open;
   SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
   SEC-020, SEC-021, SEC-022, SEC-023, SEC-024 and SEC-025 are fixed with
   negative tests. Open findings are recorded here rather than
