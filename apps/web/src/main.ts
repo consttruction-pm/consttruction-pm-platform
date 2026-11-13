@@ -1257,6 +1257,10 @@ function renderApp(
     });
     if (!refreshed.ok) throw new Error(refreshed.error.code);
     let nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);
+    // The re-read is a data refresh, not a navigation: keep the window the
+    // user is working in open instead of falling back to the default menu.
+    const current = currentWorkspaceState ?? state;
+    nextState = { ...nextState, activeMenu: current.activeMenu, locale: current.locale };
     if (selectedWbsId && nextState.wbsNodes.some((node) => node.id === selectedWbsId)) {
       nextState = selectWbs(nextState, selectedWbsId);
     }
@@ -2544,7 +2548,32 @@ function renderApp(
           code: input.code,
           name: input.name,
           sequence_number: input.sequenceNumber,
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.percentCompleteTechnique ? { percent_complete_technique: input.percentCompleteTechnique } : {}),
         }, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(wbsId);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
+    },
+    onWbsMilestonesUpdate: async (wbsId, milestones, expectedRevision) => {
+      try {
+        if (!aiTransport.put) throw new Error("PUT_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.put<Record<string, unknown>, unknown>(
+          `${projectWbsPath(wbsId)}/milestones`,
+          {
+            expected_revision: expectedRevision,
+            milestones: milestones.map((item) => ({
+              milestone_id: item.id,
+              name: item.name,
+              weight: item.weight,
+              completed: item.completed,
+              sequence_number: item.sequenceNumber,
+            })),
+          },
+          state.context,
+        );
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(wbsId);
       } catch (error) {

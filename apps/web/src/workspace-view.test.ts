@@ -2733,3 +2733,26 @@ test("Projects register localizes the Business Domain tree for Persian", () => {
   assert.match(html, /پروژهٔ انتخاب‌شده/);
   assert.doesNotMatch(html, /Infrastructure/);
 });
+
+test("WBS window renders persisted status and the weighted milestone editor", () => {
+  const base = withWbsNodes(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [{
+    id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project",
+    sequenceNumber: 0, recordRevision: 4, status: "active", percentCompleteTechnique: "milestones",
+    percentComplete: 75, milestones: [
+      { id: "M-1", name: "Mobilize", weight: 9, completed: true, sequenceNumber: 0 },
+      { id: "M-2", name: "Handover", weight: 3, completed: false, sequenceNumber: 1 },
+    ],
+  }]);
+  const state = { ...base, activeMenu: "wbs" as const, selectedWbsId: "W-1" };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /Percent complete technique/);
+  assert.match(html, />Active</);
+  assert.match(html, />75\.00%</);
+  assert.match(html, /data-wbs-milestones-form="W-1"/);
+  assert.match(html, /data-wbs-revision="4"/);
+  assert.equal((html.match(/<tr data-wbs-milestone-row>/g) ?? []).length, 4);
+  assert.match(html, /value="Mobilize"/);
+  assert.match(html, /name="milestone_weight" type="number" min="0\.01" step="0\.01" value="9"/);
+});

@@ -433,3 +433,136 @@ def test_authenticated_wbs_delete_rejects_stale_revision_and_assigned_activity()
     assert in_use_status == "409 Conflict"
     assert in_use_response["code"] == "WBS_IN_USE"
     connection.close()
+
+
+def test_wbs_status_and_weighted_milestones_round_trip_through_http_routes(tmp_path):
+    db_path = str(tmp_path / "cubi-wbs-milestones.sqlite")
+    app, _activity_repository, connection = _app(db_path=db_path)
+    base = "/api/projects/p1/p6/wbs"
+    status, created = _request(app, "POST", base, {
+        "contract_version": P6_WBS_MASTER_API_VERSION,
+        "wbs_id": "W-ROOT",
+        "parent_kind": "project",
+        "parent_wbs_id": None,
+        "code": "1",
+        "name": "Project Root",
+        "sequence_number": 0,
+    })
+    assert status == "201 Created"
+    assert created["wbs"]["status"] == "planned"
+    assert created["wbs"]["percent_complete_technique"] == "activities"
+    assert created["wbs"]["percent_complete"] is None
+    assert created["milestones"] == []
+
+    status, updated = _request(app, "PATCH", base + "/W-ROOT", {
+        "expected_revision": 1,
+        "parent_kind": "project",
+        "parent_wbs_id": None,
+        "code": "1",
+        "name": "Project Root",
+        "sequence_number": 0,
+        "status": "active",
+        "percent_complete_technique": "milestones",
+    })
+    assert status == "200 OK"
+    assert updated["wbs"]["status"] == "active"
+    assert updated["wbs"]["percent_complete_technique"] == "milestones"
+    assert updated["wbs"]["record_revision"] == 2
+
+    milestones = [
+        {"milestone_id": "M-1", "name": "Mobilize", "weight": 9, "completed": True, "sequence_number": 0},
+        {"milestone_id": "M-2", "name": "Foundations", "weight": 1, "completed": False, "sequence_number": 1},
+        {"milestone_id": "M-3", "name": "Steel", "weight": 1, "completed": False, "sequence_number": 2},
+        {"milestone_id": "M-4", "name": "Handover", "weight": 1, "completed": False, "sequence_number": 3},
+    ]
+    status, saved = _request(app, "PUT", base + "/W-ROOT/milestones", {
+        "expected_revision": 2,
+        "milestones": milestones,
+    })
+    assert status == "200 OK"
+    assert saved["wbs"]["record_revision"] == 3
+    assert saved["wbs"]["percent_complete"] == 75.0
+    assert [item["milestone_id"] for item in saved["milestones"]] == ["M-1", "M-2", "M-3", "M-4"]
+
+    status, loaded = _request(app, "GET", base + "/W-ROOT/milestones")
+    assert status == "200 OK"
+    assert loaded["kind"] == "p6_wbs_milestones"
+    assert loaded["record_revision"] == 3
+    assert loaded["percent_complete_technique"] == "milestones"
+    assert loaded["percent_complete"] == 75.0
+    first = loaded["milestones"][0]
+    assert {
+        "milestone_id": first["milestone_id"],
+        "name": first["name"],
+        "weight": first["weight"],
+        "completed": first["completed"],
+        "sequence_number": first["sequence_number"],
+    } == {
+        "milestone_id": "M-1", "name": "Mobilize", "weight": 9.0, "completed": True, "sequence_number": 0,
+    }
+    assert first["record_revision"] == 1
+
+    status, conflict = _request(app, "PUT", base + "/W-ROOT/milestones", {
+        "expected_revision": 2,
+        "milestones": milestones,
+    })
+    assert status == "409 Conflict"
+    assert conflict["code"] == "REVISION_CONFLICT"
+
+    status, invalid = _request(app, "PUT", base + "/W-ROOT/milestones", {
+        "expected_revision": 3,
+        "milestones": [{"milestone_id": "M-1", "name": "Mobilize", "weight": 0, "completed": False}],
+    })
+    assert status == "400 Bad Request"
+
+    status, missing = _request(app, "GET", base + "/W-MISSING/milestones")
+    assert status == "404 Not Found"
+
+    connection.close()
+    fresh = sqlite3.connect(db_path)
+    fresh_repository = SQLiteWBSMasterRepository(fresh)
+    persisted = fresh_repository.get(BackendScope("t1", "p1", 2), "W-ROOT")
+    assert persisted is not None
+    assert persisted.status.value == "active"
+    assert persisted.percent_complete_technique.value == "milestones"
+    assert [item.milestone_id for item in fresh_repository.list_milestones(BackendScope("t1", "p1", 2), "W-ROOT")] == [
+        "M-1", "M-2", "M-3", "M-4"
+    ]
+    fresh.close()
+
+
+def test_wbs_milestone_write_requires_project_write_permission(tmp_path):
+    db_path = str(tmp_path / "cubi-wbs-milestone-permission.sqlite")
+    app, _activity_repository, connection = _app(role="viewer", db_path=db_path)
+    base = "/api/projects/p1/p6/wbs"
+    # A project administrator seeded the hierarchy and milestones in the same database.
+    admin, _admin_repository, admin_connection = _app(role="project_admin", db_path=db_path)
+    status, created = _request(admin, "POST", base, {
+        "contract_version": P6_WBS_MASTER_API_VERSION,
+        "wbs_id": "W-ROOT",
+        "parent_kind": "project",
+        "parent_wbs_id": None,
+        "code": "1",
+        "name": "Project Root",
+        "sequence_number": 0,
+    })
+    assert status == "201 Created"
+    status, _ = _request(admin, "PUT", base + "/W-ROOT/milestones", {
+        "expected_revision": created["wbs"]["record_revision"],
+        "milestones": [{"milestone_id": "M-1", "name": "Start", "weight": 1, "completed": True}],
+    })
+    assert status == "200 OK"
+
+    # The viewer session can read the same workspace record but cannot replace
+    # the milestone list.
+    status, loaded = _request(app, "GET", base + "/W-ROOT/milestones")
+    assert status == "200 OK"
+    assert [item["milestone_id"] for item in loaded["milestones"]] == ["M-1"]
+    status, denied = _request(app, "PUT", base + "/W-ROOT/milestones", {
+        "expected_revision": loaded["record_revision"],
+        "milestones": [{"milestone_id": "M-2", "name": "Overwrite", "weight": 1, "completed": False}],
+    })
+    assert status == "403 Forbidden"
+    assert denied["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+    connection.close()
+    admin_connection.close()

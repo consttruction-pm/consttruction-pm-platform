@@ -5,6 +5,7 @@ import {
   createWorkspaceControlRoomSnapshot,
   workspaceActivitiesFromSnapshot,
   workspaceRelationshipsFromSnapshot,
+  workspaceWbsNodesFromSnapshot,
   WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
 } from "./workspace-contract.js";
 import { createWorkspaceState, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
@@ -116,4 +117,103 @@ test("control-room snapshot round-trips persisted relationships for the same rev
   assert.equal(restored.length, 1);
   assert.equal(restored[0]?.predecessorId, "A-1");
   assert.equal(restored[0]?.lagValue, "1");
+});
+
+test("control-room snapshot round-trips WBS status, technique and weighted milestones", () => {
+  let state = createWorkspaceState(context);
+  state = withWbsNodes(state, [{
+    id: "W-1", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 3,
+    status: "active", percentCompleteTechnique: "milestones", percentComplete: 75,
+    milestones: [
+      { id: "M-1", name: "Mobilize", weight: 9, completed: true, sequenceNumber: 0 },
+      { id: "M-2", name: "Handover", weight: 3, completed: false, sequenceNumber: 1 },
+    ],
+  }]);
+
+  const snapshot = createWorkspaceControlRoomSnapshot(state);
+  assert.equal(snapshot.wbs_nodes[0]?.status, "active");
+  assert.equal(snapshot.wbs_nodes[0]?.percent_complete_technique, "milestones");
+  assert.equal(snapshot.wbs_nodes[0]?.percent_complete, 75);
+  assert.deepEqual(snapshot.wbs_nodes[0]?.milestones, [
+    { milestone_id: "M-1", name: "Mobilize", weight: 9, completed: true, sequence_number: 0 },
+    { milestone_id: "M-2", name: "Handover", weight: 3, completed: false, sequence_number: 1 },
+  ]);
+
+  const restored = workspaceWbsNodesFromSnapshot(snapshot);
+  assert.equal(restored[0]?.status, "active");
+  assert.equal(restored[0]?.percentCompleteTechnique, "milestones");
+  assert.equal(restored[0]?.percentComplete, 75);
+  assert.equal(restored[0]?.milestones?.[1]?.id, "M-2");
+});
+
+test("control-room snapshot keeps WBS nodes without status metadata readable", () => {
+  let state = createWorkspaceState(context);
+  state = withWbsNodes(state, [{
+    id: "W-1", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1,
+  }]);
+  const restored = workspaceWbsNodesFromSnapshot(createWorkspaceControlRoomSnapshot(state));
+  assert.equal(restored[0]?.status, undefined);
+  assert.equal(restored[0]?.percentCompleteTechnique, undefined);
+  assert.equal(restored[0]?.milestones, undefined);
+});
+
+test("contract adapter rejects invalid WBS status metadata", () => {
+  const base = {
+    wbs_id: "W-1", parent_kind: "project", parent_wbs_id: null,
+    local_code: "1", name: "Project", sequence_number: 0, record_revision: 1,
+  };
+  const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, status: "archived" }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_STATUS/,
+  );
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, percent_complete_technique: "duration" }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_PERCENT_COMPLETE_TECHNIQUE/,
+  );
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, percent_complete: 140 }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_PERCENT_COMPLETE/,
+  );
+});
+
+test("contract adapter rejects malformed WBS milestone records", () => {
+  const base = {
+    wbs_id: "W-1", parent_kind: "project", parent_wbs_id: null,
+    local_code: "1", name: "Project", sequence_number: 0, record_revision: 1,
+  };
+  const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
+  const milestone = { milestone_id: "M-1", name: "Start", weight: 1, completed: false, sequence_number: 0 };
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, milestones: [milestone, { ...milestone }] }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_MILESTONE/,
+  );
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, milestones: [{ ...milestone, weight: 0 }] }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_MILESTONE/,
+  );
+  assert.throws(
+    () => workspaceWbsNodesFromSnapshot({
+      ...snapshot,
+      wbs_nodes: [{ ...base, milestones: "nope" }],
+    } as never),
+    /INVALID_WORKSPACE_WBS_MILESTONES/,
+  );
 });

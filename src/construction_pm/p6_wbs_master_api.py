@@ -10,7 +10,13 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
-from .wbs_master_repository import WBSMaster, WBSMasterRepository
+from .wbs_master_repository import (
+    PercentCompleteTechnique,
+    WBSMaster,
+    WBSMasterRepository,
+    WBSMilestone,
+    weighted_percent_complete,
+)
 
 
 P6_WBS_MASTER_API_VERSION = "p6-wbs-master-api.v1"
@@ -31,7 +37,26 @@ def _scope_dto(scope: BackendScope) -> dict[str, Any]:
     }
 
 
-def _dto(item: WBSMaster) -> dict[str, Any]:
+def _milestone_dto(item: WBSMilestone) -> dict[str, Any]:
+    return {
+        "milestone_id": item.milestone_id,
+        "name": item.name,
+        "weight": float(item.weight),
+        "completed": item.completed,
+        "sequence_number": item.sequence_number,
+        "record_revision": item.record_revision,
+    }
+
+
+def _dto(
+    item: WBSMaster, milestones: tuple[WBSMilestone, ...] | None = None
+) -> dict[str, Any]:
+    loaded = milestones or ()
+    percent = (
+        weighted_percent_complete(loaded)
+        if item.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+        else None
+    )
     return {
         "contract_version": P6_WBS_MASTER_API_VERSION,
         "kind": "p6_wbs_master",
@@ -44,7 +69,11 @@ def _dto(item: WBSMaster) -> dict[str, Any]:
             "name": item.name,
             "sequence_number": item.sequence_number,
             "record_revision": item.record_revision,
+            "status": item.status.value,
+            "percent_complete_technique": item.percent_complete_technique.value,
+            "percent_complete": percent,
         },
+        "milestones": [_milestone_dto(entry) for entry in loaded],
     }
 
 
@@ -77,7 +106,8 @@ class P6WBSMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        return _dto(self.repository.save(item, expected_revision=expected_revision))
+        stored = self.repository.save(item, expected_revision=expected_revision)
+        return _dto(stored, self.repository.list_milestones(item.scope, stored.wbs_id))
 
     def delete(
         self,
@@ -117,7 +147,9 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
         item = self.repository.get(scope, wbs_id)
-        return None if item is None else _dto(item)
+        if item is None:
+            return None
+        return _dto(item, self.repository.list_milestones(scope, wbs_id))
 
     def list(
         self,
@@ -128,7 +160,33 @@ class P6WBSMasterAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
-        return tuple(_dto(item) for item in self.repository.list(scope))
+        return tuple(
+            _dto(item, self.repository.list_milestones(scope, item.wbs_id))
+            for item in self.repository.list(scope)
+        )
+
+    def replace_milestones(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        milestones: tuple[WBSMilestone, ...],
+        *,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        _require_scope(scope, auth_context)
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        item, stored = self.repository.replace_milestones(
+            scope, wbs_id, milestones, expected_revision=expected_revision
+        )
+        return _dto(item, stored)
 
 
 __all__ = ["P6_WBS_MASTER_API_VERSION", "P6WBSMasterAPI"]

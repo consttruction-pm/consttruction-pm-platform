@@ -126,6 +126,18 @@ export type WorkspaceActivityRow = {
   gantt?: WorkspaceGanttData;
 };
 
+export type WorkspaceWbsStatus = "planned" | "active" | "inactive" | "what_if";
+export type WorkspaceWbsPercentCompleteTechnique = "activities" | "milestones";
+
+/** A weighted milestone owned by one WBS element (P6 WBS Milestones). */
+export type WorkspaceWbsMilestone = {
+  id: string;
+  name: string;
+  weight: number;
+  completed: boolean;
+  sequenceNumber: number;
+};
+
 export type WorkspaceWbsNode = {
   id: string;
   parentKind: "project" | "wbs";
@@ -135,6 +147,12 @@ export type WorkspaceWbsNode = {
   name: string;
   sequenceNumber: number;
   recordRevision: number;
+  /** Absent until the authoritative WBS read has supplied the field. */
+  status?: WorkspaceWbsStatus;
+  percentCompleteTechnique?: WorkspaceWbsPercentCompleteTechnique;
+  /** Weighted roll-up when the technique is milestones; null otherwise. */
+  percentComplete?: number | null;
+  milestones?: readonly WorkspaceWbsMilestone[];
 };
 
 export type WorkspaceRelationshipType = "FS" | "SS" | "FF" | "SF";

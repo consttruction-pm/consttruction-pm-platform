@@ -7,6 +7,8 @@ import type {
   WorkspaceRelationshipType,
   WorkspaceState,
   WorkspaceWbsNode,
+  WorkspaceWbsPercentCompleteTechnique,
+  WorkspaceWbsStatus,
 } from "./workspace-model.js";
 
 export const WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION = "workspace-control-room.v2" as const;
@@ -50,6 +52,18 @@ export type WorkspaceControlRoomWbsNode = {
   name: string;
   sequence_number: number;
   record_revision: number;
+  status?: WorkspaceWbsStatus;
+  percent_complete_technique?: WorkspaceWbsPercentCompleteTechnique;
+  percent_complete?: number | null;
+  milestones?: readonly WorkspaceControlRoomWbsMilestone[];
+};
+
+export type WorkspaceControlRoomWbsMilestone = {
+  milestone_id: string;
+  name: string;
+  weight: number;
+  completed: boolean;
+  sequence_number: number;
 };
 
 export type WorkspaceControlRoomRelationship = {
@@ -103,6 +117,20 @@ export function createWorkspaceControlRoomSnapshot(
       name: node.name,
       sequence_number: node.sequenceNumber,
       record_revision: node.recordRevision,
+      ...(node.status ? { status: node.status } : {}),
+      ...(node.percentCompleteTechnique
+        ? { percent_complete_technique: node.percentCompleteTechnique }
+        : {}),
+      ...(node.percentComplete !== undefined ? { percent_complete: node.percentComplete } : {}),
+      ...(node.milestones
+        ? { milestones: node.milestones.map((item) => ({
+            milestone_id: item.id,
+            name: item.name,
+            weight: item.weight,
+            completed: item.completed,
+            sequence_number: item.sequenceNumber,
+          })) }
+        : {}),
     })),
     relationships: state.relationships.map((relationship) => ({
       relationship_id: relationship.id,
@@ -131,6 +159,22 @@ export function workspaceWbsNodesFromSnapshot(
     name: node.name,
     sequenceNumber: node.sequence_number,
     recordRevision: node.record_revision,
+    ...(node.status ? { status: node.status } : {}),
+    ...(node.percent_complete_technique
+      ? { percentCompleteTechnique: node.percent_complete_technique }
+      : {}),
+    ...(node.percent_complete !== undefined ? { percentComplete: node.percent_complete } : {}),
+    ...(node.milestones
+      ? {
+          milestones: node.milestones.map((item) => ({
+            id: item.milestone_id,
+            name: item.name,
+            weight: item.weight,
+            completed: item.completed,
+            sequenceNumber: item.sequence_number,
+          })),
+        }
+      : {}),
   }));
 }
 
@@ -185,6 +229,52 @@ export function workspaceRelationshipsFromSnapshot(
   }));
 }
 
+function validateWbsStatusMetadata(node: WorkspaceControlRoomWbsNode): void {
+  if (
+    node.status !== undefined &&
+    !["planned", "active", "inactive", "what_if"].includes(node.status)
+  ) {
+    throw new Error("INVALID_WORKSPACE_WBS_STATUS");
+  }
+  if (
+    node.percent_complete_technique !== undefined &&
+    !["activities", "milestones"].includes(node.percent_complete_technique)
+  ) {
+    throw new Error("INVALID_WORKSPACE_WBS_PERCENT_COMPLETE_TECHNIQUE");
+  }
+  if (
+    node.percent_complete !== undefined &&
+    node.percent_complete !== null &&
+    (!Number.isFinite(node.percent_complete) ||
+      node.percent_complete < 0 ||
+      node.percent_complete > 100)
+  ) {
+    throw new Error("INVALID_WORKSPACE_WBS_PERCENT_COMPLETE");
+  }
+  if (node.milestones === undefined) return;
+  if (!Array.isArray(node.milestones)) throw new Error("INVALID_WORKSPACE_WBS_MILESTONES");
+  const ids = new Set<string>();
+  for (const milestone of node.milestones) {
+    if (
+      !milestone ||
+      typeof milestone !== "object" ||
+      !milestone.milestone_id ||
+      ids.has(milestone.milestone_id) ||
+      typeof milestone.name !== "string" ||
+      !milestone.name.trim() ||
+      typeof milestone.weight !== "number" ||
+      !Number.isFinite(milestone.weight) ||
+      milestone.weight <= 0 ||
+      typeof milestone.completed !== "boolean" ||
+      !Number.isSafeInteger(milestone.sequence_number) ||
+      milestone.sequence_number < 0
+    ) {
+      throw new Error("INVALID_WORKSPACE_WBS_MILESTONE");
+    }
+    ids.add(milestone.milestone_id);
+  }
+}
+
 function validateSnapshotIdentity(snapshot: WorkspaceControlRoomSnapshot): void {
   const MAX_SAFE_REVISION = 9_007_199_254_740_991;
   if (
@@ -234,6 +324,7 @@ function validateSnapshotIdentity(snapshot: WorkspaceControlRoomSnapshot): void 
     } else if (!node.parent_wbs_id || node.parent_wbs_id === node.wbs_id) {
       throw new Error("INVALID_WORKSPACE_WBS_PARENT");
     }
+    validateWbsStatusMetadata(node);
     wbsIds.add(node.wbs_id);
   }
   if (snapshot.wbs_nodes.length && rootCount !== 1) throw new Error("INVALID_WORKSPACE_WBS_ROOT");
