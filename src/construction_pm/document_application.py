@@ -588,4 +588,6 @@ class DocumentApplicationService:
             return validation_error("DOCUMENT_INVALID_STATUS_TRANSITION", str(exc))
         if isinstance(exc, ValueError):
             return validation_error(str(exc) or type(exc).__name__, str(exc))
-        return validation_error(type(exc).__name__, str(exc))
+        # Unexpected faults are server failures, not client errors, and their
+        # text must not become a response code or message.
+        return persistence_error("DOCUMENT_INTERNAL_ERROR", "")

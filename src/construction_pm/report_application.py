@@ -10,6 +10,7 @@ from .api_errors import (
     APIError,
     authorization_error,
     conflict_error,
+    persistence_error,
     validation_error,
 )
 from .application.authorization import (
@@ -511,7 +512,9 @@ class ReportApplicationService:
             if code.endswith("_ALREADY_EXISTS"):
                 return conflict_error(code, code)
             return validation_error(code, code)
-        return validation_error(type(exc).__name__, str(exc))
+        # Unexpected faults are server failures, not client errors, and their
+        # text must not become a response code or message.
+        return persistence_error("REPORT_INTERNAL_ERROR", "")
 
 
 __all__ = [
