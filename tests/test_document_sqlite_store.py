@@ -94,6 +94,8 @@ def test_list_filters_resource_type_status_and_search(store) -> None:
         item.document.document_id
         for item in store.list("tenant-1", "project-1", search="façade")
     ] == ["DOC-3"]
+    assert store.list("tenant-1", "project-1", search="%") == ()
+    assert store.list("tenant-1", "project-1", search="_") == ()
     assert store.list("tenant-2", "project-1") == ()
     assert store.list("tenant-1", "project-2") == ()
 
@@ -105,6 +107,32 @@ def test_list_rejects_invalid_filters(store) -> None:
         store.list("tenant-1", "project-1", status="unknown")
     with pytest.raises(ValueError, match="INVALID_DOCUMENT_SEARCH_FILTER"):
         store.list("tenant-1", "project-1", search="   ")
+    with pytest.raises(ValueError, match="INVALID_DOCUMENT_SEARCH_FILTER"):
+        store.list("tenant-1", "project-1", search="x" * 201)
+
+
+def test_search_treats_percent_and_underscore_as_literals(store) -> None:
+    store.persist(
+        document(document_id="DOC-P", title="Completion 50%"),
+        idempotency_key="k-p",
+        actor_id="user-1",
+        occurred_at=NOW,
+    )
+    store.persist(
+        document(document_id="DOC-Q", title="A_B naming"),
+        idempotency_key="k-q",
+        actor_id="user-1",
+        occurred_at=NOW,
+    )
+
+    assert [
+        item.document.document_id
+        for item in store.list("tenant-1", "project-1", search="50%")
+    ] == ["DOC-P"]
+    assert [
+        item.document.document_id
+        for item in store.list("tenant-1", "project-1", search="a_b")
+    ] == ["DOC-Q"]
 
 
 def test_revision_guard_and_append_only_history(store) -> None:
