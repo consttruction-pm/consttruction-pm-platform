@@ -288,7 +288,7 @@ test("homepage security section discloses verified hosting controls and all six 
     "getLandingSecurityCopyForLocale",
   ]) assert.ok(landing.includes(marker), "Missing security disclosure requirement: " + marker);
   assert.match(landing, /cubi-security-disclosure/);
-  assert.match(landing, /securitySectionCopy\[normalizedLocale\] \?\? securitySectionCopy\.en/);
+  assert.match(landing, /securitySectionCopy\[normalizedLocale\] \?\? \{/);
   assert.match(styles, /\.cubi-security-disclosure/);
   assert.match(styles, /\.cubi-security-status/);
 });
