@@ -513,15 +513,27 @@ def test_sqlite_legacy_snapshot_is_explicitly_migratable_to_v2_identity():
     assert reread == migrated
 
 
-def test_snapshot_validate_rejects_unknown_calculation_identity_version():
+@pytest.mark.parametrize("version", [True, False, 1.0, 2.0, "1", "2", 0, 3, -1, None])
+def test_snapshot_validate_rejects_invalid_calculation_identity_version_type_or_value(version):
     snapshot = build_snapshot(
         make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
     )
     candidate = snapshot.__class__(
-        **{**snapshot.__dict__, "calculation_identity_version": 3}
+        **{**snapshot.__dict__, "calculation_identity_version": version}
     )
     with pytest.raises(
         ScheduleSnapshotPersistenceError,
         match="INVALID_CALCULATION_IDENTITY_VERSION",
     ):
         candidate.validate()
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_snapshot_validate_accepts_supported_integer_calculation_identity_versions(version):
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    candidate = snapshot.__class__(
+        **{**snapshot.__dict__, "calculation_identity_version": version}
+    )
+    candidate.validate()
