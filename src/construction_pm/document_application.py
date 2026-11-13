@@ -18,6 +18,7 @@ from .document_content_repository import (
     DocumentContentVersion,
 )
 from .document_persistence import (
+    DEFAULT_DOCUMENT_PAGE_SIZE,
     DocumentApprovalTransitionError,
     DocumentAuthorizationError,
     DocumentIdempotencyReuse,
@@ -165,6 +166,7 @@ class DocumentApplicationService:
         resource_type: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        limit: int = DEFAULT_DOCUMENT_PAGE_SIZE,
     ) -> tuple[StoredDocument, ...]:
         self._check_permission(context, tenant_id, project_id, Permission.PROJECT_READ)
         return self.store.list(
@@ -173,6 +175,7 @@ class DocumentApplicationService:
             resource_type=resource_type,
             status=status,
             search=search,
+            limit=limit,
         )
 
     def history(
