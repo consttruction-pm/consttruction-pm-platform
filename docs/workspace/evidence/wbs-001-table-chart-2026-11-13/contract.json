@@ -1,0 +1,701 @@
+{
+  "contract": "cubi-wbs-001-table-chart.v1",
+  "testedCodeSha": "31c79ca6",
+  "gitHead": "31c79ca6714ef2af9a69cfb4d16ec54330d83488",
+  "evidenceCommitSha": "31c79ca6",
+  "baseUrl": "http://127.0.0.1:4204",
+  "startedAt": "2026-11-13T13:25:58.462Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Table view lists the persisted hierarchy in project order",
+      "status": "pass",
+      "at": "2026-11-13T13:26:01.030Z",
+      "durationMs": 540,
+      "details": {
+        "rows": 7,
+        "headers": [
+          "WBS Code",
+          "WBS Name",
+          "Activities",
+          "Sequence",
+          "Rev"
+        ]
+      }
+    },
+    {
+      "id": "02",
+      "name": "Chart view draws the same nodes in the same order",
+      "status": "pass",
+      "at": "2026-11-13T13:26:01.361Z",
+      "durationMs": 331,
+      "details": {
+        "cards": 7
+      }
+    },
+    {
+      "id": "03",
+      "name": "Selection stays on the same persisted record across views",
+      "status": "pass",
+      "at": "2026-11-13T13:26:02.304Z",
+      "durationMs": 943,
+      "details": {
+        "tableMep": "true"
+      }
+    },
+    {
+      "id": "04",
+      "name": "A persisted child appears at depth three in both layouts after reload",
+      "status": "pass",
+      "at": "2026-11-13T13:26:04.699Z",
+      "durationMs": 2395,
+      "details": {
+        "rows": 8
+      }
+    },
+    {
+      "id": "05",
+      "name": "No hierarchy is invented when the parent is absent from the snapshot",
+      "status": "pass",
+      "at": "2026-11-13T13:26:04.961Z",
+      "durationMs": 262,
+      "details": {
+        "dangling": 0
+      }
+    },
+    {
+      "id": "06",
+      "name": "Persian RTL keeps the hierarchy readable at 1280x720",
+      "status": "pass",
+      "at": "2026-11-13T13:26:06.581Z",
+      "durationMs": 1620,
+      "details": {
+        "dir": "rtl",
+        "lang": "fa",
+        "headers": [
+          "کد WBS",
+          "نام WBS",
+          "فعالیت‌ها",
+          "ترتیب",
+          "ویرایش"
+        ],
+        "overflow": 0,
+        "wrapOverflow": 0,
+        "rows": 8
+      }
+    },
+    {
+      "id": "07",
+      "name": "Rows and cards are keyboard-focusable buttons carrying their record",
+      "status": "pass",
+      "at": "2026-11-13T13:26:06.646Z",
+      "durationMs": 65,
+      "details": {
+        "active": true,
+        "tag": "BUTTON",
+        "id": "WBS-RPS-PM",
+        "aria": "false"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "wbs1-table-present",
+      "name": "the WBS window renders a table grid",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "WBS-RPS-ROOT",
+            "depth": 1,
+            "code": "1",
+            "name": "Riverside Pump Station Upgrade",
+            "count": 0,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-PM",
+            "depth": 2,
+            "code": "1",
+            "name": "Project management",
+            "count": 3,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-CIVIL",
+            "depth": 2,
+            "code": "2",
+            "name": "Civil works",
+            "count": 5,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-PROC",
+            "depth": 2,
+            "code": "3",
+            "name": "Procurement",
+            "count": 1,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-ENV",
+            "depth": 2,
+            "code": "4",
+            "name": "Envelope works",
+            "count": 2,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-MEP",
+            "depth": 2,
+            "code": "5",
+            "name": "MEP works",
+            "count": 2,
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-COM",
+            "depth": 2,
+            "code": "6",
+            "name": "Commissioning and handover",
+            "count": 1,
+            "selected": false
+          }
+        ],
+        "headers": [
+          "WBS Code",
+          "WBS Name",
+          "Activities",
+          "Sequence",
+          "Rev"
+        ],
+        "table": true
+      }
+    },
+    {
+      "id": "wbs1-table-headers",
+      "name": "the table exposes code, name, activities, sequence and revision columns",
+      "ok": true,
+      "detail": [
+        "WBS Code",
+        "WBS Name",
+        "Activities",
+        "Sequence",
+        "Rev"
+      ]
+    },
+    {
+      "id": "wbs1-table-order",
+      "name": "rows follow the persisted hierarchy order and depth",
+      "ok": true,
+      "detail": [
+        {
+          "id": "WBS-RPS-ROOT",
+          "depth": 1,
+          "code": "1",
+          "name": "Riverside Pump Station Upgrade",
+          "count": 0,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PM",
+          "depth": 2,
+          "code": "1",
+          "name": "Project management",
+          "count": 3,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-CIVIL",
+          "depth": 2,
+          "code": "2",
+          "name": "Civil works",
+          "count": 5,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PROC",
+          "depth": 2,
+          "code": "3",
+          "name": "Procurement",
+          "count": 1,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-ENV",
+          "depth": 2,
+          "code": "4",
+          "name": "Envelope works",
+          "count": 2,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-MEP",
+          "depth": 2,
+          "code": "5",
+          "name": "MEP works",
+          "count": 2,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-COM",
+          "depth": 2,
+          "code": "6",
+          "name": "Commissioning and handover",
+          "count": 1,
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "wbs1-table-counts",
+      "name": "activity counts match the persisted assignments",
+      "ok": true,
+      "detail": [
+        [
+          "WBS-RPS-ROOT",
+          0
+        ],
+        [
+          "WBS-RPS-PM",
+          3
+        ],
+        [
+          "WBS-RPS-CIVIL",
+          5
+        ],
+        [
+          "WBS-RPS-PROC",
+          1
+        ],
+        [
+          "WBS-RPS-ENV",
+          2
+        ],
+        [
+          "WBS-RPS-MEP",
+          2
+        ],
+        [
+          "WBS-RPS-COM",
+          1
+        ]
+      ]
+    },
+    {
+      "id": "wbs1-no-fabricated-rows",
+      "name": "the table shows exactly the nodes the WBS API returns",
+      "ok": true,
+      "detail": {
+        "rows": 7,
+        "api": 7
+      }
+    },
+    {
+      "id": "wbs1-chart-present",
+      "name": "the chart view is rendered",
+      "ok": true,
+      "detail": {
+        "cards": [
+          {
+            "id": "WBS-RPS-ROOT",
+            "depth": 1,
+            "code": "1",
+            "name": "Riverside Pump Station Upgrade",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-PM",
+            "depth": 2,
+            "code": "1",
+            "name": "Project management",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-CIVIL",
+            "depth": 2,
+            "code": "2",
+            "name": "Civil works",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-PROC",
+            "depth": 2,
+            "code": "3",
+            "name": "Procurement",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-ENV",
+            "depth": 2,
+            "code": "4",
+            "name": "Envelope works",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-MEP",
+            "depth": 2,
+            "code": "5",
+            "name": "MEP works",
+            "selected": false
+          },
+          {
+            "id": "WBS-RPS-COM",
+            "depth": 2,
+            "code": "6",
+            "name": "Commissioning and handover",
+            "selected": false
+          }
+        ],
+        "chart": true
+      }
+    },
+    {
+      "id": "wbs1-chart-order",
+      "name": "chart cards keep the table order and depth",
+      "ok": true,
+      "detail": [
+        {
+          "id": "WBS-RPS-ROOT",
+          "depth": 1,
+          "code": "1",
+          "name": "Riverside Pump Station Upgrade",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PM",
+          "depth": 2,
+          "code": "1",
+          "name": "Project management",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-CIVIL",
+          "depth": 2,
+          "code": "2",
+          "name": "Civil works",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PROC",
+          "depth": 2,
+          "code": "3",
+          "name": "Procurement",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-ENV",
+          "depth": 2,
+          "code": "4",
+          "name": "Envelope works",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-MEP",
+          "depth": 2,
+          "code": "5",
+          "name": "MEP works",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-COM",
+          "depth": 2,
+          "code": "6",
+          "name": "Commissioning and handover",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "wbs1-chart-toggle",
+      "name": "the chart toggle is the pressed view",
+      "ok": true,
+      "detail": {
+        "table": "false",
+        "chart": "true",
+        "tableActive": false,
+        "chartActive": true
+      }
+    },
+    {
+      "id": "wbs1-table-selection",
+      "name": "the table marks the clicked record and reads its details",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "id": "wbs1-chart-selection",
+      "name": "the chart highlights the same record after the view switch",
+      "ok": true,
+      "detail": {
+        "selected": "true",
+        "cls": true,
+        "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksParent kindWBS elementParent1 — Riverside Pump Station UpgradeSequence20Record revision1"
+      }
+    },
+    {
+      "id": "wbs1-selection-roundtrip",
+      "name": "a chart selection survives the return to the table",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "id": "wbs1-create-persisted",
+      "name": "the WBS API persists the new child",
+      "ok": true,
+      "detail": {
+        "status": 201,
+        "body": {
+          "contract_version": "p6-wbs-master-api.v1",
+          "kind": "p6_wbs_master",
+          "scope": {
+            "tenant_id": "cubi-preview-tenant",
+            "project_id": "preview-rps-01",
+            "project_revision": 7
+          },
+          "wbs": {
+            "wbs_id": "WBS-E2E-WBS1-CHILD",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "WBS-RPS-CIVIL",
+            "code": "2.1",
+            "name": "Excavation package",
+            "sequence_number": 5,
+            "record_revision": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "wbs1-child-in-table",
+      "name": "the reloaded table shows the persisted child directly under its parent at depth three",
+      "ok": true,
+      "detail": [
+        {
+          "id": "WBS-RPS-ROOT",
+          "depth": 1,
+          "code": "1",
+          "name": "Riverside Pump Station Upgrade",
+          "count": 0,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PM",
+          "depth": 2,
+          "code": "1",
+          "name": "Project management",
+          "count": 3,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-CIVIL",
+          "depth": 2,
+          "code": "2",
+          "name": "Civil works",
+          "count": 5,
+          "selected": false
+        },
+        {
+          "id": "WBS-E2E-WBS1-CHILD",
+          "depth": 3,
+          "code": "2.1",
+          "name": "Excavation package",
+          "count": 0,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PROC",
+          "depth": 2,
+          "code": "3",
+          "name": "Procurement",
+          "count": 1,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-ENV",
+          "depth": 2,
+          "code": "4",
+          "name": "Envelope works",
+          "count": 2,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-MEP",
+          "depth": 2,
+          "code": "5",
+          "name": "MEP works",
+          "count": 2,
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-COM",
+          "depth": 2,
+          "code": "6",
+          "name": "Commissioning and handover",
+          "count": 1,
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "wbs1-child-in-chart",
+      "name": "the chart shows the same persisted child at the same position",
+      "ok": true,
+      "detail": [
+        {
+          "id": "WBS-RPS-ROOT",
+          "depth": 1,
+          "code": "1",
+          "name": "Riverside Pump Station Upgrade",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PM",
+          "depth": 2,
+          "code": "1",
+          "name": "Project management",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-CIVIL",
+          "depth": 2,
+          "code": "2",
+          "name": "Civil works",
+          "selected": false
+        },
+        {
+          "id": "WBS-E2E-WBS1-CHILD",
+          "depth": 3,
+          "code": "2.1",
+          "name": "Excavation package",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-PROC",
+          "depth": 2,
+          "code": "3",
+          "name": "Procurement",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-ENV",
+          "depth": 2,
+          "code": "4",
+          "name": "Envelope works",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-MEP",
+          "depth": 2,
+          "code": "5",
+          "name": "MEP works",
+          "selected": false
+        },
+        {
+          "id": "WBS-RPS-COM",
+          "depth": 2,
+          "code": "6",
+          "name": "Commissioning and handover",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "wbs1-parents-resolve",
+      "name": "every rendered child references a parent present in the same snapshot",
+      "ok": true,
+      "detail": {
+        "dangling": 0,
+        "rows": 8
+      }
+    },
+    {
+      "id": "wbs1-fa-rtl",
+      "name": "the Persian WBS table is right-to-left",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "lang": "fa",
+        "headers": [
+          "کد WBS",
+          "نام WBS",
+          "فعالیت‌ها",
+          "ترتیب",
+          "ویرایش"
+        ],
+        "overflow": 0,
+        "wrapOverflow": 0,
+        "rows": 8
+      }
+    },
+    {
+      "id": "wbs1-fa-headers",
+      "name": "the table headers are localized",
+      "ok": true,
+      "detail": [
+        "کد WBS",
+        "نام WBS",
+        "فعالیت‌ها",
+        "ترتیب",
+        "ویرایش"
+      ]
+    },
+    {
+      "id": "wbs1-fa-no-overflow",
+      "name": "the page does not overflow horizontally; the table scrolls inside its own wrapper",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "lang": "fa",
+        "headers": [
+          "کد WBS",
+          "نام WBS",
+          "فعالیت‌ها",
+          "ترتیب",
+          "ویرایش"
+        ],
+        "overflow": 0,
+        "wrapOverflow": 0,
+        "rows": 8
+      }
+    },
+    {
+      "id": "wbs1-focusable-records",
+      "name": "each chart node is a focusable button identified by its WBS ID",
+      "ok": true,
+      "detail": {
+        "active": true,
+        "tag": "BUTTON",
+        "id": "WBS-RPS-PM",
+        "aria": "false"
+      }
+    }
+  ],
+  "screenshots": [
+    "01-wbs-table-en.png",
+    "02-wbs-chart-en.png",
+    "03-wbs-selection-roundtrip.png",
+    "04-wbs-persisted-child.png",
+    "05-wbs-table-fa-rtl.png",
+    "06-wbs-chart-fa-rtl.png",
+    "07-wbs-keyboard-focus.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/wbs"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    }
+  ],
+  "finishedAt": "2026-11-13T13:26:06.647Z",
+  "status": "passed"
+}

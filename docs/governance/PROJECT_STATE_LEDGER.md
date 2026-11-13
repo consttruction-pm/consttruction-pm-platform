@@ -844,6 +844,15 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Remaining gaps:** no exclusive/shared/read-only access mode, no multi-project aggregation, cross-project relationships or integrated WBS/OBS; no tab drag-reorder or keyboard cycling; no project-close command beyond closing the tab; unsaved edits are confirmed and discarded rather than saved.
 - **Docs:** matrix PRJ-003 moved from NOT_AUDITED to WIRED_WRITE and a §2.1 row added (Help `open_a_project.htm`, `single_project_mode_vs_multi-project_mode.htm`).
 
+## WBS-001 hierarchical WBS table and chart — 2026-11-13
+
+- **Requirement:** the WBS window must present the persisted hierarchy as a table and as a chart, with the same nodes and the same order in both layouts. Official Help: `view_the_wbs.htm` (Project > WBS; View > Show on Top > Chart View / Table) and `change_the_work_breakdown_structure_table_display.htm`.
+- **Implementation:** new `apps/web/src/workspace-wbs-hierarchy.ts` projects `WorkspaceWbsNode[]` into a single depth-first row list (sibling order = `sequenceNumber`, then local code, then ID; orphaned parents promoted and flagged; cycles/duplicate IDs visited once). `renderWbsTable` and `renderWbsChart` in `apps/web/src/workspace-view.ts` both read that list, so neither layout can invent or reorder rows. The table adds WBS Code, WBS Name, Activities (count of the loaded workspace activities), Sequence and Rev columns; both record elements remain focusable buttons carrying `data-wbs-id`.
+- **Boundary:** reads are the existing `GET /api/v2/workspace/control-room/read` and `GET /api/projects/{id}/p6/wbs`; the view toggle is browser-local and writes nothing. Create/edit/delete endpoints were already wired and are unchanged in this slice.
+- **Defect found and fixed:** the incremental selection update only refreshed `aria-current` on record buttons, so a table row kept the stale `aria-selected` value after a click. The WBS window now also refreshes `.cp-wbs-row[aria-selected]` on every incremental selection change.
+- **Tests:** `workspace-wbs-hierarchy.test.ts` (7), a table↔chart order parity test in `workspace-view.test.ts`; 1067 `tsx` + 14 `node --test` pass, `tsc` and the esbuild bundle pass. Browser suite `apps/web/e2e/wbs-hierarchy-v26.mjs` (contract `cubi-wbs-001-table-chart.v1`) passes 19/19 at code `31c79ca6` with 7 screenshots, zero exceptions/console errors/5xx, including the RTL 1280×720 cell and a persisted depth-3 child after reload.
+- **Remaining gaps:** no Gantt top layout for WBS, no column chooser, chart is an indented card map, and status/weighted milestones plus copy/cut/paste/delete reassignment are WBS-002 and WBS-003.
+
 ## Merge record — 2026-11-13
 
 - SEC-017 stable route error codes merged as `194aba33` (PR #1908); post-merge `pytest tests` = 4101 passed / 176 skipped, `pytest tests/integration` = 254 passed / 107 skipped, `apps/web npm test` = 1027 + 14 passed on that main.
