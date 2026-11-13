@@ -290,7 +290,7 @@ test("homepage security section discloses verified hosting controls and all six 
     'title: "Data Recovery"',
     'status: "ACTIVE — HOST MANAGED"',
     'status: "NOT VERIFIED"',
-    "no Render Postgres instance",
+    "no Render Postgres instance",\n    "0.0.0.0/0",
     "free web-service filesystems are ephemeral",
     "successful restore drill",
     "getLandingSecurityCopyForLocale",
