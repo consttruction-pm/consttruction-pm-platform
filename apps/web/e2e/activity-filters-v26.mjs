@@ -193,7 +193,7 @@ async function main() {
   });
 
   const report = {
-    contract: "cubi-activity-filters-v26.v1",
+    contract: "cubi-activity-filters-v26.v2",
     baseUrl,
     gitHead: gitHead(),
     testedCodeSha,
@@ -250,6 +250,7 @@ async function main() {
           groups: [...dialog.querySelectorAll("tbody[data-filter-group]")].map((body) => body.getAttribute("data-filter-group")),
           actions: [...dialog.querySelectorAll("[name=\\"filterAction\\"]")].map((button) => button.value),
           add: Boolean(dialog.querySelector("[data-filter-row-add]")),
+          optimize: Boolean(dialog.querySelector("[data-filter-optimize]")),
           remove: dialog.querySelectorAll("[data-filter-row-remove]").length,
           moves: dialog.querySelectorAll("[data-filter-row-move]").length,
           high: dialog.querySelectorAll("[data-filter-high]").length,
@@ -260,10 +261,10 @@ async function main() {
       })()`);
       assert(state.rows === 2, `expected two starter rows, got ${state.rows}`);
       assert(state.groups.join(",") === "default,global,layout,user", `filter categories ${state.groups}`);
-      for (const action of ["apply", "delete", "copy", "paste", "make-global", "copy-as-layout"]) {
+      for (const action of ["apply", "delete", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
         assert(state.actions.includes(action), `action ${action} is missing`);
       }
-      assert(state.add && state.remove === 2 && state.moves === 4, "row Add/Delete/Move controls are incomplete");
+      assert(state.add && state.optimize && state.remove === 2 && state.moves === 4, "row Add/Optimize/Delete/Move controls are incomplete");
       assert(state.high === 2, "the High value inputs are missing");
       assert(state.heads === 6, `expected six editor columns (Where/Field/Is/Value/High/actions), got ${state.heads}`);
       assert(/Preview/.test(state.preview), `preview line is missing: ${state.preview}`);
@@ -465,6 +466,164 @@ async function main() {
       await clickInDialog(page, "[data-dialog-cancel]");
       await sleep(300);
       return { rows: state.rows, overflow };
+    });
+
+    await scenario("10", "list parameters use a typed picker and the saved choice reloads", async () => {
+      await setLanguage(page, "en");
+      await setViewport(page, 1366, 768);
+      await openFilters(page);
+      await setSelect(page, 0, "field", "activity_status");
+      const picker = await page.evaluate(`(() => {
+        const row = document.querySelector('${dialogSelector} .cp-filter-row[data-filter-row="0"]');
+        const select = row?.querySelector('select[name="filter.value.0"]');
+        return {
+          isSelect: Boolean(select),
+          hasInput: Boolean(row?.querySelector('input[name="filter.value.0"]')),
+          values: select ? [...select.options].map((option) => option.value) : [],
+          labels: select ? [...select.options].map((option) => option.textContent.trim()) : [],
+          disabled: Boolean(select?.disabled),
+        };
+      })()`);
+      assert(picker.isSelect && !picker.hasInput, "a list parameter must render a picker, not a free-text box");
+      assert(picker.values.slice(1).join(",") === "Not Started,In Progress,Completed", `status values ${picker.values.join(",")}`);
+      assert(picker.labels.includes("Select a value"), `placeholder label missing: ${picker.labels.join(",")}`);
+      assert(!picker.disabled, "a complete operator must keep the picker enabled");
+
+      await setSelect(page, 0, "value", "In Progress");
+      const state = await preview(page);
+      assert(state.valid === "true", `the picked status is invalid: ${state.text}`);
+      assert(state.matched > 0 && state.matched < totalRows, `expected a partial status match, got ${state.matched}/${totalRows}`);
+      const inProgress = state.matched;
+
+      await setSelect(page, 0, "field", "is_critical");
+      const flag = await page.evaluate(`(() => {
+        const select = document.querySelector('${dialogSelector} select[name="filter.value.0"]');
+        return {
+          values: select ? [...select.options].map((option) => option.value) : [],
+          labels: select ? [...select.options].map((option) => option.textContent.trim()) : [],
+        };
+      })()`);
+      assert(flag.values.slice(1).join(",") === "true,false", `flag values ${flag.values.join(",")}`);
+      assert(flag.labels.includes("Yes") && flag.labels.includes("No"), `flag labels are not localized: ${flag.labels.join(",")}`);
+
+      await setSelect(page, 0, "field", "activity_status");
+      await setSelect(page, 0, "value", "In Progress");
+      await setText(page, "filterName", "In Progress Only");
+      // Scenario 05 left the dialog in Highlight mode; replace is the mode that
+      // narrows the grid, so the saved filter must apply the same way.
+      const replace = await page.evaluate(`(() => {
+        const input = document.querySelector('${dialogSelector} input[name="filterApplyMode"][value="replace"]');
+        if (!input) return false;
+        input.checked = true;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      })()`);
+      assert(replace, "the Replace apply mode is missing");
+      await page.evaluate(`document.querySelector('${dialogSelector} .cp-filter-row[data-filter-row="0"]')?.scrollIntoView({ block: "center" })`);
+      await sleep(200);
+      await capture(page, "08-filter-choice-picker-en-1366");
+      await submitOk(page);
+      const applied = await gridState(page);
+      assert(applied.rows === inProgress, `grid shows ${applied.rows} rows, the picker preview said ${inProgress}`);
+
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload with the status filter applied");
+      await sleep(900);
+      const reloaded = await gridState(page);
+      assert(reloaded.rows === inProgress, `reload shows ${reloaded.rows} rows, expected ${inProgress}`);
+      await openFilters(page);
+      const saved = await gridState(page);
+      assert(saved.saved.includes("in progress only"), `saved filters ${saved.saved.join(", ")}`);
+
+      const selected = await page.evaluate(`(() => {
+        const row = [...document.querySelectorAll('${dialogSelector} tr[data-filter-id]')]
+          .find((item) => item.getAttribute("data-filter-name") === "in progress only");
+        row?.querySelector("[data-filter-row-select]")?.click();
+        return Boolean(row);
+      })()`);
+      assert(selected, "the saved status filter row is missing");
+      await clickInDialog(page, "[data-filter-modify]");
+      const loaded = await page.evaluate(`(() => {
+        const select = document.querySelector('${dialogSelector} select[name="filter.value.0"]');
+        return {
+          tag: select?.tagName ?? "",
+          value: select?.value ?? "",
+          text: select?.selectedOptions?.[0]?.textContent?.trim() ?? "",
+        };
+      })()`);
+      assert(loaded.tag === "SELECT" && loaded.value === "In Progress" && loaded.text === "In Progress", `Modify did not reload the picker: ${JSON.stringify(loaded)}`);
+      await capture(page, "09-filter-choice-reload-en-1366");
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      return { matched: inProgress, rows: reloaded.rows, saved: saved.saved.length };
+    });
+
+    await scenario("11", "Optimize removes duplicate and implied criteria without changing matches", async () => {
+      await openFilters(page);
+      await setSelect(page, 0, "field", "activity_name");
+      await setSelect(page, 0, "operator", "contains");
+      await setText(page, "filter.value.0", "Piling");
+      await clickInDialog(page, "[data-filter-row-add]");
+      await setSelect(page, 1, "field", "activity_name");
+      await setSelect(page, 1, "operator", "contains");
+      await setText(page, "filter.value.1", "Piling and foundations");
+      const before = await preview(page);
+      assert(before.rows === 2, `expected two criteria before Optimize, got ${before.rows}`);
+      assert(before.matched > 0, `the containment pair matched nothing: ${before.text}`);
+
+      await clickInDialog(page, "[data-filter-optimize]");
+      const after = await preview(page);
+      const status = await page.evaluate(`document.querySelector('${dialogSelector} [data-filter-optimize-status]')?.textContent?.trim() ?? ""`);
+      assert(after.rows === 1, `All + Optimize kept ${after.rows} rows`);
+      assert(/Removed 1 redundant/.test(status), `Optimize status was "${status}"`);
+      assert(after.matched === before.matched, `Optimize changed matches ${before.matched} -> ${after.matched}`);
+
+      await clickInDialog(page, "[data-filter-row-add]");
+      await setSelect(page, 1, "field", "activity_name");
+      await setSelect(page, 1, "operator", "contains");
+      await setText(page, "filter.value.1", "Piling and foundations");
+      await clickInDialog(page, "[data-filter-optimize]");
+      const deduped = await preview(page);
+      assert(deduped.rows === 1 && deduped.matched === before.matched, "an exact duplicate was not collapsed");
+
+      await clickInDialog(page, "[data-filter-optimize]");
+      const clean = await page.evaluate(`document.querySelector('${dialogSelector} [data-filter-optimize-status]')?.textContent?.trim() ?? ""`);
+      assert(/No redundant criteria found/.test(clean), `a clean filter reported "${clean}"`);
+      await capture(page, "10-filter-optimize-en-1366");
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      return { before: before.matched, after: after.matched, optimizeStatus: status, clean };
+    });
+
+    await scenario("12", "Duplicate stores a second filter and keeps the original", async () => {
+      await openFilters(page);
+      const before = (await gridState(page)).saved;
+      const selected = await page.evaluate(`(() => {
+        const row = [...document.querySelectorAll('${dialogSelector} tr[data-filter-id]')]
+          .find((item) => item.getAttribute("data-filter-name") === "six-week lookahead");
+        if (!row) return false;
+        row.querySelector("[data-filter-row-select]")?.click();
+        return true;
+      })()`);
+      assert(selected, "the lookahead filter row is missing");
+      await clickInDialog(page, '[name="filterAction"][value="duplicate"]');
+      await page.waitForSelector(`${dialogSelector}[open]`, "filters dialog after duplicate", 8000);
+      await sleep(600);
+      const after = await gridState(page);
+      assert(after.saved.length === before.length + 1, `Duplicate stored ${after.saved.length - before.length} entries`);
+      assert(after.saved.includes("six-week lookahead"), "Duplicate removed the original filter");
+      assert(after.saved.includes("six-week lookahead (copy)"), `the copy is missing: ${after.saved.join(", ")}`);
+      const checked = await page.evaluate(`[...document.querySelectorAll('${dialogSelector} input[name="filterSelected"]:checked')].map((input) => input.value)`);
+      assert(checked.includes("custom:six-week-lookahead-copy"), `the copy was not selected: ${checked.join(",")}`);
+      await capture(page, "11-filter-duplicate-en-1366");
+
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload with the duplicated filter");
+      await sleep(900);
+      await openFilters(page);
+      const reloaded = await gridState(page);
+      assert(reloaded.saved.includes("six-week lookahead (copy)"), "the duplicated filter disappeared after reload");
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      return { before: before.length, after: after.saved.length, checked };
     });
 
     writeReport();

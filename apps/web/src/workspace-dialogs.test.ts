@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultLayoutPatch, filterCriterionRowMarkup, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
+import { defaultLayoutPatch, filterCriterionRowMarkup, filterValueControlMarkup, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
 import { DEFAULT_PRESENTATION, normalizePresentation } from "./workspace-presentation.js";
 
 function form(entries: Record<string, string | string[]>): FormData {
@@ -414,7 +414,7 @@ test("Filters dialog exposes the version 26 list, scope categories and actions",
   assert.match(html, /data-filter-group="user"/);
   assert.match(html, /data-filter-new/);
   assert.match(html, /data-filter-modify/);
-  for (const action of ["apply", "delete", "copy", "paste", "make-global", "copy-as-layout"]) {
+  for (const action of ["apply", "delete", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
     assert.match(html, new RegExp(`name="filterAction" value="${action}"`));
   }
   assert.match(html, /name="filterName"/);
@@ -428,6 +428,8 @@ test("Filters dialog exposes the version 26 list, scope categories and actions",
     assert.match(html, new RegExp(`name="filter\\.high\\.${index}"`));
   }
   assert.match(html, /data-filter-row-add/);
+  assert.match(html, /data-filter-optimize/);
+  assert.match(html, /data-filter-optimize-status/);
   assert.match(html, /data-filter-high/);
   assert.match(html, /data-filter-preview/);
   assert.match(html, /id="cp-filter-date-tokens"/);
@@ -606,8 +608,34 @@ test("Make Global converts a layout filter and Copy as Layout adds a layout copy
   assert.deepEqual(copy?.selectedIds, [copy?.saved[0].id]);
 });
 
-test("Copy and Paste move a filter into the chosen category", () => {
+test("Duplicate stores a second copy and selects it", () => {
   const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "global" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const duplicated = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterAction: "duplicate",
+  }), previous).presentation?.filters;
+  assert.equal(duplicated?.saved.length, 2);
+  assert.equal(duplicated?.saved[0].name, "Civil open (copy)");
+  assert.equal(duplicated?.saved[0].scope, "global");
+  assert.deepEqual(duplicated?.saved[0].criteria, previous.filters.saved[0].criteria);
+  assert.deepEqual(duplicated?.selectedIds, [duplicated?.saved[0].id]);
+});
+
+test("Copy and Paste move a filter into the chosen category", () => {  const previous = {
     ...DEFAULT_PRESENTATION,
     filters: {
       saved: [{
@@ -683,6 +711,39 @@ test("criterion rows render typed operators, the High value column and local row
   assert.match(text, /does not contain/);
   assert.doesNotMatch(text, /is within range of/);
   assert.doesNotMatch(text, /data-filter-join(?![^>]*hidden)/);
+});
+
+test("list parameters render a value picker instead of a free-text box", () => {
+  const status = filterCriterionRowMarkup(1, "en", {
+    fieldId: "activity_status", operator: "equals", value: "In Progress",
+  });
+  assert.match(status, /data-filter-field-type="choice"/);
+  assert.match(status, /<select name="filter\.value\.1" data-filter-choice/);
+  assert.match(status, /<option value="In Progress" selected>In Progress<\/option>/);
+  assert.match(status, /<option value="Not Started">Not Started<\/option>/);
+  assert.doesNotMatch(status, /<input[^>]*name="filter\.value\.1"/);
+
+  const type = filterCriterionRowMarkup(0, "en", {
+    fieldId: "activity_type", operator: "equals", value: "Start Milestone",
+  });
+  assert.match(type, /<option value="WBS Summary">WBS Summary<\/option>/);
+  assert.match(type, /<option value="Start Milestone" selected>/);
+
+  const critical = filterCriterionRowMarkup(0, "en", {
+    fieldId: "is_critical", operator: "equals", value: "true",
+  });
+  assert.match(critical, /<option value="true" selected>Yes<\/option>/);
+  assert.match(critical, /<option value="false">No<\/option>/);
+
+  // A value saved outside the current list is preserved rather than rewritten.
+  const unknown = filterValueControlMarkup(0, "en", "activity_status", "equals", "Suspended");
+  assert.match(unknown, /<option value="Suspended" selected>Suspended<\/option>/);
+
+  const blank = filterValueControlMarkup(0, "en", "activity_status", "is-empty", "");
+  assert.match(blank, /<select[^>]*disabled[^>]*>/);
+
+  const date = filterValueControlMarkup(0, "en", "start", "equals", "CD");
+  assert.match(date, /<input type="text" name="filter\.value\.0" value="CD" list="cp-filter-date-tokens"/);
 });
 
 test("Table Font and Row resets every table value to the shipped defaults", () => {

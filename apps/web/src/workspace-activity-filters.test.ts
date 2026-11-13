@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  activityFilterChoiceValues,
   activityMatchesFilter,
   applyActivityFilterState,
   copyActivityFilterAsLayout,
   deleteActivityFilter,
   describeActivityFilter,
+  duplicateActivityFilter,
   EMPTY_ACTIVITY_FILTERS,
   filterActivitiesByDefinition,
   findActivityFilter,
@@ -14,6 +16,7 @@ import {
   makeGlobalActivityFilter,
   normalizeActivityFilter,
   normalizeActivityFilterState,
+  optimizeActivityFilterCriteria,
   pasteActivityFilter,
   previewActivityFilter,
   resolveFilterDateValue,
@@ -411,4 +414,93 @@ test("normalization keeps the high value only for ranges and describes it", () =
   });
   assert.ok(equal);
   assert.equal(equal.criteria[0].highValue, undefined);
+});
+
+test("list parameters expose their stored values for a picker", () => {
+  assert.deepEqual(activityFilterChoiceValues("activity_status"), ["Not Started", "In Progress", "Completed"]);
+  assert.equal(activityFilterChoiceValues("activity_type")?.length, 6);
+  assert.deepEqual(activityFilterChoiceValues("is_critical"), ["true", "false"]);
+  assert.equal(activityFilterChoiceValues("activity_name"), null);
+});
+
+test("Optimize collapses duplicates and implied rows without changing matches", () => {
+  const duplicates = optimizeActivityFilterCriteria([
+    { fieldId: "wbs", operator: "contains", value: "Civil" },
+    { fieldId: "wbs", operator: "contains", value: "civil" },
+    { fieldId: "activity_name", operator: "contains", value: "" },
+  ], "all");
+  assert.equal(duplicates.removed, 2);
+  assert.deepEqual(duplicates.criteria, [{ fieldId: "wbs", operator: "contains", value: "Civil" }]);
+
+  // All (AND): the longer contains is stricter, so the shorter is implied.
+  const all = optimizeActivityFilterCriteria([
+    { fieldId: "activity_name", operator: "contains", value: "Piling" },
+    { fieldId: "activity_name", operator: "contains", value: "Piling and foundations" },
+  ], "all");
+  assert.equal(all.removed, 1);
+  assert.deepEqual(all.criteria, [{ fieldId: "activity_name", operator: "contains", value: "Piling and foundations" }]);
+
+  // Any (OR): the shorter contains covers more, so the longer is absorbed.
+  const any = optimizeActivityFilterCriteria([
+    { fieldId: "activity_name", operator: "contains", value: "Piling" },
+    { fieldId: "activity_name", operator: "contains", value: "Piling and foundations" },
+  ], "any");
+  assert.equal(any.removed, 1);
+  assert.deepEqual(any.criteria, [{ fieldId: "activity_name", operator: "contains", value: "Piling" }]);
+
+  // equals implies contains; not-contains implies not-equals.
+  const mixed = optimizeActivityFilterCriteria([
+    { fieldId: "activity_status", operator: "equals", value: "In Progress" },
+    { fieldId: "activity_status", operator: "contains", value: "Progress" },
+    { fieldId: "wbs", operator: "not-contains", value: "Civil" },
+    { fieldId: "wbs", operator: "not-equals", value: "Civil" },
+  ], "all");
+  assert.equal(mixed.removed, 2);
+  assert.deepEqual(mixed.criteria, [
+    { fieldId: "activity_status", operator: "equals", value: "In Progress" },
+    { fieldId: "wbs", operator: "not-contains", value: "Civil" },
+  ]);
+
+  const original: ActivityFilterDefinition = {
+    id: "custom:check", name: "Check", match: "all",
+    criteria: [
+      { fieldId: "activity_name", operator: "contains", value: "Piling" },
+      { fieldId: "activity_name", operator: "contains", value: "Piling and foundations" },
+    ],
+  };
+  const optimized: ActivityFilterDefinition = { ...original, criteria: all.criteria };
+  assert.deepEqual(ids(filterActivitiesByDefinition(rows, optimized)), ids(filterActivitiesByDefinition(rows, original)));
+});
+
+test("Optimize leaves a clean filter and an all-blank editor alone", () => {
+  const clean = [
+    { fieldId: "activity_status" as const, operator: "equals" as const, value: "Completed" },
+    { fieldId: "progress" as const, operator: "less-than" as const, value: "50" },
+  ];
+  const result = optimizeActivityFilterCriteria(clean, "all");
+  assert.equal(result.removed, 0);
+  assert.deepEqual(result.criteria, clean);
+
+  const blank = [{ fieldId: "activity_name" as const, operator: "contains" as const, value: "" }];
+  const untouched = optimizeActivityFilterCriteria(blank, "all");
+  assert.equal(untouched.removed, 0);
+  assert.deepEqual(untouched.criteria, blank);
+});
+
+test("Duplicate saves a second copy in the same category", () => {
+  const source = normalizeActivityFilter({
+    name: "Civil open",
+    match: "all",
+    criteria: [{ fieldId: "wbs", operator: "contains", value: "Civil" }],
+  });
+  assert.ok(source);
+  const state = upsertActivityFilter(EMPTY_ACTIVITY_FILTERS, { ...source, scope: "global" });
+  const duplicated = duplicateActivityFilter(state, source.id);
+  assert.equal(duplicated.saved.length, 2);
+  assert.equal(duplicated.saved[0].name, "Civil open (copy)");
+  assert.equal(duplicated.saved[0].scope, "global");
+  assert.notEqual(duplicated.saved[0].id, source.id);
+  assert.deepEqual(duplicated.saved[0].criteria, source.criteria);
+  // A predefined filter is read-only; Copy as Layout is its documented path.
+  assert.equal(duplicateActivityFilter(state, "builtin:completed"), state);
 });

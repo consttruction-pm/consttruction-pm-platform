@@ -58,6 +58,28 @@ export function activityFilterFieldType(fieldId: ActivityFilterFieldId): Activit
   return FIELD_TYPES[fieldId];
 }
 
+/**
+ * Version 26 list parameters present their stored values in a picker instead
+ * of a free-text box. Values stay exactly as the database stores them so a
+ * saved filter keeps matching after a reload in either language.
+ */
+const CHOICE_VALUES: Partial<Record<ActivityFilterFieldId, readonly string[]>> = {
+  activity_status: ["Not Started", "In Progress", "Completed"],
+  activity_type: [
+    "Task Dependent",
+    "Resource Dependent",
+    "Level of Effort",
+    "Start Milestone",
+    "Finish Milestone",
+    "WBS Summary",
+  ],
+  is_critical: ["true", "false"],
+};
+
+export function activityFilterChoiceValues(fieldId: ActivityFilterFieldId): readonly string[] | null {
+  return CHOICE_VALUES[fieldId] ?? null;
+}
+
 /** Operators offered for a parameter type, in Version 26 order. */
 export function activityFilterOperatorsFor(fieldId: ActivityFilterFieldId): readonly ActivityFilterOperator[] {
   const type = activityFilterFieldType(fieldId);
@@ -323,6 +345,93 @@ export function criterionIsComplete(criterion: ActivityFilterCriterion): boolean
     return criterion.value.trim().length > 0 && (criterion.highValue ?? "").trim().length > 0;
   }
   return criterion.value.trim().length > 0;
+}
+
+function sameCriterion(left: ActivityFilterCriterion, right: ActivityFilterCriterion): boolean {
+  const normalize = (value: string | undefined): string =>
+    (value ?? "").trim().toLocaleLowerCase();
+  return left.fieldId === right.fieldId
+    && left.operator === right.operator
+    && normalize(left.value) === normalize(right.value)
+    && normalize(left.highValue) === normalize(right.highValue);
+}
+
+/**
+ * Every row that satisfies `narrow` also satisfies `broad`. Only the text
+ * containment family can be compared without evaluating actual rows:
+ * `equals X` and `contains Y` are implied by `contains X` when Y is part of X,
+ * while `not-contains X` implies `not-equals X` for the same value.
+ */
+function criterionImplies(narrow: ActivityFilterCriterion, broad: ActivityFilterCriterion): boolean {
+  if (narrow.fieldId !== broad.fieldId) return false;
+  if (sameCriterion(narrow, broad)) return true;
+  const narrowValue = narrow.value.trim().toLocaleLowerCase();
+  const broadValue = broad.value.trim().toLocaleLowerCase();
+  if (narrowValue === "" || broadValue === "") return false;
+  if (narrow.operator === "contains" && broad.operator === "contains") {
+    return narrowValue.includes(broadValue);
+  }
+  if (narrow.operator === "not-contains" && broad.operator === "not-contains") {
+    return broadValue.includes(narrowValue);
+  }
+  if (narrow.operator === "equals" && broad.operator === "contains") {
+    return narrowValue.includes(broadValue);
+  }
+  if (narrow.operator === "not-contains" && broad.operator === "not-equals") {
+    return narrowValue === broadValue;
+  }
+  return false;
+}
+
+export type ActivityFilterOptimization = {
+  criteria: readonly ActivityFilterCriterion[];
+  /** How many rows the review removed (duplicates, blanks or implied rows). */
+  removed: number;
+};
+
+/**
+ * The Version 26 Optimize review: eliminate redundant criteria without
+ * changing what the filter matches. Blank rows are dropped only when a
+ * complete criterion remains, exact duplicates collapse to one, and with
+ * All (AND) a criterion implied by another is removed; with Any (OR) a
+ * criterion that implies another is removed. Nothing is ever silently
+ * widened or narrowed.
+ */
+export function optimizeActivityFilterCriteria(
+  criteria: readonly ActivityFilterCriterion[],
+  match: "all" | "any" = "all",
+): ActivityFilterOptimization {
+  const complete = criteria.filter(criterionIsComplete);
+  if (complete.length === 0) return { criteria: [...criteria], removed: 0 };
+  let removed = criteria.length - complete.length;
+
+  const unique: ActivityFilterCriterion[] = [];
+  for (const criterion of complete) {
+    if (unique.some((kept) => sameCriterion(kept, criterion))) {
+      removed += 1;
+      continue;
+    }
+    unique.push(criterion);
+  }
+
+  const redundant = new Set<number>();
+  for (let index = 0; index < unique.length; index += 1) {
+    for (let other = 0; other < unique.length; other += 1) {
+      if (index === other || redundant.has(index) || redundant.has(other)) continue;
+      const implied = match === "all"
+        ? criterionImplies(unique[other], unique[index])
+        : criterionImplies(unique[index], unique[other]);
+      if (implied) {
+        redundant.add(index);
+        break;
+      }
+    }
+  }
+  const kept = unique.filter((_, index) => !redundant.has(index));
+  return {
+    criteria: kept.length > 0 ? kept : unique.slice(0, 1),
+    removed: removed + redundant.size,
+  };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -805,6 +914,31 @@ export function pasteActivityFilter(
   const copy: ActivityFilterDefinition = {
     ...source,
     id: uniqueFilterId(state, `custom:${slug(source.name)}`),
+    builtin: false,
+    scope,
+  };
+  return { ...state, saved: [copy, ...state.saved].slice(0, MAX_SAVED_FILTERS) };
+}
+
+/**
+ * Duplicate keeps the saved filter intact and stores a second copy in the same
+ * category, so a user can vary one criterion without retyping the filter.
+ * Built-in filters are read-only and are copied with Copy as Layout instead.
+ */
+export function duplicateActivityFilter(
+  state: ActivityFilterState,
+  id: string,
+): ActivityFilterState {
+  const source = findActivityFilter(state, id);
+  if (!source || source.builtin) return state;
+  const scope: ActivityFilterScope =
+    source.scope === "global" || source.scope === "user" ? source.scope : "layout";
+  const baseName = source.name.slice(0, Math.max(0, MAX_NAME - " (copy)".length));
+  const name = `${baseName} (copy)`.slice(0, MAX_NAME);
+  const copy: ActivityFilterDefinition = {
+    ...source,
+    id: uniqueFilterId(state, `custom:${slug(name)}`),
+    name,
     builtin: false,
     scope,
   };

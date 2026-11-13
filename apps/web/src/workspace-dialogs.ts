@@ -37,12 +37,14 @@ import { translateWorkspaceUiText } from "./workspace-localization.js";
 import {
   ACTIVITY_FILTER_FIELDS,
   ACTIVITY_FILTER_SCOPES,
+  activityFilterChoiceValues,
   activityFilterFieldLabel,
   activityFilterFieldType,
   activityFilterOperatorLabel,
   activityFilterOperatorsFor,
   copyActivityFilterAsLayout,
   deleteActivityFilter,
+  duplicateActivityFilter,
   filterScopeLabel,
   findActivityFilter,
   getBuiltinActivityFilters,
@@ -57,6 +59,7 @@ import {
   upsertActivityFilter,
   type ActivityFilterCriterion,
   type ActivityFilterDefinition,
+  type ActivityFilterFieldId,
   type ActivityFilterOperator,
   type ActivityFilterScope,
   type ActivityFilterState,
@@ -349,6 +352,43 @@ function filterList(state: DialogOptions["presentation"]["filters"], locale: str
 
 const FILTER_DATE_TOKENS = ["CD", "CS", "CF", "CD+7d", "CD-7d", "CD+1w", "CF+6w"] as const;
 
+/** List values are stored in their database form; only booleans get a label. */
+export function filterChoiceLabel(fieldId: ActivityFilterFieldId, value: string, locale: string): string {
+  if (fieldId === "is_critical") {
+    return value === "true" ? t(locale, "Yes", "بله") : t(locale, "No", "خیر");
+  }
+  return value;
+}
+
+/**
+ * The Value cell for one criterion. Version 26 shows a picker for list
+ * parameters (Activity Status, Activity Type) and a yes/no list for a flag,
+ * so a typed label can no longer silently fail to match. A stored value that
+ * is not in the current list stays selectable instead of being rewritten.
+ */
+export function filterValueControlMarkup(
+  index: number,
+  locale: string,
+  fieldId: ActivityFilterFieldId,
+  operator: ActivityFilterOperator,
+  value: string,
+): string {
+  const type = activityFilterFieldType(fieldId);
+  const blank = operator === "is-empty" || operator === "is-not-empty";
+  const choices = activityFilterChoiceValues(fieldId);
+  if (choices) {
+    const unknown = value !== "" && !choices.includes(value);
+    return `<select name="filter.value.${index}" data-filter-choice aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}"${blank ? " disabled" : ""}>
+      <option value=""${value === "" ? " selected" : ""}>${esc(t(locale, "Select a value", "یک مقدار انتخاب کنید"))}</option>
+      ${choices.map((choice) => `<option value="${esc(choice)}"${choice === value ? " selected" : ""}>${esc(filterChoiceLabel(fieldId, choice, locale))}</option>`).join("")}
+      ${unknown ? `<option value="${esc(value)}" selected>${esc(value)}</option>` : ""}
+    </select>`;
+  }
+  const dateList = type === "date" ? ` list="cp-filter-date-tokens"` : "";
+  const inputMode = type === "number" ? ` inputmode="decimal"` : "";
+  return `<input type="text" name="filter.value.${index}" value="${esc(value)}"${dateList}${inputMode} aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false"${blank ? " disabled" : ""}>`;
+}
+
 /** One editable criterion row; indices are renumbered after every mutation. */
 export function filterCriterionRowMarkup(index: number, locale: string, criterion?: ActivityFilterCriterion): string {
   const fieldId = criterion?.fieldId ?? "activity_name";
@@ -356,7 +396,6 @@ export function filterCriterionRowMarkup(index: number, locale: string, criterio
   const operator = criterion?.operator ?? (activityFilterOperatorsFor(fieldId)[0] ?? "contains");
   const operators = activityFilterOperatorsFor(fieldId);
   const range = operator === "within-range";
-  const blank = operator === "is-empty" || operator === "is-not-empty";
   const dateList = type === "date" ? ` list="cp-filter-date-tokens"` : "";
   return `<div class="cp-filter-row" data-filter-row="${index}" data-filter-field-type="${type}">
       <span class="cp-filter-join" data-filter-join${index === 0 ? " hidden" : ""}>${esc(t(locale, "And", "و"))}</span>
@@ -366,7 +405,7 @@ export function filterCriterionRowMarkup(index: number, locale: string, criterio
       <select name="filter.operator.${index}" aria-label="${esc(t(locale, "Filter operator", "عملگر فیلتر"))}">
         ${operators.map((id) => `<option value="${id}"${id === operator ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
       </select>
-      <input type="text" name="filter.value.${index}" value="${esc(criterion?.value ?? "")}"${dateList} aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false"${blank ? " disabled" : ""}>
+      ${filterValueControlMarkup(index, locale, fieldId, operator, criterion?.value ?? "")}
       <input type="text" name="filter.high.${index}" value="${esc(criterion?.highValue ?? "")}"${dateList} data-filter-high aria-label="${esc(t(locale, "High value", "مقدار بالا"))}" autocomplete="off" spellcheck="false"${range ? "" : " hidden disabled"}>
       <span class="cp-filter-row-actions">
         <button type="button" data-filter-row-move="up" title="${esc(t(locale, "Move up", "بالا بردن"))}" aria-label="${esc(t(locale, "Move criterion up", "جابه‌جایی معیار به بالا"))}">↑</button>
@@ -404,6 +443,10 @@ function filterBuilder(locale: string): string {
         <div class="cp-filter-head"><span>${esc(t(locale, "Where", "شرط"))}</span><span>${esc(t(locale, "Field", "فیلد"))}</span><span>${esc(t(locale, "Is", "است"))}</span><span>${esc(t(locale, "Value", "مقدار"))}</span><span>${esc(t(locale, "High value", "مقدار بالا"))}</span><span></span></div>
         <div class="cp-filter-rows" data-filter-rows>${rows}</div>
         <datalist id="cp-filter-date-tokens">${FILTER_DATE_TOKENS.map((token) => `<option value="${token}"></option>`).join("")}</datalist>
+        <div class="cp-filter-optimize">
+          <button type="button" data-filter-optimize>${esc(t(locale, "Optimize", "بهینه‌سازی"))}</button>
+          <span data-filter-optimize-status role="status" aria-live="polite"></span>
+        </div>
         <button type="button" class="cp-filter-add" data-filter-row-add>${esc(t(locale, "Add criterion", "افزودن معیار"))}</button>
       </div>
       <p class="cp-filter-preview" data-filter-preview aria-live="polite">${esc(t(locale, "Preview: choose a parameter and a value to see how many activities match.", "پیش‌نمایش: پارامتر و مقدار را انتخاب کنید تا شمار فعالیت‌های مطابق دیده شود."))}</p>
@@ -417,6 +460,7 @@ function filterFooter(locale: string): string {
     ${button("New", "جدید", 'type="button" data-filter-new')}
     ${button("Delete", "حذف", 'type="submit" data-dialog-apply name="filterAction" value="delete"')}
     ${button("Copy", "کپی", 'type="submit" data-dialog-apply name="filterAction" value="copy"')}
+    ${button("Duplicate", "تکثیر", 'type="submit" data-dialog-apply name="filterAction" value="duplicate"')}
     ${button("Paste", "جای‌گذاری", 'type="submit" data-dialog-apply name="filterAction" value="paste"')}
     ${button("Modify", "ویرایش", 'type="button" data-filter-modify')}
     ${button("Make Global", "سراسری کن", 'type="submit" data-dialog-apply name="filterAction" value="make-global"')}
@@ -506,7 +550,7 @@ export function renumberFilterRows(dialog: HTMLElement): void {
     row.dataset.filterRow = String(index);
     row.querySelector<HTMLSelectElement>('select[name^="filter.field."]')?.setAttribute("name", `filter.field.${index}`);
     row.querySelector<HTMLSelectElement>('select[name^="filter.operator."]')?.setAttribute("name", `filter.operator.${index}`);
-    row.querySelector<HTMLInputElement>('input[name^="filter.value."]')?.setAttribute("name", `filter.value.${index}`);
+    row.querySelector<HTMLInputElement | HTMLSelectElement>('[name^="filter.value."]')?.setAttribute("name", `filter.value.${index}`);
     row.querySelector<HTMLInputElement>('input[name^="filter.high."]')?.setAttribute("name", `filter.high.${index}`);
     const join = row.querySelector<HTMLElement>("[data-filter-join]");
     if (join) {
@@ -555,11 +599,11 @@ export function moveFilterCriterion(row: HTMLElement, direction: "up" | "down"):
 /** Keeps the value and High value boxes in step with the chosen operator. */
 export function syncFilterOperator(select: HTMLSelectElement): void {
   const row = select.closest<HTMLElement>(".cp-filter-row");
-  const input = row?.querySelector<HTMLInputElement>('input[name^="filter.value."]');
-  if (!input) return;
+  const control = row?.querySelector<HTMLInputElement | HTMLSelectElement>('[name^="filter.value."]');
+  if (!control) return;
   const blank = select.value === "is-empty" || select.value === "is-not-empty";
-  input.disabled = blank;
-  if (blank) input.value = "";
+  control.disabled = blank;
+  if (blank) control.value = "";
   const high = row?.querySelector<HTMLInputElement>("[data-filter-high]");
   if (high) {
     const range = select.value === "within-range";
@@ -585,13 +629,12 @@ export function syncFilterField(select: HTMLSelectElement): void {
     .map((id) => `<option value="${id}">${esc(activityFilterOperatorLabel(id, locale))}</option>`)
     .join("");
   operator.value = allowed.includes(current as ActivityFilterOperator) ? current : allowed[0];
-  const value = row.querySelector<HTMLInputElement>('input[name^="filter.value."]');
+  // A list parameter needs a picker and a date/number parameter needs a text
+  // box, so the Value cell itself is replaced when the parameter type changes.
+  const value = row.querySelector<HTMLInputElement | HTMLSelectElement>('[name^="filter.value."]');
   if (value) {
-    value.value = "";
-    if (type === "date") value.setAttribute("list", "cp-filter-date-tokens");
-    else value.removeAttribute("list");
-    if (type === "number") value.setAttribute("inputmode", "decimal");
-    else value.removeAttribute("inputmode");
+    const index = Number(row.dataset.filterRow ?? "0") || 0;
+    value.outerHTML = filterValueControlMarkup(index, locale, fieldId, operator.value as ActivityFilterOperator, "");
   }
   const high = row.querySelector<HTMLInputElement>("[data-filter-high]");
   if (high) {
@@ -1184,6 +1227,9 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     } else if (action === "copy") {
       const source = findActivityFilter(filters, targetId);
       if (source) filterClipboard = source;
+    } else if (action === "duplicate") {
+      filters = duplicateActivityFilter(filters, targetId);
+      filters = selectNewestActivityFilter(filters);
     } else if (action === "paste") {
       if (filterClipboard) {
         filters = pasteActivityFilter(filters, filterClipboard, scope);
