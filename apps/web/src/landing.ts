@@ -499,12 +499,16 @@ function renderLanding(container: HTMLElement): void {
   const publicLocaleRootHref = locale === "fa" ? resolveLandingLanguageHref("fa", window.location.pathname) : publicRootHref;
   const publicPageHref = (route: string) => `${publicLocaleRootHref}${route}/`;
   const pricingHref = publicPageHref("pricing");
+  const aboutLocale = locale === "zh-Hant" ? "zh-Hans" : locale;
+  const aboutPageHref = ["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)
+    ? `${resolveLandingLanguageHref(aboutLocale, window.location.pathname)}about/`
+    : `${publicRootHref}about/`;
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="${c.brandAria}"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="${c.brandAlt}" /></a>
         <nav class="cubi-exact-nav" aria-label="${c.primaryNavigation}">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${aboutPageHref}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
           <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
