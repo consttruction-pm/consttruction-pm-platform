@@ -1,0 +1,104 @@
+{
+  "contract": "cubi-activity-grid-keyboard-v26.v1",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "7c4b5a5bcbcec749fd1bd9abc6a792a9ca3a53e6",
+  "testedCodeSha": "7c4b5a5b",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T08:25:48.658Z",
+  "expected": {
+    "total": 554
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "A click selects one row, focuses it and moves the single tab stop",
+      "status": "pass",
+      "at": "2026-11-13T08:25:53.464Z",
+      "anchor": "A100",
+      "second": "A100",
+      "tabStops": [
+        "A100"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "ArrowDown and ArrowUp walk the displayed order and keep selection, focus and tab stop together",
+      "status": "pass",
+      "at": "2026-11-13T08:25:55.197Z",
+      "startIndex": 2,
+      "downIndex": 3,
+      "upIndex": 2,
+      "rows": 561
+    },
+    {
+      "id": "03",
+      "name": "Shift+Arrow extends from the anchor while Ctrl+Arrow only moves focus",
+      "status": "pass",
+      "at": "2026-11-13T08:25:56.830Z",
+      "shifted": 2,
+      "counter": 2,
+      "ctrlFocus": 4
+    },
+    {
+      "id": "04",
+      "name": "Home, End and PageDown land on the computed row and select only activity targets",
+      "status": "pass",
+      "at": "2026-11-13T08:25:59.413Z",
+      "end": 560,
+      "home": 0,
+      "pageDown": 12,
+      "pageUp": 2
+    },
+    {
+      "id": "05",
+      "name": "Collapsed branches leave the arrow sequence entirely",
+      "status": "pass",
+      "at": "2026-11-13T08:26:02.233Z",
+      "band": "WBS-RPS-PM",
+      "remainingRows": 551,
+      "remainingBands": 7,
+      "from": 3,
+      "to": 4
+    },
+    {
+      "id": "06",
+      "name": "Enter on the focused row selects it and the details pane follows",
+      "status": "pass",
+      "at": "2026-11-13T08:26:03.919Z",
+      "activity": "A110",
+      "details": true
+    },
+    {
+      "id": "07",
+      "name": "Persian RTL keeps the same vertical order",
+      "status": "pass",
+      "at": "2026-11-13T08:26:08.037Z",
+      "from": 2,
+      "down": 3,
+      "up": 2
+    },
+    {
+      "id": "08",
+      "name": "Grid navigation never touches schedule input",
+      "status": "pass",
+      "at": "2026-11-13T08:26:08.074Z",
+      "activities": 554,
+      "writes": 0
+    }
+  ],
+  "screenshots": [
+    "01-click-focus.png",
+    "02-arrow-walk.png",
+    "03-shift-range.png",
+    "04-home-end-page.png",
+    "05-collapsed-sequence.png",
+    "07-rtl-navigation.png"
+  ],
+  "scheduleMutations": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-13T08:26:08.074Z",
+  "passed": 8,
+  "failed": 0
+}
