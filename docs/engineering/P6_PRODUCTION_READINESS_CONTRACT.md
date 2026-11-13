@@ -78,6 +78,51 @@ request_logger=..., operational_endpoints=True)` wraps the composed app with thi
 middleware by default. Supplying `operational_endpoints=False` is available for
 unusual embedding, but a production deployment should keep the probes enabled.
 
+## Metrics export
+
+`construction_pm.metrics_export` adds an optional, bounded exporter from the
+in-process `OperationalMetrics` registry. It is disabled by default and is not
+required by health or readiness.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CONSTRUCTION_PM_METRICS_EXPORT_ENABLED` | unset (disabled) | `1/true/yes/on` enables the scrape route |
+| `CONSTRUCTION_PM_METRICS_EXPORT_TOKEN` | none | Bearer token, 16–512 printable characters; required when enabled |
+| `CONSTRUCTION_PM_METRICS_EXPORT_MAX_BYTES` | `262144` | Hard cap (1 B–4 MiB) on the exposition body |
+| `CONSTRUCTION_PM_METRICS_EXPORT_MAX_SERIES` | `2000` | Registry cap applied when composing the exporter |
+
+When enabled, `GET|HEAD /api/metrics` serves
+`text/plain; version=0.0.4` with `Cache-Control: no-store`:
+
+- `404` when export is disabled (the route does not exist).
+- `401` with `WWW-Authenticate: Bearer realm="metrics"` when the token is
+  missing, malformed or wrong. Comparison is constant-time; the response never
+  indicates which part failed and never echoes the token.
+- `503` when the export is enabled but misconfigured, has no registry, exceeds
+  the byte cap, or the renderer fails. The error code is a static identifier or
+  an exception class name, never an exception message.
+- `405` with `Allow: GET, HEAD` for other methods.
+
+Export is deterministic: series are ordered by metric name and label set, and
+numbers are rendered without locale variation. Counters appear as `<name>`;
+observations appear as `<name>_count`, `_sum`, `_min`, `_max` and `_mean`.
+Non-finite observations are rejected by the registry. Labels remain bounded to
+the registry's validated `[A-Za-z0-9_.:/-]` values, so tenant ids, user ids,
+tokens, document names and raw request paths cannot become labels.
+
+Scrapes and health probes are served outside request instrumentation: they do
+not increment `http_requests_total` and do not depend on the exporter.
+Rendering failures are contained to the scrape request; business requests and
+health probes continue to work. The exporter covers the existing
+`http_requests_total` / `http_request_duration_ms`, `document_uploads_total`,
+`document_ocr_jobs_total`, `exchange_runs_total`, `report_runs_total`,
+`report_schedule_runs_total`, storage reconciliation and backup-consistency
+series.
+
+This is metrics export only. There is no span exporter, collector, sampling,
+trace context propagation or vendor agent, so the platform does **not** claim
+distributed tracing.
+
 ## Structured events
 
 `StructuredEventLogger` emits one JSON object per line:
@@ -219,5 +264,8 @@ objects.
 - Storage reconciliation is not scheduled, no production bucket or object root
   was reconciled, and no operator actor identity was provisioned. Local and
   live PostgreSQL tests only.
+- Metrics are exported only from the in-process registry. No Prometheus server,
+  collector, remote-write endpoint or scrape target was configured in any
+  environment, and distributed tracing is not implemented or claimed.
 
 These are explicit external gates, not implementation gaps.

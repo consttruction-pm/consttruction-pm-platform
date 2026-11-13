@@ -77,6 +77,7 @@ from construction_pm.ai_assistant_orchestration import (
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.http.operational import OperationalMiddleware
+from construction_pm.metrics_export import MetricsExportService, MetricsExportSettings
 from construction_pm.observability import OperationalMetrics
 from construction_pm.production_readiness import (
     ReadinessService,
@@ -175,6 +176,7 @@ def build_project_lifecycle_wsgi_app(
     readiness_probes: Mapping[str, Callable[[], object]] | None = None,
     request_logger: StructuredEventLogger | None = None,
     operational_metrics: OperationalMetrics | None = None,
+    metrics_export: MetricsExportService | None = None,
     environment: Mapping[str, str] | None = None,
     operational_endpoints: bool = True,
 ) -> ProjectLifecycleWsgiApp:
@@ -403,7 +405,22 @@ def build_project_lifecycle_wsgi_app(
             plan_port=knowledge_plan_port,
             clock=None if clock is None else clock.now,
         ).app
-    if operational_endpoints or request_logger is not None:
+    if metrics_export is None:
+        export_settings = MetricsExportSettings.from_environment(
+            os.environ if environment is None else environment
+        )
+        if export_settings.enabled:
+            # A missing registry yields an ``unavailable`` service (503) rather
+            # than an empty or fabricated exposition. Invalid configuration is
+            # carried in the settings and never prevents application start.
+            metrics_export = MetricsExportService(
+                operational_metrics, settings=export_settings
+            )
+    if (
+        operational_endpoints
+        or request_logger is not None
+        or metrics_export is not None
+    ):
         if readiness_service is None and operational_endpoints:
             readiness_service = build_readiness_service(
                 os.environ if environment is None else environment,
@@ -414,6 +431,7 @@ def build_project_lifecycle_wsgi_app(
             readiness=readiness_service,
             logger=request_logger,
             metrics=operational_metrics,
+            metrics_export=metrics_export,
         )
     return app
 
