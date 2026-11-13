@@ -973,11 +973,13 @@ async function main() {
     await scenario("12", "A larger seeded project keeps Select All and Export Selected exact", async () => {
       const extra = await seedActivities(page, (await readActivities(page)).context, EXTRA_PREFIX, EXTRA_COUNT, "Capacity seed", 1);
       state.extraSeeded = extra.created;
-      assert(extra.created === EXTRA_COUNT, `seeded ${extra.created} of ${EXTRA_COUNT} extra activities`);
+      assert(extra.created === EXTRA_COUNT || extra.created === 0, `seeded ${extra.created} extra activities`);
       await reloadWorkspace(page);
       read = await readActivities(page);
       const total = read.activities.length;
       assert(total >= 500, `larger population is only ${total}`);
+      const extraIds = read.activities.filter((activity) => activity.activity_id.startsWith(EXTRA_PREFIX)).length;
+      assert(extraIds === EXTRA_COUNT, `read model holds ${extraIds} of ${EXTRA_COUNT} extra activities`);
       const counts = await countsState(page);
       const grid = await gridState(page);
       assert(counts.total === total, `counter total ${counts.total} != ${total}`);
