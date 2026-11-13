@@ -109,7 +109,7 @@ Threats and primary controls:
 | SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed `8581697` |
 | SEC-023 | Low | Anonymous readiness probe returns per-component detail | Open |
 | SEC-024 | Low | WSGI short-read body is accepted as complete | Fixed `8581697` |
-| SEC-025 | Info | `ReferenceAIToolPermissionAdapter` authorizes on tool name only (unused) | Open |
+| SEC-025 | Info | `ReferenceAIToolPermissionAdapter` authorizes on tool name only (unused) | Fixed `3754a0af` |
 
 ### SEC-001 — S3 client followed redirects and re-sent signed credentials
 
@@ -481,6 +481,10 @@ Threats and primary controls:
 
 ### SEC-025 — `ReferenceAIToolPermissionAdapter` authorizes on tool name only (Info)
 
+- **Resolution:** the adapter is documented as test-only and now returns `False`
+  for a missing or blank `subject_id`, so it cannot authorize on a tool name
+  alone. Covered by
+  `test_reference_adapter_never_authorizes_a_tool_without_a_subject`.
 - **Evidence:** `ai_action_boundary.py` returns
   `proposal.tool_name in self.allowed_tools`, ignoring `subject_id` and scope
   fields, unlike the default-deny adapter. Nothing in `src/` or `apps/`
@@ -520,9 +524,9 @@ Threats and primary controls:
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
 - **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017,
-  SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
-  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-021, SEC-022 and
-  SEC-024 are fixed with negative tests. Open findings are recorded here rather than
+  SEC-018, SEC-019, SEC-020 and SEC-023 remain open;
+  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-021, SEC-022,
+  SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict

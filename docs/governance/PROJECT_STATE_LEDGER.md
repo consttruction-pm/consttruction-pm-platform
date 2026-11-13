@@ -732,3 +732,9 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Fix (code `2b2873b3`):** `_escape_like` escapes backslash, `%` and `_`; the Postgres and SQLite queries add `ESCAPE '\'`; `MAX_DOCUMENT_SEARCH_LENGTH = 200` rejects longer terms with the existing `INVALID_DOCUMENT_SEARCH_FILTER` code.
 - **Tests:** `tests/test_document_sqlite_store.py` adds literal matches for `50%` and `A_B`, asserts bare `%` and `_` match nothing, and rejects a 201-character search. `pytest tests/test_document_sqlite_store.py tests/test_document_http_routes.py tests/test_preview_documents.py tests/test_document_retention.py` = **31 passed**.
 - **Docs:** security register and SEC-016 section updated; SEC-016 removed from the open-findings gate.
+
+## SEC-025 reference AI permission adapter — 2026-11-13
+
+- **Finding:** `ReferenceAIToolPermissionAdapter.allowed` returned only `proposal.tool_name in self.allowed_tools`, ignoring `subject_id` and scope; nothing in `src/` or `apps/` instantiates it.
+- **Fix (code `3754a0af`):** the class is documented as test-only and returns `False` when `subject_id` is missing or blank. Covered by `test_reference_adapter_never_authorizes_a_tool_without_a_subject` (None, whitespace, and a valid subject). `pytest tests/test_ai_action_boundary.py` = **16 passed**.
+- **Docs:** security register and SEC-025 section updated; SEC-025 removed from the open-findings gate. No runtime wiring changed.
