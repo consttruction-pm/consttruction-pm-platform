@@ -481,31 +481,31 @@ export type LandingSecurityCopy = { eyebrow: string; title: string; intro: strin
 const securitySectionCopy: Record<string, LandingSecurityCopy> = {
   en: {
     eyebrow: "SECURITY & RELIABILITY",
-    title: "Your projects deserve transparent protection.",
-    intro: "CUBI distinguishes hosting capabilities that are confirmed today from controls that still need configuration. Cloud hosting does not remove every operational or data-loss risk.",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "Manage your projects in a secure and always-accessible environment. With cloud infrastructure, security capabilities, and backup services, CUBI helps you manage your project information and records with greater confidence.",
     cards: [
-      { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Render provides managed TLS certificates for web services and redirects inbound HTTP traffic to HTTPS." },
-      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "A service-specific firewall configuration or entitlement for this deployment has not been verified. It is not represented as an active CUBI control." },
-      { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Render documents automatic DDoS protection for applications hosted on its platform, including free services." },
-      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "No Render Postgres database or verified application backup configuration was found in the connected workspace. Free web-service filesystems are ephemeral." },
-      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Render service logs and event history are available. Independent uptime monitoring and full alert coverage have not been verified." },
-      { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "A tested backup source and successful restore drill have not been established. Recovery is not promised until both are configured and tested." }
+      { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Encrypted connection between your browser and CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "Infrastructure protection against unauthorized access. This control is not yet verified for the current deployment." },
+      { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Protection against attacks that disrupt service availability, provided by the hosting platform." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Render logs and service events are available; independent alert coverage is not verified." },
+      { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
     ],
-    disclosure: "Hosting audit: the connected Render workspace currently has two Free web services in Frankfurt and no Render Postgres instance. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
+    disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected Render workspace currently has two Free web services in Frankfurt and no Render Postgres instance. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
   },
   fa: {
     eyebrow: "امنیت و پایداری",
-    title: "امنیت پروژه‌های شما؛ با شفافیت درباره آنچه واقعاً فعال است.",
-    intro: "کوبی قابلیت‌های تأییدشده در زیرساخت میزبانی فعلی و مواردی را که هنوز به پیکربندی نیاز دارند، شفاف اعلام می‌کند. میزبانی ابری به‌تنهایی همه خطرهای عملیاتی یا از دست رفتن داده را حذف نمی‌کند.",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "مدیریت پروژه‌های خود را به محیطی امن و همیشه در دسترس بسپارید.\nCUBI با بهره‌گیری از زیرساخت ابری، امکانات امنیتی و خدمات پشتیبان‌گیری، به شما کمک می‌کند اطلاعات و سوابق پروژه‌های خود را با اطمینان بیشتری مدیریت کنید.",
     cards: [
-      { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "Render گواهی TLS مدیریت‌شده را برای سرویس‌های وب ارائه می‌کند و درخواست‌های HTTP ورودی را به HTTPS هدایت می‌کند." },
-      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "فعال بودن پیکربندی فایروال اختصاصی برای این استقرار یا برخورداری این سرویس از آن تأیید نشده است؛ بنابراین آن را به‌عنوان کنترل فعال کوبی معرفی نمی‌کنیم." },
-      { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "طبق مستندات Render، محافظت خودکار در برابر حملات DDoS برای برنامه‌های میزبانی‌شده، از جمله سرویس‌های رایگان، ارائه می‌شود." },
-      { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "در فضای کاری متصل، دیتابیس Render Postgres یا پیکربندی تأییدشده پشتیبان‌گیری برنامه مشاهده نشد. فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
-      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "لاگ‌ها و سوابق رخداد سرویس در Render در دسترس‌اند؛ مانیتورینگ مستقل دسترس‌پذیری و پوشش کامل هشدارها تأیید نشده است." },
-      { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی ثبت نشده است. تا زمان پیکربندی و آزمایش هر دو، بازیابی اطلاعات تضمین نمی‌شود." }
+      { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "ارتباط امن و رمزنگاری‌شده با CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "محافظت زیرساخت در برابر دسترسی‌های غیرمجاز. فعال بودن این کنترل برای استقرار فعلی هنوز تأیید نشده است." },
+      { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "محافظت در برابر حملات مختل‌کننده سرویس؛ این قابلیت توسط زیرساخت میزبان ارائه می‌شود." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "پشتیبان‌گیری خودکار برای کاهش خطر از دست رفتن اطلاعات. پیکربندی پشتیبان‌گیری کوبی هنوز تأیید نشده و فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای Render در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
+      { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "امکان بازیابی اطلاعات از نسخه‌های پشتیبان. منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی هنوز ثبت نشده است." }
     ],
-    disclosure: "نتیجه بررسی میزبانی: در فضای کاری متصل Render، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه Render Postgres مشاهده نشد. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
+    disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل Render، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه Render Postgres مشاهده نشد. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
   }
 };
 
