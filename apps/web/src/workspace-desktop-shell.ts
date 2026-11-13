@@ -62,6 +62,8 @@ export type DesktopCommand =
   | "view.top-network"
   | "view.bottom-details"
   | "view.bottom-trace"
+  | "view.bottom-usage-spreadsheet"
+  | "view.bottom-usage-profile"
   | "view.bottom-none"
   | "view.theme-classic"
   | "view.theme-modern"
@@ -96,6 +98,8 @@ export type DesktopShellCapabilities = {
   hasActivities: boolean;
   /** At least one persisted relationship is loaded, so logic views can draw. */
   hasRelationships: boolean;
+  /** At least one stored assignment period exists, so usage views can project. */
+  hasAssignmentPeriods: boolean;
   hasMultipleWindows: boolean;
   canOpenFieldChooser: boolean;
   hasLayout: boolean;
@@ -166,7 +170,7 @@ export type DesktopShellState = {
   /** Activities window: which view owns the top half. */
   activityTopLayout?: "table-only" | "table-gantt" | "activity-network";
   /** Activities window: which view owns the bottom half. */
-  activityBottomLayout?: "details" | "trace-logic" | "none";
+  activityBottomLayout?: "details" | "trace-logic" | "usage-profile" | "usage-spreadsheet" | "none";
   /** Active workspace skin token set. */
   theme?: WorkspaceTheme;
   dataAvailability?: { actual: boolean; baseline: boolean };
@@ -240,6 +244,7 @@ const REASONS = {
   noActivities: { en: "Load activities in the Activities window first", fa: "ابتدا فعالیت‌ها را در پنجرهٔ فعالیت‌ها بارگذاری کنید" },
   noMultiSelection: { en: "Select at least two activities to unlink", fa: "برای قطع پیوند، دست‌کم دو فعالیت را انتخاب کنید" },
   noRelationships: { en: "This project has no persisted relationships to draw", fa: "این پروژه رابطهٔ ذخیره‌شده‌ای برای ترسیم ندارد" },
+  noAssignmentPeriods: { en: "This project stores no assignment periods to show", fa: "این پروژه دورهٔ تخصیصی برای نمایش ذخیره نکرده است" },
   activitiesWindow: { en: "Switch to the Activities window to change its layout", fa: "برای تغییر چیدمان، به پنجرهٔ فعالیت‌ها بروید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
   noLayout: { en: "This project has no saved layout to write", fa: "این پروژه چیدمان ذخیره‌شده‌ای برای نوشتن ندارد" },
@@ -457,6 +462,24 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           disabledReason: !layoutScopeOk
             ? layoutScopeReason
             : caps.hasSelectedActivity && caps.hasRelationships ? undefined : unavailable(caps.hasSelectedActivity ? REASONS.noRelationships : REASONS.noSelection, locale),
+        },
+        {
+          id: "view.bottom-usage-spreadsheet",
+          label: { en: "Show on Bottom: Activity Usage Spreadsheet", fa: "نمایش در پایین: صفحه‌گستردهٔ مصرف فعالیت" },
+          command: "view.bottom-usage-spreadsheet",
+          checked: state.activityBottomLayout === "usage-spreadsheet",
+          disabledReason: !layoutScopeOk
+            ? layoutScopeReason
+            : caps.hasAssignmentPeriods ? undefined : unavailable(REASONS.noAssignmentPeriods, locale),
+        },
+        {
+          id: "view.bottom-usage-profile",
+          label: { en: "Show on Bottom: Activity Usage Profile", fa: "نمایش در پایین: نیم‌رخ مصرف فعالیت" },
+          command: "view.bottom-usage-profile",
+          checked: state.activityBottomLayout === "usage-profile",
+          disabledReason: !layoutScopeOk
+            ? layoutScopeReason
+            : caps.hasAssignmentPeriods ? undefined : unavailable(REASONS.noAssignmentPeriods, locale),
         },
         {
           id: "view.bottom-none",

@@ -24,6 +24,7 @@ const capable: DesktopShellCapabilities = {
   hasMultiSelection: true,
   hasActivities: true,
   hasRelationships: true,
+  hasAssignmentPeriods: true,
   hasMultipleWindows: true,
   canOpenFieldChooser: true,
   hasLayout: true,
