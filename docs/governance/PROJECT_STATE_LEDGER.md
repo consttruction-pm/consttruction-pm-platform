@@ -4,6 +4,19 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, backend security review and hardening — 2026-11-13 (merged; PR #1876; independent-review gate OPEN)
+
+- **Base and merge:** branch cut from merged `main` `392326b`, squash-merged as **`07d3c5e`** via PR #1876 after exact-head CI at `f6481e6`. Scope is Workstream D.
+- **Threat model and register:** `docs/audits/BACKEND_SECURITY_REVIEW_2026-11-13.md` records assets, actors, trust boundaries, threat/control mapping, per-finding evidence, examined-no-finding areas and open gates.
+- **SEC-001 (High, fixed):** the S3-compatible client used urllib's default opener, which follows 301/302/303/307/308 and re-sends `Authorization` / `x-amz-security-token` to the redirect target. All object-storage requests now use a no-redirect opener; a redirect surfaces as `DOCUMENT_STORAGE_OBJECT_UNAVAILABLE:<code>`. Negative test: `test_s3_refuses_redirects_instead_of_forwarding_signed_request` (target receives zero requests).
+- **SEC-002 (Medium, fixed):** S3 listing could loop forever on a repeated continuation token. Added `MAX_INVENTORY_PAGES` (10,000) and repeated-token rejection (`DOCUMENT_STORAGE_INVENTORY_INVALID`). Negative test: `test_s3_listing_rejects_repeated_continuation_token`.
+- **SEC-003 (Low, fixed):** `CONSTRUCTION_PM_METRICS_EXPORT_MAX_SERIES` was parsed but unenforced. Scrapes now fail closed with `METRICS_EXPORT_SERIES_LIMIT_EXCEEDED` before rendering. Negative test: `test_scrape_fails_closed_when_series_limit_is_exceeded`.
+- **SEC-004 (Low, fixed in `ab0f84f`):** the OTEL endpoint variable implied working tracing; it now emits `OTEL_ENDPOINT_NOT_IMPLEMENTED`. **SEC-005 (Info, accepted):** the internal report DDL helper interpolates only module-literal table/column names.
+- **Independence status:** two isolated reviewer agents were dispatched (full-surface and bounded ten-file). Neither returned a findings register within the review window. The register above is therefore a coordinator review, not an independent review, and the document says so. **The independent-review gate remains OPEN.** CI success is not independent review.
+- **Examined with no finding:** server-side opaque session plus `authorize_project`/cross-scope checks, AI action trusted subject from session, scanner redirect refusal and timeout, XLSX macro/size/row bounds, local content-addressed path and symlink protections, reconciliation safety gates, constant-time metrics token check and static error codes, structured log redaction.
+- **Verification:** Python 3.12.13, `psycopg` 3.3.9, PostgreSQL 16.2. Compile passes. Focused storage and reconciliation suites → 84 passed; metrics export → 28 passed. Full SQLite suite → **4062 passed, 176 skipped**. Full live PostgreSQL suite on the same database, twice consecutively → **4292 passed, 1 skipped** both runs. Exact-head CI at `f6481e6` all 8 checks **success**: PostgreSQL (`43362518235`), test 3.11/3.12/3.13 (`43362518239`), four typechecks (`43362518288`). Merged `main` verified at `07d3c5e`.
+- **Status:** implemented, locally tested, PostgreSQL tested, merged; **not independently reviewed**. No runtime DAST, fuzzing, dependency CVE scan or penetration test was performed; no production proxy, session store or bucket was inspected.
+
 ## Agent 3 checkpoint — Issue #1799, external integration readiness hardening — 2026-11-13 (merged; PR #1869)
 
 - **Base and merge:** branch cut from merged `main` `07f68c3`, squash-merged as **`ab0f84f`** via PR #1869 after exact-head CI at `ba75649`. Scope is Workstream E.
