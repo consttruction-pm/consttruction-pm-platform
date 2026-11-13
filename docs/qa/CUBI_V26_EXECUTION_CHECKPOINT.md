@@ -2986,6 +2986,53 @@ Evidence: `docs/workspace/evidence/activity-group-sort-v26-2026-11-12/`
 `CHECKLIST.md`). Web suite at the same code: 951 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
 
+## Multi-level grouping and nested field bands (2026-11-13)
+
+- **Scope.** ACT-002 gained the ordered multi-level plan the V26 Help describes: up to three
+  group levels, WBS hierarchy or activity fields, stable band order, nested bands and an
+  independent collapse per band. Status remains WIRED_WRITE; the slice is presentation-only.
+- **Model.** `WorkspaceState.activityGroupLevels` is the ordered source of truth (max three,
+  unique valid fields). `activityGroupBy` still mirrors only whether the outer band is WBS,
+  so the tree actions, Collapse To and the existing WBS tests keep their meaning.
+- **Catalog and keys.** `workspace-grouping.ts` lists `wbs`, `activity_status`,
+  `activity_type`, `is_critical`, `activity_code` and `total_float`, reads each value from the
+  persisted `cells` (criticality falls back to the Gantt fact, never recalculated), and builds
+  attribute-safe typed keys (`s:`, `n:`, `b:`, `e:`). Sibling bands order naturally and
+  numerically, with "No value" last in either direction. A top-level WBS band keeps the node
+  id, so the per-project collapse store and "Collapse To" still address it; nested bands use
+  `<parent>><field>:<key>` and `<parent>>wbs:<nodeId>`.
+- **Builder.** `buildWorkspaceDisplayRows` walks the persisted WBS tree in sequence order and
+  emits field bands by typed value, nesting field→WBS and WBS→field. Each band carries a
+  derived start/finish/duration/progress rollup and an activity count; a WBS level with no
+  loaded nodes is skipped rather than inventing bands from raw ids. Activities inside the
+  innermost band keep the caller's order; a field that already groups is removed from the
+  in-band sort (including P6 column aliases such as `activity.status`).
+- **UI and persistence.** The Group and Sort dialog has three field+direction rows backed by
+  the shared catalog; the toolbar select remains the single-level shortcut. The plan is
+  stored as `metadata.groupSort.groupLevels` (legacy `groupBy` reads as one WBS level) and is
+  hydrated once per revision, saved by Save/Save As/New/Reset, and compared by the layout
+  selector's dirty state. Band collapse keys use the existing
+  `cubi:workspace-wbs-collapse` store, so nested bands collapse independently and survive
+  reload.
+- **Verified behaviour (contract `cubi-activity-group-sort-v26.v2`, 9/9).** Expected bands
+  are computed from the workspace read API, not fixture constants: Activity Status renders
+  `Completed (3)`, `In Progress (1)`, `Not Started (10)` with table/Gantt alignment and a
+  collapse to 11 visible rows; WBS + Status nests status bands inside each WBS node with
+  exact per-node counts and independent collapse in both directions; `is_critical` → WBS
+  forms `Critical (7)`/`Non-critical (7)` outer bands with WBS bands inside; every plan
+  survives Save Layout plus a full reload; Persian RTL at 1280×720 and en at 1366×768 and
+  1920×1080 render with 0 px overflow.
+- **Known limits.** The toolbar select changes only the first level; field bands inherit the
+  WBS band palette (no per-band font/colour editor yet); the WBS level is the persisted
+  hierarchy rather than a hand-typed path string; sorting by a grouped field is skipped; the
+  grid is not virtualised for very large grouped projects.
+
+Evidence: `docs/workspace/evidence/activity-group-sort-v26-2026-11-13/`
+(`activity-group-sort-v26.json`, 9/9 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `5945c90723fe63d221d213588fbbfcfd2089475c`, screenshots 01–09,
+`CHECKLIST.md`). Web suite at the same code: 1016 + 14 tests pass; `tsc --noEmit`,
+`tsc -p tsconfig.test.json --noEmit` and `npm run build` pass.
+
 ## Table font and row height (2026-11-12)
 
 - **Scope.** ACT-005 moved from NOT_AUDITED to WIRED_WRITE at code `dbe361ae`.
