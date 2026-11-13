@@ -250,7 +250,10 @@ for (const [locale, route] of Object.entries(localizedAboutRoutes)) {
     assert(html.includes('hreflang="' + alternateLocale + '" href="' + baseUrl + alternateRoute + '"'), route + " missing alternate " + alternateLocale);
   }
   assert(html.includes("global-assistant-launcher.bundle.js"), route + " must mount the shared assistant");
-  assert(html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard"), route + " must retain approved team profiles");
+  const hasApprovedProfiles = locale === "fa"
+    ? html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد")
+    : html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard");
+  assert(hasApprovedProfiles, route + " must retain approved team profiles");
 }
 for (const { en, fa } of languageRoutes) {
   const enDocument = readFileSync(documentForRoute(en), "utf8");
