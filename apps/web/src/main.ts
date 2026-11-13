@@ -50,7 +50,7 @@ import {
   storeWorkspaceBottomLayout,
   storeWorkspaceTopLayout,
 } from "./workspace-view.js";
-import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds, buildWorkspaceDisplayRows } from "./workspace-wbs-display.js";
+import { collapseAllWbsIds, getCollapsedWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   readCollapsedWbsMetadata,
@@ -1302,8 +1302,11 @@ function renderApp(
         renderApp(container, toggleActivitySortDirection(state), persistence);
         return;
       case "edit.select-all": {
-        // Select exactly the rows the table currently shows: the same filter,
-        // sort, grouping and collapse state the renderer applies.
+        // Select All is a scope contract, not a DOM query. It selects every
+        // activity in the current Activity Filter + quick-search scope, which
+        // is the whole allowed project when neither is active. Collapsed and
+        // grouped rows are part of that scope even though they are not painted,
+        // so collapsing a branch never silently narrows a selection.
         const filterApplication = applyActivityFilterState(
           state.activities,
           visualPreferences.presentation.filters,
@@ -1317,17 +1320,16 @@ function renderApp(
           state.activityGroupBy,
           state.wbsNodes,
           state.activitySortLevels,
+          state.activityGroupLevels,
         );
-        const collapsed = state.activityFilter.trim() || filterApplication.filters.length
-          ? new Set<string>()
-          : getCollapsedWbsIds(state.context.project_id);
-        const visible = buildWorkspaceDisplayRows(ordered, state.wbsNodes, state.activityGroupBy, collapsed)
-          .flatMap((row) => (row.kind === "activity" ? [row.activity.id] : []));
+        const visible = ordered.map((activity) => activity.id);
         if (!visible.length) return;
+        const currentPrimary = state.selectedActivityId;
+        const primary = currentPrimary && visible.includes(currentPrimary) ? currentPrimary : visible[0] ?? null;
         pendingDesktopFocusSelector = "#cp-activity-grid tbody tr[data-activity-id]";
         renderApp(container, {
           ...state,
-          selectedActivityId: visible[0] ?? null,
+          selectedActivityId: primary,
           selectedActivityIds: visible,
           selectionAnchorId: visible[0] ?? null,
         }, persistence);
@@ -2653,6 +2655,9 @@ function renderApp(
     onActivityFilterChange: (filterText) => {
       renderApp(container, setActivityFilter(state, filterText), persistence);
     },
+    // The toolbar button and the Edit menu / Ctrl+A shortcut share this one
+    // scope transition, so no surface can select a different population.
+    onSelectAll: () => runDesktopCommand("edit.select-all"),
     onActivityGroupByChange: (groupBy) => {
       renderApp(container, setActivityGroupBy(state, groupBy), persistence);
     },
