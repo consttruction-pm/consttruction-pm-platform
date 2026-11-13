@@ -1,0 +1,1064 @@
+{
+  "contract": "cubi-ws-005-register-context-menus.v1",
+  "testedCodeSha": "24d694d0",
+  "gitHead": "24d694d04d427fcb69ba2823cbeb76415816fb04",
+  "evidenceCommitSha": "24d694d0",
+  "baseUrl": "http://127.0.0.1:4193",
+  "startedAt": "2026-11-13T12:33:38.628Z",
+  "fixtures": {
+    "risk": "E2E-WS5-RK-MWEYK5DY",
+    "threshold": "E2E-WS5-TH-MWEYK5DY",
+    "expense": "E2E-WS5-EX-MWEYK5DY",
+    "account": "E2E-WS5-CA-MWEYK5DY",
+    "report": "E2E-WS5-RP-MWEYK5DY"
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Register menus act on the record under the pointer and expose only real commands",
+      "status": "pass",
+      "at": "2026-11-13T12:33:46.464Z",
+      "durationMs": 5281,
+      "details": {
+        "fixtures": {
+          "risk": {
+            "contract_version": "p6-risk-api.v1",
+            "risk_id": "E2E-WS5-RK-MWEYK5DY",
+            "title": "WS-005 context menu fixture",
+            "description": "Created by the cross-window context-menu acceptance suite.",
+            "category": "schedule",
+            "status": "open",
+            "probability": 2,
+            "impact": 3,
+            "score": 6,
+            "exposure_level": "medium",
+            "response_strategy": "mitigate",
+            "response_owner": null,
+            "response_due_date": null,
+            "owner": "preview-planner",
+            "responsible_manager": null,
+            "date_identified": "2026-11-05",
+            "closure_note": null,
+            "revision": 1
+          },
+          "threshold": {
+            "contract_version": "p6-threshold-api.v1",
+            "threshold_id": "E2E-WS5-TH-MWEYK5DY",
+            "name": "WS-005 context menu threshold",
+            "monitoring_subject": "cost",
+            "parameter": "expense_actual_total",
+            "currency": "USD",
+            "lower_threshold": null,
+            "upper_threshold": "1000",
+            "warning_level": null,
+            "issue_level": null,
+            "responsible_manager": null,
+            "status": "active",
+            "revision": 1
+          },
+          "account": {
+            "contract_version": "p6-cost-api.v1",
+            "account_id": "E2E-WS5-CA-MWEYK5DY",
+            "name": "WS-005 context menu account",
+            "parent_account_id": null,
+            "description": null,
+            "is_default": false,
+            "revision": 1
+          },
+          "expense": {
+            "contract_version": "p6-cost-api.v1",
+            "expense_id": "E2E-WS5-EX-MWEYK5DY",
+            "name": "WS-005 context menu expense",
+            "category": "equipment",
+            "currency": "USD",
+            "activity_id": null,
+            "wbs_id": null,
+            "cost_account_id": "E2E-WS5-CA-MWEYK5DY",
+            "expense_date": null,
+            "accrual_date": null,
+            "planned_amount": "100.00",
+            "actual_amount": null,
+            "remaining_amount": null,
+            "note": null,
+            "revision": 1
+          },
+          "report": {
+            "contract_version": "p6-report-api.v1",
+            "report_id": "E2E-WS5-RP-MWEYK5DY",
+            "name": "WS-005 context menu report",
+            "description": "",
+            "subject": "activities",
+            "columns": [
+              "activity_id",
+              "name"
+            ],
+            "parameters": [],
+            "record_revision": 1
+          }
+        },
+        "kinds": [
+          "risk-register",
+          "threshold-register",
+          "expense-register",
+          "cost-account-register",
+          "report-register"
+        ]
+      }
+    },
+    {
+      "id": "02",
+      "name": "Menus open from Shift+F10 and the Context Menu key and restore focus on Escape",
+      "status": "pass",
+      "at": "2026-11-13T12:33:51.909Z",
+      "durationMs": 5444,
+      "details": {
+        "windows": 3
+      }
+    },
+    {
+      "id": "03",
+      "name": "An outside click dismisses the register menu",
+      "status": "pass",
+      "at": "2026-11-13T12:33:53.005Z",
+      "durationMs": 1096,
+      "details": {
+        "dismissed": true
+      }
+    },
+    {
+      "id": "04",
+      "name": "Commands invoke the real register controls (edit and cancel)",
+      "status": "pass",
+      "at": "2026-11-13T12:33:57.187Z",
+      "durationMs": 4182,
+      "details": {
+        "dispatched": 3
+      }
+    },
+    {
+      "id": "05",
+      "name": "Run Report from the menu produces a real server-stored report run",
+      "status": "pass",
+      "at": "2026-11-13T12:33:58.419Z",
+      "durationMs": 1232,
+      "details": {
+        "rows": 14,
+        "meta": "RUN-E2E-WS5-RP-MWEYK5DY-1 · 14 rows · definition revision 1 · project revision 7"
+      }
+    },
+    {
+      "id": "06",
+      "name": "Register menus and Activities menus never claim each other's window",
+      "status": "pass",
+      "at": "2026-11-13T12:33:59.370Z",
+      "durationMs": 951,
+      "details": {
+        "checked": true
+      }
+    },
+    {
+      "id": "07",
+      "name": "A viewer gets disabled write commands with the permission reason",
+      "status": "pass",
+      "at": "2026-11-13T12:34:03.045Z",
+      "durationMs": 3675,
+      "details": {
+        "items": [
+          {
+            "command": "risk-edit",
+            "label": "Edit Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": false
+          },
+          {
+            "command": "risk-delete",
+            "label": "Delete Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "08",
+      "name": "Persian renders the register menu right-to-left inside 1280x720",
+      "status": "pass",
+      "at": "2026-11-13T12:34:07.648Z",
+      "durationMs": 4603,
+      "details": {
+        "dir": "rtl"
+      }
+    },
+    {
+      "id": "09",
+      "name": "Delete Risk from the menu removes the persisted record",
+      "status": "pass",
+      "at": "2026-11-13T12:34:08.948Z",
+      "durationMs": 1300,
+      "details": {
+        "status": 404
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "ws5-risk-register-opens",
+      "name": "risk-register: the menu opens at the record row (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-risk-register-kind",
+      "name": "risk-register: the register owns the menu, not the Activities grid (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "risk-register",
+        "commands": [
+          "risk-edit",
+          "risk-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-risk-register-commands",
+      "name": "risk-register: the menu exposes exactly the real commands (en-1440)",
+      "ok": true,
+      "detail": {
+        "commands": [
+          "risk-edit",
+          "risk-delete"
+        ],
+        "expectedCommands": [
+          "risk-edit",
+          "risk-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-risk-register-geometry",
+      "name": "risk-register: viewport portal stays inside the viewport (en-1440)",
+      "ok": true,
+      "detail": {
+        "parentIsBody": true,
+        "position": "fixed",
+        "rect": {
+          "left": 509,
+          "top": 328,
+          "right": 753,
+          "bottom": 385,
+          "width": 244,
+          "height": 57
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    },
+    {
+      "id": "ws5-risk-register-target",
+      "name": "risk-register: the row under the pointer is the target of the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "afterOpen": {
+          "selected": true,
+          "tabIndex": "0",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "ws5-risk-register-aria",
+      "name": "risk-register: the menu is a labelled menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "role": "menu",
+        "label": "Project Risk"
+      }
+    },
+    {
+      "id": "ws5-risk-register-pointer-escape",
+      "name": "risk-register: Escape from the pointer menu restores focus to the row (en-1440)",
+      "ok": true,
+      "detail": {
+        "focus": {
+          "riskId": "E2E-WS5-RK-MWEYK5DY",
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": null,
+          "reportId": null
+        },
+        "key": "riskId"
+      }
+    },
+    {
+      "id": "ws5-threshold-register-opens",
+      "name": "threshold-register: the menu opens at the record row (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-threshold-register-kind",
+      "name": "threshold-register: the register owns the menu, not the Activities grid (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "threshold-register",
+        "commands": [
+          "threshold-edit",
+          "threshold-monitor",
+          "threshold-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-threshold-register-commands",
+      "name": "threshold-register: the menu exposes exactly the real commands (en-1440)",
+      "ok": true,
+      "detail": {
+        "commands": [
+          "threshold-edit",
+          "threshold-monitor",
+          "threshold-delete"
+        ],
+        "expectedCommands": [
+          "threshold-edit",
+          "threshold-monitor",
+          "threshold-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-threshold-register-geometry",
+      "name": "threshold-register: viewport portal stays inside the viewport (en-1440)",
+      "ok": true,
+      "detail": {
+        "parentIsBody": true,
+        "position": "fixed",
+        "rect": {
+          "left": 726,
+          "top": 306,
+          "right": 970,
+          "bottom": 385,
+          "width": 244,
+          "height": 79
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    },
+    {
+      "id": "ws5-threshold-register-target",
+      "name": "threshold-register: the row under the pointer is the target of the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "afterOpen": {
+          "selected": true,
+          "tabIndex": "0",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "ws5-threshold-register-aria",
+      "name": "threshold-register: the menu is a labelled menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "role": "menu",
+        "label": "Project Threshold"
+      }
+    },
+    {
+      "id": "ws5-threshold-register-pointer-escape",
+      "name": "threshold-register: Escape from the pointer menu restores focus to the row (en-1440)",
+      "ok": true,
+      "detail": {
+        "focus": {
+          "riskId": null,
+          "thresholdId": "E2E-WS5-TH-MWEYK5DY",
+          "expenseId": null,
+          "accountId": null,
+          "reportId": null
+        },
+        "key": "thresholdId"
+      }
+    },
+    {
+      "id": "ws5-expense-register-opens",
+      "name": "expense-register: the menu opens at the record row (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-expense-register-kind",
+      "name": "expense-register: the register owns the menu, not the Activities grid (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "expense-register",
+        "commands": [
+          "expense-edit",
+          "expense-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-expense-register-commands",
+      "name": "expense-register: the menu exposes exactly the real commands (en-1440)",
+      "ok": true,
+      "detail": {
+        "commands": [
+          "expense-edit",
+          "expense-delete"
+        ],
+        "expectedCommands": [
+          "expense-edit",
+          "expense-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-expense-register-geometry",
+      "name": "expense-register: viewport portal stays inside the viewport (en-1440)",
+      "ok": true,
+      "detail": {
+        "parentIsBody": true,
+        "position": "fixed",
+        "rect": {
+          "left": 726,
+          "top": 271,
+          "right": 970,
+          "bottom": 328,
+          "width": 244,
+          "height": 57
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    },
+    {
+      "id": "ws5-expense-register-target",
+      "name": "expense-register: the row under the pointer is the target of the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "afterOpen": {
+          "selected": true,
+          "tabIndex": "0",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "ws5-expense-register-aria",
+      "name": "expense-register: the menu is a labelled menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "role": "menu",
+        "label": "Expense"
+      }
+    },
+    {
+      "id": "ws5-expense-register-pointer-escape",
+      "name": "expense-register: Escape from the pointer menu restores focus to the row (en-1440)",
+      "ok": true,
+      "detail": {
+        "focus": {
+          "riskId": null,
+          "thresholdId": null,
+          "expenseId": "E2E-WS5-EX-MWEYK5DY",
+          "accountId": null,
+          "reportId": null
+        },
+        "key": "expenseId"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-opens",
+      "name": "cost-account-register: the menu opens at the record row (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-cost-account-register-kind",
+      "name": "cost-account-register: the register owns the menu, not the Activities grid (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "cost-account-register",
+        "commands": [
+          "cost-account-edit",
+          "cost-account-copy",
+          "cost-account-default",
+          "cost-account-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-commands",
+      "name": "cost-account-register: the menu exposes exactly the real commands (en-1440)",
+      "ok": true,
+      "detail": {
+        "commands": [
+          "cost-account-edit",
+          "cost-account-copy",
+          "cost-account-default",
+          "cost-account-delete"
+        ],
+        "expectedCommands": [
+          "cost-account-edit",
+          "cost-account-copy",
+          "cost-account-default",
+          "cost-account-delete"
+        ]
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-geometry",
+      "name": "cost-account-register: viewport portal stays inside the viewport (en-1440)",
+      "ok": true,
+      "detail": {
+        "parentIsBody": true,
+        "position": "fixed",
+        "rect": {
+          "left": 726,
+          "top": 570,
+          "right": 970,
+          "bottom": 671,
+          "width": 244,
+          "height": 101
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-target",
+      "name": "cost-account-register: the row under the pointer is the target of the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "afterOpen": {
+          "selected": true,
+          "tabIndex": "0",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-aria",
+      "name": "cost-account-register: the menu is a labelled menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "role": "menu",
+        "label": "Cost Account"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-pointer-escape",
+      "name": "cost-account-register: Escape from the pointer menu restores focus to the row (en-1440)",
+      "ok": true,
+      "detail": {
+        "focus": {
+          "riskId": null,
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": "E2E-WS5-CA-MWEYK5DY",
+          "reportId": null
+        },
+        "key": "accountId"
+      }
+    },
+    {
+      "id": "ws5-report-register-opens",
+      "name": "report-register: the menu opens at the record row (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-report-register-kind",
+      "name": "report-register: the register owns the menu, not the Activities grid (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "report-register",
+        "commands": [
+          "report-edit",
+          "report-delete",
+          "report-run"
+        ]
+      }
+    },
+    {
+      "id": "ws5-report-register-commands",
+      "name": "report-register: the menu exposes exactly the real commands (en-1440)",
+      "ok": true,
+      "detail": {
+        "commands": [
+          "report-edit",
+          "report-delete",
+          "report-run"
+        ],
+        "expectedCommands": [
+          "report-edit",
+          "report-delete",
+          "report-run"
+        ]
+      }
+    },
+    {
+      "id": "ws5-report-register-geometry",
+      "name": "report-register: viewport portal stays inside the viewport (en-1440)",
+      "ok": true,
+      "detail": {
+        "parentIsBody": true,
+        "position": "fixed",
+        "rect": {
+          "left": 298,
+          "top": 295,
+          "right": 542,
+          "bottom": 374,
+          "width": 244,
+          "height": 79
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    },
+    {
+      "id": "ws5-report-register-target",
+      "name": "report-register: the row under the pointer is the target of the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "afterOpen": {
+          "selected": true,
+          "tabIndex": "0",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "ws5-report-register-aria",
+      "name": "report-register: the menu is a labelled menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "role": "menu",
+        "label": "Project Report"
+      }
+    },
+    {
+      "id": "ws5-report-register-pointer-escape",
+      "name": "report-register: Escape from the pointer menu restores focus to the row (en-1440)",
+      "ok": true,
+      "detail": {
+        "focus": {
+          "riskId": null,
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": null,
+          "reportId": "E2E-WS5-RP-MWEYK5DY"
+        },
+        "key": "reportId"
+      }
+    },
+    {
+      "id": "ws5-risk-register-shift-f10",
+      "name": "risk-register: Shift+F10 opens the menu and focuses the first command (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "risk-register",
+        "focused": "risk-edit",
+        "first": "risk-edit"
+      }
+    },
+    {
+      "id": "ws5-risk-register-arrow",
+      "name": "risk-register: ArrowDown moves to the next command (en-1440)",
+      "ok": true,
+      "detail": {
+        "focused": "risk-delete"
+      }
+    },
+    {
+      "id": "ws5-risk-register-escape",
+      "name": "risk-register: Escape closes the menu and returns focus to the record row (en-1440)",
+      "ok": true,
+      "detail": {
+        "after": null,
+        "focus": {
+          "tag": "TR",
+          "riskId": "E2E-WS5-RK-MWEYK5DY",
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": null,
+          "reportId": null
+        },
+        "key": "riskId"
+      }
+    },
+    {
+      "id": "ws5-risk-register-context-key",
+      "name": "risk-register: the Context Menu key opens the same menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "risk-register"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-shift-f10",
+      "name": "cost-account-register: Shift+F10 opens the menu and focuses the first command (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "cost-account-register",
+        "focused": "cost-account-edit",
+        "first": "cost-account-edit"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-arrow",
+      "name": "cost-account-register: ArrowDown moves to the next command (en-1440)",
+      "ok": true,
+      "detail": {
+        "focused": "cost-account-copy"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-escape",
+      "name": "cost-account-register: Escape closes the menu and returns focus to the record row (en-1440)",
+      "ok": true,
+      "detail": {
+        "after": null,
+        "focus": {
+          "tag": "TR",
+          "riskId": null,
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": "E2E-WS5-CA-MWEYK5DY",
+          "reportId": null
+        },
+        "key": "accountId"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-context-key",
+      "name": "cost-account-register: the Context Menu key opens the same menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "cost-account-register"
+      }
+    },
+    {
+      "id": "ws5-report-register-shift-f10",
+      "name": "report-register: Shift+F10 opens the menu and focuses the first command (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "report-register",
+        "focused": "report-edit",
+        "first": "report-edit"
+      }
+    },
+    {
+      "id": "ws5-report-register-arrow",
+      "name": "report-register: ArrowDown moves to the next command (en-1440)",
+      "ok": true,
+      "detail": {
+        "focused": "report-delete"
+      }
+    },
+    {
+      "id": "ws5-report-register-escape",
+      "name": "report-register: Escape closes the menu and returns focus to the record row (en-1440)",
+      "ok": true,
+      "detail": {
+        "after": null,
+        "focus": {
+          "tag": "TR",
+          "riskId": null,
+          "thresholdId": null,
+          "expenseId": null,
+          "accountId": null,
+          "reportId": "E2E-WS5-RP-MWEYK5DY"
+        },
+        "key": "reportId"
+      }
+    },
+    {
+      "id": "ws5-report-register-context-key",
+      "name": "report-register: the Context Menu key opens the same menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "report-register"
+      }
+    },
+    {
+      "id": "ws5-risk-register-outside",
+      "name": "risk-register: an outside click dismisses the menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "after": null
+      }
+    },
+    {
+      "id": "ws5-outside-closed",
+      "name": "no menu remains after the outside click",
+      "ok": true,
+      "detail": {
+        "after": null
+      }
+    },
+    {
+      "id": "ws5-risk-register-dispatch",
+      "name": "risk-register: the menu command opens the real edit form (en-1440)",
+      "ok": true,
+      "detail": {
+        "form": {
+          "visible": true,
+          "id": "E2E-WS5-RK-MWEYK5DY",
+          "readonly": true
+        },
+        "command": "risk-edit"
+      }
+    },
+    {
+      "id": "ws5-risk-register-cancel",
+      "name": "risk-register: the edit form cancels back to the register (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-threshold-register-dispatch",
+      "name": "threshold-register: the menu command opens the real edit form (en-1440)",
+      "ok": true,
+      "detail": {
+        "form": {
+          "visible": true,
+          "id": "E2E-WS5-TH-MWEYK5DY",
+          "readonly": true
+        },
+        "command": "threshold-edit"
+      }
+    },
+    {
+      "id": "ws5-threshold-register-cancel",
+      "name": "threshold-register: the edit form cancels back to the register (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-cost-account-register-dispatch",
+      "name": "cost-account-register: the menu command opens the real edit form (en-1440)",
+      "ok": true,
+      "detail": {
+        "form": {
+          "visible": true,
+          "id": "E2E-WS5-CA-MWEYK5DY",
+          "readonly": true
+        },
+        "command": "cost-account-edit"
+      }
+    },
+    {
+      "id": "ws5-cost-account-register-cancel",
+      "name": "cost-account-register: the edit form cancels back to the register (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-report-run",
+      "name": "the report run renders stored rows and the definition revision",
+      "ok": true,
+      "detail": {
+        "rows": 14,
+        "meta": "RUN-E2E-WS5-RP-MWEYK5DY-1 · 14 rows · definition revision 1 · project revision 7"
+      }
+    },
+    {
+      "id": "ws5-conflict-switch",
+      "name": "the Schedule window is reachable next to the register windows (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-conflict-activity",
+      "name": "the Activities window still owns its own row menu (en-1440)",
+      "ok": true,
+      "detail": {
+        "kind": "table-activity",
+        "commands": [
+          "details",
+          "cut",
+          "copy",
+          "paste",
+          "fill-down",
+          "add",
+          "delete",
+          "dissolve",
+          "renumber",
+          "export-excel",
+          "assign",
+          "link",
+          "columns",
+          "line-numbers",
+          "font-row",
+          "filters",
+          "group-sort",
+          "expand-all",
+          "collapse-all",
+          "collapse-to"
+        ]
+      }
+    },
+    {
+      "id": "ws5-conflict-bound",
+      "name": "register menus are bound only to their own windows (en-1440)",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "ws5-viewer",
+      "name": "the viewer menu disables Edit and Delete with the permission reason",
+      "ok": true,
+      "detail": {
+        "items": [
+          {
+            "command": "risk-edit",
+            "label": "Edit Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": false
+          },
+          {
+            "command": "risk-delete",
+            "label": "Delete Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "ws5-viewer-commands",
+      "name": "the viewer menu keeps the same commands, disabled rather than removed",
+      "ok": true,
+      "detail": {
+        "items": [
+          {
+            "command": "risk-edit",
+            "label": "Edit Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": false
+          },
+          {
+            "command": "risk-delete",
+            "label": "Delete Risk",
+            "disabled": true,
+            "reason": "You do not have permission to change this project.",
+            "separatorBefore": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "ws5-viewer-report",
+      "name": "a viewer can run a stored report but not edit it",
+      "ok": true,
+      "detail": {
+        "run": {
+          "command": "report-run",
+          "label": "Run Report",
+          "disabled": false,
+          "reason": "",
+          "separatorBefore": false
+        },
+        "reportEdit": {
+          "command": "report-edit",
+          "label": "Edit Report",
+          "disabled": true,
+          "reason": "You do not have permission to change this project.",
+          "separatorBefore": false
+        }
+      }
+    },
+    {
+      "id": "ws5-rtl",
+      "name": "the Persian menu carries dir=rtl, Persian labels and stays inside the viewport",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "labels": [
+          "ویرایش ریسک",
+          "حذف ریسک"
+        ],
+        "rect": {
+          "left": 829,
+          "top": 304,
+          "right": 1073,
+          "bottom": 361,
+          "width": 244,
+          "height": 57
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        }
+      }
+    },
+    {
+      "id": "ws5-edge",
+      "name": "at the bottom-right edge the menu flips and clamps inside the viewport",
+      "ok": true,
+      "detail": {
+        "rect": {
+          "left": 967,
+          "top": 318,
+          "right": 1211,
+          "bottom": 375,
+          "width": 244,
+          "height": 57
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "point": {
+          "x": 1213,
+          "y": 316
+        }
+      }
+    },
+    {
+      "id": "ws5-delete",
+      "name": "the menu Delete removed the stored risk",
+      "ok": true,
+      "detail": {
+        "status": 404
+      }
+    }
+  ],
+  "screenshots": [
+    "01-risks-menu-en-1440.png",
+    "02-thresholds-menu-en-1440.png",
+    "03-expenses-menu-en-1440.png",
+    "04-cost-account-menu-en-1440.png",
+    "05-reports-menu-en-1440.png",
+    "07-report-run-from-menu-en-1440.png",
+    "06-schedule-menu-en-1440.png",
+    "08-viewer-disabled-en-1440.png",
+    "09-risks-menu-fa-1280.png",
+    "10-menu-edge-fa-1280.png",
+    "11-risk-deleted-from-menu.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 65,
+  "failed": 0,
+  "finishedAt": "2026-11-13T12:34:08.962Z",
+  "status": "passed"
+}
