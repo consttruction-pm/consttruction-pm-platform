@@ -711,3 +711,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Keyboard evidence:** the ACT-021 suite at `7c4b5a5b` (8/8) supplies Arrow/Shift/Ctrl movement and the single roving Tab stop; no extra run was needed for this audit.
 - **Status:** WS-006 moved from NOT_AUDITED to **WIRED_READ** in the matrix with a §2.1 row. Selection remains in-memory and per-tab; no marquee, cross-window selection, combined Shift+Home/End or screen-reader count announcement.
 - **Next:** Phase 3 workspace integration audit (WS-001 shell journey) or the next NOT_AUDITED requirement.
+
+## WS-001 single authenticated workspace shell — 2026-11-13 (Phase 3 start)
+
+- **New suite:** `apps/web/e2e/workspace-shell-v26.mjs` (contract `cubi-workspace-shell-v26.v1`, 7 scenarios) drives the real preview login/direct-link/refresh/logout journey through headless Chrome. Evidence: `docs/workspace/evidence/workspace-shell-v26-2026-11-13/` (`workspace-shell-v26.json` + 7 screenshots) at tested app code `06aa8768712ff624fae153960006a1d36472b448`, 7/7, zero exceptions/console errors/5xx.
+- **Observed:** unauthenticated `/app?view=wbs` → `/preview/login?next=%2Fapp%3Fview%3Dlive` with 4 personas and zero shells (the server intentionally normalizes the view); login returns to `/app?view=live`, project picker, then exactly one `[data-desktop-shell]` with 554 rows; authenticated direct link, bare `/app` and a full reload each keep one shell and the session; viewer role gets one shell; logout then deep link returns to login with zero shells.
+- **Status:** WS-001 moved from NOT_AUDITED to **VERIFIED** in the matrix with a §2.1 row. Gaps: single tab/device, no expiry or cookie-attribute assertion, no back-button/bfcache check.
+- **Next:** Phase 3 Workspace integration — WS-004 window tabs, WS-005 context-menu breadth, PRJ-003 project tab lifecycle.
