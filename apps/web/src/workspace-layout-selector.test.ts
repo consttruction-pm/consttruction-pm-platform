@@ -7,6 +7,7 @@ import {
   LAYOUT_SELECTION_STORAGE_PREFIX,
   layoutCatalogEntries,
   layoutDisplayName,
+  layoutHasUnsavedChanges,
   layoutScopeLabel,
   loadLayoutCatalog,
   parseLayoutDocument,
@@ -305,5 +306,112 @@ describe("layout selector exchange actions", () => {
     assert.match(writable, /data-layout-action="rename"\s+title=/);
     assert.match(writable, /data-layout-action="export"\s+title=/);
     assert.match(writable, /data-layout-action="import"\s+title=/);
+  });
+
+  it("offers New and Reset to Default, and states that Delete is not available", () => {
+    const markup = renderLayoutSelectorMarkup(markupOptions);
+    assert.match(markup, /data-layout-action="new"/);
+    assert.match(markup, /data-layout-action="reset-default"/);
+    assert.match(markup, /data-layout-action="delete" disabled/);
+    assert.match(markup, /does not support deleting a stored layout/);
+    const viewer = renderLayoutSelectorMarkup({ ...markupOptions, canSave: false });
+    assert.match(viewer, /data-layout-action="new" disabled/);
+    assert.match(viewer, /data-layout-action="reset-default" disabled/);
+  });
+
+  it("shows an unsaved-changes state only when the window is dirty", () => {
+    assert.doesNotMatch(renderLayoutSelectorMarkup(markupOptions), /data-layout-state="dirty"/);
+    const dirty = renderLayoutSelectorMarkup({ ...markupOptions, dirty: true });
+    assert.match(dirty, /data-layout-state="dirty"/);
+    assert.match(dirty, /Unsaved changes/);
+    const preview = renderLayoutSelectorMarkup({ ...markupOptions, dirty: true, previewScope: "project" });
+    assert.doesNotMatch(preview, /data-layout-state="dirty"/);
+    assert.match(preview, /data-layout-state="preview"/);
+  });
+});
+
+describe("layout dirty state", () => {
+  const defaults = {
+    groupBy: "wbs" as const,
+    sortLevels: [{ columnId: "wbs", direction: "asc" as const }],
+    presentation: undefined,
+  };
+
+  it("treats a layout without a stored plan as the Activities defaults", () => {
+    assert.equal(layoutHasUnsavedChanges({ layout: layout("project", 1), ...defaults }), false);
+    assert.equal(
+      layoutHasUnsavedChanges({ layout: layout("project", 1), ...defaults, groupBy: "none", sortLevels: [] }),
+      true,
+    );
+  });
+
+  it("compares the group mode and every sort level with the stored plan", () => {
+    const stored = layout("project", 5, "Stored");
+    stored.metadata = {
+      groupSort: { groupBy: "none", sortLevels: [{ columnId: "activity.name", direction: "desc" }] },
+    };
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "none",
+        sortLevels: [{ columnId: "activity.name", direction: "desc" }],
+        presentation: undefined,
+      }),
+      false,
+    );
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "wbs",
+        sortLevels: [{ columnId: "activity.name", direction: "desc" }],
+        presentation: undefined,
+      }),
+      true,
+    );
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "none",
+        sortLevels: [{ columnId: "activity.name", direction: "asc" }],
+        presentation: undefined,
+      }),
+      true,
+    );
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "none",
+        sortLevels: [],
+        presentation: undefined,
+      }),
+      true,
+    );
+  });
+
+  it("compares presentation only when the stored revision carries it", () => {
+    const stored = layout("project", 3, "Stored");
+    stored.metadata = { presentation: { table: { fontSize: 12 } } };
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "wbs",
+        sortLevels: [{ columnId: "wbs", direction: "asc" }],
+        presentation: { table: { fontSize: 12 } },
+      }),
+      false,
+    );
+    assert.equal(
+      layoutHasUnsavedChanges({
+        layout: stored,
+        groupBy: "wbs",
+        sortLevels: [{ columnId: "wbs", direction: "asc" }],
+        presentation: { table: { fontSize: 15 } },
+      }),
+      true,
+    );
+    assert.equal(
+      layoutHasUnsavedChanges({ layout: null, groupBy: "none", sortLevels: [], presentation: null }),
+      false,
+    );
   });
 });

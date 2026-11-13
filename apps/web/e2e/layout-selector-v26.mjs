@@ -96,6 +96,68 @@ async function readLayout(page, projectId, scope) {
   })()`, { awaitPromise: true });
 }
 
+async function readDefaultLayout(page, projectId, scope) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${projectId}/p6/layouts/${scope}/activity/default");
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return { status: response.status, body };
+  })()`, { awaitPromise: true });
+}
+
+const groupSortDialog = "dialog[data-desktop-dialog=group-sort]";
+
+async function openGroupSort(page) {
+  const clicked = await page.evaluate(`(() => {
+    const element = [...document.querySelectorAll('[data-desktop-command="dialog.group-sort"]')]
+      .find((item) => item.getClientRects().length > 0 && !item.disabled);
+    if (!element) return false;
+    element.click();
+    return true;
+  })()`);
+  assert(clicked, "Group and Sort command is missing");
+  await page.waitForSelector(`${groupSortDialog}[open]`, "group and sort dialog", 8000);
+  await sleep(250);
+}
+
+async function setGroupBy(page, value) {
+  const changed = await page.evaluate(`(() => {
+    const select = document.querySelector('${groupSortDialog} select[name="groupBy"]');
+    if (!select) return false;
+    select.value = ${JSON.stringify(value)};
+    if (select.value !== ${JSON.stringify(value)}) return false;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  })()`);
+  assert(changed, `group mode did not accept ${value}`);
+  await sleep(150);
+}
+
+async function submitGroupSort(page) {
+  const clicked = await page.evaluate(`(() => {
+    const button = document.querySelector('${groupSortDialog} [data-dialog-ok]');
+    if (!button || button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  assert(clicked, "Group and Sort OK button is missing");
+  await page.waitFor(`!document.querySelector('${groupSortDialog}')?.open`, "group and sort dialog closed", 8000);
+  await sleep(700);
+}
+
+async function clickSaveLayout(page) {
+  const clicked = await page.evaluate(`(() => {
+    const button = [...document.querySelectorAll('[data-desktop-command="layout.save"]')]
+      .find((item) => item.getClientRects().length > 0 && !item.disabled);
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  assert(clicked, "Save Layout command is missing");
+  await sleep(900);
+}
+
+
 const gridState = `(() => {
   const selector = document.querySelector("[data-layout-selector]");
   const trigger = selector?.querySelector("[data-layout-trigger]") ?? null;
@@ -678,8 +740,276 @@ async function main() {
       };
     });
 
-    const finalState = await page.evaluate(gridState);
-    assert(finalState.columns.length > 0, "the activity table ended without columns");
+    await scenario("11", "تغییر گروه‌بندی بدون Save وضعیت ذخیره‌نشده نشان می‌دهد و Save آن را منتشر می‌کند", async () => {
+      const beforeGrid = await page.evaluate(gridState);
+      const beforeRead = await readLayout(page, "preview-rps-01", "user");
+      const beforeDefinition = beforeRead.body.layout ?? beforeRead.body;
+
+      await openGroupSort(page);
+      await setGroupBy(page, "none");
+      await submitGroupSort(page);
+
+      const dirty = await page.evaluate(gridState);
+      assert(dirty.previewState === "Unsaved changes", `dirty state chip is ${dirty.previewState}`);
+      const pendingRead = await readLayout(page, "preview-rps-01", "user");
+      const pendingDefinition = pendingRead.body.layout ?? pendingRead.body;
+      assert(
+        pendingDefinition.revision === beforeDefinition.revision,
+        `a dirty view change appended revision ${pendingDefinition.revision} before Save`,
+      );
+      assert(
+        JSON.stringify(pendingDefinition.metadata?.groupSort ?? null)
+          === JSON.stringify(beforeDefinition.metadata?.groupSort ?? null),
+        "a dirty view change rewrote the stored group/sort plan before Save",
+      );
+      await capture(page, "12-layout-dirty-state");
+
+      await clickSaveLayout(page);
+      let saved = null;
+      const started = Date.now();
+      while (Date.now() - started < 15000) {
+        const read = await readLayout(page, "preview-rps-01", "user");
+        if (read.status === 200) {
+          const definition = read.body.layout ?? read.body;
+          if (definition.revision > beforeDefinition.revision && definition.metadata?.groupSort?.groupBy === "none") {
+            saved = definition;
+            break;
+          }
+        }
+        await sleep(400);
+      }
+      assert(saved, "Save did not publish the group/sort plan with a new revision");
+      const cleaned = await page.evaluate(gridState);
+      assert(cleaned.previewState === null, `dirty state survived Save: ${cleaned.previewState}`);
+      assert(JSON.stringify(cleaned.rowIds) === JSON.stringify(beforeGrid.rowIds), "the dirty/save cycle changed activity rows");
+      await capture(page, "13-layout-clean-after-save");
+      return { beforeRevision: beforeDefinition.revision, afterRevision: saved.revision, groupBy: saved.metadata.groupSort.groupBy };
+    });
+
+    await scenario("12", "New چیدمان کاربر را از ستون‌های پیش‌فرض می‌سازد و چیدمان پروژه را دست نمی‌زند", async () => {
+      const beforeRows = (await page.evaluate(gridState)).rowIds;
+      const projectBefore = await readLayout(page, "preview-rps-01", "project");
+      const projectDefinitionBefore = projectBefore.body.layout ?? projectBefore.body;
+      const userBefore = await readLayout(page, "preview-rps-01", "user");
+      const userDefinitionBefore = userBefore.body.layout ?? userBefore.body;
+      const defaults = await readDefaultLayout(page, "preview-rps-01", "user");
+      assert(defaults.status === 200, `default layout status ${defaults.status}`);
+      const defaultDefinition = defaults.body.layout ?? defaults.body;
+      const defaultFields = defaultDefinition.columns.map((column) => column.field_id);
+
+      await openSelector(page);
+      await waitForCatalogue(page);
+      await acceptPrompt(page, "Default crew layout");
+      const clicked = await page.evaluate(`(() => {
+        const button = document.querySelector('[data-layout-action="new"]');
+        if (!button || button.disabled) return false;
+        button.click();
+        return true;
+      })()`);
+      assert(clicked, "New layout action is missing or disabled");
+
+      let created = null;
+      const started = Date.now();
+      while (Date.now() - started < 15000) {
+        const read = await readLayout(page, "preview-rps-01", "user");
+        if (read.status === 200) {
+          const definition = read.body.layout ?? read.body;
+          if (definition.metadata?.layoutName === "Default crew layout") {
+            created = definition;
+            break;
+          }
+        }
+        await sleep(400);
+      }
+      assert(created, "New did not write a user layout");
+      assert(created.revision > userDefinitionBefore.revision, `New revision ${created.revision} did not advance`);
+      assert(
+        JSON.stringify(created.columns.map((column) => column.field_id)) === JSON.stringify(defaultFields),
+        "New did not use the canonical default column set",
+      );
+      const projectAfter = await readLayout(page, "preview-rps-01", "project");
+      const projectDefinitionAfter = projectAfter.body.layout ?? projectAfter.body;
+      assert(
+        projectDefinitionAfter.revision === projectDefinitionBefore.revision,
+        "New rewrote the shared project layout",
+      );
+      assert(
+        JSON.stringify(projectDefinitionAfter.columns) === JSON.stringify(projectDefinitionBefore.columns),
+        "New changed the shared project columns",
+      );
+      const grid = await page.evaluate(gridState);
+      assert(grid.triggerName === "Default crew layout", `trigger name after New is ${grid.triggerName}`);
+      assert(grid.triggerScope.startsWith("User layout"), `trigger scope after New is ${grid.triggerScope}`);
+      assert(JSON.stringify(grid.rowIds) === JSON.stringify(beforeRows), "New changed the activity rows");
+      await capture(page, "14-new-layout-from-default");
+      return { name: created.metadata.layoutName, revision: created.revision, columns: defaultFields.length };
+    });
+
+    await scenario("13", "Reset to Default ستون‌ها، گروه‌بندی و نمایش را به پیش‌فرض بازمی‌گرداند و پس از reload پایدار است", async () => {
+      const beforeRows = (await page.evaluate(gridState)).rowIds;
+      const hiddenColumnId = await hideColumnThroughDialog(page, 2);
+      const hiddenRead = await readLayout(page, "preview-rps-01", "user");
+      const hiddenDefinition = hiddenRead.body.layout ?? hiddenRead.body;
+      assert(
+        hiddenDefinition.columns.some((column) => column.field_id === hiddenColumnId && column.visible === false),
+        `${hiddenColumnId} was not hidden before Reset`,
+      );
+      const storedName = hiddenDefinition.metadata?.layoutName;
+      const defaults = await readDefaultLayout(page, "preview-rps-01", "user");
+      const defaultDefinition = defaults.body.layout ?? defaults.body;
+      const defaultFields = defaultDefinition.columns.map((column) => column.field_id);
+
+      await openSelector(page);
+      await waitForCatalogue(page);
+      const resetClicked = await page.evaluate(`(() => {
+        const button = document.querySelector('[data-layout-action="reset-default"]');
+        if (!button || button.disabled) return false;
+        button.click();
+        return true;
+      })()`);
+      assert(resetClicked, "Reset to Default action is missing or disabled");
+
+      let reset = null;
+      const started = Date.now();
+      while (Date.now() - started < 15000) {
+        const read = await readLayout(page, "preview-rps-01", "user");
+        if (read.status === 200) {
+          const definition = read.body.layout ?? read.body;
+          if (definition.revision > hiddenDefinition.revision) {
+            reset = definition;
+            break;
+          }
+        }
+        await sleep(400);
+      }
+      assert(reset, "Reset to Default did not write a new user revision");
+      assert(
+        JSON.stringify(reset.columns.map((column) => column.field_id)) === JSON.stringify(defaultFields),
+        "Reset to Default did not restore the canonical default columns",
+      );
+      const defaultVisibility = new Map(defaultDefinition.columns.map((column) => [column.field_id, column.visible !== false]));
+      assert(
+        reset.columns.every((column) => (column.visible !== false) === defaultVisibility.get(column.field_id)),
+        "Reset to Default did not restore the default column visibility",
+      );
+      assert(reset.metadata?.layoutName === storedName, `Reset renamed the layout to ${reset.metadata?.layoutName}`);
+      assert(reset.metadata?.groupSort?.groupBy === "wbs", `Reset group plan is ${JSON.stringify(reset.metadata?.groupSort)}`);
+      assert(reset.metadata?.presentation, "Reset did not write the default presentation");
+      const grid = await page.evaluate(gridState);
+      assert(grid.columns.includes(hiddenColumnId), `${hiddenColumnId} stayed hidden after Reset`);
+      assert(JSON.stringify(grid.rowIds) === JSON.stringify(beforeRows), "Reset changed the activity rows");
+      await capture(page, "15-reset-to-default");
+
+      await page.reload("[data-layout-trigger]", "reload after Reset to Default");
+      await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "activity rows after reset reload");
+      await sleep(1400);
+      const reloaded = await page.evaluate(gridState);
+      assert(reloaded.columns.includes(hiddenColumnId), `${hiddenColumnId} did not return after reload`);
+      assert(reloaded.triggerName === storedName, `reload after Reset shows ${reloaded.triggerName}`);
+      return { revision: reset.revision, name: storedName, columns: reset.columns.length };
+    });
+
+    await scenario("14", "Delete وضعیت واقعی نبود endpoint را می‌گوید و تغییر ذخیره‌نشده پیش از Open تأیید می‌خواهد", async () => {
+      await openSelector(page);
+      await waitForCatalogue(page);
+      const menu = await page.evaluate(gridState);
+      const remove = menu.actions.find((entry) => entry.action === "delete");
+      assert(remove && remove.disabled, "Delete must not be offered while the layout service has no delete route");
+      assert(/delete endpoint/.test(remove.title ?? ""), `Delete reason is ${remove.title}`);
+      const newAction = menu.actions.find((entry) => entry.action === "new");
+      const resetAction = menu.actions.find((entry) => entry.action === "reset-default");
+      assert(newAction && !newAction.disabled && resetAction && !resetAction.disabled, "Planner lost New or Reset");
+      await page.evaluate(`document.querySelector("[data-layout-trigger]")?.click()`);
+      await sleep(300);
+
+      await openGroupSort(page);
+      await setGroupBy(page, "none");
+      await submitGroupSort(page);
+      const dirty = await page.evaluate(gridState);
+      assert(dirty.previewState === "Unsaved changes", `setup for the discard prompt is ${dirty.previewState}`);
+
+      await page.evaluate(`(() => {
+        window.__cubiConfirmCalls = [];
+        window.__cubiConfirmResult = false;
+        window.__cubiOriginalConfirm = window.confirm;
+        window.confirm = (message) => {
+          window.__cubiConfirmCalls.push(String(message));
+          return window.__cubiConfirmResult;
+        };
+      })()`);
+      await openSelector(page);
+      await waitForCatalogue(page);
+      await chooseOption(page, "project");
+      const aborted = await page.evaluate(gridState);
+      assert(
+        aborted.triggerScope.startsWith("User layout"),
+        `declining the discard prompt still opened ${aborted.triggerScope}`,
+      );
+      const confirmCalls = await page.evaluate(`window.__cubiConfirmCalls ?? []`);
+      assert(confirmCalls.length > 0, "opening another layout with unsaved changes asked no confirmation");
+      assert(/not saved/.test(confirmCalls[0] ?? ""), `discard prompt text is ${confirmCalls[0]}`);
+      await capture(page, "16-unsaved-changes-blocked");
+
+      await page.evaluate(`window.__cubiConfirmResult = true`);
+      await openSelector(page);
+      await waitForCatalogue(page);
+      await chooseOption(page, "project");
+      const previewed = await page.evaluate(gridState);
+      assert(previewed.triggerScope.startsWith("Project layout"), `accepted discard did not preview: ${previewed.triggerScope}`);
+      assert((previewed.previewState ?? "").toLowerCase().includes("preview"), `preview badge is ${previewed.previewState}`);
+      await openSelector(page);
+      await waitForCatalogue(page);
+      await triggerAction(page, "cancel");
+      await page.evaluate(`(() => {
+        if (window.__cubiOriginalConfirm) window.confirm = window.__cubiOriginalConfirm;
+        delete window.__cubiOriginalConfirm;
+        delete window.__cubiConfirmResult;
+        delete window.__cubiConfirmCalls;
+      })()`);
+      const restored = await page.evaluate(gridState);
+      assert(restored.triggerScope.startsWith("User layout"), `Cancel after accepted discard shows ${restored.triggerScope}`);
+      await capture(page, "17-unsaved-changes-accepted");
+      return { deleteTitle: remove.title, confirm: confirmCalls[0] };
+    });
+
+    await scenario("15", "نقش Viewer فقط می‌تواند بخواند و هیچ نوشتن چیدمانی ندارد", async () => {
+      await page.evaluate(`fetch("/preview/logout", { method: "POST", redirect: "manual" }).then(() => true)`, { awaitPromise: true });
+      await page.navigate(`${baseUrl}/preview/login?next=%2Fapp%3Fview%3Dlive`, "form", "login as Viewer");
+      const viewerClicked = await page.evaluate(`(() => {
+        const button = [...document.querySelectorAll("form button")].find((item) => (item.textContent || "").trim().startsWith("Viewer"));
+        if (!button) return false;
+        button.click();
+        return true;
+      })()`);
+      assert(viewerClicked, "Viewer role was not offered");
+      await page.waitForSelector('[data-project-id="preview-rps-01"]', "viewer project selection");
+      await page.click('[data-project-id="preview-rps-01"]');
+      await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "viewer activity rows");
+      await sleep(1400);
+      await openSchedule(page);
+      const before = await readLayout(page, "preview-rps-01", "user");
+      await openSelector(page);
+      await waitForCatalogue(page);
+      const menu = await page.evaluate(gridState);
+      const byAction = (name) => menu.actions.find((entry) => entry.action === name);
+      for (const name of ["save", "save-as", "rename", "new", "reset-default", "import"]) {
+        const entry = byAction(name);
+        assert(entry && entry.disabled, `Viewer received an enabled ${name}`);
+      }
+      const remove = byAction("delete");
+      assert(remove && remove.disabled, "Viewer received an enabled Delete");
+      const save = byAction("save");
+      assert(/role cannot save/.test(save.title ?? ""), `Viewer save reason is ${save.title}`);
+      const after = await readLayout(page, "preview-rps-01", "user");
+      assert(
+        (after.body.layout ?? after.body).revision === (before.body.layout ?? before.body).revision,
+        "Viewer opening the layout menu appended a revision",
+      );
+      await capture(page, "18-viewer-read-only");
+      return { reason: save.title, actions: menu.actions.map((entry) => entry.action) };
+    });
+
+    const finalState = await page.evaluate(gridState);    assert(finalState.columns.length > 0, "the activity table ended without columns");
     assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);
     assert(consoleErrors.length === 0, `console errors: ${JSON.stringify(consoleErrors.slice(0, 3))}`);
     assert(apiFailures.length === 0, `API 5xx responses: ${JSON.stringify(apiFailures.slice(0, 3))}`);

@@ -1,0 +1,198 @@
+{
+  "contract": "cubi-layout-selector-v26.v1",
+  "baseUrl": "http://127.0.0.1:4218",
+  "gitHead": "58a951bff300f1148832e5793ea3b094a2315756",
+  "testedCodeSha": "58a951bff300f1148832e5793ea3b094a2315756",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T03:52:50.369Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Classic Schedule Layout",
+      "status": "pass",
+      "at": "2026-11-13T03:52:54.862Z",
+      "scope": "Project layout · r1",
+      "columns": 8
+    },
+    {
+      "id": "02",
+      "name": "گزینه‌های منو فقط از چیدمان‌های ذخیره‌شدهٔ همان پروژه می‌آیند",
+      "status": "pass",
+      "at": "2026-11-13T03:52:55.965Z",
+      "options": [
+        {
+          "scope": "project",
+          "name": "Classic Schedule Layout",
+          "meta": "Project layout · r1",
+          "checked": "true"
+        }
+      ],
+      "saveAs": "Save a copy under its own layout name"
+    },
+    {
+      "id": "03",
+      "name": "Field team view",
+      "status": "pass",
+      "at": "2026-11-13T03:52:58.196Z",
+      "revision": 0,
+      "columns": 8
+    },
+    {
+      "id": "04",
+      "name": "بازکردن چیدمان پروژه، جدول را پیش‌نمایش می‌دهد و Cancel آن را دقیقاً بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:03.995Z",
+      "hiddenColumnId": "activity.planned_duration",
+      "userColumns": 7,
+      "projectColumns": 8
+    },
+    {
+      "id": "05",
+      "name": "Apply و بازخوانی صفحه، چیدمان انتخاب‌شده را برای همان کاربر و پروژه بازمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:14.241Z",
+      "project": "Classic Schedule Layout",
+      "user": "Field team view"
+    },
+    {
+      "id": "06",
+      "name": "Save نسخهٔ ذخیره‌شده را واقعاً افزایش می‌دهد و دادهٔ زمان‌بندی را تغییر نمی‌دهد",
+      "status": "pass",
+      "at": "2026-11-13T03:53:15.958Z",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "هر پروژه چیدمان و کاتالوگ خودش را دارد و انتخاب کاربر بین پروژه‌ها نشت نمی‌کند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:23.249Z",
+      "projectBefore": "Field team view",
+      "nse": "Classic Schedule Layout",
+      "restored": "Field team view"
+    },
+    {
+      "id": "08",
+      "name": "رابط راست‌به‌چپ، انتخاب‌کننده را بدون شکستن چیدمان نمایش می‌دهد",
+      "status": "pass",
+      "at": "2026-11-13T03:53:26.060Z",
+      "direction": "rtl",
+      "options": 2
+    },
+    {
+      "0": {
+        "width": 1280,
+        "height": 720,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "1": {
+        "width": 1366,
+        "height": 768,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "2": {
+        "width": 1920,
+        "height": 1080,
+        "selectorHeight": 24,
+        "menuWithinViewport": true
+      },
+      "id": "09",
+      "name": "در سه وضوح 1280×720 و 1366×768 و 1920×1080 کنترل دیده می‌شود و منو داخل صفحه می‌ماند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:31.268Z"
+    },
+    {
+      "id": "10",
+      "name": "Rename، Export و Import یک پروندهٔ چیدمان واقعی می‌سازند و دادهٔ پروژه را تغییر نمی‌دهند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:34.973Z",
+      "renamed": "Field crew layout",
+      "download": "Field-crew-layout.cubi-layout.json",
+      "imported": "Imported crew layout",
+      "revision": 4,
+      "rows": 14
+    },
+    {
+      "id": "11",
+      "name": "تغییر گروه‌بندی بدون Save وضعیت ذخیره‌نشده نشان می‌دهد و Save آن را منتشر می‌کند",
+      "status": "pass",
+      "at": "2026-11-13T03:53:37.270Z",
+      "beforeRevision": 4,
+      "afterRevision": 5,
+      "groupBy": "none"
+    },
+    {
+      "id": "12",
+      "name": "Default crew layout",
+      "status": "pass",
+      "at": "2026-11-13T03:53:38.503Z",
+      "revision": 6,
+      "columns": 8
+    },
+    {
+      "id": "13",
+      "name": "Default crew layout",
+      "status": "pass",
+      "at": "2026-11-13T03:53:43.686Z",
+      "revision": 8,
+      "columns": 8
+    },
+    {
+      "id": "14",
+      "name": "Delete وضعیت واقعی نبود endpoint را می‌گوید و تغییر ذخیره‌نشده پیش از Open تأیید می‌خواهد",
+      "status": "pass",
+      "at": "2026-11-13T03:53:51.036Z",
+      "deleteTitle": "Deleting a stored layout needs a layout-service delete endpoint; it is not available yet.",
+      "confirm": "This layout has changes that are not saved. Discard them?"
+    },
+    {
+      "id": "15",
+      "name": "نقش Viewer فقط می‌تواند بخواند و هیچ نوشتن چیدمانی ندارد",
+      "status": "pass",
+      "at": "2026-11-13T03:53:54.474Z",
+      "reason": "Your role cannot save layouts",
+      "actions": [
+        "apply",
+        "cancel",
+        "save",
+        "save-as",
+        "rename",
+        "new",
+        "reset-default",
+        "delete",
+        "export",
+        "import",
+        "reload"
+      ]
+    }
+  ],
+  "screenshots": [
+    "01-default-layout-selector.png",
+    "02-layout-catalogue.png",
+    "03-saved-user-layout.png",
+    "04-layout-preview.png",
+    "05-user-layout-after-reload.png",
+    "06-saved-revision.png",
+    "07-second-project.png",
+    "08-rtl-layout-selector.png",
+    "09-layout-selector-1280x720.png",
+    "09-layout-selector-1366x768.png",
+    "09-layout-selector-1920x1080.png",
+    "10-layout-export.png",
+    "11-layout-import.png",
+    "12-layout-dirty-state.png",
+    "13-layout-clean-after-save.png",
+    "14-new-layout-from-default.png",
+    "15-reset-to-default.png",
+    "16-unsaved-changes-blocked.png",
+    "17-unsaved-changes-accepted.png",
+    "18-viewer-read-only.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-13T03:53:54.475Z"
+}
