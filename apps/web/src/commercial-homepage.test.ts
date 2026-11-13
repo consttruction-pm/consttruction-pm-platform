@@ -283,7 +283,7 @@ test("homepage security section discloses verified hosting controls and all six 
     'status: "ACTIVE — HOST MANAGED"',
     'status: "NOT VERIFIED"',
     "no Render Postgres instance",
-    "Free web-service filesystems are ephemeral",
+    "free web-service filesystems are ephemeral",
     "successful restore drill",
     "getLandingSecurityCopyForLocale",
   ]) assert.ok(landing.includes(marker), "Missing security disclosure requirement: " + marker);
