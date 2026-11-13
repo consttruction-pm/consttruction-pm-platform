@@ -990,6 +990,144 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
+.cp-wbs-table-wrap {
+  overflow: auto;
+  max-height: 100%;
+}
+
+.cp-wbs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cp-wbs-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 8px;
+  border-block-end: 1px solid var(--cubi-neutral-border);
+  background: var(--cubi-neutral-subtle);
+  color: var(--cp-navy);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.cp-wbs-table td {
+  padding: 4px 8px;
+  border-block-end: 1px solid color-mix(in srgb, var(--cubi-neutral-border) 55%, transparent);
+  vertical-align: middle;
+}
+
+.cp-wbs-row:hover {
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-wbs-row.is-selected {
+  background: color-mix(in srgb, var(--cp-blue) 10%, #fff);
+  box-shadow: inset 3px 0 0 var(--cp-blue);
+}
+
+.cp-wbs-row.is-orphan td:first-child {
+  border-inline-start: 3px dashed var(--cubi-warning, #b45309);
+}
+
+.cp-wbs-code-cell {
+  color: var(--cp-blue);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-wbs-name-cell .cp-wbs-node {
+  display: inline-block;
+  width: auto;
+  min-height: 26px;
+  margin: 0;
+  padding: 3px 6px;
+  overflow-wrap: anywhere;
+}
+
+.cp-wbs-orphan-note {
+  margin-inline-start: 6px;
+  color: var(--cubi-warning, #b45309);
+  font-size: 11px;
+}
+
+.cp-wbs-count-cell,
+.cp-wbs-sequence-cell,
+.cp-wbs-revision-cell {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-wbs-chart-list {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 0;
+}
+
+.cp-wbs-milestone-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cp-wbs-milestone-table th {
+  padding: 4px 6px;
+  border-block-end: 1px solid var(--cubi-neutral-border);
+  color: var(--cp-navy);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.cp-wbs-milestone-table td {
+  padding: 3px 4px;
+  border-block-end: 1px solid color-mix(in srgb, var(--cubi-neutral-border) 55%, transparent);
+  vertical-align: middle;
+}
+
+.cp-wbs-milestone-table input[type="text"],
+.cp-wbs-milestone-table input:not([type]) {
+  width: 100%;
+}
+
+.cp-wbs-milestone-table input[name="milestone_weight"] {
+  width: 6ch;
+  text-align: end;
+}
+
+.cp-wbs-milestone-table button {
+  min-height: 24px;
+  padding: 2px 4px;
+}
+
+.cp-wbs-milestones-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cp-wbs-status-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cp-wbs-status-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
 
 .cp-navigation-surface {
   margin: 0 0 12px;

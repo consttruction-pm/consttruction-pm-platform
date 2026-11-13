@@ -1,4 +1,4 @@
-import type { WorkspaceActivityGroupLevel, WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
+import type { WorkspaceActivityGroupLevel, WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState, WorkspaceWbsMilestone } from "./workspace-model.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
 import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
@@ -47,6 +47,8 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
+import { weightedPercentComplete, wbsStatusLabel, wbsTechniqueLabel } from "./workspace-wbs-milestones.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { readTraceLogicDepths, renderTraceLogic, storeTraceLogicDepths } from "./workspace-trace-logic.js";
@@ -185,7 +187,7 @@ const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
-const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
+const wbsViewByContainer = new WeakMap<HTMLElement, "table" | "chart">();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -890,6 +892,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!target) return;
+    const milestoneForm = target.closest<HTMLFormElement>("[data-wbs-milestones-form]");
+    if (milestoneForm) {
+      updateWbsMilestoneRollup(milestoneForm);
+      return;
+    }
     const filterInput = target.closest<HTMLInputElement>("[data-activity-filter]");
     if (filterInput) {
       const record = workspaceRenderRecords.get(container);
@@ -946,6 +953,73 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       notice.textContent = text;
     };
+    if (form.matches("[data-wbs-status-form]")) {
+      event.preventDefault();
+      const wbsId = form.dataset.wbsStatusForm ?? "";
+      const node = record.state.wbsNodes.find((item) => item.id === wbsId);
+      if (!node) return;
+      const status = form.querySelector<HTMLSelectElement>('[name="status"]')?.value;
+      const technique = form.querySelector<HTMLSelectElement>('[name="percent_complete_technique"]')?.value;
+      void record.options.onWbsUpdate?.(wbsId, {
+        code: node.localCode,
+        name: node.name,
+        sequenceNumber: node.sequenceNumber,
+        ...(status === "planned" || status === "active" || status === "inactive" || status === "what_if" ? { status } : {}),
+        ...(technique === "activities" || technique === "milestones" ? { percentCompleteTechnique: technique } : {}),
+      });
+      return;
+    }
+    if (form.matches("[data-wbs-milestones-form]")) {
+      event.preventDefault();
+      const wbsId = form.dataset.wbsMilestonesForm ?? "";
+      const expectedRevision = Number(form.dataset.wbsRevision ?? "");
+      const rows = [...form.querySelectorAll<HTMLElement>("[data-wbs-milestone-row]")];
+      const milestones: WorkspaceWbsMilestone[] = rows.map((row, index) => {
+        const field = (name: string): HTMLInputElement | null => row.querySelector<HTMLInputElement>(`[name="${name}"]`);
+        return {
+          id: field("milestone_id")?.value.trim() ?? "",
+          name: field("milestone_name")?.value.trim() ?? "",
+          weight: Number(field("milestone_weight")?.value ?? ""),
+          completed: field("milestone_completed")?.checked ?? false,
+          sequenceNumber: index,
+        };
+      });
+      const ids = new Set(milestones.map((item) => item.id));
+      const invalid =
+        !wbsId ||
+        !Number.isInteger(expectedRevision) ||
+        expectedRevision < 1 ||
+        milestones.length === 0 ||
+        ids.size !== milestones.length ||
+        milestones.some(
+          (item) =>
+            !item.id ||
+            !item.name ||
+            !Number.isFinite(item.weight) ||
+            item.weight <= 0,
+        );
+      const panel = form.closest<HTMLElement>(".cp-wbs-milestones");
+      if (invalid) {
+        if (panel) {
+          let notice = panel.querySelector<HTMLElement>("[data-wbs-milestone-error]");
+          if (!notice) {
+            notice = document.createElement("p");
+            notice.dataset.wbsMilestoneError = "true";
+            notice.setAttribute("role", "alert");
+            notice.className = "cp-activity-detail-note";
+            panel.prepend(notice);
+          }
+          notice.textContent = uiText(
+            record.state.locale,
+            "Each milestone needs a unique ID and a name, with a weight greater than zero.",
+            "هر نقطه عطف به شناسهٔ یکتا، نام و وزنی بزرگ‌تر از صفر نیاز دارد.",
+          );
+        }
+        return;
+      }
+      void record.options.onWbsMilestonesUpdate?.(wbsId, milestones, expectedRevision);
+      return;
+    }
     if (form.matches("[data-activity-create-form]")) {
       event.preventDefault();
       const durationValue = Number(form.querySelector<HTMLInputElement>('[name="duration_value"]')?.value ?? "");
@@ -1023,11 +1097,21 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     } else if (form.matches("[data-wbs-edit-form]")) {
       event.preventDefault();
       const wbsId = form.dataset.wbsEditForm;
-      if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
+      const status = form.querySelector<HTMLSelectElement>('[name="status"]')?.value;
+      const technique = form.querySelector<HTMLSelectElement>('[name="percent_complete_technique"]')?.value;
+      if (wbsId) {
+        void record.options.onWbsUpdate?.(wbsId, {
+          code: readText("code"),
+          name: readText("name"),
+          sequenceNumber,
+          ...(status === "planned" || status === "active" || status === "inactive" || status === "what_if" ? { status } : {}),
+          ...(technique === "activities" || technique === "milestones" ? { percentCompleteTechnique: technique } : {}),
+        });
+      }
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1085,7 +1169,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.wbsView) {
-      const view = target.dataset.wbsView === "chart" ? "chart" : "tree";
+      const view = target.dataset.wbsView === "chart" ? "chart" : "table";
       wbsViewByContainer.set(container, view);
       container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((button) => {
         const active = button.dataset.wbsView === view;
@@ -1096,8 +1180,8 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (hierarchy) {
         const labels = getWorkspaceLabels(state.locale);
         hierarchy.innerHTML = view === "chart"
-          ? renderWbsChart(state.wbsNodes, state.selectedWbsId, labels)
-          : renderWbsTree(state.wbsNodes, state.selectedWbsId, labels);
+          ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, labels)
+          : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, labels);
       }
       return;
     }
@@ -1251,6 +1335,23 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activitySortDirection !== undefined) return void options.onActivitySortDirectionToggle?.();
     if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
     if ("wbsDelete" in target.dataset) { const selectedId = state.selectedWbsId ?? ""; if (selectedId && window.confirm(getWorkspaceLabels(state.locale).wbsDeleteConfirm)) void options.onWbsDelete?.(selectedId); return; }
+    if ("wbsMilestoneAdd" in target.dataset) {
+      const form = target.closest<HTMLFormElement>("[data-wbs-milestones-form]");
+      const body = form?.querySelector<HTMLElement>("[data-wbs-milestone-rows]");
+      if (form && body) {
+        body.insertAdjacentHTML("beforeend", wbsMilestoneRowMarkup(state.locale, { id: "", name: "", weight: "1", completed: false }));
+        const added = body.querySelector<HTMLElement>("[data-wbs-milestone-row]:last-child input");
+        added?.focus();
+        updateWbsMilestoneRollup(form);
+      }
+      return;
+    }
+    if ("wbsMilestoneRemove" in target.dataset) {
+      const form = target.closest<HTMLFormElement>("[data-wbs-milestones-form]");
+      target.closest<HTMLElement>("[data-wbs-milestone-row]")?.remove();
+      if (form) updateWbsMilestoneRollup(form);
+      return;
+    }
     if (target.dataset.relationshipDelete) {
       const revision = Number.parseInt(target.dataset.relationshipRevision ?? "", 10);
       if (!Number.isInteger(revision) || revision < 1) return;
@@ -2176,83 +2277,59 @@ function runWorkspaceMenuCommand(
   }
 }
 
-function renderWbsTree(
+function renderWbsTable(
   nodes: WorkspaceState["wbsNodes"],
+  activities: WorkspaceState["activities"],
   selectedWbsId: string | null,
+  locale: WorkspaceState["locale"],
   labels: WorkspaceLabels,
 ): string {
   if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
-  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
-  for (const node of nodes) {
-    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
-    const siblings = children.get(parentId) ?? [];
-    siblings.push(node);
-    children.set(parentId, siblings);
-  }
-  for (const siblings of children.values()) {
-    siblings.sort((a, b) => a.sequenceNumber - b.sequenceNumber || a.id.localeCompare(b.id));
-  }
-  const renderChildren = (
-    parentId: string | null,
-    level: number,
-    ancestors: ReadonlySet<string>,
-  ): string => (children.get(parentId) ?? []).map((node) => {
-    if (ancestors.has(node.id)) {
-      return `<li class="cp-wbs-invalid" role="treeitem"><span class="cp-empty">Invalid WBS hierarchy</span></li>`;
-    }
-    const nested = children.get(node.id) ?? [];
+  const rows = buildWbsHierarchy(nodes);
+  const counts = wbsActivityCounts(activities);
+  const indent = (depth: number): string => `style="padding-inline-start:${(depth - 1) * 18}px"`;
+  const body = rows.map(({ node, depth, orphan }) => {
     const selected = selectedWbsId === node.id;
-    const nextAncestors = new Set(ancestors);
-    nextAncestors.add(node.id);
-    return `<li class="cp-wbs-item" role="treeitem" aria-level="${level}"${nested.length ? ' aria-expanded="true"' : ""}>
-      <button type="button" class="cp-wbs-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">
-        <span class="cp-wbs-code">${escapeHtml(node.localCode)}</span>
-        <span class="cp-wbs-name">${escapeHtml(node.name)}</span>
-      </button>
-      ${nested.length ? `<ul class="cp-wbs-children" role="group">${renderChildren(node.id, level + 1, nextAncestors)}</ul>` : ""}
-    </li>`;
+    const activityCount = counts.get(node.id) ?? 0;
+    return `<tr class="cp-wbs-row${selected ? " is-selected" : ""}${orphan ? " is-orphan" : ""}" data-wbs-id="${escapeAttribute(node.id)}" data-wbs-depth="${depth}" aria-level="${depth}" aria-selected="${selected}">
+      <td class="cp-wbs-code-cell"><span class="cp-wbs-indent" ${indent(depth)}>${escapeHtml(node.localCode)}</span></td>
+      <td class="cp-wbs-name-cell"><button type="button" class="cp-wbs-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">${escapeHtml(node.name)}</button>${orphan ? `<small class="cp-wbs-orphan-note">${escapeHtml(uiText(locale, "Parent not loaded", "والد بارگذاری نشده"))}</small>` : ""}</td>
+      <td class="cp-wbs-count-cell">${activityCount}</td>
+      <td class="cp-wbs-sequence-cell">${node.sequenceNumber}</td>
+      <td class="cp-wbs-revision-cell">R${node.recordRevision}</td>
+    </tr>`;
   }).join("");
-  return `<ul class="cp-wbs-tree" role="tree" aria-label="${escapeAttribute(labels.wbs)}">${renderChildren(null, 1, new Set())}</ul>`;
+  return `<div class="cp-wbs-table-wrap"><table class="cp-wbs-table" data-wbs-table role="treegrid" aria-label="${escapeAttribute(labels.wbs)}">
+    <thead><tr>
+      <th scope="col">${escapeHtml(uiText(locale, "WBS Code", "کد WBS"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "WBS Name", "نام WBS"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Activities", "فعالیت‌ها"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Sequence", "ترتیب"))}</th>
+      <th scope="col">${escapeHtml(uiText(locale, "Rev", "ویرایش"))}</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+  </table></div>`;
 }
 
 function renderWbsChart(
   nodes: WorkspaceState["wbsNodes"],
   selectedWbsId: string | null,
+  locale: WorkspaceState["locale"],
   labels: WorkspaceLabels,
 ): string {
   if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
-  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
-  for (const node of nodes) {
-    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
-    const siblings = children.get(parentId) ?? [];
-    siblings.push(node);
-    children.set(parentId, siblings);
-  }
-  for (const siblings of children.values()) {
-    siblings.sort((a, b) => a.sequenceNumber - b.sequenceNumber || a.id.localeCompare(b.id));
-  }
-  const renderChildren = (
-    parentId: string | null,
-    level: number,
-    ancestors: ReadonlySet<string>,
-  ): string => (children.get(parentId) ?? []).map((node) => {
-    if (ancestors.has(node.id)) {
-      return `<li class="cp-wbs-invalid" role="treeitem"><span class="cp-empty">Invalid WBS hierarchy</span></li>`;
-    }
-    const nested = children.get(node.id) ?? [];
+  const rows = buildWbsHierarchy(nodes);
+  const cards = rows.map(({ node, depth, hasChildren, orphan }) => {
     const selected = selectedWbsId === node.id;
-    const nextAncestors = new Set(ancestors);
-    nextAncestors.add(node.id);
-    return `<li class="cp-wbs-chart-item" role="treeitem" aria-level="${level}"${nested.length ? ' aria-expanded="true"' : ""}>
-      <button type="button" class="cp-wbs-chart-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">
+    return `<li class="cp-wbs-chart-item" role="treeitem" aria-level="${depth}" aria-selected="${selected}"${hasChildren ? ' aria-expanded="true"' : ""}>
+      <button type="button" class="cp-wbs-chart-node${selected ? " is-selected" : ""}${orphan ? " is-orphan" : ""}" data-wbs-id="${escapeAttribute(node.id)}" data-wbs-depth="${depth}" aria-current="${selected ? "true" : "false"}" style="margin-inline-start:${(depth - 1) * 22}px">
         <span class="cp-wbs-chart-code">${escapeHtml(node.localCode)}</span>
         <strong>${escapeHtml(node.name)}</strong>
         <small>R${node.recordRevision} · #${node.sequenceNumber}</small>
       </button>
-      ${nested.length ? `<ul class="cp-wbs-chart-children" role="group">${renderChildren(node.id, level + 1, nextAncestors)}</ul>` : ""}
     </li>`;
   }).join("");
-  return `<div class="cp-wbs-chart" data-wbs-chart><ul role="tree" aria-label="${escapeAttribute(labels.wbs)} Chart">${renderChildren(null, 1, new Set())}</ul></div>`;
+  return `<div class="cp-wbs-chart" data-wbs-chart><ul class="cp-wbs-chart-list" role="tree" aria-label="${escapeAttribute(uiText(locale, "WBS chart", "نمودار WBS"))}">${cards}</ul></div>`;
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
@@ -2397,6 +2474,11 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
       button.classList.toggle("is-selected", selected);
       button.setAttribute("aria-current", selected ? "true" : "false");
     });
+    // Selection is incremental here, so the table row state must be refreshed
+    // too; otherwise the row keeps the aria-selected value it was rendered with.
+    container.querySelectorAll<HTMLElement>(".cp-wbs-row[data-wbs-id]").forEach((row) => {
+      row.setAttribute("aria-selected", String(row.dataset.wbsId === next.selectedWbsId));
+    });
     const wbsDetails = container.querySelector<HTMLElement>(".cp-wbs-details");
     if (wbsDetails) wbsDetails.outerHTML = renderWbsDetails(next, wbsDetailsTabByContainer.get(container) ?? "general");
     return true;
@@ -2465,7 +2547,8 @@ export type WorkspaceRendererOptions = {
   onWindowClose?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
-  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number }) => void | Promise<void>;
+  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number; status?: "planned" | "active" | "inactive" | "what_if"; percentCompleteTechnique?: "activities" | "milestones" }) => void | Promise<void>;
+  onWbsMilestonesUpdate?: (wbsId: string, milestones: readonly WorkspaceWbsMilestone[], expectedRevision: number) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
   onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
@@ -2817,7 +2900,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
             <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
               <h2>${escapeHtml(t.wbs)}</h2>
-              ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
+              ${renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}
               ${renderWbsDetails(state, "general")}
               <form class="cp-wbs-editor" data-wbs-create-form>
                 <h3>${escapeHtml(t.wbsCreate)}</h3>
@@ -2838,6 +2921,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <h3>${escapeHtml(t.wbsEdit)}</h3>
                   <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" value="${escapeAttribute(selected.localCode)}"></label>
                   <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" value="${escapeAttribute(selected.name)}"></label>
+                  <label>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}
+                    <select name="status">
+                      ${(["planned", "active", "inactive", "what_if"] as const).map((status) => `<option value="${status}" ${(selected.status ?? "planned") === status ? "selected" : ""}>${escapeHtml(wbsStatusLabel(state.locale, status))}</option>`).join("")}
+                    </select>
+                  </label>
+                  <label>${escapeHtml(uiText(state.locale, "Percent complete technique", "روش درصد تکمیل"))}
+                    <select name="percent_complete_technique">
+                      ${(["activities", "milestones"] as const).map((technique) => `<option value="${technique}" ${(selected.percentCompleteTechnique ?? "activities") === technique ? "selected" : ""}>${escapeHtml(wbsTechniqueLabel(state.locale, technique))}</option>`).join("")}
+                    </select>
+                  </label>
                   <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="${selected.sequenceNumber}" required></label>
                   <button type="submit">${escapeHtml(t.wbsSave)}</button>
                   <button type="button" data-wbs-delete>${escapeHtml(t.wbsDelete)}</button>
@@ -3230,8 +3323,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     }
     case "wbs": {
-      const wbsView = wbsViewByContainer.get(container) ?? "tree";
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="tree" aria-pressed="${wbsView === "tree"}" class="${wbsView === "tree" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Tree View", "نمای درختی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, t) : renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The tree and chart are generated from the loaded WBS hierarchy; selecting a card reads the same authoritative WBS record. Detail tabs show only fields the WBS core returns, so budget, milestone and document tabs stay explicitly empty until those models are exposed.", "درخت و نمودار از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند و انتخاب هر کارت همان رکورد مرجع WBS را می‌خواند. زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نشان می‌دهند؛ بنابراین زبانه‌های بودجه، نقاط عطف و اسناد تا زمان ارائهٔ آن مدل‌ها صریحاً خالی می‌مانند."))}</p></div>`;
+      const wbsView = wbsViewByContainer.get(container) ?? "table";
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="table" aria-pressed="${wbsView === "table"}" class="${wbsView === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, state.locale, t) : renderWbsTable(state.wbsNodes, state.activities, state.selectedWbsId, state.locale, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The table and chart are generated from one ordered projection of the loaded WBS hierarchy, so both show the same persisted nodes in the same order. Selecting a row or card reads the same authoritative WBS record; detail tabs show only fields the WBS core returns.", "جدول و نمودار از یک نمای مرتب واحد از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند؛ بنابراین هر دو همان گره‌های ذخیره‌شده را با همان ترتیب نشان می‌دهند. انتخاب هر سطر یا کارت همان رکورد مرجع WBS را می‌خواند و زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نمایش می‌دهند."))}</p></div>`;
       break;
     }
     case "calendars":
@@ -5320,6 +5413,46 @@ const WBS_DETAIL_TABS = [
   ["udfs", "UDFs", "فیلدهای کاربر"],
 ] as const;
 
+function wbsMilestoneRowMarkup(
+  locale: WorkspaceState["locale"],
+  item: { id: string; name: string; weight: string; completed: boolean },
+): string {
+  return `<tr data-wbs-milestone-row>
+    <td></td>
+    <td><input name="milestone_id" maxlength="80" value="${escapeAttribute(item.id)}" required autocomplete="off"></td>
+    <td><input name="milestone_name" maxlength="180" value="${escapeAttribute(item.name)}" required autocomplete="off"></td>
+    <td><input name="milestone_weight" type="number" min="0.01" step="0.01" value="${escapeAttribute(item.weight)}" required></td>
+    <td><input name="milestone_completed" type="checkbox"${item.completed ? " checked" : ""}></td>
+    <td><button type="button" data-wbs-milestone-remove aria-label="${escapeAttribute(uiText(locale, "Remove milestone", "حذف نقطه عطف"))}">${workspaceIcon("close")}</button></td>
+  </tr>`;
+}
+
+/** Mirrors the server's weighted roll-up from the editor's current values. */
+function updateWbsMilestoneRollup(form: HTMLElement): void {
+  const host = form.closest<HTMLElement>(".cp-wbs-milestones");
+  if (!host) return;
+  const rows = [...form.querySelectorAll<HTMLElement>("[data-wbs-milestone-row]")];
+  const milestones: WorkspaceWbsMilestone[] = rows.map((row, index) => ({
+    id: row.querySelector<HTMLInputElement>('[name="milestone_id"]')?.value.trim() ?? "",
+    name: row.querySelector<HTMLInputElement>('[name="milestone_name"]')?.value.trim() ?? "",
+    weight: Number(row.querySelector<HTMLInputElement>('[name="milestone_weight"]')?.value ?? "0"),
+    completed: row.querySelector<HTMLInputElement>('[name="milestone_completed"]')?.checked ?? false,
+    sequenceNumber: index,
+  }));
+  const total = milestones.reduce((sum, item) => sum + (Number.isFinite(item.weight) ? item.weight : 0), 0);
+  const weighted = weightedPercentComplete(
+    milestones.map((item) => ({ ...item, weight: Number.isFinite(item.weight) ? item.weight : 0 })),
+  );
+  const totalEl = host.querySelector<HTMLElement>("[data-wbs-milestone-total]");
+  if (totalEl) totalEl.textContent = String(Math.round(total * 100) / 100);
+  const rollupEl = host.querySelector<HTMLElement>("[data-wbs-milestone-rollup]");
+  if (rollupEl) rollupEl.textContent = `${weighted.toFixed(2)}%`;
+  rows.forEach((row, index) => {
+    const indexCell = row.querySelector<HTMLElement>("td");
+    if (indexCell) indexCell.textContent = String(index + 1);
+  });
+}
+
 function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
   const node = state.wbsNodes.find((item) => item.id === state.selectedWbsId);
   const panel = (tab: string): string => {
@@ -5329,16 +5462,73 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
       const parent = node.parentKind === "project"
         ? uiText(state.locale, "Project root", "ریشه پروژه")
         : parentNode ? `${parentNode.localCode} — ${parentNode.name}` : node.parentWbsId ?? "—";
+      const percent = node.percentComplete ?? null;
       const fields = [
         [uiText(state.locale, "WBS ID", "شناسه WBS"), node.id],
         [uiText(state.locale, "WBS Code", "کد WBS"), node.localCode],
         [uiText(state.locale, "WBS Name", "نام WBS"), node.name],
+        [uiText(state.locale, "Status", "وضعیت"), wbsStatusLabel(state.locale, node.status)],
+        [uiText(state.locale, "Percent complete technique", "روش درصد تکمیل"), wbsTechniqueLabel(state.locale, node.percentCompleteTechnique)],
+        [uiText(state.locale, "Weighted percent complete", "درصد تکمیل وزنی"), percent === null ? "—" : `${percent.toFixed(2)}%`],
         [uiText(state.locale, "Parent kind", "نوع والد"), node.parentKind === "project" ? uiText(state.locale, "Project", "پروژه") : uiText(state.locale, "WBS element", "عنصر WBS")],
         [uiText(state.locale, "Parent", "والد"), parent],
         [uiText(state.locale, "Sequence", "ترتیب"), String(node.sequenceNumber)],
         [uiText(state.locale, "Record revision", "ویرایش رکورد"), String(node.recordRevision)],
       ];
-      return `<div class="cp-activity-detail-fields">${fields.map(([label, value]) => `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+      const fieldsHtml = `<div class="cp-activity-detail-fields">${fields.map(([label, value]) => `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+      const statusSelect = (["planned", "active", "inactive", "what_if"] as const)
+        .map((status) => `<option value="${status}" ${(node.status ?? "planned") === status ? "selected" : ""}>${escapeHtml(wbsStatusLabel(state.locale, status))}</option>`)
+        .join("");
+      const techniqueSelect = (["activities", "milestones"] as const)
+        .map((technique) => `<option value="${technique}" ${(node.percentCompleteTechnique ?? "activities") === technique ? "selected" : ""}>${escapeHtml(wbsTechniqueLabel(state.locale, technique))}</option>`)
+        .join("");
+      return `${fieldsHtml}
+        <form class="cp-wbs-status-form" data-wbs-status-form="${escapeAttribute(node.id)}" data-wbs-revision="${node.recordRevision}">
+          <label>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}<select name="status">${statusSelect}</select></label>
+          <label>${escapeHtml(uiText(state.locale, "Percent complete technique", "روش درصد تکمیل"))}<select name="percent_complete_technique">${techniqueSelect}</select></label>
+          <button type="submit">${escapeHtml(uiText(state.locale, "Save WBS settings", "ذخیره تنظیمات WBS"))}</button>
+        </form>`;
+    }
+    if (tab === "milestones") {
+      if (node.milestones === undefined) {
+        return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "No authoritative WBS milestone records are loaded for this element.", "اطلاعات مرجع نقاط عطف WBS برای این عنصر بارگذاری نشده است."))}</p>`;
+      }
+      const milestones = node.milestones;
+      const weighted = weightedPercentComplete(milestones);
+      const totalWeight = milestones.reduce((sum, item) => sum + item.weight, 0);
+      const rows = milestones.map((item, index) => `<tr data-wbs-milestone-row>
+        <td>${index + 1}</td>
+        <td><input name="milestone_id" maxlength="80" value="${escapeAttribute(item.id)}" required autocomplete="off"></td>
+        <td><input name="milestone_name" maxlength="180" value="${escapeAttribute(item.name)}" required autocomplete="off"></td>
+        <td><input name="milestone_weight" type="number" min="0.01" step="0.01" value="${item.weight}" required></td>
+        <td><input name="milestone_completed" type="checkbox"${item.completed ? " checked" : ""}></td>
+        <td><button type="button" data-wbs-milestone-remove aria-label="${escapeAttribute(uiText(state.locale, "Remove milestone", "حذف نقطه عطف"))}">${workspaceIcon("close")}</button></td>
+      </tr>`).join("");
+      return `<div class="cp-wbs-milestones">
+        <div class="cp-activity-detail-fields">
+          <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Technique", "روش"))}</span><strong>${escapeHtml(wbsTechniqueLabel(state.locale, node.percentCompleteTechnique))}</strong></div>
+          <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Total weight", "وزن کل"))}</span><strong data-wbs-milestone-total>${escapeHtml(String(Math.round(totalWeight * 100) / 100))}</strong></div>
+          <div class="cp-activity-detail-field"><span>${escapeHtml(uiText(state.locale, "Weighted percent complete", "درصد تکمیل وزنی"))}</span><strong data-wbs-milestone-rollup>${escapeHtml(`${weighted.toFixed(2)}%`)}</strong></div>
+        </div>
+        <form class="cp-wbs-milestones-form" data-wbs-milestones-form="${escapeAttribute(node.id)}" data-wbs-revision="${node.recordRevision}">
+          <table class="cp-wbs-milestone-table">
+            <thead><tr>
+              <th scope="col">#</th>
+              <th scope="col">${escapeHtml(uiText(state.locale, "Milestone ID", "شناسه نقطه عطف"))}</th>
+              <th scope="col">${escapeHtml(uiText(state.locale, "Name", "نام"))}</th>
+              <th scope="col">${escapeHtml(uiText(state.locale, "Weight", "وزن"))}</th>
+              <th scope="col">${escapeHtml(uiText(state.locale, "Completed", "تکمیل‌شده"))}</th>
+              <th scope="col"></th>
+            </tr></thead>
+            <tbody data-wbs-milestone-rows>${rows}</tbody>
+          </table>
+          <div class="cp-wbs-milestones-actions">
+            <button type="button" data-wbs-milestone-add>${escapeHtml(uiText(state.locale, "Add milestone", "افزودن نقطه عطف"))}</button>
+            <button type="submit">${escapeHtml(uiText(state.locale, "Save milestones", "ذخیره نقاط عطف"))}</button>
+          </div>
+          <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.", "درصد تکمیل وزنی برابر وزن نقاط عطف تکمیل‌شده تقسیم بر وزن کل است. ذخیره، فهرست نقاط عطف عنصر را جایگزین کرده و ویرایش رکورد آن را افزایش می‌دهد."))}</p>
+        </form>
+      </div>`;
     }
     const tabInfo = WBS_DETAIL_TABS.find(([key]) => key === tab);
     return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "WBS"} records are loaded for this element.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات WBS"}» برای این عنصر بارگذاری نشده است.`))}</p>`;

@@ -39,9 +39,12 @@ from construction_pm.relationship_master_repository import (
     RelationshipPersistenceError,
 )
 from construction_pm.wbs_master_repository import (
+    PercentCompleteTechnique,
     WBSMaster,
     WBSMasterRepository,
+    WBSMilestone,
     WBSPersistenceError,
+    weighted_percent_complete,
 )
 
 from .errors import BackendApplicationError, ErrorCategory
@@ -203,7 +206,15 @@ class PersistedWorkspaceReadProvider:
             "activities": activity_payloads,
         }
         if canonical_wbs:
-            workspace["wbs_nodes"] = [_wbs_node_payload(node) for node in wbs_records]
+            workspace["wbs_nodes"] = [
+                _wbs_node_payload(
+                    node,
+                    self.wbs_repository.list_milestones(scope, node.wbs_id)
+                    if self.wbs_repository is not None
+                    else (),
+                )
+                for node in wbs_records
+            ]
             if self.relationship_repository is not None:
                 workspace["relationships"] = self._relationship_records(scope, activity_ids)
         return {
@@ -432,7 +443,14 @@ def _column_from_field(definition, order: int) -> dict[str, object]:
     }
 
 
-def _wbs_node_payload(node: WBSMaster) -> dict[str, object]:
+def _wbs_node_payload(
+    node: WBSMaster, milestones: tuple[WBSMilestone, ...] = ()
+) -> dict[str, object]:
+    percent = (
+        weighted_percent_complete(milestones)
+        if node.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+        else None
+    )
     return {
         "wbs_id": node.wbs_id,
         "parent_kind": node.parent_kind.value,
@@ -441,6 +459,19 @@ def _wbs_node_payload(node: WBSMaster) -> dict[str, object]:
         "name": node.name,
         "sequence_number": node.sequence_number,
         "record_revision": node.record_revision,
+        "status": node.status.value,
+        "percent_complete_technique": node.percent_complete_technique.value,
+        "percent_complete": percent,
+        "milestones": [
+            {
+                "milestone_id": item.milestone_id,
+                "name": item.name,
+                "weight": float(item.weight),
+                "completed": item.completed,
+                "sequence_number": item.sequence_number,
+            }
+            for item in milestones
+        ],
     }
 
 

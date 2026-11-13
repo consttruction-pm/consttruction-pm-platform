@@ -178,3 +178,73 @@ def test_postgres_wbs_master_rejects_invalid_root_sibling_scope_and_cycle():
                 (other_scope.tenant_id, other_scope.project_id),
             )
             connection.commit()
+
+
+def test_postgres_wbs_status_and_weighted_milestones_round_trip():
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSMilestone,
+        WBSStatus,
+        weighted_percent_complete,
+    )
+
+    suffix = uuid4().hex
+    scope = BackendScope(f"tenant-wbs-ms-{suffix}", f"project-wbs-ms-{suffix}", 5)
+
+    with connect() as connection:
+        repo = PostgresWBSMasterRepository(connection)
+        repo.initialize()
+        try:
+            stored = repo.save(
+                WBSMaster(
+                    scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0,
+                    status=WBSStatus.ACTIVE,
+                    percent_complete_technique=PercentCompleteTechnique.MILESTONES,
+                )
+            )
+            connection.commit()
+            assert stored.status is WBSStatus.ACTIVE
+            assert stored.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+
+            _, written = repo.replace_milestones(
+                scope,
+                "W-ROOT",
+                (
+                    WBSMilestone(scope, "W-ROOT", "M-1", "Mobilize", 9.0, True, 0),
+                    WBSMilestone(scope, "W-ROOT", "M-2", "Handover", 3.0, False, 1),
+                ),
+                expected_revision=stored.record_revision,
+            )
+            connection.commit()
+            assert weighted_percent_complete(written) == 75.0
+            loaded = repo.list_milestones(scope, "W-ROOT")
+            assert [(item.milestone_id, float(item.weight), item.completed) for item in loaded] == [
+                ("M-1", 9.0, True),
+                ("M-2", 3.0, False),
+            ]
+
+            refreshed = repo.get(scope, "W-ROOT")
+            assert refreshed is not None
+            assert refreshed.record_revision == stored.record_revision + 1
+            assert refreshed.status is WBSStatus.ACTIVE
+            assert refreshed.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+
+            with pytest.raises(WBSPersistenceError, match="REVISION_CONFLICT"):
+                repo.replace_milestones(
+                    scope,
+                    "W-ROOT",
+                    (WBSMilestone(scope, "W-ROOT", "M-1", "Stale", 1.0, False, 0),),
+                    expected_revision=stored.record_revision,
+                )
+            connection.rollback()
+
+            # Deleting the node cascades to its milestone rows.
+            repo.delete(scope, "W-ROOT", expected_revision=refreshed.record_revision)
+            connection.commit()
+            assert repo.list_milestones(scope, "W-ROOT") == ()
+        finally:
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            )
+            connection.commit()

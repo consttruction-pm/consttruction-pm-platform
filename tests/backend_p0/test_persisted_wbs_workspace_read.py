@@ -170,3 +170,46 @@ def test_activity_master_rejects_cross_scope_wbs_on_write():
             ))
     finally:
         connection.close()
+
+
+def test_persisted_wbs_workspace_read_projects_status_and_weighted_milestones():
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSMilestone,
+        WBSStatus,
+    )
+
+    connection = sqlite3.connect(":memory:")
+    try:
+        service, _activities, wbs = _service(connection)
+        scope = _scope()
+        stored = wbs.save(
+            WBSMaster(
+                scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project", 0,
+                status=WBSStatus.ACTIVE,
+                percent_complete_technique=PercentCompleteTechnique.MILESTONES,
+            )
+        )
+        wbs.replace_milestones(
+            scope,
+            "W-ROOT",
+            (
+                WBSMilestone(scope, "W-ROOT", "M-1", "Mobilize", 9.0, True, 0),
+                WBSMilestone(scope, "W-ROOT", "M-2", "Handover", 3.0, False, 1),
+            ),
+            expected_revision=stored.record_revision,
+        )
+
+        result = service.read(scope, auth_context=_auth())
+
+        assert result is not None
+        node = result["workspace"]["wbs_nodes"][0]
+        assert node["status"] == "active"
+        assert node["percent_complete_technique"] == "milestones"
+        assert node["percent_complete"] == 75.0
+        assert [(item["milestone_id"], item["weight"], item["completed"]) for item in node["milestones"]] == [
+            ("M-1", 9.0, True),
+            ("M-2", 3.0, False),
+        ]
+    finally:
+        connection.close()

@@ -164,7 +164,7 @@ test("WBS register exposes connected add, delete and view controls", () => {
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /data-wbs-view="tree"/);
+  assert.match(html, /data-wbs-view="table"/);
   assert.match(html, /data-wbs-view="chart"/);
   assert.doesNotMatch(html, /WBS chart view is not connected yet/);
 });
@@ -1438,7 +1438,7 @@ test("WBS panel renders the persisted hierarchy including nodes with no activiti
   ]);
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-wbs-tree" role="tree"/);
+  assert.match(container.innerHTML, /class="cp-wbs-table" data-wbs-table role="treegrid"/);
   assert.match(container.innerHTML, /data-wbs-id="W-ROOT"/);
   assert.match(container.innerHTML, /data-wbs-id="W-FOUNDATION"/);
   assert.match(container.innerHTML, /data-wbs-id="W-EMPTY"/);
@@ -1446,6 +1446,47 @@ test("WBS panel renders the persisted hierarchy including nodes with no activiti
   assert.match(container.innerHTML, /Project &lt;Root&gt;/);
   assert.ok(container.innerHTML.indexOf("Foundation") < container.innerHTML.indexOf("Package with no activities"));
   assert.doesNotMatch(container.innerHTML, /data-wbs-id="A-/);
+});
+
+test("WBS table and chart render the same persisted nodes in the same order", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const hierarchy = { innerHTML: "" };
+  const chartButton = {
+    dataset: { wbsView: "chart" } as Record<string, string>,
+    setAttribute: () => undefined,
+    classList: { toggle: () => undefined },
+  };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => (selector === "[data-wbs-hierarchy]" ? hierarchy : null),
+    querySelectorAll: (selector: string) => (selector === "[data-wbs-view]" ? [chartButton] : []),
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [
+      { id: "W-B", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "B", name: "Second package", sequenceNumber: 30, recordRevision: 1 },
+      { id: "W-ROOT", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project root", sequenceNumber: 1, recordRevision: 1 },
+      { id: "W-A1", parentKind: "wbs", parentWbsId: "W-A", localCode: "A.1", name: "Sub package", sequenceNumber: 5, recordRevision: 1 },
+      { id: "W-A", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "A", name: "First package", sequenceNumber: 10, recordRevision: 1 },
+    ],
+  );
+  state = withActivities(state, [
+    { id: "ACT-1", wbsId: "W-A", code: "A100", name: "Activity one" },
+    { id: "ACT-2", wbsId: "W-A", code: "A110", name: "Activity two" },
+    { id: "ACT-3", wbsId: "W-ROOT", code: "A010", name: "Root activity" },
+  ]);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const tableOrder = [...container.innerHTML.matchAll(/class="cp-wbs-node[^"]*" data-wbs-id="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(tableOrder, ["W-ROOT", "W-A", "W-A1", "W-B"]);
+  assert.match(container.innerHTML, /<td class="cp-wbs-count-cell">2<\/td>/);
+  const clickTarget = {
+    dataset: { wbsView: "chart" },
+    closest: (selector: string) => (selector.includes("[data-wbs-view]") ? chartButton : null),
+  };
+  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
+  const chartOrder = [...hierarchy.innerHTML.matchAll(/class="cp-wbs-chart-node[^"]*" data-wbs-id="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(chartOrder, tableOrder);
 });
 
 test("activity grid date cells follow the selected display calendar without changing stored values", () => {
@@ -2691,4 +2732,27 @@ test("Projects register localizes the Business Domain tree for Persian", () => {
   assert.match(html, /جست‌وجوی پروژه‌ها/);
   assert.match(html, /پروژهٔ انتخاب‌شده/);
   assert.doesNotMatch(html, /Infrastructure/);
+});
+
+test("WBS window renders persisted status and the weighted milestone editor", () => {
+  const base = withWbsNodes(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [{
+    id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project",
+    sequenceNumber: 0, recordRevision: 4, status: "active", percentCompleteTechnique: "milestones",
+    percentComplete: 75, milestones: [
+      { id: "M-1", name: "Mobilize", weight: 9, completed: true, sequenceNumber: 0 },
+      { id: "M-2", name: "Handover", weight: 3, completed: false, sequenceNumber: 1 },
+    ],
+  }]);
+  const state = { ...base, activeMenu: "wbs" as const, selectedWbsId: "W-1" };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /Percent complete technique/);
+  assert.match(html, />Active</);
+  assert.match(html, />75\.00%</);
+  assert.match(html, /data-wbs-milestones-form="W-1"/);
+  assert.match(html, /data-wbs-revision="4"/);
+  assert.equal((html.match(/<tr data-wbs-milestone-row>/g) ?? []).length, 4);
+  assert.match(html, /value="Mobilize"/);
+  assert.match(html, /name="milestone_weight" type="number" min="0\.01" step="0\.01" value="9"/);
 });

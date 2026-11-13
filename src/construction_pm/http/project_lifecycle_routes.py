@@ -164,7 +164,14 @@ from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
 from ..p6_activity_progress_api import P6ActivityProgressAPI
 from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
-from ..wbs_master_repository import WBSMaster, WBSParentKind, WBSPersistenceError
+from ..wbs_master_repository import (
+    PercentCompleteTechnique,
+    WBSMaster,
+    WBSMilestone,
+    WBSParentKind,
+    WBSPersistenceError,
+    WBSStatus,
+)
 from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
 from ..authoritative_schedule_input_composer import (
     ScheduleInputCompositionError,
@@ -1994,6 +2001,20 @@ class ProjectLifecycleHttpRoutes:
                     )
                     if isinstance(raw_sequence, bool) or not isinstance(raw_sequence, int):
                         raise ValueError("INVALID_WBS_SEQUENCE_NUMBER")
+                    status = WBSStatus(
+                        payload.get(
+                            "status",
+                            existing.status.value if existing is not None else WBSStatus.PLANNED.value,
+                        )
+                    )
+                    technique = PercentCompleteTechnique(
+                        payload.get(
+                            "percent_complete_technique",
+                            existing.percent_complete_technique.value
+                            if existing is not None
+                            else PercentCompleteTechnique.ACTIVITIES.value,
+                        )
+                    )
                     return WBSMaster(
                         scope=scope,
                         wbs_id=wbs_id,
@@ -2003,6 +2024,8 @@ class ProjectLifecycleHttpRoutes:
                         name=payload.get("name", existing.name if existing is not None else ""),
                         sequence_number=raw_sequence,
                         record_revision=0 if existing is None else existing.record_revision,
+                        status=status,
+                        percent_complete_technique=technique,
                     )
 
                 try:
@@ -2026,6 +2049,73 @@ class ProjectLifecycleHttpRoutes:
                             201,
                             self._p6_wbs_master_api.create(build_wbs(wbs_id), auth_context=auth),
                         )
+                    if len(parts) == 2 and parts[0] and parts[1] == "milestones":
+                        wbs_id = parts[0]
+                        if method == "GET":
+                            result = self._p6_wbs_master_api.get(scope, wbs_id, auth_context=auth)
+                            if result is None:
+                                return self._error(404, "P6_WBS_MASTER_NOT_FOUND", "error.resource.not_found")
+                            return self._json(200, {
+                                "contract_version": P6_WBS_MASTER_API_VERSION,
+                                "kind": "p6_wbs_milestones",
+                                "wbs_id": wbs_id,
+                                "record_revision": result["wbs"]["record_revision"],
+                                "percent_complete_technique": result["wbs"]["percent_complete_technique"],
+                                "percent_complete": result["wbs"]["percent_complete"],
+                                "milestones": result["milestones"],
+                            })
+                        if method in ("PUT", "PATCH"):
+                            expected_revision = payload.get("expected_revision")
+                            if (
+                                isinstance(expected_revision, bool)
+                                or not isinstance(expected_revision, int)
+                                or expected_revision < 1
+                            ):
+                                raise ValueError("EXPECTED_REVISION_REQUIRED")
+                            raw_items = payload.get("milestones")
+                            if not isinstance(raw_items, list):
+                                raise ValueError("INVALID_WBS_MILESTONES")
+                            items: list[WBSMilestone] = []
+                            for index, raw in enumerate(raw_items):
+                                if not isinstance(raw, dict):
+                                    raise ValueError("INVALID_WBS_MILESTONE")
+                                milestone_id = raw.get("milestone_id")
+                                if not isinstance(milestone_id, str) or not milestone_id.strip():
+                                    raise ValueError("INVALID_WBS_MILESTONE_ID")
+                                name = raw.get("name")
+                                if not isinstance(name, str) or not name.strip():
+                                    raise ValueError("INVALID_WBS_MILESTONE_NAME")
+                                weight = raw.get("weight")
+                                if isinstance(weight, bool) or not isinstance(weight, (int, float)):
+                                    raise ValueError("INVALID_WBS_MILESTONE_WEIGHT")
+                                completed = raw.get("completed", False)
+                                if not isinstance(completed, bool):
+                                    raise ValueError("INVALID_WBS_MILESTONE_COMPLETED")
+                                raw_sequence = raw.get("sequence_number", index)
+                                if isinstance(raw_sequence, bool) or not isinstance(raw_sequence, int):
+                                    raise ValueError("INVALID_WBS_MILESTONE_SEQUENCE_NUMBER")
+                                items.append(
+                                    WBSMilestone(
+                                        scope=scope,
+                                        wbs_id=wbs_id,
+                                        milestone_id=milestone_id,
+                                        name=name,
+                                        weight=float(weight),
+                                        completed=completed,
+                                        sequence_number=raw_sequence,
+                                    )
+                                )
+                            return self._json(
+                                200,
+                                self._p6_wbs_master_api.replace_milestones(
+                                    scope,
+                                    wbs_id,
+                                    tuple(items),
+                                    expected_revision=expected_revision,
+                                    auth_context=auth,
+                                ),
+                            )
+                        return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_wbs_master_api.get(scope, parts[0], auth_context=auth)
                         if result is None:

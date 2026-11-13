@@ -240,3 +240,141 @@ def test_wbs_master_delete_rejects_nodes_with_children():
         repo.delete(scope(), parent.wbs_id, expected_revision=parent.record_revision)
 
     assert repo.get(scope(), parent.wbs_id) == parent
+
+
+def test_wbs_status_and_percent_complete_technique_round_trip_and_update():
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSStatus,
+    )
+
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(replace(root(), status=WBSStatus.ACTIVE))
+    assert stored.status is WBSStatus.ACTIVE
+    assert stored.percent_complete_technique is PercentCompleteTechnique.ACTIVITIES
+    assert repo.get(scope(), "W-ROOT").status is WBSStatus.ACTIVE
+
+    updated = repo.save(
+        replace(stored, status=WBSStatus.WHAT_IF, percent_complete_technique=PercentCompleteTechnique.MILESTONES),
+        expected_revision=1,
+    )
+    assert updated.status is WBSStatus.WHAT_IF
+    assert updated.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+    reread = repo.get(scope(), "W-ROOT")
+    assert reread.status is WBSStatus.WHAT_IF
+    assert reread.percent_complete_technique is PercentCompleteTechnique.MILESTONES
+
+
+def test_weighted_milestones_replace_advances_revision_and_rolls_up_percent():
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSMilestone,
+        weighted_percent_complete,
+    )
+
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(
+        replace(root(), percent_complete_technique=PercentCompleteTechnique.MILESTONES)
+    )
+    milestones = (
+        WBSMilestone(scope(), "W-ROOT", "M-1", "Mobilize", 9.0, True, 0),
+        WBSMilestone(scope(), "W-ROOT", "M-2", "Foundations", 1.0, False, 1),
+        WBSMilestone(scope(), "W-ROOT", "M-3", "Steel", 1.0, False, 2),
+        WBSMilestone(scope(), "W-ROOT", "M-4", "Handover", 1.0, False, 3),
+    )
+    updated, written = repo.replace_milestones(
+        scope(), "W-ROOT", milestones, expected_revision=stored.record_revision
+    )
+    assert updated.record_revision == stored.record_revision + 1
+    assert [item.milestone_id for item in written] == ["M-1", "M-2", "M-3", "M-4"]
+    assert weighted_percent_complete(written) == 75.0
+    assert [item.milestone_id for item in repo.list_milestones(scope(), "W-ROOT")] == [
+        "M-1", "M-2", "M-3", "M-4"
+    ]
+
+    completed = tuple(
+        replace(item, completed=True) if item.milestone_id == "M-4" else item
+        for item in written
+    )
+    _, written_two = repo.replace_milestones(
+        scope(), "W-ROOT", completed, expected_revision=updated.record_revision
+    )
+    # M-1 (9.0) and M-4 (1.0) complete out of 12.0 total weight.
+    assert weighted_percent_complete(written_two) == 83.33
+
+
+def test_weighted_milestones_reject_stale_revision_duplicates_and_bad_weights():
+    from construction_pm.wbs_master_repository import WBSMilestone
+
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(root())
+    items = (WBSMilestone(scope(), "W-ROOT", "M-1", "One", 1.0, False, 0),)
+    repo.replace_milestones(scope(), "W-ROOT", items, expected_revision=stored.record_revision)
+
+    with pytest.raises(WBSPersistenceError, match="REVISION_CONFLICT"):
+        repo.replace_milestones(scope(), "W-ROOT", items, expected_revision=stored.record_revision)
+    with pytest.raises(WBSPersistenceError, match="DUPLICATE_WBS_MILESTONE_ID"):
+        repo.replace_milestones(
+            scope(),
+            "W-ROOT",
+            (items[0], WBSMilestone(scope(), "W-ROOT", "M-1", "Again", 2.0, False, 1)),
+            expected_revision=2,
+        )
+    with pytest.raises(WBSPersistenceError, match="INVALID_WBS_MILESTONE_WEIGHT"):
+        repo.replace_milestones(
+            scope(),
+            "W-ROOT",
+            (WBSMilestone(scope(), "W-ROOT", "M-2", "Zero", 0.0, False, 0),),
+            expected_revision=2,
+        )
+    with pytest.raises(WBSPersistenceError, match="WBS_MILESTONE_SCOPE_MISMATCH"):
+        repo.replace_milestones(
+            scope(),
+            "W-ROOT",
+            (WBSMilestone(scope(8), "W-ROOT", "M-2", "Other", 1.0, False, 0),),
+            expected_revision=2,
+        )
+
+
+def test_deleting_a_leaf_removes_its_milestones():
+    from construction_pm.wbs_master_repository import WBSMilestone
+
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(root())
+    updated, _ = repo.replace_milestones(
+        scope(),
+        "W-ROOT",
+        (WBSMilestone(scope(), "W-ROOT", "M-1", "One", 1.0, False, 0),),
+        expected_revision=stored.record_revision,
+    )
+    repo.delete(scope(), "W-ROOT", expected_revision=updated.record_revision)
+    assert repo.list_milestones(scope(), "W-ROOT") == ()
+
+
+def test_existing_database_gains_status_columns_with_planned_defaults():
+    connection = sqlite3.connect(":memory:")
+    SQLiteWBSMasterRepository(connection)
+    connection.execute("DROP TABLE wbs_master")
+    connection.execute(
+        """CREATE TABLE wbs_master (
+            tenant_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL,
+            wbs_id TEXT NOT NULL,
+            parent_kind TEXT NOT NULL,
+            parent_wbs_id TEXT,
+            code TEXT NOT NULL,
+            name TEXT NOT NULL,
+            sequence_number INTEGER NOT NULL,
+            record_revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, project_id, wbs_id)
+        )"""
+    )
+    connection.execute(
+        "INSERT INTO wbs_master VALUES ('T-1','P-1',7,'W-OLD','project',NULL,'1','Old',0,1)"
+    )
+    connection.commit()
+    repo = SQLiteWBSMasterRepository(connection)
+    loaded = repo.get(scope(), "W-OLD")
+    assert loaded.status.value == "planned"
+    assert loaded.percent_complete_technique.value == "activities"
