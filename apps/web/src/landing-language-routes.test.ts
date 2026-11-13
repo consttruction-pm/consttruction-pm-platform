@@ -221,5 +221,5 @@ test("About Us ships approved localized routes in all eight product languages", 
     }
     assert.match(html, /<h1>[^<\u0600-\u06FF]*[^<]+<\/h1>/);
   }
-  assert.ok(readDoc("apps/web/src/landing.ts").includes('["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)'));
+  assert.ok(readDoc("src/landing.ts").includes('["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)'));
 });
