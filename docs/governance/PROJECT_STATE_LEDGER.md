@@ -808,3 +808,17 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** new `apps/web/e2e/workspace-window-tabs-v26.mjs` (contract `cubi-window-tabs-v26.v1`) drives the real preview through headless Chrome for 11 scenarios: default tabs, duplicate-open suppression, switching, third window plus non-active close, keyboard reorder with reload persistence, pointer drag reorder, dirty confirm/cancel and confirm/accept, last-window guard, restored set/order/active window, Persian RTL at 1280×720, and a no-write check. Evidence `docs/workspace/evidence/workspace-window-tabs-v26-2026-11-13/` records 11/11 passed at `0121d9d1`, zero exceptions/console errors/5xx, and `writes` limited to three `POST /api/projects/preview-rps-01/open` session handshakes. `apps/web` `npm test` = **1027 + 14 passed**.
 - **Boundary:** tab management is presentation and browser-local (`cubi:workspace-windows`, `cubi:workspace-window-order`); it issues no schedule or project write and adds no permission. Help's "project-level windows close when all open projects close" has no project-close action in this single-project workspace, so that rule stays a documented gap.
 - **Docs:** matrix WS-004 row moved from NOT_AUDITED to WIRED_WRITE and a §2.1 evidence row added (Help topic `using_main_windows.htm`).
+
+## REL-001 relationship lifecycle and rejection feedback — 2026-11-13
+
+- **Finding:** the Logic / Relationships panel was audited in the real browser for the first time. Creation, revision-guarded edit and delete already persisted through `p6-relationship-api.v1`, but a submit with the same activity twice returned silently (a lost click), and a delete button removed a scheduling constraint with no confirmation, unlike the Gantt arrow menu.
+- **Fix (code `cdf27afb`):** invalid relationship input now renders a localized `[data-relationship-error]` notice in `#cp-logic`; only a genuine server rejection reaches `reportRelationshipError`. Deleting a row asks `relationshipDeleteConfirm` first and restores focus on cancel.
+- **Tests:** new `apps/web/e2e/relationships-v26.mjs` (contract `cubi-relationships-v26.v1`) — 11/11 at `cdf27afb`: persisted list with pair/type/lag/revision, self-link notice, SS create with lag 2, reload persistence, edit to FF lag 3 with a higher record revision, Details Predecessors/Successors, delete cancel then accept, duplicate rejection, deleted row staying gone, viewer denial (`AUTHORIZATION_PERMISSION_DENIED`, no row), and only the two intentional rejection messages in the console. Evidence `docs/workspace/evidence/relationships-v26-2026-11-13/`. `apps/web` `npm test` = 1027 + 14 passed.
+- **Boundary:** the Help's Details `Assign`/`Remove` path stays disabled with a reason; relationships are created from the Logic panel. No external/other-project relationship, comments, lag-calendar selector or predecessor/successor window.
+- **Docs:** matrix REL-001 moved from NOT_AUDITED to WIRED_WRITE and a §2.1 row added (Help `add_predecessor_relationships.htm`, `linkingactivitieswithrelationships.htm`).
+
+## Merge record — 2026-11-13
+
+- SEC-017 stable route error codes merged as `194aba33` (PR #1908); post-merge `pytest tests` = 4101 passed / 176 skipped, `pytest tests/integration` = 254 passed / 107 skipped, `apps/web npm test` = 1027 + 14 passed on that main.
+- WS-004 window tabs merged as `0f321303` (PR #1909) on top of `194aba33`; all 8 required checks green on `6dc9d251`, and the same suites pass on the merged main.
+- Branch `rel-001-relationship-lifecycle` carries the REL-001 increment.
