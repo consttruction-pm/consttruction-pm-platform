@@ -1,0 +1,154 @@
+{
+  "contract": "cubi-activity-filters-v26.v2",
+  "baseUrl": "http://127.0.0.1:4226",
+  "gitHead": "d9452209ac3b30cc397fd115f54812cbe7bed7a7",
+  "testedCodeSha": "d9452209ac3b30cc397fd115f54812cbe7bed7a7",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T04:10:36.024Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the manager and editor expose the version 26 surfaces",
+      "status": "pass",
+      "at": "2026-11-13T04:10:38.770Z",
+      "rows": 2,
+      "actions": [
+        "apply",
+        "delete",
+        "copy",
+        "duplicate",
+        "paste",
+        "make-global",
+        "copy-as-layout"
+      ],
+      "groups": [
+        "default",
+        "global",
+        "layout",
+        "user"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the editor validates typed and relative dates before Apply",
+      "status": "pass",
+      "at": "2026-11-13T04:10:39.552Z",
+      "matched": 9,
+      "total": 14,
+      "text": "9 of 14 activities match."
+    },
+    {
+      "id": "03",
+      "name": "Add and the High value column save a compound lookahead filter",
+      "status": "pass",
+      "at": "2026-11-13T04:10:42.198Z",
+      "matched": 1,
+      "rows": 1
+    },
+    {
+      "id": "04",
+      "name": "the saved filter and its result survive a full reload",
+      "status": "pass",
+      "at": "2026-11-13T04:10:44.114Z",
+      "rows": 1,
+      "saved": [
+        "in progress",
+        "not started",
+        "completed",
+        "critical",
+        "non critical",
+        "negative float",
+        "milestone",
+        "six-week lookahead"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Any selected filter highlights instead of removing rows",
+      "status": "pass",
+      "at": "2026-11-13T04:10:45.620Z",
+      "rows": 14,
+      "matched": 7
+    },
+    {
+      "id": "06",
+      "name": "All Activities clears the filter and the highlight",
+      "status": "pass",
+      "at": "2026-11-13T04:10:47.084Z",
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "criterion rows renumber when moved and deleted",
+      "status": "pass",
+      "at": "2026-11-13T04:10:48.641Z",
+      "rows": 3,
+      "saved": 8
+    },
+    {
+      "id": "08",
+      "name": "the editor renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-13T04:10:51.400Z",
+      "dir": "rtl",
+      "matched": 7,
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "the dialog fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-13T04:10:53.668Z",
+      "rows": 2,
+      "overflow": 0
+    },
+    {
+      "id": "10",
+      "name": "list parameters use a typed picker and the saved choice reloads",
+      "status": "pass",
+      "at": "2026-11-13T04:10:59.567Z",
+      "matched": 1,
+      "rows": 1,
+      "saved": 9
+    },
+    {
+      "id": "11",
+      "name": "Optimize removes duplicate and implied criteria without changing matches",
+      "status": "pass",
+      "at": "2026-11-13T04:11:02.299Z",
+      "before": 1,
+      "after": 1,
+      "optimizeStatus": "Removed 1 redundant criteria.",
+      "clean": "No redundant criteria found."
+    },
+    {
+      "id": "12",
+      "name": "Duplicate stores a second filter and keeps the original",
+      "status": "pass",
+      "at": "2026-11-13T04:11:05.366Z",
+      "before": 9,
+      "after": 10,
+      "checked": [
+        "custom:six-week-lookahead-copy"
+      ]
+    }
+  ],
+  "screenshots": [
+    "01-filters-dialog-en-1366.png",
+    "02-filter-preview-en-1366.png",
+    "03-saved-lookahead-en-1366.png",
+    "04-filter-after-reload-en-1366.png",
+    "05-highlight-critical-in-progress-en-1366.png",
+    "06-filters-dialog-fa-rtl-1280.png",
+    "07-filters-dialog-en-1920.png",
+    "08-filter-choice-picker-en-1366.png",
+    "09-filter-choice-reload-en-1366.png",
+    "10-filter-optimize-en-1366.png",
+    "11-filter-duplicate-en-1366.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 12,
+  "failed": 0
+}
