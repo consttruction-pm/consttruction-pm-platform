@@ -138,6 +138,18 @@ def _json_response(start_response, status: int, payload: dict[str, object]):
     return [body]
 
 
+def _replace_session_cookie(raw_cookie: str, token: str) -> str:
+    """Replace any presented session cookie; duplicates would shadow the new one."""
+
+    remaining = [
+        item.strip()
+        for item in raw_cookie.split(";")
+        if item.strip() and not item.strip().startswith(SESSION_COOKIE + "=")
+    ]
+    prefix = f"{SESSION_COOKIE}={token}"
+    return "; ".join([prefix, *remaining]) if remaining else prefix
+
+
 class VercelPreviewApplication:
     """WSGI wrapper that keeps a demo session on every preview request.
 
@@ -189,9 +201,8 @@ class VercelPreviewApplication:
         if token and self.runtime.sessions.get(token) is not None:
             return None
         session = self.runtime.sessions.create(self.user)
-        existing = str(environ.get("HTTP_COOKIE", "") or "")
-        environ["HTTP_COOKIE"] = f"{SESSION_COOKIE}={session.session_id}" + (
-            f"; {existing}" if existing else ""
+        environ["HTTP_COOKIE"] = _replace_session_cookie(
+            str(environ.get("HTTP_COOKIE", "") or ""), session.session_id
         )
         return _cookie_header(session, secure=self.secure_cookies)[1]
 

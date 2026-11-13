@@ -276,3 +276,17 @@ def test_fixture_runtime_serves_the_riverside_workspace(tmp_path):
     assert int(str(captured["status"]).split()[0]) == 200
     workspace = json.loads(payload)["workspace"]
     assert len(workspace["activities"]) > 0
+
+
+def test_unknown_cookie_is_replaced_not_appended():
+    runtime = _Runtime()
+    app = vercel_preview.VercelPreviewApplication(_echo, runtime)
+    status, headers, body = _call(
+        app, "GET", "/api", "__path=projects", cookie="cp_session=stale; theme=dark"
+    )
+    assert status == 200
+    forwarded = json.loads(body)["cookie"]
+    assert forwarded.count("cp_session=") == 1
+    assert "cp_session=token-1" in forwarded
+    assert "theme=dark" in forwarded
+    assert headers["set-cookie"].startswith("cp_session=token-1")
