@@ -5,7 +5,7 @@ This document describes the real production path, not the local preview:
 ```
 Browser
   → Vercel domain (cubi-web-preview)
-  → Vercel Python function (api/index.py, api/shell.py)
+  → Vercel Python function (api/index.py, api/shell.py in the project root)
   → construction_pm.deployment.ProductionRuntime
   → PostgreSQL (identity, sessions, projects, workspace data)
 ```
@@ -50,21 +50,45 @@ the browser (generic `500 INTERNAL_ERROR`).
 
 ## Vercel project configuration
 
-- Root directory: repository root.
-- Framework preset: none (`"framework": null`).
-- Install command: `npm --prefix apps/web ci --no-audit --no-fund`.
-- Build command: `bash scripts/vercel_build.sh` (builds the Web bundle and
-  assembles `public/`).
-- Output directory: `public`.
-- Functions: `api/index.py` (python3.12, 1024 MB, 30 s) and `api/shell.py`
-  (python3.12, 512 MB, 15 s), both with `src/**` and `requirements.txt`
-  included.
-- Rewrites, headers and ignored paths: `vercel.json`, `.vercelignore`.
-- Python dependencies: root `requirements.txt` (`psycopg[binary]`).
+The deployed project is `cubi-web-preview` (`prj_E1psnPyPs9doA82oZ4OcmiIqarle`).
+Vercel reports its **root directory as `apps/web`**, so the project only reads
+configuration and functions inside that directory. Two equivalent entrypoint
+layouts exist in the repository:
 
-The rewrites map `/api/:path*` to `/api/index?__path=:path*`; the WSGI entry
-restores `PATH_INFO` before dispatch. `/app` is rewritten to `/api/shell`,
-which forces `PATH_INFO=/app` and runs the same production app.
+| Layout | Used when | Files |
+| --- | --- | --- |
+| Project root = repository root | a project is created with no root directory | `vercel.json`, `api/index.py`, `api/shell.py`; build `scripts/vercel_build.sh`, output `public/` |
+| Project root = `apps/web` (the live project) | Vercel project rooted at `apps/web` | `apps/web/vercel.json`, `apps/web/api/index.py`, `apps/web/api/shell.py`; build `apps/web/scripts/vercel-project-build.mjs`, output `apps/web/vercel-site/` |
+
+In the live layout the build:
+
+1. runs `npm run build` for the TypeScript client;
+2. assembles the same public site the Pages workflow validates
+   (`scripts/assemble-pages-site.mjs`), with `SITE_BASE_URL` defaulting to
+   `https://$VERCEL_PROJECT_PRODUCTION_URL`, and deliberately **without**
+   `CUBI_WORKSPACE_URL`, so `/app` is never redirected to Render;
+3. removes the static `app/` mirror so `/app` always reaches the gate;
+4. copies the login document into the static output;
+5. stages an unmodified copy of the repository `src/` into
+   `apps/web/vercel-runtime/src`, which the functions import (the project root
+   cannot see `../../src` at function packaging time).
+
+`includeFiles` is a single glob (`vercel-runtime/**`): the Vercel schema types
+it as a string, and an array makes the whole configuration invalid.
+
+Python dependencies come from `apps/web/requirements.txt` (`psycopg[binary]`).
+Per-function `memory`/`maxDuration` are intentionally not set; plan defaults
+apply.
+
+The rewrites map `/api/:path*` to `/api?__path=:path*`; the WSGI entry restores
+`PATH_INFO` before dispatch. `/app`, `/app/` and `/app.html` are rewritten to
+`/api/shell`, which forces `PATH_INFO=/app` and runs the same production app.
+`/login` is the static sign-in document.
+
+If the runtime configuration is missing, liveness still answers
+`{"status":"ok"}`; readiness, login and `/app` answer
+`503 CONFIGURATION_REQUIRED`. This is deliberate: the function is observable
+without ever faking a session or serving workspace HTML.
 
 ## First-run provisioning
 
@@ -114,14 +138,15 @@ The password must be at least 12 characters. It is hashed with scrypt
 
 ## Verification (what was actually run)
 
-Nothing below is a Vercel-gateway claim. See the status note at the end.
-
 | Layer | Command | Result |
 | --- | --- | --- |
 | Python unit (identity) | `PYTHONPATH=src python -m pytest tests/test_production_identity_session.py` | 21 passed |
-| Python unit (HTTP boundary) | `PYTHONPATH=src python -m pytest tests/test_production_web_app.py` | 25 passed |
-| Live PostgreSQL, real WSGI | `CONSTRUCTION_PM_POSTGRES_DSN=… PYTHONPATH=src python -m pytest tests/integration/test_production_login_postgres_live.py` | 10 passed (login, session, projects, open, workspace v2, refresh, logout, viewer/planner/admin, cross-tenant, stale revision, 429) |
+| Python unit (HTTP boundary) | `PYTHONPATH=src python -m pytest tests/test_production_web_app.py` | 26 passed |
+| Python unit (Vercel entrypoints) | `PYTHONPATH=src python -m pytest tests/test_vercel_entrypoints.py` | 6 passed |
+| Full Python suite | `PYTHONPATH=src python -m pytest -q tests` | 4176 passed, 188 skipped |
+| Live PostgreSQL, real WSGI | `CONSTRUCTION_PM_POSTGRES_DSN=… PYTHONPATH=src python -m pytest tests/integration/test_production_login_postgres_live.py` | 10 passed, repeated twice against the same database |
 | Browser (headless Chrome) | `CONSTRUCTION_PM_POSTGRES_DSN=… node apps/web/e2e/production-login-e2e.mjs` | 10 checks, 3 screenshots, zero exceptions/console errors/5xx |
+| Vercel build (real gateway) | push `e8999339` to `feat/production-vercel-login` | `Vercel – cubi-web-preview` **success**; preview alias issued |
 
 The browser run drives the exact WSGI callable exported by `api/index.py`
 (`apps/web/e2e/production-login-server.py` composes `ProductionRuntime`) and
@@ -131,19 +156,53 @@ refresh continuity, 1280×720 and 1366×768 renders, logout revocation,
 post-logout rejection, Persian RTL login. Evidence JSON is written to
 `apps/web/e2e/artifacts/production-login-e2e.json`.
 
+The staged `apps/web/vercel-runtime` layout was additionally driven directly
+over WSGI against PostgreSQL: `/api/health/live` 200, `/api/health/ready` 200
+with `database` healthy, anonymous `/app` `302 /login?next=/app`, real login
+200, `GET /api/session` 200, `GET /api/projects` 200 with the authorized
+project, and `/app` 200 with the shell HTML.
+
 ## Deployment status and the remaining external input
 
-The existing Vercel deployments (`cubi-web-preview.vercel.app` and the
-immutable `…-qkm0lkylp-…` URL) still serve only the static bundle: `/api/*`
-returns 404, so no login is possible there yet. This repository now contains the
-complete runtime, configuration and tests, but publishing requires one of:
+Observed on the Vercel preview origin
+`https://cubi-web-preview-git-feat-producti-c31a74-foroughichamshir-7811.vercel.app`
+on 2026-11-13 16:54 UTC (commit `e8999339`):
 
-1. Vercel access for this project (a token or dashboard/CLI session), or
-2. a Git integration that redeploys `main` automatically, plus
-3. a reachable PostgreSQL instance and its DSN, and
-4. the first production user's password (entered through provisioning, never
-   shared in Git or chat).
+| Request | Response |
+| --- | --- |
+| `GET /` | 200 HTML (landing page) |
+| `GET /login` | 200 HTML, title `CUBI Workspace — Sign in`, bilingual form present |
+| `GET /app` | 503 configuration page (gate reached, not faked) |
+| `GET /api/health/live` | 200 `{"status":"ok"}` |
+| `GET /api/health/ready` | 503 `{"status":"not_ready","code":"CONFIGURATION_REQUIRED"}` |
+| `POST /api/session` | 503 `CONFIGURATION_REQUIRED` |
+| `GET /dist/web/src/main.bundle.js` | 200 JavaScript |
 
-Until a deployment built from this branch serves `POST /api/session` and a real
-login succeeds **on the Vercel domain**, LIF-06 remains unverified at the
-gateway level and must be reported as `BLOCKED_EXTERNAL`, not `VERIFIED`.
+The Python function is deployed and reachable through the Vercel gateway. It
+cannot authenticate anyone yet because the project has no runtime environment
+variables. The complete and exact input needed is:
+
+1. **A reachable PostgreSQL database** and its DSN in
+   `CONSTRUCTION_PM_DATABASE_URL` (Vercel Postgres / Neon / Supabase pooled
+   endpoint, or any reachable PostgreSQL 12+).
+2. `CONSTRUCTION_PM_SESSION_SECRET` — at least 32 random characters
+   (e.g. `python -c "import secrets;print(secrets.token_urlsafe(48))"`).
+3. `CONSTRUCTION_PM_PUBLIC_ORIGIN=https://cubi-web-preview.vercel.app`
+   (and the preview origin if preview login is wanted).
+4. The first real user's password, passed to `scripts/provision_workspace.py`
+   on stdin; it is hashed locally and never stored in Git or chat.
+
+Set these for the project (Production scope; Preview too if preview data is
+intended), redeploy, then provision the user and project. No code change is
+required after that: `/api/health/ready` becomes 200 and login works on the
+same domain.
+
+The other two Vercel projects connected to this repository
+(`consttruction-pm-platform-public`, `consttruction-pm-platform-web`) report
+`There is no GitHub account connected to this Vercel account.` on every
+deployment, including main. That failure is pre-existing account/project state,
+is unrelated to this code, and is not used by the CUBI workspace path.
+
+Until the environment above is provided and a real login succeeds **on the
+Vercel domain**, LIF-06 stays `BLOCKED_EXTERNAL`, not `VERIFIED`. Render is not
+used, is not a fallback, and is not referenced by the Vercel build.
