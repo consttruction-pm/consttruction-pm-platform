@@ -222,6 +222,22 @@ class KnowledgeStore(Protocol):
         self, tenant_id: str, project_id: str
     ) -> dict[str, object] | None: ...
 
+    def record_request(
+        self,
+        *,
+        tenant_id: str,
+        user_id: str,
+        workflow_key: str,
+        request_key: str,
+        fingerprint: str,
+        run_id: str,
+        occurred_at: str,
+    ) -> None: ...
+
+    def get_request(
+        self, *, tenant_id: str, user_id: str, workflow_key: str, request_key: str
+    ) -> dict[str, object] | None: ...
+
     def save_workflow(
         self, run: Mapping[str, object], *, expected_version: int | None = None
     ) -> None: ...

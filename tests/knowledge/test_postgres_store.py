@@ -36,6 +36,7 @@ from construction_pm.knowledge.model import (
     legacy_card_id_for,
 )
 from construction_pm.knowledge.postgres_store import PostgresKnowledgeStore
+from construction_pm.knowledge.sqlite_store import SCHEMA_VERSION
 
 
 def _dsn() -> str:
@@ -123,12 +124,12 @@ def _translation(card_id: str, locale: str = "fa", *, version: int = 1) -> Trans
 
 
 def test_schema_v3_is_created_and_repeated_migration_is_safe(store, connection) -> None:
-    assert store.migrate() == 3
-    assert store.migrate() == 3
+    assert store.migrate() == SCHEMA_VERSION
+    assert store.migrate() == SCHEMA_VERSION
     rows = connection.execute(
         "SELECT version FROM knowledge_schema_migration ORDER BY version"
     ).fetchall()
-    assert [int(row[0]) for row in rows] == [3]
+    assert [int(row[0]) for row in rows] == [SCHEMA_VERSION]
     tables = set(store.table_names())
     for name in (
         "knowledge_card",
@@ -309,7 +310,7 @@ def test_workflow_optimistic_locking_and_tenant_isolation(store) -> None:
         "tenant_id": "tenant-1",
         "project_id": "organization",
         "user_id": "admin-1",
-        "workflow_key": "project_creation",
+        "workflow_key": "project.creation",
         "status": "active",
         "current_step": "organization",
         "state": {"steps": {}, "request_key": "req-1"},
@@ -328,6 +329,56 @@ def test_workflow_optimistic_locking_and_tenant_isolation(store) -> None:
 
     assert store.get_workflow("tenant-1", "organization", "WF-pg-1")["version"] == 2
     assert store.get_workflow("tenant-2", "organization", "WF-pg-1") is None
+
+
+def test_request_index_is_unique_and_durable_metadata_matches(store) -> None:
+    store.record_request(
+        tenant_id="tenant-1",
+        user_id="admin-1",
+        workflow_key="project.creation",
+        request_key="req-1",
+        fingerprint="fp-1",
+        run_id="WF-1",
+        occurred_at="2026-02-01T00:00:00+00:00",
+    )
+    record = store.get_request(
+        tenant_id="tenant-1",
+        user_id="admin-1",
+        workflow_key="project.creation",
+        request_key="req-1",
+    )
+    assert (record["run_id"], record["fingerprint"]) == ("WF-1", "fp-1")
+
+    # Re-recording the same binding is a no-op, a different payload is a conflict.
+    store.record_request(
+        tenant_id="tenant-1",
+        user_id="admin-1",
+        workflow_key="project.creation",
+        request_key="req-1",
+        fingerprint="fp-1",
+        run_id="WF-1",
+        occurred_at="2026-02-01T00:00:00+00:00",
+    )
+    with pytest.raises(KnowledgeError, match="WORKFLOW_IDEMPOTENCY_CONFLICT"):
+        store.record_request(
+            tenant_id="tenant-1",
+            user_id="admin-1",
+            workflow_key="project.creation",
+            request_key="req-1",
+            fingerprint="fp-2",
+            run_id="WF-2",
+            occurred_at="2026-02-01T00:00:00+00:00",
+        )
+
+    # The database, not only the application, enforces one run per key.
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        with store._transaction() as connection:
+            connection.execute(
+                "INSERT INTO assistant_request(tenant_id, user_id, workflow_key, "
+                "request_key, fingerprint, run_id, created_at) VALUES "
+                "('tenant-1', 'admin-1', 'project.creation', 'req-1', 'fp-9', "
+                "'WF-9', 'now')"
+            )
 
 
 def test_project_scoped_cards_and_knowledge_are_tenant_isolated(
@@ -502,7 +553,7 @@ def test_v2_database_migrates_to_v3_without_losing_records(
     ).fetchall()
     assert len(before_cards) == 1030
 
-    assert store.migrate() == 3
+    assert store.migrate() == SCHEMA_VERSION
 
     counts = {
         "cards": connection.execute("SELECT COUNT(*) FROM knowledge_card").fetchone()[0],

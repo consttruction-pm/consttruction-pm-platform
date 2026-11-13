@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from construction_pm.knowledge.sqlite_store import SqliteKnowledgeStore
+from construction_pm.knowledge.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 
 TOOL = Path(__file__).resolve().parents[2] / "tools" / "knowledge_inventory.py"
 
@@ -36,7 +36,7 @@ def test_inventory_reports_validation_separately_from_publication(
     # reads the publication map for "validated" silently reports zero.
     assert cards["by_validation_status"] == {"validated": 2}
     assert cards["validated"] == 2
-    assert measured["database"]["schema_version"] == 3
+    assert measured["database"]["schema_version"] == SCHEMA_VERSION
 
 
 def test_inventory_measurement_does_not_modify_the_database(

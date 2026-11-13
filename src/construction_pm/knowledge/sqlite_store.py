@@ -33,7 +33,7 @@ from .model import (
     topic_id_for,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SCHEMA = (
     """
@@ -301,6 +301,18 @@ _SCHEMA = (
         snapshot_json TEXT NOT NULL,
         recorded_at TEXT NOT NULL,
         PRIMARY KEY (card_id, locale, translation_version)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS assistant_request (
+        tenant_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        workflow_key TEXT NOT NULL,
+        request_key TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        run_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, user_id, workflow_key, request_key)
     )
     """,
     """
@@ -1623,6 +1635,64 @@ class SqliteKnowledgeStore:
         row = self._connection.execute(
             "SELECT * FROM project_org_binding WHERE tenant_id=? AND project_id=?",
             (tenant_id, project_id),
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    # -- request idempotency ---------------------------------------------
+    def record_request(
+        self,
+        *,
+        tenant_id: str,
+        user_id: str,
+        workflow_key: str,
+        request_key: str,
+        fingerprint: str,
+        run_id: str,
+        occurred_at: str,
+    ) -> None:
+        """Bind one request key to the run that served it.
+
+        The primary key is the database-level guarantee that a key maps to a
+        single run; the fingerprint check is the guarantee that a different
+        payload cannot silently reuse that run.
+        """
+
+        for name, value in (
+            ("tenant_id", tenant_id),
+            ("user_id", user_id),
+            ("workflow_key", workflow_key),
+            ("request_key", request_key),
+            ("fingerprint", fingerprint),
+            ("run_id", run_id),
+        ):
+            text(value, f"ASSISTANT_REQUEST_{name.upper()}_INVALID", maximum=256)
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO assistant_request(
+                    tenant_id, user_id, workflow_key, request_key,
+                    fingerprint, run_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (tenant_id, user_id, workflow_key, request_key, fingerprint, run_id, occurred_at),
+            )
+            row = connection.execute(
+                "SELECT fingerprint, run_id FROM assistant_request "
+                "WHERE tenant_id=? AND user_id=? AND workflow_key=? AND request_key=?",
+                (tenant_id, user_id, workflow_key, request_key),
+            ).fetchone()
+        if row is None:
+            raise KnowledgeError("ASSISTANT_REQUEST_NOT_RECORDED")
+        if str(row["fingerprint"]) != fingerprint or str(row["run_id"]) != run_id:
+            raise KnowledgeError("WORKFLOW_IDEMPOTENCY_CONFLICT")
+
+    def get_request(
+        self, *, tenant_id: str, user_id: str, workflow_key: str, request_key: str
+    ) -> dict[str, object] | None:
+        row = self._connection.execute(
+            "SELECT * FROM assistant_request "
+            "WHERE tenant_id=? AND user_id=? AND workflow_key=? AND request_key=?",
+            (tenant_id, user_id, workflow_key, request_key),
         ).fetchone()
         return None if row is None else dict(row)
 

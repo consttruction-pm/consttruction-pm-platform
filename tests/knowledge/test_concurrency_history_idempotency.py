@@ -334,6 +334,54 @@ def test_request_key_survives_store_restart(tmp_path) -> None:
         reopened.close()
 
 
+def test_request_key_stays_replayable_beyond_the_recent_run_window(api) -> None:
+    """The durable request index, not a recent-run scan, resolves old keys."""
+
+    actor = AssistantPrincipal(
+        "admin-1", "tenant-1", frozenset({"project_admin"})
+    ).workflow_principal()
+    first = api.workflows.start(actor, request_key="old-key")
+    for index in range(60):
+        api.workflows.start(actor, request_key=f"filler-{index}")
+
+    replay = api.workflows.start(actor, request_key="old-key")
+    assert replay.run_id == first.run_id
+    with pytest.raises(ProjectWorkflowError, match="WORKFLOW_IDEMPOTENCY_CONFLICT"):
+        api.workflows.start(actor, request_key="old-key", locale="de")
+
+    stored = api.store.get_request(
+        tenant_id="tenant-1",
+        user_id="admin-1",
+        workflow_key="project.creation",
+        request_key="old-key",
+    )
+    assert stored["run_id"] == first.run_id
+
+
+def test_request_index_rejects_a_second_run_for_the_same_key(api) -> None:
+    import sqlite3
+
+    actor = AssistantPrincipal(
+        "admin-1", "tenant-1", frozenset({"project_admin"})
+    ).workflow_principal()
+    started = api.workflows.start(actor, request_key="unique-1")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        api.store._connection.execute(
+            "INSERT INTO assistant_request(tenant_id, user_id, workflow_key, "
+            "request_key, fingerprint, run_id, created_at) VALUES "
+            "('tenant-1', 'admin-1', 'project.creation', 'unique-1', 'f', 'WF-other', 'now')"
+        )
+
+    assert api.store.get_request(
+        tenant_id="tenant-1",
+        user_id="admin-1",
+        workflow_key="project.creation",
+        request_key="unique-1",
+    )["run_id"] == started.run_id
+    api.store._connection.rollback()
+
+
 # -- A5: stable card identity ----------------------------------------------
 
 

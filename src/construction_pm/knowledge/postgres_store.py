@@ -335,6 +335,18 @@ _PG_SCHEMA: tuple[str, ...] = (
     CREATE INDEX IF NOT EXISTS idx_assistant_workflow_scope
         ON assistant_workflow(tenant_id, project_id, user_id, status)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS assistant_request (
+        tenant_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        workflow_key TEXT NOT NULL,
+        request_key TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        run_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, user_id, workflow_key, request_key)
+    )
+    """,
     _AUDIT_TRIGGER,
     "DROP TRIGGER IF EXISTS knowledge_audit_no_update ON knowledge_audit",
     "DROP TRIGGER IF EXISTS knowledge_audit_no_delete ON knowledge_audit",
