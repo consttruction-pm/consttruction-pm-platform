@@ -264,7 +264,7 @@ test("About Us is a first-class bilingual public route with approved founder fac
   for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
     assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
   }
-  assert.ok(landing.includes('publicPageHref("about")'));
+  assert.ok(landing.includes('aboutPageHref'));
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
