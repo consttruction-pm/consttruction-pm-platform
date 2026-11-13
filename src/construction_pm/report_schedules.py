@@ -329,6 +329,7 @@ class ReportScheduleStore(Protocol):
         lease_seconds: int,
         limit: int,
     ) -> tuple[ScheduleClaim, ...]: ...
+    def commit_claim(self) -> None: ...
     def complete(
         self,
         claim: ScheduleClaim,
@@ -604,6 +605,15 @@ class SQLiteReportScheduleStore:
             )
         return tuple(claims)
 
+    def commit_claim(self) -> None:
+        """Make acquired leases durable before executing them.
+
+        A worker that crashes mid-execution must leave its lease behind so the
+        occurrence cannot be executed twice; the lease therefore has to outlive
+        the execution transaction.
+        """
+        self.connection.commit()
+
     def complete(self, claim, *, run_id, content_sha256, completed_at, next_run_at) -> ReportSchedule:
         schedule = self.get(
             claim.schedule.tenant_id, claim.schedule.project_id,
@@ -727,6 +737,423 @@ class SQLiteReportScheduleStore:
                 occurred_at.isoformat(),
                 reason,
             ),
+        )
+
+
+class PostgresReportScheduleStore:
+    """PostgreSQL twin of :class:`SQLiteReportScheduleStore`.
+
+    Claim, complete and fail use conditional ``UPDATE`` statements so a
+    competing worker can never act on a lease it does not own. The store never
+    commits implicitly; the caller's transaction owns visibility.
+    """
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_report_schedule (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                report_id TEXT NOT NULL,
+                schedule_id TEXT NOT NULL,
+                cadence TEXT NOT NULL,
+                run_time TEXT NOT NULL,
+                weekday INTEGER,
+                day_of_month INTEGER,
+                timezone TEXT NOT NULL,
+                project_revision INTEGER NOT NULL DEFAULT 0,
+                export_format TEXT NOT NULL,
+                locale TEXT NOT NULL,
+                parameters_json TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                revision INTEGER NOT NULL,
+                next_run_at TEXT,
+                last_run_at TEXT,
+                last_status TEXT,
+                last_error TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                claim_token TEXT,
+                claimed_until TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, schedule_id)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE INDEX IF NOT EXISTS project_report_schedule_due
+               ON project_report_schedule (enabled, next_run_at)"""
+        )
+        _ensure_postgres_schedule_column(
+            self.connection, "project_revision", "INTEGER NOT NULL DEFAULT 0"
+        )
+
+    def get(self, tenant_id, project_id, report_id, schedule_id) -> ReportSchedule:
+        row = self.connection.execute(
+            """SELECT tenant_id, project_id, report_id, schedule_id, cadence,
+                      run_time, weekday, day_of_month, timezone, project_revision,
+                      export_format, locale, parameters_json, enabled, revision,
+                      next_run_at, last_run_at, last_status, last_error, attempts,
+                      created_at, updated_at
+               FROM project_report_schedule
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+                 AND schedule_id = %s""",
+            (tenant_id, project_id, report_id, schedule_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("REPORT_SCHEDULE_NOT_FOUND")
+        return _schedule_from_row(row)
+
+    def list(self, tenant_id, project_id, report_id) -> tuple[ReportSchedule, ...]:
+        rows = self.connection.execute(
+            """SELECT tenant_id, project_id, report_id, schedule_id, cadence,
+                      run_time, weekday, day_of_month, timezone, project_revision,
+                      export_format, locale, parameters_json, enabled, revision,
+                      next_run_at, last_run_at, last_status, last_error, attempts,
+                      created_at, updated_at
+               FROM project_report_schedule
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+               ORDER BY schedule_id""",
+            (tenant_id, project_id, report_id),
+        ).fetchall()
+        return tuple(_schedule_from_row(row) for row in rows)
+
+    def create(self, schedule, *, actor_id, occurred_at) -> ReportSchedule:
+        schedule.validate()
+        _validate_actor(actor_id)
+        if schedule.enabled and schedule.next_run_at is None:
+            raise ReportScheduleError("INVALID_REPORT_SCHEDULE_NEXT_RUN")
+        existing = self.connection.execute(
+            """SELECT 1 FROM project_report_schedule
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s""",
+            (schedule.tenant_id, schedule.project_id, schedule.schedule_id),
+        ).fetchone()
+        if existing is not None:
+            raise ReportScheduleError("REPORT_SCHEDULE_ALREADY_EXISTS")
+        now = occurred_at.astimezone(timezone.utc).isoformat()
+        try:
+            self.connection.execute(
+                """INSERT INTO project_report_schedule
+                   (tenant_id, project_id, report_id, schedule_id, cadence, run_time,
+                    weekday, day_of_month, timezone, project_revision, export_format,
+                    locale, parameters_json, enabled, revision, next_run_at,
+                    last_run_at, last_status, last_error, attempts, created_at,
+                    updated_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           %s, %s, %s, NULL, NULL, NULL, 0, %s, %s)""",
+                (
+                    schedule.tenant_id,
+                    schedule.project_id,
+                    schedule.report_id,
+                    schedule.schedule_id,
+                    schedule.cadence,
+                    schedule.run_time,
+                    schedule.weekday,
+                    schedule.day_of_month,
+                    schedule.timezone,
+                    schedule.project_revision,
+                    schedule.export_format,
+                    schedule.locale,
+                    json.dumps(dict(schedule.parameters), ensure_ascii=False, sort_keys=True),
+                    1 if schedule.enabled else 0,
+                    1,
+                    _iso(schedule.next_run_at),
+                    now,
+                    now,
+                ),
+            )
+        except Exception as exc:
+            if _is_schedule_unique_violation(exc):
+                raise ReportScheduleError("REPORT_SCHEDULE_ALREADY_EXISTS") from exc
+            raise
+        self._audit(schedule, "created", actor_id, occurred_at, "")
+        return self.get(
+            schedule.tenant_id, schedule.project_id, schedule.report_id,
+            schedule.schedule_id,
+        )
+
+    def update(self, schedule, *, expected_revision, actor_id, occurred_at) -> ReportSchedule:
+        schedule.validate()
+        _validate_actor(actor_id)
+        current = self.get(
+            schedule.tenant_id, schedule.project_id, schedule.report_id,
+            schedule.schedule_id,
+        )
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ReportScheduleError("INVALID_EXPECTED_REPORT_SCHEDULE_REVISION")
+        if current.revision != expected_revision:
+            raise ReportScheduleRevisionConflict("REPORT_SCHEDULE_REVISION_CONFLICT")
+        new_revision = current.revision + 1
+        now = occurred_at.astimezone(timezone.utc).isoformat()
+        cursor = self.connection.execute(
+            """UPDATE project_report_schedule
+               SET cadence = %s, run_time = %s, weekday = %s, day_of_month = %s,
+                   timezone = %s, project_revision = %s, export_format = %s,
+                   locale = %s, parameters_json = %s, enabled = %s, revision = %s,
+                   next_run_at = %s, updated_at = %s
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s
+                 AND revision = %s""",
+            (
+                schedule.cadence,
+                schedule.run_time,
+                schedule.weekday,
+                schedule.day_of_month,
+                schedule.timezone,
+                schedule.project_revision,
+                schedule.export_format,
+                schedule.locale,
+                json.dumps(dict(schedule.parameters), ensure_ascii=False, sort_keys=True),
+                1 if schedule.enabled else 0,
+                new_revision,
+                _iso(schedule.next_run_at),
+                now,
+                schedule.tenant_id,
+                schedule.project_id,
+                schedule.schedule_id,
+                expected_revision,
+            ),
+        )
+        if cursor.rowcount != 1:
+            # A competing writer advanced the row between our read and write.
+            raise ReportScheduleRevisionConflict("REPORT_SCHEDULE_REVISION_CONFLICT")
+        self._audit(schedule, "updated", actor_id, occurred_at, "")
+        return self.get(
+            schedule.tenant_id, schedule.project_id, schedule.report_id,
+            schedule.schedule_id,
+        )
+
+    def delete(self, *, tenant_id, project_id, report_id, schedule_id, expected_revision, actor_id, occurred_at) -> None:
+        _validate_actor(actor_id)
+        current = self.get(tenant_id, project_id, report_id, schedule_id)
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ReportScheduleError("INVALID_EXPECTED_REPORT_SCHEDULE_REVISION")
+        if current.revision != expected_revision:
+            raise ReportScheduleRevisionConflict("REPORT_SCHEDULE_REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            """DELETE FROM project_report_schedule
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s
+                 AND revision = %s""",
+            (tenant_id, project_id, schedule_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            raise ReportScheduleRevisionConflict("REPORT_SCHEDULE_REVISION_CONFLICT")
+        self._audit(current, "deleted", actor_id, occurred_at, "")
+
+    def claim_due(self, *, now, worker_id, lease_seconds, limit) -> tuple[ScheduleClaim, ...]:
+        if now.tzinfo is None:
+            raise ReportScheduleError("INVALID_REPORT_SCHEDULE_NOW")
+        if not isinstance(worker_id, str) or not worker_id.strip():
+            raise ReportScheduleError("INVALID_REPORT_SCHEDULE_WORKER")
+        if lease_seconds <= 0 or limit <= 0:
+            raise ReportScheduleError("INVALID_REPORT_SCHEDULE_CLAIM")
+        now_text = now.astimezone(timezone.utc).isoformat()
+        claimed_until = now + timedelta(seconds=lease_seconds)
+        rows = self.connection.execute(
+            """SELECT tenant_id, project_id, report_id, schedule_id, cadence,
+                      run_time, weekday, day_of_month, timezone, project_revision,
+                      export_format, locale, parameters_json, enabled, revision,
+                      next_run_at, last_run_at, last_status, last_error, attempts,
+                      created_at, updated_at
+               FROM project_report_schedule
+               WHERE enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= %s
+                 AND (claim_token IS NULL OR claimed_until IS NULL OR claimed_until <= %s)
+               ORDER BY next_run_at, schedule_id
+               LIMIT %s""",
+            (now_text, now_text, limit),
+        ).fetchall()
+        claims: list[ScheduleClaim] = []
+        for row in rows:
+            schedule = _schedule_from_row(row)
+            token = uuid.uuid4().hex
+            cursor = self.connection.execute(
+                """UPDATE project_report_schedule
+                   SET claim_token = %s, claimed_until = %s
+                   WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s
+                     AND (claim_token IS NULL OR claimed_until IS NULL
+                          OR claimed_until <= %s)""",
+                (
+                    token,
+                    claimed_until.astimezone(timezone.utc).isoformat(),
+                    schedule.tenant_id,
+                    schedule.project_id,
+                    schedule.schedule_id,
+                    now_text,
+                ),
+            )
+            if cursor.rowcount != 1:
+                # Another worker won this occurrence between SELECT and UPDATE.
+                continue
+            claims.append(
+                ScheduleClaim(
+                    schedule=schedule,
+                    scheduled_for=schedule.next_run_at,
+                    claim_token=token,
+                    claimed_until=claimed_until,
+                )
+            )
+        return tuple(claims)
+
+    def commit_claim(self) -> None:
+        """Make acquired leases durable before executing them.
+
+        A worker that crashes mid-execution must leave its lease behind so the
+        occurrence cannot be executed twice; the lease therefore has to outlive
+        the execution transaction.
+        """
+        self.connection.commit()
+
+    def complete(self, claim, *, run_id, content_sha256, completed_at, next_run_at) -> ReportSchedule:
+        schedule = self.get(
+            claim.schedule.tenant_id, claim.schedule.project_id,
+            claim.schedule.report_id, claim.schedule.schedule_id,
+        )
+        self._assert_claim(schedule, claim)
+        now = completed_at.astimezone(timezone.utc).isoformat()
+        cursor = self.connection.execute(
+            """UPDATE project_report_schedule
+               SET last_run_at = %s, last_status = 'succeeded', last_error = NULL,
+                   attempts = 0, next_run_at = %s, claim_token = NULL,
+                   claimed_until = NULL, updated_at = %s
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s
+                 AND claim_token = %s""",
+            (
+                now,
+                _iso(next_run_at),
+                now,
+                schedule.tenant_id,
+                schedule.project_id,
+                schedule.schedule_id,
+                claim.claim_token,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise ReportScheduleError("REPORT_SCHEDULE_CLAIM_LOST")
+        return self.get(
+            schedule.tenant_id, schedule.project_id, schedule.report_id,
+            schedule.schedule_id,
+        )
+
+    def fail(self, claim, *, error, failed_at, next_run_at) -> ReportSchedule:
+        schedule = self.get(
+            claim.schedule.tenant_id, claim.schedule.project_id,
+            claim.schedule.report_id, claim.schedule.schedule_id,
+        )
+        self._assert_claim(schedule, claim)
+        now = failed_at.astimezone(timezone.utc).isoformat()
+        cursor = self.connection.execute(
+            """UPDATE project_report_schedule
+               SET last_run_at = %s, last_status = 'failed', last_error = %s,
+                   attempts = attempts + 1, next_run_at = %s, claim_token = NULL,
+                   claimed_until = NULL, updated_at = %s
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s
+                 AND claim_token = %s""",
+            (
+                now,
+                str(error)[:500],
+                _iso(next_run_at),
+                now,
+                schedule.tenant_id,
+                schedule.project_id,
+                schedule.schedule_id,
+                claim.claim_token,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise ReportScheduleError("REPORT_SCHEDULE_CLAIM_LOST")
+        return self.get(
+            schedule.tenant_id, schedule.project_id, schedule.report_id,
+            schedule.schedule_id,
+        )
+
+    def history(self, tenant_id, project_id, report_id, schedule_id):
+        rows = self.connection.execute(
+            """SELECT entity_type, entity_id, revision, event_type, actor_id,
+                      occurred_at, reason
+               FROM project_report_audit
+               WHERE tenant_id = %s AND project_id = %s
+                 AND entity_type = 'report_schedule' AND entity_id = %s
+               ORDER BY revision""",
+            (tenant_id, project_id, schedule_id),
+        ).fetchall()
+        return tuple(
+            ReportAuditEvent(
+                entity_type=str(row[0]),
+                entity_id=str(row[1]),
+                revision=int(row[2]),
+                event_type=str(row[3]),
+                actor_id=str(row[4]),
+                occurred_at=datetime.fromisoformat(str(row[5])),
+                reason=str(row[6]),
+            )
+            for row in rows
+        )
+
+    def _assert_claim(self, schedule: ReportSchedule, claim: ScheduleClaim) -> None:
+        token = self.connection.execute(
+            """SELECT claim_token, claimed_until FROM project_report_schedule
+               WHERE tenant_id = %s AND project_id = %s AND schedule_id = %s""",
+            (schedule.tenant_id, schedule.project_id, schedule.schedule_id),
+        ).fetchone()
+        if token is None or str(token[0] or "") != claim.claim_token:
+            raise ReportScheduleError("REPORT_SCHEDULE_CLAIM_LOST")
+
+    def _audit(self, schedule, event_type, actor_id, occurred_at, reason):
+        # Append-only audit keyed by the next free revision for this entity, so
+        # a delete/re-create cycle does not collide with earlier history.
+        row = self.connection.execute(
+            """SELECT COALESCE(MAX(revision), 0) + 1
+               FROM project_report_audit
+               WHERE tenant_id = %s AND project_id = %s
+                 AND entity_type = 'report_schedule' AND entity_id = %s""",
+            (schedule.tenant_id, schedule.project_id, schedule.schedule_id),
+        ).fetchone()
+        revision = int(row[0]) if row is not None else 1
+        self.connection.execute(
+            """INSERT INTO project_report_audit
+               (tenant_id, project_id, entity_type, entity_id, revision,
+                event_type, actor_id, occurred_at, reason)
+               VALUES (%s, %s, 'report_schedule', %s, %s, %s, %s, %s, %s)""",
+            (
+                schedule.tenant_id,
+                schedule.project_id,
+                schedule.schedule_id,
+                revision,
+                event_type,
+                actor_id,
+                occurred_at.isoformat(),
+                reason,
+            ),
+        )
+
+
+def _is_schedule_unique_violation(exc: Exception) -> bool:
+    return (
+        getattr(exc, "sqlstate", None) == "23505"
+        or type(exc).__name__ in {"UniqueViolation", "IntegrityError"}
+    )
+
+
+def _ensure_postgres_schedule_column(
+    connection: object, name: str, definition: str
+) -> None:
+    existing = connection.execute(
+        """SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'project_report_schedule' AND column_name = %s""",
+        (name,),
+    ).fetchone()
+    if existing is None:
+        connection.execute(
+            f"ALTER TABLE project_report_schedule ADD COLUMN {name} {definition}"
         )
 
 
@@ -1018,6 +1445,13 @@ class ReportScheduleRunner:
             lease_seconds=self.lease_seconds,
             limit=limit,
         )
+        if claims:
+            # The lease must survive the execution transaction: a nested
+            # rollback (for example an idempotent replay) must not free the
+            # occurrence for a second worker.
+            commit_claim = getattr(self.store, "commit_claim", None)
+            if callable(commit_claim):
+                commit_claim()
         outcomes = tuple(self._execute(claim, now) for claim in claims)
         self._record(outcomes)
         return outcomes
@@ -1141,6 +1575,7 @@ __all__ = [
     "ReportScheduleRunner",
     "ReportScheduleService",
     "ReportScheduleStore",
+    "PostgresReportScheduleStore",
     "SQLiteReportScheduleStore",
     "ScheduleClaim",
     "ScheduleOutcome",

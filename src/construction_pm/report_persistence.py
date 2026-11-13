@@ -667,34 +667,7 @@ class SQLiteReportStore:
 
     # -- runs -------------------------------------------------------------
     def save_run(self, run: ReportRun) -> ReportRun:
-        if run.subject not in REPORT_CATALOGUE:
-            raise ReportPersistenceError("INVALID_REPORT_SUBJECT")
-        if not run.columns or any(column not in {field.key for field in REPORT_CATALOGUE[run.subject]} for column in run.columns):
-            raise ReportPersistenceError("INVALID_REPORT_COLUMNS")
-        if not isinstance(run.generated_at, datetime) or run.generated_at.tzinfo is None:
-            raise ValueError("INVALID_REPORT_GENERATED_AT")
-        _validate_actor(run.generated_by)
-        if run.report_revision < 1 or run.project_revision < 0:
-            raise ReportPersistenceError("INVALID_REPORT_REVISION")
-        for pairs, code in (
-            (run.parameters, "INVALID_REPORT_RUN_PARAMETERS"),
-            (run.parameter_sources, "INVALID_REPORT_RUN_PARAMETER_SOURCES"),
-        ):
-            if not isinstance(pairs, tuple):
-                raise ReportPersistenceError(code)
-            keys = [key for key, _ in pairs]
-            if len(keys) != len(set(keys)) or any(
-                not isinstance(key, str) or not key or not isinstance(value, str)
-                for key, value in pairs
-            ):
-                raise ReportPersistenceError(code)
-        if {key for key, _ in run.parameter_sources} != {
-            key for key, _ in run.parameters
-        } or any(
-            source not in {"explicit", "default"}
-            for _, source in run.parameter_sources
-        ):
-            raise ReportPersistenceError("INVALID_REPORT_RUN_PARAMETER_SOURCES")
+        _validate_run(run)
         existing = self.connection.execute(
             """SELECT 1 FROM project_report_run
                WHERE tenant_id = ? AND project_id = ? AND run_id = ?""",
@@ -815,6 +788,567 @@ class SQLiteReportStore:
             raise ReportPersistenceError(code)
 
 
+class PostgresReportStore:
+    """PostgreSQL twin of :class:`SQLiteReportStore`.
+
+    The store uses ``%s`` placeholders and never commits implicitly: the
+    application owns the transaction, so a definition, its idempotency record
+    and its audit event either all become visible or all roll back together.
+    """
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_report_definition (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                report_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                subject TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, report_id)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_report_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_report_idempotency (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                report_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, idempotency_key)
+            )"""
+        )
+        _ensure_postgres_column(
+            self.connection,
+            "project_report_definition",
+            "parameters_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_report_run (
+                run_id TEXT NOT NULL,
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                report_id TEXT NOT NULL,
+                report_revision INTEGER NOT NULL,
+                project_revision INTEGER NOT NULL,
+                subject TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                rows_json TEXT NOT NULL,
+                generated_at TEXT NOT NULL,
+                generated_by TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, run_id)
+            )"""
+        )
+        _ensure_postgres_column(
+            self.connection,
+            "project_report_run",
+            "parameters_json",
+            "TEXT NOT NULL DEFAULT '{}'",
+        )
+        _ensure_postgres_column(
+            self.connection,
+            "project_report_run",
+            "parameter_sources_json",
+            "TEXT NOT NULL DEFAULT '{}'",
+        )
+        self.connection.execute(
+            """CREATE INDEX IF NOT EXISTS idx_report_run_scope
+               ON project_report_run
+                  (tenant_id, project_id, report_id, generated_at DESC)"""
+        )
+
+    # -- definitions ------------------------------------------------------
+    def get_definition(
+        self, tenant_id: str, project_id: str, report_id: str
+    ) -> StoredReportDefinition:
+        row = self.connection.execute(
+            """SELECT tenant_id, project_id, report_id, name, description, subject,
+                      columns_json, parameters_json, revision
+               FROM project_report_definition
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s""",
+            (tenant_id, project_id, report_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("REPORT_NOT_FOUND")
+        return _definition_from_row(row)
+
+    def list_definitions(
+        self,
+        tenant_id: str,
+        project_id: str,
+        *,
+        subject: str | None = None,
+        search: str | None = None,
+    ) -> tuple[StoredReportDefinition, ...]:
+        if subject is not None and subject not in REPORT_CATALOGUE:
+            raise ReportPersistenceError("INVALID_REPORT_SUBJECT")
+        query = (
+            """SELECT tenant_id, project_id, report_id, name, description, subject,
+                      columns_json, parameters_json, revision
+               FROM project_report_definition
+               WHERE tenant_id = %s AND project_id = %s"""
+        )
+        params: list[object] = [tenant_id, project_id]
+        if subject:
+            query += " AND subject = %s"
+            params.append(subject)
+        if search:
+            # ILIKE keeps the ASCII case-insensitive match that SQLite's LIKE
+            # provides by default, so both stores answer the same query.
+            query += " AND (report_id ILIKE %s OR name ILIKE %s)"
+            pattern = f"%{search}%"
+            params.extend([pattern, pattern])
+        query += " ORDER BY report_id"
+        return tuple(
+            _definition_from_row(row)
+            for row in self.connection.execute(query, tuple(params)).fetchall()
+        )
+
+    def create_definition(
+        self,
+        definition: ReportDefinition,
+        *,
+        idempotency_key: str,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> StoredReportDefinition:
+        definition.validate()
+        _validate_actor(actor_id)
+        _validate_occurred_at(occurred_at)
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ReportPersistenceError("REPORT_IDEMPOTENCY_KEY_REQUIRED")
+        fingerprint = _fingerprint(definition)
+        existing_key = self.connection.execute(
+            """SELECT fingerprint, report_id FROM project_report_idempotency
+               WHERE tenant_id = %s AND project_id = %s AND idempotency_key = %s""",
+            (definition.tenant_id, definition.project_id, idempotency_key),
+        ).fetchone()
+        if existing_key is not None:
+            if str(existing_key[0]) != fingerprint or str(existing_key[1]) != definition.report_id:
+                raise ReportIdempotencyReuse("REPORT_IDEMPOTENCY_KEY_REUSE")
+            return self.get_definition(
+                definition.tenant_id, definition.project_id, definition.report_id
+            )
+        existing = self.connection.execute(
+            """SELECT 1 FROM project_report_definition
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s""",
+            (definition.tenant_id, definition.project_id, definition.report_id),
+        ).fetchone()
+        if existing is not None:
+            raise ReportPersistenceError("REPORT_ID_ALREADY_EXISTS")
+        now = occurred_at.isoformat()
+        try:
+            self.connection.execute(
+                """INSERT INTO project_report_definition
+                   (tenant_id, project_id, report_id, name, description, subject,
+                    columns_json, parameters_json, revision, created_at, updated_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s)""",
+                (
+                    definition.tenant_id,
+                    definition.project_id,
+                    definition.report_id,
+                    definition.name,
+                    definition.description,
+                    definition.subject,
+                    json.dumps(list(definition.columns), ensure_ascii=False),
+                    _bindings_json(definition),
+                    now,
+                    now,
+                ),
+            )
+        except Exception as exc:
+            if not _is_unique_violation(exc):
+                raise
+            # A competing create won the insert. If it used the same
+            # idempotency key this request is a replay, not a conflict.
+            raced = self.connection.execute(
+                """SELECT fingerprint, report_id FROM project_report_idempotency
+                   WHERE tenant_id = %s AND project_id = %s AND idempotency_key = %s""",
+                (definition.tenant_id, definition.project_id, idempotency_key),
+            ).fetchone()
+            if (
+                raced is not None
+                and str(raced[0]) == fingerprint
+                and str(raced[1]) == definition.report_id
+            ):
+                return self.get_definition(
+                    definition.tenant_id, definition.project_id, definition.report_id
+                )
+            raise ReportPersistenceError("REPORT_ID_ALREADY_EXISTS") from exc
+        try:
+            self.connection.execute(
+                """INSERT INTO project_report_idempotency
+                   (tenant_id, project_id, idempotency_key, fingerprint, report_id, created_at)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (
+                    definition.tenant_id,
+                    definition.project_id,
+                    idempotency_key,
+                    fingerprint,
+                    definition.report_id,
+                    now,
+                ),
+            )
+        except Exception as exc:
+            if not _is_unique_violation(exc):
+                raise
+            raced = self.connection.execute(
+                """SELECT fingerprint, report_id FROM project_report_idempotency
+                   WHERE tenant_id = %s AND project_id = %s AND idempotency_key = %s""",
+                (definition.tenant_id, definition.project_id, idempotency_key),
+            ).fetchone()
+            if (
+                raced is not None
+                and str(raced[0]) == fingerprint
+                and str(raced[1]) == definition.report_id
+            ):
+                return self.get_definition(
+                    definition.tenant_id, definition.project_id, definition.report_id
+                )
+            raise ReportIdempotencyReuse("REPORT_IDEMPOTENCY_KEY_REUSE") from exc
+        self._audit(
+            definition.tenant_id,
+            definition.project_id,
+            definition.report_id,
+            1,
+            "created",
+            actor_id,
+            occurred_at,
+            "",
+        )
+        return StoredReportDefinition(definition=definition, revision=1)
+
+    def update_definition(
+        self,
+        definition: ReportDefinition,
+        *,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str = "",
+    ) -> StoredReportDefinition:
+        definition.validate()
+        _validate_actor(actor_id)
+        _validate_occurred_at(occurred_at)
+        current = self.get_definition(
+            definition.tenant_id, definition.project_id, definition.report_id
+        )
+        self._check_revision(expected_revision, "INVALID_EXPECTED_REPORT_REVISION")
+        if current.revision != expected_revision:
+            raise ReportRevisionConflict("REPORT_REVISION_CONFLICT")
+        if not isinstance(reason, str):
+            raise ReportPersistenceError("INVALID_REPORT_REASON")
+        new_revision = current.revision + 1
+        now = occurred_at.isoformat()
+        cursor = self.connection.execute(
+            """UPDATE project_report_definition
+               SET name = %s, description = %s, subject = %s, columns_json = %s,
+                   parameters_json = %s, revision = %s, updated_at = %s
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+                 AND revision = %s""",
+            (
+                definition.name,
+                definition.description,
+                definition.subject,
+                json.dumps(list(definition.columns), ensure_ascii=False),
+                _bindings_json(definition),
+                new_revision,
+                now,
+                definition.tenant_id,
+                definition.project_id,
+                definition.report_id,
+                expected_revision,
+            ),
+        )
+        if cursor.rowcount != 1:
+            # A competing writer advanced the row between our read and write.
+            raise ReportRevisionConflict("REPORT_REVISION_CONFLICT")
+        self._audit(
+            definition.tenant_id,
+            definition.project_id,
+            definition.report_id,
+            new_revision,
+            "updated",
+            actor_id,
+            occurred_at,
+            reason,
+        )
+        return StoredReportDefinition(definition=definition, revision=new_revision)
+
+    def delete_definition(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str = "",
+    ) -> None:
+        _validate_actor(actor_id)
+        _validate_occurred_at(occurred_at)
+        current = self.get_definition(tenant_id, project_id, report_id)
+        self._check_revision(expected_revision, "INVALID_EXPECTED_REPORT_REVISION")
+        if current.revision != expected_revision:
+            raise ReportRevisionConflict("REPORT_REVISION_CONFLICT")
+        if not isinstance(reason, str):
+            raise ReportPersistenceError("INVALID_REPORT_REASON")
+        new_revision = current.revision + 1
+        cursor = self.connection.execute(
+            """DELETE FROM project_report_definition
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+                 AND revision = %s""",
+            (tenant_id, project_id, report_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            raise ReportRevisionConflict("REPORT_REVISION_CONFLICT")
+        self._audit(
+            tenant_id,
+            project_id,
+            report_id,
+            new_revision,
+            "deleted",
+            actor_id,
+            occurred_at,
+            reason,
+        )
+
+    def definition_history(
+        self, tenant_id: str, project_id: str, report_id: str
+    ) -> tuple[ReportAuditEvent, ...]:
+        rows = self.connection.execute(
+            """SELECT entity_type, entity_id, revision, event_type, actor_id,
+                      occurred_at, reason
+               FROM project_report_audit
+               WHERE tenant_id = %s AND project_id = %s AND entity_type = 'report'
+                 AND entity_id = %s
+               ORDER BY revision""",
+            (tenant_id, project_id, report_id),
+        ).fetchall()
+        return tuple(
+            ReportAuditEvent(
+                entity_type=str(row[0]),
+                entity_id=str(row[1]),
+                revision=int(row[2]),
+                event_type=str(row[3]),
+                actor_id=str(row[4]),
+                occurred_at=datetime.fromisoformat(str(row[5])),
+                reason=str(row[6]),
+            )
+            for row in rows
+        )
+
+    # -- runs -------------------------------------------------------------
+    def save_run(self, run: ReportRun) -> ReportRun:
+        _validate_run(run)
+        existing = self.connection.execute(
+            """SELECT 1 FROM project_report_run
+               WHERE tenant_id = %s AND project_id = %s AND run_id = %s""",
+            (run.tenant_id, run.project_id, run.run_id),
+        ).fetchone()
+        if existing is not None:
+            raise ReportPersistenceError("REPORT_RUN_ID_ALREADY_EXISTS")
+        try:
+            self.connection.execute(
+                """INSERT INTO project_report_run
+                   (run_id, tenant_id, project_id, report_id, report_revision,
+                    project_revision, subject, columns_json, rows_json,
+                    generated_at, generated_by, parameters_json,
+                    parameter_sources_json)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    run.run_id,
+                    run.tenant_id,
+                    run.project_id,
+                    run.report_id,
+                    run.report_revision,
+                    run.project_revision,
+                    run.subject,
+                    json.dumps(list(run.columns), ensure_ascii=False),
+                    json.dumps([dict(row) for row in run.rows], ensure_ascii=False),
+                    run.generated_at.isoformat(),
+                    run.generated_by,
+                    json.dumps(dict(run.parameters), ensure_ascii=False),
+                    json.dumps(dict(run.parameter_sources), ensure_ascii=False),
+                ),
+            )
+        except Exception as exc:
+            if _is_unique_violation(exc):
+                raise ReportPersistenceError("REPORT_RUN_ID_ALREADY_EXISTS") from exc
+            raise
+        return run
+
+    def next_run_id(self, tenant_id: str, project_id: str, report_id: str) -> str:
+        count = self.connection.execute(
+            """SELECT COUNT(*) FROM project_report_run
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s""",
+            (tenant_id, project_id, report_id),
+        ).fetchone()
+        sequence = int(count[0]) + 1 if count is not None else 1
+        while True:
+            candidate = f"RUN-{report_id}-{sequence}"
+            exists = self.connection.execute(
+                """SELECT 1 FROM project_report_run
+                   WHERE tenant_id = %s AND project_id = %s AND run_id = %s""",
+                (tenant_id, project_id, candidate),
+            ).fetchone()
+            if exists is None:
+                return candidate
+            sequence += 1
+
+    def list_runs(
+        self, tenant_id: str, project_id: str, report_id: str
+    ) -> tuple[ReportRun, ...]:
+        rows = self.connection.execute(
+            """SELECT run_id, tenant_id, project_id, report_id, report_revision,
+                      project_revision, subject, columns_json, rows_json,
+                      generated_at, generated_by, parameters_json,
+                      parameter_sources_json
+               FROM project_report_run
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+               ORDER BY generated_at DESC, run_id DESC""",
+            (tenant_id, project_id, report_id),
+        ).fetchall()
+        return tuple(_run_from_row(row) for row in rows)
+
+    def get_run(
+        self, tenant_id: str, project_id: str, report_id: str, run_id: str
+    ) -> ReportRun:
+        row = self.connection.execute(
+            """SELECT run_id, tenant_id, project_id, report_id, report_revision,
+                      project_revision, subject, columns_json, rows_json,
+                      generated_at, generated_by, parameters_json,
+                      parameter_sources_json
+               FROM project_report_run
+               WHERE tenant_id = %s AND project_id = %s AND report_id = %s
+                 AND run_id = %s""",
+            (tenant_id, project_id, report_id, run_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("REPORT_RUN_NOT_FOUND")
+        return _run_from_row(row)
+
+    # -- helpers ----------------------------------------------------------
+    def _audit(
+        self,
+        tenant_id: str,
+        project_id: str,
+        report_id: str,
+        revision: int,
+        event_type: str,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str,
+    ) -> None:
+        self.connection.execute(
+            """INSERT INTO project_report_audit
+               (tenant_id, project_id, entity_type, entity_id, revision,
+                event_type, actor_id, occurred_at, reason)
+               VALUES (%s, %s, 'report', %s, %s, %s, %s, %s, %s)""",
+            (
+                tenant_id,
+                project_id,
+                report_id,
+                revision,
+                event_type,
+                actor_id,
+                occurred_at.isoformat(),
+                reason,
+            ),
+        )
+
+    @staticmethod
+    def _check_revision(expected_revision: object, code: str) -> None:
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ReportPersistenceError(code)
+
+
+def _validate_run(run: ReportRun) -> None:
+    """Shared validation for both stores so their rejection codes agree."""
+
+    if run.subject not in REPORT_CATALOGUE:
+        raise ReportPersistenceError("INVALID_REPORT_SUBJECT")
+    if not run.columns or any(
+        column not in {field.key for field in REPORT_CATALOGUE[run.subject]}
+        for column in run.columns
+    ):
+        raise ReportPersistenceError("INVALID_REPORT_COLUMNS")
+    if not isinstance(run.generated_at, datetime) or run.generated_at.tzinfo is None:
+        raise ValueError("INVALID_REPORT_GENERATED_AT")
+    _validate_actor(run.generated_by)
+    if run.report_revision < 1 or run.project_revision < 0:
+        raise ReportPersistenceError("INVALID_REPORT_REVISION")
+    for pairs, code in (
+        (run.parameters, "INVALID_REPORT_RUN_PARAMETERS"),
+        (run.parameter_sources, "INVALID_REPORT_RUN_PARAMETER_SOURCES"),
+    ):
+        if not isinstance(pairs, tuple):
+            raise ReportPersistenceError(code)
+        keys = [key for key, _ in pairs]
+        if len(keys) != len(set(keys)) or any(
+            not isinstance(key, str) or not key or not isinstance(value, str)
+            for key, value in pairs
+        ):
+            raise ReportPersistenceError(code)
+    if {key for key, _ in run.parameter_sources} != {
+        key for key, _ in run.parameters
+    } or any(
+        source not in {"explicit", "default"}
+        for _, source in run.parameter_sources
+    ):
+        raise ReportPersistenceError("INVALID_REPORT_RUN_PARAMETER_SOURCES")
+
+
+def _is_unique_violation(exc: Exception) -> bool:
+    return (
+        getattr(exc, "sqlstate", None) == "23505"
+        or type(exc).__name__ in {"UniqueViolation", "IntegrityError"}
+    )
+
+
+def _ensure_postgres_column(
+    connection: object, table: str, column: str, declaration: str
+) -> None:
+    existing = connection.execute(
+        """SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = %s AND column_name = %s""",
+        (table, column),
+    ).fetchone()
+    if existing is None:
+        connection.execute(
+            f"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+        )
+
+
 def _bindings_json(definition: ReportDefinition) -> str:
     return json.dumps(
         [
@@ -850,6 +1384,7 @@ __all__ = [
     "ReportRevisionConflict",
     "ReportRun",
     "ReportStore",
+    "PostgresReportStore",
     "SQLiteReportStore",
     "StoredReportDefinition",
     "report_catalogue",
