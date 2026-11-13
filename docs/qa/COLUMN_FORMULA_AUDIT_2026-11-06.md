@@ -62,9 +62,12 @@ The browser never evaluates an expression and never invents a result type.
   (column title, formula column ID, submit) and a saved-column catalogue. Saving
   is gated by the authoritative validator; an invalid expression is never
   persisted.
-- `apps/web/src/main.ts` — after a successful save, the registry is re-read,
-  the new field is added to the persisted layout, the layout is committed and
-  the workspace is re-rendered from the server.
+- `apps/web/src/main.ts` — after a successful save, the registry is re-read and
+  the control-room projection is refreshed. Saving a definition does **not**
+  mutate the layout; the saved column appears in the grid only when the user
+  presses **Show in grid** (which adds the registry field to the persisted
+  layout and commits it). Read-only roles (`canWrite === false`) get no save or
+  apply controls and a reason line instead.
 - `apps/web/src/workspace-model.ts` — `setP6Presentation` carries the registry
   `formula` expression instead of forcing `null`.
 - `apps/client-sync/src/p6-presentation-contract.ts` — `P6Field.formula` added;

@@ -2972,6 +2972,35 @@ function renderApp(
     ...commentsEntity,
   });
 
+  const formulaColumnFieldIds = (state.p6Layout?.columns ?? []).map(
+    (column) => column.field_id,
+  );
+  const refreshFormulaProjection = async (): Promise<void> => {
+    // Re-read the workspace so the registry includes the newly saved formula as
+    // a computed Activity field. The column is not silently inserted into the
+    // layout; the planner chooses "Show in grid" explicitly.
+    await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+  };
+  const addFormulaColumnToLayout = async (formulaId: string): Promise<void> => {
+    let next: WorkspaceState = state;
+    if (state.p6FieldRegistry) {
+      const registry = await createP6FieldRegistryProvider(
+        aiTransport,
+        state.context,
+      ).getRegistry();
+      next = { ...state, p6FieldRegistry: registry };
+    }
+    try {
+      next = addP6Field(next, formulaId);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "FIELD_ALREADY_IN_LAYOUT") {
+        throw error;
+      }
+      return;
+    }
+    await commitLayout(next);
+    await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+  };
   mountFormulaEditorPanel(
     workspace,
     aiTransport,
@@ -2979,26 +3008,15 @@ function renderApp(
     state.locale,
     state.p6FieldRegistry?.fields ?? [],
     {
-      onCreated: async (record) => {
-        // The registry route now projects the persisted formula as a computed
-        // Activity field. Add that field to the saved layout, then reload the
-        // workspace read so the grid shows server-evaluated cells.
-        const registry = await createP6FieldRegistryProvider(
-          aiTransport,
-          state.context,
-        ).getRegistry();
-        let next: WorkspaceState = { ...state, p6FieldRegistry: registry };
-        let layoutChanged = false;
-        try {
-          next = addP6Field(next, record.formula.formula_id);
-          layoutChanged = true;
-        } catch (error) {
-          if (!(error instanceof Error) || error.message !== "FIELD_ALREADY_IN_LAYOUT") {
-            throw error;
-          }
-        }
-        if (layoutChanged) await commitLayout(next);
-        await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+      canWrite:
+        activeWorkspaceRoles.includes("planner") ||
+        activeWorkspaceRoles.includes("project_admin"),
+      layoutFieldIds: formulaColumnFieldIds,
+      onCreated: async () => {
+        await refreshFormulaProjection();
+      },
+      onApply: async (record) => {
+        await addFormulaColumnToLayout(record.formula.formula_id);
       },
     },
   );

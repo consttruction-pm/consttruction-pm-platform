@@ -39,6 +39,13 @@ export type FormulaPanelLabels = {
   existing: string;
   noExisting: string;
   listError: string;
+  readonlyReason: string;
+  dataType: string;
+  unit: string;
+  version: string;
+  apply: string;
+  applyHint: string;
+  inLayout: string;
 };
 
 const LABELS: Record<"en" | "fa", FormulaPanelLabels> = {
@@ -70,6 +77,15 @@ const LABELS: Record<"en" | "fa", FormulaPanelLabels> = {
     existing: "Saved formula columns",
     noExisting: "No formula columns are saved for this project.",
     listError: "Saved formula columns could not be loaded",
+    readonlyReason:
+      "This session can read formula columns but not save them. A planner or project administrator role is required to create or change a formula column.",
+    dataType: "Data type",
+    unit: "Result unit",
+    version: "Definition version",
+    apply: "Show in grid",
+    applyHint:
+      "Adds the saved formula column to the activity layout. Values come from the server's next workspace read.",
+    inLayout: "In layout",
   },
   fa: {
     title: "ویرایشگر فرمول",
@@ -99,6 +115,15 @@ const LABELS: Record<"en" | "fa", FormulaPanelLabels> = {
     existing: "ستون‌های فرمول ذخیره‌شده",
     noExisting: "هیچ ستون فرمولی برای این پروژه ذخیره نشده است.",
     listError: "ستون‌های فرمول ذخیره‌شده بارگذاری نشد",
+    readonlyReason:
+      "این نشست ستون‌های فرمول را فقط می‌خواند و نمی‌تواند ذخیره کند. برای ساخت یا تغییر ستون فرمول، نقش برنامه‌ریز یا مدیر پروژه لازم است.",
+    dataType: "نوع داده",
+    unit: "واحد نتیجه",
+    version: "نسخهٔ تعریف",
+    apply: "نمایش در جدول",
+    applyHint:
+      "ستون فرمول ذخیره‌شده را به چیدمان فعالیت‌ها اضافه می‌کند. مقادیر از خواندن بعدی محیط کار توسط سرور می‌آیند.",
+    inLayout: "در چیدمان",
   },
 };
 
@@ -115,14 +140,118 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+const FORMULA_ERROR_MESSAGES: Record<string, { en: string; fa: string }> = {
+  UNKNOWN_FORMULA_FIELD: {
+    en: "The expression references a field that is not registered for this view.",
+    fa: "عبارت به فیلدی ارجاع می‌دهد که برای این نما ثبت نشده است.",
+  },
+  FORMULA_TYPE_MISMATCH: {
+    en: "The operands have incompatible types. Check the data types named in the expression.",
+    fa: "عملگرها نوع سازگار ندارند. نوع داده‌های نام‌برده در عبارت را بررسی کنید.",
+  },
+  FORMULA_SELF_REFERENCE: {
+    en: "A formula column cannot reference itself.",
+    fa: "یک ستون فرمول نمی‌تواند به خودش ارجاع دهد.",
+  },
+  FORMULA_COLUMN_SELF_REFERENCE: {
+    en: "A formula column cannot reference itself.",
+    fa: "یک ستون فرمول نمی‌تواند به خودش ارجاع دهد.",
+  },
+  DIVISION_BY_ZERO: {
+    en: "The expression divides by zero. Guard the divisor before saving.",
+    fa: "عبارت بر صفر تقسیم می‌کند. پیش از ذخیره، مقسوم‌علیه را محافظت کنید.",
+  },
+  FORMULA_MISSING_OPERAND: {
+    en: "An operand is missing; the expression is incomplete.",
+    fa: "یک عملوند جا افتاده است؛ عبارت کامل نیست.",
+  },
+  NUMERIC_OPERANDS_REQUIRED: {
+    en: "This operation needs numeric operands. A text, date or enum field was used in arithmetic.",
+    fa: "این عملگر به عملوند عددی نیاز دارد؛ از فیلد متنی، تاریخ یا شمارشی در محاسبه استفاده شده است.",
+  },
+  RESULT_TYPE_MISMATCH: {
+    en: "The computed result type does not match the declared formula result type.",
+    fa: "نوع نتیجهٔ محاسبه‌شده با نوع نتیجهٔ اعلام‌شدهٔ فرمول نمی‌خواند.",
+  },
+  FORMULA_INVALID: {
+    en: "The shared calculation core rejected the expression.",
+    fa: "هستهٔ محاسباتی مشترک عبارت را نپذیرفت.",
+  },
+  FORMULA_COLUMN_INVALID: {
+    en: "The shared calculation core rejected the expression.",
+    fa: "هستهٔ محاسباتی مشترک عبارت را نپذیرفت.",
+  },
+  FORMULA_COLUMN_ALREADY_EXISTS: {
+    en: "A saved formula column already uses this ID with a different expression or title.",
+    fa: "یک ستون فرمول ذخیره‌شده با همین شناسه و عبارت یا عنوان متفاوت وجود دارد.",
+  },
+  FORMULA_COLUMN_TITLE_REQUIRED: {
+    en: "A column title is required.",
+    fa: "عنوان ستون لازم است.",
+  },
+  FORMULA_COLUMN_EXPRESSION_REQUIRED: {
+    en: "An expression is required.",
+    fa: "عبارت لازم است.",
+  },
+  INVALID_FORMULA_COLUMN_ID: {
+    en: "The formula column ID must start with formula. and use letters, digits, underscores or dots.",
+    fa: "شناسهٔ ستون فرمول باید با formula. آغاز شود و فقط حرف، رقم، زیرخط یا نقطه داشته باشد.",
+  },
+  P6_FORMULA_VALIDATION_FAILED: {
+    en: "The shared calculation core could not validate the expression.",
+    fa: "هستهٔ محاسباتی مشترک نتوانست عبارت را اعتبارسنجی کند.",
+  },
+};
+
+/** Plain-language explanation for an authoritative formula error code. */
+export function describeFormulaValidationError(code: string, locale: string): string {
+  const persian = locale.toLowerCase().startsWith("fa");
+  const [base, ...rest] = code.split(":");
+  const detail = rest.join(":");
+  if (base === "FIELD_NOT_FOUND" && detail) {
+    return persian
+      ? `عبارت به فیلد «${detail}» ارجاع می‌دهد که برای این نما ثبت نشده است.`
+      : `The expression references the field "${detail}", which is not registered for this view.`;
+  }
+  if (base.startsWith("EXPECTED_")) {
+    const position = base.replace("EXPECTED_", "").replace(/_AT_?\d*$/, "");
+    return persian
+      ? "عبارت کامل نیست؛ یک عملوند یا عملگر جا افتاده است."
+      : `The expression is incomplete${position ? ` (expected ${position.toLowerCase().replace(/_/g, " ")})` : ""}; an operand or operator is missing.`;
+  }
+  if (base === "UNSUPPORTED_P6_FORMULA_FIELD_TYPE" && detail) {
+    return persian
+      ? `فیلدهای از نوع «${detail}» در محاسبات عبارت پشتیبانی نمی‌شوند.`
+      : `Fields of type "${detail}" cannot be used in an arithmetic expression.`;
+  }
+  const entry = FORMULA_ERROR_MESSAGES[base];
+  if (entry) return persian ? entry.fa : entry.en;
+  return persian
+    ? "هستهٔ محاسباتی مشترک عبارت را نپذیرفت؛ کد خطا را ببینید."
+    : "The shared calculation core rejected the expression; see the error code.";
+}
+
+export type FormulaEditorFormOptions = {
+  /**
+   * Saving and applying a column requires a planner or project administrator
+   * role. When false the panel still validates expressions (a read-scoped call)
+   * but explains why the lifecycle controls are absent.
+   */
+  canWrite?: boolean;
+  /** Field ids currently present in the saved activity layout. */
+  layoutFieldIds?: readonly string[];
+};
+
 export function renderFormulaEditorForm(
   fields: readonly P6Field[],
   labels: FormulaPanelLabels,
+  options: FormulaEditorFormOptions = {},
 ): string {
   if (fields.length === 0) {
     return `<p class="cp-empty" role="status">${escapeHtml(labels.noFields)}</p>`;
   }
-  const options = fields
+  const canWrite = options.canWrite !== false;
+  const optionsHtml = fields
     .map(
       (field) =>
         `<option value="${escapeHtml(field.field_id)}">${escapeHtml(
@@ -130,21 +259,8 @@ export function renderFormulaEditorForm(
         )} — ${escapeHtml(field.field_id)}</option>`,
     )
     .join("");
-  return `<p>${escapeHtml(labels.intro)}</p>
-    <form class="cp-formula-form" data-formula-form>
-      <label>${escapeHtml(labels.field)}
-        <select name="context_field_id" data-formula-field>${options}</select>
-      </label>
-      <label>${escapeHtml(labels.expression)}
-        <textarea name="expression" data-formula-expression rows="3" spellcheck="false" placeholder="${escapeHtml(
-          labels.expressionPlaceholder,
-        )}"></textarea>
-      </label>
-      <button type="submit" data-formula-validate>${escapeHtml(labels.validate)}</button>
-    </form>
-    <p data-formula-status role="status">${escapeHtml(labels.idle)}</p>
-    <div data-formula-result></div>
-    <section class="cp-formula-save-section">
+  const saveSection = canWrite
+    ? `<section class="cp-formula-save-section">
       <h4>${escapeHtml(labels.saveSection)}</h4>
       <form class="cp-formula-save-form" data-formula-save-form>
         <label>${escapeHtml(labels.saveTitle)}
@@ -157,28 +273,85 @@ export function renderFormulaEditorForm(
         </label>
         <button type="submit" data-formula-save>${escapeHtml(labels.save)}</button>
       </form>
-    </section>
+    </section>`
+    : `<p class="cp-formula-readonly" role="status" data-formula-readonly>${escapeHtml(
+        labels.readonlyReason,
+      )}</p>`;
+  return `<p>${escapeHtml(labels.intro)}</p>
+    <form class="cp-formula-form" data-formula-form>
+      <label>${escapeHtml(labels.field)}
+        <select name="context_field_id" data-formula-field>${optionsHtml}</select>
+      </label>
+      <label>${escapeHtml(labels.expression)}
+        <textarea name="expression" data-formula-expression rows="3" spellcheck="false" placeholder="${escapeHtml(
+          labels.expressionPlaceholder,
+        )}"></textarea>
+      </label>
+      <button type="submit" data-formula-validate>${escapeHtml(labels.validate)}</button>
+    </form>
+    <p data-formula-status role="status">${escapeHtml(labels.idle)}</p>
+    <div data-formula-result></div>
+    ${saveSection}
     <section class="cp-formula-saved-list">
       <h5>${escapeHtml(labels.existing)}</h5>
-      <ul data-formula-columns>${renderFormulaColumnList([], labels)}</ul>
+      <ul data-formula-columns>${renderFormulaColumnList([], labels, options)}</ul>
     </section>`;
 }
+
+export type FormulaColumnListOptions = {
+  canWrite?: boolean;
+  layoutFieldIds?: readonly string[];
+};
 
 export function renderFormulaColumnList(
   records: readonly P6FormulaColumnRecord[],
   labels: FormulaPanelLabels,
+  options: FormulaColumnListOptions = {},
 ): string {
   if (records.length === 0) {
     return `<li class="cp-empty">${escapeHtml(labels.noExisting)}</li>`;
   }
+  const inLayout = new Set(options.layoutFieldIds ?? []);
+  const canWrite = options.canWrite !== false;
   return records
     .map((record) => {
       const formula = record.formula;
+      const isInLayout = inLayout.has(formula.formula_id);
+      const dependencies = formula.dependencies.length
+        ? formula.dependencies.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
+        : escapeHtml(labels.none);
+      const unit = formula.result_unit
+        ? `<span data-formula-unit>${escapeHtml(formula.result_unit)}</span>`
+        : "";
+      const action = !canWrite
+        ? ""
+        : isInLayout
+          ? `<span class="cp-formula-in-layout" data-formula-in-layout>${escapeHtml(
+              labels.inLayout,
+            )}</span>`
+          : `<button type="button" data-formula-apply="${escapeHtml(
+              formula.formula_id,
+            )}" title="${escapeHtml(labels.applyHint)}">${escapeHtml(labels.apply)}</button>`;
       return `<li data-formula-column="${escapeHtml(formula.formula_id)}">
         <strong>${escapeHtml(formula.title)}</strong>
         <code>${escapeHtml(formula.formula_id)}</code>
-        <span>${escapeHtml(formula.data_type)}</span>
+        <span data-formula-meta>
+          <span data-formula-version>${escapeHtml(labels.version)} ${escapeHtml(
+            formula.version,
+          )}</span>
+          <span data-formula-data-type>${escapeHtml(labels.dataType)}: ${escapeHtml(
+            formula.data_type,
+          )}</span>
+          <span data-formula-result-type>${escapeHtml(labels.resultType)}: ${escapeHtml(
+            formula.result_type,
+          )}</span>
+          ${unit}
+        </span>
         <code>${escapeHtml(formula.expression)}</code>
+        <small data-formula-dependencies>${escapeHtml(
+          labels.dependencies,
+        )}: ${dependencies}</small>
+        ${action}
       </li>`;
     })
     .join("");
@@ -188,6 +361,7 @@ export function renderFormulaAuthoritativeResult(
   presentation: P6FormulaEditorPresentation,
   fieldId: string,
   labels: FormulaPanelLabels,
+  locale = "en",
 ): string {
   if (presentation.validating) {
     return `<p role="status">${escapeHtml(labels.validating)}</p>`;
@@ -200,6 +374,7 @@ export function renderFormulaAuthoritativeResult(
     const code = validation.error_code ?? "FORMULA_INVALID";
     return `<div role="alert" class="cp-formula-invalid">
       <strong>${escapeHtml(labels.invalid)}</strong>
+      <p data-formula-error-message>${escapeHtml(describeFormulaValidationError(code, locale))}</p>
       <p><code>${escapeHtml(code)}</code></p>
     </div>`;
   }
@@ -219,11 +394,23 @@ export function renderFormulaAuthoritativeResult(
 
 export type FormulaPanelOptions = {
   /**
+   * Planner/project-administrator gate for saving and applying a column.
+   * Defaults to true so a host that has already gated the panel keeps working.
+   */
+  canWrite?: boolean;
+  /** Field ids currently present in the saved activity layout. */
+  layoutFieldIds?: readonly string[];
+  /**
    * Called after the server persisted the formula column. The host adds the
    * projected field to the saved activity layout and refreshes the workspace
    * read so the grid shows server-evaluated cells.
    */
   onCreated?: (record: P6FormulaColumnRecord) => Promise<void> | void;
+  /**
+   * Called when a saved column is applied to the current activity layout.
+   * Presentation only: the host must never evaluate the expression locally.
+   */
+  onApply?: (record: P6FormulaColumnRecord) => Promise<void> | void;
 };
 
 export function mountFormulaEditorPanel(
@@ -239,7 +426,12 @@ export function mountFormulaEditorPanel(
   );
   if (!panel) return;
   const labels = getFormulaPanelLabels(locale);
-  panel.innerHTML = renderFormulaEditorForm(fields, labels);
+  const canWrite = options.canWrite !== false;
+  const layoutFieldIds = new Set(options.layoutFieldIds ?? []);
+  panel.innerHTML = renderFormulaEditorForm(fields, labels, {
+    canWrite,
+    layoutFieldIds: [...layoutFieldIds],
+  });
   const form = panel.querySelector<HTMLFormElement>("[data-formula-form]");
   if (!form) return;
   const fieldSelect = form.querySelector<HTMLSelectElement>("[data-formula-field]");
@@ -259,14 +451,25 @@ export function mountFormulaEditorPanel(
     status.textContent = message;
     result.innerHTML = `<div role="alert" class="cp-formula-invalid"><strong>${escapeHtml(
       message,
-    )}</strong><p><code>${escapeHtml(code)}</code></p></div>`;
+    )}</strong><p data-formula-error-message>${escapeHtml(
+      describeFormulaValidationError(code, locale),
+    )}</p><p><code>${escapeHtml(code)}</code></p></div>`;
   };
 
   const listHost = panel.querySelector<HTMLElement>("[data-formula-columns]");
+  let savedRecords: readonly P6FormulaColumnRecord[] = [];
+  const renderList = (): void => {
+    if (!listHost) return;
+    listHost.innerHTML = renderFormulaColumnList(savedRecords, labels, {
+      canWrite,
+      layoutFieldIds: [...layoutFieldIds],
+    });
+  };
   const refreshColumns = async (): Promise<void> => {
     if (!listHost) return;
     try {
-      listHost.innerHTML = renderFormulaColumnList(await columns.list(), labels);
+      savedRecords = await columns.list();
+      renderList();
     } catch (error) {
       const code = error instanceof Error ? error.message : String(error);
       listHost.innerHTML = `<li role="alert">${escapeHtml(labels.listError)} <code>${escapeHtml(
@@ -275,6 +478,25 @@ export function mountFormulaEditorPanel(
     }
   };
   void refreshColumns();
+
+  listHost?.addEventListener("click", async (event) => {
+    const target = event.target as HTMLElement | null;
+    const button = target?.closest<HTMLButtonElement>("[data-formula-apply]");
+    if (!button || button.disabled) return;
+    const formulaId = button.getAttribute("data-formula-apply");
+    const record = savedRecords.find((item) => item.formula.formula_id === formulaId);
+    if (!record || !options.onApply) return;
+    button.disabled = true;
+    try {
+      await options.onApply(record);
+      layoutFieldIds.add(record.formula.formula_id);
+      renderList();
+    } catch (error) {
+      const code = error instanceof Error ? error.message : String(error);
+      showError(labels.apply + ": " + code, code);
+      button.disabled = false;
+    }
+  });
 
   const reset = () => {
     status.textContent = labels.idle;
@@ -302,6 +524,7 @@ export function mountFormulaEditorPanel(
         presentation,
         fieldSelect.value,
         labels,
+        locale,
       );
       const validation = presentation.validation;
       status.textContent = validation?.valid
@@ -309,10 +532,7 @@ export function mountFormulaEditorPanel(
         : labels.invalid;
     } catch (error) {
       const code = error instanceof Error ? error.message : String(error);
-      status.textContent = labels.validationError;
-      result.innerHTML = `<div role="alert" class="cp-formula-invalid"><strong>${escapeHtml(
-        labels.validationError,
-      )}</strong><p><code>${escapeHtml(code)}</code></p></div>`;
+      showError(labels.validationError, code);
     } finally {
       submit.disabled = false;
     }
@@ -339,6 +559,7 @@ export function mountFormulaEditorPanel(
         presentation,
         fieldSelect.value,
         labels,
+        locale,
       );
       if (!presentation.validation?.valid) {
         status.textContent = labels.invalid;
@@ -350,8 +571,8 @@ export function mountFormulaEditorPanel(
         expression: expression.value,
       });
       status.textContent = labels.saved;
-      await refreshColumns();
       if (options.onCreated) await options.onCreated(record);
+      await refreshColumns();
     } catch (error) {
       const code = error instanceof Error ? error.message : String(error);
       showError(labels.saveError, code);
