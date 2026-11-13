@@ -83,6 +83,8 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "view.top-network": "network",
   "view.bottom-details": "activity",
   "view.bottom-trace": "tracking",
+  "view.bottom-usage-spreadsheet": "activity",
+  "view.bottom-usage-profile": "activity",
   "view.bottom-none": "close",
   "view.calendar": "calendar",
   "view.close-window": "close",

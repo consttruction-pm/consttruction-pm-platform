@@ -42,6 +42,7 @@ import {
   invalidateWorkspaceRender,
   isWorkspaceTopLayoutAvailable,
   isWorkspaceTraceLogicAvailable,
+  isWorkspaceUsageAvailable,
   readWorkspaceBottomLayout,
   readWorkspaceTopLayout,
   renderMainWorkspace,
@@ -82,7 +83,7 @@ import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
-import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
+import { loadAssignmentPeriods, mountWorkspaceAssignmentsPage, type AssignmentPeriod } from "./workspace-assignments.js";
 import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
 import {
   LAYOUT_SELECTION_STORAGE_PREFIX,
@@ -183,6 +184,12 @@ let activeProjectSummaryProjectId: string | null = null;
 let activeProjectDataDate: string | null = null;
 let activeProjectDataDateProjectId: string | null = null;
 const activeProjectDataDateInflight = new Set<string>();
+/** Stored assignment periods projected by the Activity Usage views, never derived. */
+let activeAssignmentPeriods: readonly AssignmentPeriod[] = [];
+let activeAssignmentPeriodsProjectId: string | null = null;
+let activeAssignmentPeriodsStatus: "loading" | "loaded" | "error" = "loaded";
+let activeAssignmentPeriodsError: string | null = null;
+const activeAssignmentPeriodsInflight = new Set<string>();
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Signed-in user for browser-local preferences that must not leak between profiles. */
@@ -1529,10 +1536,21 @@ function renderApp(
       }
       case "view.bottom-details":
       case "view.bottom-trace":
+      case "view.bottom-usage-spreadsheet":
+      case "view.bottom-usage-profile":
       case "view.bottom-none": {
-        const layout = command === "view.bottom-details" ? "details" : command === "view.bottom-trace" ? "trace-logic" : "none";
+        const layout = command === "view.bottom-details"
+          ? "details"
+          : command === "view.bottom-trace"
+            ? "trace-logic"
+            : command === "view.bottom-usage-spreadsheet"
+              ? "usage-spreadsheet"
+              : command === "view.bottom-usage-profile"
+                ? "usage-profile"
+                : "none";
         if (state.activeMenu !== "schedule") return;
         if (layout === "trace-logic" && !isWorkspaceTraceLogicAvailable(state)) return;
+        if (!isWorkspaceUsageAvailable(layout, activeActivityUsageSource(state.context.project_id))) return;
         storeWorkspaceBottomLayout(state, layout);
         const reveal = layout !== "none" && !state.visiblePanels.details;
         if (reveal && activeWorkspaceUserId) rememberWorkspaceDetailsVisible(state, activeWorkspaceUserId, true);
@@ -1728,6 +1746,7 @@ function renderApp(
         hasMultiSelection: selectedActivityIdList(state).length > 1,
         hasActivities: state.activities.length > 0,
         hasRelationships: state.relationships.length > 0,
+        hasAssignmentPeriods: activeActivityUsageSource(state.context.project_id).periods.length > 0,
         hasMultipleWindows: getOpenWindows().length > 1,
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         hasLayout: Boolean(state.p6Layout),
@@ -1744,9 +1763,9 @@ function renderApp(
       sortDirection: state.activitySort?.direction ?? "asc",
       sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
-      detailsVisible: state.visiblePanels.details && !(state.activeMenu === "schedule" && readWorkspaceBottomLayout(state) === "none"),
+      detailsVisible: state.visiblePanels.details && !(state.activeMenu === "schedule" && readWorkspaceBottomLayout(state, activeActivityUsageSource(state.context.project_id)) === "none"),
       activityTopLayout: state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : undefined,
-      activityBottomLayout: state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : undefined,
+      activityBottomLayout: state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state, activeActivityUsageSource(state.context.project_id)) : undefined,
       theme: activeWorkspaceTheme,
       dataAvailability: presentationDataAvailability(state.activities),
       dataDate: projectDataDate,
@@ -2143,6 +2162,10 @@ function renderApp(
     // authoritative metadata row; both come from the server, never from a guess.
     projects: currentBootstrap?.openableProjects() ?? [],
     projectSummary: activeProjectSummary,
+    activityUsage: activeActivityUsageSource(state.context.project_id),
+    onActivityUsageRefresh: () => {
+      void loadActiveAssignmentPeriods(container, state.context, true);
+    },
     onProjectOpen: (projectId) => {
       if (!currentBootstrap) return;
       void currentBootstrap.selectProject(projectId, state.locale).then((next) => {
@@ -2152,7 +2175,7 @@ function renderApp(
     // The interactive Details surface may only replace the pane while it is
     // actually showing Details; Trace Logic and a hidden pane are untouched.
     enhanceActivityDetails: (host, detailsState) => {
-      if (detailsState.activeMenu !== "schedule" || readWorkspaceBottomLayout(detailsState) !== "details") return;
+      if (detailsState.activeMenu !== "schedule" || readWorkspaceBottomLayout(detailsState, activeActivityUsageSource(detailsState.context.project_id)) !== "details") return;
       enhanceActivityDetails(
         host,
         {
@@ -3052,6 +3075,55 @@ function activeProjectDataDateFor(projectId: string): string | null {
   return activeProjectDataDateProjectId === projectId ? activeProjectDataDate : null;
 }
 
+/** The authoritative assignment-period read the Activity Usage views project. */
+function activeActivityUsageSource(projectId: string) {
+  if (activeAssignmentPeriodsProjectId !== projectId) {
+    return { status: "loading" as const, errorCode: null, periods: [] as readonly AssignmentPeriod[] };
+  }
+  return {
+    status: activeAssignmentPeriodsStatus,
+    errorCode: activeAssignmentPeriodsError,
+    periods: activeAssignmentPeriods,
+  };
+}
+
+/**
+ * Reads the stored assignment periods once per opened project. The Activity
+ * Usage Profile and Spreadsheet only ever display these persisted facts; a
+ * failed read leaves them disabled with the server's error code.
+ */
+async function loadActiveAssignmentPeriods(
+  container: HTMLElement,
+  context: ProjectContext,
+  force = false,
+): Promise<void> {
+  const projectId = context.project_id;
+  if (activeAssignmentPeriodsInflight.has(projectId)) return;
+  if (!force && activeAssignmentPeriodsProjectId === projectId && activeAssignmentPeriodsStatus === "loaded") return;
+  activeAssignmentPeriodsInflight.add(projectId);
+  const previousProject = activeAssignmentPeriodsProjectId;
+  activeAssignmentPeriodsProjectId = projectId;
+  activeAssignmentPeriodsStatus = "loading";
+  activeAssignmentPeriodsError = null;
+  if (previousProject !== projectId) activeAssignmentPeriods = [];
+  const current = currentWorkspaceState;
+  if (current && current.context.project_id === projectId) renderAppPreservingDrafts(container, current);
+  try {
+    const result = await loadAssignmentPeriods(new FetchApiTransport(window.location.origin), context);
+    if (!currentWorkspaceState || currentWorkspaceState.context.project_id !== projectId) return;
+    if (result.ok) {
+      activeAssignmentPeriods = result.data;
+      activeAssignmentPeriodsStatus = "loaded";
+    } else {
+      activeAssignmentPeriodsStatus = "error";
+      activeAssignmentPeriodsError = result.error.code;
+    }
+    renderAppPreservingDrafts(container, currentWorkspaceState);
+  } finally {
+    activeAssignmentPeriodsInflight.delete(projectId);
+  }
+}
+
 /** The name the server already gave us for this project, from record or session list. */
 function activeProjectLabel(projectId: string): string {
   if (activeProjectSummary && activeProjectSummaryProjectId === projectId && activeProjectSummary.name) {
@@ -3083,9 +3155,16 @@ function renderBootstrapState(
       activeProjectDataDate = null;
       activeProjectDataDateProjectId = null;
     }
+    if (activeAssignmentPeriodsProjectId !== state.context.project_id) {
+      activeAssignmentPeriods = [];
+      activeAssignmentPeriodsProjectId = null;
+      activeAssignmentPeriodsStatus = "loaded";
+      activeAssignmentPeriodsError = null;
+    }
     renderApp(container, applyRememberedMenu(state.workspace));
     void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
     void loadActiveProjectDataDate(container, state.context);
+    void loadActiveAssignmentPeriods(container, state.context);
     return;
   }
 

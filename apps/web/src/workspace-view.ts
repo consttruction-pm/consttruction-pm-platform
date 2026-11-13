@@ -33,6 +33,13 @@ import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-
 import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
 import { readTraceLogicDepths, renderTraceLogic, storeTraceLogicDepths } from "./workspace-trace-logic.js";
 import {
+  ACTIVITY_USAGE_DEFAULT_PREFS,
+  readActivityUsagePrefs,
+  renderActivityUsage,
+  storeActivityUsagePrefs,
+  type ActivityUsageSource,
+} from "./workspace-activity-usage.js";
+import {
   DEFAULT_PRESENTATION,
   GANTT_BAR_KINDS,
   activityBarFacts,
@@ -191,7 +198,7 @@ function splitStorageKey(kind: "table-gantt" | "details", state: WorkspaceState)
 }
 
 export type WorkspaceTopLayout = "table-only" | "table-gantt" | "activity-network";
-export type WorkspaceBottomLayout = "details" | "trace-logic" | "none";
+export type WorkspaceBottomLayout = "details" | "trace-logic" | "usage-profile" | "usage-spreadsheet" | "none";
 
 function topLayoutStorageKey(state: WorkspaceState): string {
   // Presentation-only preference scoped like the pane splits, so a second
@@ -235,6 +242,23 @@ export function isWorkspaceTraceLogicAvailable(state: WorkspaceState): boolean {
   return Boolean(state.selectedActivityId) && state.relationships.length > 0;
 }
 
+/**
+ * The Activity Usage views only exist when the project actually stores
+ * assignment periods; an empty read keeps them disabled instead of drawing a
+ * fabricated zero profile.
+ */
+export function isWorkspaceUsageAvailable(
+  layout: WorkspaceBottomLayout,
+  source: ActivityUsageSource | undefined,
+): boolean {
+  if (layout !== "usage-profile" && layout !== "usage-spreadsheet") return true;
+  return usageSourceAvailable(source);
+}
+
+function usageSourceAvailable(source: ActivityUsageSource | undefined): boolean {
+  return source !== undefined && source.status === "loaded" && source.periods.length > 0;
+}
+
 export function readWorkspaceTopLayout(state: WorkspaceState): WorkspaceTopLayout {
   try {
     const raw = window.localStorage.getItem(topLayoutStorageKey(state));
@@ -255,11 +279,15 @@ export function storeWorkspaceTopLayout(state: WorkspaceState, layout: Workspace
   }
 }
 
-export function readWorkspaceBottomLayout(state: WorkspaceState): WorkspaceBottomLayout {
+export function readWorkspaceBottomLayout(
+  state: WorkspaceState,
+  usageSource?: ActivityUsageSource,
+): WorkspaceBottomLayout {
   try {
     const raw = window.localStorage.getItem(bottomLayoutStorageKey(state));
     if (raw === "none") return "none";
     if (raw === "trace-logic" && isWorkspaceTraceLogicAvailable(state)) return "trace-logic";
+    if ((raw === "usage-profile" || raw === "usage-spreadsheet") && usageSourceAvailable(usageSource)) return raw;
     if (raw === "details") return "details";
   } catch {
     // Preference storage is optional; the details pane is the default.
@@ -953,7 +981,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -968,6 +996,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.registerPanel !== tab;
       });
+      return;
+    }
+    if (target.dataset.usageRefresh !== undefined) {
+      // Re-reads the authoritative stored periods; the renderer shows its own
+      // loading state until the read returns.
+      options.onActivityUsageRefresh?.();
       return;
     }
     if (target.dataset.calendarEditorTab) {
@@ -1431,8 +1465,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const value = (element as HTMLSelectElement).value;
       const record = workspaceRenderRecords.get(container);
       if (!record) return;
-      if (value !== "details" && value !== "trace-logic" && value !== "none") return;
+      if (value !== "details" && value !== "trace-logic" && value !== "usage-profile" && value !== "usage-spreadsheet" && value !== "none") return;
       if (value === "trace-logic" && !isWorkspaceTraceLogicAvailable(record.state)) return;
+      if (!isWorkspaceUsageAvailable(value, record.options.activityUsage)) return;
       storeWorkspaceBottomLayout(record.state, value);
       // Presentation-only switch, same contract as the top layout: the
       // selection, filters and splits survive because only the bottom surface
@@ -1449,6 +1484,32 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       // independently; both persist as one local preference pair.
       const depth = Number.parseInt((element as HTMLSelectElement).value, 10);
       storeTraceLogicDepths({ ...readTraceLogicDepths(), [direction]: depth });
+      renderBottomSurface(container, record.state, record.options);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "usageMetric")) {
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      const value = (element as HTMLSelectElement).value;
+      if (value !== "units" && value !== "cost") return;
+      try {
+        storeActivityUsagePrefs(window.localStorage, record.state.context, { ...usagePrefs(record.state), metric: value });
+      } catch {
+        // Presentation-only preference; the choice still applies to this render.
+      }
+      renderBottomSurface(container, record.state, record.options);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "usageScope")) {
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      const value = (element as HTMLSelectElement).value;
+      if (value !== "all" && value !== "selected") return;
+      try {
+        storeActivityUsagePrefs(window.localStorage, record.state.context, { ...usagePrefs(record.state), scope: value });
+      } catch {
+        // Presentation-only preference; the choice still applies to this render.
+      }
       renderBottomSurface(container, record.state, record.options);
       return;
     }
@@ -2039,20 +2100,45 @@ function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState):
   return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.activitySortLevels === next.activitySortLevels && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
 
+function usagePrefs(state: WorkspaceState) {
+  try {
+    return readActivityUsagePrefs(window.localStorage, state.context);
+  } catch {
+    return { ...ACTIVITY_USAGE_DEFAULT_PREFS };
+  }
+}
+
+function bottomLayoutHeading(layout: WorkspaceBottomLayout): string {
+  if (layout === "trace-logic") return "cp-trace-heading";
+  if (layout === "usage-profile" || layout === "usage-spreadsheet") return "cp-usage-heading";
+  return "cp-details-heading";
+}
+
 /**
  * Content of the bottom pane for the current window. The Activities window can
- * swap the Activity Details for Trace Logic or hide the pane entirely; every
- * other window keeps its own details panel.
+ * swap the Activity Details for Trace Logic, the Activity Usage views, or hide
+ * the pane entirely; every other window keeps its own details panel.
  */
 function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement, options: WorkspaceRendererOptions = {}): string {
   // The Roles window renders its own detail tabs, so the shared pane stays
   // empty instead of carrying the generic "detail tabs are not implemented"
   // fallback, which would be false for this window even while hidden.
   if (state.activeMenu === "roles" || state.activeMenu === "calendars") return "";
-  const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
-  return layout === "trace-logic"
-    ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepths())
-    : renderWindowDetailsPanel(state, t, container, options);
+  const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state, options.activityUsage) : "details";
+  if (layout === "trace-logic") {
+    return renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepths());
+  }
+  if (layout === "usage-profile" || layout === "usage-spreadsheet") {
+    return renderActivityUsage({
+      view: layout === "usage-profile" ? "profile" : "spreadsheet",
+      source: options.activityUsage ?? { status: "loading", errorCode: null, periods: [] },
+      activities: state.activities.map((activity) => ({ id: activity.id, code: activity.code, name: activity.name })),
+      selectedIds: selectedActivityIdList(state),
+      locale: state.locale,
+      prefs: usagePrefs(state),
+    });
+  }
+  return renderWindowDetailsPanel(state, t, container, options);
 }
 
 /**
@@ -2083,7 +2169,7 @@ function bottomDetailsVisible(state: WorkspaceState, layout: WorkspaceBottomLayo
  * height and horizontal position the user had.
  */
 function renderBottomSurface(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions): void {
-  const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
+  const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state, options.activityUsage) : "details";
   const main = container.querySelector<HTMLElement>(".cp-main[data-details-split]");
   const aside = container.querySelector<HTMLElement>("#cp-details");
   if (!main || !aside) return;
@@ -2092,7 +2178,7 @@ function renderBottomSurface(container: HTMLElement, state: WorkspaceState, opti
   main.dataset.bottomLayout = layout;
   aside.hidden = !visible;
   aside.dataset.bottomSurface = layout;
-  aside.setAttribute("aria-labelledby", layout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading");
+  aside.setAttribute("aria-labelledby", bottomLayoutHeading(layout));
   aside.innerHTML = renderBottomPaneContent(state, getWorkspaceLabels(state.locale), container, options);
   if (layout === "details") options.enhanceActivityDetails?.(aside, state);
   container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]")?.close();
@@ -2131,12 +2217,12 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
     const details = container.querySelector<HTMLElement>("#cp-details");
     if (details) {
-      const nextLayout: WorkspaceBottomLayout = next.activeMenu === "schedule" ? readWorkspaceBottomLayout(next) : "details";
+      const nextLayout: WorkspaceBottomLayout = next.activeMenu === "schedule" ? readWorkspaceBottomLayout(next, options.activityUsage) : "details";
       const nextMain = container.querySelector<HTMLElement>(".cp-main[data-details-split]");
       const nextVisible = bottomDetailsVisible(next, nextLayout);
       details.hidden = !nextVisible;
       details.dataset.bottomSurface = nextLayout;
-      details.setAttribute("aria-labelledby", nextLayout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading");
+      details.setAttribute("aria-labelledby", bottomLayoutHeading(nextLayout));
       if (nextMain) {
         nextMain.dataset.detailsCollapsed = nextVisible ? "false" : "true";
         nextMain.dataset.bottomLayout = nextLayout;
@@ -2229,6 +2315,13 @@ export type WorkspaceRendererOptions = {
    * enhancement can never overwrite Trace Logic or a hidden pane.
    */
   enhanceActivityDetails?: (host: HTMLElement, state: WorkspaceState) => void;
+  /**
+   * Persisted assignment periods the Activity Usage Profile/Spreadsheet
+   * project. Missing means the authoritative read has not completed yet.
+   */
+  activityUsage?: ActivityUsageSource;
+  /** Re-reads assignment periods from the resource read API. */
+  onActivityUsageRefresh?: () => void;
   /** Activity right-click commands that belong to the desktop shell. */
   onActivityContextCommand?: (command: ActivityContextCommand, activityId: string) => void;
   onGanttScaleChange?: (ganttScale: WorkspaceGanttScale) => void;
@@ -2427,7 +2520,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const tableSplit = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, readStoredSplit(tableSplitKey, DEFAULT_TABLE_SPLIT)));
   const detailsSplit = Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, readStoredSplit(detailsSplitKey, DEFAULT_DETAILS_SPLIT)));
   const topLayout: WorkspaceTopLayout = state.activeMenu === "schedule" ? readWorkspaceTopLayout(state) : "table-gantt";
-  const bottomLayout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
+  const bottomLayout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state, options.activityUsage) : "details";
   const detailsVisible = bottomDetailsVisible(state, bottomLayout);
   // The session list already carries the authoritative name, so the title bar
   // keeps it on first paint instead of flashing the id until the record loads.
@@ -2486,7 +2579,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </nav>
         <div class="cp-p6-body">
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t, options) : ""}
           <main class="cp-main" data-details-split data-bottom-layout="${bottomLayout}" data-details-collapsed="${detailsVisible ? "false" : "true"}" style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
               <div class="cp-layout-selector-host" data-layout-selector-host data-workspace-menu="schedule" role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activities layout", "چیدمان فعالیت‌ها"))}"></div>
@@ -2531,9 +2624,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               ${renderP6ModuleStage(container, state, t, options)}
             </div>
             <div class="cp-details-splitter" data-details-splitter data-split-key="${escapeAttribute(detailsSplitKey)}" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity area and details", "تغییر اندازهٔ ناحیهٔ فعالیت و جزئیات"))}" aria-valuemin="${MIN_DETAILS_SPLIT}" aria-valuemax="${MAX_DETAILS_SPLIT}" aria-valuenow="${detailsSplit.toFixed(0)}" data-resize-handle="details"><span></span></div>
-            <aside id="cp-details" class="cp-panel cp-details" ${detailsVisible ? "" : "hidden"} data-bottom-surface="${bottomLayout}" data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="${bottomLayout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading"}">${bottomLayout === "trace-logic"
-                ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepths())
-                : renderWindowDetailsPanel(state, t, container, options)}</aside>
+            <aside id="cp-details" class="cp-panel cp-details" ${detailsVisible ? "" : "hidden"} data-bottom-surface="${bottomLayout}" data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="${bottomLayoutHeading(bottomLayout)}">${renderBottomPaneContent(state, t, container, options)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
@@ -4655,7 +4746,7 @@ function getActivityDetailsVisibleTabs(container: HTMLElement): Set<string> {
   return defaults;
 }
 
-function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): string {
+function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels, options: WorkspaceRendererOptions): string {
   const scaleLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -4664,9 +4755,10 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
     year: t.scaleYear,
   };
   const topLayout = readWorkspaceTopLayout(state);
-  const bottomLayout = readWorkspaceBottomLayout(state);
+  const bottomLayout = readWorkspaceBottomLayout(state, options.activityUsage);
   const networkAvailable = isWorkspaceTopLayoutAvailable("activity-network", state);
   const traceAvailable = isWorkspaceTraceLogicAvailable(state);
+  const usageAvailable = usageSourceAvailable(options.activityUsage);
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
@@ -4676,12 +4768,13 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
           <select data-top-layout><option value="table-only"${topLayout === "table-only" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Table", "جدول فعالیت‌ها"))}</option><option value="table-gantt"${topLayout === "table-gantt" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network"${networkAvailable ? "" : " disabled"}${topLayout === "activity-network" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Network", "شبکهٔ فعالیت‌ها"))}</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option></select>
         </label>
         ${networkAvailable ? "" : `<p>${escapeHtml(uiText(state.locale, "The Activity Network needs persisted activities and relationships. It stays disabled for this project instead of drawing placeholder nodes.", "شبکهٔ فعالیت‌ها به فعالیت‌ها و روابط ذخیره‌شده نیاز دارد. برای این پروژه غیرفعال می‌ماند تا گره‌های ساختگی ترسیم نشوند."))}</p>`}
-        <p>${escapeHtml(uiText(state.locale, "The Activity Network and Trace Logic are drawn from the persisted activities and relationships already loaded in this workspace; Usage views stay disabled until their authoritative services are wired.", "شبکهٔ فعالیت‌ها و ردیابی منطق از فعالیت‌ها و روابط ذخیره‌شده و بارگذاری‌شده در این محیط کار ترسیم می‌شوند؛ نماهای مصرف تا اتصال سرویس‌های مرجع غیرفعال می‌مانند."))}</p>
+        <p>${escapeHtml(uiText(state.locale, "The Activity Network and Trace Logic are drawn from the persisted activities and relationships already loaded in this workspace; the Activity Usage views project stored assignment periods and stay disabled until that read returns rows.", "شبکهٔ فعالیت‌ها و ردیابی منطق از فعالیت‌ها و روابط ذخیره‌شده و بارگذاری‌شده در این محیط کار ترسیم می‌شوند؛ نماهای مصرف، دوره‌های تخصیص ذخیره‌شده را نمایش می‌دهند و تا زمانی که این خواندن ردیفی برنگرداند غیرفعال می‌مانند."))}</p>
         <h3>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</h3>
         <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
-          <select data-bottom-layout><option value="details"${bottomLayout === "details" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</option><option value="trace-logic"${traceAvailable ? "" : " disabled"}${bottomLayout === "trace-logic" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Trace Logic", "ردیابی منطق"))}</option><option value="none"${bottomLayout === "none" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "None", "بدون نما"))}</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option></select>
+          <select data-bottom-layout><option value="details"${bottomLayout === "details" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</option><option value="trace-logic"${traceAvailable ? "" : " disabled"}${bottomLayout === "trace-logic" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Trace Logic", "ردیابی منطق"))}</option><option value="usage-spreadsheet"${usageAvailable ? "" : " disabled"}${bottomLayout === "usage-spreadsheet" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Usage Spreadsheet", "صفحه‌گستردهٔ مصرف فعالیت"))}</option><option value="usage-profile"${usageAvailable ? "" : " disabled"}${bottomLayout === "usage-profile" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Usage Profile", "نیم‌رخ مصرف فعالیت"))}</option><option value="none"${bottomLayout === "none" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "None", "بدون نما"))}</option></select>
         </label>
         ${traceAvailable ? "" : `<p>${escapeHtml(uiText(state.locale, "Trace Logic needs a selected activity and persisted relationships. Select an activity with loaded logic to enable it.", "ردیابی منطق به یک فعالیت انتخاب‌شده و روابط ذخیره‌شده نیاز دارد. برای فعال‌شدن، فعالیتی با منطق بارگذاری‌شده انتخاب کنید."))}</p>`}
+        ${usageAvailable ? "" : `<p>${escapeHtml(uiText(state.locale, "The Activity Usage views need stored assignment periods for this project. They stay disabled instead of drawing a fabricated zero profile.", "نماهای مصرف فعالیت به دوره‌های تخصیص ذخیره‌شده برای این پروژه نیاز دارند. برای پرهیز از رسم نیم‌رخ صفر ساختگی، غیرفعال می‌مانند."))}</p>`}
       </section>
       <section class="cp-layout-options-section">
         <h3>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</h3>

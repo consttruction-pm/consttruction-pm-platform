@@ -9078,3 +9078,84 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cubi-language-picker select.cubi-exact-language{appearance:auto;-webkit-appearance:menulist;box-sizing:border-box;min-width:112px;max-width:150px;padding:8px 9px;border:1px solid #d9e1ea;border-radius:7px;background:#fff;color:#34445a;font:inherit;font-size:12px;font-weight:600;line-height:1.2;cursor:pointer}
 .cubi-language-picker select.cubi-exact-language:focus-visible{outline:2px solid #1976d2;outline-offset:2px}
 @media(max-width:820px){.cubi-language-picker select.cubi-exact-language{min-width:96px;max-width:124px;padding:6px 5px;font-size:11px}}
+/* Activity Usage Profile / Spreadsheet: read-only projection of stored assignment periods. */
+.cp-p6 .cp-usage-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: #fff;
+  color: #1f2d3d;
+  font-size: 10.5px;
+  overflow: hidden;
+}
+.cp-p6 .cp-usage-surface > h3 {
+  flex: 0 0 auto;
+  min-height: 28px;
+  margin: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid #c3ccd8;
+  background: #e6ebf2;
+  font-size: 11px;
+}
+.cp-p6 .cp-usage-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-bottom: 1px solid #dde3ea;
+  background: #f5f7fa;
+  font-size: 9.5px;
+  color: #44536a;
+}
+.cp-p6 .cp-usage-controls select { height: 20px; font: inherit; }
+.cp-p6 .cp-usage-controls button { height: 20px; font: inherit; }
+.cp-p6 .cp-usage-count { margin-inline-start: auto; color: #66788c; }
+.cp-p6 .cp-usage-source { margin: 3px 8px; font-size: 9px; color: #66788c; }
+.cp-p6 .cp-usage-table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 8px 4px; }
+.cp-p6 .cp-usage-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cp-p6 .cp-usage-table th,
+.cp-p6 .cp-usage-table td { padding: 2px 6px; border-bottom: 1px solid #e3e8ee; text-align: end; white-space: nowrap; }
+.cp-p6 .cp-usage-table thead th { position: sticky; top: 0; z-index: 1; background: #eef2f6; font-weight: 700; }
+.cp-p6 .cp-usage-table .cp-usage-activity {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: #fff;
+  text-align: start;
+  white-space: normal;
+  min-width: 160px;
+}
+.cp-p6 .cp-usage-table thead .cp-usage-activity { z-index: 2; background: #eef2f6; }
+.cp-p6 .cp-usage-table tfoot th,
+.cp-p6 .cp-usage-table tfoot td { background: #f5f7fa; font-weight: 700; border-top: 1px solid #c3ccd8; }
+.cp-p6 .cp-usage-activity span { display: block; }
+.cp-p6 .cp-usage-activity small { display: block; font-size: 9px; color: #66788c; }
+.cp-p6 .cp-usage-total { font-weight: 700; }
+.cp-p6 .cp-usage-profile-summary { margin: 3px 8px; font-size: 9.5px; color: #44536a; }
+.cp-p6 .cp-usage-profile-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 120px;
+  padding: 4px 8px 6px;
+  border-top: 1px solid #e3e8ee;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.cp-p6 .cp-usage-profile-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 0 36px;
+  min-width: 36px;
+  height: 100%;
+}
+.cp-p6 .cp-usage-profile-bar b { display: block; width: 70%; max-width: 48px; background: #2f6fa8; border-radius: 2px 2px 0 0; }
+.cp-p6 .cp-usage-profile-bar .cp-usage-bar-value { margin-bottom: 2px; font-size: 9px; color: #24486f; font-variant-numeric: tabular-nums; }
+.cp-p6 .cp-usage-profile-bar em { margin-top: 2px; font-style: normal; font-size: 9px; color: #66788c; }
+
