@@ -484,10 +484,10 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
     intro: "Manage your projects in a secure and always-accessible environment. With cloud infrastructure, security capabilities, and backup services, CUBI helps you manage your project information and records with greater confidence.",
     cards: [
       { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Encrypted connection between your browser and CUBI." },
-      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "Infrastructure protection against unauthorized access. This control is not yet verified for the current deployment." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "No IP-based access restrictions are configured for the two connected web services. A separate application firewall rule set has not been verified; CUBI authentication remains a separate layer." },
       { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Protection against attacks that disrupt service availability, provided by the hosting platform." },
       { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
-      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Render logs and service events are available; independent alert coverage is not verified." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Hosting logs and service events are available; independent alert coverage is not verified." },
       { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
     ],
     disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected workspace currently has two Free web services in Frankfurt and no managed PostgreSQL instance. IP-based access restrictions are not configured at the hosting layer. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
@@ -498,10 +498,10 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
     intro: "مدیریت پروژه‌های خود را به محیطی امن و همیشه در دسترس بسپارید.\nCUBI با بهره‌گیری از زیرساخت ابری، امکانات امنیتی و خدمات پشتیبان‌گیری، به شما کمک می‌کند اطلاعات و سوابق پروژه‌های خود را با اطمینان بیشتری مدیریت کنید.",
     cards: [
       { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "ارتباط امن و رمزنگاری‌شده با CUBI." },
-      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "محافظت زیرساخت در برابر دسترسی‌های غیرمجاز. فعال بودن این کنترل برای استقرار فعلی هنوز تأیید نشده است." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "در دو سرویس وب متصل، محدودیت دسترسی مبتنی بر IP پیکربندی نشده است. پیکربندی جداگانه فایروال برنامه تأیید نشده و احراز هویت کوبی لایه‌ای مستقل است." },
       { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "محافظت در برابر حملات مختل‌کننده سرویس؛ این قابلیت توسط زیرساخت میزبان ارائه می‌شود." },
       { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "پشتیبان‌گیری خودکار برای کاهش خطر از دست رفتن اطلاعات. پیکربندی پشتیبان‌گیری کوبی هنوز تأیید نشده و فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
-      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای Render در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای سرویس در داشبورد میزبان در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
       { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "امکان بازیابی اطلاعات از نسخه‌های پشتیبان. منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی هنوز ثبت نشده است." }
     ],
     disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه PostgreSQL مدیریت‌شده مشاهده نشد. در لایه میزبانی، محدودیت دسترسی مبتنی بر IP پیکربندی نشده است. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
