@@ -21,12 +21,13 @@ Every successful upload creates one append-only `DocumentContentVersion`. The ro
     "status": "clean",
     "engine": "reference",
     "engine_version": "1",
-    "detail": ""
+    "detail": "",
+    "scanned_at": "2026-11-12T12:30:01+00:00"
   }
 }
 ```
 
-`scan.status` is one of `clean`, `infected`, `failed`, `unscanned`. Rows written before scan metadata existed deserialize as `unscanned` with empty engine fields, so no migration or table rebuild is required. An `infected` version is never persisted because the scanner runs before `put`; the status value exists for contract completeness and future retained evidence.
+`scan.status` is one of `clean`, `infected`, `failed`, `unscanned`. Rows written before scan metadata existed deserialize as `unscanned` with empty engine fields and `scanned_at: null`, so no migration or table rebuild is required. An `infected` version is never persisted because the scanner runs before `put`; the status value exists for contract completeness and future retained evidence. `scanned_at` is recorded from the application clock when a verdict exists and stays `null` for `unscanned` rows; it must be timezone-aware.
 
 Uploads remain idempotent per `(tenant, project, document, idempotency_key)`. Replaying the same bytes returns the original version and verdict without writing a second object; reusing the key for different bytes is `409 DOCUMENT_CONTENT_IDEMPOTENCY_KEY_REUSE`.
 
@@ -53,6 +54,8 @@ Local references are `local:v1/{key}`. S3-compatible references are `s3:v1/{key}
 
 `DocumentScanner.scan(data, content_type=...) -> ScanVerdict` is the only scanning boundary. `ScanVerdict.validate()` requires a known status, a non-empty engine name and version, and string detail. The deterministic `ReferenceDocumentScanner` is a test/development adapter: it recognises only the public EICAR marker and reports engine `reference` version `1`. It is not an antivirus and must not be presented as one.
 
+`HttpDocumentScanner` (`document_scan_http.py`) is the operational adapter. It POSTs raw bytes to one configured HTTPS endpoint, sends the declared content type in `X-Document-Content-Type`, optionally sends a bearer token, refuses redirects, caps the request and response size, requires `status`, `engine` and `engine_version` in the JSON answer, maps `error`/`fatal`/`timeout`/`unavailable` to `failed`, and raises `DocumentScanUnavailable` on any transport, status, timeout or payload error. Exception text contains only the failing class, HTTP status or error code — never the endpoint credentials, token or payload. `scanner_from_environment()` selects `reference` or `external` from `CONSTRUCTION_PM_SCANNER` and never falls back to an implicit engine.
+
 `DocumentApplicationService` accepts `scanner` and `require_scanned_content`. The behavior matrix is:
 
 | Condition | `require_scanned_content=True` | `require_scanned_content=False` |
@@ -70,7 +73,7 @@ With `require_scanned_content=True`, downloads are quarantine-first:
 - any other version returns `409 DOCUMENT_CONTENT_QUARANTINED` and no bytes;
 - legacy metadata-only `storage_ref` download paths are refused, because they carry no verdict.
 
-The preview runtime composes `ReferenceDocumentScanner` with `require_scanned_content=True`. Production composition must inject the real engine adapter and keep strict mode enabled. A real engine adapter, its credentials/licence and any quarantine review workflow are external dependencies and are not claimed here.
+The preview runtime composes `ReferenceDocumentScanner` with `require_scanned_content=True`. Production composition must inject the operational adapter through `scanner_from_environment()`, keep strict mode enabled and configure `CONSTRUCTION_PM_SCANNER_ENDPOINT` over HTTPS plus an optional `CONSTRUCTION_PM_SCANNER_TOKEN`. A deployed scanner service, its credentials/licence and any quarantine review workflow remain external dependencies and are not claimed here; the adapter is tested against a local HTTP service only.
 
 ### HTTP outcomes
 

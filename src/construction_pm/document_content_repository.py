@@ -41,6 +41,7 @@ class DocumentContentVersion:
     scan_engine: str = ""
     scan_engine_version: str = ""
     scan_detail: str = ""
+    scan_scanned_at: datetime | None = None
 
     def validate(self) -> None:
         for name, value in (
@@ -89,6 +90,13 @@ class DocumentContentVersion:
             raise DocumentContentPersistenceError(
                 "INVALID_DOCUMENT_CONTENT_SCAN_ENGINE"
             )
+        if self.scan_scanned_at is not None and (
+            not isinstance(self.scan_scanned_at, datetime)
+            or self.scan_scanned_at.tzinfo is None
+        ):
+            raise DocumentContentPersistenceError(
+                "INVALID_DOCUMENT_CONTENT_SCAN_TIMESTAMP"
+            )
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -106,6 +114,11 @@ class DocumentContentVersion:
                 "engine": self.scan_engine,
                 "engine_version": self.scan_engine_version,
                 "detail": self.scan_detail,
+                "scanned_at": (
+                    None
+                    if self.scan_scanned_at is None
+                    else self.scan_scanned_at.isoformat()
+                ),
             },
         }
 
@@ -130,6 +143,11 @@ def _from_json(final_row: object) -> DocumentContentVersion:
         scan_engine=str(payload.get("scan_engine", "")),
         scan_engine_version=str(payload.get("scan_engine_version", "")),
         scan_detail=str(payload.get("scan_detail", "")),
+        scan_scanned_at=(
+            None
+            if payload.get("scan_scanned_at") is None
+            else _coerce_datetime(payload["scan_scanned_at"])
+        ),
     )
 
 
@@ -153,6 +171,11 @@ def _to_json(version: DocumentContentVersion) -> str:
             "scan_engine": version.scan_engine,
             "scan_engine_version": version.scan_engine_version,
             "scan_detail": version.scan_detail,
+            "scan_scanned_at": (
+                None
+                if version.scan_scanned_at is None
+                else version.scan_scanned_at.isoformat()
+            ),
         },
         ensure_ascii=False,
         sort_keys=True,

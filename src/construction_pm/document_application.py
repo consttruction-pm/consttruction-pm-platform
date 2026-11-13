@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Callable
 
 from .api_errors import (
     APIError,
@@ -88,6 +89,13 @@ class DocumentApplicationService:
     disposition_repository: DocumentRetentionStore | None = None
     metrics: OperationalMetrics | None = None
     logger: StructuredEventLogger | None = None
+    clock: Callable[[], datetime] | None = None
+
+    def _now(self) -> datetime:
+        now = datetime.now(timezone.utc) if self.clock is None else self.clock()
+        if not isinstance(now, datetime) or now.tzinfo is None:
+            raise DocumentScanError("INVALID_DOCUMENT_SCAN_TIMESTAMP")
+        return now
 
     def _record_upload(self, upload: DocumentContentUpload) -> DocumentContentUpload:
         version = upload.content
@@ -302,6 +310,7 @@ class DocumentApplicationService:
             )
 
         verdict = self._scan_payload(data, blob.content_type)
+        scanned_at = self._now() if verdict is not None else None
         storage_ref = self.storage.put(
             tenant_id=tenant_id,
             project_id=project_id,
@@ -363,6 +372,7 @@ class DocumentApplicationService:
                     scan_engine=verdict.engine if verdict else "",
                     scan_engine_version=verdict.engine_version if verdict else "",
                     scan_detail=verdict.detail if verdict else "",
+                    scan_scanned_at=scanned_at,
                 )
             )
             if version.scan_status == "clean" and self.ocr_store is not None:
