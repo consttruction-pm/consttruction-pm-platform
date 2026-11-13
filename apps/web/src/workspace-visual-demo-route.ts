@@ -33,3 +33,19 @@ export function workspaceLoginNextPath(projectId: string | null): string {
   if (!projectId) return "/app?view=live";
   return `/app?project=${encodeURIComponent(projectId)}&view=live`;
 }
+
+/**
+ * The preview server serves its own sign-in page under `/preview/login`; the
+ * deployed runtime serves `/login`. The server that renders the shell declares
+ * the path in a meta tag so the client never guesses or probes.
+ */
+export function resolveWorkspaceLoginPath(root?: {
+  querySelector(selector: string): { getAttribute(name: string): string | null } | null;
+}): string {
+  const doc = root ?? (typeof document === "undefined" ? null : document);
+  const declared = doc?.querySelector('meta[name="cubi-login-path"]')?.getAttribute("content")?.trim();
+  if (declared && declared.startsWith("/") && !declared.startsWith("//") && !declared.includes("\\")) {
+    return declared;
+  }
+  return "/login";
+}

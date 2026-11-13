@@ -562,6 +562,13 @@ class PreviewApplication:
             }
             return 302, headers, b""
         shell = (self.frontend.root / "app.html").read_text(encoding="utf-8")
+        # The client must not guess where sign-in lives: the preview serves its
+        # own persona page, while the deployed runtime serves /login.
+        meta = f'<meta name="cubi-login-path" content="{LOGIN_PATH}" />'
+        if "</head>" in shell:
+            shell = shell.replace("</head>", f"    {meta}\n  </head>", 1)
+        else:
+            shell = meta + shell
         if self.asset_base:
             # The bundle resolves shared brand assets with `new URL("../../../…",
             # import.meta.url)`, exactly as it does when served from /dist/. It

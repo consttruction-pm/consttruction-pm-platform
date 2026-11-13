@@ -1,4 +1,5 @@
 import { API_REQUEST_TIMEOUT_MS } from "./client.js";
+import { withCsrfHeader } from "./csrf.js";
 import type { ApiResult, ClientError } from "./client.js";
 
 export type Session = {
@@ -75,6 +76,8 @@ export type ProjectContext = {
 
 export type SessionApi = {
   getSession(): Promise<ApiResult<Session>>;
+  login?(email: string, password: string): Promise<ApiResult<Session>>;
+  logout?(): Promise<ApiResult<null>>;
   listProjects(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
   openProject(projectId: string): Promise<ApiResult<{ context: ProjectContext }>>;
   createProject(
@@ -102,6 +105,15 @@ export class FetchSessionApi implements SessionApi {
   constructor(private readonly baseUrl: string) {}
 
   getSession() { return this.request<Session>("/api/session"); }
+
+  login(email: string, password: string) {
+    return this.request<Session>("/api/session", "POST", { email, password });
+  }
+
+  async logout(): Promise<ApiResult<null>> {
+    const result = await this.request<null>("/api/session", "DELETE");
+    return result.ok ? { ok: true, data: null } : result;
+  }
   listProjects() { return this.request<{ projects: ProjectSummary[] }>("/api/projects"); }
 
   openProject(projectId: string) {
@@ -157,14 +169,17 @@ export class FetchSessionApi implements SessionApi {
   }
 
   private async request<T>(
-    path: string, method: "GET" | "POST" | "PATCH" = "GET", body?: unknown,
+    path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: unknown,
   ): Promise<ApiResult<T>> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(new URL(path, this.baseUrl), {
         method, credentials: "include",
-        headers: body === undefined ? {} : { "Content-Type": "application/json" },
+        headers: withCsrfHeader(
+          method,
+          body === undefined ? {} : { "Content-Type": "application/json" },
+        ),
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });

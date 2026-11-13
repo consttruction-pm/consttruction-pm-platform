@@ -9,6 +9,8 @@ venv/
 # Web build/dependencies
 apps/web/node_modules/
 apps/web/dist/
+# Vercel build output (assembled by scripts/vercel_build.sh)
+public/
 
 # Local full-stack preview state (demo SQLite + screenshots scratch)
 .preview/

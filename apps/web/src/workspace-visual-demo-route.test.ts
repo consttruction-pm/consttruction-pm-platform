@@ -5,6 +5,7 @@ import { createVisualDemoState, renderVisualDemo } from "./workspace-visual-demo
 
 import {
   liveWorkspaceProjectHref,
+  resolveWorkspaceLoginPath,
   shouldRenderVisualWorkspaceDemo,
   workspaceLoginNextPath,
   VISUAL_WORKSPACE_PREVIEW_PROJECT_ID,
@@ -269,4 +270,29 @@ test("Smart Guide shows staged project setup and schedule quality checks", () =>
   assert.match(markup, /Connect logic/);
   assert.match(markup, /Review activities with no predecessors or successors/);
   assert.match(markup, /data-vd-window="assignments"/);
+});
+
+test("production login path is declared by the served shell, not hard-coded", () => {
+  assert.equal(resolveWorkspaceLoginPath({ querySelector: () => null }), "/login");
+  assert.equal(
+    resolveWorkspaceLoginPath({
+      querySelector: (selector) =>
+        selector === 'meta[name="cubi-login-path"]'
+          ? { getAttribute: () => "/preview/login" }
+          : null,
+    }),
+    "/preview/login",
+  );
+});
+
+test("a hostile login path declaration falls back to /login", () => {
+  for (const declared of ["https://evil.example/login", "//evil.example", "/a\\b", ""]) {
+    assert.equal(
+      resolveWorkspaceLoginPath({
+        querySelector: () => ({ getAttribute: () => declared }),
+      }),
+      "/login",
+      declared,
+    );
+  }
 });

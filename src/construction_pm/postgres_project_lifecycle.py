@@ -18,6 +18,55 @@ class ProjectLifecyclePostgresConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
 
 
+PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        revision BIGINT NOT NULL DEFAULT 0,
+        description TEXT NOT NULL DEFAULT '',
+        start_date TEXT,
+        date_system TEXT NOT NULL DEFAULT 'gregorian',
+        primary_calendar_id TEXT,
+        settings_revision BIGINT NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        business_domain TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (tenant_id, project_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, project_id, user_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS project_lifecycle_status_event (
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        from_status TEXT NOT NULL,
+        to_status TEXT NOT NULL,
+        actor_user_id TEXT NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL,
+        settings_revision BIGINT NOT NULL,
+        PRIMARY KEY (tenant_id, project_id, event_id)
+    )
+    """,
+)
+
+
+def initialize_project_lifecycle_schema(
+    connection: ProjectLifecyclePostgresConnection,
+) -> None:
+    """Create the lifecycle tables when absent. Never drops or rewrites a row."""
+    for statement in PROJECT_LIFECYCLE_SCHEMA_STATEMENTS:
+        connection.execute(statement)
+
+
 class PostgresSessionRepository(SessionRepository):
     """PostgreSQL adapter for opaque authenticated sessions.
 
