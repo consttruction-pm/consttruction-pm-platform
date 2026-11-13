@@ -1,13 +1,18 @@
 """WSGI operational surface: liveness, readiness and request correlation.
 
 The middleware is intentionally outside the domain/application layers. It only
-answers two read-only probe paths and annotates requests with a safe correlation
-id. It never authenticates, mutates state, or exposes configuration values.
+answers read-only probe paths and annotates requests with a safe correlation
+id. It never authenticates business traffic, mutates state, or exposes
+configuration values.
 
 - ``GET|HEAD /api/health/live``  — process liveness, always 200 while serving.
 - ``GET|HEAD /api/health/ready`` — dependency readiness; 200 for ``ready`` and
   ``degraded``, 503 for ``not_ready``. A degraded response means only optional
   components are unavailable.
+- ``GET|HEAD /api/metrics`` — optional bounded metrics scrape, only when a
+  metrics export service is configured. It requires a bearer token, is never
+  cached, and is served outside request instrumentation. Health and readiness
+  never depend on it.
 """
 
 from __future__ import annotations
@@ -17,6 +22,12 @@ from time import monotonic
 from typing import Callable, Iterable, Mapping
 from urllib.parse import urlsplit
 
+from ..metrics_export import (
+    CONTENT_TYPE as METRICS_CONTENT_TYPE,
+    METRICS_PATH,
+    MetricsExportService,
+    MetricsExportState,
+)
 from ..observability import (
     OperationalMetrics,
     reset_correlation_id,
@@ -67,6 +78,8 @@ def _json_response(
     body = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     reason = {
         200: "OK",
+        401: "Unauthorized",
+        404: "Not Found",
         405: "Method Not Allowed",
         503: "Service Unavailable",
     }.get(status_code, "OK")
@@ -91,6 +104,7 @@ class OperationalMiddleware:
         readiness: ReadinessService | None = None,
         logger: StructuredEventLogger | None = None,
         metrics: OperationalMetrics | None = None,
+        metrics_export: MetricsExportService | None = None,
     ) -> None:
         if not callable(app):
             raise ValueError("OPERATIONAL_APP_NOT_CALLABLE")
@@ -98,6 +112,7 @@ class OperationalMiddleware:
         self._readiness = readiness
         self._logger = logger
         self._metrics = metrics
+        self._metrics_export = metrics_export
 
     def __call__(
         self, environ: dict[str, object], start_response: StartResponse
@@ -109,6 +124,13 @@ class OperationalMiddleware:
         environ["HTTP_X_REQUEST_ID"] = correlation_id
         if path in HEALTH_PATHS:
             return self._health(method, path, start_response, correlation_id)
+        if path == METRICS_PATH and self._metrics_export is not None:
+            return self._scrape(
+                method,
+                start_response,
+                correlation_id,
+                str(environ.get("HTTP_AUTHORIZATION", "") or ""),
+            )
 
         started = monotonic()
         status = {"code": 500}
@@ -184,6 +206,63 @@ class OperationalMiddleware:
         if self._logger is not None:
             self._logger.emit(event, **kwargs)  # type: ignore[arg-type]
 
+    def _scrape(
+        self,
+        method: str,
+        start_response: StartResponse,
+        correlation_id: str,
+        authorization: str,
+    ) -> list[bytes]:
+        assert self._metrics_export is not None
+        service = self._metrics_export
+        if service.state is MetricsExportState.DISABLED:
+            # The route does not exist when export is disabled.
+            return _json_response(
+                start_response,
+                404,
+                {"status": "not_found"},
+                correlation_id=correlation_id,
+            )
+        if method not in {"GET", "HEAD"}:
+            return _json_response(
+                start_response,
+                405,
+                {"status": "method_not_allowed"},
+                correlation_id=correlation_id,
+                extra_headers=[("Allow", "GET, HEAD")],
+            )
+        if not service.authorized(authorization):
+            return _json_response(
+                start_response,
+                401,
+                {"status": "unauthorized", "code": "METRICS_EXPORT_UNAUTHORIZED"},
+                correlation_id=correlation_id,
+                extra_headers=[("WWW-Authenticate", 'Bearer realm="metrics"')],
+            )
+        result = service.scrape()
+        if not result.ok:
+            return _json_response(
+                start_response,
+                503,
+                {
+                    "status": "unavailable",
+                    "code": result.error or "METRICS_EXPORT_UNAVAILABLE",
+                },
+                correlation_id=correlation_id,
+            )
+        payload = result.body.encode("utf-8")
+        include_body = method != "HEAD"
+        start_response(
+            "200 OK",
+            [
+                ("Content-Type", METRICS_CONTENT_TYPE),
+                ("Content-Length", str(len(payload))),
+                ("Cache-Control", "no-store"),
+                (CORRELATION_HEADER, correlation_id),
+            ],
+        )
+        return [payload] if include_body else []
+
     def _health(
         self,
         method: str,
@@ -252,5 +331,6 @@ __all__ = [
     "HEALTH_LIVE_PATH",
     "HEALTH_PATHS",
     "HEALTH_READY_PATH",
+    "METRICS_PATH",
     "OperationalMiddleware",
 ]

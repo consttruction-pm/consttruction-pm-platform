@@ -12,6 +12,7 @@ uses route templates, not raw paths.
 
 from __future__ import annotations
 
+import math
 import re
 from contextvars import ContextVar, Token
 from threading import RLock
@@ -104,7 +105,12 @@ class OperationalMetrics:
         max_samples: int = 512,
     ) -> None:
         metric = _validate_name(name)
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
             raise ObservabilityError("INVALID_METRIC_OBSERVATION")
         key = (metric, _validate_labels(labels))
         with self._lock:
@@ -133,6 +139,7 @@ class OperationalMetrics:
                     "name": name,
                     "labels": dict(labels),
                     "count": len(values),
+                    "sum": sum(values) if values else 0.0,
                     "min": min(values) if values else 0.0,
                     "max": max(values) if values else 0.0,
                     "mean": (sum(values) / len(values)) if values else 0.0,
