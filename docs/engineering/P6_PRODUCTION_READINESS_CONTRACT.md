@@ -92,7 +92,7 @@ the `observability` readiness component, so a misconfigured deployment reports
 | `CONSTRUCTION_PM_METRICS_EXPORT_ENABLED` | unset (disabled) | `1/true/yes/on` enables the scrape route |
 | `CONSTRUCTION_PM_METRICS_EXPORT_TOKEN` | none | Bearer token, 16–512 printable characters; required when enabled |
 | `CONSTRUCTION_PM_METRICS_EXPORT_MAX_BYTES` | `262144` | Hard cap (1 B–4 MiB) on the exposition body |
-| `CONSTRUCTION_PM_METRICS_EXPORT_MAX_SERIES` | `2000` | Registry cap applied when composing the exporter |
+| `CONSTRUCTION_PM_METRICS_EXPORT_MAX_SERIES` | `2000` | Scrapes with more counter/observation series fail closed with `503` |
 
 When enabled, `GET|HEAD /api/metrics` serves
 `text/plain; version=0.0.4` with `Cache-Control: no-store`:
