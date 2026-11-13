@@ -3306,3 +3306,37 @@ Evidence: `docs/workspace/evidence/activity-usage-v26-2026-11-13/`
 `218977dc72405061b4fc3d0f228db7e70df7e140`, screenshots 01–10b,
 `CHECKLIST.md`). Web suite at the same code: 981 + 14 tests pass;
 `tsc --noEmit` and `npm run build` pass.
+
+## Activity Details tab inventory and write paths (2026-11-13)
+
+- **Scope.** ACT-014 remains WIRED_WRITE, now evidenced across the full tab
+  set at code `8d27c88f041e061f013042c4ed14cbfe213959b0`. The Help topics are
+  Activity Details and Customize Activity Details.
+- **Inventory.** The bottom pane renders the 16 desktop tabs in contract order
+  (General, Status, Resources, Predecessors, Successors, Relationships, Codes,
+  Notebook, Steps, WPs & Docs, Expenses, Issues, Risks, Summary, UDFs, Update
+  History) plus the CUBI Calendar tab. Tasks, Discussion and Feedback are P6
+  EPPM-only and are not offered.
+- **Data binding.** General/Status/Codes/Summary/Calendar and the relationship
+  tabs read the authoritative workspace state. Resources, Expenses, Issues,
+  Risks, Steps, UDFs and Update History read their project-service endpoints
+  when activated, with explicit loading, empty and error states.
+- **Write paths.** Resources, Expenses and Issues submit through `saveAssignment`,
+  `saveExpense` and `saveIssue` (existing `/p6/resource-assignments`,
+  `/p6/expenses`, `/p6/issues` routes under `PROJECT_WRITE`) and then reload the
+  stored list. UDFs keep the typed value PUT from the earlier slice.
+- **Verified behaviour.** 17 tabs in order with Calendar last; every data tab
+  settles with a Reload action and no error; A130 lists its three stored step
+  definitions in sequence with no invented completion percentage; assignment,
+  expense and issue writes each report `Saved. The list was reloaded from the
+  project service.` and reappear from the service; removing Status in Customize
+  Tabs survives a full reload; zero exceptions, console errors or 5xx.
+- **Known limits.** Risks has no activity reference and remains a read-only
+  project register; WPs & Docs and Update History are read surfaces; Notebook
+  defers to the browser-local Comments rail; the Customize dialog changes only
+  the display set.
+
+Evidence: `docs/workspace/evidence/activity-details-tabs-v26-2026-11-13/`
+(`activity-details-tabs-v26.json`, `testedCodeSha`/`gitHead`
+`8d27c88f041e061f013042c4ed14cbfe213959b0`, 17 tabs, 3 write paths,
+screenshot `details-en-1366.png`, `CHECKLIST.md`).
