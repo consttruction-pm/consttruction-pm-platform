@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { bindRegisterContextMenus } from "./workspace-register-context-menu.js";
 
 export const COST_API_VERSION = "p6-cost-api.v1";
 export const EXPENSE_CATEGORIES = ["labor", "material", "equipment", "subcontract", "overhead", "other"] as const;
@@ -1037,6 +1038,73 @@ export function mountWorkspaceExpensesPage(host: HTMLElement, options: ExpensePa
       state.editingAccountRevision = null;
       await reloadAccounts(result.data.accountId);
     })();
+  });
+
+  bindRegisterContextMenus(host, {
+    locale,
+    canWrite,
+    menus: [
+      {
+        kind: "expense-register",
+        label: { en: "Expense", fa: "هزینه" },
+        rowSelector: "[data-expense-row]",
+        rowIdAttribute: "data-expense-id",
+        commands: [
+          {
+            command: "expense-edit",
+            label: { en: "Edit Expense", fa: "ویرایش هزینه" },
+            icon: "edit",
+            control: "[data-expense-edit]",
+            requiresWrite: true,
+          },
+          {
+            command: "expense-delete",
+            label: { en: "Delete Expense", fa: "حذف هزینه" },
+            icon: "delete",
+            control: "[data-expense-delete]",
+            requiresWrite: true,
+            separatorBefore: true,
+          },
+        ],
+      },
+      {
+        kind: "cost-account-register",
+        label: { en: "Cost Account", fa: "حساب هزینه" },
+        rowSelector: "[data-cost-account-row]",
+        rowIdAttribute: "data-cost-account-id",
+        commands: [
+          {
+            command: "cost-account-edit",
+            label: { en: "Edit Cost Account", fa: "ویرایش حساب هزینه" },
+            icon: "edit",
+            control: "[data-cost-account-edit]",
+            requiresWrite: true,
+          },
+          {
+            command: "cost-account-copy",
+            label: { en: "Copy Cost Account", fa: "رونوشت حساب هزینه" },
+            icon: "copy",
+            control: "[data-cost-account-copy]",
+            requiresWrite: true,
+          },
+          {
+            command: "cost-account-default",
+            label: { en: "Set as Default", fa: "تعیین به‌عنوان پیش‌فرض" },
+            icon: "check",
+            control: "[data-cost-account-default]",
+            requiresWrite: true,
+          },
+          {
+            command: "cost-account-delete",
+            label: { en: "Delete Cost Account", fa: "حذف حساب هزینه" },
+            icon: "delete",
+            control: "[data-cost-account-delete]",
+            requiresWrite: true,
+            separatorBefore: true,
+          },
+        ],
+      },
+    ],
   });
 
   void reloadExpenses(null);

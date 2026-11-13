@@ -110,7 +110,20 @@ function escapeSelector(value: string): string {
 function anchorCandidates(anchor: HTMLElement): string[] {
   const candidates: string[] = [];
   if (anchor.id) candidates.push(`#${escapeSelector(anchor.id)}`);
-  for (const name of ["data-activity-id", "data-gantt-activity-id", "data-column-id", "data-wbs-row", "data-gantt-wbs-id"]) {
+  for (const name of [
+    "data-activity-id",
+    "data-gantt-activity-id",
+    "data-column-id",
+    "data-wbs-row",
+    "data-gantt-wbs-id",
+    // Register rows re-render on selection, so the same resolution applies to
+    // the record registers that share this menu engine.
+    "data-risk-id",
+    "data-threshold-id",
+    "data-expense-id",
+    "data-cost-account-id",
+    "data-report-id",
+  ]) {
     const value = anchor.getAttribute(name);
     if (value) candidates.push(`[${name}="${escapeSelector(value)}"]`);
   }

@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { bindRegisterContextMenus } from "./workspace-register-context-menu.js";
 
 /**
  * Project report register client.
@@ -852,6 +853,47 @@ export function mountWorkspaceReportsPage(host: HTMLElement, options: ReportPage
       await reloadReports(result.data.reportId);
       if (state.selectedId) void reloadRuns(result.data.reportId);
     })();
+  });
+
+  bindRegisterContextMenus(host, {
+    locale,
+    canWrite,
+    menus: [
+      {
+        kind: "report-register",
+        label: { en: "Project Report", fa: "گزارش پروژه" },
+        rowSelector: "[data-report-row]",
+        rowIdAttribute: "data-report-id",
+        commands: [
+          {
+            command: "report-edit",
+            label: { en: "Edit Report", fa: "ویرایش گزارش" },
+            icon: "edit",
+            // Edit, Delete and Run live in the report detail pane, which is
+            // rendered for the selected row.
+            scope: "host",
+            control: "[data-report-edit]",
+            requiresWrite: true,
+          },
+          {
+            command: "report-delete",
+            label: { en: "Delete Report", fa: "حذف گزارش" },
+            icon: "delete",
+            scope: "host",
+            control: "[data-report-delete]",
+            requiresWrite: true,
+            separatorBefore: true,
+          },
+          {
+            command: "report-run",
+            label: { en: "Run Report", fa: "اجرای گزارش" },
+            icon: "progress",
+            scope: "host",
+            control: '[data-report-action="run"]',
+          },
+        ],
+      },
+    ],
   });
 
   void reloadReports(null);
