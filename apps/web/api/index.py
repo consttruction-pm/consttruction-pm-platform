@@ -89,7 +89,12 @@ def _preview(environ, start_response):
         return _json(
             start_response,
             503,
-            {"status": "not_ready", "code": "PREVIEW_UNAVAILABLE"},
+            {
+                "status": "not_ready",
+                "code": "PREVIEW_UNAVAILABLE",
+                "reason": type(error).__name__,
+                "detail": str(error)[:160],
+            },
         )
 
 
