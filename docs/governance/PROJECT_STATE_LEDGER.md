@@ -848,4 +848,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 
 - SEC-017 stable route error codes merged as `194aba33` (PR #1908); post-merge `pytest tests` = 4101 passed / 176 skipped, `pytest tests/integration` = 254 passed / 107 skipped, `apps/web npm test` = 1027 + 14 passed on that main.
 - WS-004 window tabs merged as `0f321303` (PR #1909) on top of `194aba33`; all 8 required checks green on `6dc9d251`, and the same suites pass on the merged main.
+- WS-005 context menus merged as `cb322def` (PR #1911) on top of `0f321303`.
+- PRJ-001 persisted project register and Business Domain hierarchy merged as `8b3c23d1` (PR #1912) on top of `cb322def`; all 8 required checks green on the PR head, evidence `project-register-v26-2026-11-13` 38/38 at `02369cbe`; post-merge `pytest tests` = 4107 passed / 176 skipped, `pytest tests/integration` = 254 passed / 107 skipped, `apps/web npm test` = 1036 + 14 passed.
+- PRJ-003 project tabs, switching and per-project windows merged as `d6549e83` (PR #1913) on top of `8b3c23d1`; all 8 required checks green on `83c88e57`, evidence `project-tabs-v26-2026-11-13` 30/30 at `915601d9`; post-merge `pytest tests` = 4107 passed / 176 skipped, `pytest tests/integration` = 254 passed / 107 skipped, `apps/web npm test` = 1059 + 14 passed on `d6549e83`.
 - Branch `rel-001-relationship-lifecycle` carries the REL-001 increment.
