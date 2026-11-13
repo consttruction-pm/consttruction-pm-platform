@@ -190,6 +190,7 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
         scan_status: str = "unscanned",
         scan_engine: str = "",
         scan_version: str = "",
+        scan_scanned_at=None,
     ) -> DocumentContentVersion:
         return DocumentContentVersion(
             tenant_id=tenant,
@@ -208,6 +209,7 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
             scan_status=scan_status,
             scan_engine=scan_engine,
             scan_engine_version=scan_version,
+            scan_scanned_at=scan_scanned_at,
         )
 
     with psycopg.connect(DSN) as connection:
@@ -239,6 +241,7 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
             "engine": "",
             "engine_version": "",
             "detail": "",
+            "scanned_at": None,
         }
 
         scanned = repository.append(
@@ -249,6 +252,7 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
                 scan_status="clean",
                 scan_engine="live-engine",
                 scan_version="9.1",
+                scan_scanned_at=occurred,
             )
         )
         connection.commit()
@@ -258,6 +262,7 @@ def test_document_content_versions_live_append_isolation_and_idempotency() -> No
             "engine": "live-engine",
             "engine_version": "9.1",
             "detail": "",
+            "scanned_at": occurred.isoformat(),
         }
         assert [item.version for item in repository.list(tenant, project, document_id)] == [1, 2, 3]
         assert repository.get(tenant, project, document_id, 1) == first

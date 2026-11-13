@@ -62,6 +62,7 @@ from construction_pm.document_storage import (
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
 NOW = datetime(2026, 11, 12, 12, 30, tzinfo=timezone.utc)
+SCANNED_AT = datetime(2026, 11, 12, 12, 31, tzinfo=timezone.utc)
 PDF_BYTES = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 TEXT_BYTES = b"line one\nline two\n"
 INFECTED_BYTES = b"%PDF-1.7\n" + EICAR_MARKER + b"\n%%EOF\n"
@@ -117,7 +118,9 @@ def test_legacy_content_json_deserializes_as_unscanned() -> None:
     version = _from_json(legacy)
     assert version.scan_status == "unscanned"
     assert version.scan_engine == version.scan_engine_version == version.scan_detail == ""
+    assert version.scan_scanned_at is None
     assert json.loads(_to_json(version))["scan_status"] == "unscanned"
+    assert json.loads(_to_json(version))["scan_scanned_at"] is None
 
 
 # --- application service: quarantine-first upload and download -------------
@@ -131,6 +134,7 @@ class _Harness:
         scanner=...,
         require=True,
         roles=frozenset({"planner"}),
+        clock=None,
     ) -> None:
         self.connection = sqlite3.connect(":memory:")
         self.store = SQLiteDocumentStore(self.connection)
@@ -148,6 +152,7 @@ class _Harness:
             content_repository=self.content,
             scanner=ReferenceDocumentScanner() if scanner is ... else scanner,
             require_scanned_content=require,
+            clock=clock,
         )
         self.document = DocumentRecord(
             document_id="DOC-1",
@@ -196,18 +201,66 @@ def _stored_files(root) -> list:
 
 
 def test_strict_upload_records_clean_verdict_and_serves_bytes(tmp_path) -> None:
-    harness = _Harness(tmp_path)
+    harness = _Harness(tmp_path, clock=lambda: SCANNED_AT)
     upload = harness.upload()
     assert upload.content.scan_status == "clean"
+    assert upload.content.scan_scanned_at == SCANNED_AT
     assert upload.content.as_dict()["scan"] == {
         "status": "clean",
         "engine": "reference",
         "engine_version": "1",
         "detail": "",
+        "scanned_at": SCANNED_AT.isoformat(),
     }
     download = harness.download()
     assert download.data == PDF_BYTES
     assert download.version == 1
+
+
+def test_upload_without_scanner_records_no_scan_timestamp(tmp_path) -> None:
+    harness = _Harness(tmp_path, scanner=None, require=False, clock=lambda: SCANNED_AT)
+    upload = harness.upload()
+    assert upload.content.scan_status == "unscanned"
+    assert upload.content.scan_scanned_at is None
+    assert upload.content.as_dict()["scan"]["scanned_at"] is None
+    assert harness.content.latest("t1", "p1", "DOC-1").scan_scanned_at is None
+
+
+def test_scan_timestamp_requires_a_timezone(tmp_path) -> None:
+    harness = _Harness(tmp_path, clock=lambda: datetime(2026, 11, 12, 12, 31))
+    with pytest.raises(DocumentScanError, match="INVALID_DOCUMENT_SCAN_TIMESTAMP"):
+        harness.upload()
+
+
+def test_scan_timestamp_survives_content_version_roundtrip(tmp_path) -> None:
+    harness = _Harness(tmp_path, clock=lambda: SCANNED_AT)
+    harness.upload()
+    latest = harness.content.latest("t1", "p1", "DOC-1")
+    assert latest is not None
+    assert latest.scan_scanned_at == SCANNED_AT
+    torn_down = sqlite3.connect(":memory:")
+    try:
+        restored = SQLiteDocumentContentRepository(torn_down)
+        restored.initialize()
+        restored.append(latest)
+        reloaded = restored.latest("t1", "p1", "DOC-1")
+    finally:
+        torn_down.close()
+    assert reloaded is not None
+    assert reloaded.scan_scanned_at == SCANNED_AT
+
+
+def test_content_version_rejects_naive_scan_timestamp(tmp_path) -> None:
+    from dataclasses import replace
+
+    from construction_pm.document_content_repository import (
+        DocumentContentPersistenceError,
+    )
+
+    harness = _Harness(tmp_path, clock=lambda: SCANNED_AT)
+    version = harness.upload().content
+    with pytest.raises(DocumentContentPersistenceError, match="SCAN_TIMESTAMP"):
+        replace(version, scan_scanned_at=datetime(2026, 11, 12, 12, 31)).validate()
 
 
 def test_strict_upload_rejects_infected_payload_before_storage(tmp_path) -> None:
