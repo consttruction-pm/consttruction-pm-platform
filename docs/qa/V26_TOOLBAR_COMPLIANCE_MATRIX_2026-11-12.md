@@ -4,6 +4,7 @@
 مرورگر و آزمون‌های اجراشده گرفته شده‌اند؛ «وجود یک تست» به‌تنهایی دلیل MATCH نیست.
 
 - Implementation commit: `9284958`
+- Re-audit 2026-11-13: `apps/web/e2e/toolbars-v26.mjs` re-ran at main `b68452a3` (6/6 cells, zero exceptions/console errors/5xx); evidence in `docs/workspace/evidence/toolbars-v26-2026-11-13/`. Statuses below are unchanged: the PARTIAL rows remain the open gaps.
 - Browser-tested code SHA: `9284958b24a3867e9c52669d5cef77b5e58dd4b6`
 - Browser evidence: `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` (6 cells:
   1280×720, 1366×768, 1920×1080 in `en/LTR` and `fa/RTL`; 6 activity screenshots plus three
