@@ -1,0 +1,10 @@
+.git
+.github
+.pytest_cache
+docs
+tests
+tools
+apps/web/node_modules
+apps/web/e2e
+**/__pycache__
+**/*.pyc

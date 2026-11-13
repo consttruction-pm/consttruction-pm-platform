@@ -1,3 +1,5 @@
+import { withCsrfHeader } from "./csrf.js";
+
 export const API_REQUEST_TIMEOUT_MS = 45_000;
 
 export type ProjectContext = {
@@ -205,8 +207,13 @@ export class FetchApiTransport implements ApiTransport {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
     try {
+      const method = String(init.method ?? "GET").toUpperCase();
       const response = await fetch(new URL(path, this.baseUrl), {
         ...init,
+        headers: withCsrfHeader(
+          method,
+          (init.headers ?? {}) as Record<string, string>,
+        ),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);

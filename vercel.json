@@ -1,0 +1,61 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm --prefix apps/web ci --no-audit --no-fund",
+  "buildCommand": "bash scripts/vercel_build.sh",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{src/**,requirements.txt,apps/web/*.html}"
+    },
+    "api/shell.py": {
+      "includeFiles": "{src/**,requirements.txt,apps/web/*.html}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/app",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/app/",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/app.html",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api?__path=:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/app",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}

@@ -164,7 +164,7 @@ import {
   workspaceThemeLabels,
   type WorkspaceTheme,
 } from "./workspace-theme.js";
-import { liveWorkspaceProjectHref, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
+import { liveWorkspaceProjectHref, resolveWorkspaceLoginPath, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -3924,7 +3924,7 @@ function renderBootstrapState(
       const rememberedProject = new URLSearchParams(window.location.search).get("project");
       const nextPath = workspaceLoginNextPath(rememberedProject);
       window.location.assign(
-        `/preview/login?next=${encodeURIComponent(nextPath)}`,
+        `${resolveWorkspaceLoginPath()}?next=${encodeURIComponent(nextPath)}`,
       );
     });
     actions.append(signIn);
@@ -4063,6 +4063,17 @@ async function boot(): Promise<void> {
       readRequestedProjectId(window.location.search),
       initialLocale,
     );
+    if (state && state.status === "error" && isSessionBootstrapError(state.error)) {
+      // An expired or revoked session belongs on the sign-in page, not on a
+      // retry screen that can never succeed without credentials.
+      const nextPath = workspaceLoginNextPath(
+        new URLSearchParams(window.location.search).get("project"),
+      );
+      window.location.assign(
+        `${resolveWorkspaceLoginPath()}?next=${encodeURIComponent(nextPath)}`,
+      );
+      return;
+    }
     if (state) renderBootstrapState(container, state, bootstrap, initialLocale);
   } catch (error) {
     const locale = getInitialLocale();

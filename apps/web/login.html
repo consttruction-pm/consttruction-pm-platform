@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#081A2F" />
+    <meta name="robots" content="noindex" />
+    <title>CUBI Workspace — Sign in</title>
+    <link rel="icon" href="/cubi-platform-logo-primary.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .cp-login-page {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px 16px;
+        background:
+          radial-gradient(1100px 620px at 12% -10%, #123a63 0%, transparent 60%),
+          radial-gradient(900px 520px at 100% 0%, #0e4f66 0%, transparent 55%),
+          #081a2f;
+        color: #f4f7fb;
+      }
+      .cp-login-card {
+        width: min(440px, 100%);
+        background: #ffffff;
+        color: #10233a;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 24px 64px rgba(2, 12, 24, 0.45);
+      }
+      .cp-login-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .cp-login-brand img { width: 40px; height: 40px; }
+      .cp-login-brand strong { font-size: 20px; letter-spacing: 0.2px; }
+      .cp-login-brand span { display: block; font-size: 12px; color: #5a6b7f; }
+      .cp-login-card h1 { margin: 0 0 6px; font-size: 22px; }
+      .cp-login-card p.cp-login-lead { margin: 0 0 22px; color: #5a6b7f; font-size: 14px; }
+      .cp-login-field { display: grid; gap: 6px; margin-bottom: 16px; }
+      .cp-login-field label { font-size: 13px; font-weight: 600; }
+      .cp-login-field input {
+        font: inherit;
+        padding: 11px 12px;
+        border: 1px solid #c3ceda;
+        border-radius: 8px;
+        background: #fff;
+        color: #10233a;
+      }
+      .cp-login-field input:focus-visible {
+        outline: 3px solid #1f6feb;
+        outline-offset: 1px;
+      }
+      .cp-login-submit {
+        width: 100%;
+        font: inherit;
+        font-weight: 600;
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      .cp-login-submit[disabled] { opacity: 0.6; cursor: progress; }
+      .cp-login-error {
+        margin: 0 0 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fdecea;
+        color: #8a1c12;
+        font-size: 14px;
+      }
+      .cp-login-error[hidden] { display: none; }
+      .cp-login-locale {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+      }
+      .cp-login-locale button {
+        font: inherit;
+        font-size: 12px;
+        background: none;
+        border: 1px solid #c3ceda;
+        border-radius: 999px;
+        color: #5a6b7f;
+        padding: 4px 12px;
+        cursor: pointer;
+      }
+      .cp-login-footer { margin-top: 20px; font-size: 12px; color: #5a6b7f; }
+      @media (max-height: 760px) {
+        .cp-login-page { padding: 16px; }
+        .cp-login-card { padding: 24px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="cp-login-page">
+      <section class="cp-login-card" aria-labelledby="cp-login-title">
+        <div class="cp-login-locale">
+          <button type="button" id="cp-login-locale" aria-label="Change language">فارسی</button>
+        </div>
+        <div class="cp-login-brand">
+          <img src="/cubi-platform-logo-primary.svg" alt="" />
+          <div>
+            <strong>CUBI</strong>
+            <span data-i18n="product">Construction planning workspace</span>
+          </div>
+        </div>
+        <h1 id="cp-login-title" data-i18n="title">Sign in</h1>
+        <p class="cp-login-lead" data-i18n="lead">Use your organization account to open the workspace.</p>
+        <p class="cp-login-error" id="cp-login-error" role="alert" hidden></p>
+        <form id="cp-login-form" novalidate>
+          <div class="cp-login-field">
+            <label for="cp-login-email" data-i18n="email">Email</label>
+            <input id="cp-login-email" name="email" type="email" autocomplete="username"
+                   required spellcheck="false" autocapitalize="none" />
+          </div>
+          <div class="cp-login-field">
+            <label for="cp-login-password" data-i18n="password">Password</label>
+            <input id="cp-login-password" name="password" type="password"
+                   autocomplete="current-password" required />
+          </div>
+          <button class="cp-login-submit" id="cp-login-submit" type="submit" data-i18n="submit">
+            Sign in
+          </button>
+        </form>
+        <p class="cp-login-footer" data-i18n="footer">
+          Access is limited to the projects your account is a member of.
+        </p>
+      </section>
+    </main>
+
+    <script type="module">
+      const COPY = {
+        en: {
+          product: "Construction planning workspace",
+          title: "Sign in",
+          lead: "Use your organization account to open the workspace.",
+          email: "Email",
+          password: "Password",
+          submit: "Sign in",
+          working: "Signing in…",
+          footer: "Access is limited to the projects your account is a member of.",
+          failed: "Email or password is incorrect.",
+          throttled: "Too many attempts. Wait a few minutes and try again.",
+          invalid: "Enter your email and password.",
+          network: "The workspace service is unreachable. Try again.",
+          locale: "فارسی",
+        },
+        fa: {
+          product: "محیط برنامه‌ریزی ساخت",
+          title: "ورود",
+          lead: "برای ورود به میزکار از حساب سازمانی خود استفاده کنید.",
+          email: "ایمیل",
+          password: "گذرواژه",
+          submit: "ورود",
+          working: "در حال ورود…",
+          footer: "دسترسی فقط به پروژه‌هایی است که حساب شما عضو آن‌هاست.",
+          failed: "ایمیل یا گذرواژه نادرست است.",
+          throttled: "تلاش‌های بیش از حد. چند دقیقه بعد دوباره امتحان کنید.",
+          invalid: "ایمیل و گذرواژه را وارد کنید.",
+          network: "سرویس میزکار در دسترس نیست. دوباره تلاش کنید.",
+          locale: "English",
+        },
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      let locale = params.get("lang") === "fa" || params.get("lang") === "en"
+        ? params.get("lang")
+        : (navigator.language || "").toLowerCase().startsWith("fa") ? "fa" : "en";
+
+      const nextParam = params.get("next") || "";
+      const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("\\")
+        ? nextParam
+        : "/app?view=live";
+
+      const form = document.getElementById("cp-login-form");
+      const errorBox = document.getElementById("cp-login-error");
+      const submit = document.getElementById("cp-login-submit");
+      const localeButton = document.getElementById("cp-login-locale");
+
+      function applyLocale() {
+        const copy = COPY[locale];
+        document.documentElement.lang = locale;
+        document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+        document.title = `CUBI Workspace — ${copy.title}`;
+        document.querySelectorAll("[data-i18n]").forEach((node) => {
+          const key = node.getAttribute("data-i18n");
+          if (key && copy[key]) node.textContent = copy[key];
+        });
+        localeButton.textContent = copy.locale;
+      }
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = !message;
+      }
+
+      localeButton.addEventListener("click", () => {
+        locale = locale === "fa" ? "en" : "fa";
+        applyLocale();
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = document.getElementById("cp-login-email").value.trim();
+        const password = document.getElementById("cp-login-password").value;
+        const copy = COPY[locale];
+        if (!email || !password) {
+          showError(copy.invalid);
+          return;
+        }
+        showError("");
+        submit.disabled = true;
+        submit.textContent = copy.working;
+        try {
+          const response = await fetch("/api/session", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          if (response.ok) {
+            window.location.assign(nextPath);
+            return;
+          }
+          if (response.status === 429) showError(copy.throttled);
+          else if (response.status === 401) showError(copy.failed);
+          else if (response.status === 400) showError(copy.invalid);
+          else showError(copy.network);
+        } catch {
+          showError(copy.network);
+        } finally {
+          submit.disabled = false;
+          submit.textContent = COPY[locale].submit;
+        }
+      });
+
+      applyLocale();
+      document.getElementById("cp-login-email").focus();
+
+      // A live session skips the form. A reauth=1 request keeps it visible.
+      if (params.get("reauth") !== "1") {
+        fetch("/api/session", { credentials: "same-origin" })
+          .then((response) => {
+            if (response.ok) window.location.replace(nextPath);
+          })
+          .catch(() => {});
+      }
+    </script>
+  </body>
+</html>
