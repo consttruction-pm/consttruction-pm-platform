@@ -1,0 +1,190 @@
+{
+  "contract": "cubi-vercel-preview-workspace.v1",
+  "base_url": "https://cubi-web-preview-git-feat-vercel-p-8eb184-foroughichamshir-7811.vercel.app",
+  "project": "preview-rps-01",
+  "checks": [
+    {
+      "name": "the preview URL opens the workspace directly",
+      "ok": true,
+      "detail": {
+        "url": "https://cubi-web-preview-git-feat-vercel-p-8eb184-foroughichamshir-7811.vercel.app/app?project=preview-rps-01&view=live",
+        "menu": "schedule"
+      },
+      "at": "2026-11-13T23:58:03.415Z"
+    },
+    {
+      "name": "a preview-only demo session backs the workspace",
+      "ok": true,
+      "detail": {
+        "user_id": "preview-planner",
+        "roles": [
+          "planner"
+        ]
+      },
+      "at": "2026-11-13T23:58:03.767Z"
+    },
+    {
+      "name": "the authorized project list carries the Riverside fixture",
+      "ok": true,
+      "detail": {
+        "projects": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ]
+      },
+      "at": "2026-11-13T23:58:04.032Z"
+    },
+    {
+      "name": "the persisted schedule renders in the workspace",
+      "ok": true,
+      "detail": {
+        "activity_rows": 14,
+        "wbs_markers": 21
+      },
+      "at": "2026-11-13T23:58:04.033Z"
+    },
+    {
+      "name": "the workspace displays the Riverside project name",
+      "ok": true,
+      "detail": {},
+      "at": "2026-11-13T23:58:04.035Z"
+    },
+    {
+      "name": "two rails: unique left glyphs, Add first, no duplicate destinations",
+      "ok": true,
+      "detail": {
+        "left_windows": 21,
+        "right_actions": "notebook,details,proposals,assistant,help"
+      },
+      "at": "2026-11-13T23:58:04.113Z"
+    },
+    {
+      "name": "contextual Add menu lists real desktop commands",
+      "ok": true,
+      "detail": {
+        "commands": "project.add-activity,edit.link",
+        "enabled": "project.add-activity"
+      },
+      "at": "2026-11-13T23:58:04.196Z"
+    },
+    {
+      "name": "Add menu keyboard: ArrowDown focuses, Escape closes and restores focus",
+      "ok": true,
+      "detail": {
+        "focused": "project.add-activity",
+        "closed": true,
+        "restored": true
+      },
+      "at": "2026-11-13T23:58:04.202Z"
+    },
+    {
+      "name": "the rail Help command reaches the desktop shortcuts dialog",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "railButton": true
+      },
+      "at": "2026-11-13T23:58:04.427Z"
+    },
+    {
+      "name": "Add Activity dispatches through the desktop command registry",
+      "ok": true,
+      "detail": {
+        "dispatched": true,
+        "form": true,
+        "menuClosed": true
+      },
+      "at": "2026-11-13T23:58:04.898Z"
+    },
+    {
+      "name": "workspace window resources opens with data",
+      "ok": true,
+      "detail": {
+        "active": "resources",
+        "rows": 1,
+        "add": "resource.create,activity.assign-resources"
+      },
+      "at": "2026-11-13T23:58:06.667Z"
+    },
+    {
+      "name": "workspace window progress opens with data",
+      "ok": true,
+      "detail": {
+        "active": "progress",
+        "rows": 14,
+        "add": ""
+      },
+      "at": "2026-11-13T23:58:07.067Z"
+    },
+    {
+      "name": "workspace window tracking opens with data",
+      "ok": true,
+      "detail": {
+        "active": "tracking",
+        "rows": 1,
+        "add": ""
+      },
+      "at": "2026-11-13T23:58:07.473Z"
+    },
+    {
+      "name": "refresh keeps the fixture workspace",
+      "ok": true,
+      "detail": {
+        "project": "preview-rps-01",
+        "rows": 14
+      },
+      "at": "2026-11-13T23:58:09.765Z"
+    },
+    {
+      "name": "workspace renders at 1366x768",
+      "ok": true,
+      "detail": {},
+      "at": "2026-11-13T23:58:09.886Z"
+    },
+    {
+      "name": "workspace renders at 1920x1080 with a compact rail",
+      "ok": true,
+      "detail": {
+        "first": true,
+        "railWidth": 40,
+        "railRight": 1920,
+        "viewport": 1920
+      },
+      "at": "2026-11-13T23:58:10.118Z"
+    },
+    {
+      "name": "Persian locale renders right-to-left",
+      "ok": true,
+      "detail": {
+        "direction": "rtl",
+        "rail": {
+          "first": true,
+          "label": "افزودن",
+          "side": "3"
+        }
+      },
+      "at": "2026-11-13T23:58:10.336Z"
+    },
+    {
+      "name": "no browser exceptions and no API 5xx",
+      "ok": true,
+      "detail": {
+        "console_errors": 0
+      },
+      "at": "2026-11-13T23:58:10.337Z"
+    }
+  ],
+  "screenshots": [
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-workspace-1280x720.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-context-add-menu.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-resources-window.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-progress-window.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-tracking-window.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-workspace-1366x768.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-workspace-1920x1080.png",
+    "/data/work/repo/apps/web/e2e/artifacts/vercel-preview/vercel-preview-workspace-fa-rtl.png"
+  ],
+  "errors": [],
+  "console": [],
+  "finished_at": "2026-11-13T23:58:10.337Z"
+}
