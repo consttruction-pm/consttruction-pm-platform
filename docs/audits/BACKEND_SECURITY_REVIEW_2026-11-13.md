@@ -94,7 +94,7 @@ Threats and primary controls:
 | SEC-007 | Medium | Legal-hold changes and disposition need only `PROJECT_WRITE` | Fixed `d2aa3419` |
 | SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed `8581697` |
 | SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed `8581697` |
-| SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
+| SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Fixed `42484541` |
 | SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed `8581697` |
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Fixed `afb18263` |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Fixed `c921ac8b` |
