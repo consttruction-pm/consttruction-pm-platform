@@ -1342,6 +1342,25 @@ function bindFullscreen(): void {
   document.addEventListener("fullscreenchange", syncFullscreenControls);
 }
 
+/**
+ * Shell keyboard handling is registered on `document`, not on the host element.
+ * A click on a non-focusable row or the workspace background leaves focus on
+ * `document.body`, so host-scoped listeners silently dropped Alt+mnemonic,
+ * function keys and command chords until the user tabbed into a control.
+ */
+function bindShellKeydown(host: HTMLElement, listener: (event: KeyboardEvent) => void): void {
+  host.addEventListener("keydown", listener);
+  if (typeof document === "undefined") return;
+  document.addEventListener("keydown", (event) => {
+    if (!host.isConnected || !runtimeByHost.has(host)) return;
+    // Keys that bubble through the shell were already handled by the host
+    // listener; only a target outside it (body, page chrome) needs this path.
+    const target = event.target as Node | null;
+    if (target && typeof target === "object" && host.contains(target as Node)) return;
+    listener(event);
+  });
+}
+
 function bindHost(host: HTMLElement): void {
   if (boundHosts.has(host)) return;
   boundHosts.add(host);
@@ -1607,7 +1626,7 @@ function bindHost(host: HTMLElement): void {
     }
   });
 
-  host.addEventListener("keydown", (event) => {
+  bindShellKeydown(host, (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
     if (event.key === "Escape") {
@@ -1630,9 +1649,12 @@ function bindHost(host: HTMLElement): void {
     }
   });
 
-  host.addEventListener("keydown", (event) => {
+  bindShellKeydown(host, (event) => {
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
+    // A control that already consumed the chord (grid navigation, splitter,
+    // context menu) keeps precedence over the shell binding.
+    if (event.defaultPrevented) return;
     const target = event.target as HTMLElement | null;
     const typing = Boolean(target?.closest("input, textarea, select, [contenteditable=true]"));
 
@@ -1654,6 +1676,9 @@ function bindHost(host: HTMLElement): void {
 
     if (event.key === "Escape") return;
     if (typing) return;
+    // A modal dialog owns the keyboard while it is open; application commands
+    // must not fire behind it.
+    if (host.querySelector("dialog[open]")) return;
 
     // Alt+mnemonic opens a top-level menu. The access key lives on the menu
     // model, so the bar and this handler cannot drift apart.
@@ -1689,7 +1714,7 @@ function bindHost(host: HTMLElement): void {
   });
 
   // Inside an open menu: arrows, Home/End and first-letter navigation.
-  host.addEventListener("keydown", (event) => {
+  bindShellKeydown(host, (event) => {
     const target = event.target as HTMLElement | null;
     const popup = target?.closest<HTMLElement>("[data-desktop-popup]");
     if (!popup || popup.hidden) return;
