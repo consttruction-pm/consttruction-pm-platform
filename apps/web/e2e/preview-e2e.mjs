@@ -5893,15 +5893,31 @@ async function main() {
       return button ? { id: button.dataset.relationshipDelete, revision: button.dataset.relationshipRevision } : null;
     })()`);
     assert(deleteTarget?.id, "the browser must expose a revision-aware delete control for persisted logic");
+    // Deleting a dependency is confirmation-guarded in the Logic panel; answer
+    // the dialog and count it instead of leaving the page blocked.
+    await page.evaluate(`(() => {
+      window.__relationshipConfirmCalls = 0;
+      window.confirm = () => {
+        window.__relationshipConfirmCalls += 1;
+        return true;
+      };
+      return true;
+    })()`);
     await page.click(`#cp-logic [data-relationship-id="${deleteTarget.id}"] [data-relationship-delete]`);
     await page.waitFor(
       `document.querySelectorAll("#cp-logic [data-relationship-id]").length === 2`,
       "relationship removed from the logic panel",
     );
+    const relationshipConfirmCalls = await page.evaluate("window.__relationshipConfirmCalls ?? 0");
+    assert(
+      relationshipConfirmCalls === 1,
+      `the Logic delete must ask once before removing the link, got ${relationshipConfirmCalls}`,
+    );
     EVIDENCE.relationships.browser = {
       ...logicView,
       created_from_form: createdFromUi,
       deleted_relationship_id: deleteTarget.id,
+      delete_confirm_calls: relationshipConfirmCalls,
     };
     record("browser logic panel and predecessors column match the persisted relationship model", {
       rows: logicView.rows,
