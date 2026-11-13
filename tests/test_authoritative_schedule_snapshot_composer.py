@@ -2134,7 +2134,7 @@ def test_milestone_with_nonzero_persisted_duration_fails_closed(tmp_path):
     )
     assert publication_status == "400 Bad Request"
     assert "INVALID_PERSISTED_ACTIVITY" in error["code"]
-    assert "zero duration" in error["code"]
+    assert error["code"] == "INVALID_PERSISTED_ACTIVITY:BAD-MILESTONE"
     assert fixture["snapshot_repo"].list(scope) == ()
     fixture["connection"].close()
 

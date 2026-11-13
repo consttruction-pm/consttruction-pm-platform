@@ -150,7 +150,7 @@ def test_preview_issue_permissions_and_revision_conflicts(tmp_path: Path) -> Non
             runtime.app, "POST", ISSUES, body=_payload(), cookie=viewer.session_id
         )
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _ = _request(

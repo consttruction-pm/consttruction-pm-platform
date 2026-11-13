@@ -167,7 +167,7 @@ test("a server refusal is returned unchanged so the panel can explain the denial
     postResult: {
       ok: false,
       error: {
-        code: "authorization denied for permission=project.write",
+        code: "AUTHORIZATION_PERMISSION_DENIED",
         retryable: false,
         message_key: "error.authorization.denied",
         available_actions: [],
@@ -181,7 +181,7 @@ test("a server refusal is returned unchanged so the panel can explain the denial
   });
 
   assert.equal(result.ok, false);
-  assert.match(result.ok ? "" : result.error.code, /project\.write/);
+  assert.equal(result.ok ? "" : result.error.code, "AUTHORIZATION_PERMISSION_DENIED");
 });
 
 test("recorded modes render with explicit labels", () => {

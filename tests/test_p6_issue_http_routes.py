@@ -148,7 +148,7 @@ def test_issue_http_denies_viewer_writes() -> None:
     router = routes(frozenset({"viewer"}))
     status, denied = _call(router, "POST", "/api/projects/p1/p6/issues", _payload())
     assert status == 403
-    assert "project.write" in denied["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in denied["code"]
     status, listed = _call(router, "GET", "/api/projects/p1/p6/issues")
     assert status == 200 and listed["issues"] == []
 

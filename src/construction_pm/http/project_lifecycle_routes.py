@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
+import re
 from decimal import Decimal
 from urllib.parse import parse_qs, unquote, urlsplit
 from dataclasses import asdict, fields as dataclass_fields
@@ -225,6 +227,51 @@ from ..p6_layout_definition_repository import (
     P6LayoutPersistenceError,
     layout_column_from_mapping,
 )
+
+
+_LOGGER = logging.getLogger(__name__)
+
+# Client-safe codes are opaque constants declared by the application layer;
+# anything else (database text, permission requirements, KeyError reprs) is
+# logged and replaced by a fixed per-site code. Declared codes are
+# colon-separated segments (``CODE:anchor:detail``); a segment containing
+# whitespace, quotes, or prose stops the kept prefix.
+_CODE_HEAD = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
+_CODE_SEGMENT = re.compile(r"[A-Za-z0-9_.\-]{1,64}")
+_MAX_CODE_SEGMENTS = 4
+_PERMISSION_DENIED_PREFIX = "authorization denied for permission="
+_AUTHORIZATION_CONTEXT_PREFIX = "INVALID_AUTHORIZATION_"
+
+
+def _stable_error_code(exc: BaseException, fallback: str) -> str:
+    """Map an internal exception to a client-safe error code.
+
+    The response ``code`` must never carry exception text: permission-denied
+    messages name the required grant (permission probing), and unexpected
+    faults (``KeyError``/``TypeError``) leak internal state. Only opaque
+    code segments declared by the application layer pass through; trailing
+    prose is dropped and the raw message is logged server-side instead.
+    """
+
+    text = str(exc).strip()
+    if text == "authorization denied" or text.startswith(_PERMISSION_DENIED_PREFIX):
+        return "AUTHORIZATION_PERMISSION_DENIED"
+    if text.startswith(_AUTHORIZATION_CONTEXT_PREFIX):
+        return "INVALID_AUTHORIZATION_CONTEXT"
+    segments = text.split(":")
+    if segments and _CODE_HEAD.fullmatch(segments[0]):
+        kept = [segments[0]]
+        for segment in segments[1:_MAX_CODE_SEGMENTS]:
+            if not _CODE_SEGMENT.fullmatch(segment):
+                break
+            kept.append(segment)
+        return ":".join(kept)
+    _LOGGER.warning(
+        "refusing to reflect internal error text in a response code type=%s",
+        type(exc).__name__,
+        exc_info=exc,
+    )
+    return fallback
 
 
 class Clock(Protocol):
@@ -467,7 +514,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 if tenant_id != context.tenant_id:
                     return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
@@ -530,7 +577,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, requested_project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -595,7 +642,7 @@ class ProjectLifecycleHttpRoutes:
                     ).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 idempotency_key = request_headers.get("Idempotency-Key")
                 if not isinstance(idempotency_key, str) or not idempotency_key.strip():
@@ -623,7 +670,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 endpoint = VersionedSyncRevisionEndpoint(
                     context.tenant_id,
@@ -644,7 +691,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -798,7 +845,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -820,7 +867,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -846,7 +893,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -858,9 +905,9 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except CalendarPersistenceError as exc:
-                    return self._error(400, str(exc), "error.request.invalid")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
                 return self._json(200, result)
@@ -874,7 +921,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -897,7 +944,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -919,7 +966,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -968,12 +1015,12 @@ class ProjectLifecycleHttpRoutes:
                     return self._json(200, result)
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
-                    return self._error(400, str(exc), "error.request.invalid")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
-                    return self._error(400, str(exc), "error.request.invalid")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
 
             if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/export"):
                 if self._p6_interchange_api is None:
@@ -998,8 +1045,18 @@ class ProjectLifecycleHttpRoutes:
                     return self._json(200, result)
                 except json.JSONDecodeError:
                     return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
-                except (ValueError, AuthorizationError) as exc:
-                    return self._error(400 if not isinstance(exc, AuthorizationError) else 403, str(exc), "error.request.invalid" if not isinstance(exc, AuthorizationError) else "error.authorization.denied")
+                except AuthorizationError as exc:
+                    return self._error(
+                        403,
+                        _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                        "error.authorization.denied",
+                    )
+                except ValueError as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(exc, "REQUEST_INVALID"),
+                        "error.request.invalid",
+                    )
 
             if method == "GET" and path.startswith("/api/projects/") and "/dependencies/" in path:
                 if self._dependency_graph_api is None:
@@ -1012,7 +1069,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1035,7 +1092,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1058,7 +1115,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1080,7 +1137,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1113,7 +1170,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1259,9 +1316,11 @@ class ProjectLifecycleHttpRoutes:
                                 ))
                     raise ValueError("P6_ROLE_ROUTE_INVALID")
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
-                except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
-                    code = str(exc)
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except (ValueError, ArithmeticError) as exc:
+                    code = _stable_error_code(exc, "P6_ROLE_REQUEST_INVALID")
                     if code in {
                         "REVISION_CONFLICT",
                         "ROLE_ALREADY_EXISTS",
@@ -1290,7 +1349,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1347,7 +1406,7 @@ class ProjectLifecycleHttpRoutes:
                             resource, expected_revision=expected_revision, auth_context=auth,
                         ))
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "REVISION_CONFLICT":
@@ -1373,7 +1432,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1404,8 +1463,10 @@ class ProjectLifecycleHttpRoutes:
                         )
                         return self._json(200, self._p6_cost_account_api.create(account, auth_context=auth))
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
-                except (TypeError, ValueError, KeyError):
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ValueError:
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/schedule/settings" in path and self._p6_schedule_snapshot_api is not None:
                 prefix = "/p6/schedule/settings"
@@ -1421,7 +1482,7 @@ class ProjectLifecycleHttpRoutes:
                     project_context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = project_context.authorization_context(session.roles)
@@ -1568,15 +1629,22 @@ class ProjectLifecycleHttpRoutes:
                     status_code = 201 if result["record_revision"] == 1 else 200
                     return self._json(status_code, result)
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ProjectScheduleSettingsPersistenceError as exc:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.revision.conflict")
                     return self._error(400, code, "error.request.invalid")
-                except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
-                    code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
-                    return self._error(400, code, "error.request.invalid")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except (ValueError, ArithmeticError) as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(
+                            exc, "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
+                        ),
+                        "error.request.invalid",
+                    )
             if path.startswith("/api/projects/") and "/p6/schedule/snapshots" in path and self._p6_schedule_snapshot_api is not None:
                 prefix = "/p6/schedule/snapshots"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
@@ -1589,7 +1657,7 @@ class ProjectLifecycleHttpRoutes:
                     project_context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = project_context.authorization_context(session.roles)
@@ -1618,16 +1686,25 @@ class ProjectLifecycleHttpRoutes:
                     )
                     return self._json(201, result)
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ProjectScheduleSettingsPersistenceError as exc:
                     code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.revision.conflict")
                     return self._error(400, code, "error.request.invalid")
-                except (ScheduleInputCompositionError, ScheduleSnapshotPublicationError,
-                        TypeError, ValueError, ArithmeticError, KeyError) as exc:
-                    code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
-                    return self._error(400, code, "error.request.invalid")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except (
+                    ScheduleInputCompositionError,
+                    ScheduleSnapshotPublicationError,
+                    ValueError,
+                    ArithmeticError,
+                ) as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(exc, "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"),
+                        "error.request.invalid",
+                    )
             if (
                 path.startswith("/api/projects/")
                 and "/p6/activities" in path
@@ -1642,7 +1719,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1872,13 +1949,19 @@ class ProjectLifecycleHttpRoutes:
                             )
                         return self._json(200, result)
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ActivityPersistenceError as exc:
                     if str(exc) == "REVISION_CONFLICT":
-                        return self._error(409, str(exc), "error.revision.conflict")
-                    return self._error(400, str(exc), "error.request.invalid")
-                except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
-                    return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except (ValueError, ArithmeticError) as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(exc, "P6_ACTIVITY_MASTER_REQUEST_INVALID"),
+                        "error.request.invalid",
+                    )
             if path.startswith("/api/projects/") and "/p6/wbs" in path and self._p6_wbs_master_api is not None:
                 prefix = "/p6/wbs"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
@@ -1889,7 +1972,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -1978,17 +2061,23 @@ class ProjectLifecycleHttpRoutes:
                         )
                     return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except WBSPersistenceError as exc:
                     if str(exc) == "REVISION_CONFLICT":
-                        return self._error(409, str(exc), "error.revision.conflict")
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
                     if str(exc) == "WBS_NOT_FOUND":
-                        return self._error(404, str(exc), "error.resource.not_found")
+                        return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
                     if str(exc) == "WBS_IN_USE":
-                        return self._error(409, str(exc), "error.resource.in_use")
-                    return self._error(400, str(exc), "error.request.invalid")
-                except (TypeError, ValueError, KeyError) as exc:
-                    return self._error(400, str(exc) or "P6_WBS_MASTER_REQUEST_INVALID", "error.request.invalid")
+                        return self._error(409, _stable_error_code(exc, "RESOURCE_IN_USE"), "error.resource.in_use")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ValueError as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(exc, "P6_WBS_MASTER_REQUEST_INVALID"),
+                        "error.request.invalid",
+                    )
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
@@ -1999,7 +2088,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -2059,12 +2148,12 @@ class ProjectLifecycleHttpRoutes:
                         )
                         return self._json(200, self._p6_relationship_api.update(relationship, expected_revision=expected_revision, auth_context=auth))
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except RelationshipPersistenceError as exc:
                     if method == "DELETE" and str(exc) == "RELATIONSHIP_NOT_FOUND":
-                        return self._error(404, str(exc), "error.p6.relationship.not_found")
+                        return self._error(404, _stable_error_code(exc, "P6_RELATIONSHIP_NOT_FOUND"), "error.p6.relationship.not_found")
                     if method == "DELETE" and str(exc) == "REVISION_CONFLICT":
-                        return self._error(409, str(exc), "error.revision.conflict")
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
@@ -2088,7 +2177,9 @@ class ProjectLifecycleHttpRoutes:
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                                 return self._error(
-                                    403, str(exc), "error.authorization.denied"
+                                    403,
+                                    _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                                    "error.authorization.denied",
                                 )
                             raise
                         session = self._api.get_session(session_id, now=now)
@@ -2117,7 +2208,9 @@ class ProjectLifecycleHttpRoutes:
                             )
                         except AuthorizationError as exc:
                             return self._error(
-                                403, str(exc), "error.authorization.denied"
+                                403,
+                                _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                                "error.authorization.denied",
                             )
                         except TrackingReadModelError as exc:
                             code = str(exc)
@@ -2146,7 +2239,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -2624,7 +2717,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -2865,7 +2958,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -3144,7 +3237,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -3362,7 +3455,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -3535,7 +3628,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -3922,7 +4015,7 @@ class ProjectLifecycleHttpRoutes:
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"
                             )
                         except ReportParameterError as exc:
-                            return self._error(400, str(exc), "error.request.invalid")
+                            return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"
@@ -3943,7 +4036,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -4141,7 +4234,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -4273,7 +4366,7 @@ class ProjectLifecycleHttpRoutes:
                             ).context
                         except ProjectLifecycleError as exc:
                             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                                return self._error(403, str(exc), "error.authorization.denied")
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                             raise
                         session = self._api.get_session(session_id, now=now)
                         auth = context.authorization_context(session.roles)
@@ -4407,7 +4500,7 @@ class ProjectLifecycleHttpRoutes:
                         context = self._api.open_project(session_id, issue_project_id, now=now).context
                     except ProjectLifecycleError as exc:
                         if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                            return self._error(403, str(exc), "error.authorization.denied")
+                            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                         raise
                     session = self._api.get_session(session_id, now=now)
                     auth = context.authorization_context(session.roles)
@@ -4519,7 +4612,7 @@ class ProjectLifecycleHttpRoutes:
                                 occurred_at=occurred_at,
                             ))
                     except AuthorizationError as exc:
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     except P6IssuePersistenceError as exc:
                         code = str(exc)
                         if code == "ISSUE_NOT_FOUND":
@@ -4539,7 +4632,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4593,7 +4686,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4626,7 +4719,7 @@ class ProjectLifecycleHttpRoutes:
                         )
                         return self._json(200, self._p6_activity_period_actual_api.create(actual, auth_context=auth))
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
@@ -4639,7 +4732,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4682,7 +4775,7 @@ class ProjectLifecycleHttpRoutes:
                     )
                     result = self._p6_resource_write_api.save_assignment(assignment, auth_context=auth)
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "IMMUTABLE_RESOURCE_ASSIGNMENT":
@@ -4701,7 +4794,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.list_assignments(BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth)
@@ -4714,7 +4807,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment(BackendScope(context.tenant_id, context.project_id, context.revision), assignment_id, auth_context=auth)
@@ -4730,7 +4823,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4757,7 +4850,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code in {
@@ -4787,7 +4880,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4828,7 +4921,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
@@ -4869,9 +4962,9 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
-                    return self._error(400, str(exc), "error.request.invalid")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 return self._json(200, {
                     "contract_version": P6_RESOURCE_CAPACITY_READ_API_VERSION,
                     "capacities": list(result),
@@ -4894,7 +4987,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
@@ -4913,7 +5006,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4941,7 +5034,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code in {
@@ -4971,7 +5064,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -4995,7 +5088,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "RESOURCE_RATE_NOT_REGISTERED":
@@ -5022,9 +5115,9 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
-                    return self._error(400, str(exc), "error.request.invalid")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 return self._json(200, {
                     "contract_version": P6_RESOURCE_RATE_READ_API_VERSION,
                     "rates": list(result),
@@ -5047,7 +5140,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "RESOURCE_RATE_NOT_REGISTERED":
@@ -5064,7 +5157,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.list_assignment_periods(BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth)
@@ -5077,7 +5170,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment_period(BackendScope(context.tenant_id, context.project_id, context.revision), parts[0], parts[1], auth_context=auth)
@@ -5091,7 +5184,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 try:
@@ -5111,7 +5204,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5136,7 +5229,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5159,7 +5252,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5197,7 +5290,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5240,7 +5333,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5266,7 +5359,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5289,7 +5382,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5311,7 +5404,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5346,7 +5439,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5389,7 +5482,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5430,7 +5523,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5496,7 +5589,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5532,7 +5625,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5561,7 +5654,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5595,7 +5688,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except P6FormulaColumnError as exc:
-                    return self._error(400, str(exc) or "FORMULA_COLUMN_INVALID", "error.request.invalid")
+                    return self._error(400, _stable_error_code(exc, "FORMULA_COLUMN_INVALID"), "error.request.invalid")
                 return self._json(200, result)
 
             if method == "POST" and path.startswith("/api/projects/") and "/p6/formulas/" in path:
@@ -5609,7 +5702,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5640,7 +5733,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5695,7 +5788,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5707,7 +5800,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 if result is None:
                     return self._error(404, "P6_LAYOUT_DEFAULT_NOT_DEFINED", "error.p6.layout.default_not_defined")
                 return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
@@ -5730,7 +5823,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5742,7 +5835,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                 except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
@@ -5757,7 +5850,7 @@ class ProjectLifecycleHttpRoutes:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5779,7 +5872,7 @@ class ProjectLifecycleHttpRoutes:
                 try:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
-                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5795,7 +5888,7 @@ class ProjectLifecycleHttpRoutes:
                 try:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
-                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5810,7 +5903,7 @@ class ProjectLifecycleHttpRoutes:
                 try:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
-                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
@@ -5888,7 +5981,7 @@ class ProjectLifecycleHttpRoutes:
                     session = self._api.get_session(session_id, now=now)
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 context = authorized.context
                 can_propose = True
@@ -5900,7 +5993,7 @@ class ProjectLifecycleHttpRoutes:
                     can_propose = False
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 runtime_context = AIActionRuntimeContext(
                     subject_id=session.user_id,
@@ -6009,7 +6102,7 @@ class ProjectLifecycleHttpRoutes:
                         session = self._api.get_session(session_id, now=now)
                     except ProjectLifecycleError as exc:
                         if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                            return self._error(403, str(exc), "error.authorization.denied")
+                            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                         raise
                     context = authorized.context
                     runtime_context = AIActionRuntimeContext(
@@ -6080,7 +6173,7 @@ class ProjectLifecycleHttpRoutes:
                     session = self._api.get_session(session_id, now=now)
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                     raise
                 context = authorized.context
                 runtime_context = AIActionRuntimeContext(
@@ -6240,9 +6333,9 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {"project": asdict(project)})
             return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
         except SessionError as exc:
-            return self._error(401, str(exc), "error.session.invalid")
+            return self._error(401, _stable_error_code(exc, "SESSION_INVALID"), "error.session.invalid")
         except AuthorizationError as exc:
-            return self._error(403, str(exc), "error.authorization.denied")
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except AIAssistantProviderError as exc:
             code = exc.code
             if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
@@ -6299,8 +6392,12 @@ class ProjectLifecycleHttpRoutes:
             if code == "PROJECT_STATUS_READBACK_MISMATCH":
                 return self._error(500, code, "error.project.status_readback")
             return self._error(400, code, "error.project.lifecycle")
-        except (ValueError, TypeError, json.JSONDecodeError) as exc:
-            return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+        except (ValueError, json.JSONDecodeError) as exc:
+            return self._error(
+                400, _stable_error_code(exc, "INVALID_REQUEST"), "error.request.invalid"
+            )
+        except TypeError:
+            return self._error(500, "INTERNAL_ERROR", "error.internal")
 
     def _handle_earned_value_route(
         self,
@@ -6336,7 +6433,7 @@ class ProjectLifecycleHttpRoutes:
             ).context
         except ProjectLifecycleError as exc:
             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             raise
         session = self._api.get_session(session_id, now=now)
         auth = context.authorization_context(session.roles)
@@ -6401,7 +6498,7 @@ class ProjectLifecycleHttpRoutes:
                 ),
             )
         except AuthorizationError as exc:
-            return self._error(403, str(exc), "error.authorization.denied")
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except P6EarnedValueReadModelError as exc:
             return self._evm_error(exc)
         except (
@@ -6690,7 +6787,7 @@ class ProjectLifecycleHttpRoutes:
             context = self._api.open_project(session_id, project_id, now=now).context
         except ProjectLifecycleError as exc:
             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             raise
         session = self._api.get_session(session_id, now=now)
         auth = context.authorization_context(session.roles)
@@ -6738,7 +6835,7 @@ class ProjectLifecycleHttpRoutes:
                 ),
             )
         except AuthorizationError as exc:
-            return self._error(403, str(exc), "error.authorization.denied")
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except P6BaselineCaptureError as exc:
             return self._baseline_capture_error(exc)
         except (
@@ -6832,7 +6929,7 @@ class ProjectLifecycleHttpRoutes:
             ).context
         except ProjectLifecycleError as exc:
             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             raise
         session = self._api.get_session(session_id, now=now)
         auth = context.authorization_context(session.roles)
@@ -6846,7 +6943,7 @@ class ProjectLifecycleHttpRoutes:
                     scope, auth_context=auth
                 )
             except AuthorizationError as exc:
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             except P6BaselineAssignmentError as exc:
                 return self._baseline_role_error(exc)
             return self._json(200, result)
@@ -6857,7 +6954,7 @@ class ProjectLifecycleHttpRoutes:
                     scope, role, auth_context=auth
                 )
             except AuthorizationError as exc:
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             except P6BaselineAssignmentError as exc:
                 return self._baseline_role_error(exc)
             return self._json(200, result)
@@ -6907,7 +7004,9 @@ class ProjectLifecycleHttpRoutes:
             except ProjectLifecycleError as exc:
                 if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                     return self._error(
-                        403, str(exc), "error.authorization.denied"
+                        403,
+                        _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                        "error.authorization.denied",
                     )
                 raise
             source_auth = source_context.authorization_context(session.roles)
@@ -6934,7 +7033,7 @@ class ProjectLifecycleHttpRoutes:
             )
             return self._json(200 if result["replayed"] else 201, result)
         except AuthorizationError as exc:
-            return self._error(403, str(exc), "error.authorization.denied")
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except P6BaselineAssignmentError as exc:
             return self._baseline_role_error(exc)
         except P6BaselineConversionError as exc:
@@ -7025,7 +7124,7 @@ class ProjectLifecycleHttpRoutes:
             context = self._api.open_project(session_id, project_id, now=now).context
         except ProjectLifecycleError as exc:
             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                return self._error(403, str(exc), "error.authorization.denied")
+                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
             raise
         session = self._api.get_session(session_id, now=now)
         auth = context.authorization_context(session.roles)
@@ -7124,7 +7223,7 @@ class ProjectLifecycleHttpRoutes:
                         contract_version=contract_version,
                     )
         except AuthorizationError as exc:
-            return self._error(403, str(exc), "error.authorization.denied")
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except P6BaselineUpdateError as exc:
             return self._baseline_update_error(exc)
         except (

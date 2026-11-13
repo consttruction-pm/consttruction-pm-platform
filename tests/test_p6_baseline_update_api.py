@@ -886,7 +886,7 @@ def test_http_maps_stale_revision_missing_baseline_and_permission_errors(connect
         preview_payload(target_name="Denied"),
     )
     assert status == 403
-    assert json.loads(body)["code"].startswith("authorization denied")
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
 
     status, _, _ = http_call(
         viewer_routes,

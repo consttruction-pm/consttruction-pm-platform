@@ -10,7 +10,10 @@ from construction_pm.application.project_lifecycle import (
     ProjectSummary,
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
-from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
+from construction_pm.http.project_lifecycle_routes import (
+    ProjectLifecycleHttpRoutes,
+    _stable_error_code,
+)
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -885,7 +888,7 @@ def test_relationship_http_boundary_rejects_cross_scope_missing_permission_stale
         }).encode(),
     )
     assert status == 403
-    assert "permission=project.write" in json.loads(raw)["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(raw)["code"]
 
 
 def resource_assignment_routes():
@@ -2245,7 +2248,7 @@ def test_p6_financial_period_routes_reject_cross_scope_missing_permission_and_in
         "GET", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}
     )
     assert status == 403
-    assert json.loads(body)["code"] == "authorization denied for permission=project.read"
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
 
     r, _, _ = p6_routes()
     status, _, body = r.handle(
@@ -2465,7 +2468,7 @@ def test_p6_interchange_http_requires_scope_and_permission():
         cookies={"cp_session": "s1"}, body=b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n",
     )
     assert status == 403
-    assert "permission=project.write" in json.loads(body)["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
     r, _, _ = p6_routes()
     status, _, body = r.handle(
@@ -2713,7 +2716,7 @@ def test_authenticated_sync_mutation_requires_project_write_permission():
     )
 
     assert status == 403
-    assert json.loads(raw)["code"] == "authorization denied for permission=project.write"
+    assert json.loads(raw)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
     assert handler.calls == []
     assert handler.endpoint_factory_calls == 0
 
@@ -2858,7 +2861,7 @@ def test_viewer_cannot_patch_project_metadata():
         body=json.dumps({"name": "Viewer Rename", "expected_revision": 2}).encode(),
     )
     assert status == 403
-    assert "project.admin" in json.loads(body)["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
 
 def test_project_http_get_unknown_project_is_forbidden():
@@ -2868,3 +2871,56 @@ def test_project_http_get_unknown_project_is_forbidden():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+class _ExplodingActivityAPI:
+    """Raise an internal fault the route layer must not reflect."""
+
+    def list(self, _scope, *, auth_context):
+        raise KeyError("INTERNAL_SECRET")
+
+
+def test_stable_error_code_never_returns_internal_detail():
+    assert _stable_error_code(KeyError("INTERNAL_SECRET"), "REQUEST_INVALID") == "REQUEST_INVALID"
+    assert _stable_error_code(TypeError("unsupported operand"), "REQUEST_INVALID") == "REQUEST_INVALID"
+    assert (
+        _stable_error_code(
+            ValueError("authorization denied for permission=project.write"),
+            "AUTHORIZATION_DENIED",
+        )
+        == "AUTHORIZATION_PERMISSION_DENIED"
+    )
+    assert (
+        _stable_error_code(
+            ValueError("INVALID_AUTHORIZATION_USER_ID"), "AUTHORIZATION_DENIED"
+        )
+        == "INVALID_AUTHORIZATION_CONTEXT"
+    )
+    assert (
+        _stable_error_code(ValueError("REVISION_CONFLICT"), "REQUEST_INVALID")
+        == "REVISION_CONFLICT"
+    )
+
+
+def test_unexpected_route_fault_returns_a_fixed_internal_error_code():
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_activity_master_api=_ExplodingActivityAPI(),
+    )
+    status, _, body = routes.handle(
+        "GET", "/api/projects/p1/p6/activities", cookies={"cp_session": "s1"}
+    )
+    assert status == 500
+    payload = json.loads(body)
+    assert payload["code"] == "INTERNAL_ERROR"
+    assert payload["retryable"] is True
+    assert "INTERNAL_SECRET" not in body.decode("utf-8")

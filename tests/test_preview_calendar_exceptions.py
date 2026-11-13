@@ -201,7 +201,7 @@ def test_holiday_write_rejects_viewer_and_immutable_conflicts(tmp_path: Path) ->
         viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
         status, body = _save_holiday(runtime, viewer.session_id, "2026-10-20")
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _ = _save_holiday(runtime, planner.session_id, "2026-10-20")

@@ -208,7 +208,7 @@ def test_read_only_project_user_cannot_inspect_actionable_proposal_payloads():
     routes, _, _ = build_routes(roles=frozenset({"viewer"}))
     status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {}, method="GET")
     assert status == 403
-    assert json.loads(body)["code"].startswith("authorization denied")
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
 
 
 

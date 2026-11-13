@@ -172,7 +172,7 @@ def test_preview_expense_and_cost_account_writes_are_authorized_and_immutable(tm
             body=json.dumps(_expense()).encode(),
         )
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         status, body = _request(
             runtime.app,
@@ -182,7 +182,7 @@ def test_preview_expense_and_cost_account_writes_are_authorized_and_immutable(tm
             body=json.dumps(_account()).encode(),
         )
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, body = _request(
