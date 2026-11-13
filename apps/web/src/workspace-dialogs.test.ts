@@ -146,6 +146,54 @@ test("WBS level colours are read per level and kept independent", () => {
   assert.equal(patch.presentation?.table.rowHeight, DEFAULT_PRESENTATION.table.rowHeight);
 });
 
+test("WBS band format reads its own font, ink, height and label flags", () => {
+  const patch = readLayoutPatch(form({
+    wbsFields: "1",
+    "wbs.fontFamily": "cairo",
+    "wbs.fontSize": "13",
+    "wbs.inkMode": "custom",
+    "wbs.textColor": "#102030",
+    "wbs.rowHeight": "28",
+    "wbs.label.title": "on",
+    // Show ID/Code and Show Name are unchecked and therefore absent.
+  }), DEFAULT_PRESENTATION);
+  const wbs = patch.presentation?.wbs;
+  assert.equal(wbs?.fontFamily, "cairo");
+  assert.equal(wbs?.fontSize, 13);
+  assert.equal(wbs?.inkMode, "custom");
+  assert.equal(wbs?.textColor, "#102030");
+  assert.equal(wbs?.rowHeight, 28);
+  assert.deepEqual(wbs?.labels, { title: true, code: false, name: false });
+  // The table presentation is untouched by a band-only change.
+  assert.equal(wbs?.levelColors[0], DEFAULT_PRESENTATION.wbs.levelColors[0]);
+  assert.equal(patch.presentation?.table.fontFamily, DEFAULT_PRESENTATION.table.fontFamily);
+});
+
+test("WBS band reset restores only the band format", () => {
+  const patch = readLayoutPatch(form({
+    wbsFields: "1",
+    "wbs.color.0": "#112233",
+    "wbs.fontFamily": "cairo",
+    "wbs.fontSize": "15",
+    "wbs.inkMode": "custom",
+    "wbs.textColor": "#102030",
+    "wbs.rowHeight": "33",
+    "wbs.label.title": "on",
+    "wbs.label.name": "on",
+    wbsReset: "1",
+    // Another section submitted at the same time must survive the reset.
+    "timescale.interval": "week-day",
+  }), DEFAULT_PRESENTATION);
+  const wbs = patch.presentation?.wbs;
+  assert.deepEqual(wbs?.labels, DEFAULT_PRESENTATION.wbs.labels);
+  assert.equal(wbs?.fontFamily, DEFAULT_PRESENTATION.wbs.fontFamily);
+  assert.equal(wbs?.fontSize, DEFAULT_PRESENTATION.wbs.fontSize);
+  assert.equal(wbs?.inkMode, DEFAULT_PRESENTATION.wbs.inkMode);
+  assert.equal(wbs?.rowHeight, DEFAULT_PRESENTATION.wbs.rowHeight);
+  assert.deepEqual(wbs?.levelColors, DEFAULT_PRESENTATION.wbs.levelColors);
+  assert.equal(patch.presentation?.timescale.interval, "week-day");
+});
+
 test("Timescale and User Preferences dialogs expose the persisted controls", () => {
   const html = renderLayoutDialogs(dialogOptions());
   assert.match(html, /name="timescale.interval"[\s\S]*?value="quarter-month" selected/);
@@ -155,6 +203,15 @@ test("Timescale and User Preferences dialogs expose the persisted controls", () 
   assert.match(html, /name="timescale.textColor" value="#000000"/);
   assert.match(html, /name="wbs.color.0" value="#0000ff"/);
   assert.match(html, /name="wbs.color.5" value="#d9b3ff"/);
+  assert.match(html, /name="wbs.fontFamily"/);
+  assert.match(html, /name="wbs.fontSize"/);
+  assert.match(html, /name="wbs.inkMode"/);
+  assert.match(html, /name="wbs.rowHeight"/);
+  assert.match(html, /name="wbs.label.title"/);
+  assert.match(html, /name="wbs.label.code" checked/);
+  assert.match(html, /name="wbs.label.name" checked/);
+  assert.match(html, /name="wbsReset" value="1" data-dialog-reset/);
+  assert.match(html, /Reset band format/);
   assert.match(html, /Fiscal year, shift and hour intervals are not rendered/);
 });
 

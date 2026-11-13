@@ -835,10 +835,37 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
     ${ganttChartEditor(optionsInput)}`;
 
   const fontRow = tableEditor(optionsInput, false);
+  const wbs = optionsInput.presentation.wbs;
+  const inkOptions = [
+    { value: "auto", label: t(locale, "Automatic contrast", "کنتراست خودکار") },
+    { value: "custom", label: t(locale, "Custom colour", "رنگ سفارشی") },
+  ] as const;
   const wbsColors = `<fieldset class="cp-dialog-group">
-      <legend>${esc(t(locale, "WBS level colours", "رنگ سطوح WBS"))}</legend>
-      <p class="cp-dialog-note">${esc(t(locale, "Each level colour is painted on the hierarchy cell, its guide rails and the level icon. It never fills the whole activity row, so selection and critical-path colours stay independent.", "رنگ هر سطح فقط در ستون سلسله‌مراتب، خطوط راهنمای آن و نماد سطح اعمال می‌شود و کل ردیف فعالیت را پر نمی‌کند؛ بنابراین رنگ انتخاب و مسیر بحرانی مستقل باقی می‌ماند."))}</p>
-      <div class="cp-wbs-color-grid">${optionsInput.presentation.wbs.levelColors.map((color, index) => `<label class="cp-dialog-row"><span>${esc(t(locale, `Level ${index + 1}`, `سطح ${index + 1}`))}</span><input type="color" name="wbs.color.${index}" value="${esc(color)}" aria-label="${esc(t(locale, `WBS level ${index + 1} colour`, `رنگ سطح ${index + 1} WBS`))}"></label>`).join("")}</div>
+      <legend>${esc(t(locale, "WBS band format", "قالب باند WBS"))}</legend>
+      <input type="hidden" name="wbsFields" value="1">
+      <p class="cp-dialog-note">${esc(t(locale, "Band fonts, colours and height are independent of the activity table. Each level colour paints the hierarchy cell, its guide rails and the level icon; it never fills the whole activity row, so selection and critical-path colours stay independent.", "قلم، رنگ و ارتفاع باند مستقل از جدول فعالیت‌هاست. رنگ هر سطح فقط در ستون سلسله‌مراتب، خطوط راهنمای آن و نماد سطح اعمال می‌شود و کل ردیف فعالیت را پر نمی‌کند؛ بنابراین رنگ انتخاب و مسیر بحرانی مستقل باقی می‌ماند."))}</p>
+      <div class="cp-wbs-color-grid">${wbs.levelColors.map((color, index) => `<label class="cp-dialog-row"><span>${esc(t(locale, `Level ${index + 1}`, `سطح ${index + 1}`))}</span><input type="color" name="wbs.color.${index}" value="${esc(color)}" aria-label="${esc(t(locale, `WBS level ${index + 1} colour`, `رنگ سطح ${index + 1} WBS`))}"></label>`).join("")}</div>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Band font", "قلم باند"))}</span>
+        <select name="wbs.fontFamily">${selectOptions(TABLE_FONT_FAMILIES, FONT_FAMILY_LABELS, wbs.fontFamily, locale)}</select>
+      </label>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Band font size", "اندازهٔ قلم باند"))}</span>
+        <select name="wbs.fontSize">${[9, 10, 11, 12, 13, 14, 15, 16].map((size) => `<option value="${size}"${wbs.fontSize === size ? " selected" : ""}>${size} px</option>`).join("")}</select>
+      </label>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Band text", "متن باند"))}</span>
+        <select name="wbs.inkMode">${inkOptions.map((option) => `<option value="${option.value}"${wbs.inkMode === option.value ? " selected" : ""}>${esc(option.label)}</option>`).join("")}</select>
+      </label>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Band text colour", "رنگ متن باند"))}</span>
+        <input type="color" name="wbs.textColor" value="${esc(wbs.textColor)}" aria-label="${esc(t(locale, "WBS band text colour", "رنگ متن باند WBS"))}">
+      </label>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Band height", "ارتفاع باند"))}</span>
+        <input type="number" name="wbs.rowHeight" min="18" max="40" step="1" value="${wbs.rowHeight}" aria-label="${esc(t(locale, "WBS band height", "ارتفاع باند WBS"))}">
+      </label>
+      <div class="cp-dialog-radios" role="group" aria-label="${esc(t(locale, "Band text fields", "فیلدهای متن باند"))}">
+        <label><input type="checkbox" name="wbs.label.title"${wbs.labels.title ? " checked" : ""}> ${esc(t(locale, "Show Title", "نمایش عنوان"))}</label>
+        <label><input type="checkbox" name="wbs.label.code"${wbs.labels.code ? " checked" : ""}> ${esc(t(locale, "Show ID/Code", "نمایش شناسه/کد"))}</label>
+        <label><input type="checkbox" name="wbs.label.name"${wbs.labels.name ? " checked" : ""}> ${esc(t(locale, "Show Name", "نمایش نام"))}</label>
+      </div>
+      <button type="submit" class="cp-dialog-reset" name="wbsReset" value="1" data-dialog-reset>${esc(t(locale, "Reset band format", "بازنشانی قالب باند"))}</button>
     </fieldset>`;
   const preferences = `${tableEditor(optionsInput, true)}${wbsColors}
     <fieldset class="cp-dialog-group">
@@ -1014,17 +1041,43 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     presentationChanged = true;
   }
 
-  const wbsColorKeys = keys
-    .filter((key) => /^wbs\.color\.\d+$/.test(key))
-    .sort((a, b) => Number(a.slice("wbs.color.".length)) - Number(b.slice("wbs.color.".length)));
-  if (wbsColorKeys.length) {
-    // Keep the submitted colour at its level index; a partial form must not
-    // shift level 3 into level 2.
+  // WBS band format: level colours plus the band's own typeface, ink, height
+  // and label selection. Every value is presentation-only and saved with the
+  // layout; none of it reaches the schedule model.
+  const wbsKeys = keys.filter((key) => key.startsWith("wbs."));
+  if (wbsKeys.length || data.has("wbsFields")) {
     const levelColors: unknown[] = [];
-    for (const key of wbsColorKeys) {
+    for (const key of wbsKeys.filter((key) => /^wbs\.color\.\d+$/.test(key))) {
       levelColors[Number(key.slice("wbs.color.".length))] = data.get(key);
     }
-    presentation.wbs = normalizeWbs({ levelColors }, presentation.wbs);
+    presentation.wbs = normalizeWbs({
+      ...(levelColors.length ? { levelColors } : {}),
+      fontFamily: data.get("wbs.fontFamily"),
+      fontSize: data.get("wbs.fontSize"),
+      inkMode: data.get("wbs.inkMode"),
+      textColor: data.get("wbs.textColor"),
+      rowHeight: data.get("wbs.rowHeight"),
+      // An unchecked checkbox is absent from FormData, so the label toggles are
+      // read as booleans only when the band fieldset submitted its marker.
+      labels: data.has("wbsFields")
+        ? {
+          title: data.get("wbs.label.title") === "on",
+          code: data.get("wbs.label.code") === "on",
+          name: data.get("wbs.label.name") === "on",
+        }
+        : undefined,
+    }, presentation.wbs);
+    presentationChanged = true;
+  }
+
+  if (data.get("wbsReset") === "1") {
+    // Reset restores the band format only; the activity table, timescale, bars,
+    // Gantt settings and filters keep their saved values.
+    presentation.wbs = {
+      ...DEFAULT_PRESENTATION.wbs,
+      levelColors: [...DEFAULT_PRESENTATION.wbs.levelColors],
+      labels: { ...DEFAULT_PRESENTATION.wbs.labels },
+    };
     presentationChanged = true;
   }
 

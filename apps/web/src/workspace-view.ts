@@ -1,7 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
-import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   applyActivityFilterState,
@@ -43,8 +43,8 @@ import {
   hasBaselineDates,
   presentationFontFamily,
   selectPrimaryBarKind,
+  wbsBandInk,
   wbsLevelColor,
-  wbsLevelInk,
   type GanttBarKind,
   type GanttBarStyle,
   type GanttLabelFormat,
@@ -3504,6 +3504,13 @@ function renderWbsGroupRow(
     `Derived for display from ${row.summary.activityCount} persisted child activities`,
     `برای نمایش از ${row.summary.activityCount} فعالیت فرزند ذخیره‌شده محاسبه شده است`,
   );
+  const bandLabels = presentation.wbs.labels;
+  const titleMarkup = bandLabels.title
+    ? `<span class="cp-p6-wbs-title">${escapeHtml(uiText(state.locale, "WBS", "WBS"))}</span>`
+    : "";
+  const codeMarkup = bandLabels.code
+    ? `<span class="cp-p6-wbs-code">${escapeHtml(row.node.localCode)}</span>`
+    : "";
   const cells = state.columns.map((column) => {
     const last = column.id.split(".").pop() ?? column.id;
     const isStart = last === "start";
@@ -3517,11 +3524,11 @@ function renderWbsGroupRow(
       content = treeCellMarkup(
         guide,
         presentation.wbs,
-        `<span class="cp-p6-wbs-cell"><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.wbsId)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span><span class="cp-p6-wbs-code">${escapeHtml(row.node.localCode)}</span></span>`,
+        `<span class="cp-p6-wbs-cell"><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.wbsId)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span>${titleMarkup}${codeMarkup}</span>`,
         guide.depth,
       );
     } else if (column.id === "activity_name" || column.id === "activity.name") {
-      content = `<span class="cp-p6-wbs-name">${escapeHtml(row.node.name)}</span>`;
+      content = bandLabels.name ? `<span class="cp-p6-wbs-name">${escapeHtml(row.node.name)}</span>` : "";
     } else if (isStart && row.summary.startMs !== null) {
       content = escapeHtml(formatMs(row.summary.startMs));
       derived = true;
@@ -3539,8 +3546,15 @@ function renderWbsGroupRow(
   }).join("");
   const lineNumberCell = presentation.table.lineNumbers ? `<td role="gridcell" class="cp-p6-line-number"></td>` : "";
   const levelColor = wbsLevelColor(presentation.wbs, row.depth);
-  const levelInk = wbsLevelInk(presentation.wbs, row.depth);
-  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band${row.collapsed ? " is-collapsed" : ""}" style="--cp-wbs-level:${levelColor};--cp-wbs-ink:${levelInk}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
+  const levelInk = wbsBandInk(presentation.wbs, row.depth);
+  const bandStyle = [
+    `--cp-wbs-level:${levelColor}`,
+    `--cp-wbs-ink:${levelInk}`,
+    `--cp-wbs-font-family:${presentationFontFamily(presentation.wbs.fontFamily)}`,
+    `--cp-wbs-font-size:${presentation.wbs.fontSize}px`,
+    `--cp-wbs-row-height:${presentation.wbs.rowHeight}px`,
+  ].join(";");
+  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band${row.collapsed ? " is-collapsed" : ""}" style="${escapeAttribute(bandStyle)}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
 }
 
 function activityTypeKind(activity: WorkspaceActivityRow): "milestone" | "summary" | "loe" | "task" {
@@ -3695,7 +3709,10 @@ function renderGantt(
 
   const gantt = presentation.gantt;
   const rowHeight = ganttRowPitch(presentation.table.rowHeight);
-  const rowsHeight = ganttRowsHeight(rows.length, rowHeight);
+  // Bands and activity rows have different heights, so the chart uses one
+  // cumulative row metric for bars, links, sight lines and the progress line.
+  const { metrics: rowMetrics, total: rowsHeight } = ganttDisplayMetrics(rows, rowHeight, presentation.wbs.rowHeight);
+  const rowCenters = rowMetrics.map((metric) => metric.center);
   const contentWidth = GANTT_CONTENT_WIDTH[ganttScale];
   const activityById = new Map(activities.map((activity) => [activity.id, activity]));
   const barById = new Map(bars.map((bar) => [bar.activityId, bar]));
@@ -3704,7 +3721,7 @@ function renderGantt(
     if (row.kind === "activity") rowIndexByActivity.set(row.activity.id, index);
   });
   const ticks = createGanttAxisTicks(scale, ganttScale);
-  const links = createGanttLinkGeometry(relationships, bars, rowIndexByActivity, { rowHeight, xUnits: 10 });
+  const links = createGanttLinkGeometry(relationships, bars, rowIndexByActivity, { rowHeight, rowCenters, xUnits: 10 });
   const scaleModeLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -3830,12 +3847,12 @@ function renderGantt(
   const horizontalSight: string[] = [];
   if (gantt.sightLines.beforeSummaries) {
     rows.forEach((row, index) => {
-      if (row.kind === "wbs") horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-major" style="top:${index * rowHeight}px"></span>`);
+      if (row.kind === "wbs") horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-major" style="top:${rowMetrics[index]?.top ?? 0}px"></span>`);
     });
   }
   if (gantt.sightLines.rowInterval > 0) {
     for (let index = gantt.sightLines.rowInterval; index < rows.length; index += gantt.sightLines.rowInterval) {
-      horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-minor" style="top:${index * rowHeight}px"></span>`);
+      horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-minor" style="top:${rowMetrics[index]?.top ?? 0}px"></span>`);
     }
   }
   // Completion-percentage point line over the persisted progress of every bar.
@@ -3848,7 +3865,7 @@ function renderGantt(
         const bar = barById.get(row.activity.id);
         if (!bar) return null;
         const share = Math.min(100, Math.max(0, bar.progressPercent)) / 100;
-        return { x: bar.leftPercent + bar.widthPercent * share, y: index * rowHeight + rowHeight / 2 };
+        return { x: bar.leftPercent + bar.widthPercent * share, y: rowMetrics[index]?.center ?? 0 };
       })
       .filter((point): point is { x: number; y: number } => point !== null)
     : [];
@@ -3872,7 +3889,7 @@ function renderGantt(
     : "";
   const legendTop = gantt.legend.visible && gantt.legend.position === "top" ? legend : "";
   const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
-  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null);
+  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, scale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null);
 
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
@@ -3883,6 +3900,7 @@ function renderGanttRows(
   activityById: ReadonlyMap<string, WorkspaceActivityRow>,
   presentation: WorkspacePresentation,
   rowHeight: number,
+  rowMetrics: readonly GanttRowMetric[],
   selectedActivityId: string | null,
   t: WorkspaceLabels,
   locale: string,
@@ -3895,9 +3913,10 @@ function renderGanttRows(
     // The reference rules a dashed line only where a WBS branch finishes, not
     // around every row, so branch extents read without a full row grid.
     const groupEnd = !next || next.depth < row.depth || (row.kind === "wbs" && next.depth <= row.depth);
+    const metric = rowMetrics[index];
     return row.kind === "wbs"
-      ? renderGanttWbsRow(row, presentation, t, locale, scale, calendarMode, groupEnd)
-      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds);
+      ? renderGanttWbsRow(row, presentation, t, locale, scale, calendarMode, groupEnd, Math.max(14, (metric?.height ?? presentation.wbs.rowHeight) - 1))
+      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, metric?.height ?? rowHeight, selectedActivityId, t, locale, scale, calendarMode, row.depth, groupEnd, selectedIds);
   }).join("");
 }
 
@@ -3923,6 +3942,7 @@ function renderGanttWbsRow(
   scale: GanttScale,
   calendarMode: WorkspaceCalendarMode,
   groupEnd: boolean,
+  rowHeight: number,
 ): string {
   const style = presentation.bars.summary;
   const hasSpan = row.summary.startMs !== null && row.summary.finishMs !== null && row.summary.finishMs >= row.summary.startMs;
@@ -3951,7 +3971,9 @@ function renderGanttWbsRow(
     ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`
     : "";
   const color = wbsLevelColor(presentation.wbs, row.depth);
-  return `<div class="cp-gantt-row cp-gantt-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" tabindex="-1" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color}" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
+  // The group row uses the band height, so it stays level with the table band
+  // even when the band typography needs a taller row.
+  return `<div class="cp-gantt-row cp-gantt-group-row${groupEnd ? " is-group-end" : ""}" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" tabindex="-1" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color};--cp-gantt-row-height:${rowHeight}px" aria-label="${escapeAttribute(title)}"><div class="cp-gantt-track">${bar}</div></div>`;
 }
 
 function renderGanttActivityRow(

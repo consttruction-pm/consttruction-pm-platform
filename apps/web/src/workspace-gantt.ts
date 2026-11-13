@@ -48,6 +48,11 @@ export type GanttLinkGeometry = {
 export type GanttLinkOptions = {
   /** Rendered height of one display row in pixels. */
   rowHeight?: number;
+  /**
+   * Vertical centre of every display row, in pixels from the row surface top.
+   * Supplied when rows have different heights (taller WBS bands).
+   */
+  rowCenters?: readonly number[];
   /** Horizontal separation between a bar edge and the routed lane, in percent. */
   laneGapPercent?: number;
   /**
@@ -108,6 +113,33 @@ export function ganttRowCenter(index: number, rowHeight: number): number {
 /** Total pixel height of `count` display rows. */
 export function ganttRowsHeight(count: number, rowHeight: number): number {
   return Math.max(0, count) * ganttRowPitch(rowHeight);
+}
+
+/** Per-row vertical metrics; WBS bands may be taller than activity rows. */
+export type GanttRowMetric = { height: number; top: number; center: number };
+
+/**
+ * Cumulative row geometry for a display list. Activity rows use the table row
+ * pitch; WBS bands use the band height from the band presentation so the table
+ * band and its Gantt summary row keep the same vertical extent.
+ */
+export function ganttDisplayMetrics(
+  rows: readonly { kind: string }[],
+  rowHeight: number,
+  bandHeight: number,
+): { metrics: GanttRowMetric[]; total: number } {
+  // Every rendered Gantt row includes the 1 px rule the table row carries
+  // below its cell, so the chart advances at exactly the table's rate.
+  const pitch = ganttRowPitch(rowHeight) + 1;
+  const band = ganttRowPitch(bandHeight) + 1;
+  let top = 0;
+  const metrics = rows.map((row) => {
+    const height = row.kind === "wbs" ? band : pitch;
+    const metric = Object.freeze({ height, top, center: top + height / 2 });
+    top += height;
+    return metric;
+  });
+  return { metrics, total: top };
 }
 
 /** A bar label rendered somewhere other than its configured side. */
@@ -576,8 +608,8 @@ export function createGanttLinkGeometry(
     const toFinish = to.milestone ? to.leftPercent : to.leftPercent + to.widthPercent;
     const fromRow = rowIndexByActivity?.get(relationship.predecessorId) ?? fromBarIndex;
     const toRow = rowIndexByActivity?.get(relationship.successorId) ?? toBarIndex;
-    const fromY = ganttRowCenter(fromRow, rowHeight);
-    const toY = ganttRowCenter(toRow, rowHeight);
+    const fromY = options.rowCenters?.[fromRow] ?? ganttRowCenter(fromRow, rowHeight);
+    const toY = options.rowCenters?.[toRow] ?? ganttRowCenter(toRow, rowHeight);
     const route = relationshipRoute(relationship.type, fromStart, fromFinish, toStart, toFinish, gap, laneOrdinal);
     laneOrdinal += 1;
     const lagNumber = Number(relationship.lagValue);

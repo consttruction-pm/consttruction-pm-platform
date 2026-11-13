@@ -145,9 +145,28 @@ export type GanttTimescale = {
   backgroundColor: string;
 };
 
+export type WbsBandLabels = {
+  /** Show the grouping field title ("WBS") at the start of the band. */
+  title: boolean;
+  /** Show the WBS code in the hierarchy cell. */
+  code: boolean;
+  /** Show the WBS name in the name column. */
+  name: boolean;
+};
+
 export type WbsPresentation = {
   /** One colour per WBS depth, level 1 first. The last entry applies to deeper levels. */
   levelColors: string[];
+  /** Band typeface, independent of the activity table font. */
+  fontFamily: TableFontFamily;
+  /** Band font size in CSS pixels. */
+  fontSize: number;
+  /** "auto" keeps the readable per-level ink; "custom" uses textColor. */
+  inkMode: "auto" | "custom";
+  textColor: string;
+  /** Minimum band row height in CSS pixels. */
+  rowHeight: number;
+  labels: WbsBandLabels;
 };
 
 export type WorkspacePresentation = {
@@ -210,6 +229,16 @@ export const DEFAULT_WBS_LEVEL_INKS = [
 
 export const MAX_WBS_LEVELS = DEFAULT_WBS_LEVEL_COLORS.length;
 
+const DEFAULT_WBS: WbsPresentation = {
+  levelColors: [...DEFAULT_WBS_LEVEL_COLORS],
+  fontFamily: "tahoma",
+  fontSize: 11,
+  inkMode: "auto",
+  textColor: "#000000",
+  rowHeight: 22,
+  labels: { title: false, code: true, name: true },
+};
+
 const DEFAULT_TIMESCALE: GanttTimescale = {
   lines: 2,
   dateFormat: "primary",
@@ -256,7 +285,7 @@ export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
   filters: EMPTY_ACTIVITY_FILTERS,
   timescale: { ...DEFAULT_TIMESCALE },
-  wbs: { levelColors: [...DEFAULT_WBS_LEVEL_COLORS] },
+  wbs: { ...DEFAULT_WBS, levelColors: [...DEFAULT_WBS_LEVEL_COLORS], labels: { ...DEFAULT_WBS.labels } },
   gantt: {
     ...DEFAULT_GANTT,
     sightLines: { ...DEFAULT_GANTT.sightLines },
@@ -392,10 +421,21 @@ export function normalizeTimescale(value: unknown, fallback: GanttTimescale = DE
 export function normalizeWbs(value: unknown, fallback: WbsPresentation = DEFAULT_PRESENTATION.wbs): WbsPresentation {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const source = Array.isArray(input.levelColors) ? input.levelColors : [];
+  const labelsInput = input.labels && typeof input.labels === "object" ? input.labels as Record<string, unknown> : {};
   return {
     levelColors: Array.from({ length: MAX_WBS_LEVELS }, (_, index) =>
       color(source[index], fallback.levelColors[index] ?? DEFAULT_WBS_LEVEL_COLORS[Math.min(index, MAX_WBS_LEVELS - 1)]),
     ),
+    fontFamily: oneOf(TABLE_FONT_FAMILIES, input.fontFamily, fallback.fontFamily),
+    fontSize: clampInteger(input.fontSize, 9, 16, fallback.fontSize),
+    inkMode: oneOf(["auto", "custom"] as const, input.inkMode, fallback.inkMode),
+    textColor: color(input.textColor, fallback.textColor),
+    rowHeight: clampInteger(input.rowHeight, 18, 40, fallback.rowHeight),
+    labels: {
+      title: boolean(labelsInput.title, fallback.labels.title),
+      code: boolean(labelsInput.code, fallback.labels.code),
+      name: boolean(labelsInput.name, fallback.labels.name),
+    },
   };
 }
 
@@ -434,6 +474,15 @@ export function wbsLevelInk(wbs: WbsPresentation, depth: number): string {
   const preferred = DEFAULT_WBS_LEVEL_INKS[index] ?? "#000000";
   if (contrastRatio(background, preferred) >= 3) return preferred;
   return colorLuminance(background) > 0.45 ? "#000000" : "#ffffff";
+}
+
+/**
+ * Band text ink: the readable per-level default, or the explicit band colour
+ * when the user chose a custom ink. A custom colour is applied unchanged; the
+ * dialog shows the contrast concern rather than overriding the choice.
+ */
+export function wbsBandInk(wbs: WbsPresentation, depth: number): string {
+  return wbs.inkMode === "custom" ? wbs.textColor : wbsLevelInk(wbs, depth);
 }
 
 export function normalizePresentation(value: unknown): WorkspacePresentation {

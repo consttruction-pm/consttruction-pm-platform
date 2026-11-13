@@ -31,6 +31,12 @@ test("WBS level colour fills the row band and the solid hierarchy spines", () =>
   assert.ok(bandRule, "the WBS row rule must still cover every data cell");
   assert.match(bandRule[1], /background-color: var\(--cp-wbs-level, #0000ff\)/);
   assert.match(bandRule[1], /color: var\(--cp-wbs-ink, #000000\)/);
+  // Band typography and height come from the band presentation, not from the
+  // activity table font variables.
+  assert.match(bandRule[1], /font-family: var\(--cp-wbs-font-family, inherit\)/);
+  assert.match(bandRule[1], /font-size: var\(--cp-wbs-font-size, inherit\)/);
+  assert.match(bandRule[1], /height: var\(--cp-wbs-row-height, auto\)/);
+  assert.match(sourceCss, /\.cp-p6 \.cp-p6-wbs-title::after \{ content: ":"; \}/);
   assert.doesNotMatch(sourceCss, /--cp-wbs-band/);
   const spineRule = /\.cp-p6 \.cp-p6-wbs-spine \{([^}]*)\}/.exec(sourceCss);
   assert.ok(spineRule, "each ancestor level must draw a solid spine");
