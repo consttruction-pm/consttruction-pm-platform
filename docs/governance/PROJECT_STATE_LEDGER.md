@@ -761,3 +761,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Fix (code `c55b6535`):** `UrllibFetcher` uses an injected/default opener with a `_RejectRedirects` handler that raises instead of following; redirect status codes map to `KNOWLEDGE_FETCH_REDIRECT_REFUSED`. Ingestion remains an operator CLI surface with no HTTP route.
 - **Tests:** `test_urllib_fetcher_refuses_a_redirect_without_a_second_request` (local HTTP redirect server; the target receives zero requests) and `test_urllib_fetcher_maps_a_refused_redirect_to_a_static_code`. `pytest tests/knowledge` = **255 passed, 24 skipped**.
 - **Docs:** security register and SEC-020 section updated; SEC-020 removed from the open-findings gate.
+
+## SEC-023 anonymous readiness detail redaction — 2026-11-13
+
+- **Finding:** `/api/health/ready` is answered before authentication and returned the full readiness payload, including each component's `detail` string.
+- **Fix (code `9dbe8e17`):** anonymous responses keep `status`, `generated_at`, and per-component `name`/`requirement`/`status` but omit `detail`. Full detail is returned only when a deployment injects `readiness_detail_allowed` and it approves the request; a missing or raising callback is treated as anonymous. The unconfigured-readiness 503 body no longer carries `READINESS_NOT_CONFIGURED`.
+- **Tests:** four new cases in `tests/test_production_readiness.py` cover anonymous redaction, callback-approved detail, a raising callback, and the unconfigured body. `pytest tests/test_production_readiness.py tests/test_observability.py tests/test_staging_smoke.py tests/test_schedule_query_production_composition.py` = **51 passed**.
+- **Boundary:** the production composition does not currently have a session store at the middleware layer, so it keeps the safe redacted default; exposing detail requires an operator-supplied callback.
+- **Docs:** security register and SEC-023 section updated; SEC-023 removed from the open-findings gate.

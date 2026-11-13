@@ -107,7 +107,7 @@ Threats and primary controls:
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Fixed `c55b6535` |
 | SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed `8581697` |
 | SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed `8581697` |
-| SEC-023 | Low | Anonymous readiness probe returns per-component detail | Open |
+| SEC-023 | Low | Anonymous readiness probe returns per-component detail | Fixed `9dbe8e17` |
 | SEC-024 | Low | WSGI short-read body is accepted as complete | Fixed `8581697` |
 | SEC-025 | Info | `ReferenceAIToolPermissionAdapter` authorizes on tool name only (unused) | Fixed `3754a0af` |
 
@@ -487,6 +487,15 @@ Threats and primary controls:
 - **Recommendation:** keep the aggregate status public and redact component
   detail unless authenticated.
 - **Negative test:** an anonymous `/ready` response omits component detail.
+- **Resolution:** `OperationalMiddleware` returns only the aggregate status,
+  generated time, and each component's name/requirement/state unless the
+  deployment injects `readiness_detail_allowed`, an authentication callback. A
+  missing or raising callback is treated as anonymous. The unconfigured-readiness
+  503 body no longer carries a `detail` field. Tests:
+  `test_anonymous_readiness_probe_omits_component_detail`,
+  `test_readiness_detail_is_returned_only_when_the_auth_callback_approves`,
+  `test_readiness_auth_callback_failure_is_redacted_and_does_not_break_the_probe`,
+  `test_unconfigured_readiness_reports_no_component_detail`.
 
 ### SEC-024 — WSGI short-read body is accepted as complete (Low)
 
@@ -549,10 +558,11 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017 and
-  SEC-023 remain open;
+- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013 and SEC-017 remain
+  open;
   SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
-  SEC-020, SEC-021, SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
+  SEC-020, SEC-021, SEC-022, SEC-023, SEC-024 and SEC-025 are fixed with
+  negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict
