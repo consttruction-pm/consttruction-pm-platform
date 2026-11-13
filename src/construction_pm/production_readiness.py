@@ -28,6 +28,7 @@ from .document_object_storage import (
     DocumentStorageConfigurationError,
     s3_settings_from_environment,
 )
+from .observability import current_correlation_id
 
 PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
 KNOWN_ENVIRONMENTS = frozenset(
@@ -846,7 +847,9 @@ class StructuredEventLogger:
             "severity": level,
             "service": self._service,
             "event": event,
-            "correlation_id": normalize_correlation_id(correlation_id),
+            "correlation_id": normalize_correlation_id(
+                correlation_id if correlation_id is not None else current_correlation_id()
+            ),
         }
         payload.update(redact_fields(fields))
         return payload

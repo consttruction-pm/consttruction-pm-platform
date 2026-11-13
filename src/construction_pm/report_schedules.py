@@ -38,6 +38,8 @@ from .report_persistence import (
     ReportStore,
     ReportAuditEvent,
 )
+from .observability import OperationalMetrics
+from .production_readiness import StructuredEventLogger
 
 SCHEDULE_CADENCES = ("daily", "weekly", "monthly")
 SCHEDULE_STATUSES = ("succeeded", "failed")
@@ -992,12 +994,16 @@ class ReportScheduleRunner:
         lease_seconds: int = 300,
         retry_base_minutes: int = 5,
         retry_max_minutes: int = 60,
+        metrics: OperationalMetrics | None = None,
+        logger: StructuredEventLogger | None = None,
     ) -> None:
         self.store = store
         self.reports = reports
         self.lease_seconds = lease_seconds
         self.retry_base_minutes = retry_base_minutes
         self.retry_max_minutes = retry_max_minutes
+        self.metrics = metrics
+        self.logger = logger
 
     def run_due(
         self, *, now: datetime, worker_id: str, limit: int = 10
@@ -1008,7 +1014,29 @@ class ReportScheduleRunner:
             lease_seconds=self.lease_seconds,
             limit=limit,
         )
-        return tuple(self._execute(claim, now) for claim in claims)
+        outcomes = tuple(self._execute(claim, now) for claim in claims)
+        self._record(outcomes)
+        return outcomes
+
+    def _record(self, outcomes: tuple[ScheduleOutcome, ...]) -> None:
+        for outcome in outcomes:
+            if self.metrics is not None:
+                try:
+                    self.metrics.increment(
+                        "report_schedule_runs_total", labels={"state": outcome.state}
+                    )
+                except ValueError:
+                    pass
+            if self.logger is not None:
+                self.logger.emit(
+                    "report.schedule.run",
+                    fields={
+                        "schedule_id": outcome.schedule_id,
+                        "state": outcome.state,
+                        "run_id": outcome.run_id or "none",
+                        "content_sha256": outcome.content_sha256 or "none",
+                    },
+                )
 
     def _execute(self, claim: ScheduleClaim, now: datetime) -> ScheduleOutcome:
         schedule = claim.schedule

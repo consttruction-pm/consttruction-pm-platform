@@ -77,6 +77,7 @@ from construction_pm.ai_assistant_orchestration import (
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.http.operational import OperationalMiddleware
+from construction_pm.observability import OperationalMetrics
 from construction_pm.production_readiness import (
     ReadinessService,
     StructuredEventLogger,
@@ -173,6 +174,7 @@ def build_project_lifecycle_wsgi_app(
     readiness_service: ReadinessService | None = None,
     readiness_probes: Mapping[str, Callable[[], object]] | None = None,
     request_logger: StructuredEventLogger | None = None,
+    operational_metrics: OperationalMetrics | None = None,
     environment: Mapping[str, str] | None = None,
     operational_endpoints: bool = True,
 ) -> ProjectLifecycleWsgiApp:
@@ -411,6 +413,7 @@ def build_project_lifecycle_wsgi_app(
             app,
             readiness=readiness_service,
             logger=request_logger,
+            metrics=operational_metrics,
         )
     return app
 

@@ -19,6 +19,8 @@ from typing import Protocol
 
 from .document_persistence import DocumentAuthorizationError
 from .api_errors import APIError, conflict_error, persistence_error, validation_error
+from .observability import OperationalMetrics
+from .production_readiness import StructuredEventLogger
 
 OCR_STATUSES = ("pending", "running", "succeeded", "failed", "skipped")
 OCR_SUPPORTED_TEXT_TYPES = (
@@ -666,6 +668,8 @@ class DocumentOcrRunner:
         engine: DocumentOcrEngine,
         *,
         max_chars: int = DEFAULT_OCR_MAX_CHARS,
+        metrics: OperationalMetrics | None = None,
+        logger: StructuredEventLogger | None = None,
     ) -> None:
         if (
             isinstance(max_chars, bool)
@@ -677,6 +681,8 @@ class DocumentOcrRunner:
         self.storage = storage
         self.engine = engine
         self.max_chars = max_chars
+        self.metrics = metrics
+        self.logger = logger
 
     def run_due(
         self, now: datetime, worker_id: str, limit: int = 10
@@ -710,7 +716,29 @@ class DocumentOcrRunner:
                     results.append(self.store.fail(job, detail=detail, now=now))
                 except DocumentOcrClaimLost:
                     continue
+        self._record(results)
         return tuple(results)
+
+    def _record(self, jobs: list[DocumentOcrJob]) -> None:
+        for job in jobs:
+            if self.metrics is not None:
+                try:
+                    self.metrics.increment(
+                        "document_ocr_jobs_total", labels={"status": job.status}
+                    )
+                except ValueError:
+                    pass
+            if self.logger is not None:
+                self.logger.emit(
+                    "document.ocr.job",
+                    fields={
+                        "document_id": job.document_id,
+                        "version": job.version,
+                        "status": job.status,
+                        "engine": job.engine or job.engine_version or "none",
+                        "char_count": job.char_count if job.char_count is not None else 0,
+                    },
+                )
 
 
 class DocumentOcrService:

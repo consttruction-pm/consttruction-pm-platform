@@ -15,6 +15,7 @@ details rather than copy references into tickets or logs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import monotonic
 from typing import Iterable, Protocol
 
 from .document_content_repository import DocumentContentVersion
@@ -25,6 +26,7 @@ from .document_storage import (
     DocumentContentNotFound,
     DocumentStorageError,
 )
+from .observability import OperationalMetrics
 
 OK = "ok"
 MISSING = "missing"
@@ -103,8 +105,11 @@ class DocumentContentLister(Protocol):
 def verify_document_versions(
     versions: Iterable[DocumentContentVersion],
     storage: DocumentBinaryStorage,
+    *,
+    metrics: OperationalMetrics | None = None,
 ) -> StorageConsistencyReport:
     """Verify every version's object exists and still matches its digest."""
+    started = monotonic()
     entries: list[VersionConsistency] = []
     prepared = tuple(versions)
     for version in prepared:
@@ -134,7 +139,20 @@ def verify_document_versions(
                 status=status,
             )
         )
-    return StorageConsistencyReport(checked=len(prepared), entries=tuple(entries))
+    report = StorageConsistencyReport(checked=len(prepared), entries=tuple(entries))
+    if metrics is not None:
+        try:
+            for entry in report.entries:
+                metrics.increment(
+                    "document_storage_reconciliation_total",
+                    labels={"status": entry.status},
+                )
+            metrics.observe(
+                "document_storage_reconciliation_ms", (monotonic() - started) * 1000
+            )
+        except ValueError:
+            pass
+    return report
 
 
 def verify_document_scope(
@@ -144,6 +162,7 @@ def verify_document_scope(
     tenant_id: str,
     project_id: str,
     document_ids: Iterable[str],
+    metrics: OperationalMetrics | None = None,
 ) -> StorageConsistencyReport:
     """Verify all stored versions for the supplied documents in one scope."""
     versions: list[DocumentContentVersion] = []
@@ -151,7 +170,7 @@ def verify_document_scope(
         versions.extend(
             content_repository.list(tenant_id, project_id, document_id)
         )
-    return verify_document_versions(versions, storage)
+    return verify_document_versions(versions, storage, metrics=metrics)
 
 
 __all__ = [

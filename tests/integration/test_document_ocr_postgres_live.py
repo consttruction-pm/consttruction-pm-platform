@@ -45,6 +45,12 @@ def test_ocr_queue_live_claim_complete_and_retry_parity() -> None:
         repository = PostgresDocumentOcrRepository(connection)
         repository.initialize()
         connection.commit()
+        # claim_due() is intentionally cross-tenant, so purge rows left behind by
+        # earlier runs of this test before asserting on the claimed batch size.
+        connection.execute(
+            "DELETE FROM project_document_ocr WHERE tenant_id LIKE 'ocr-tenant-%'"
+        )
+        connection.commit()
 
         job = _job(suffix)
         created = repository.request(job)

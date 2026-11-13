@@ -17,6 +17,11 @@ from time import monotonic
 from typing import Callable, Iterable, Mapping
 from urllib.parse import urlsplit
 
+from ..observability import (
+    OperationalMetrics,
+    reset_correlation_id,
+    set_correlation_id,
+)
 from ..production_readiness import (
     ReadinessService,
     StructuredEventLogger,
@@ -29,6 +34,25 @@ HEALTH_LIVE_PATH = "/api/health/live"
 HEALTH_READY_PATH = "/api/health/ready"
 HEALTH_PATHS = frozenset({HEALTH_LIVE_PATH, HEALTH_READY_PATH})
 CORRELATION_HEADER = "X-Request-ID"
+_ROUTE_TEMPLATES = (
+    ("document_upload", "/documents/", "content", {"POST"}),
+    ("exchange_import", "/exchange/", None, {"POST"}),
+    ("exchange_export", "/exchange/", "export", {"GET"}),
+    ("report_run", "/reports/", "runs", {"POST"}),
+    ("report_export", "/reports/", "export", {"GET"}),
+    ("report_schedule", "/reports/", "schedules", {"POST", "PUT", "DELETE"}),
+)
+
+
+def route_template(method: str, path: str) -> str:
+    """Classify a request for bounded metric labels; never return a raw path."""
+    for name, marker, suffix, methods in _ROUTE_TEMPLATES:
+        if marker in path and method in methods:
+            if suffix is None or path.rstrip("/").endswith(suffix):
+                return name
+    if "/documents/" in path:
+        return "document"
+    return "http"
 
 
 def _json_response(
@@ -66,12 +90,14 @@ class OperationalMiddleware:
         *,
         readiness: ReadinessService | None = None,
         logger: StructuredEventLogger | None = None,
+        metrics: OperationalMetrics | None = None,
     ) -> None:
         if not callable(app):
             raise ValueError("OPERATIONAL_APP_NOT_CALLABLE")
         self._app = app
         self._readiness = readiness
         self._logger = logger
+        self._metrics = metrics
 
     def __call__(
         self, environ: dict[str, object], start_response: StartResponse
@@ -86,6 +112,8 @@ class OperationalMiddleware:
 
         started = monotonic()
         status = {"code": 500}
+        route = route_template(method, path)
+        correlation_token = set_correlation_id(correlation_id)
 
         def correlated_start_response(
             value: str,
@@ -117,7 +145,10 @@ class OperationalMiddleware:
                     "error_type": type(exc).__name__,
                 },
             )
+            self._record(route, method, 500, started)
             raise
+        finally:
+            reset_correlation_id(correlation_token)
         self._emit(
             "http.request.completed",
             correlation_id=correlation_id,
@@ -128,7 +159,26 @@ class OperationalMiddleware:
                 "duration_ms": int((monotonic() - started) * 1000),
             },
         )
+        self._record(route, method, status["code"], started)
         return response
+
+    def _record(self, route: str, method: str, status: int, started: float) -> None:
+        if self._metrics is None:
+            return
+        status_class = f"{status // 100}xx"
+        duration_ms = (monotonic() - started) * 1000
+        try:
+            self._metrics.increment(
+                "http_requests_total",
+                labels={"route": route, "method": method, "status_class": status_class},
+            )
+            self._metrics.observe(
+                "http_request_duration_ms", duration_ms, labels={"route": route}
+            )
+        except ValueError:
+            # Metrics must never break a request; label validation is bounded
+            # above, so this only guards a custom registry implementation.
+            return
 
     def _emit(self, event: str, **kwargs: object) -> None:
         if self._logger is not None:
