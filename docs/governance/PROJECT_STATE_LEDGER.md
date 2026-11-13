@@ -4,6 +4,15 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Agent 3 checkpoint — Issue #1799, session-credential response fix (SEC-015) — 2026-11-13 (merged; PR #1885)
+
+- **Base and merge:** branch `fix/agent3-session-response-credential` cut from merged `main` `02ae807`, squash-merged as **`67dd5ed`** via PR #1885 after exact-head CI. `main` moved with PR #1884 (`6ada3da`, Agent 1 UI) during the run; the merge landed on top of it.
+- **SEC-015 (Medium, fixed):** `GET /api/session` returned `session_id`, the bearer value stored in the HttpOnly `cp_session` cookie, in a JSON body readable by scripts, extensions and proxies. The response now carries `user_id`, `tenant_id`, `roles` and `expires_at` only. A search of `apps/web`, `apps/desktop`, `apps/mobile`, `apps/client-sync` and the e2e scripts found no reader of the removed field; the browser bootstrap keeps working.
+- **Negative test:** `test_session_response_never_reflects_the_session_credential` asserts the body has no `session_id` key, never contains the cookie value, and still returns the identity fields.
+- **Register correction:** SEC-006's status now names its merge commit `cdc9999` instead of the earlier placeholder.
+- **Verification:** Python 3.12.13, `psycopg` 3.3.9, PostgreSQL 16.2 on the same database for both runs. Session-related focused suites (routes, preview runtime, WSGI, knowledge runtime mount, AI action tools) → **139 passed**. Full SQLite suite → **4074 passed, 176 skipped**. Full live PostgreSQL suite (both DSN variables set), twice consecutively → **4305 passed, 1 skipped** both runs. Exact-head CI at the PR head: tests 3.11/3.12/3.13 (`43367759441`) and four typechecks (`43367759449`) — all **success**; the PostgreSQL workflow was not triggered because its path filter does not cover `http/project_lifecycle_routes.py`, so the live suite was run locally twice instead. Merged `main` re-verified at `67dd5ed` (`test_project_lifecycle_http_routes.py` → 99 passed).
+- **Status:** implemented, locally tested, PostgreSQL tested, merged. Remaining open findings: SEC-007, SEC-010, SEC-012, SEC-013, SEC-016…SEC-020, SEC-023 and SEC-025; runtime DAST, production configuration and deployment authentication remain **OPEN**.
+
 ## Agent 3 checkpoint — Issue #1799, Medium/Low security hardening batch — 2026-11-13 (merged; PR #1882)
 
 - **Base and merge:** branch `fix/agent3-security-hardening-batch` cut from merged `main` `59bd98b`, head `40029e9`, squash-merged as **`8581697`** via PR #1882 after exact-head CI at `40029e9`. Scope is Workstream D remediation; no other workstream was touched.

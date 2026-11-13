@@ -99,7 +99,7 @@ Threats and primary controls:
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
-| SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed (this change) |
+| SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Open |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
