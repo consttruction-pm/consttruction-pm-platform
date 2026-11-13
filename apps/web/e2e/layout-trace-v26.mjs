@@ -325,18 +325,22 @@ async function main() {
     });
 
     await scenario("07", "تغییر عمق ردیابی، زنجیره را به سطح ۱ محدود می‌کند", async () => {
-      const changed = await page.evaluate(`(() => {
-        const selects = [...document.querySelectorAll("[data-trace-depth]")];
-        if (selects.length !== 2) return false;
-        for (const select of selects) {
+      // Each change re-renders the bottom surface, so set one control at a
+      // time and re-query the second after the first render.
+      const setDepth = async (direction) => {
+        const changed = await page.evaluate(`(() => {
+          const select = document.querySelector('[data-trace-depth=' + JSON.stringify(${JSON.stringify(direction)}) + ']');
+          if (!select) return false;
           select.value = "1";
           if (select.value !== "1") return false;
           select.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-        return true;
-      })()`);
-      assert(changed, "trace depth selectors did not accept 1");
-      await sleep(900);
+          return true;
+        })()`);
+        assert(changed, `trace ${direction} depth selector did not accept 1`);
+        await sleep(600);
+      };
+      await setDepth("predecessors");
+      await setDepth("successors");
       const state = await page.evaluate(layoutState);
       assert(state.trace.depth === 1 && state.trace.successorDepth === 1, `trace depths are ${state.trace?.depth}/${state.trace?.successorDepth}`);
       assert(state.trace.predecessors === 1 && state.trace.successors === 3, `depth 1 rows are ${state.trace.predecessors}/${state.trace.successors}`);
