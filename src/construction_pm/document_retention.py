@@ -9,6 +9,11 @@ downloads can be refused afterwards.
 
 Nothing here runs on a timer. A deployment may call ``plan`` for reporting and
 must invoke ``dispose`` deliberately through the authorized API.
+
+Object bytes are content-addressed per project, so several live versions may
+share one object. A disposition only removes the object when no other
+non-disposed version still references it; otherwise the disposition is
+recorded and the bytes remain for the live references.
 """
 
 from __future__ import annotations
@@ -57,6 +62,10 @@ class DocumentContentAlreadyDisposed(DocumentRetentionError):
 
 class DocumentContentDisposed(DocumentRetentionError):
     """The bytes were deliberately removed under retention; do not serve."""
+
+
+class DocumentRetentionReferenceCheckFailed(DocumentRetentionError):
+    """Live-reference metadata was unreadable; the bytes must not be removed."""
 
 
 def _iso(value: datetime) -> str:
@@ -639,15 +648,60 @@ class DocumentRetentionService:
             disposed_at=occurred_at,
         )
         disposition.validate()
-        try:
-            self.storage.delete(
-                content.storage_ref,
-                tenant_id=tenant_id,
-                project_id=project_id,
-            )
-        except DocumentContentNotFound:
-            pass
+        if not self._shared_storage_reference(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            document_id=document_id,
+            version=version,
+            storage_ref=content.storage_ref,
+        ):
+            try:
+                self.storage.delete(
+                    content.storage_ref,
+                    tenant_id=tenant_id,
+                    project_id=project_id,
+                )
+            except DocumentContentNotFound:
+                pass
         return self.store.record_disposition(disposition)
+
+    def _shared_storage_reference(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        version: int,
+        storage_ref: str,
+    ) -> bool:
+        """Whether another non-disposed version still serves the same object.
+
+        Fails closed: when the metadata snapshot cannot be read the disposition
+        is refused so the bytes are never removed on an unverified guess.
+        """
+        try:
+            versions = self.content_repository.list_all(
+                tenant_id=tenant_id, project_id=project_id
+            )
+            dispositions = self.store.list_all_dispositions(
+                tenant_id=tenant_id, project_id=project_id
+            )
+        except Exception as exc:  # noqa: BLE001 - fail closed, never guess
+            raise DocumentRetentionReferenceCheckFailed(
+                "DOCUMENT_RETENTION_REFERENCE_CHECK_FAILED"
+            ) from exc
+        disposed = {(item.document_id, item.version) for item in dispositions}
+        for item in versions:
+            if item.tenant_id != tenant_id or item.project_id != project_id:
+                continue
+            if item.storage_ref != storage_ref:
+                continue
+            if item.document_id == document_id and item.version == version:
+                continue
+            if (item.document_id, item.version) in disposed:
+                continue
+            return True
+        return False
 
     def _eligibility(self, tenant_id, project_id, document_id, policy, now):
         versions = self.content_repository.list(tenant_id, project_id, document_id)
@@ -715,6 +769,8 @@ class DocumentRetentionService:
             )
         if isinstance(exc, DocumentAuthorizationError):
             return authorization_error(str(exc), str(exc))
+        if isinstance(exc, DocumentRetentionReferenceCheckFailed):
+            return persistence_error(str(exc), str(exc))
         if isinstance(exc, DocumentRetentionError):
             return validation_error(str(exc) or type(exc).__name__, str(exc))
         if isinstance(exc, ValueError):
@@ -733,6 +789,7 @@ __all__ = [
     "DocumentRetentionNotFound",
     "DocumentRetentionPolicy",
     "DocumentRetentionRevisionConflict",
+    "DocumentRetentionReferenceCheckFailed",
     "DocumentRetentionService",
     "DocumentRetentionStore",
     "PostgresDocumentRetentionStore",
