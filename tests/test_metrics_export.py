@@ -482,3 +482,19 @@ def test_export_covers_domain_metric_names_without_sensitive_labels() -> None:
         assert name in text
     for forbidden in ("tenant", "user_id", "token", "document_name", "/api/projects"):
         assert forbidden not in text
+
+
+def test_scrape_fails_closed_when_series_limit_is_exceeded() -> None:
+    metrics = OperationalMetrics()
+    metrics.increment("custom_total", labels={"route": "a"})
+    metrics.observe("duration_ms", 1.0, labels={"route": "a"})
+    service = _service(metrics, max_series=1)
+    result = service.scrape()
+    assert result.state is MetricsExportState.UNAVAILABLE
+    assert result.error == "METRICS_EXPORT_SERIES_LIMIT_EXCEEDED"
+    assert result.body == ""
+
+    one_series = OperationalMetrics()
+    one_series.increment("custom_total", labels={"route": "a"})
+    allowed = _service(one_series, max_series=1).scrape()
+    assert allowed.ok is True

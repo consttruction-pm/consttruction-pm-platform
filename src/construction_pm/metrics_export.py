@@ -363,7 +363,16 @@ class MetricsExportService:
             )
         assert self._metrics is not None
         try:
-            body = self._exporter.render(self._metrics.snapshot())
+            snapshot = self._metrics.snapshot()
+            counters = snapshot.get("counters", ())
+            observations = snapshot.get("observations", ())
+            series = len(counters) + len(observations)
+            if series > self._settings.max_series:
+                return ScrapeResult(
+                    state=MetricsExportState.UNAVAILABLE,
+                    error="METRICS_EXPORT_SERIES_LIMIT_EXCEEDED",
+                )
+            body = self._exporter.render(snapshot)
         except Exception as exc:
             # Never propagate exporter failure into business request handling,
             # and never echo an exception message that could contain values.
