@@ -205,6 +205,20 @@ class DocumentRetentionStore(Protocol):
         self, tenant_id: str, project_id: str, document_id: str
     ) -> tuple[DocumentDisposition, ...]: ...
 
+    def list_all_policies(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[DocumentRetentionPolicy, ...]: ...
+
+    def list_all_dispositions(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[DocumentDisposition, ...]: ...
+
     def record_disposition(
         self, disposition: DocumentDisposition
     ) -> DocumentDisposition: ...
@@ -386,6 +400,48 @@ class _DocumentRetentionStore:
                   AND document_id={self.q} ORDER BY version""",
             (tenant_id, project_id, document_id),
         ).fetchall()
+        return tuple(self._disposition(row) for row in rows)
+
+    def list_all_policies(
+        self, *, tenant_id: str | None = None, project_id: str | None = None
+    ) -> tuple[DocumentRetentionPolicy, ...]:
+        statement = (
+            "SELECT tenant_id, project_id, document_id, retain_days, legal_hold, "
+            "reason, updated_by, updated_at, revision FROM project_document_retention"
+        )
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if tenant_id is not None:
+            clauses.append(f"tenant_id={self.q}")
+            parameters.append(tenant_id)
+        if project_id is not None:
+            clauses.append(f"project_id={self.q}")
+            parameters.append(project_id)
+        if clauses:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY tenant_id, project_id, document_id"
+        rows = self.connection.execute(statement, tuple(parameters)).fetchall()
+        return tuple(self._policy(row) for row in rows)
+
+    def list_all_dispositions(
+        self, *, tenant_id: str | None = None, project_id: str | None = None
+    ) -> tuple[DocumentDisposition, ...]:
+        statement = (
+            "SELECT tenant_id, project_id, document_id, version, content_hash, "
+            "reason, actor_id, disposed_at FROM project_document_disposition"
+        )
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if tenant_id is not None:
+            clauses.append(f"tenant_id={self.q}")
+            parameters.append(tenant_id)
+        if project_id is not None:
+            clauses.append(f"project_id={self.q}")
+            parameters.append(project_id)
+        if clauses:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY tenant_id, project_id, document_id, version"
+        rows = self.connection.execute(statement, tuple(parameters)).fetchall()
         return tuple(self._disposition(row) for row in rows)
 
     def record_disposition(self, disposition: DocumentDisposition) -> DocumentDisposition:
