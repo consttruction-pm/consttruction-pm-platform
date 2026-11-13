@@ -478,3 +478,65 @@ def test_otel_endpoint_is_reported_as_reserved_not_implemented() -> None:
     codes = {issue.code for issue in validation.warnings}
     assert "OTEL_ENDPOINT_NOT_IMPLEMENTED" in codes
     assert validation.components["observability"] is True
+
+
+def test_anonymous_readiness_probe_omits_component_detail() -> None:
+    def failing_probe():
+        raise RuntimeError("postgresql://user:secret@db.internal")
+
+    readiness = _service(
+        ReadinessCheck("database", Requirement.REQUIRED, failing_probe)
+    )
+    app = OperationalMiddleware(_static_app(), readiness=readiness)
+
+    status, _, body, _ = _request(app, "GET", HEALTH_READY_PATH)
+    payload = json.loads(body)
+    assert status == 503
+    assert payload["status"] == "not_ready"
+    assert [component["name"] for component in payload["components"]] == ["database"]
+    assert all("detail" not in component for component in payload["components"])
+    assert "postgresql" not in body.decode("utf-8")
+
+
+def test_readiness_detail_is_returned_only_when_the_auth_callback_approves() -> None:
+    readiness = _service(
+        ReadinessCheck("database", Requirement.REQUIRED, lambda: ProbeResult(True, "OK"))
+    )
+    allowed = OperationalMiddleware(
+        _static_app(),
+        readiness=readiness,
+        readiness_detail_allowed=lambda environ: environ.get("HTTP_X_TEST_AUTH") == "yes",
+    )
+
+    _, _, body, _ = _request(allowed, "GET", HEALTH_READY_PATH)
+    assert all("detail" not in component for component in json.loads(body)["components"])
+
+    _, _, body, _ = _request(
+        allowed, "GET", HEALTH_READY_PATH, headers={"X-Test-Auth": "yes"}
+    )
+    assert json.loads(body)["components"][0]["detail"] == "OK"
+
+
+def test_readiness_auth_callback_failure_is_redacted_and_does_not_break_the_probe() -> None:
+    readiness = _service(
+        ReadinessCheck("database", Requirement.REQUIRED, lambda: ProbeResult(True, "OK"))
+    )
+
+    def broken(environ):
+        raise RuntimeError("session store unavailable")
+
+    app = OperationalMiddleware(
+        _static_app(), readiness=readiness, readiness_detail_allowed=broken
+    )
+    status, _, body, _ = _request(app, "GET", HEALTH_READY_PATH)
+    assert status == 200
+    assert all("detail" not in component for component in json.loads(body)["components"])
+
+
+def test_unconfigured_readiness_reports_no_component_detail() -> None:
+    app = OperationalMiddleware(_static_app())
+    _, _, body, _ = _request(app, "GET", HEALTH_READY_PATH)
+    components = json.loads(body)["components"]
+    assert components == [
+        {"name": "readiness", "requirement": "required", "status": "unhealthy"}
+    ]
