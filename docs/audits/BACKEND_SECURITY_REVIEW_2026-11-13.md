@@ -100,7 +100,7 @@ Threats and primary controls:
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
-| SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Open |
+| SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Fixed `2b2873b3` |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Open |
@@ -360,6 +360,12 @@ Threats and primary controls:
 
 ### SEC-016 — Document-list `search` is unescaped in `LIKE` (Low)
 
+- **Resolution:** `_escape_like` escapes backslash, `%` and `_`, both the
+  Postgres and SQLite queries declare `ESCAPE '\'`, and the term is capped at
+  `MAX_DOCUMENT_SEARCH_LENGTH` (200). Covered by
+  `test_search_treats_percent_and_underscore_as_literals` and the over-length
+  rejection in `test_list_rejects_invalid_filters`; `"%"` and `"_"` now match
+  no documents in the fixture.
 - **Evidence:** `_validate_document_filters` accepts any non-empty string;
   `%{search}%` is bound without `ESCAPE`.
 - **Impact:** Wildcard injection widens matching inside the caller's own
@@ -513,10 +519,10 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-016,
-  SEC-017, SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
-  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-021, SEC-022 and SEC-024 are
-  fixed with negative tests. Open findings are recorded here rather than
+- **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017,
+  SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
+  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-021, SEC-022 and
+  SEC-024 are fixed with negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict
