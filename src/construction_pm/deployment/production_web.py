@@ -172,6 +172,12 @@ def _header(environ: Mapping[str, Any], name: str) -> str:
 
 
 def _client_ip(environ: Mapping[str, Any]) -> str:
+    # Vercel overwrites ``x-forwarded-for`` with the client address and also
+    # sets ``x-real-ip``. Prefer the single-value header, then the first
+    # forwarded entry, so throttling cannot be keyed by a client-supplied list.
+    real = _header(environ, "x-real-ip").strip()
+    if real:
+        return real
     forwarded = _header(environ, "x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -227,6 +233,7 @@ class ProductionWebApp:
         public_origin: str,
         secure_cookies: bool,
         readiness: Callable[[], Mapping[str, object]],
+        ip_secret: str | None = None,
     ) -> None:
         if not _origin_is_acceptable(public_origin):
             raise ValueError("PUBLIC_ORIGIN_MUST_BE_HTTPS")
@@ -236,7 +243,10 @@ class ProductionWebApp:
         self.public_origin = public_origin.rstrip("/")
         self.secure_cookies = secure_cookies
         self.readiness = readiness
-        self._ip_secret = os.environ.get("CONSTRUCTION_PM_SESSION_SECRET", "")
+        # Use the identity secret the service actually verifies with; the
+        # environment fallback only exists for callers that construct the
+        # service directly.
+        self._ip_secret = ip_secret or os.environ.get("CONSTRUCTION_PM_SESSION_SECRET", "")
 
     # -- WSGI --------------------------------------------------------------
     def __call__(

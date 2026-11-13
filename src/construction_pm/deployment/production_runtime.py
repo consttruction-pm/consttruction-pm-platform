@@ -15,12 +15,14 @@ without leaking a connection across requests.
 from __future__ import annotations
 
 import os
+import sys
 import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator, Mapping
+from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..application.authorization import (
@@ -107,6 +109,14 @@ class ProductionSettings:
             max_pool_size=max(1, min(8, int(env.get("CONSTRUCTION_PM_DB_POOL_SIZE", "2") or 2))),
             connect_timeout=max(2, min(30, int(env.get("CONSTRUCTION_PM_DB_CONNECT_TIMEOUT", "10") or 10))),
         )
+
+
+def _is_health_probe(environ: Mapping[str, Any]) -> bool:
+    path = str(environ.get("PATH_INFO", "") or "")
+    rewritten = parse_qs(str(environ.get("QUERY_STRING", "") or "")).get("__path")
+    if rewritten:
+        path = "/api/" + rewritten[0].lstrip("/")
+    return path in {"/api/health/live", "/api/health/ready"}
 
 
 def discover_static_root(start: Path | None = None) -> Path:
@@ -307,6 +317,7 @@ class ProductionRuntime:
             site=StaticSite(self.settings.static_root),
             public_origin=self.settings.public_origin,
             secure_cookies=self.settings.secure_cookies,
+            ip_secret=self.settings.session_secret,
             readiness=self._readiness,
         )
 
@@ -326,7 +337,10 @@ class ProductionRuntime:
             self._initialized = True
 
     def _readiness(self) -> dict[str, object]:
-        connection = self.pool.acquire()
+        try:
+            connection = self.pool.acquire()
+        except Exception:
+            return {"status": "not_ready", "components": [{"name": "database", "healthy": False}]}
         try:
             row = connection.execute("SELECT 1").fetchone()
             connection.rollback()
@@ -364,8 +378,29 @@ class ProductionRuntime:
             self.pool.release(connection, healthy=healthy)
 
     def __call__(self, environ: dict[str, object], start_response: Any) -> Any:
-        with self._request():
+        if _is_health_probe(environ):
+            # Liveness is process-only and readiness performs its own probe; a
+            # database outage must never turn either endpoint into a 500.
             return self.web_app(environ, start_response)
+        try:
+            with self._request():
+                return self.web_app(environ, start_response)
+        except Exception as error:  # noqa: BLE001 - boundary: never leak details
+            print(
+                f"cubi: request failed ({type(error).__name__})",
+                file=sys.stderr,
+            )
+            body = b'{"code":"SERVICE_UNAVAILABLE","status":"not_ready"}'
+            start_response(
+                "503 Service Unavailable",
+                [
+                    ("Content-Type", "application/json; charset=utf-8"),
+                    ("Content-Length", str(len(body))),
+                    ("Cache-Control", "no-store"),
+                    ("X-Content-Type-Options", "nosniff"),
+                ],
+            )
+            return [body]
 
     def close(self) -> None:
         self.pool.close_all()

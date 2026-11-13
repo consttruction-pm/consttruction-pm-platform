@@ -16,7 +16,7 @@ from wsgiref.util import setup_testing_defaults
 
 import pytest
 
-from construction_pm.deployment.production_web import ProductionWebApp, StaticSite
+from construction_pm.deployment.production_web import ProductionWebApp, StaticSite, _client_ip
 from construction_pm.identity_session import (
     IdentityService,
     IdentityUser,
@@ -442,3 +442,13 @@ def test_direct_catch_all_function_invocation_has_no_route(identity, site_root):
     status, _, body = call(app, "GET", "/api", cookie=cookie)
     assert status == 200
     assert json.loads(body)["seen"] == "/api/__cubi_root"
+
+
+def test_client_ip_prefers_the_platform_single_value_header():
+    environ = {
+        "HTTP_X_REAL_IP": "203.0.113.5",
+        "HTTP_X_FORWARDED_FOR": "198.51.100.9, 203.0.113.5",
+    }
+    assert _client_ip(environ) == "203.0.113.5"
+    assert _client_ip({"HTTP_X_FORWARDED_FOR": "198.51.100.9, 203.0.113.5"}) == "198.51.100.9"
+    assert _client_ip({"REMOTE_ADDR": "203.0.113.7"}) == "203.0.113.7"

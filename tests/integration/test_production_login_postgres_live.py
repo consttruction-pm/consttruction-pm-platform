@@ -456,3 +456,23 @@ def test_login_rate_limit_returns_429(runtime):
     status, headers, _ = call(runtime, "POST", "/api/session", body=attempt)
     assert status == 429
     assert headers["retry-after"] == ["900"]
+
+
+def test_health_probes_and_api_survive_a_database_outage(runtime, monkeypatch):
+    def unavailable():
+        raise RuntimeError("database is down")
+
+    monkeypatch.setattr(runtime.pool, "acquire", unavailable)
+
+    status, _, body = call(runtime, "GET", "/api/health/live")
+    assert status == 200
+    assert json.loads(body)["status"] == "ok"
+
+    status, _, body = call(runtime, "GET", "/api/health/ready")
+    assert status == 503
+    assert json.loads(body)["status"] == "not_ready"
+    assert json.loads(body)["components"][0] == {"name": "database", "healthy": False}
+
+    status, _, body = call(runtime, "GET", "/api/projects")
+    assert status == 503
+    assert json.loads(body)["code"] == "SERVICE_UNAVAILABLE"

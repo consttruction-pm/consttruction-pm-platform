@@ -119,8 +119,10 @@ The password must be at least 12 characters. It is hashed with scrypt
 ## Session and security model
 
 - Session cookie `cp_session`: opaque 256-bit token, `HttpOnly`, `SameSite=Lax`,
-  `Secure` in production, 12-hour absolute lifetime, 2-hour idle timeout,
-  idle touch at most once per minute.
+  `Secure`, 12-hour absolute lifetime, 2-hour idle timeout, idle touch at most
+  once per minute. On an HTTPS origin the `Secure` flag is forced: the
+  `CONSTRUCTION_PM_INSECURE_COOKIES` escape hatch is ignored there and only
+  applies to a loopback HTTP harness.
 - Only the SHA-256 of the token is stored in `identity_sessions`; the raw token
   is returned once to the browser and never echoed in JSON.
 - CSRF cookie `cubi_csrf` is readable JavaScript and holds
@@ -128,23 +130,37 @@ The password must be at least 12 characters. It is hashed with scrypt
   `X-CSRF-Token`; the server recomputes and compares in constant time.
 - Login failures are generic (`401 AUTHENTICATION_FAILED`), throttled per email
   (5) and per hashed IP (20) in 15 minutes, and return `429` with
-  `Retry-After`. Unknown accounts spend comparable scrypt time.
+  `Retry-After`. Unknown accounts spend comparable scrypt time. The client
+  address comes from Vercel's single-value `x-real-ip` header, then
+  `x-forwarded-for`; the platform overwrites that header, so a client cannot
+  rotate it to bypass the limit.
 - Every project read/write re-derives tenant and user from the session; the
   browser cannot select a tenant. A mismatched `X-Tenant-Id` on the workspace
   read returns `403 CROSS_SCOPE_ACCESS`, and a stale revision returns
   `409 STALE_WORKSPACE_READ_SCOPE`.
 - Viewer/planner/project_admin permissions come from the stored session roles;
   `viewer` lacks `PROJECT_WRITE`/`PROJECT_ADMIN`.
+- `/login` is static and is served with `Cache-Control: no-store`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and
+  `Referrer-Policy: no-referrer`, so the sign-in document is never cached or
+  framed.
+- Liveness (`/api/health/live`) never opens a database connection; readiness
+  (`/api/health/ready`) performs its own `SELECT 1` and reports
+  `503 not_ready` instead of raising. A database outage returns
+  `503 {"code":"SERVICE_UNAVAILABLE"}` for application routes.
+- The production composition never mounts operational, preview or demo
+  endpoints (`operational_endpoints=False`), and no preview persona module is
+  imported by `deployment/`.
 
 ## Verification (what was actually run)
 
 | Layer | Command | Result |
 | --- | --- | --- |
-| Python unit (identity) | `PYTHONPATH=src python -m pytest tests/test_production_identity_session.py` | 21 passed |
-| Python unit (HTTP boundary) | `PYTHONPATH=src python -m pytest tests/test_production_web_app.py` | 26 passed |
+| Python unit (identity) | `PYTHONPATH=src python -m pytest tests/test_production_identity_session.py` | 23 passed |
+| Python unit (HTTP boundary) | `PYTHONPATH=src python -m pytest tests/test_production_web_app.py` | 27 passed |
 | Python unit (Vercel entrypoints) | `PYTHONPATH=src python -m pytest tests/test_vercel_entrypoints.py` | 6 passed |
-| Full Python suite | `PYTHONPATH=src python -m pytest -q tests` | 4176 passed, 188 skipped |
-| Live PostgreSQL, real WSGI | `CONSTRUCTION_PM_POSTGRES_DSN=… PYTHONPATH=src python -m pytest tests/integration/test_production_login_postgres_live.py` | 10 passed, repeated twice against the same database |
+| Full Python suite | `PYTHONPATH=src python -m pytest -q tests` | 4179 passed, 189 skipped |
+| Live PostgreSQL, real WSGI | `CONSTRUCTION_PM_POSTGRES_DSN=… PYTHONPATH=src python -m pytest tests/integration/test_production_login_postgres_live.py` | 11 passed, including a database-outage probe test |
 | Browser (headless Chrome) | `CONSTRUCTION_PM_POSTGRES_DSN=… node apps/web/e2e/production-login-e2e.mjs` | 10 checks, 3 screenshots, zero exceptions/console errors/5xx |
 | Vercel build (real gateway) | push `e8999339` to `feat/production-vercel-login` | `Vercel – cubi-web-preview` **success**; preview alias issued |
 
