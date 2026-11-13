@@ -1,0 +1,147 @@
+{
+  "contract": "cubi-activity-trace-logic-v26.v1",
+  "baseUrl": "http://127.0.0.1:4209",
+  "gitHead": "446de0e970f304916adde1cfc7e03ed17db8f707",
+  "testedCodeSha": "446de0e970f304916adde1cfc7e03ed17db8f707",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T01:33:08.565Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Show on Bottom: Trace Logic projects the persisted chain of the selected activity",
+      "status": "pass",
+      "at": "2026-11-13T01:33:13.808Z",
+      "predecessors": [
+        "A120",
+        "A110"
+      ],
+      "successors": [
+        "A140",
+        "A150",
+        "A145",
+        "A155",
+        "A160",
+        "A170"
+      ],
+      "depths": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Bottom Layout Options sets predecessor and successor levels independently and keeps them",
+      "status": "pass",
+      "at": "2026-11-13T01:33:18.393Z",
+      "predecessors": 1,
+      "successors": 3,
+      "successorIds": [
+        "A140",
+        "A150",
+        "A145",
+        "A155",
+        "A160",
+        "A170",
+        "A180"
+      ]
+    },
+    {
+      "id": "03",
+      "name": "following a chain row moves the selection and redraws both chains",
+      "status": "pass",
+      "at": "2026-11-13T01:33:19.392Z",
+      "selected": "A120",
+      "predecessors": [
+        "A110"
+      ]
+    },
+    {
+      "id": "04",
+      "name": "selecting in the Activity Network updates Trace Logic",
+      "status": "pass",
+      "at": "2026-11-13T01:33:23.587Z",
+      "selected": "A160",
+      "predecessors": [
+        "A140",
+        "A150",
+        "A130"
+      ],
+      "successors": [
+        "A180",
+        "A190"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "selecting a Gantt bar updates Trace Logic",
+      "status": "pass",
+      "at": "2026-11-13T01:33:27.774Z",
+      "selected": "A145",
+      "predecessors": [
+        "A130"
+      ],
+      "successors": [
+        "A155",
+        "A180",
+        "A190"
+      ]
+    },
+    {
+      "id": "06",
+      "name": "critical activities keep a red border and an accessible label",
+      "status": "pass",
+      "at": "2026-11-13T01:33:28.690Z",
+      "criticalBar": "A210",
+      "criticalRows": 1
+    },
+    {
+      "id": "07",
+      "name": "an activity without predecessors shows an explicit empty predecessor group",
+      "status": "pass",
+      "at": "2026-11-13T01:33:29.526Z",
+      "emptyText": "None within depth."
+    },
+    {
+      "id": "08",
+      "name": "fa RTL at 1280 localizes Trace Logic and keeps chain navigation working",
+      "status": "pass",
+      "at": "2026-11-13T01:33:33.368Z",
+      "heading": "ردیابی منطق",
+      "dir": "rtl",
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "en at 1920 keeps the same chain and no overflow",
+      "status": "pass",
+      "at": "2026-11-13T01:33:37.816Z",
+      "predecessors": [
+        "A140",
+        "A150",
+        "A130"
+      ],
+      "successors": [
+        "A180",
+        "A190"
+      ],
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-trace-a130-en-1366.png",
+    "02-trace-independent-depths-en-1366.png",
+    "03-trace-goto-a120-en-1366.png",
+    "04-trace-from-network-en-1366.png",
+    "05-trace-from-gantt-en-1366.png",
+    "06-trace-critical-en-1366.png",
+    "07-trace-fa-rtl-1280.png",
+    "08-trace-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "relationshipWrites": [],
+  "scheduleWrites": [],
+  "passed": 9,
+  "failed": 0
+}

@@ -3220,3 +3220,46 @@ errors/5xx, 0 schedule writes, 0 relationship writes, `testedCodeSha`/`gitHead`
 `a9776bb9ed8d16a2f5752b5b0909f74f002a5c2a`, screenshots 01–07,
 `CHECKLIST.md`). Web suite at the same code: 970 + 14 tests pass;
 `tsc --noEmit` and `npm run build` pass.
+
+## Trace Logic predecessor and successor levels (2026-11-13)
+
+- **Scope.** ACT-016 moved from NOT_AUDITED to WIRED_READ at code
+  `446de0e970f304916adde1cfc7e03ed17db8f707`, covering the Help topics Trace
+  Logic, Set Trace Logic preferences, Move around in Trace Logic and Display
+  Trace Logic.
+- **Projection.** `buildTraceLogic` walks the persisted relationships in both
+  directions for the selected activity. Each direction now has its own limit,
+  matching Bottom Layout Options, which specifies the predecessor and successor
+  levels separately. A repeated ancestor is reported as a cycle, a converging
+  diamond is not, and endpoints that are not loaded are counted rather than
+  invented.
+- **Controls.** The Trace Logic header exposes a predecessor select and a
+  successor select (1–5). Each change stores the pair under
+  `cubi:workspace:trace-logic-predecessor-depth` and
+  `cubi:workspace:trace-logic-successor-depth` and re-renders only the bottom
+  surface. The previous single-depth key is migrated to both sides.
+- **Selection.** A chain row selects its activity in the table, the details
+  pane and the chain. Selecting in the Activity Network or on a Gantt bar
+  redraws the lower chain because all surfaces share
+  `onActivitySelect`/`onGanttActivitySelect`.
+- **Critical.** A critical activity keeps the red `rgb(192, 57, 43)` start
+  border named by the Help topic and now also carries a localized
+  `Critical activity` title.
+- **Verified behaviour.** A130 at depth 2 shows A120/A110 predecessors and
+  A140/A150/A145/A155/A160/A170 successors with `SS+5d`; depths 1/3 persist
+  through a full reload; following A120 selects it; A160 from the Network and
+  A145 from the Gantt both redraw the chain; a critical row is marked; A100
+  shows an explicit empty predecessor group; fa RTL 1280 and en 1920 keep the
+  chain with 0 px overflow. No schedule or relationship write is issued.
+- **Known limits.** The Activity Usage Spreadsheet/Profile is still disabled, so
+  the usage-spreadsheet selection source from the Help topic cannot be
+  exercised yet. There is no dedicated Bottom Layout Options dialog and the
+  depth pair is browser-local rather than saved layout metadata. The chain is a
+  two-list layout, not the graphical activity-box diagram.
+
+Evidence: `docs/workspace/evidence/activity-trace-logic-v26-2026-11-13/`
+(`activity-trace-logic-v26.json`, 9/9 scenarios, 0 exceptions/console errors/5xx,
+0 schedule writes, 0 relationship writes, `testedCodeSha`/`gitHead`
+`446de0e970f304916adde1cfc7e03ed17db8f707`, screenshots 01–08,
+`CHECKLIST.md`). Web suite at the same code: 971 + 14 tests pass;
+`tsc --noEmit` and `npm run build` pass.
