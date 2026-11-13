@@ -69,7 +69,9 @@ class KnowledgeStore(Protocol):
         occurred_at: str,
     ) -> None: ...
 
-    def save_card(self, card: KnowledgeCard) -> None: ...
+    def save_card(
+        self, card: KnowledgeCard, *, expected_version: int | None = None
+    ) -> None: ...
 
     def get_card(self, card_id: str) -> KnowledgeCard | None: ...
 
@@ -94,7 +96,21 @@ class KnowledgeStore(Protocol):
         detail: Mapping[str, object],
     ) -> None: ...
 
-    def save_translation(self, record: TranslationRecord) -> None: ...
+    def save_translation(
+        self, record: TranslationRecord, *, expected_version: int | None = None
+    ) -> None: ...
+
+    def list_card_events(
+        self, card_id: str, *, limit: int = 50, before: int | None = None
+    ) -> tuple[tuple[dict[str, object], ...], int | None]: ...
+
+    def list_card_revisions(
+        self, card_id: str, *, limit: int = 50
+    ) -> tuple[dict[str, object], ...]: ...
+
+    def list_translation_revisions(
+        self, card_id: str, locale: str, *, limit: int = 50
+    ) -> tuple[dict[str, object], ...]: ...
 
     def get_translation(self, card_id: str, locale: str) -> TranslationRecord | None: ...
 
@@ -204,6 +220,22 @@ class KnowledgeStore(Protocol):
 
     def get_project_organization(
         self, tenant_id: str, project_id: str
+    ) -> dict[str, object] | None: ...
+
+    def record_request(
+        self,
+        *,
+        tenant_id: str,
+        user_id: str,
+        workflow_key: str,
+        request_key: str,
+        fingerprint: str,
+        run_id: str,
+        occurred_at: str,
+    ) -> None: ...
+
+    def get_request(
+        self, *, tenant_id: str, user_id: str, workflow_key: str, request_key: str
     ) -> dict[str, object] | None: ...
 
     def save_workflow(

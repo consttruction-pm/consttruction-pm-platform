@@ -291,12 +291,76 @@ class KnowledgeAPI:
             rows.append(record.as_dict())
         return {"card_id": card_id, "translations": rows}
 
+    def card_history(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        limit: int = 50,
+        before: int | None = None,
+    ) -> dict[str, object]:
+        """Readable revision and event history for one card.
+
+        Reviewers need the exact sequence of who changed what, when, and from
+        which revision, without reading the audit table out of band. The page
+        is newest-first and ``next_before`` is the cursor for the next call.
+        """
+
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
+        if (
+            card.publication_status is not CardStatus.PUBLISHED
+            and not self._allowed(principal, Permission.KNOWLEDGE_REVIEW)
+        ):
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_PUBLISHED")
+        events, next_before = self.store.list_card_events(
+            card_id, limit=limit, before=before
+        )
+        revisions = self.store.list_card_revisions(card_id, limit=limit)
+        return {
+            "card_id": card_id,
+            "current_revision": card.revision,
+            "revisions": [dict(revision) for revision in revisions],
+            "events": [dict(event) for event in events],
+            "next_before": next_before,
+        }
+
+    def translation_history(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        locale: str,
+        *,
+        limit: int = 50,
+    ) -> dict[str, object]:
+        self._require(principal, Permission.KNOWLEDGE_READ)
+        card = self.store.get_card(card_id)
+        if card is None:
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+        self._require_card_scope(principal, card)
+        resolved = require_locale(locale)
+        revisions = self.store.list_translation_revisions(
+            card_id, resolved, limit=limit
+        )
+        current = self.store.get_translation(card_id, resolved)
+        return {
+            "card_id": card_id,
+            "locale": resolved,
+            "current_version": None if current is None else current.translation_version,
+            "revisions": [dict(revision) for revision in revisions],
+        }
+
     def save_translation(
         self,
         principal: AssistantPrincipal,
         card_id: str,
         locale: str,
         payload: Mapping[str, object],
+        *,
+        expected_version: int | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_CONTRIBUTE)
         card = self.store.get_card(card_id)
@@ -307,6 +371,10 @@ class KnowledgeAPI:
         if resolved == SOURCE_LANGUAGE:
             raise TranslationError("KNOWLEDGE_TRANSLATION_SOURCE_LOCALE_NOT_EDITABLE")
         existing = self.store.get_translation(card_id, resolved)
+        if expected_version is not None and existing is not None:
+            self._require_translation_version(existing, expected_version)
+        if expected_version not in (None, 0) and existing is None:
+            raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_VERSION_CONFLICT")
         record = build_translation(
             card,
             resolved,
@@ -315,7 +383,7 @@ class KnowledgeAPI:
             now=self._clock(),
             existing=existing,
         )
-        self.store.save_translation(record)
+        self.store.save_translation(record, expected_version=expected_version)
         detail: dict[str, object] = {
             "locale": resolved,
             "translation_version": record.translation_version,
@@ -350,6 +418,7 @@ class KnowledgeAPI:
         locale: str,
         *,
         accept: bool,
+        expected_version: int | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_REVIEW)
         resolved = require_locale(locale)
@@ -360,10 +429,11 @@ class KnowledgeAPI:
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        self._require_translation_version(record, expected_version)
         updated = review_translation(
             record, reviewer=principal.user_id, accept=accept, now=self._clock()
         )
-        self.store.save_translation(updated)
+        self.store.save_translation(updated, expected_version=expected_version)
         detail = {
             "locale": resolved,
             "translation_version": updated.translation_version,
@@ -389,7 +459,12 @@ class KnowledgeAPI:
         return updated.as_dict()
 
     def publish_translation(
-        self, principal: AssistantPrincipal, card_id: str, locale: str
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        locale: str,
+        *,
+        expected_version: int | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_PUBLISH)
         resolved = require_locale(locale)
@@ -400,10 +475,11 @@ class KnowledgeAPI:
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        self._require_translation_version(record, expected_version)
         published = publish_translation(
             card, record, reviewer=principal.user_id, now=self._clock()
         )
-        self.store.save_translation(published)
+        self.store.save_translation(published, expected_version=expected_version)
         detail = {
             "locale": resolved,
             "published_language_version": published.published_language_version,
@@ -428,7 +504,12 @@ class KnowledgeAPI:
         return published.as_dict()
 
     def retire_translation(
-        self, principal: AssistantPrincipal, card_id: str, locale: str
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        locale: str,
+        *,
+        expected_version: int | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_PUBLISH)
         resolved = require_locale(locale)
@@ -439,10 +520,11 @@ class KnowledgeAPI:
         record = self.store.get_translation(card_id, resolved)
         if record is None:
             raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_NOT_FOUND")
+        self._require_translation_version(record, expected_version)
         retired = retire_translation(
             record, reviewer=principal.user_id, now=self._clock()
         )
-        self.store.save_translation(retired)
+        self.store.save_translation(retired, expected_version=expected_version)
         detail = {
             "locale": resolved,
             "translation_version": retired.translation_version,
@@ -527,15 +609,21 @@ class KnowledgeAPI:
         )
 
     def review(
-        self, principal: AssistantPrincipal, card_id: str, *, accept: bool
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        accept: bool,
+        expected_version: int | None = None,
     ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_REVIEW)
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
         self._require_card_scope(principal, card)
+        self._require_card_version(card, expected_version)
         updated = review_card(card, reviewer=principal.user_id, accept=accept)
-        self.store.save_card(updated)
+        self.store.save_card(updated, expected_version=expected_version)
         self.store.record_card_event(
             card_id,
             action="reviewed" if accept else "rejected",
@@ -546,16 +634,23 @@ class KnowledgeAPI:
         self._audit(principal, "knowledge_card_review", card_id, "succeeded", {"accept": accept})
         return _card(updated)
 
-    def publish(self, principal: AssistantPrincipal, card_id: str) -> dict[str, object]:
+    def publish(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        expected_version: int | None = None,
+    ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_PUBLISH)
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
         self._require_card_scope(principal, card)
+        self._require_card_version(card, expected_version)
         published = publish_card(
             card, reviewer=principal.user_id, published_at=self._clock()
         )
-        self.store.save_card(published)
+        self.store.save_card(published, expected_version=expected_version)
         self.store.record_card_event(
             card_id,
             action="published",
@@ -566,14 +661,21 @@ class KnowledgeAPI:
         self._audit(principal, "knowledge_card_publish", card_id, "succeeded", {})
         return _card(published)
 
-    def retire(self, principal: AssistantPrincipal, card_id: str) -> dict[str, object]:
+    def retire(
+        self,
+        principal: AssistantPrincipal,
+        card_id: str,
+        *,
+        expected_version: int | None = None,
+    ) -> dict[str, object]:
         self._require(principal, Permission.KNOWLEDGE_PUBLISH)
         card = self.store.get_card(card_id)
         if card is None:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
         self._require_card_scope(principal, card)
+        self._require_card_version(card, expected_version)
         retired = retire_card(card, reviewer=principal.user_id)
-        self.store.save_card(retired)
+        self.store.save_card(retired, expected_version=expected_version)
         self.store.record_card_event(
             card_id,
             action="retired",
@@ -787,6 +889,19 @@ class KnowledgeAPI:
             return
         if not card.tenant_id or card.tenant_id != principal.tenant_id:
             raise KnowledgeAPIError("KNOWLEDGE_CARD_NOT_FOUND")
+
+    @staticmethod
+    def _require_card_version(card, expected_version: int | None) -> None:
+        if expected_version is not None and card.revision != int(expected_version):
+            raise KnowledgeAPIError("KNOWLEDGE_CARD_VERSION_CONFLICT")
+
+    @staticmethod
+    def _require_translation_version(record, expected_version: int | None) -> None:
+        if (
+            expected_version is not None
+            and record.translation_version != int(expected_version)
+        ):
+            raise KnowledgeAPIError("KNOWLEDGE_TRANSLATION_VERSION_CONFLICT")
 
     def _audit(
         self,

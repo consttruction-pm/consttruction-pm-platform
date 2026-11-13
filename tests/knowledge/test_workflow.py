@@ -359,6 +359,60 @@ def test_creation_requires_an_approval_token(workflow, admin_workflow) -> None:
         )
 
 
+def test_approval_is_bound_to_actor_run_and_review_hash(
+    workflow, admin_workflow, store
+) -> None:
+    """E5: the approval token cannot be replayed by another actor, run or content."""
+
+    view = _to_review(workflow, admin_workflow)
+    token, view = workflow.approve(admin_workflow, view.run_id, expected_version=view.version)
+
+    record = store.get_workflow("tenant-1", ORGANIZATION_SCOPE, view.run_id)
+    approval = record["state"]["approval"]
+    assert approval["approved_by"] == "admin-1"
+    assert approval["review_hash"] == record["state"]["review"]["review_hash"]
+    assert token.startswith("AP-")
+
+    # Another project administrator cannot reuse an approval they did not give.
+    peer = WorkflowPrincipal("admin-2", "tenant-1", frozenset({"project_admin"}))
+    with pytest.raises(ProjectWorkflowError, match="APPROVAL_REQUIRED"):
+        workflow.apply(
+            peer,
+            view.run_id,
+            "create",
+            {"approval_token": token},
+            expected_version=view.version,
+        )
+
+    # A token issued for a different run cannot unlock this run.
+    other_view = _to_review(workflow, admin_workflow)
+    other_token, _ = workflow.approve(
+        admin_workflow, other_view.run_id, expected_version=other_view.version
+    )
+    assert other_token != token
+    with pytest.raises(ProjectWorkflowError, match="APPROVAL_REQUIRED"):
+        workflow.apply(
+            admin_workflow,
+            view.run_id,
+            "create",
+            {"approval_token": other_token},
+            expected_version=view.version,
+        )
+
+    # Content changed after approval makes the reviewed hash stale.
+    record = store.get_workflow("tenant-1", ORGANIZATION_SCOPE, view.run_id)
+    record["state"]["collected"]["name"] = "Renamed After Approval"
+    store.save_workflow(record, expected_version=record["version"])
+    with pytest.raises(ProjectWorkflowError, match="REVIEW_STALE"):
+        workflow.apply(
+            admin_workflow,
+            view.run_id,
+            "create",
+            {"approval_token": token},
+            expected_version=view.version,
+        )
+
+
 def test_planner_cannot_approve_or_create(workflow, admin_workflow, planner_workflow) -> None:
     view = _to_review(workflow, admin_workflow)
     with pytest.raises(AuthorizationError):
@@ -482,6 +536,17 @@ def test_start_is_idempotent_with_request_key(workflow, admin_workflow) -> None:
     second = workflow.start(admin_workflow, request_key="req-1")
     assert first.run_id == second.run_id
     assert len(workflow.list(admin_workflow)) == 1
+
+
+def test_simultaneous_starts_without_a_request_key_stay_distinct(
+    workflow, admin_workflow
+) -> None:
+    # The fixed test clock returns the same instant, so only a nonce keeps the
+    # two unkeyed runs apart instead of colliding on the primary key.
+    first = workflow.start(admin_workflow)
+    second = workflow.start(admin_workflow)
+    assert first.run_id != second.run_id
+    assert len(workflow.list(admin_workflow)) == 2
 
 
 def test_access_is_scoped_to_tenant_user_and_admin(workflow, admin_workflow) -> None:

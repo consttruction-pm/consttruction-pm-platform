@@ -148,7 +148,7 @@ def build_card(topic: ParsedTopic, *, source_version: str, extracted_at: datetim
         [f"topic:{key}" for key in topic.related], limit=20
     )
     candidate = KnowledgeCard(
-        card_id=card_id_for(topic.source_id, topic.topic_key, card_type),
+        card_id=card_id_for(topic.source_id, topic.topic_key),
         card_type=card_type,
         title=topic.title,
         category=_category(topic),
