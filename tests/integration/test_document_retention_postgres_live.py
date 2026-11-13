@@ -170,7 +170,7 @@ def test_dispose_keeps_bytes_shared_with_a_live_sibling_live() -> None:
             default_project_policy(),
         )
         context = AuthorizationContext(
-            tenant_id, project_id, "live-actor", frozenset({"planner"})
+            tenant_id, project_id, "live-actor", frozenset({"project_admin"})
         )
 
         first = service.dispose(
