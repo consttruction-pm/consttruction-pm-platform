@@ -307,3 +307,10 @@ test("homepage footer links to the public Security and Reliability section", () 
   assert.match(landing, /href="#security"/);
   assert.match(landing, /Security & Reliability/);
 });
+
+test("security and reliability content is localized in all eight approved product languages", () => {
+  for (const locale of ["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]) {
+    assert.ok(landing.includes(`  ${locale}: {`), "Missing security copy for " + locale);
+  }
+  assert.match(landing, /normalizedLocale === "zh-Hant" \? "zh-Hans" : normalizedLocale/);
+});
