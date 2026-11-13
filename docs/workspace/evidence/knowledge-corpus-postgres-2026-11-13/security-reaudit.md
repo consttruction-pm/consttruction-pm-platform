@@ -1,6 +1,8 @@
 # Security and data-integrity re-audit — knowledge backend
 
-Base: `f07364f02eb3dc9fa6bfc5301eb523d3edab7e52`.
+Base: rebased publication branch at `938f382`, current main base
+`218977dc72405061b4fc3d0f228db7e70df7e140`; original base
+`f07364f02eb3dc9fa6bfc5301eb523d3edab7e52`.
 Scope: knowledge API, assistant, workflow, SQLite and PostgreSQL stores.
 Result: every row below has an implemented control and a regression test.
 No permissive production fallback was found.
@@ -26,6 +28,10 @@ No permissive production fallback was found.
 | Stale published translation | source-card hash binding checked before answering | `test_publication_integrity.py::test_published_translation_stops_answering_after_the_source_changes`, `test_translations.py::test_coverage_does_not_count_a_stale_translation_as_answerable` |
 | Unreviewed translation served as published | search marks it as fallback; assistant falls back and cites the source title | `test_assistant.py::test_unapproved_translation_is_treated_as_fallback`, `test_corpus_retrieval.py::test_engineering_question_answers_in_each_language` |
 | Rejected translation text served | rejected record excluded from retrieval and answers | `test_publication_integrity.py::test_rejected_translation_text_is_never_served` |
+| Legacy locale code exposed as a product slot | read-time alias lookup; stored rows preserved; one Chinese coverage slot | `test_translations.py::test_legacy_chinese_row_fills_the_single_chinese_slot`, `test_locales.py::test_chinese_is_one_product_locale` |
+| Coverage inflated by legacy locales | denominator built from `TARGET_LOCALES`; Russian reported separately | `test_translations.py::test_legacy_russian_is_reported_outside_the_product_denominator`, `test_locales.py::test_eight_product_locales_and_seven_targets` |
+| Store closes a caller-owned PostgreSQL connection | `close()` only closes an owned connection | `test_postgres_store.py::test_caller_owned_connection_respects_caller_transaction_and_close` |
+| Observed write lost at close | owned connection uses `autocommit=True` | `test_postgres_store.py::test_owned_connection_persists_writes_made_after_a_read`, `::test_owned_connection_persists_translation_and_audit_after_a_read` |
 | Retired card answering | retirement removes the card from answerable locales | `test_publication_integrity.py::test_retired_card_has_no_answerable_locale` |
 | Machine translation disguised as human | provenance is server-owned and cannot be overridden by the client | `test_publication_integrity.py::test_machine_provenance_cannot_be_hidden_by_the_client` |
 | Workflow restart/recovery | persisted run state resumed; adoption does not duplicate | `test_workflow.py::test_resume_after_restart_reads_persisted_state`, `::test_adoption_after_interruption_does_not_duplicate` |

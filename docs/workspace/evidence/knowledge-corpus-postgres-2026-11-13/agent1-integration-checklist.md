@@ -11,7 +11,7 @@ DSN to reproduce.
 
 | Method | Path | Handler | Verified by |
 | --- | --- | --- | --- |
-| GET | `/api/knowledge/locales` | `api.locales` | `test_http.py::test_locales_endpoint_lists_ten_locales` |
+| GET | `/api/knowledge/locales` | `api.locales` | `test_http.py::test_locales_endpoint_separates_product_and_legacy_locales` |
 | GET | `/api/knowledge/coverage` | `api.coverage` | `test_http.py::test_coverage_and_search_routes` |
 | GET | `/api/knowledge/search` | `api.search` | `test_http.py::test_coverage_and_search_routes`, `::test_card_and_search_accept_a_locale` |
 | GET | `/api/knowledge/cards` | `api.list_cards` | `test_http.py::test_card_visibility_and_review_permissions` |
@@ -70,8 +70,8 @@ DSN to reproduce.
 
 ## Current gaps visible to Agent 1
 
-- Only nine seed translations exist (one card, nine locales) and all are
-  `translated` / `pending`; the workspace must show them as unpublished work,
-  not as localized answer content.
+- Only eight seed translations exist (one card: seven product targets plus one
+  legacy Russian record) and all are `translated` / `pending`; the workspace
+  must show them as unpublished work, not as localized answer content.
 - The corpus has 1090 cards but 0 published cards after a plain ingestion run.
   Publication is a deliberate human review action, not an ingestion side effect.

@@ -3,7 +3,7 @@
     "fa": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -21,25 +21,16 @@
     "de": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
       "retired": 0
     },
-    "zh-CN": {
+    "zh-Hans": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
-      "review_required": 0,
-      "approved": 0,
-      "published": 0,
-      "retired": 0
-    },
-    "zh-TW": {
-      "missing": 0,
-      "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -48,7 +39,7 @@
     "ar": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -57,7 +48,7 @@
     "fr": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -66,7 +57,7 @@
     "ja": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -75,7 +66,7 @@
     "ko": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
@@ -84,131 +75,138 @@
     "ru": {
       "missing": 0,
       "draft": 0,
-      "translated": 1,
+      "translated": 0,
       "review_required": 0,
       "approved": 0,
       "published": 0,
       "retired": 0
     }
   },
-  "cards": 1030,
+  "cards": 1090,
   "source_language": "en",
-  "target_locales": [
+  "product_locales": [
     "fa",
+    "en",
     "de",
-    "zh-CN",
-    "zh-TW",
+    "zh-Hans",
     "ar",
     "fr",
     "ja",
-    "ko",
+    "ko"
+  ],
+  "target_locales": [
+    "fa",
+    "de",
+    "zh-Hans",
+    "ar",
+    "fr",
+    "ja",
+    "ko"
+  ],
+  "legacy_locales": [
     "ru"
   ],
-  "available_slots": 9270,
-  "filled_slots": 9,
+  "available_slots": 7630,
+  "filled_slots": 0,
   "published_slots": 0,
   "approved_slots": 0,
-  "missing_slots": 9261,
-  "coverage_percent": 0.1,
+  "missing_slots": 7630,
+  "coverage_percent": 0.0,
   "inventory": {
     "fa": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
     "de": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
-    "zh-CN": {
-      "records": 1,
-      "filled": 1,
+    "zh-Hans": {
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
-    },
-    "zh-TW": {
-      "records": 1,
-      "filled": 1,
-      "published": 0,
-      "approved": 0,
-      "complete": 1,
-      "answerable": 0,
-      "machine_translated": 0,
-      "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
     "ar": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
     "fr": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
     "ja": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     },
     "ko": {
-      "records": 1,
-      "filled": 1,
+      "records": 0,
+      "filled": 0,
       "published": 0,
       "approved": 0,
-      "complete": 1,
+      "complete": 0,
       "answerable": 0,
       "machine_translated": 0,
       "stale_source_binding": 0,
-      "missing_slots": 1029
-    },
-    "ru": {
-      "records": 1,
-      "filled": 1,
-      "published": 0,
-      "approved": 0,
-      "complete": 1,
-      "answerable": 0,
-      "machine_translated": 0,
-      "stale_source_binding": 0,
-      "missing_slots": 1029
+      "missing_slots": 1090
     }
+  },
+  "legacy": {
+    "locales": [
+      "ru"
+    ],
+    "records": 0,
+    "published": 0,
+    "approved": 0,
+    "by_locale": {
+      "ru": {
+        "records": 0,
+        "published": 0,
+        "approved": 0,
+        "answerable": 0
+      }
+    },
+    "storage_codes": {},
+    "normalized_records": 0
   }
 }
