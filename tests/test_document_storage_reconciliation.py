@@ -366,6 +366,78 @@ def test_repeated_execution_after_deletion_is_idempotent(env: Env) -> None:
     assert len(env.state.list_cleanup(TENANT, PROJECT)) == 1
 
 
+def test_stale_worker_cannot_complete_a_reclaimed_lease(env: Env) -> None:
+    object_ref = f"local:v1/{storage_scope_key(TENANT)}/{storage_scope_key(PROJECT)}/ab/{'a' * 64}.pdf"
+    for _ in range(2):
+        env.state.record_observation(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            object_ref=object_ref,
+            classification=ORPHAN_OBJECT,
+            now=NOW,
+        )
+    first = env.state.claim(
+        tenant_id=TENANT,
+        project_id=PROJECT,
+        object_ref=object_ref,
+        now=NOW,
+        grace_cutoff=NOW,
+        min_observations=2,
+        lease_seconds=60,
+    )
+    assert first is not None
+    first_attempt, first_token = first
+    assert first_attempt == 1
+    env.state.commit_claim()
+
+    # The lease expires and a second worker legitimately re-claims it.
+    second = env.state.claim(
+        tenant_id=TENANT,
+        project_id=PROJECT,
+        object_ref=object_ref,
+        now=NOW + timedelta(seconds=61),
+        grace_cutoff=NOW,
+        min_observations=2,
+        lease_seconds=60,
+    )
+    assert second is not None
+    second_attempt, second_token = second
+    assert second_attempt == 2
+    assert second_token != first_token
+    env.state.commit_claim()
+
+    # The stale worker cannot clear the live lease or stamp an outcome.
+    assert (
+        env.state.mark_deleted(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            object_ref=object_ref,
+            now=NOW + timedelta(seconds=62),
+            claim_token=first_token,
+        )
+        is False
+    )
+    stale = env.state.get(TENANT, PROJECT, object_ref)
+    assert stale is not None
+    assert stale.status == "deleting"
+    assert stale.claim_token == second_token
+
+    assert (
+        env.state.mark_deleted(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            object_ref=object_ref,
+            now=NOW + timedelta(seconds=63),
+            claim_token=second_token,
+        )
+        is True
+    )
+    final = env.state.get(TENANT, PROJECT, object_ref)
+    assert final is not None
+    assert final.status == "deleted"
+    assert final.claim_token is None
+
+
 def test_reappeared_object_restarts_observation_window(env: Env) -> None:
     _seed(env, "doc-1", PDF_ONE)
     orphan = _orphan(env, PDF_TWO)

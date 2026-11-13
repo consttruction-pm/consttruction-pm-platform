@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from enum import Enum
+from contextlib import contextmanager
 import re
 from typing import Mapping
 
@@ -111,6 +112,8 @@ class Token:
 def tokenize(expression: str) -> tuple[Token, ...]:
     if not isinstance(expression, str) or not expression.strip():
         raise FormulaSyntaxError("EMPTY_FORMULA")
+    if len(expression) > MAX_FORMULA_LENGTH:
+        raise FormulaSyntaxError("FORMULA_EXPRESSION_TOO_COMPLEX")
 
     tokens: list[Token] = []
     i = 0
@@ -240,11 +243,26 @@ class FunctionNode:
 
 ExpressionNode = LiteralNode | FieldNode | UnaryNode | BinaryNode | FunctionNode
 
+MAX_FORMULA_LENGTH = 4096
+MAX_FORMULA_DEPTH = 64
+
 
 class _Parser:
     def __init__(self, tokens: tuple[Token, ...]) -> None:
         self.tokens = tokens
         self.index = 0
+        self.depth = 0
+
+    @contextmanager
+    def _nesting(self):
+        """Bound recursive descent so hostile nesting fails as a formula error."""
+        self.depth += 1
+        try:
+            if self.depth > MAX_FORMULA_DEPTH:
+                raise FormulaSyntaxError("FORMULA_EXPRESSION_TOO_COMPLEX")
+            yield
+        finally:
+            self.depth -= 1
 
     @property
     def current(self) -> Token:
@@ -268,10 +286,11 @@ class _Parser:
         return result
 
     def parse_or(self) -> ExpressionNode:
-        node = self.parse_and()
-        while self._match_operator("OR") or self._match_operator("||"):
-            node = BinaryNode("OR", node, self.parse_and())
-        return node
+        with self._nesting():
+            node = self.parse_and()
+            while self._match_operator("OR") or self._match_operator("||"):
+                node = BinaryNode("OR", node, self.parse_and())
+            return node
 
     def parse_and(self) -> ExpressionNode:
         node = self.parse_comparison()
@@ -301,18 +320,20 @@ class _Parser:
         return node
 
     def parse_power(self) -> ExpressionNode:
-        node = self.parse_unary()
-        if self.current.kind is TokenKind.OP and self.current.value == "^":
-            self.advance()
-            node = BinaryNode("^", node, self.parse_power())
-        return node
+        with self._nesting():
+            node = self.parse_unary()
+            if self.current.kind is TokenKind.OP and self.current.value == "^":
+                self.advance()
+                node = BinaryNode("^", node, self.parse_power())
+            return node
 
     def parse_unary(self) -> ExpressionNode:
-        if self.current.kind is TokenKind.OP and self.current.value in {"+", "-"}:
-            return UnaryNode(self.advance().value, self.parse_unary())
-        if self._match_operator("NOT") or self._match_operator("!"):
-            return UnaryNode("NOT", self.parse_unary())
-        return self.parse_primary()
+        with self._nesting():
+            if self.current.kind is TokenKind.OP and self.current.value in {"+", "-"}:
+                return UnaryNode(self.advance().value, self.parse_unary())
+            if self._match_operator("NOT") or self._match_operator("!"):
+                return UnaryNode("NOT", self.parse_unary())
+            return self.parse_primary()
 
     def parse_primary(self) -> ExpressionNode:
         token = self.current

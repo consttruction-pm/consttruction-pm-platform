@@ -2505,6 +2505,48 @@ def test_wsgi_rejects_oversized_p6_import_before_route_layer():
     assert b"REQUEST_BODY_TOO_LARGE" in result[0]
 
 
+def test_wsgi_rejects_truncated_body_instead_of_dispatching():
+    class _ShortStream:
+        def __init__(self, data: bytes) -> None:
+            self.data = data
+
+        def read(self, size: int = -1) -> bytes:
+            if size < 0:
+                size = len(self.data)
+            chunk, self.data = self.data[:size], self.data[size:]
+            return chunk
+
+    routes = _WsgiRoutesStub()
+    app = ProjectLifecycleWsgiApp(routes, default_body_limit=100, p6_import_body_limit=100)
+    environ = _wsgi_environ("/api/v1/schedule/query", b"x" * 10)
+    environ["wsgi.input"] = _ShortStream(b"x" * 9)
+    statuses = []
+    result = app(environ, lambda status, headers: statuses.append(status))
+    assert statuses == ["400 Bad Request"]
+    assert routes.calls == []
+    assert b"REQUEST_BODY_INCOMPLETE" in result[0]
+
+
+def test_wsgi_reads_a_body_delivered_in_several_short_chunks():
+    class _ChunkedStream:
+        def __init__(self, data: bytes) -> None:
+            self.data = data
+
+        def read(self, size: int = -1) -> bytes:
+            chunk, self.data = self.data[:2], self.data[2:]
+            return chunk
+
+    routes = _WsgiRoutesStub()
+    app = ProjectLifecycleWsgiApp(routes, default_body_limit=100, p6_import_body_limit=100)
+    body = b"abcdefghij"
+    environ = _wsgi_environ("/api/v1/schedule/query", body)
+    environ["wsgi.input"] = _ChunkedStream(body)
+    statuses = []
+    app(environ, lambda status, headers: statuses.append(status))
+    assert statuses == ["200 OK"]
+    assert routes.calls[0][2] == body
+
+
 def test_wsgi_keeps_default_limit_for_non_import_endpoints():
     routes = _WsgiRoutesStub()
     app = ProjectLifecycleWsgiApp(routes, default_body_limit=10, p6_import_body_limit=20)

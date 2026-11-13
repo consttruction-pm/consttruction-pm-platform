@@ -206,6 +206,22 @@ def test_syntax_rejects_unterminated_field_and_bare_identifiers() -> None:
         parse_formula("budget + 1")
 
 
+def test_excessive_nesting_fails_as_a_formula_error_not_recursion() -> None:
+    # Deep but short enough to pass the length cap: depth must fail closed.
+    with pytest.raises(FormulaSyntaxError, match="FORMULA_EXPRESSION_TOO_COMPLEX"):
+        parse_formula("(" * 200 + "[budget]" + ")" * 200)
+    # A hostile over-length expression is rejected before tokenising.
+    with pytest.raises(FormulaSyntaxError, match="FORMULA_EXPRESSION_TOO_COMPLEX"):
+        parse_formula("(" * 20_000 + "[budget]" + ")" * 20_000)
+    # Unary and power recursion are bounded by the same counter.
+    with pytest.raises(FormulaSyntaxError, match="FORMULA_EXPRESSION_TOO_COMPLEX"):
+        parse_formula("-" * 200 + "[budget]")
+    with pytest.raises(FormulaSyntaxError, match="FORMULA_EXPRESSION_TOO_COMPLEX"):
+        parse_formula("[budget]" + " ^ 2" * 200)
+    # Ordinary nesting still parses.
+    assert parse_formula("((([budget] + 1)))") is not None
+
+
 def test_coalesce_short_circuits_unselected_error() -> None:
     compiled = _compile("COALESCE([budget], [budget] / 0)")
     assert evaluate_formula(

@@ -89,12 +89,14 @@ class ProjectLifecycleWsgiApp:
             status, headers, body = self._error(413, "REQUEST_BODY_TOO_LARGE")
         else:
             stream = environ.get("wsgi.input")
+            body = b""
             if length and hasattr(stream, "read"):
-                body = stream.read(min(length, limit + 1))
-            else:
-                body = b""
+                body = _read_request_body(stream, length)
             if len(body) > limit:
                 status, headers, body = self._error(413, "REQUEST_BODY_TOO_LARGE")
+            elif length and len(body) != length:
+                # A short read is a truncated request, never a complete body.
+                status, headers, body = self._error(400, "REQUEST_BODY_INCOMPLETE")
             else:
                 status, headers, body = self._routes.handle(
                     method, path, cookies=cookie_values, body=body, headers=request_headers
@@ -142,3 +144,20 @@ class ProjectLifecycleWsgiApp:
             header_name = "-".join(part.capitalize() for part in key[5:].split("_"))
             headers[header_name] = str(value)
         return headers
+
+
+def _read_request_body(stream, length: int) -> bytes:
+    """Read exactly ``length`` bytes, or fewer only on end of stream.
+
+    WSGI permits ``read()`` to return a short buffer, so one call is not
+    enough to conclude the request body arrived complete.
+    """
+    chunks: list[bytes] = []
+    remaining = length
+    while remaining > 0:
+        chunk = stream.read(min(remaining, 65536))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)

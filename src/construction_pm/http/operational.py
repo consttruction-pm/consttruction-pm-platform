@@ -206,6 +206,26 @@ class OperationalMiddleware:
         if self._logger is not None:
             self._logger.emit(event, **kwargs)  # type: ignore[arg-type]
 
+    def _record_metrics_export_unauthorized(self, correlation_id: str) -> None:
+        """Bound the observable cost of unauthenticated scrape attempts.
+
+        The counter has no labels, so hostile callers cannot grow the series
+        set, and the event carries no credential material. Failures while
+        recording must never change the 401 response.
+        """
+
+        if self._metrics is not None:
+            try:
+                self._metrics.increment("metrics_export_unauthorized_total")
+            except ValueError:
+                pass
+        self._emit(
+            "metrics_export_unauthorized",
+            severity="warning",
+            correlation_id=correlation_id,
+            fields={"path": METRICS_PATH, "reason": "bearer_rejected"},
+        )
+
     def _scrape(
         self,
         method: str,
@@ -232,6 +252,7 @@ class OperationalMiddleware:
                 extra_headers=[("Allow", "GET, HEAD")],
             )
         if not service.authorized(authorization):
+            self._record_metrics_export_unauthorized(correlation_id)
             return _json_response(
                 start_response,
                 401,

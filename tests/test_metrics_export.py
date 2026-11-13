@@ -79,7 +79,14 @@ def test_settings_enabled_without_token_is_unavailable() -> None:
 
 
 def test_settings_reject_weak_tokens_without_echoing_them() -> None:
-    for token in ("short", " token with spaces ", "x" * 513):
+    for token in (
+        "short",
+        " token with spaces ",
+        "x" * 513,
+        "a" * 32,
+        "abababababababab",
+        "token-token-token",
+    ):
         settings = MetricsExportSettings.from_environment(
             {
                 "CONSTRUCTION_PM_METRICS_EXPORT_ENABLED": "on",
@@ -364,6 +371,47 @@ def test_metrics_endpoint_requires_bearer_token() -> None:
         payload = json.loads(body)
         assert payload["code"] == "METRICS_EXPORT_UNAUTHORIZED"
         assert TOKEN not in body.decode("utf-8")
+
+
+def test_metrics_endpoint_meters_and_logs_unauthorized_scrapes() -> None:
+    class RecordingLogger:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, dict[str, object]]] = []
+
+        def emit(self, event: str, **kwargs: object) -> None:
+            self.events.append((event, kwargs))
+
+    metrics = OperationalMetrics()
+    logger = RecordingLogger()
+    app = OperationalMiddleware(
+        _app,
+        metrics=metrics,
+        metrics_export=_service(metrics),
+        logger=logger,  # type: ignore[arg-type]
+    )
+    for authorization in (None, "", f"Bearer wrong-token-0123456789", "Basic abc"):
+        captured, body = _request(app, "GET", METRICS_PATH, authorization)
+        assert captured["status"].startswith("401")
+        assert TOKEN not in body.decode("utf-8")
+
+    snapshot = metrics.snapshot()
+    assert snapshot["counters"] == [
+        {
+            "name": "metrics_export_unauthorized_total",
+            "labels": {},
+            "value": 4,
+        }
+    ]
+    assert [event for event, _ in logger.events] == [
+        "metrics_export_unauthorized"
+    ] * 4
+    for _, payload in logger.events:
+        assert payload["severity"] == "warning"
+        assert payload["fields"] == {
+            "path": METRICS_PATH,
+            "reason": "bearer_rejected",
+        }
+        assert "wrong-token" not in json.dumps(payload)
 
 
 def test_metrics_endpoint_serves_bounded_text() -> None:

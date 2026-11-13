@@ -92,23 +92,23 @@ Threats and primary controls:
 | SEC-005 | Info | Internal DDL helper interpolates table names | Accepted (literals only) |
 | SEC-006 | High | Retention disposal deleted a shared content-addressed object | Fixed (this change) |
 | SEC-007 | Medium | Legal-hold changes and disposition need only `PROJECT_WRITE` | Open |
-| SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Open |
-| SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Open |
+| SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed (this change) |
+| SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed (this change) |
 | SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
-| SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Open |
+| SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed (this change) |
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
-| SEC-014 | Medium | Delete completion is not bound to the claim token | Open |
+| SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed (this change) |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Open |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Open |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Open |
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Open |
-| SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Open |
-| SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Open |
+| SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed (this change) |
+| SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed (this change) |
 | SEC-023 | Low | Anonymous readiness probe returns per-component detail | Open |
-| SEC-024 | Low | WSGI short-read body is accepted as complete | Open |
+| SEC-024 | Low | WSGI short-read body is accepted as complete | Fixed (this change) |
 | SEC-025 | Info | `ReferenceAIToolPermissionAdapter` authorizes on tool name only (unused) | Open |
 
 ### SEC-001 — S3 client followed redirects and re-sent signed credentials
@@ -225,6 +225,12 @@ Threats and primary controls:
 
 ### SEC-008 — XLSX decompression bound trusts attacker-declared archive sizes (Medium)
 
+- **Resolution:** `_assert_xlsx_inflates_within_bound` reads every member
+  through the decompressor in 64 KiB chunks and fails closed at
+  `MAX_XLSX_UNCOMPRESSED_BYTES`; forged sizes surface as `EXCHANGE_XLSX_INVALID`.
+  Covered by `test_xlsx_actual_inflated_bytes_are_counted` and
+  `test_xlsx_declared_member_sizes_are_not_trusted`.
+
 - **Evidence:** `exchange_application.py:_decode_xlsx` sums `ZipInfo.file_size`
   from the central directory before parsing; actual inflated bytes are never
   counted. Reviewer A and B independently reported this.
@@ -237,6 +243,11 @@ Threats and primary controls:
   must raise `EXCHANGE_XLSX_TOO_LARGE`.
 
 ### SEC-009 — Formula parser recursion is unbounded (Medium)
+
+- **Resolution:** expressions longer than 4096 characters are rejected and
+  recursive descent is bounded at 64 nesting levels, both raising
+  `FormulaSyntaxError("FORMULA_EXPRESSION_TOO_COMPLEX")`. Covered by
+  `test_excessive_nesting_fails_as_a_formula_error_not_recursion`.
 
 - **Evidence:** `p6_formula_engine.parse_formula` tokenizes and recursively
   descends with no expression-length or nesting bound; `RecursionError` is not
@@ -262,6 +273,12 @@ Threats and primary controls:
   exceeds the page size.
 
 ### SEC-011 — S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule (Medium)
+
+- **Resolution:** `_validate_storage` now validates
+  `CONSTRUCTION_PM_S3_ENDPOINT_URL` with `require_https=True` in production and
+  reports `INVALID_DOCUMENT_STORAGE_ENDPOINT`. Covered by
+  `test_production_environment_rejects_cleartext_s3_endpoint`; staging still
+  warns (`URL_NOT_HTTPS`) rather than failing.
 
 - **Evidence:** `DocumentObjectStorageSettings.validate` accepts `http`, and
   `production_readiness._validate_storage` never applies `_validate_url(...,
@@ -302,6 +319,13 @@ Threats and primary controls:
   audit row.
 
 ### SEC-014 — Delete completion is not bound to the claim token (Medium)
+
+- **Resolution:** `claim()` returns `(attempts, claim_token)` and
+  `mark_deleted`/`mark_failed` require the matching token with
+  `status='deleting'`; `mark_resolved` requires no outstanding lease. A lost
+  lease returns `lease_lost` and writes no cleanup audit row. Covered by
+  `test_stale_worker_cannot_complete_a_reclaimed_lease` and the live
+  PostgreSQL lease test.
 
 - **Evidence:** `claim()` writes `claim_token`, but `mark_deleted`,
   `mark_failed` and `mark_resolved` update by `(tenant, project, object_ref)`
@@ -381,6 +405,14 @@ Threats and primary controls:
 
 ### SEC-021 — `/api/metrics` auth failures are unlogged and unmetered (Low)
 
+- **Resolution:** the 401 path increments an unlabelled
+  `metrics_export_unauthorized_total` counter and emits one bounded
+  `metrics_export_unauthorized` event without credential material; configuration
+  now requires at least eight distinct token characters. Covered by
+  `test_metrics_endpoint_meters_and_logs_unauthorized_scrapes` and the weak-token
+  cases. No throttling is added here: rate limiting belongs to the deployment
+  front end.
+
 - **Evidence:** the metrics path is dispatched before instrumentation, so 401s
   produce no request event or metric; token acceptance is length-only
   (16–512 printable ASCII); no throttle exists.
@@ -391,6 +423,10 @@ Threats and primary controls:
   `METRICS_EXPORT_UNAUTHORIZED` and emit one bounded event.
 
 ### SEC-022 — Composition reads `CUBI_AI_ENABLED` from `os.environ` (Low)
+
+- **Resolution:** composition reads the supplied `environment` mapping and
+  falls back to `os.environ` only when none is given. Covered by
+  `test_production_composition_reads_the_assistant_flag_from_its_environment`.
 
 - **Evidence:** `production_composition` honours its `environment` mapping for
   other settings but reads the assistant flag directly from `os.environ`.
@@ -410,6 +446,12 @@ Threats and primary controls:
 - **Negative test:** an anonymous `/ready` response omits component detail.
 
 ### SEC-024 — WSGI short-read body is accepted as complete (Low)
+
+- **Resolution:** bodies are read in a loop until the declared length or end
+  of stream; a short read now returns `400 REQUEST_BODY_INCOMPLETE` instead of
+  dispatching. Covered by
+  `test_wsgi_rejects_truncated_body_instead_of_dispatching` and
+  `test_wsgi_reads_a_body_delivered_in_several_short_chunks`.
 
 - **Evidence:** the adapter calls `stream.read(min(length, limit + 1))` once and
   only checks the over-limit case; a short read is passed to handlers.
@@ -460,15 +502,18 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-007 to SEC-025 remain open and are being
-  worked in severity order; they are recorded here rather than silently closed.
+- **Open Medium/Low findings.** SEC-007, SEC-010, SEC-012, SEC-013, SEC-015,
+  SEC-016, SEC-017, SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
+  SEC-008, SEC-009, SEC-011, SEC-014, SEC-021, SEC-022 and SEC-024 are fixed with
+  negative tests in this change. Open findings are recorded here rather than
+  silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict
 
 Independent review is complete: two isolated reviewers produced registers, both
 reconciled above. No Critical finding was reported by either reviewer. The one
 open High (SEC-006, retention shared-object deletion) is fixed with negative
-tests at SQLite and live PostgreSQL level. Medium and Low findings remain open
-and tracked; no High or Critical finding is being merged unresolved. Gate status
-for Workstream D: independent review **satisfied**, runtime and production
-verification **open**.
+tests at SQLite and live PostgreSQL level. Seven Medium/Low findings are also
+fixed and the rest remain open and tracked; no High or Critical finding is being
+merged unresolved. Gate status for Workstream D: independent review
+**satisfied**, runtime and production verification **open**.

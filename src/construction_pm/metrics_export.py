@@ -18,7 +18,9 @@ Design constraints:
   configuration failure yields an ``unavailable`` result; it never raises into
   request handling and never blocks business endpoints.
 - **Secrets stay secret.** The scrape token is compared in constant time and is
-  never echoed in a response, event or error string.
+  never echoed in a response, event or error string. Tokens must be 16–512
+  printable ASCII characters with at least eight distinct characters, so a
+  repeated or trivially patterned value is rejected at configuration time.
 - **No tracing claim.** This is metrics export only. There is no span exporter,
   collector, sampling or propagation, and nothing here should be described as
   distributed tracing.
@@ -47,6 +49,7 @@ DEFAULT_MAX_SERIES = 2_000
 MAX_MAX_SERIES = 20_000
 MIN_TOKEN_LENGTH = 16
 MAX_TOKEN_LENGTH = 512
+MIN_TOKEN_DISTINCT_CHARS = 8
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 _FALSEY = frozenset({"", "0", "false", "no", "off"})
 _TOKEN = re.compile(r"^[\x21-\x7e]{16,512}$")
@@ -123,6 +126,7 @@ class MetricsExportSettings:
             len(token) < MIN_TOKEN_LENGTH
             or len(token) > MAX_TOKEN_LENGTH
             or not _TOKEN.match(token)
+            or len(set(token)) < MIN_TOKEN_DISTINCT_CHARS
         ):
             return cls(
                 enabled=True,
