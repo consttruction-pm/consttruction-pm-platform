@@ -685,6 +685,19 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
+/** Bar edge used when drawing a relationship in the Gantt chart. */
+export type GanttLinkEdge = "start" | "finish";
+
+/**
+ * Relationship type implied by the two bar edges a user connects, exactly as
+ * the V26 Help defines drawing in the Gantt chart: finish→start is FS,
+ * finish→finish is FF, start→finish is SF and start→start is SS.
+ */
+export function relationshipTypeFromEdges(from: GanttLinkEdge, to: GanttLinkEdge): WorkspaceRelationshipType {
+  if (from === "finish") return to === "start" ? "FS" : "FF";
+  return to === "finish" ? "SF" : "SS";
+}
+
 export type GanttProgressRelation = "behind" | "on" | "ahead";
 
 /**
