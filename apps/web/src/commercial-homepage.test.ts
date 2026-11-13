@@ -114,7 +114,7 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /"resources\/#documentation"/);
   // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
   assert.match(landing, /const publicLocaleRootHref = locale === "fa"/);
-  assert.ok(landing.includes('publicPageHref("about")'));
+  assert.ok(landing.includes("aboutPageHref"));
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -267,4 +267,36 @@ test("About Us is a first-class bilingual public route with approved founder fac
   assert.ok(landing.includes('publicPageHref("about")'));
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
+});
+
+
+test("homepage About navigation follows the selected supported language without opening an incomplete locale route tree", () => {
+  assert.match(landing, /const aboutLocale = locale === "zh-Hant" \? "zh-Hans" : locale/);
+  assert.match(landing, /\["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"\]\.includes\(aboutLocale\)/);
+  assert.match(landing, /const aboutPageHref = \[/);
+  assert.equal((landing.match(/href="\$\{aboutPageHref\}"/g) ?? []).length, 2);
+  assert.match(landing, /publicRootHref\}about\//);
+});
+
+test("homepage security section discloses verified hosting controls and all six approved capability areas", () => {
+  for (const marker of [
+    'id="security"',
+    'aria-labelledby="cubi-security-title"',
+    'title: "Secure SSL Connection"',
+    'title: "Cloud Firewall Protection"',
+    'title: "DDoS Protection"',
+    'title: "Automatic Cloud Backup"',
+    'title: "Infrastructure Monitoring"',
+    'title: "Data Recovery"',
+    'status: "ACTIVE — HOST MANAGED"',
+    'status: "NOT VERIFIED"',
+    "no Render Postgres instance",
+    "free web-service filesystems are ephemeral",
+    "successful restore drill",
+    "getLandingSecurityCopyForLocale",
+  ]) assert.ok(landing.includes(marker), "Missing security disclosure requirement: " + marker);
+  assert.match(landing, /cubi-security-disclosure/);
+  assert.match(landing, /securitySectionCopy\[normalizedLocale\] \?\? \{/);
+  assert.match(styles, /\.cubi-security-disclosure/);
+  assert.match(styles, /\.cubi-security-status/);
 });
