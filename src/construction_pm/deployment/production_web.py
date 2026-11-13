@@ -248,7 +248,7 @@ class ProductionWebApp:
         # the original path in the query string.
         query = parse_qs(str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=True)
         rewritten = query.pop("__path", None)
-        if rewritten is None and path == "/api/index":
+        if rewritten is None and path in {"/api", "/api/index", "/api/index.py"}:
             # Defensive fallback if the platform preserves the original path in
             # a header instead of the rewrite query.
             for name in ("x-vercel-original-path", "x-original-url", "x-forwarded-uri"):
@@ -256,6 +256,11 @@ class ProductionWebApp:
                 if candidate.startswith("/api/"):
                     rewritten = [candidate[len("/api/"):]]
                     break
+        if rewritten is None and path == "/api":
+            # A direct invocation of the catch-all function carries no route.
+            path = "/api/__cubi_root"
+            environ = dict(environ)
+            environ["PATH_INFO"] = path
         if rewritten is not None:
             path = "/api/" + rewritten[0].lstrip("/")
             environ = dict(environ)

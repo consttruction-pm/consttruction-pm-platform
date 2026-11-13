@@ -6,35 +6,68 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.py": {
-      "runtime": "python3.12",
-      "memory": 1024,
-      "maxDuration": 30,
-      "includeFiles": ["src/**", "requirements.txt"]
+      "includeFiles": [
+        "src/**",
+        "requirements.txt",
+        "apps/web/index.html",
+        "apps/web/app.html",
+        "apps/web/login.html"
+      ]
     },
     "api/shell.py": {
-      "runtime": "python3.12",
-      "memory": 512,
-      "maxDuration": 15,
-      "includeFiles": ["src/**", "apps/web/app.html", "apps/web/login.html", "requirements.txt"]
+      "includeFiles": [
+        "src/**",
+        "requirements.txt",
+        "apps/web/index.html",
+        "apps/web/app.html",
+        "apps/web/login.html"
+      ]
     }
   },
   "rewrites": [
-    { "source": "/app", "destination": "/api/shell" },
-    { "source": "/app/", "destination": "/api/shell" },
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/api/:path*", "destination": "/api/index?__path=:path*" }
+    {
+      "source": "/app",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/app/",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/app.html",
+      "destination": "/api/shell"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api?__path=:path*"
+    }
   ],
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
       ]
     },
     {
       "source": "/app",
-      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
     }
   ]
 }

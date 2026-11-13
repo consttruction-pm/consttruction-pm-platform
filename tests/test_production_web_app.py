@@ -426,3 +426,19 @@ def test_plain_http_origins_are_only_accepted_on_loopback(site_root, identity):
         build("http://cubi.example.test")
     with pytest.raises(ValueError):
         build("http://203.0.113.9")
+
+
+def test_direct_catch_all_function_invocation_has_no_route(identity, site_root):
+    stub = StubApi()
+    app = ProductionWebApp(
+        api_app=stub,
+        identity=identity,
+        site=StaticSite(site_root),
+        public_origin=ORIGIN,
+        secure_cookies=True,
+        readiness=lambda: {"status": "ready"},
+    )
+    cookie, _ = login(app)
+    status, _, body = call(app, "GET", "/api", cookie=cookie)
+    assert status == 200
+    assert json.loads(body)["seen"] == "/api/__cubi_root"

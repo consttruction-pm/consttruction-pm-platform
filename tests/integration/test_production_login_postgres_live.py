@@ -126,6 +126,10 @@ def runtime() -> ProductionRuntime:
         "tenant_b": tenant_b,
         "project_a": project_a,
         "project_b": project_b,
+        # Failed logins are throttled per source IP for 15 minutes and the
+        # throttle state is durable. A per-run address keeps the module
+        # repeatable against a long-lived database.
+        "client_ip": f"2001:db8::{suffix}",
     }
     yield instance
     instance.close()
@@ -142,7 +146,7 @@ def call(runtime, method, path, *, body=None, cookie="", csrf="", query="", head
     environ["wsgi.url_scheme"] = "https"
     environ["HTTP_ORIGIN"] = ORIGIN
     environ["HTTP_X_FORWARDED_PROTO"] = "https"
-    environ["HTTP_X_FORWARDED_FOR"] = "203.0.113.7"
+    environ["HTTP_X_FORWARDED_FOR"] = runtime.test_ids.get("client_ip", "203.0.113.7")
     for key, value in (headers or {}).items():
         environ["HTTP_" + key.upper().replace("-", "_")] = value
     raw = b"" if body is None else json.dumps(body).encode("utf-8")
