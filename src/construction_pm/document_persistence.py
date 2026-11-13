@@ -218,6 +218,13 @@ class DocumentStore(Protocol):
         search: str | None = None,
     ) -> tuple[StoredDocument, ...]: ...
 
+    def list_all(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[StoredDocument, ...]: ...
+
     def update(
         self,
         document: DocumentRecord,
@@ -352,6 +359,28 @@ class PostgresDocumentStore:
             needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
         query += " ORDER BY document_id"
+        rows = self.connection.execute(query, tuple(params)).fetchall()
+        return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
+
+    def list_all(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[StoredDocument, ...]:
+        """Every document in scope, for reference snapshots rather than listing routes."""
+        query = "SELECT document_json, revision FROM project_documents"
+        clauses: list[str] = []
+        params: list[object] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=%s")
+            params.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=%s")
+            params.append(project_id)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY tenant_id, project_id, document_id"
         rows = self.connection.execute(query, tuple(params)).fetchall()
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 
@@ -608,6 +637,28 @@ class SQLiteDocumentStore:
             needle = f"%{_escape_like(search.lower())}%"
             params.extend([needle, needle])
         query += " ORDER BY document_id"
+        rows = self.connection.execute(query, tuple(params)).fetchall()
+        return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
+
+    def list_all(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[StoredDocument, ...]:
+        """Every document in scope, for reference snapshots rather than listing routes."""
+        query = "SELECT document_json, revision FROM project_documents"
+        clauses: list[str] = []
+        params: list[object] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            params.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=?")
+            params.append(project_id)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY tenant_id, project_id, document_id"
         rows = self.connection.execute(query, tuple(params)).fetchall()
         return tuple(StoredDocument(self._from_json(row[0]), int(row[1])) for row in rows)
 

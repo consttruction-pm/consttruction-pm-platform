@@ -1067,11 +1067,13 @@ class DocumentStorageReconciler:
         metrics: OperationalMetrics | None = None,
         logger=None,
         policy: ReconciliationPolicy | None = None,
+        document_store=None,
     ) -> None:
         self.content_repository = content_repository
         self.retention_store = retention_store
         self.inventory = inventory
         self.state_store = state_store
+        self.document_store = document_store
         self.metrics = metrics
         self.logger = logger
         self.policy = policy or ReconciliationPolicy()
@@ -1106,6 +1108,9 @@ class DocumentStorageReconciler:
 
         try:
             references = self._metadata_references(
+                tenant_id=tenant_id, project_id=project_id
+            )
+            document_refs = self._document_references(
                 tenant_id=tenant_id, project_id=project_id
             )
         except Exception as exc:  # noqa: BLE001 - fail closed before any listing
@@ -1151,6 +1156,7 @@ class DocumentStorageReconciler:
                 references=reference_index,
                 scope_owners=scope_owners,
                 holds=holds,
+                document_refs=document_refs,
             )
             counts[classification] += 1
             if classification == MATCH:
@@ -1386,6 +1392,24 @@ class DocumentStorageReconciler:
             )
         return tuple(references)
 
+    def _document_references(
+        self, *, tenant_id: str | None, project_id: str | None
+    ) -> frozenset[str]:
+        """Object refs held directly by a document record.
+
+        Legacy records point at bytes that have no content-version row. They are
+        still live metadata, so an object referenced only this way must never be
+        classified as an orphan and deleted.
+        """
+        if self.document_store is None:
+            return frozenset()
+        documents = self.document_store.list_all(
+            tenant_id=tenant_id, project_id=project_id
+        )
+        return frozenset(
+            stored.document.storage_ref for stored in documents if stored.document.storage_ref
+        )
+
     @staticmethod
     def _reference_index(
         references: Iterable[_MetadataReference],
@@ -1436,6 +1460,7 @@ class DocumentStorageReconciler:
         references: dict[str, list[_MetadataReference]],
         scope_owners: dict[tuple[str, str], tuple[tuple[str, str], ...]],
         holds: set[tuple[str, str, str]],
+        document_refs: frozenset[str] = frozenset(),
     ) -> tuple[str, str, str, _MetadataReference | None, str]:
         if not item.valid_shape:
             return UNKNOWN_OBJECT, "", "", None, "malformed_object_key"
@@ -1455,6 +1480,10 @@ class DocumentStorageReconciler:
             )
         referencing = references.get(item.object_ref, [])
         if not referencing:
+            if item.object_ref in document_refs:
+                # A document record still serves these bytes; there is no
+                # version row to verify, so retain them as a metadata match.
+                return MATCH, tenant_id, project_id, None, "document_record_reference"
             return ORPHAN_OBJECT, tenant_id, project_id, None, "no_metadata_reference"
         live = [reference for reference in referencing if not reference.disposed]
         primary = live[0] if live else referencing[0]

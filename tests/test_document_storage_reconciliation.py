@@ -148,6 +148,7 @@ def _reconciler(
     inventory=None,
     content_repository=None,
     retention_store=None,
+    document_store=None,
 ) -> DocumentStorageReconciler:
     return DocumentStorageReconciler(
         content_repository=content_repository or env.content,
@@ -155,6 +156,7 @@ def _reconciler(
         inventory=inventory or LocalDocumentObjectInventory(env.root),
         state_store=env.state,
         policy=policy or ReconciliationPolicy(grace_period=timedelta(0)),
+        document_store=document_store,
     )
 
 
@@ -821,3 +823,80 @@ def test_s3_inventory_classifies_and_removes_only_orphans(env: Env) -> None:
         assert server.key_for(orphan) not in server.objects
         assert server.key_for(matched) in server.objects
         assert "/document-bucket/documents/not-a-scope/junk" in server.objects
+
+
+def test_document_record_only_reference_is_never_treated_as_an_orphan(env: Env) -> None:
+    from construction_pm.document_persistence import DocumentRecord, SQLiteDocumentStore
+
+    _seed(env, "doc-versioned", PDF_ONE)
+    legacy_blob = _blob(PDF_TWO)
+    legacy_ref = _orphan(env, PDF_TWO)
+    documents = SQLiteDocumentStore(env.connection)
+    documents.initialize()
+    documents.persist(
+        DocumentRecord(
+            document_id="doc-legacy",
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            resource_type="drawing",
+            title="Legacy record",
+            status="draft",
+            storage_ref=legacy_ref,
+            content_hash=legacy_blob.content_hash,
+        ),
+        idempotency_key="legacy-upload-1",
+        actor_id="uploader-1",
+        occurred_at=UPLOADED,
+    )
+
+    # Control: without document metadata the legacy object looks like an orphan.
+    control = _reconciler(env).reconcile(now=NOW, dry_run=True)
+    assert control.count(ORPHAN_OBJECT) == 1
+    assert control.count(MATCH) == 1
+
+    report = _reconciler(env, document_store=documents).reconcile(
+        now=NOW, dry_run=False
+    )
+    assert report.count(ORPHAN_OBJECT) == 0
+    assert report.count(MATCH) == 2
+    assert report.deleted == 0
+    assert env.state.list_cleanup(TENANT, PROJECT) == ()
+    assert _object_path(env, legacy_ref).exists()
+
+
+def test_document_list_all_respects_scope(env: Env) -> None:
+    from construction_pm.document_persistence import DocumentRecord, SQLiteDocumentStore
+
+    documents = SQLiteDocumentStore(env.connection)
+    documents.initialize()
+    blob = _blob(PDF_ONE)
+    for tenant, project, document_id in (
+        (TENANT, PROJECT, "doc-a"),
+        (TENANT, OTHER_PROJECT, "doc-b"),
+        (OTHER_TENANT, PROJECT, "doc-c"),
+    ):
+        documents.persist(
+            DocumentRecord(
+                document_id=document_id,
+                tenant_id=tenant,
+                project_id=project,
+                resource_type="contract",
+                title=document_id,
+                status="draft",
+                storage_ref=f"local:v1/{document_id}",
+                content_hash=blob.content_hash,
+            ),
+            idempotency_key=f"key-{document_id}",
+            actor_id="uploader-1",
+            occurred_at=UPLOADED,
+        )
+
+    assert [stored.document.document_id for stored in documents.list_all()] == [
+        "doc-a",
+        "doc-b",
+        "doc-c",
+    ]
+    assert [
+        stored.document.document_id
+        for stored in documents.list_all(tenant_id=TENANT, project_id=PROJECT)
+    ] == ["doc-a"]
