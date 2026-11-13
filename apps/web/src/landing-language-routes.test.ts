@@ -23,7 +23,7 @@ const SHIPPED_ROUTES = new Set([
   "/resources/",
   "/contact/",
   "/about/",
-  "/fa/about/",
+  "/fa/about/",\n  "/de/about/",\n  "/zh-Hans/about/",\n  "/ar/about/",\n  "/fr/about/",\n  "/ja/about/",\n  "/ko/about/",
   "/pricing/",
   "/fa/pricing/",
   "/fa/platform/",
