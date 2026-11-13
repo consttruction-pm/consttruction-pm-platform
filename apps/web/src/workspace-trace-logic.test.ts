@@ -4,9 +4,9 @@ import {
   TRACE_LOGIC_DEFAULT_DEPTH,
   TRACE_LOGIC_MAX_DEPTH,
   buildTraceLogic,
-  readTraceLogicDepth,
+  readTraceLogicDepths,
   renderTraceLogic,
-  storeTraceLogicDepth,
+  storeTraceLogicDepths,
 } from "./workspace-trace-logic.js";
 import type { WorkspaceActivityRow, WorkspaceRelationshipRow } from "./workspace-model.js";
 
@@ -71,11 +71,12 @@ test("trace logic clamps depth and stops on cycles instead of looping", () => {
   const activities = [activity("A"), activity("B")];
   const relationships = [link("r1", "A", "B"), link("r2", "B", "A")];
   const model = buildTraceLogic(activities, relationships, "A", "en", 99);
-  assert.equal(model.depth, TRACE_LOGIC_MAX_DEPTH);
+  assert.equal(model.depths.predecessors, TRACE_LOGIC_MAX_DEPTH);
+  assert.equal(model.depths.successors, TRACE_LOGIC_MAX_DEPTH);
   assert.equal(model.cycleDetected, true);
   assert.deepEqual(model.successors.map((row) => row.activity.id), ["B"]);
   const low = buildTraceLogic(activities, relationships, "A", "en", -4);
-  assert.equal(low.depth, 1);
+  assert.equal(low.depths.successors, 1);
 });
 
 test("trace logic reports a converging diamond once without inventing a cycle", () => {
@@ -105,15 +106,40 @@ test("trace logic needs a loaded selected activity", () => {
 
 test("trace depth preference is clamped and survives storage failures", () => {
   const storage = memoryStorage();
-  assert.equal(readTraceLogicDepth(storage), TRACE_LOGIC_DEFAULT_DEPTH);
-  storeTraceLogicDepth(3, storage);
-  assert.equal(readTraceLogicDepth(storage), 3);
-  storeTraceLogicDepth(-5, storage);
-  assert.equal(readTraceLogicDepth(storage), 1);
-  storage.setItem("cubi:workspace:trace-logic-depth", "not-a-number");
-  assert.equal(readTraceLogicDepth(storage), TRACE_LOGIC_DEFAULT_DEPTH);
+  assert.deepEqual(readTraceLogicDepths(storage), {
+    predecessors: TRACE_LOGIC_DEFAULT_DEPTH,
+    successors: TRACE_LOGIC_DEFAULT_DEPTH,
+  });
+  storeTraceLogicDepths(3, storage);
+  assert.deepEqual(readTraceLogicDepths(storage), { predecessors: 3, successors: 3 });
+  storeTraceLogicDepths(-5, storage);
+  assert.deepEqual(readTraceLogicDepths(storage), { predecessors: 1, successors: 1 });
+  storage.setItem("cubi:workspace:trace-logic-predecessor-depth", "not-a-number");
+  storage.setItem("cubi:workspace:trace-logic-successor-depth", "not-a-number");
+  assert.deepEqual(readTraceLogicDepths(storage), {
+    predecessors: TRACE_LOGIC_DEFAULT_DEPTH,
+    successors: TRACE_LOGIC_DEFAULT_DEPTH,
+  });
   const broken = { ...memoryStorage(), getItem: () => { throw new Error("denied"); } } as unknown as Storage;
-  assert.equal(readTraceLogicDepth(broken), TRACE_LOGIC_DEFAULT_DEPTH);
+  assert.deepEqual(readTraceLogicDepths(broken), {
+    predecessors: TRACE_LOGIC_DEFAULT_DEPTH,
+    successors: TRACE_LOGIC_DEFAULT_DEPTH,
+  });
+});
+
+test("predecessor and successor depths are independent, per Bottom Layout Options", () => {
+  const activities = [activity("A"), activity("B"), activity("C"), activity("D")];
+  const relationships = [link("r1", "A", "B"), link("r2", "B", "C"), link("r3", "C", "D")];
+  const model = buildTraceLogic(activities, relationships, "C", "en", { predecessors: 2, successors: 1 });
+  assert.deepEqual(model.predecessors.map((row) => [row.activity.id, row.level]), [["B", 1], ["A", 2]]);
+  assert.deepEqual(model.successors.map((row) => [row.activity.id, row.level]), [["D", 1]]);
+  assert.deepEqual(model.depths, { predecessors: 2, successors: 1 });
+  // The hidden single-depth preference is the migration fallback for both sides.
+  const storage = memoryStorage();
+  storage.setItem("cubi:workspace:trace-logic-depth", "4");
+  assert.deepEqual(readTraceLogicDepths(storage), { predecessors: 4, successors: 4 });
+  storage.setItem("cubi:workspace:trace-logic-successor-depth", "1");
+  assert.deepEqual(readTraceLogicDepths(storage), { predecessors: 4, successors: 1 });
 });
 
 test("trace logic renderer exposes navigation, depth and escaped labels", () => {
@@ -122,8 +148,12 @@ test("trace logic renderer exposes navigation, depth and escaped labels", () => 
   const html = renderTraceLogic(activities, relationships, "en", "B", 2);
   assert.match(html, /data-trace-logic/);
   assert.match(html, /data-trace-selected="B"/);
-  assert.match(html, /data-trace-depth-value="2"/);
+  assert.match(html, /data-trace-predecessor-depth="2"/);
+  assert.match(html, /data-trace-successor-depth="2"/);
+  assert.match(html, /data-trace-depth="predecessors"/);
+  assert.match(html, /data-trace-depth="successors"/);
   assert.match(html, /<option value="2" selected>2<\/option>/);
+  assert.match(html, /title="Critical activity"/);
   assert.match(html, /data-trace-goto="A"/);
   assert.doesNotMatch(html, /<script>alert/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);

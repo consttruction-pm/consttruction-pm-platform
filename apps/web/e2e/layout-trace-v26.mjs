@@ -81,8 +81,10 @@ const layoutState = `(() => {
       visible: Boolean(network.getClientRects().length),
     } : null,
     trace: trace ? {
-      depth: Number(trace.dataset.traceDepthValue),
-      depthSelect: document.querySelector("[data-trace-depth]")?.value ?? null,
+      depth: Number(trace.dataset.tracePredecessorDepth),
+      successorDepth: Number(trace.dataset.traceSuccessorDepth),
+      depthSelect: document.querySelector('[data-trace-depth="predecessors"]')?.value ?? null,
+      successorDepthSelect: document.querySelector('[data-trace-depth="successors"]')?.value ?? null,
       selected: document.querySelector("[data-trace-selected]")?.dataset.traceSelected ?? null,
       predecessors: groups[0] ? groups[0].querySelectorAll("[data-trace-activity-id]").length : 0,
       successors: groups[1] ? groups[1].querySelectorAll("[data-trace-activity-id]").length : 0,
@@ -324,20 +326,25 @@ async function main() {
 
     await scenario("07", "تغییر عمق ردیابی، زنجیره را به سطح ۱ محدود می‌کند", async () => {
       const changed = await page.evaluate(`(() => {
-        const select = document.querySelector("[data-trace-depth]");
-        if (!select) return false;
-        select.value = "1";
-        if (select.value !== "1") return false;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
+        const selects = [...document.querySelectorAll("[data-trace-depth]")];
+        if (selects.length !== 2) return false;
+        for (const select of selects) {
+          select.value = "1";
+          if (select.value !== "1") return false;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         return true;
       })()`);
-      assert(changed, "trace depth selector did not accept 1");
+      assert(changed, "trace depth selectors did not accept 1");
       await sleep(900);
       const state = await page.evaluate(layoutState);
-      assert(state.trace.depth === 1, `trace depth is ${state.trace?.depth}`);
+      assert(state.trace.depth === 1 && state.trace.successorDepth === 1, `trace depths are ${state.trace?.depth}/${state.trace?.successorDepth}`);
       assert(state.trace.predecessors === 1 && state.trace.successors === 3, `depth 1 rows are ${state.trace.predecessors}/${state.trace.successors}`);
-      const stored = await page.evaluate(`(() => localStorage.getItem("cubi:workspace:trace-logic-depth"))()`);
-      assert(stored === "1", `stored trace depth is ${stored}`);
+      const stored = await page.evaluate(`(() => ({
+        predecessors: localStorage.getItem("cubi:workspace:trace-logic-predecessor-depth"),
+        successors: localStorage.getItem("cubi:workspace:trace-logic-successor-depth"),
+      }))()`);
+      assert(stored.predecessors === "1" && stored.successors === "1", `stored trace depths are ${JSON.stringify(stored)}`);
       await capture(page, "07-trace-depth-1");
       return { depth: state.trace.depth, predecessors: state.trace.predecessors, successors: state.trace.successors, stored };
     });

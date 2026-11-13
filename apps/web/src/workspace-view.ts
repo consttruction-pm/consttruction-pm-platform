@@ -31,7 +31,7 @@ import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { anchorPoint, openContextMenu, type ContextMenuItem } from "./workspace-context-menu.js";
 import { clampNetworkZoom, NETWORK_ZOOM_MAX, NETWORK_ZOOM_MIN, readNetworkZoom, renderActivityNetwork, storeNetworkZoom } from "./workspace-network.js";
-import { readTraceLogicDepth, renderTraceLogic, storeTraceLogicDepth } from "./workspace-trace-logic.js";
+import { readTraceLogicDepths, renderTraceLogic, storeTraceLogicDepths } from "./workspace-trace-logic.js";
 import {
   DEFAULT_PRESENTATION,
   GANTT_BAR_KINDS,
@@ -1443,8 +1443,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (Object.prototype.hasOwnProperty.call(element.dataset, "traceDepth")) {
       const record = workspaceRenderRecords.get(container);
       if (!record) return;
+      const direction = element.dataset.traceDepth;
+      if (direction !== "predecessors" && direction !== "successors") return;
+      // Bottom Layout Options sets the predecessor and successor levels
+      // independently; both persist as one local preference pair.
       const depth = Number.parseInt((element as HTMLSelectElement).value, 10);
-      storeTraceLogicDepth(depth);
+      storeTraceLogicDepths({ ...readTraceLogicDepths(), [direction]: depth });
       renderBottomSurface(container, record.state, record.options);
       return;
     }
@@ -2047,7 +2051,7 @@ function renderBottomPaneContent(state: WorkspaceState, t: WorkspaceLabels, cont
   if (state.activeMenu === "roles" || state.activeMenu === "calendars") return "";
   const layout: WorkspaceBottomLayout = state.activeMenu === "schedule" ? readWorkspaceBottomLayout(state) : "details";
   return layout === "trace-logic"
-    ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
+    ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepths())
     : renderWindowDetailsPanel(state, t, container, options);
 }
 
@@ -2528,7 +2532,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </div>
             <div class="cp-details-splitter" data-details-splitter data-split-key="${escapeAttribute(detailsSplitKey)}" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity area and details", "تغییر اندازهٔ ناحیهٔ فعالیت و جزئیات"))}" aria-valuemin="${MIN_DETAILS_SPLIT}" aria-valuemax="${MAX_DETAILS_SPLIT}" aria-valuenow="${detailsSplit.toFixed(0)}" data-resize-handle="details"><span></span></div>
             <aside id="cp-details" class="cp-panel cp-details" ${detailsVisible ? "" : "hidden"} data-bottom-surface="${bottomLayout}" data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="${bottomLayout === "trace-logic" ? "cp-trace-heading" : "cp-details-heading"}">${bottomLayout === "trace-logic"
-                ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepth())
+                ? renderTraceLogic(state.activities, state.relationships, state.locale, state.selectedActivityId, readTraceLogicDepths())
                 : renderWindowDetailsPanel(state, t, container, options)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
