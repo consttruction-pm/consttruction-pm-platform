@@ -897,7 +897,7 @@ def test_preview_interchange_round_trip_uses_real_codec_and_mappings(
             content_type="application/xml",
         )
         assert status == 403
-        assert "authorization denied" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
     finally:
         runtime.close()
 
@@ -972,7 +972,7 @@ def test_preview_layout_survives_runtime_restart_and_viewer_write_is_denied(
             body=json.dumps(denied_payload).encode("utf-8"),
         )
         assert status == 403
-        assert json.loads(body)["code"] == "authorization denied"
+        assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
 
         status, _, body = _request(
             reopened.app, "GET", "/api/session", cookie=viewer.session_id
@@ -1253,7 +1253,7 @@ def test_preview_resource_capacity_write_closes_open_segment_and_persists(
 
         status, _, body = submit(payload, viewer.session_id)
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         status, _, body = submit(
             {**payload, "expected_revision": RPS_REVISION - 1},
@@ -1391,7 +1391,7 @@ def test_preview_project_creation_initializes_real_workspace_and_persists(
             ).encode("utf-8"),
         )
         assert status == 403
-        assert json.loads(body)["code"].startswith("authorization denied")
+        assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
 
         admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
         status, _, body = _request(
@@ -1456,7 +1456,7 @@ def test_preview_project_creation_initializes_real_workspace_and_persists(
             ).encode("utf-8"),
         )
         assert status == 403
-        assert json.loads(body)["code"].startswith("authorization denied")
+        assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
     finally:
         runtime.close()
 
@@ -1874,7 +1874,7 @@ def test_preview_resource_rate_write_closes_open_interval_and_persists(
 
         status, _, body = submit(payload, viewer.session_id)
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         status, _, body = submit(
             {**payload, "expected_revision": RPS_REVISION - 1},

@@ -94,15 +94,15 @@ Threats and primary controls:
 | SEC-007 | Medium | Legal-hold changes and disposition need only `PROJECT_WRITE` | Fixed `d2aa3419` |
 | SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed `8581697` |
 | SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed `8581697` |
-| SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
+| SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Fixed `42484541` |
 | SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed `8581697` |
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Fixed `afb18263` |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Fixed `c921ac8b` |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Fixed `2b2873b3` |
-| SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
-| SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
+| SEC-017 | Low | Internal exception text reflected as the response `code` | Fixed `7d12efe6` |
+| SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Fixed `ebaec38a` |
 | SEC-019 | Low | AI action propose/approve/execute can be one subject | Fixed `9c362d15` |
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Fixed `c55b6535` |
 | SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed `8581697` |
@@ -412,6 +412,23 @@ Threats and primary controls:
 
 ### SEC-017 — Internal exception text reflected as the response `code` (Low)
 
+- **Resolution:** every route-level reflection now passes through
+  `_stable_error_code(exc, fallback)` in `http/project_lifecycle_routes.py`.
+  Only declared opaque code segments (`CODE`, `CODE:anchor`, bounded to four
+  segments) are returned; the permission-requirement text maps to
+  `AUTHORIZATION_PERMISSION_DENIED` and derived
+  `INVALID_AUTHORIZATION_<field>` text maps to `INVALID_AUTHORIZATION_CONTEXT`.
+  Anything else (prose, quotes, `KeyError` reprs) is logged server-side and
+  replaced by a fixed per-site code. Broad `except (TypeError, ValueError,
+  KeyError)` handlers were split: `ValueError` keeps its documented 400 code,
+  while `TypeError`/`KeyError` now return a fixed `500 INTERNAL_ERROR` so
+  server defects reach 5xx alerting. Client `calendar-holidays.ts` matches the
+  new denial code. Covered by
+  `test_unexpected_route_fault_returns_a_fixed_internal_error_code` (a
+  `KeyError("INTERNAL_SECRET")` produces `INTERNAL_ERROR` with no message
+  text) and `test_stable_error_code_never_returns_internal_detail`.
+  `pytest tests` = 3842 passed / 69 skipped; `pytest tests/integration` = 254
+  passed / 107 skipped; `apps/web` `npm test` = 1027 + 14 passed.
 - **Evidence:** 125 `self._error(<status>, str(exc), ...)` sites, including
   authorization messages that name the required permission and catch-alls that
   reclassify `TypeError`/`KeyError` as 400.
@@ -594,18 +611,17 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-017 remains open;
-  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
-  SEC-020, SEC-021, SEC-022, SEC-023, SEC-024 and SEC-025 are fixed with
-  negative tests. Open findings are recorded here rather than
-  silently closed, and the fixed ones are marked in the register above.
+- **Open Medium/Low findings.** None remain: SEC-010 (`42484541`) and SEC-017
+  (`7d12efe6`) are fixed on main; SEC-001–SEC-025 are fixed, accepted as
+  literals-only, or informational. Fixed findings carry negative tests and are
+  marked in the register above.
 
 ## Verdict
 
 Independent review is complete: two isolated reviewers produced registers, both
 reconciled above. No Critical finding was reported by either reviewer. The one
 open High (SEC-006, retention shared-object deletion) is fixed with negative
-tests at SQLite and live PostgreSQL level. Eight Medium/Low findings are also
-fixed and the rest remain open and tracked; no High or Critical finding is being
-merged unresolved. Gate status for Workstream D: independent review
+tests at SQLite and live PostgreSQL level. The Medium/Low register is closed
+with fixed codes, scope checks, negative tests and no finding left open; no
+High or Critical finding is being merged unresolved. Gate status for Workstream D: independent review
 **satisfied**, runtime and production verification **open**.

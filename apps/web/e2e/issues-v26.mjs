@@ -702,7 +702,7 @@ async function main() {
       await page.setInput('[data-issue-form] input[name="issue-identified"]', "2026-12-03");
       await page.click('[data-issue-form] button[type="submit"]');
       await page.waitFor(
-        `document.querySelector('[data-issue-notice][data-state="error"]')?.textContent?.includes("authorization denied") ?? false`,
+        `document.querySelector('[data-issue-notice][data-state="error"]')?.textContent?.includes("AUTHORIZATION_PERMISSION_DENIED") ?? false`,
         "viewer denial notice",
       );
       await sleep(400);

@@ -308,7 +308,7 @@ export function createCalendarHolidayEditor(options: {
     );
     add.disabled = false;
     if (!result.ok) {
-      if (result.error.code.includes("project.write") || result.error.code.includes("authorization denied")) {
+      if (result.error.code.includes("project.write") || result.error.code.includes("AUTHORIZATION_PERMISSION_DENIED")) {
         setStatus(labels.forbidden, "forbidden");
         return;
       }

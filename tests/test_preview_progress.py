@@ -174,7 +174,7 @@ def test_preview_progress_writes_require_project_write_and_expected_revision(tmp
             body=json.dumps(_progress()).encode(),
         )
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         payload = _progress()

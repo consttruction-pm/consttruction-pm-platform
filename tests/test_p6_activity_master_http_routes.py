@@ -269,7 +269,7 @@ def test_activity_master_route_enforces_read_write_permission():
     }
     status, error = _request(viewer_app, "POST", "/api/projects/p1/p6/activities", payload)
     assert status == "403 Forbidden"
-    assert error["code"] == "authorization denied for permission=project.write"
+    assert error["code"] == "AUTHORIZATION_PERMISSION_DENIED"
     connection.close()
 
 

@@ -310,7 +310,7 @@ def test_viewer_can_read_summary_but_cannot_assign_or_convert():
         {"role": "PRIMARY", "expected_revision": 2},
     )
     assert status == 403
-    assert "authorization denied" in json.loads(raw)["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(raw)["code"]
 
     status, _, raw = harness.request(
         "POST",
@@ -323,4 +323,4 @@ def test_viewer_can_read_summary_but_cannot_assign_or_convert():
         },
     )
     assert status == 403
-    assert "authorization denied" in json.loads(raw)["code"]
+    assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(raw)["code"]

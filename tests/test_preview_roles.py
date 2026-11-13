@@ -122,7 +122,7 @@ def test_preview_role_writes_are_authorized_and_revision_checked(tmp_path: Path)
             body=json.dumps({"role_id": "ROLE-1", "name": "Role"}).encode(),
         )
         assert status == 403
-        assert "project.write" in json.loads(body)["code"]
+        assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(body)["code"]
 
         status, body = _request(runtime.app, "GET", _path(), cookie=viewer.session_id)
         assert status == 200, body[:300]
