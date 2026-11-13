@@ -424,8 +424,9 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, build_scheduling_code_reference_payload())
             if method == "GET" and path == "/api/session":
                 response = self._api.get_session(session_id, now=now)
+                # The session id is a bearer credential held in an HttpOnly
+                # cookie; never echo it in a body scripts and proxies can read.
                 return self._json(200, {
-                    "session_id": response.session_id,
                     "user_id": response.user_id,
                     "tenant_id": response.tenant_id,
                     "roles": sorted(response.roles),

@@ -90,7 +90,7 @@ Threats and primary controls:
 | SEC-003 | Low | `MAX_SERIES` accepted but not enforced at export | Fixed `07d3c5e` |
 | SEC-004 | Low | `CONSTRUCTION_PM_OTEL_ENDPOINT` implied working tracing | Fixed `ab0f84f` |
 | SEC-005 | Info | Internal DDL helper interpolates table names | Accepted (literals only) |
-| SEC-006 | High | Retention disposal deleted a shared content-addressed object | Fixed (this change) |
+| SEC-006 | High | Retention disposal deleted a shared content-addressed object | Fixed `cdc9999` |
 | SEC-007 | Medium | Legal-hold changes and disposition need only `PROJECT_WRITE` | Open |
 | SEC-008 | Medium | XLSX decompression bound trusts attacker-declared archive sizes | Fixed `8581697` |
 | SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed `8581697` |
@@ -99,7 +99,7 @@ Threats and primary controls:
 | SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Open |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
-| SEC-015 | Medium | `GET /api/session` reflects the session credential | Open |
+| SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed (this change) |
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Open |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
@@ -339,6 +339,11 @@ Threats and primary controls:
 
 ### SEC-015 — `GET /api/session` reflects the session credential (Medium)
 
+- **Resolution:** the response carries identity fields only (`user_id`,
+  `tenant_id`, `roles`, `expires_at`); the session id stays in the HttpOnly
+  cookie. Covered by `test_session_response_never_reflects_the_session_credential`.
+  No client code read the removed field.
+
 - **Evidence:** the response body includes `session_id`, the same value stored
   in the HttpOnly `cp_session` cookie.
 - **Impact:** Any script, extension or proxy capturing the JSON body obtains a
@@ -502,8 +507,8 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-007, SEC-010, SEC-012, SEC-013, SEC-015,
-  SEC-016, SEC-017, SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
+- **Open Medium/Low findings.** SEC-007, SEC-010, SEC-012, SEC-013, SEC-016,
+  SEC-017, SEC-018, SEC-019, SEC-020, SEC-023 and SEC-025 remain open;
   SEC-008, SEC-009, SEC-011, SEC-014, SEC-021, SEC-022 and SEC-024 are fixed with
   negative tests in this change. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
@@ -513,7 +518,7 @@ Threats and primary controls:
 Independent review is complete: two isolated reviewers produced registers, both
 reconciled above. No Critical finding was reported by either reviewer. The one
 open High (SEC-006, retention shared-object deletion) is fixed with negative
-tests at SQLite and live PostgreSQL level. Seven Medium/Low findings are also
+tests at SQLite and live PostgreSQL level. Eight Medium/Low findings are also
 fixed and the rest remain open and tracked; no High or Critical finding is being
 merged unresolved. Gate status for Workstream D: independent review
 **satisfied**, runtime and production verification **open**.
