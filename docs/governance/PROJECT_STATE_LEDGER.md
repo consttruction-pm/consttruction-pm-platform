@@ -704,3 +704,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Measured at `b68452a3`:** 8 menu triggers, 24 px menubar; exactly one 26 px toolbar over 10 families, minimum target 25×24 px, zero icon-less items, zero duplicate commands; 48 px navigation rail and 40 px context rail with 18 px icons and RTL mirroring; zero page overflow at 1280×720 / 1366×768 / 1920×1080 in en and fa. Commands executed: Select All 554/554, Link A100→A110, Collapse To 7 branches, Unlink 15→14 after confirmation.
 - **Still PARTIAL, not hidden:** no staged Commit; Fill Down/Dissolve disabled without a bulk-write/dissolve contract; no named New Layout (Save As creates one); no Hint Help toggle; Baselines disabled until a baseline service exists; Additional Activities View has an explicit reason; long-tail enabled commands rely on their dedicated suites.
 - **Next:** remaining WS-00x/WS-005/WS-006 audits, then Phase 3 workspace integration.
+
+## WS-006 multi-selection and keyboard selection re-audit — 2026-11-13
+
+- **Mouse/range evidence:** `apps/web/e2e/activity-multi-select-v26.mjs` (contract `cubi-activity-multi-select-v26.v1`) re-ran at main `7ae73ed3` and passed **8/8** (1366×768 en, 1280×720 fa). New bundle `docs/workspace/evidence/activity-multi-select-v26-2026-11-13/` (`report.json` + 5 screenshots, zero exceptions/console errors/5xx). Observed: plain click `A100`; Ctrl adds `A210` as primary; Shift range `A210/A120/A130`; Ctrl removes only the clicked row; table and Gantt agree on `A110/A210`; reload clears selection; fa RTL range `A100/A110/A210`.
+- **Keyboard evidence:** the ACT-021 suite at `7c4b5a5b` (8/8) supplies Arrow/Shift/Ctrl movement and the single roving Tab stop; no extra run was needed for this audit.
+- **Status:** WS-006 moved from NOT_AUDITED to **WIRED_READ** in the matrix with a §2.1 row. Selection remains in-memory and per-tab; no marquee, cross-window selection, combined Shift+Home/End or screen-reader count announcement.
+- **Next:** Phase 3 workspace integration audit (WS-001 shell journey) or the next NOT_AUDITED requirement.
