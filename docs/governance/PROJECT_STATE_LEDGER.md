@@ -754,3 +754,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** `test_policy_refuses_self_approval_and_audits_the_denial`, `test_policy_can_require_a_distinct_approver_for_listed_tools_only`, `test_default_policy_preserves_self_approval_for_existing_deployments`, and `test_self_approval_policy_denies_proposer_and_leaves_proposal_proposed` (status stays `proposed`, no executor call, denial audited). `pytest tests/test_ai_action_* tests/test_ai_assistant_orchestration.py tests/test_preview_runtime.py` = **89 passed**.
 - **Boundary:** the policy is opt-in. Destructive-tool enforcement requires the operator to list tool names in `require_distinct_approver_for`; no built-in "destructive" classifier was invented for the two registered create tools.
 - **Docs:** security register and SEC-019 section updated; SEC-019 removed from the open-findings gate.
+
+## SEC-020 knowledge ingestion redirect refusal — 2026-11-13
+
+- **Finding:** `knowledge/ingest.py` used `urlopen` with default redirect handling; the scheme/host allowlist was checked only on the first URL, so a redirect could pivot to another host.
+- **Fix (code `c55b6535`):** `UrllibFetcher` uses an injected/default opener with a `_RejectRedirects` handler that raises instead of following; redirect status codes map to `KNOWLEDGE_FETCH_REDIRECT_REFUSED`. Ingestion remains an operator CLI surface with no HTTP route.
+- **Tests:** `test_urllib_fetcher_refuses_a_redirect_without_a_second_request` (local HTTP redirect server; the target receives zero requests) and `test_urllib_fetcher_maps_a_refused_redirect_to_a_static_code`. `pytest tests/knowledge` = **255 passed, 24 skipped**.
+- **Docs:** security register and SEC-020 section updated; SEC-020 removed from the open-findings gate.

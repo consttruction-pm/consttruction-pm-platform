@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError
+from urllib.request import Request, build_opener
+
 import pytest
 
+from construction_pm.knowledge import ingest as ingest_module
 from construction_pm.knowledge.ingest import (
     FetchResult,
     IngestionError,
@@ -317,3 +323,64 @@ def test_identical_topics_from_two_official_roots_are_merged(store, clock) -> No
         row for row in store.list_audit(tenant_id=None) if row["action"] == "topic_merged"
     ]
     assert len(events) == 2
+
+
+def test_urllib_fetcher_refuses_a_redirect_without_a_second_request() -> None:
+    hits: list[str] = []
+
+    class Target(BaseHTTPRequestHandler):
+        def log_message(self, *args):  # noqa: ANN002
+            pass
+
+        def do_GET(self):
+            hits.append(self.path)
+            payload = b"<html><body>secret</body></html>"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    target = ThreadingHTTPServer(("127.0.0.1", 0), Target)
+    target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+    target_thread.start()
+
+    class Redirect(BaseHTTPRequestHandler):
+        def log_message(self, *args):  # noqa: ANN002
+            pass
+
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header(
+                "Location", f"http://127.0.0.1:{target.server_port}/internal"
+            )
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+    redirect_thread = threading.Thread(target=redirect.serve_forever, daemon=True)
+    redirect_thread.start()
+    try:
+        fetcher = UrllibFetcher(opener=build_opener(ingest_module._RejectRedirects()))
+        with pytest.raises(HTTPError) as excinfo:
+            fetcher.opener.open(
+                Request(f"http://127.0.0.1:{redirect.server_port}/page.html"), timeout=5
+            )
+        assert excinfo.value.code == 302
+        assert hits == []
+    finally:
+        redirect.shutdown()
+        target.shutdown()
+        redirect.server_close()
+        target.server_close()
+
+
+def test_urllib_fetcher_maps_a_refused_redirect_to_a_static_code() -> None:
+    class RedirectingOpener:
+        def open(self, request, timeout=None):  # noqa: ANN001, ANN201
+            raise HTTPError(request.full_url, 302, "refused", None, None)
+
+    result = UrllibFetcher(opener=RedirectingOpener()).fetch(
+        "https://docs.oracle.com/en/database/oracle/page.html"
+    )
+    assert result.error == "KNOWLEDGE_FETCH_REDIRECT_REFUSED"
+    assert result.body is None

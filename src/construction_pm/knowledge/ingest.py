@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Iterable, Mapping, Protocol, Sequence
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .cards import build_card
 from .html import build_parsed_topic, parse_help_page, parse_toc
@@ -70,6 +70,21 @@ def card_signature(card: KnowledgeCard) -> tuple[object, ...]:
 
 _USER_AGENT = "CUBI-Knowledge-Ingestor/1.0 (internal engineering documentation index)"
 
+_REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Never follow a redirect during documentation ingestion.
+
+    The host allowlist is checked against the requested URL. urllib's default
+    handler would re-issue the request (and its headers) to the redirect target
+    without re-checking that allowlist, so a compromised allow-listed host could
+    pivot the operator fetch to another host.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        raise HTTPError(req.full_url, code, "knowledge fetch redirect refused", headers, fp)
+
 
 class IngestionError(KnowledgeError):
     """Raised when the ingestion pipeline cannot start or persist a step."""
@@ -100,10 +115,12 @@ class UrllibFetcher:
             "www.oracle.com",
             "oracle.com",
         ),
+        opener=None,  # type: ignore[no-untyped-def]
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_bytes = max_bytes
         self.allowed_hosts = tuple(allowed_hosts)
+        self.opener = opener if opener is not None else build_opener(_RejectRedirects())
 
     def fetch(self, url: str) -> FetchResult:
         if not url.startswith("https://"):
@@ -120,11 +137,15 @@ class UrllibFetcher:
             method="GET",
         )
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - host allowlist above
+            with self.opener.open(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - host allowlist above
                 status = int(response.status)
                 content_type = response.headers.get("Content-Type", "")
                 raw = response.read(self.max_bytes + 1)
         except HTTPError as exc:
+            if int(exc.code) in _REDIRECT_CODES:
+                return FetchResult(
+                    int(exc.code), None, error="KNOWLEDGE_FETCH_REDIRECT_REFUSED"
+                )
             return FetchResult(int(exc.code), None, error=f"KNOWLEDGE_HTTP_{exc.code}")
         except (URLError, TimeoutError, OSError):
             return FetchResult(0, None, error="KNOWLEDGE_FETCH_UNAVAILABLE")
