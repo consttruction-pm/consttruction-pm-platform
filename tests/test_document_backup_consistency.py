@@ -193,3 +193,83 @@ def test_consistency_report_does_not_emit_payloads_or_storage_refs(tmp_path: Pat
         assert report.as_dict()["consistent"] is True
     finally:
         connection.close()
+
+
+def test_interrupted_restore_reports_missing_without_repairing_or_deleting(
+    tmp_path: Path,
+) -> None:
+    connection, _, objects, versions = _seed(tmp_path)
+    try:
+        restored_connection, repository, restored_objects, storage = _restore(
+            tmp_path, connection, objects
+        )
+        try:
+            # Simulate a backup that copied the database but only one object.
+            interrupted_root = tmp_path / "interrupted-objects"
+            interrupted_root.mkdir()
+            source = _object_path(restored_objects, versions[0].storage_ref)
+            target = _object_path(interrupted_root, versions[0].storage_ref)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            interrupted_storage = LocalDocumentStorage(interrupted_root)
+
+            report = verify_document_scope(
+                repository,
+                interrupted_storage,
+                tenant_id=TENANT,
+                project_id=PROJECT,
+                document_ids=[DOCUMENT],
+            )
+            assert report.ok == 1
+            assert report.missing == 1
+            assert report.consistent is False
+            missing_path = _object_path(interrupted_root, versions[1].storage_ref)
+            assert not missing_path.exists()
+            assert len(repository.list(TENANT, PROJECT, DOCUMENT)) == 2
+            still_present = _object_path(restored_objects, versions[1].storage_ref)
+            assert still_present.exists()
+        finally:
+            restored_connection.close()
+    finally:
+        connection.close()
+
+
+def test_repeated_restore_verification_is_read_only_and_stable(tmp_path: Path) -> None:
+    connection, _, objects, versions = _seed(tmp_path)
+    try:
+        restored_connection, repository, restored_objects, storage = _restore(
+            tmp_path, connection, objects
+        )
+        try:
+            before = {
+                path: (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in restored_objects.rglob("*")
+                if path.is_file()
+            }
+            rows_before = repository.list(TENANT, PROJECT, DOCUMENT)
+            first = verify_document_scope(
+                repository,
+                storage,
+                tenant_id=TENANT,
+                project_id=PROJECT,
+                document_ids=[DOCUMENT],
+            ).as_dict()
+            second = verify_document_scope(
+                repository,
+                storage,
+                tenant_id=TENANT,
+                project_id=PROJECT,
+                document_ids=[DOCUMENT],
+            ).as_dict()
+            assert first == second
+            assert repository.list(TENANT, PROJECT, DOCUMENT) == rows_before
+            after = {
+                path: (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in restored_objects.rglob("*")
+                if path.is_file()
+            }
+            assert after == before
+        finally:
+            restored_connection.close()
+    finally:
+        connection.close()

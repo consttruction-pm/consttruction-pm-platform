@@ -181,6 +181,23 @@ def test_scanner_identity_never_leaks_the_token(scanner_server: str) -> None:
     assert "super-secret" not in str(captured.value)
 
 
+def test_concurrent_scans_return_independent_verdicts(scanner_server: str) -> None:
+    import concurrent.futures
+
+    RECORDER.reset()
+    RECORDER.response = _verdict()
+    scanner = _scanner(scanner_server)
+    payloads = [f"payload-{index}".encode() for index in range(8)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(payloads)) as pool:
+        verdicts = list(
+            pool.map(
+                lambda payload: scanner.scan(payload, content_type="text/plain"),
+                payloads,
+            )
+        )
+    assert [verdict.status for verdict in verdicts] == ["clean"] * len(payloads)
+
+
 def test_scanner_factory_from_environment() -> None:
     reference = scanner_from_environment({"CONSTRUCTION_PM_SCANNER": "reference"})
     assert isinstance(reference, ReferenceDocumentScanner)
