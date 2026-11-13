@@ -3340,3 +3340,36 @@ Evidence: `docs/workspace/evidence/activity-details-tabs-v26-2026-11-13/`
 (`activity-details-tabs-v26.json`, `testedCodeSha`/`gitHead`
 `8d27c88f041e061f013042c4ed14cbfe213959b0`, 17 tabs, 3 write paths,
 screenshot `details-en-1366.png`, `CHECKLIST.md`).
+
+## Formula columns — frontend lifecycle slice (2026-11-13)
+
+- **Scope.** FORMULA-001 (CUBI extension) is WIRED_WRITE at the tested frontend
+  commit. Help traceability is the Activity Table column model:
+  `define_activity_table_columns.htm` and `user_defined_fields.htm`. V26 HTML
+  Help has no formula-column editor topic, so no parity is claimed.
+- **Behaviour.** The Tools > Formula panel validates every expression through
+  `POST /p6/formulas/p6-field-registry.v1` (`PROJECT_READ`) and never evaluates
+  in the browser. A valid expression is saved through the existing
+  `p6-formula-column-api.v1` create route (`PROJECT_WRITE`) and listed with
+  version, data type, result type and dependencies. Saving does not touch the
+  layout; **Show in grid** adds the field to the persisted activity layout. Grid
+  cells are the control-room server values verbatim (`1.0`, `0.375`, null → `—`).
+- **Failure behaviour.** Authoritative codes are normalized to plain messages:
+  `FIELD_NOT_FOUND:<id>`, `EXPECTED_EXPRESSION_AT_<pos>`,
+  `NUMERIC_OPERANDS_REQUIRED`, `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration`,
+  `FORMULA_SELF_REFERENCE`, `FORMULA_COLUMN_ALREADY_EXISTS`. Invalid input is
+  never persisted; a duplicate id does not overwrite the stored definition.
+- **Permissions.** Viewer receives validation only: no save, no apply, and a
+  visible read-only reason. Planner/project administrator can create and apply.
+- **Known limits.** Division by zero is an evaluation-time condition in the
+  authoritative core: validation accepts it, all 14 server cells stay null, and
+  the UI does not fabricate `NaN`/`Infinity`/`0`. Update, delete, version list,
+  audit and server preview endpoints do not exist yet; the contract request is
+  `docs/workspace/architecture/p6-formula-column-lifecycle-contract-request.md`
+  (`p6-formula-column-lifecycle-api.v1`). The preview fixture is 14 activities,
+  not the 250+ acceptance population.
+
+Evidence: `docs/workspace/evidence/formula-columns-v26-2026-11-13/`
+(`formula-columns-v26.json`, 10/10 scenarios, 0 exceptions/console errors/5xx,
+interaction writes only validate/create/layout, screenshots 01–10,
+`CHECKLIST.md`).
