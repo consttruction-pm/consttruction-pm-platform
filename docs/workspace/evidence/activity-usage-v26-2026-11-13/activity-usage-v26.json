@@ -1,0 +1,339 @@
+{
+  "contract": "cubi-activity-usage-v26.v1",
+  "baseUrl": "http://127.0.0.1:4184",
+  "gitHead": "218977dc72405061b4fc3d0f228db7e70df7e140",
+  "testedCodeSha": "218977dc72405061b4fc3d0f228db7e70df7e140",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T01:58:34.910Z",
+  "seededAssignments": [
+    "AS-USE-A130-1",
+    "AS-USE-A130-2",
+    "AS-USE-A160",
+    "AS-USE-A170"
+  ],
+  "seededPeriods": [
+    [
+      "A130",
+      "2026-10-01",
+      "5",
+      "500"
+    ],
+    [
+      "A130",
+      "2026-11-01",
+      "3",
+      "300"
+    ],
+    [
+      "A130",
+      "2026-10-01",
+      "2",
+      "200.25"
+    ],
+    [
+      "A160",
+      "2026-10-01",
+      "4",
+      "400"
+    ],
+    [
+      "A160",
+      "2026-12-01",
+      "6",
+      "640.50"
+    ],
+    [
+      "A170",
+      "2026-11-01",
+      "1",
+      "90"
+    ]
+  ],
+  "scenarios": [
+    {
+      "spreadsheet": {
+        "present": true,
+        "disabled": true
+      },
+      "profile": {
+        "present": true,
+        "disabled": true
+      },
+      "trace": {
+        "present": true,
+        "disabled": true
+      },
+      "value": "details",
+      "id": "01",
+      "name": "A project without stored periods keeps both Activity Usage bottom views disabled",
+      "status": "pass",
+      "at": "2026-11-13T01:58:38.704Z"
+    },
+    {
+      "seedResults": [
+        [
+          "resource-assignments",
+          200
+        ],
+        [
+          "resource-assignments",
+          200
+        ],
+        [
+          "resource-assignments",
+          200
+        ],
+        [
+          "resource-assignments",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ],
+        [
+          "resource-assignment-periods",
+          200
+        ]
+      ],
+      "options": {
+        "spreadsheet": {
+          "present": true,
+          "disabled": false
+        },
+        "profile": {
+          "present": true,
+          "disabled": false
+        },
+        "trace": {
+          "present": true,
+          "disabled": true
+        },
+        "value": "details"
+      },
+      "id": "02",
+      "name": "Stored assignments and periods arrive from the resource API and enable both usage views",
+      "status": "pass",
+      "at": "2026-11-13T01:58:40.453Z"
+    },
+    {
+      "periods": [
+        "2026-10-01",
+        "2026-11-01",
+        "2026-12-01"
+      ],
+      "totals": [
+        {
+          "period": "2026-10-01",
+          "value": "11"
+        },
+        {
+          "period": "2026-11-01",
+          "value": "4"
+        },
+        {
+          "period": "2026-12-01",
+          "value": "6"
+        }
+      ],
+      "grandTotal": "21",
+      "id": "03",
+      "name": "The Activity Usage Spreadsheet shows stored units per period, row totals and the grand total",
+      "status": "pass",
+      "at": "2026-11-13T01:58:41.028Z"
+    },
+    {
+      "grandTotal": "2130.75",
+      "storage": {
+        "key": "cubi:workspace:activity-usage:cubi-preview-tenant:preview-rps-01",
+        "value": "{\"metric\":\"cost\",\"scope\":\"all\"}"
+      },
+      "id": "04",
+      "name": "Switching to cost reads the stored cost and the preference survives a reload",
+      "status": "pass",
+      "at": "2026-11-13T01:58:42.131Z"
+    },
+    {
+      "rows": [
+        "A160"
+      ],
+      "columns": [
+        "2026-10-01",
+        "2026-12-01"
+      ],
+      "id": "05",
+      "name": "Selected scope keeps only the selected activity's stored periods",
+      "status": "pass",
+      "at": "2026-11-13T01:58:42.979Z"
+    },
+    {
+      "bars": [
+        {
+          "period": "2026-10-01",
+          "value": "11",
+          "height": "100%"
+        },
+        {
+          "period": "2026-11-01",
+          "value": "4",
+          "height": "36%"
+        },
+        {
+          "period": "2026-12-01",
+          "value": "6",
+          "height": "55%"
+        }
+      ],
+      "summary": "Units: total 21 · peak 11 over 3 period(s)",
+      "id": "06",
+      "name": "The Activity Usage Profile draws one labelled bar per stored period with peak and total",
+      "status": "pass",
+      "at": "2026-11-13T01:58:43.542Z"
+    },
+    {
+      "columns": [
+        "2026-10-01",
+        "2026-11-01",
+        "2026-12-01",
+        "2027-01-01"
+      ],
+      "grandTotal": "23",
+      "apiPeriods": 7,
+      "id": "07",
+      "name": "Refresh reads a newly stored period without writing anything else",
+      "status": "pass",
+      "at": "2026-11-13T01:58:44.561Z"
+    },
+    {
+      "scopeEmpty": "No stored assignment period belongs to the selected activities.",
+      "id": "08",
+      "name": "Selecting an activity with no stored period yields an explicit scope-empty state",
+      "status": "pass",
+      "at": "2026-11-13T01:58:45.168Z"
+    },
+    {
+      "dir": "rtl",
+      "heading": "نیم‌رخ مصرف فعالیت",
+      "box": {
+        "x": 40,
+        "y": 500.5,
+        "width": 1192,
+        "height": 159.5,
+        "scrollWidth": 1192,
+        "clientWidth": 1192
+      },
+      "id": "09",
+      "name": "Persian RTL at 1280x720 renders the profile from the same stored facts",
+      "status": "pass",
+      "at": "2026-11-13T01:58:47.474Z"
+    },
+    {
+      "viewport": "1920x1080",
+      "columns": 4,
+      "id": "10",
+      "name": "English at 1920x1080 renders the profile and spreadsheet without overflow",
+      "status": "pass",
+      "at": "2026-11-13T01:58:49.939Z"
+    },
+    {
+      "interactionWrites": 0,
+      "finalStoredPeriods": 7,
+      "id": "11",
+      "name": "Using both usage views issued no schedule, activity or relationship write",
+      "status": "pass",
+      "at": "2026-11-13T01:58:49.943Z"
+    }
+  ],
+  "screenshots": [
+    "01-usage-disabled-empty-project.png",
+    "02-usage-enabled-after-read.png",
+    "03-spreadsheet-units.png",
+    "04-spreadsheet-cost.png",
+    "05-spreadsheet-selected-scope.png",
+    "06-profile-units.png",
+    "07-spreadsheet-refreshed.png",
+    "08-spreadsheet-scope-empty.png",
+    "09-profile-fa-rtl-1280x720.png",
+    "10-profile-en-1920x1080.png",
+    "10b-spreadsheet-en-1920x1080.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "interactionWrites": [],
+  "finalApiPeriods": [
+    {
+      "assignment_id": "AS-USE-A130-1",
+      "activity_id": "A130",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-10-01",
+      "units": "5",
+      "cost": "500"
+    },
+    {
+      "assignment_id": "AS-USE-A130-2",
+      "activity_id": "A130",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-10-01",
+      "units": "2",
+      "cost": "200.25"
+    },
+    {
+      "assignment_id": "AS-USE-A160",
+      "activity_id": "A160",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-10-01",
+      "units": "4",
+      "cost": "400"
+    },
+    {
+      "assignment_id": "AS-USE-A130-1",
+      "activity_id": "A130",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-11-01",
+      "units": "3",
+      "cost": "300"
+    },
+    {
+      "assignment_id": "AS-USE-A170",
+      "activity_id": "A170",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-11-01",
+      "units": "1",
+      "cost": "90"
+    },
+    {
+      "assignment_id": "AS-USE-A160",
+      "activity_id": "A160",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2026-12-01",
+      "units": "6",
+      "cost": "640.50"
+    },
+    {
+      "assignment_id": "AS-USE-A170",
+      "activity_id": "A170",
+      "resource_id": "RPS-CIVIL-CREW",
+      "period_start": "2027-01-01",
+      "units": "2",
+      "cost": "20"
+    }
+  ],
+  "finishedAt": "2026-11-13T01:58:49.945Z"
+}
