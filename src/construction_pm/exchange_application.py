@@ -131,6 +131,7 @@ EXCHANGE_DATASETS: dict[str, dict[str, Any]] = {
 }
 MAX_IMPORT_CHARS = 1_000_000
 MAX_XLSX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+_XLSX_READ_CHUNK = 64 * 1024
 MAX_XLSX_ROWS = 50_000
 PREVIEW_ROWS = 20
 EXCHANGE_EXPORT_FORMATS = ("csv", "xlsx")
@@ -337,13 +338,41 @@ def _xlsx(
     return output.getvalue()
 
 
+def _assert_xlsx_inflates_within_bound(archive: zipfile.ZipFile) -> None:
+    """Count real inflated bytes; declared central-directory sizes are untrusted.
+
+    A small workbook can declare tiny member sizes while its deflate streams
+    inflate far beyond ``MAX_XLSX_UNCOMPRESSED_BYTES``. Members are therefore
+    read through the decompressor in bounded chunks and the total is checked
+    as it grows. A member whose stream disagrees with its declared size or CRC
+    is refused as invalid rather than trusted.
+    """
+    total = 0
+    for info in archive.infolist():
+        if info.is_dir():
+            continue
+        try:
+            with archive.open(info) as stream:
+                while True:
+                    chunk = stream.read(_XLSX_READ_CHUNK)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_XLSX_UNCOMPRESSED_BYTES:
+                        raise ExchangeError("EXCHANGE_XLSX_TOO_LARGE")
+        except ExchangeError:
+            raise
+        except (zipfile.BadZipFile, OSError, RuntimeError, NotImplementedError) as exc:
+            raise ExchangeError("EXCHANGE_XLSX_INVALID") from exc
+
+
 def _decode_xlsx(content: str) -> tuple[list[str], list[dict[str, Any]]]:
     """Decode a base64 XLSX payload into headers and DictReader-shaped rows.
 
     The archive is inspected before openpyxl loads it: a workbook whose
-    uncompressed payload exceeds the bound is refused, macro projects are
-    refused, and row iteration stops at a fixed limit. This keeps a small
-    compressed payload from expanding without bound in memory.
+    declared or actual uncompressed payload exceeds the bound is refused,
+    macro projects are refused, and row iteration stops at a fixed limit. This
+    keeps a small compressed payload from expanding without bound in memory.
     """
     try:
         payload = base64.b64decode(content, validate=True)
@@ -359,6 +388,7 @@ def _decode_xlsx(content: str) -> tuple[list[str], list[dict[str, Any]]]:
                 raise ExchangeError("EXCHANGE_XLSX_MACROS_REJECTED")
             if sum(info.file_size for info in infos) > MAX_XLSX_UNCOMPRESSED_BYTES:
                 raise ExchangeError("EXCHANGE_XLSX_TOO_LARGE")
+            _assert_xlsx_inflates_within_bound(archive)
     except ExchangeError:
         raise
     except (zipfile.BadZipFile, OSError) as exc:

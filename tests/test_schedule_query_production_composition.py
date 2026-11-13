@@ -6,10 +6,13 @@ from io import BytesIO
 import json
 import sqlite3
 
+import pytest
+
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.ai_action_runtime import AIActionRuntimeError
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
@@ -396,4 +399,58 @@ def test_production_composition_exposes_operational_health_endpoints() -> None:
     payload = json.loads(body)
     assert payload["status"] in {"ready", "degraded"}
     assert any(component["name"] == "configuration" for component in payload["components"])
+    conn.close()
+
+
+def test_production_composition_reads_the_assistant_flag_from_its_environment(
+    monkeypatch,
+) -> None:
+    from construction_pm.http import production_composition
+
+    calls: list[bool] = []
+
+    def fake_from_environment(cls):  # noqa: ANN001 - classmethod shim
+        calls.append(True)
+        return object()
+
+    monkeypatch.setattr(
+        production_composition.OpenAICompatibleChatProvider,
+        "from_environment",
+        classmethod(fake_from_environment),
+    )
+    # The ambient process environment says enabled; the supplied mapping says no.
+    monkeypatch.setenv("CUBI_AI_ENABLED", "true")
+
+    conn = sqlite3.connect(":memory:")
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=SQLiteScheduleInputSnapshotRepository(conn),
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=SQLiteCalculationContextRepository(conn),
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        environment={"CUBI_AI_ENABLED": "false"},
+    )
+    assert calls == []
+
+    # Enabled through the supplied mapping: the factory is consulted, and the
+    # composition then correctly refuses to expose the assistant without a
+    # durable AI action runtime. That refusal is the expected boundary.
+    with pytest.raises(
+        AIActionRuntimeError, match="AI_ASSISTANT_ACTION_RUNTIME_REQUIRED"
+    ):
+        build_project_lifecycle_wsgi_app(
+            lifecycle_api=_lifecycle_api(now),
+            snapshot_repository=SQLiteScheduleInputSnapshotRepository(conn),
+            calendar_registry_factory=lambda: registry,
+            calculation_context_repository=SQLiteCalculationContextRepository(conn),
+            authorization_policy=default_project_policy(),
+            clock=type("Clock", (), {"now": lambda self: now})(),
+            environment={"CUBI_AI_ENABLED": "true"},
+        )
+    assert calls == [True]
     conn.close()

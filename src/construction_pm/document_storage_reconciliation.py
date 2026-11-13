@@ -597,7 +597,7 @@ class DocumentStorageReconciliationStore(Protocol):
         grace_cutoff: datetime,
         min_observations: int,
         lease_seconds: int,
-    ) -> int | None: ...
+    ) -> tuple[int, str] | None: ...
 
     def commit_claim(self) -> None: ...
 
@@ -610,7 +610,8 @@ class DocumentStorageReconciliationStore(Protocol):
         project_id: str,
         object_ref: str,
         now: datetime,
-    ) -> None: ...
+        claim_token: str,
+    ) -> bool: ...
 
     def mark_failed(
         self,
@@ -620,11 +621,12 @@ class DocumentStorageReconciliationStore(Protocol):
         object_ref: str,
         now: datetime,
         detail: str,
-    ) -> None: ...
+        claim_token: str,
+    ) -> bool: ...
 
     def mark_resolved(
         self, *, tenant_id: str, project_id: str, object_ref: str
-    ) -> None: ...
+    ) -> bool: ...
 
     def record_cleanup(self, record: StorageCleanupRecord) -> StorageCleanupRecord: ...
 
@@ -809,7 +811,7 @@ class _DocumentStorageReconciliationStore:
         grace_cutoff: datetime,
         min_observations: int,
         lease_seconds: int,
-    ) -> int | None:
+    ) -> tuple[int, str] | None:
         token = uuid.uuid4().hex
         claimed_until = _iso(now + timedelta(seconds=lease_seconds))
         cursor = self.connection.execute(
@@ -837,7 +839,7 @@ class _DocumentStorageReconciliationStore:
         if cursor.rowcount != 1:
             return None
         stored = self.get(tenant_id, project_id, object_ref)
-        return None if stored is None else stored.attempts
+        return None if stored is None else (stored.attempts, token)
 
     def commit_claim(self) -> None:
         """Make the lease durable before the external delete is attempted."""
@@ -854,15 +856,18 @@ class _DocumentStorageReconciliationStore:
         project_id: str,
         object_ref: str,
         now: datetime,
-    ) -> None:
-        self.connection.execute(
+        claim_token: str,
+    ) -> bool:
+        cursor = self.connection.execute(
             f"""UPDATE project_document_storage_observation
                 SET status='deleted', claim_token=NULL, claimed_until=NULL,
                     last_error='', last_observed_at={self.q}
                 WHERE tenant_id={self.q} AND project_id={self.q}
-                  AND object_ref={self.q} AND status='deleting'""",
-            (_iso(now), tenant_id, project_id, object_ref),
+                  AND object_ref={self.q} AND status='deleting'
+                  AND claim_token={self.q}""",
+            (_iso(now), tenant_id, project_id, object_ref, claim_token),
         )
+        return cursor.rowcount == 1
 
     def mark_failed(
         self,
@@ -872,32 +877,38 @@ class _DocumentStorageReconciliationStore:
         object_ref: str,
         now: datetime,
         detail: str,
-    ) -> None:
-        self.connection.execute(
+        claim_token: str,
+    ) -> bool:
+        cursor = self.connection.execute(
             f"""UPDATE project_document_storage_observation
                 SET status='failed', claim_token=NULL, claimed_until=NULL,
                     last_error={self.q}, last_observed_at={self.q}
                 WHERE tenant_id={self.q} AND project_id={self.q}
-                  AND object_ref={self.q}""",
+                  AND object_ref={self.q} AND status='deleting'
+                  AND claim_token={self.q}""",
             (
                 (detail or "DOCUMENT_STORAGE_DELETE_FAILED")[:MAX_ERROR_DETAIL],
                 _iso(now),
                 tenant_id,
                 project_id,
                 object_ref,
+                claim_token,
             ),
         )
+        return cursor.rowcount == 1
 
     def mark_resolved(
         self, *, tenant_id: str, project_id: str, object_ref: str
-    ) -> None:
-        self.connection.execute(
+    ) -> bool:
+        cursor = self.connection.execute(
             f"""UPDATE project_document_storage_observation
                 SET status='resolved', claim_token=NULL, claimed_until=NULL
                 WHERE tenant_id={self.q} AND project_id={self.q}
-                  AND object_ref={self.q} AND status <> 'resolved'""",
+                  AND object_ref={self.q} AND status <> 'resolved'
+                  AND claim_token IS NULL""",
             (tenant_id, project_id, object_ref),
         )
+        return cursor.rowcount == 1
 
     def record_cleanup(self, record: StorageCleanupRecord) -> StorageCleanupRecord:
         self.connection.execute(
@@ -1547,7 +1558,7 @@ class DocumentStorageReconciler:
         eligibility = self._eligibility(state, now)
         if eligibility != ELIGIBLE:
             return "skipped", eligibility, "none"
-        attempt = self.state_store.claim(
+        claimed = self.state_store.claim(
             tenant_id=tenant_id,
             project_id=project_id,
             object_ref=item.object_ref,
@@ -1556,8 +1567,9 @@ class DocumentStorageReconciler:
             min_observations=self.policy.min_observations,
             lease_seconds=self.policy.lease_seconds,
         )
-        if attempt is None:
+        if claimed is None:
             return "skipped", eligibility, "skipped"
+        attempt, claim_token = claimed
         # The lease must survive the external delete: a crash leaves the
         # occurrence claimed instead of silently retryable in a tight loop.
         self.state_store.commit_claim()
@@ -1568,13 +1580,15 @@ class DocumentStorageReconciler:
             )
         except Exception as exc:  # noqa: BLE001 - record and retry later
             detail = _error_detail(exc)
-            self.state_store.mark_failed(
+            if not self.state_store.mark_failed(
                 tenant_id=tenant_id,
                 project_id=project_id,
                 object_ref=item.object_ref,
                 now=now,
                 detail=detail,
-            )
+                claim_token=claim_token,
+            ):
+                return "skipped", eligibility, "lease_lost"
             self.state_store.record_cleanup(
                 StorageCleanupRecord(
                     tenant_id=tenant_id,
@@ -1594,12 +1608,14 @@ class DocumentStorageReconciler:
             )
             self.state_store.commit()
             return "failed", eligibility, "failed"
-        self.state_store.mark_deleted(
+        if not self.state_store.mark_deleted(
             tenant_id=tenant_id,
             project_id=project_id,
             object_ref=item.object_ref,
             now=now,
-        )
+            claim_token=claim_token,
+        ):
+            return "skipped", eligibility, "lease_lost"
         self.state_store.record_cleanup(
             StorageCleanupRecord(
                 tenant_id=tenant_id,

@@ -267,7 +267,7 @@ def test_postgres_lease_is_exclusive_and_reclaimable(tmp_path: Path) -> None:
             classification=ORPHAN_OBJECT,
             now=NOW,
         )
-        first = store.claim(
+        first_attempt, first_token = store.claim(
             tenant_id=world.tenant_id,
             project_id=world.project_id,
             object_ref=orphan,
@@ -276,7 +276,8 @@ def test_postgres_lease_is_exclusive_and_reclaimable(tmp_path: Path) -> None:
             min_observations=2,
             lease_seconds=60,
         )
-        assert first == 1
+        assert first_attempt == 1
+        assert first_token
         store.commit_claim()
 
         with psycopg.connect(DSN) as competing:
@@ -294,16 +295,31 @@ def test_postgres_lease_is_exclusive_and_reclaimable(tmp_path: Path) -> None:
                 is None
             )
             # The crashed worker's lease expires and the occurrence is reclaimable.
+            second_attempt, second_token = other.claim(
+                tenant_id=world.tenant_id,
+                project_id=world.project_id,
+                object_ref=orphan,
+                now=NOW + timedelta(seconds=61),
+                grace_cutoff=NOW,
+                min_observations=2,
+                lease_seconds=60,
+            )
+            assert second_attempt == 2
+            assert second_token and second_token != first_token
+            other.commit_claim()
+            # A stale worker cannot complete the re-claimed occurrence.
             assert (
-                other.claim(
+                store.mark_deleted(
                     tenant_id=world.tenant_id,
                     project_id=world.project_id,
                     object_ref=orphan,
-                    now=NOW + timedelta(seconds=61),
-                    grace_cutoff=NOW,
-                    min_observations=2,
-                    lease_seconds=60,
+                    now=NOW + timedelta(seconds=62),
+                    claim_token=first_token,
                 )
-                == 2
+                is False
             )
+            stale_state = store.get(world.tenant_id, world.project_id, orphan)
+            assert stale_state is not None
+            assert stale_state.status == "deleting"
+            assert stale_state.claim_token == second_token
             competing.rollback()

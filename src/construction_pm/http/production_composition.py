@@ -196,9 +196,10 @@ def build_project_lifecycle_wsgi_app(
     The assistant provider is wired only through an explicit dependency or
     CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
-    assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
-        "1", "true", "yes"
-    }
+    resolved_environment = os.environ if environment is None else environment
+    assistant_enabled = resolved_environment.get(
+        "CUBI_AI_ENABLED", ""
+    ).strip().lower() in {"1", "true", "yes"}
     if ai_assistant_provider is None and assistant_enabled:
         ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
 

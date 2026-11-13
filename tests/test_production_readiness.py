@@ -130,6 +130,29 @@ def test_production_environment_rejects_missing_and_development_adapters() -> No
     assert "MISSING_SCANNED_CONTENT_REQUIREMENT" in codes
 
 
+def test_production_environment_rejects_cleartext_s3_endpoint() -> None:
+    env = dict(PRODUCTION_ENV)
+    env["CONSTRUCTION_PM_S3_ENDPOINT_URL"] = "http://minio.internal:9000"
+    validation = validate_environment(env)
+    assert validation.valid is False
+    assert validation.components["object_storage"] is False
+    assert any(
+        issue.code == "URL_REQUIRES_HTTPS"
+        and issue.variable == "CONSTRUCTION_PM_S3_ENDPOINT_URL"
+        for issue in validation.errors
+    )
+    # Outside production the same endpoint is a warning, not an error.
+    staging = dict(env)
+    staging["CONSTRUCTION_PM_ENVIRONMENT"] = "staging"
+    staging_validation = validate_environment(staging)
+    assert staging_validation.components["object_storage"] is True
+    assert any(
+        issue.code == "URL_NOT_HTTPS"
+        and issue.variable == "CONSTRUCTION_PM_S3_ENDPOINT_URL"
+        for issue in staging_validation.warnings
+    )
+
+
 def test_production_environment_requires_each_mandatory_setting() -> None:
     validation = validate_environment({"CONSTRUCTION_PM_ENVIRONMENT": "production"})
     codes = {issue.code for issue in validation.errors}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import io
+import struct
 import zipfile
 
 import pytest
@@ -97,6 +98,64 @@ def test_xlsx_uncompressed_size_bound_is_enforced(monkeypatch) -> None:
     payload = _xlsx_bytes([["id"], ["A1"]])
     with pytest.raises(ExchangeError, match="EXCHANGE_XLSX_TOO_LARGE"):
         _decode_xlsx(base64.b64encode(payload).decode("ascii"))
+
+
+def test_xlsx_declared_member_sizes_are_not_trusted(monkeypatch) -> None:
+    # A member that really inflates beyond the cap while its central-directory
+    # size claims 16 bytes must be refused before openpyxl loads it.
+    monkeypatch.setattr(exchange_application, "MAX_XLSX_UNCOMPRESSED_BYTES", 4096)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", b"0" * 200_000)
+    payload = bytearray(buffer.getvalue())
+    index = 0
+    patched = 0
+    while True:
+        index = payload.find(b"PK\x01\x02", index)
+        if index < 0:
+            break
+        struct.pack_into("<I", payload, index + 24, 16)
+        patched += 1
+        index += 4
+    assert patched == 1
+    with pytest.raises(ExchangeError, match="EXCHANGE_XLSX_INVALID"):
+        _decode_xlsx(base64.b64encode(bytes(payload)).decode("ascii"))
+
+
+def test_xlsx_actual_inflated_bytes_are_counted(monkeypatch) -> None:
+    class _Info:
+        filename = "xl/worksheets/sheet1.xml"
+
+        def is_dir(self) -> bool:
+            return False
+
+    class _Stream:
+        def __init__(self) -> None:
+            self.remaining = 10 * 1024 * 1024
+
+        def read(self, size: int) -> bytes:
+            if self.remaining <= 0:
+                return b""
+            chunk = b"0" * min(size, self.remaining)
+            self.remaining -= len(chunk)
+            return chunk
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc) -> None:
+            return None
+
+    class _Archive:
+        def infolist(self):
+            return [_Info()]
+
+        def open(self, info):
+            return _Stream()
+
+    monkeypatch.setattr(exchange_application, "MAX_XLSX_UNCOMPRESSED_BYTES", 4096)
+    with pytest.raises(ExchangeError, match="EXCHANGE_XLSX_TOO_LARGE"):
+        exchange_application._assert_xlsx_inflates_within_bound(_Archive())
 
 
 def test_xlsx_row_bound_is_enforced(monkeypatch) -> None:

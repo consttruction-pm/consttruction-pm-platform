@@ -257,7 +257,7 @@ def _validate_storage(
             return False, problems
         return True, problems
     try:
-        s3_settings_from_environment(env)
+        settings = s3_settings_from_environment(env)
     except DocumentStorageConfigurationError as exc:
         code = str(exc)
         variable = "CONSTRUCTION_PM_S3_CONFIGURATION"
@@ -270,6 +270,16 @@ def _validate_storage(
             )
         )
         problems.append("INVALID_DOCUMENT_STORAGE_CONFIGURATION")
+        return False, problems
+    if not _validate_url(
+        "CONSTRUCTION_PM_S3_ENDPOINT_URL",
+        settings.endpoint_url,
+        production=production,
+        errors=errors,
+        warnings=warnings,
+        require_https=True,
+    ):
+        problems.append("INVALID_DOCUMENT_STORAGE_ENDPOINT")
         return False, problems
     return True, problems
 
