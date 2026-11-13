@@ -1,0 +1,128 @@
+{
+  "contract": "cubi-activity-network-v26.v1",
+  "baseUrl": "http://127.0.0.1:4206",
+  "gitHead": "a9776bb9ed8d16a2f5752b5b0909f74f002a5c2a",
+  "testedCodeSha": "a9776bb9ed8d16a2f5752b5b0909f74f002a5c2a",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T01:17:29.637Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the network projects every persisted activity and relationship into a deterministic layout",
+      "status": "pass",
+      "at": "2026-11-13T01:17:34.192Z",
+      "levels": 10,
+      "nodes": 14,
+      "edges": 15,
+      "types": [
+        "FS",
+        "SS"
+      ],
+      "lagged": "SS+5d"
+    },
+    {
+      "id": "02",
+      "name": "selecting a network node and a table row stay synchronised",
+      "status": "pass",
+      "at": "2026-11-13T01:17:35.743Z",
+      "fromNode": "A120",
+      "fromTable": "A145"
+    },
+    {
+      "id": "03",
+      "name": "a focused node activates with the keyboard",
+      "status": "pass",
+      "at": "2026-11-13T01:17:36.485Z",
+      "selected": "A150"
+    },
+    {
+      "id": "REL-RPS-100",
+      "name": "double-clicking an edge opens its relationship editor with the stored revision",
+      "status": "pass",
+      "at": "2026-11-13T01:17:37.212Z",
+      "revision": 1,
+      "point": {
+        "x": 959,
+        "y": 229
+      }
+    },
+    {
+      "id": "REL-RPS-100",
+      "name": "the edge context menu exposes its commands and navigates to the successor",
+      "status": "pass",
+      "at": "2026-11-13T01:17:38.445Z",
+      "successor": "A110",
+      "commands": [
+        "relationship-edit",
+        "relationship-delete",
+        "relationship-predecessor",
+        "relationship-successor"
+      ]
+    },
+    {
+      "id": "06",
+      "name": "right-clicking a node opens the activity menu",
+      "status": "pass",
+      "at": "2026-11-13T01:17:38.967Z",
+      "commands": [
+        "details",
+        "add",
+        "link",
+        "bars",
+        "font-row",
+        "filters",
+        "group-sort",
+        "relationships",
+        "expand-all",
+        "collapse-all",
+        "collapse-to"
+      ],
+      "label": "Network Activity"
+    },
+    {
+      "id": "07",
+      "name": "zoom only scales the drawing and survives a full reload",
+      "status": "pass",
+      "at": "2026-11-13T01:17:42.143Z",
+      "initial": 1,
+      "zoomed": 1.2,
+      "reloaded": 1.2,
+      "fitted": 0.2
+    },
+    {
+      "id": "08",
+      "name": "fa RTL at 1280 keeps the network readable and selection working",
+      "status": "pass",
+      "at": "2026-11-13T01:17:47.754Z",
+      "heading": "شبکهٔ فعالیت‌ها",
+      "dir": "rtl",
+      "svgDir": "ltr",
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "en at 1920 keeps the same projection and no overflow",
+      "status": "pass",
+      "at": "2026-11-13T01:17:50.624Z",
+      "nodes": 14,
+      "edges": 15,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-network-en-1366.png",
+    "02-selection-sync-en-1366.png",
+    "03-edge-editor-en-1366.png",
+    "04-edge-menu-successor-en-1366.png",
+    "05-zoom-fit-en-1366.png",
+    "06-network-fa-rtl-1280.png",
+    "07-network-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "relationshipWrites": [],
+  "scheduleWrites": [],
+  "passed": 9,
+  "failed": 0
+}
