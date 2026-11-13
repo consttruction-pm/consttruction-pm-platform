@@ -153,10 +153,18 @@ export type DesktopToolbarItem = {
   fullscreen?: boolean;
 };
 
+export type DesktopProjectTab = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
 export type DesktopShellState = {
   locale: string;
   activeWindow: WorkspaceMenuKey;
   openWindows: readonly WorkspaceMenuKey[];
+  /** Open project tabs; the active tab owns the current workspace context. */
+  projectTabs?: readonly DesktopProjectTab[];
   capabilities: DesktopShellCapabilities;
   project?: ChromeProjectContext;
   layout?: ChromeLayoutState;
@@ -193,6 +201,8 @@ export type DesktopShellHandlers = {
   onWindowOpen: (window: WorkspaceMenuKey) => void;
   onWindowClose: (window: WorkspaceMenuKey) => void;
   onWindowReorder?: (open: readonly WorkspaceMenuKey[]) => void;
+  onProjectTabOpen?: (projectId: string) => void;
+  onProjectTabClose?: (projectId: string) => void;
   onCommand: (command: DesktopCommand) => void;
   onLayoutOptions?: (patch: DesktopLayoutPatch) => void;
   onLocaleChange?: (locale: string) => void;
@@ -815,6 +825,21 @@ function renderToolbar(state: DesktopShellState): string {
   </div>`;
 }
 
+function renderProjectTabs(state: DesktopShellState): string {
+  const tabs = state.projectTabs ?? [];
+  if (!tabs.length) return "";
+  const locale = state.locale;
+  const closable = tabs.length > 1;
+  const aria = translateWorkspaceUiText(locale, "Open projects", "پروژه‌های باز");
+  const closeWord = translateWorkspaceUiText(locale, "Close project", "بستن پروژه");
+  return `<div class="cp-project-tabs" role="tablist" aria-label="${escapeHtml(aria)}">
+    ${tabs.map((tab) => `<span class="cp-project-tab${tab.active ? " is-active" : ""}" role="tab" aria-selected="${tab.active ? "true" : "false"}" data-project-tab="${escapeHtml(tab.id)}" tabindex="${tab.active ? "0" : "-1"}">
+      <button type="button" class="cp-project-tab-label" data-project-tab-open="${escapeHtml(tab.id)}" title="${escapeHtml(tab.name)}">${escapeHtml(tab.name)}</button>
+      ${closable ? `<button type="button" class="cp-project-tab-close" data-project-tab-close="${escapeHtml(tab.id)}" aria-label="${escapeHtml(closeWord + " " + tab.name)}" title="${escapeHtml(closeWord + " " + tab.name)}">×</button>` : ""}
+    </span>`).join("")}
+  </div>`;
+}
+
 function renderTabs(state: DesktopShellState): string {
   const locale = state.locale;
   const closable = state.openWindows.length > 1;
@@ -1015,6 +1040,7 @@ export function renderDesktopShell(
     ${renderTitleBar(chrome)}
     ${renderMenus(state)}
     ${renderToolbar(state)}
+    ${renderProjectTabs(state)}
     ${renderTabs(state)}
   </section>
   ${renderLayoutDialogs({
@@ -1516,6 +1542,17 @@ function bindHost(host: HTMLElement): void {
     if (closeWindow?.dataset.windowClose) {
       event.stopPropagation();
       runtime.handlers.onWindowClose(closeWindow.dataset.windowClose as WorkspaceMenuKey);
+      return;
+    }
+    const closeProjectTab = target.closest<HTMLElement>("[data-project-tab-close]");
+    if (closeProjectTab?.dataset.projectTabClose) {
+      event.stopPropagation();
+      runtime.handlers.onProjectTabClose?.(closeProjectTab.dataset.projectTabClose);
+      return;
+    }
+    const openProjectTab = target.closest<HTMLElement>("[data-project-tab-open]");
+    if (openProjectTab?.dataset.projectTabOpen) {
+      runtime.handlers.onProjectTabOpen?.(openProjectTab.dataset.projectTabOpen);
       return;
     }
     const openTab = target.closest<HTMLElement>("[data-window-open]");

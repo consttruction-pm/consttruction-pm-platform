@@ -9,7 +9,10 @@ import {
   normalizeOpenWindows,
   openWorkspaceWindow,
   readWorkspaceWindowOrder,
+  projectWorkspaceWindowsStorageKey,
+  readProjectWorkspaceWindows,
   readWorkspaceWindows,
+  rememberProjectWorkspaceWindows,
   rememberWorkspaceWindowOrder,
   rememberWorkspaceWindows,
   reorderWorkspaceWindows,
@@ -110,4 +113,31 @@ test("remembering an order only keeps real window keys", () => {
   rememberWorkspaceWindowOrder(["reports", "bogus" as never, "schedule"], storage);
   assert.deepEqual(readWorkspaceWindowOrder(storage), ["reports", "schedule"]);
   assert.deepEqual(readWorkspaceWindowOrder(memoryStorage({ [WORKSPACE_WINDOW_ORDER_STORAGE_KEY]: "{oops" })), []);
+});
+
+test("each project tab keeps its own open window set", () => {
+  const storage = memoryStorage();
+  rememberProjectWorkspaceWindows("p1", ["schedule", "project", "reports"], storage);
+  rememberProjectWorkspaceWindows("p2", ["wbs", "project"], storage);
+
+  assert.equal(projectWorkspaceWindowsStorageKey("p1"), `${WORKSPACE_WINDOWS_STORAGE_KEY}:p1`);
+  assert.deepEqual(readProjectWorkspaceWindows("p1", storage), ["project", "schedule", "reports"]);
+  assert.deepEqual(readProjectWorkspaceWindows("p2", storage), ["project", "wbs"]);
+});
+
+test("a project with no stored set falls back to the shared window preference", () => {
+  const storage = memoryStorage({
+    [WORKSPACE_WINDOWS_STORAGE_KEY]: JSON.stringify(["schedule", "issues"]),
+  });
+  assert.deepEqual(readProjectWorkspaceWindows("p-new", storage), ["schedule", "issues"]);
+});
+
+test("a malformed or empty per-project set falls back instead of showing nothing", () => {
+  const storage = memoryStorage({
+    [WORKSPACE_WINDOWS_STORAGE_KEY]: JSON.stringify(["schedule"]),
+    [projectWorkspaceWindowsStorageKey("p1")]: JSON.stringify(["bogus"]),
+    [projectWorkspaceWindowsStorageKey("p2")]: "not-json",
+  });
+  assert.deepEqual(readProjectWorkspaceWindows("p1", storage), ["schedule"]);
+  assert.deepEqual(readProjectWorkspaceWindows("p2", storage), ["schedule"]);
 });
