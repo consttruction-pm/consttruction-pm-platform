@@ -490,7 +490,7 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
       { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Render logs and service events are available; independent alert coverage is not verified." },
       { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
     ],
-    disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected Render workspace currently has two Free web services in Frankfurt and no Render Postgres instance. Both web services currently allow traffic from 0.0.0.0/0 at the IP allowlist layer. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
+    disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected workspace currently has two Free web services in Frankfurt and no managed PostgreSQL instance. IP-based access restrictions are not configured at the hosting layer. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
   },
   fa: {
     eyebrow: "امنیت و پایداری",
@@ -504,7 +504,7 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
       { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای Render در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
       { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "امکان بازیابی اطلاعات از نسخه‌های پشتیبان. منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی هنوز ثبت نشده است." }
     ],
-    disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل Render، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه Render Postgres مشاهده نشد. در هر دو سرویس، allowlist شبکه روی 0.0.0.0/0 تنظیم شده است. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
+    disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه PostgreSQL مدیریت‌شده مشاهده نشد. در لایه میزبانی، محدودیت دسترسی مبتنی بر IP پیکربندی نشده است. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
   }
 };
 
