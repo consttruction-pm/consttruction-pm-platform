@@ -6,22 +6,10 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.py": {
-      "includeFiles": [
-        "src/**",
-        "requirements.txt",
-        "apps/web/index.html",
-        "apps/web/app.html",
-        "apps/web/login.html"
-      ]
+      "includeFiles": "{src/**,requirements.txt,apps/web/*.html}"
     },
     "api/shell.py": {
-      "includeFiles": [
-        "src/**",
-        "requirements.txt",
-        "apps/web/index.html",
-        "apps/web/app.html",
-        "apps/web/login.html"
-      ]
+      "includeFiles": "{src/**,requirements.txt,apps/web/*.html}"
     }
   },
   "rewrites": [
