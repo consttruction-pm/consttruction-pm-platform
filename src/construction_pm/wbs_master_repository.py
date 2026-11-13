@@ -811,7 +811,7 @@ class PostgresWBSMasterRepository:
         parent = self._row(wbs.scope, parent_id, lock=True)
         if parent is None:
             raise WBSPersistenceError("WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH")
-        if int(parent[7]) != wbs.scope.project_revision:
+        if int(parent[9]) != wbs.scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
 
         current_id: str | None = parent_id
@@ -823,7 +823,7 @@ class PostgresWBSMasterRepository:
             ancestor = self._row(wbs.scope, current_id, lock=True)
             if ancestor is None:
                 raise WBSPersistenceError("WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH")
-            if int(ancestor[7]) != wbs.scope.project_revision:
+            if int(ancestor[9]) != wbs.scope.project_revision:
                 raise WBSPersistenceError("REVISION_CONFLICT")
             current_id = (
                 str(ancestor[2])
