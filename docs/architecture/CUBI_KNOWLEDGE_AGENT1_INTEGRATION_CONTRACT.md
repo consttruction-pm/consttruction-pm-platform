@@ -1,5 +1,6 @@
 # CUBI knowledge and assistant — integration contract for the Visual Workspace
 
+**Contract version:** `cubi-knowledge-api.v1` (additive-only; breaking changes require a new version)
 **Owner of this contract:** Knowledge / assistant backend (Agent 2)
 **Consumer:** canonical Visual Workspace, application shell, knowledge administration screens (Agent 1)
 **Mount point:** `KnowledgeHttpMiddleware` wraps the composed application; it handles only
@@ -186,4 +187,17 @@ Every endpoint above is exercised by `tests/knowledge/test_http.py` and
 `tests/knowledge/test_concurrency_history_idempotency.py` (status codes, permission
 failures, conflict codes, history pagination, idempotent replay). The middleware is
 mounted in the composed application and proven by
-`tests/knowledge/test_runtime_mount.py`.
+`tests/knowledge/test_runtime_mount.py`. The translation lifecycle contract
+(create → edit → review → approve → publish → retire, version pinning, machine
+translation refusal, fallback, RTL metadata, audit) is exercised on real PostgreSQL by
+`tests/knowledge/test_translation_lifecycle_postgres.py`, and on SQLite by
+`tests/knowledge/test_translations.py` and
+`tests/knowledge/test_publication_integrity.py`.
+
+Live request/response samples for the canonical corpus (1090 cards, 1539 topics) are
+recorded in
+`docs/workspace/evidence/knowledge-corpus-postgres-2026-11-13/agent1-api-contract-fixtures.json`
+(`contract: cubi-knowledge-agent1-fixtures.v1`, `contract_version: cubi-knowledge-api.v1`).
+It contains the route table, the permission matrix, and success and error envelopes for
+locales, search, localized card, translations, history, review queue, assistant answer
+and memory, so Agent 1 can build screens against observed behaviour rather than prose.

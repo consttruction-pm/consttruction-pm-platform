@@ -36,6 +36,7 @@ from .locales import (
     detect_locale,
     direction,
     language_code,
+    localized_join,
     resolve_response_locale,
 )
 from .messages import message as localized_message
@@ -141,13 +142,30 @@ class KnowledgeAssistant:
         )
         if outcome.insufficient_knowledge or not outcome.hits:
             return self._gap(
-                principal, question, mode, response_locale, project_id, question_locale
+                principal,
+                question,
+                mode,
+                response_locale,
+                project_id,
+                question_locale,
+                had_candidates=bool(outcome.hits),
+            )
+        conflicting = self._conflicting_cards(outcome.hits)
+        if conflicting:
+            return self._conflict_answer(
+                principal,
+                conflicting,
+                question,
+                mode,
+                response_locale,
+                question_locale,
+                project_id,
             )
         top = outcome.hits[0]
         card = self._store.get_card(top.card_id) if top.card_id else None
         citations = tuple(
             Citation(
-                title=hit.title,
+                title=self._citation_title(hit),
                 source_url=hit.source_url,
                 card_id=hit.card_id,
                 source_version="26",
@@ -637,7 +655,28 @@ class KnowledgeAssistant:
         response_locale: str,
         project_id: str | None,
         question_locale: str,
+        *,
+        had_candidates: bool = False,
     ) -> AssistantAnswer:
+        evidence_state = "insufficient" if had_candidates else "missing"
+        if evidence_state == "missing" and self._can(principal, Permission.KNOWLEDGE_REVIEW):
+            # A reviewer is told that knowledge exists but is not published;
+            # a reader is never shown an unpublished match.
+            draft = search(
+                self._store,
+                self._scope(principal, project_id),
+                question,
+                limit=5,
+                include_unpublished_central=True,
+                locale=response_locale,
+                filters=SearchFilters(locale=response_locale),
+            )
+            if draft.hits:
+                evidence_state = "unpublished"
+        message_key = {
+            "insufficient": "insufficient_evidence",
+            "unpublished": "unpublished_knowledge",
+        }.get(evidence_state, "gap")
         now = iso(self._clock())
         self._store.save_memory(
             user_id=principal.user_id,
@@ -658,15 +697,23 @@ class KnowledgeAssistant:
             "knowledge_query",
             question.strip()[:120],
             "insufficient",
-            {"mode": mode.value, "project_id": project_id, "locale": response_locale},
+            {
+                "mode": mode.value,
+                "project_id": project_id,
+                "locale": response_locale,
+                "evidence_state": evidence_state,
+            },
         )
         return AssistantAnswer(
             kind="knowledge_gap",
-            message=localized_message(response_locale, "gap"),
+            message=localized_message(response_locale, message_key),
             mode=mode,
             language=response_locale,
             insufficient_knowledge=True,
-            next_step="knowledge.curate",
+            evidence_state=evidence_state,
+            next_step=(
+                "knowledge.review" if evidence_state == "unpublished" else "knowledge.curate"
+            ),
             source_language=SOURCE_LANGUAGE,
             response_language=response_locale,
             content_language=response_locale,
@@ -761,7 +808,17 @@ class KnowledgeAssistant:
             include_user_memory=project_id is not None,
         )
 
-    def _require(self, principal: AssistantPrincipal, permission: Permission) -> None:
+    def _citation_title(self, hit) -> str:
+        # A hit that had to fall back (unapproved or stale translation) is
+        # attributed with the reviewed source title, never with the localized
+        # title of a translation that is not publishable yet.
+        if hit.fallback_used and hit.card_id:
+            source = self._store.get_card(hit.card_id)
+            if source is not None:
+                return source.title
+        return hit.title
+
+    def _can(self, principal: AssistantPrincipal, permission: Permission) -> bool:
         from construction_pm.application.authorization import AuthorizationContext
 
         context = AuthorizationContext(
@@ -770,10 +827,94 @@ class KnowledgeAssistant:
             user_id=principal.user_id,
             roles=principal.roles,
         )
-        if not self._policy.is_allowed(context, permission):
+        return bool(self._policy.is_allowed(context, permission))
+
+    def _require(self, principal: AssistantPrincipal, permission: Permission) -> None:
+        if not self._can(principal, permission):
             raise AuthorizationError(
                 f"authorization denied for permission={permission.value}"
             )
+
+    def _conflicting_cards(self, hits) -> tuple:
+        """Published cards that share a title but disagree on content.
+
+        Two pages can legitimately carry the same heading in different
+        chapters. When both are published and their content hashes differ, the
+        reference itself is ambiguous: the assistant must not pick one and
+        present it as *the* answer.
+        """
+
+        groups: dict[str, list] = {}
+        seen: set[str] = set()
+        for hit in hits[:5]:
+            card_id = hit.card_id
+            if not card_id or card_id in seen:
+                continue
+            seen.add(card_id)
+            card = self._store.get_card(card_id)
+            if card is None:
+                continue
+            key = " ".join(card.title.casefold().split())
+            groups.setdefault(key, []).append(card)
+        for group in groups.values():
+            if len(group) > 1 and len({card.content_hash for card in group}) > 1:
+                return tuple(group)
+        return ()
+
+    def _conflict_answer(
+        self,
+        principal: AssistantPrincipal,
+        cards,
+        question: str,
+        mode: AssistantMode,
+        response_locale: str,
+        question_locale: str,
+        project_id: str | None,
+    ) -> AssistantAnswer:
+        titles = localized_join(response_locale, [card.title for card in cards])
+        self._audit(
+            principal,
+            "assistant_conflicting_sources",
+            "knowledge_query",
+            question.strip()[:120],
+            "conflict",
+            {
+                "mode": mode.value,
+                "project_id": project_id,
+                "locale": response_locale,
+                "card_ids": [card.card_id for card in cards],
+            },
+        )
+        return AssistantAnswer(
+            kind="clarification",
+            message=localized_message(response_locale, "conflicting_sources").format(
+                titles=titles
+            ),
+            mode=mode,
+            language=response_locale,
+            citations=tuple(
+                Citation(
+                    title=card.title,
+                    source_url=card.source_url,
+                    card_id=card.card_id,
+                    source_version=card.source_version,
+                )
+                for card in cards
+            ),
+            card_ids=tuple(card.card_id for card in cards),
+            insufficient_knowledge=True,
+            evidence_state="conflicting",
+            next_step="knowledge.review",
+            source_language=SOURCE_LANGUAGE,
+            response_language=response_locale,
+            content_language=response_locale,
+            translation_status="official_source",
+            language_context=self._language_context(
+                response_locale,
+                question_locale,
+                translation_status="official_source",
+            ),
+        )
 
     def _audit(
         self,

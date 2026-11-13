@@ -1,0 +1,322 @@
+{
+  "contract": "cubi-knowledge-corpus-verification.v1",
+  "ok": true,
+  "parity": {
+    "differences": [],
+    "equal": true,
+    "informational": {
+      "audit_rows": {
+        "postgres": 465,
+        "sqlite": 453
+      }
+    }
+  },
+  "postgres": {
+    "counts": {
+      "audits": 465,
+      "cards": 1090,
+      "events": 0,
+      "topics": 1539,
+      "translations": 0
+    },
+    "database": {
+      "driver": "psycopg",
+      "engine": "postgres"
+    },
+    "integrity": {
+      "checks": [
+        {
+          "check": "authoritative_topic_totals",
+          "detail": {
+            "actual": {
+              "p6-26-html-help": 982,
+              "p6-26-user-guide": 557
+            },
+            "expected": {
+              "p6-26-html-help": 982,
+              "p6-26-user-guide": 557
+            }
+          },
+          "ok": true
+        },
+        {
+          "check": "every_topic_converted",
+          "detail": {
+            "converted": 1539
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_topic_keys",
+          "detail": {
+            "keys": 1539,
+            "rows": 1539
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_card_ids",
+          "detail": {
+            "cards": 1090
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_card_content",
+          "detail": {
+            "examples": [],
+            "groups": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "card_content_hashes_are_sha256",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "topic_content_hashes_are_sha256",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "topic_urls_are_official",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "no_orphan_translations",
+          "detail": {
+            "count": 0,
+            "examples": []
+          },
+          "ok": true
+        },
+        {
+          "check": "no_project_card_without_tenant",
+          "detail": {
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "every_card_has_a_topic",
+          "detail": {
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "published_translations_bound_to_current_source",
+          "detail": {
+            "stale": []
+          },
+          "ok": true
+        }
+      ],
+      "label": "postgres",
+      "ok": true,
+      "published_cards": 0
+    },
+    "sources": {
+      "p6-26-html-help": {
+        "content_hash": "ef78a19c6f3f2a7797456af6d592d5474d0c054692bf75de1392d1d894f1c92e",
+        "status": "converted",
+        "topic_counts": {
+          "converted": 982,
+          "total": 982
+        }
+      },
+      "p6-26-user-guide": {
+        "content_hash": "c619051559bba3c0e7eb650a21c5b7910f46948ed7e457caa82ba1f252e4be89",
+        "status": "converted",
+        "topic_counts": {
+          "converted": 557,
+          "total": 557
+        }
+      }
+    }
+  },
+  "repeat_ingest": {
+    "counts_after": {
+      "audits": 469,
+      "cards": 1090,
+      "events": 0,
+      "topics": 1539,
+      "translations": 0
+    },
+    "counts_before": {
+      "audits": 465,
+      "cards": 1090,
+      "events": 0,
+      "topics": 1539,
+      "translations": 0
+    },
+    "no_new_records": true,
+    "reports": [
+      {
+        "converted": 0,
+        "discovered": 982,
+        "failed": 0,
+        "newly_discovered": 0,
+        "skipped": 0,
+        "source_id": "p6-26-html-help"
+      },
+      {
+        "converted": 0,
+        "discovered": 557,
+        "failed": 0,
+        "newly_discovered": 0,
+        "skipped": 0,
+        "source_id": "p6-26-user-guide"
+      }
+    ],
+    "unchanged": true
+  },
+  "sqlite": {
+    "counts": {
+      "audits": 453,
+      "cards": 1090,
+      "events": 0,
+      "topics": 1539,
+      "translations": 0
+    },
+    "database": {
+      "copy": "/tmp/kb-corpus-dj2b6foi.sqlite3",
+      "path": "/tmp/kb_sqlite_corpus.sqlite3",
+      "schema_version": 4,
+      "sha256": "d4846daa1ff25aef9c7237cd28aea21938374c23486609e305183270a79a66e9"
+    },
+    "integrity": {
+      "checks": [
+        {
+          "check": "authoritative_topic_totals",
+          "detail": {
+            "actual": {
+              "p6-26-html-help": 982,
+              "p6-26-user-guide": 557
+            },
+            "expected": {
+              "p6-26-html-help": 982,
+              "p6-26-user-guide": 557
+            }
+          },
+          "ok": true
+        },
+        {
+          "check": "every_topic_converted",
+          "detail": {
+            "converted": 1539
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_topic_keys",
+          "detail": {
+            "keys": 1539,
+            "rows": 1539
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_card_ids",
+          "detail": {
+            "cards": 1090
+          },
+          "ok": true
+        },
+        {
+          "check": "no_duplicate_card_content",
+          "detail": {
+            "examples": [],
+            "groups": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "card_content_hashes_are_sha256",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "topic_content_hashes_are_sha256",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "topic_urls_are_official",
+          "detail": {
+            "bad": [],
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "no_orphan_translations",
+          "detail": {
+            "count": 0,
+            "examples": []
+          },
+          "ok": true
+        },
+        {
+          "check": "no_project_card_without_tenant",
+          "detail": {
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "every_card_has_a_topic",
+          "detail": {
+            "count": 0
+          },
+          "ok": true
+        },
+        {
+          "check": "published_translations_bound_to_current_source",
+          "detail": {
+            "stale": []
+          },
+          "ok": true
+        }
+      ],
+      "label": "sqlite",
+      "ok": true,
+      "published_cards": 0
+    },
+    "sources": {
+      "p6-26-html-help": {
+        "content_hash": "ef78a19c6f3f2a7797456af6d592d5474d0c054692bf75de1392d1d894f1c92e",
+        "status": "converted",
+        "topic_counts": {
+          "converted": 982,
+          "total": 982
+        }
+      },
+      "p6-26-user-guide": {
+        "content_hash": "c619051559bba3c0e7eb650a21c5b7910f46948ed7e457caa82ba1f252e4be89",
+        "status": "converted",
+        "topic_counts": {
+          "converted": 557,
+          "total": 557
+        }
+      }
+    }
+  }
+}

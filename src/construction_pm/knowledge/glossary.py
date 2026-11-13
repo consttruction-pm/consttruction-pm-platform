@@ -1,10 +1,11 @@
-"""CUBI-owned technical glossary for the nine working languages.
+"""CUBI-owned technical glossary for the product languages.
 
 These entries are product terminology, not source content. Search may expand a
 localized engineering term into the English term used by the official Version 26
 reference; the assistant may attach the glossary to an answer so a user sees the
 canonical project-control vocabulary in their own language. The glossary never
-changes a citation or invents a procedure.
+changes a citation or invents a procedure. The Russian block is retained so
+legacy records keep their terminology; Russian is not a product target.
 """
 
 from __future__ import annotations
@@ -57,7 +58,7 @@ GLOSSARIES: Mapping[str, tuple[tuple[str, str], ...]] = {
         ("Ressourcenausgleich", "Resource Leveling — gleichmäßige Ressourcenverteilung"),
         ("Basisplan", "Baseline — Referenzversion des Plans"),
     ),
-    "zh-CN": (
+    "zh-Hans": (
         ("项目", "Project — 具有明确范围与进度目标的临时性工作"),
         ("EPS", "Enterprise Project Structure — 企业项目结构"),
         ("WBS", "Work Breakdown Structure — 工作分解结构"),
@@ -71,21 +72,6 @@ GLOSSARIES: Mapping[str, tuple[tuple[str, str], ...]] = {
         ("紧后活动", "Successor — 后续活动"),
         ("资源平衡", "Resource Leveling — 均衡资源需求"),
         ("基准计划", "Baseline — 计划的参考版本"),
-    ),
-    "zh-TW": (
-        ("專案", "Project — 具有明確範圍與進度目標的臨時性工作"),
-        ("EPS", "Enterprise Project Structure — 企業專案結構"),
-        ("WBS", "Work Breakdown Structure — 工作分解結構"),
-        ("活動", "Activity — 納入進度安排的工作單元"),
-        ("關係", "Relationship — 活動之間的邏輯依賴"),
-        ("行事曆", "Calendar — 工作日與工作時間"),
-        ("資源", "Resource — 人力、設備或材料"),
-        ("成本", "Cost — 計畫成本或實際成本"),
-        ("進度計畫", "Schedule — 計算後的活動日期"),
-        ("前置活動", "Predecessor — 前置作業"),
-        ("後續活動", "Successor — 後續作業"),
-        ("資源撫平", "Resource Leveling — 均衡資源需求"),
-        ("基準計畫", "Baseline — 計畫的參考版本"),
     ),
     "ar": (
         ("مشروع", "Project — عمل مؤقت له نطاق وجدول زمني محدد"),

@@ -1,10 +1,15 @@
 """Seed translations for a small, explicit set of core Knowledge Cards.
 
-These records exist so every working language can demonstrate the complete
-per-locale content model (title, summary, steps, glossary, source note) without
-pretending that the whole card corpus has been translated. They are stored
-as ``translated`` with ``review_status=pending``; no seed is approved or
+These records exist so every product translation target can demonstrate the
+complete per-locale content model (title, summary, steps, glossary, source note)
+without pretending that the whole card corpus has been translated. They are
+stored as ``translated`` with ``review_status=pending``; no seed is approved or
 published. A human reviewer must approve each locale through the normal API.
+
+Chinese is seeded under the canonical ``zh-Hans`` code. The older ``zh-CN`` /
+``zh-TW`` seeds were consolidated because the product exposes one Chinese
+translation slot. A Russian seed is retained only as legacy data; Russian is
+not a product target and does not count toward product coverage.
 """
 
 from __future__ import annotations
@@ -91,7 +96,7 @@ SEED_TRANSLATIONS: Mapping[str, Mapping[str, Mapping[str, object]]] = {
             ],
             source_note="Übersetzt aus der offiziellen Version-26-Referenz; vor Veröffentlichung menschlich zu prüfen.",
         ),
-        "zh-CN": _content(
+        "zh-Hans": _content(
             title="创建项目",
             summary="使用此官方流程在 CUBI 中创建新项目。",
             steps=[
@@ -109,25 +114,6 @@ SEED_TRANSLATIONS: Mapping[str, Mapping[str, Mapping[str, object]]] = {
                 ("OBS", "Organizational Breakdown Structure — 组织分解结构"),
             ],
             source_note="译自官方第 26 版参考资料；发布前需人工复核。",
-        ),
-        "zh-TW": _content(
-            title="建立專案",
-            summary="使用此官方流程在 CUBI 中建立新專案。",
-            steps=[
-                "選擇「檔案」，然後選擇「新建」，啟動「建立新專案」精靈。",
-                "選擇要將新專案加入的 EPS 節點。",
-                "輸入新專案的專案 ID 與專案名稱。",
-                "指定專案計畫開始日期，必要時指定「必須完成日期」。設定必須完成日期後，行事曆預設採用專案完成日期與時間；留空時採用目前系統日期與時間。",
-                "選擇負責經理。此處選取的 OBS 元素會顯示在新專案 OBS 的頂端。",
-                "選擇專案用於新資源與角色分派的預設費率類型。",
-                "按一下「完成」。",
-            ],
-            glossary=[
-                ("專案", "Project — 具有明確範圍與進度的臨時性工作"),
-                ("EPS", "Enterprise Project Structure — 企業專案結構"),
-                ("OBS", "Organizational Breakdown Structure — 組織分解結構"),
-            ],
-            source_note="譯自官方第 26 版參考資料；發佈前需人工複核。",
         ),
         "ar": _content(
             title="إنشاء مشروع",

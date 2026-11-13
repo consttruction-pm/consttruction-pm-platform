@@ -1,0 +1,701 @@
+{
+  "contract": "cubi-knowledge-agent1-fixtures.v1",
+  "contract_version": "cubi-knowledge-api.v1",
+  "generated_at": "2026-11-13T03:11:10.254329+00:00",
+  "corpus": {
+    "cards": 1090,
+    "topics": 1539,
+    "source": "/tmp/contract_fixtures_b7d6a94.sqlite3"
+  },
+  "envelope_rule": "success bodies are objects; errors are {code, message_key}",
+  "fixtures": {
+    "locales": {
+      "request": "GET /api/knowledge/locales",
+      "status": 200,
+      "body": {
+        "locales": [
+          {
+            "locale": "fa",
+            "language_code": "fa",
+            "display_name": "فارسی",
+            "english_name": "Persian",
+            "direction": "rtl",
+            "script": "Arabic",
+            "aliases": [
+              "fa-ir",
+              "prs",
+              "persian",
+              "farsi"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "en",
+            "language_code": "en",
+            "display_name": "English",
+            "english_name": "English",
+            "direction": "ltr",
+            "script": "Latin",
+            "aliases": [
+              "en-us",
+              "en-gb",
+              "english"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "de",
+            "language_code": "de",
+            "display_name": "Deutsch",
+            "english_name": "German",
+            "direction": "ltr",
+            "script": "Latin",
+            "aliases": [
+              "de-de",
+              "german"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "zh-Hans",
+            "language_code": "zh",
+            "display_name": "简体中文",
+            "english_name": "Simplified Chinese",
+            "direction": "ltr",
+            "script": "Han-Simplified",
+            "aliases": [
+              "zh",
+              "zh-cn",
+              "zh-sg",
+              "zh-tw",
+              "zh-hant",
+              "zh-hk",
+              "zh-mo",
+              "chinese",
+              "chinese-simplified",
+              "chinese-traditional"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [
+              "zh-CN",
+              "zh-TW"
+            ],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "ar",
+            "language_code": "ar",
+            "display_name": "العربية",
+            "english_name": "Arabic",
+            "direction": "rtl",
+            "script": "Arabic",
+            "aliases": [
+              "ar-sa",
+              "ar-ae",
+              "arabic"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "fr",
+            "language_code": "fr",
+            "display_name": "Français",
+            "english_name": "French",
+            "direction": "ltr",
+            "script": "Latin",
+            "aliases": [
+              "fr-fr",
+              "french"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "ja",
+            "language_code": "ja",
+            "display_name": "日本語",
+            "english_name": "Japanese",
+            "direction": "ltr",
+            "script": "Japanese",
+            "aliases": [
+              "ja-jp",
+              "japanese"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "ko",
+            "language_code": "ko",
+            "display_name": "한국어",
+            "english_name": "Korean",
+            "direction": "ltr",
+            "script": "Hangul",
+            "aliases": [
+              "ko-kr",
+              "korean"
+            ],
+            "product": true,
+            "legacy": false,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          },
+          {
+            "locale": "ru",
+            "language_code": "ru",
+            "display_name": "Русский",
+            "english_name": "Russian",
+            "direction": "ltr",
+            "script": "Cyrillic",
+            "aliases": [
+              "ru-ru",
+              "russian"
+            ],
+            "product": false,
+            "legacy": true,
+            "legacy_codes": [],
+            "source_language": "en",
+            "default_language": "en",
+            "fallback_language": "en"
+          }
+        ],
+        "product_locales": [
+          "fa",
+          "en",
+          "de",
+          "zh-Hans",
+          "ar",
+          "fr",
+          "ja",
+          "ko"
+        ],
+        "target_locales": [
+          "fa",
+          "de",
+          "zh-Hans",
+          "ar",
+          "fr",
+          "ja",
+          "ko"
+        ],
+        "legacy_locales": [
+          "ru"
+        ],
+        "default_language": "en",
+        "fallback_language": "en",
+        "source_language": "en"
+      }
+    },
+    "error_unauthenticated": {
+      "request": "GET /api/knowledge/coverage (no cookie)",
+      "status": 401,
+      "body": {
+        "code": "SESSION_REQUIRED",
+        "message_key": "error.session_required"
+      }
+    },
+    "error_not_found": {
+      "request": "GET /api/knowledge/cards/KC-0…",
+      "status": 404,
+      "body": {
+        "code": "KNOWLEDGE_CARD_NOT_FOUND",
+        "message_key": "error.knowledge_card_not_found"
+      }
+    },
+    "error_forbidden": {
+      "request": "POST …/translations/fa as viewer",
+      "status": 403,
+      "body": {
+        "code": "authorization denied for permission=knowledge.contribute",
+        "message_key": "error.authorization denied for permission=knowledge.contribute"
+      }
+    },
+    "search": {
+      "request": "GET /api/knowledge/search?q=add project EPS&locale=en&limit=3",
+      "status": 200,
+      "body": {
+        "query": "add project EPS",
+        "query_locale": "en",
+        "response_locale": "en",
+        "filters": {
+          "locale": "en",
+          "language": null,
+          "category": null,
+          "source_id": null,
+          "source_version": null,
+          "card_type": null,
+          "translation_status": null
+        },
+        "insufficient_knowledge": false,
+        "hits": [
+          {
+            "entity_kind": "knowledge_card",
+            "entity_id": "KC-ae0c8e4681c771a8a1ab6184",
+            "card_id": "KC-ae0c8e4681c771a8a1ab6184",
+            "title": "Add a project to the EPS hierarchy",
+            "language": "en",
+            "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_a_project_to_the_eps_hierarchy.htm",
+            "translation_status": "official_source",
+            "fallback_used": false,
+            "score": 3.867503,
+            "matched_fields": [
+              "title",
+              "summary",
+              "steps"
+            ]
+          }
+        ]
+      }
+    },
+    "card_localized": {
+      "request": "GET /api/knowledge/cards/KC-ae0c8e4681c771a8a1ab6184?locale=fa",
+      "status": 200,
+      "body": {
+        "card_id": "KC-ae0c8e4681c771a8a1ab6184",
+        "title": "ایجاد یک پروژه",
+        "requested_locale": "fa",
+        "content_language": "fa",
+        "fallback_used": false,
+        "available_locales": [
+          {
+            "locale": "fa",
+            "translation_status": "published",
+            "review_status": "approved",
+            "published_language_version": 3,
+            "available": true,
+            "source": false
+          },
+          {
+            "locale": "en",
+            "translation_status": "published",
+            "review_status": "approved",
+            "available": true,
+            "source": true
+          },
+          {
+            "locale": "de",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "zh-Hans",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "ar",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "fr",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "ja",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "ko",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          },
+          {
+            "locale": "ru",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "published_language_version": null,
+            "available": false,
+            "source": false
+          }
+        ],
+        "language_context": {
+          "locale": "fa",
+          "language_code": "fa",
+          "source_language": "en",
+          "question_language": "fa",
+          "response_language": "fa",
+          "default_language": "en",
+          "fallback_language": "en",
+          "direction": "rtl",
+          "translation_status": "published",
+          "review_status": "approved",
+          "published_language_version": 3,
+          "technical_glossary": [
+            {
+              "term": "پروژه",
+              "definition": "Project — مجموعه‌ای از فعالیت‌ها برای تحقق یک هدف"
+            },
+            {
+              "term": "EPS",
+              "definition": "Enterprise Project Structure — ساختار سازمانی پروژه‌ها"
+            },
+            {
+              "term": "WBS",
+              "definition": "Work Breakdown Structure — شکست ساختاری کار"
+            },
+            {
+              "term": "فعالیت",
+              "definition": "Activity — واحد کاری زمان‌بندی‌شده"
+            },
+            {
+              "term": "رابطه",
+              "definition": "Relationship — وابستگی منطقی میان فعالیت‌ها"
+            },
+            {
+              "term": "تقویم",
+              "definition": "Calendar — تقویم کاری و ساعات کاری"
+            },
+            {
+              "term": "منبع",
+              "definition": "Resource — نیروی انسانی، ماشین یا ماده"
+            },
+            {
+              "term": "هزینه",
+              "definition": "Cost — هزینه برنامه‌ریزی‌شده یا واقعی"
+            },
+            {
+              "term": "زمان‌بندی",
+              "definition": "Schedule — محاسبه و به‌روزرسانی زمان‌ها"
+            },
+            {
+              "term": "تقدم",
+              "definition": "Predecessor — فعالیت پیشین"
+            },
+            {
+              "term": "جانشین",
+              "definition": "Successor — فعالیت پسین"
+            },
+            {
+              "term": "سطح‌بندی منابع",
+              "definition": "Resource Leveling — توزیع متعادل منابع"
+            },
+            {
+              "term": "خط مبنا",
+              "definition": "Baseline — نسخه مرجع برنامه"
+            }
+          ],
+          "localization_metadata": {
+            "machine_translated": false,
+            "source_card_hash": "e712f8a7260a40670a84e84f7933999424f6e2ef9cea1b2e378429c66b6b932c",
+            "source_card_revision": 2,
+            "translated_at": "2026-11-13T11:00:00+00:00",
+            "translation_source": "human",
+            "translator_id": "planner-1"
+          }
+        }
+      }
+    },
+    "card_translations": {
+      "request": "GET /api/knowledge/cards/KC-ae0c8e4681c771a8a1ab6184/translations",
+      "status": 200,
+      "body": {
+        "card_id": "KC-ae0c8e4681c771a8a1ab6184",
+        "locales": [
+          {
+            "locale": "fa",
+            "language_code": "fa",
+            "translation_status": "published",
+            "review_status": "approved",
+            "translation_version": 3
+          },
+          {
+            "locale": "en",
+            "language_code": "en",
+            "translation_status": "published",
+            "review_status": "approved",
+            "translation_version": 3
+          },
+          {
+            "locale": "de",
+            "language_code": "de",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "zh-Hans",
+            "language_code": "zh",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "ar",
+            "language_code": "ar",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "fr",
+            "language_code": "fr",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "ja",
+            "language_code": "ja",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "ko",
+            "language_code": "ko",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          },
+          {
+            "locale": "ru",
+            "language_code": "ru",
+            "translation_status": "missing",
+            "review_status": "pending",
+            "translation_version": 0
+          }
+        ]
+      }
+    },
+    "card_history": {
+      "request": "GET /api/knowledge/cards/KC-ae0c8e4681c771a8a1ab6184/history?limit=5",
+      "status": 200,
+      "body": {
+        "keys": [
+          "card_id",
+          "current_revision",
+          "events",
+          "next_before",
+          "revisions"
+        ],
+        "events": [
+          {
+            "action": "translation_published",
+            "actor_id": "admin-1",
+            "occurred_at": "2026-11-13T11:00:00+00:00"
+          },
+          {
+            "action": "translation_reviewed",
+            "actor_id": "admin-1",
+            "occurred_at": "2026-11-13T11:00:00+00:00"
+          },
+          {
+            "action": "translation_saved",
+            "actor_id": "planner-1",
+            "occurred_at": "2026-11-13T11:00:00+00:00"
+          },
+          {
+            "action": "published",
+            "actor_id": "admin-1",
+            "occurred_at": "2026-11-13T11:00:00+00:00"
+          },
+          {
+            "action": "reviewed",
+            "actor_id": "admin-1",
+            "occurred_at": "2026-11-13T11:00:00+00:00"
+          }
+        ]
+      }
+    },
+    "review_queue": {
+      "request": "GET /api/knowledge/translations?status=published&limit=5",
+      "status": 200,
+      "body": {
+        "keys": [
+          "count",
+          "translations"
+        ],
+        "rows": [
+          {
+            "card_id": "KC-ae0c8e4681c771a8a1ab6184",
+            "locale": "fa",
+            "translation_status": "published",
+            "translation_version": 3
+          }
+        ]
+      }
+    },
+    "assistant_answer": {
+      "request": "POST /api/knowledge/assistant/ask",
+      "status": 200,
+      "body": {
+        "kind": "answer",
+        "evidence_state": "verified",
+        "response_language": "en",
+        "fallback_used": false,
+        "card_ids": [
+          "KC-ae0c8e4681c771a8a1ab6184"
+        ],
+        "citations": [
+          {
+            "card_id": "KC-ae0c8e4681c771a8a1ab6184",
+            "title": "Add a project to the EPS hierarchy",
+            "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_a_project_to_the_eps_hierarchy.htm"
+          }
+        ],
+        "language_context": {
+          "locale": "en",
+          "language_code": "en",
+          "source_language": "en",
+          "question_language": "en",
+          "response_language": "en",
+          "default_language": "en",
+          "fallback_language": "en",
+          "direction": "ltr",
+          "translation_status": "published",
+          "review_status": "approved",
+          "published_language_version": 3,
+          "technical_glossary": [
+            {
+              "term": "Project",
+              "definition": "A temporary endeavor with a defined scope and schedule"
+            },
+            {
+              "term": "EPS",
+              "definition": "Enterprise Project Structure"
+            },
+            {
+              "term": "WBS",
+              "definition": "Work Breakdown Structure"
+            },
+            {
+              "term": "Activity",
+              "definition": "A time-scheduled unit of work"
+            },
+            {
+              "term": "Relationship",
+              "definition": "A logical dependency between activities"
+            },
+            {
+              "term": "Calendar",
+              "definition": "Working days and hours"
+            },
+            {
+              "term": "Resource",
+              "definition": "Labor, equipment or material"
+            },
+            {
+              "term": "Cost",
+              "definition": "Planned or actual project cost"
+            },
+            {
+              "term": "Schedule",
+              "definition": "Calculated activity dates"
+            },
+            {
+              "term": "Predecessor",
+              "definition": "An activity that must occur before another"
+            },
+            {
+              "term": "Successor",
+              "definition": "An activity that follows another"
+            },
+            {
+              "term": "Resource Leveling",
+              "definition": "Balancing resource demand over time"
+            },
+            {
+              "term": "Baseline",
+              "definition": "A reference version of the plan"
+            }
+          ],
+          "localization_metadata": {
+            "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_a_project_to_the_eps_hierarchy.htm",
+            "source_title": "Add a project to the EPS hierarchy"
+          }
+        }
+      }
+    },
+    "memory": {
+      "request": "GET /api/knowledge/memory?project_id=PRJ-1",
+      "status": 200,
+      "body": {
+        "keys": [
+          "entries"
+        ],
+        "entries": []
+      }
+    },
+    "permission_matrix": {
+      "viewer": {
+        "knowledge.read": true,
+        "knowledge.contribute": false,
+        "knowledge.review": false,
+        "knowledge.publish": false,
+        "assistant.action": false
+      },
+      "planner": {
+        "knowledge.read": true,
+        "knowledge.contribute": true,
+        "knowledge.review": false,
+        "knowledge.publish": false,
+        "assistant.action": true
+      },
+      "project_admin": {
+        "knowledge.read": true,
+        "knowledge.contribute": true,
+        "knowledge.review": true,
+        "knowledge.publish": true,
+        "assistant.action": true
+      }
+    },
+    "route_table_check": {
+      "note": "Every route above is mounted by KnowledgeHttpMiddleware and asserted in tests/knowledge/test_http.py and tests/knowledge/test_runtime_mount.py.",
+      "contract": "cubi-knowledge-api.v1"
+    }
+  }
+}

@@ -325,6 +325,9 @@ def test_unapproved_translation_is_treated_as_fallback(
     assert answer.language == "ru"
     assert answer.translation_status == "translated"
     assert answer.content_language == "en"
+    # An unreviewed translation must not be cited as if it were published.
+    assert answer.citations[0].title == "Create a Project"
+    assert "Создание проекта" not in answer.citations[0].title
 
 
 def test_saved_locale_preference_is_used(assistant, viewer, published_card, store) -> None:
@@ -388,3 +391,80 @@ def test_guide_progress_is_isolated_per_user(assistant, viewer, published_card, 
 def test_unknown_language_on_ask_is_rejected(assistant, viewer, published_card) -> None:
     with pytest.raises(AssistantError, match="LOCALE_UNSUPPORTED"):
         assistant.ask(viewer, "create a project", language="pt-BR")
+
+
+def test_answer_reports_verified_evidence_state(assistant, viewer, published_card) -> None:
+    answer = assistant.ask(viewer, "How do I create a project?")
+
+    assert answer.kind == "answer"
+    assert answer.evidence_state == "verified"
+    assert answer.as_dict()["evidence_state"] == "verified"
+
+
+def test_unpublished_knowledge_is_reported_to_reviewers_only(
+    assistant, admin, viewer, card_factory, store
+) -> None:
+    draft = card_factory(title="Create a Project", topic_key="draft-project.html")
+    store.save_card(draft)
+
+    reviewer_view = assistant.ask(admin, "How do I create a project?")
+    assert reviewer_view.kind == "knowledge_gap"
+    assert reviewer_view.evidence_state == "unpublished"
+    assert reviewer_view.next_step == "knowledge.review"
+    assert reviewer_view.insufficient_knowledge is True
+
+    reader_view = assistant.ask(viewer, "How do I create a project?")
+    assert reader_view.evidence_state == "missing"
+    assert reader_view.next_step == "knowledge.curate"
+    # A reader must never learn the card id or the draft text.
+    assert reviewer_view.card_ids == () and reader_view.card_ids == ()
+    assert "Create a Project" not in reader_view.message
+
+
+def test_conflicting_published_sources_are_not_presented_as_one_answer(
+    assistant, viewer, card_factory, publish_factory, store
+) -> None:
+    first = publish_factory(
+        card_factory(
+            title="Create a Project",
+            purpose="Create the project from the Enterprise menu.",
+            steps=("Choose Enterprise, then Projects.",),
+            topic_key="conflict-a.html",
+        )
+    )
+    second = publish_factory(
+        card_factory(
+            title="Create a Project",
+            purpose="Create the project from the File menu.",
+            steps=("Choose File, then New Project.",),
+            topic_key="conflict-b.html",
+        )
+    )
+    store.save_card(first)
+    store.save_card(second)
+
+    answer = assistant.ask(viewer, "How do I create a project?")
+
+    assert answer.kind == "clarification"
+    assert answer.evidence_state == "conflicting"
+    assert answer.insufficient_knowledge is True
+    assert answer.next_step == "knowledge.review"
+    assert {citation.card_id for citation in answer.citations} == {
+        first.card_id,
+        second.card_id,
+    }
+    assert "Create a Project" in answer.message
+    audits = [row for row in store.list_audit(tenant_id="tenant-1")]
+    assert any(row["action"] == "assistant_conflicting_sources" for row in audits)
+
+
+def test_missing_knowledge_is_distinguished_from_unpublished(
+    assistant, viewer, card_factory, store
+) -> None:
+    store.save_card(card_factory(title="Calendars", topic_key="calendar-only.html"))
+
+    missing = assistant.ask(viewer, "quantum flux capacitor calibration")
+    unpublished = assistant.ask(viewer, "calendar")
+
+    assert missing.evidence_state == "missing"
+    assert unpublished.evidence_state == "missing"  # a reader is not told about drafts

@@ -1,0 +1,208 @@
+{
+  "contract": "cubi-knowledge-retrieval-evidence.v1",
+  "policy": {
+    "product_languages": [
+      "fa",
+      "en",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "source_language": "en",
+    "translation_targets": [
+      "fa",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "legacy_locales": [
+      "ru"
+    ],
+    "chinese": "zh-Hant and zh-TW resolve to the single zh-Hans target"
+  },
+  "corpus": "docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/cubi-knowledge-v26.sqlite3",
+  "published_card": {
+    "Activity Table": "KC-09c21a745ddf38a599592b72",
+    "Add predecessor relationships": "KC-2ae64ccc16857012d0f29d90",
+    "Calendars": "KC-0b44284948b083a6d04faa0c",
+    "Create a project": "KC-6f20596c572833fd50e076f2",
+    "Define user preferences": "KC-7d1054acd5ecf5de56b410c5",
+    "Import a Global Change specification": "KC-c9fc4681f659bf714da8371a",
+    "Level resources": "KC-0ca04746e4a53b26d3ec31e9",
+    "Print budget reports": "KC-e737d67135736139dc9833e5"
+  },
+  "questions": [
+    {
+      "locale": "en",
+      "question": "How do I create a project?",
+      "kind": "answer",
+      "response_language": "en",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": false,
+      "translation_status": "published",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "fa",
+      "question": "چگونه یک پروژه ایجاد کنم؟",
+      "kind": "answer",
+      "response_language": "fa",
+      "direction": "rtl",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "de",
+      "question": "Wie erstelle ich ein Projekt?",
+      "kind": "answer",
+      "response_language": "de",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "zh-Hans",
+      "question": "如何创建项目？",
+      "kind": "answer",
+      "response_language": "zh-Hans",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ar",
+      "question": "كيف أنشئ مشروعاً؟",
+      "kind": "answer",
+      "response_language": "ar",
+      "direction": "rtl",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "fr",
+      "question": "Comment créer un projet ?",
+      "kind": "answer",
+      "response_language": "fr",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ja",
+      "question": "プロジェクトを作成するには？",
+      "kind": "answer",
+      "response_language": "ja",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    },
+    {
+      "locale": "ko",
+      "question": "프로젝트를 어떻게 생성합니까?",
+      "kind": "answer",
+      "response_language": "ko",
+      "direction": "ltr",
+      "evidence_state": "verified",
+      "fallback_used": true,
+      "translation_status": "translated",
+      "content_language": "en",
+      "citations": [
+        {
+          "title": "Create a project",
+          "source_url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project.htm",
+          "card_id": "KC-6f20596c572833fd50e076f2"
+        }
+      ],
+      "top_card_id": "KC-6f20596c572833fd50e076f2"
+    }
+  ],
+  "unpublished_probe": {
+    "question": "How is a threshold used?",
+    "draft_card_id": "KC-a7d67702764e1c84717fc649",
+    "viewer": {
+      "kind": "knowledge_gap",
+      "evidence_state": "missing",
+      "citations": 0
+    },
+    "reviewer": {
+      "kind": "knowledge_gap",
+      "evidence_state": "unpublished",
+      "citations": 0
+    }
+  }
+}

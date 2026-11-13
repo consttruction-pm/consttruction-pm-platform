@@ -1,0 +1,212 @@
+{
+  "locales": {
+    "fa": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "en": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "de": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "zh-Hans": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ar": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "fr": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ja": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ko": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    },
+    "ru": {
+      "missing": 0,
+      "draft": 0,
+      "translated": 0,
+      "review_required": 0,
+      "approved": 0,
+      "published": 0,
+      "retired": 0
+    }
+  },
+  "cards": 1090,
+  "source_language": "en",
+  "product_locales": [
+    "fa",
+    "en",
+    "de",
+    "zh-Hans",
+    "ar",
+    "fr",
+    "ja",
+    "ko"
+  ],
+  "target_locales": [
+    "fa",
+    "de",
+    "zh-Hans",
+    "ar",
+    "fr",
+    "ja",
+    "ko"
+  ],
+  "legacy_locales": [
+    "ru"
+  ],
+  "available_slots": 7630,
+  "filled_slots": 0,
+  "published_slots": 0,
+  "approved_slots": 0,
+  "missing_slots": 7630,
+  "coverage_percent": 0.0,
+  "inventory": {
+    "fa": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "de": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "zh-Hans": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "ar": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "fr": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "ja": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    },
+    "ko": {
+      "records": 0,
+      "filled": 0,
+      "published": 0,
+      "approved": 0,
+      "complete": 0,
+      "answerable": 0,
+      "machine_translated": 0,
+      "stale_source_binding": 0,
+      "missing_slots": 1090
+    }
+  },
+  "legacy": {
+    "locales": [
+      "ru"
+    ],
+    "records": 0,
+    "published": 0,
+    "approved": 0,
+    "by_locale": {
+      "ru": {
+        "records": 0,
+        "published": 0,
+        "approved": 0,
+        "answerable": 0
+      }
+    },
+    "storage_codes": {},
+    "normalized_records": 0
+  }
+}

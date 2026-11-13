@@ -249,7 +249,19 @@ def test_preview_composition_serves_knowledge_beside_the_real_lifecycle_app(tmp_
 
         status, payload = call(preview.app, "GET", "/api/knowledge/locales", session=session.session_id)
         assert status == "200", payload
-        assert len(payload["locales"]) == 10
+        assert [item["locale"] for item in payload["locales"]] == [
+            "fa",
+            "en",
+            "de",
+            "zh-Hans",
+            "ar",
+            "fr",
+            "ja",
+            "ko",
+            "ru",
+        ]
+        assert payload["target_locales"] == ["fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]
+        assert payload["legacy_locales"] == ["ru"]
         assert payload["default_language"] == "en"
 
         status, payload = call(preview.app, "GET", "/api/knowledge/coverage", session=session.session_id)

@@ -1,0 +1,668 @@
+{
+  "contract": "cubi-knowledge-translation-policy-reconciliation.v1",
+  "generated_at": "2026-11-13T02:10:05.505255+00:00",
+  "policy": {
+    "product_languages": [
+      "fa",
+      "en",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "source_language": "en",
+    "translation_targets": [
+      "fa",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "target_count": 7,
+    "legacy_locales": [
+      "ru"
+    ],
+    "chinese_mapping": {
+      "zh": "zh-Hans",
+      "zh-CN": "zh-Hans",
+      "zh-SG": "zh-Hans",
+      "zh-TW": "zh-Hans",
+      "zh-Hant": "zh-Hans",
+      "zh-HK": "zh-Hans",
+      "zh-MO": "zh-Hans"
+    },
+    "russian_policy": "Readable legacy locale; records preserved and still answerable, excluded from product targets and coverage denominators.",
+    "deletion": "No translation row was deleted or rewritten. Legacy codes remain stored and are normalized only in the read projection."
+  },
+  "legacy_row_audit": {
+    "database": "docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/cubi-knowledge-v26.sqlite3",
+    "stored_rows": 9,
+    "unique_cards": 1,
+    "stored_locale_codes": {
+      "ar": 1,
+      "de": 1,
+      "fa": 1,
+      "fr": 1,
+      "ja": 1,
+      "ko": 1,
+      "ru": 1,
+      "zh-CN": 1,
+      "zh-TW": 1
+    },
+    "normalized_into_zh_hans": 2,
+    "status_counts": {
+      "translated": 9
+    },
+    "review_status_counts": {
+      "pending": 9
+    },
+    "translation_source_counts": {
+      "cubi_authored": 9
+    },
+    "machine_translated": 0,
+    "reviewers_assigned": 0,
+    "source_bound": 0,
+    "requires_human_review": 9,
+    "approved_or_published": 0,
+    "rows": [
+      {
+        "stored_locale": "ar",
+        "canonical_locale": "ar",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "de",
+        "canonical_locale": "de",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "fa",
+        "canonical_locale": "fa",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "fr",
+        "canonical_locale": "fr",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "ja",
+        "canonical_locale": "ja",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "ko",
+        "canonical_locale": "ko",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "ru",
+        "canonical_locale": "ru",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "zh-CN",
+        "canonical_locale": "zh-Hans",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      },
+      {
+        "stored_locale": "zh-TW",
+        "canonical_locale": "zh-Hans",
+        "translation_status": "translated",
+        "review_status": "pending",
+        "translation_source": "cubi_authored",
+        "machine_translated": false,
+        "reviewer": null,
+        "source_bound": false,
+        "requires_human_review": true,
+        "answerable_as_recorded": false
+      }
+    ]
+  },
+  "coverage_evidence_sqlite": {
+    "locales": {
+      "fa": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "en": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "de": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "zh-Hans": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ar": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "fr": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ja": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ko": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ru": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 1,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      }
+    },
+    "cards": 1030,
+    "source_language": "en",
+    "product_locales": [
+      "fa",
+      "en",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "target_locales": [
+      "fa",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "legacy_locales": [
+      "ru"
+    ],
+    "available_slots": 7210,
+    "filled_slots": 7,
+    "published_slots": 0,
+    "approved_slots": 0,
+    "missing_slots": 7203,
+    "coverage_percent": 0.1,
+    "inventory": {
+      "fa": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "de": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "zh-Hans": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "ar": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "fr": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "ja": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      },
+      "ko": {
+        "records": 1,
+        "filled": 1,
+        "published": 0,
+        "approved": 0,
+        "complete": 1,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1029
+      }
+    },
+    "legacy": {
+      "locales": [
+        "ru"
+      ],
+      "records": 1,
+      "published": 0,
+      "approved": 0,
+      "by_locale": {
+        "ru": {
+          "records": 1,
+          "published": 0,
+          "approved": 0,
+          "answerable": 0
+        }
+      },
+      "storage_codes": {
+        "ar": 1,
+        "de": 1,
+        "fa": 1,
+        "fr": 1,
+        "ja": 1,
+        "ko": 1,
+        "ru": 1,
+        "zh-CN": 1,
+        "zh-TW": 1
+      },
+      "normalized_records": 2
+    }
+  },
+  "coverage_full_corpus_postgres": {
+    "locales": {
+      "fa": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "en": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "de": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "zh-Hans": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ar": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "fr": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ja": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ko": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      },
+      "ru": {
+        "missing": 0,
+        "draft": 0,
+        "translated": 0,
+        "review_required": 0,
+        "approved": 0,
+        "published": 0,
+        "retired": 0
+      }
+    },
+    "cards": 1090,
+    "source_language": "en",
+    "product_locales": [
+      "fa",
+      "en",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "target_locales": [
+      "fa",
+      "de",
+      "zh-Hans",
+      "ar",
+      "fr",
+      "ja",
+      "ko"
+    ],
+    "legacy_locales": [
+      "ru"
+    ],
+    "available_slots": 7630,
+    "filled_slots": 0,
+    "published_slots": 0,
+    "approved_slots": 0,
+    "missing_slots": 7630,
+    "coverage_percent": 0.0,
+    "inventory": {
+      "fa": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "de": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "zh-Hans": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "ar": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "fr": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "ja": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      },
+      "ko": {
+        "records": 0,
+        "filled": 0,
+        "published": 0,
+        "approved": 0,
+        "complete": 0,
+        "answerable": 0,
+        "machine_translated": 0,
+        "stale_source_binding": 0,
+        "missing_slots": 1090
+      }
+    },
+    "legacy": {
+      "locales": [
+        "ru"
+      ],
+      "records": 0,
+      "published": 0,
+      "approved": 0,
+      "by_locale": {
+        "ru": {
+          "records": 0,
+          "published": 0,
+          "approved": 0,
+          "answerable": 0
+        }
+      },
+      "storage_codes": {},
+      "normalized_records": 0
+    }
+  },
+  "remaining_human_review_tasks": [
+    {
+      "locale": "fa",
+      "cards": 1,
+      "task": "Review and approve the fa seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "de",
+      "cards": 1,
+      "task": "Review and approve the de seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "zh-Hans",
+      "cards": 1,
+      "task": "Review and approve the zh-Hans seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "ar",
+      "cards": 1,
+      "task": "Review and approve the ar seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "fr",
+      "cards": 1,
+      "task": "Review and approve the fr seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "ja",
+      "cards": 1,
+      "task": "Review and approve the ja seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "ko",
+      "cards": 1,
+      "task": "Review and approve the ko seed translation of the flagship card through the knowledge review queue; machine approval is impossible by construction."
+    },
+    {
+      "locale": "ru",
+      "cards": 1,
+      "task": "Legacy record only: no product review is required. It remains readable and is excluded from product coverage."
+    }
+  ],
+  "arithmetic": {
+    "sqlite_cards": 1030,
+    "sqlite_targets": 7,
+    "sqlite_slots": 7210,
+    "sqlite_filled": 7,
+    "postgres_cards": 1090,
+    "postgres_slots": 7630,
+    "postgres_filled": 0,
+    "note": "9 stored legacy rows collapse to 7 product-filled slots (zh-CN and zh-TW are the same Chinese slot) plus 1 Russian legacy record. The denominator is cards x 7, never cards x 9."
+  }
+}

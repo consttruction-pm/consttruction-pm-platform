@@ -320,6 +320,139 @@ def test_workflow_validation_and_unknown_routes(middleware) -> None:
     assert payload["code"] == "REQUEST_QUESTION_REQUIRED"
 
 
+def test_eps_audit_memory_and_workflow_remaining_routes(middleware) -> None:
+    status, payload = call(
+        middleware, "GET", "/api/knowledge/eps", session="viewer-session"
+    )
+    assert status.startswith("200")
+    assert payload["nodes"] == []
+
+    status, payload = call(
+        middleware,
+        "POST",
+        "/api/knowledge/eps",
+        body={"code": "OPS", "name": "Operations"},
+    )
+    assert status.startswith("201")
+    eps_id = payload["eps_id"]
+    assert eps_id.startswith("EPS-")
+
+    status, payload = call(
+        middleware,
+        "POST",
+        "/api/knowledge/eps",
+        session="viewer-session",
+        body={"code": "OPS2", "name": "Operations"},
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware, "GET", "/api/knowledge/audit", session="viewer-session"
+    )
+    assert status.startswith("403")
+
+    status, payload = call(middleware, "GET", "/api/knowledge/audit", query="limit=10")
+    assert status.startswith("200")
+    assert any(row["action"] == "organization_eps_create" for row in payload["events"])
+
+    status, payload = call(
+        middleware,
+        "POST",
+        "/api/knowledge/memory",
+        body={"key": "ui.density", "value": {"value": "compact"}},
+    )
+    assert status.startswith("200")
+    assert payload["key"] == "ui.density"
+
+    status, payload = call(
+        middleware, "GET", "/api/knowledge/memory", session="viewer-session"
+    )
+    assert status.startswith("200")
+    assert payload["entries"] == []
+
+    status, payload = call(
+        middleware,
+        "POST",
+        "/api/knowledge/memory",
+        session="viewer-session",
+        body={"key": "ui.density", "value": {"value": "compact"}},
+    )
+    assert status.startswith("403")
+
+    status, payload = call(
+        middleware, "POST", "/api/knowledge/assistant/workflows", body={}
+    )
+    assert status.startswith("201")
+    run_id = payload["run_id"]
+
+    status, payload = call(
+        middleware, "GET", f"/api/knowledge/assistant/workflows/{run_id}"
+    )
+    assert status.startswith("200")
+    assert payload["run_id"] == run_id
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/workflows/{run_id}/back",
+        body={"expected_version": 1},
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "WORKFLOW_AT_FIRST_STEP"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/workflows/{run_id}/skip",
+        body={
+            "step": "organization",
+            "reason": "not needed at all",
+            "expected_version": 1,
+        },
+    )
+    assert status.startswith("400")
+    assert payload["code"] == "WORKFLOW_STEP_NOT_SKIPPABLE"
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/workflows/{run_id}/abandon",
+        body={"reason": "pilot cancelled", "expected_version": 1},
+    )
+    assert status.startswith("200")
+    assert payload["status"] == "abandoned"
+
+    status, payload = call(
+        middleware, "POST", "/api/knowledge/assistant/workflows", body={}
+    )
+    run_id = payload["run_id"]
+    for step, step_payload in (
+        (
+            "organization",
+            {"organization": "CUBI", "eps": {"code": "OPS", "name": "Operations"}},
+        ),
+        ("discipline", {"discipline": "Engineering", "project_type": "Capital Project"}),
+        ("identity", {"name": "Demo Project", "project_id": "PRJ-900"}),
+        ("review", {"confirm": True}),
+    ):
+        status, payload = call(
+            middleware,
+            "POST",
+            f"/api/knowledge/assistant/workflows/{run_id}/steps/{step}",
+            body={"payload": step_payload, "expected_version": payload["version"]},
+        )
+        assert status.startswith("200"), (step, payload)
+
+    status, payload = call(
+        middleware,
+        "POST",
+        f"/api/knowledge/assistant/workflows/{run_id}/approve",
+        body={"expected_version": payload["version"]},
+    )
+    assert status.startswith("200")
+    assert payload["approval_token"].startswith("AP-")
+
+
 def test_malformed_json_is_reported(middleware) -> None:
     environ = {
         "REQUEST_METHOD": "POST",
@@ -350,26 +483,39 @@ RU_PAYLOAD = {
 }
 
 
-def test_locales_endpoint_lists_ten_locales(middleware) -> None:
+def test_locales_endpoint_separates_product_and_legacy_locales(middleware) -> None:
     status, payload = call(middleware, "GET", "/api/knowledge/locales", session="viewer-session")
     assert status.startswith("200")
     assert [item["locale"] for item in payload["locales"]] == [
         "fa",
         "en",
         "de",
-        "zh-CN",
-        "zh-TW",
+        "zh-Hans",
         "ar",
         "fr",
         "ja",
         "ko",
         "ru",
     ]
+    assert payload["product_locales"] == [
+        "fa",
+        "en",
+        "de",
+        "zh-Hans",
+        "ar",
+        "fr",
+        "ja",
+        "ko",
+    ]
+    assert payload["target_locales"] == ["fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]
+    assert payload["legacy_locales"] == ["ru"]
     russian = next(item for item in payload["locales"] if item["locale"] == "ru")
     assert russian["language_code"] == "ru"
-    assert russian["source_language"] == "en"
-    assert russian["default_language"] == "en"
-    assert russian["fallback_language"] == "en"
+    assert russian["product"] is False
+    assert russian["legacy"] is True
+    chinese = next(item for item in payload["locales"] if item["locale"] == "zh-Hans")
+    assert chinese["product"] is True
+    assert "zh-hant" in chinese["aliases"]
     persian = next(item for item in payload["locales"] if item["locale"] == "fa")
     assert persian["direction"] == "rtl"
 
@@ -399,6 +545,17 @@ def test_translation_routes_require_the_right_permission(
     assert payload["translation_status"] == "translated"
     assert payload["review_status"] == "pending"
     assert payload["locale"] == "ru"
+
+    status, payload = call(
+        middleware,
+        "GET",
+        f"/api/knowledge/cards/{card.card_id}/translations/ru/history",
+        session="viewer-session",
+    )
+    assert status.startswith("200")
+    assert payload["locale"] == "ru"
+    assert payload["current_version"] == 1
+    assert payload["revisions"] == []
 
     status, payload = call(
         middleware,
@@ -445,7 +602,7 @@ def test_translation_routes_require_the_right_permission(
     )
     assert status.startswith("200")
     rows = {item["locale"]: item for item in payload["translations"]}
-    assert list(rows) == ["fa", "en", "de", "zh-CN", "zh-TW", "ar", "fr", "ja", "ko", "ru"]
+    assert list(rows) == ["fa", "en", "de", "zh-Hans", "ar", "fr", "ja", "ko", "ru"]
     assert rows["ru"]["translation_status"] == "published"
     assert rows["fa"]["translation_status"] == "missing"
     assert rows["en"]["translation_status"] == "published"
