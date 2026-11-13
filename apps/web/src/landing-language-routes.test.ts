@@ -185,3 +185,30 @@ test("the Persian landing document boots the same JavaScript entries as the Engl
   assert.match(faHome, /<html lang="fa" dir="rtl">/);
   assert.match(faHome, /<link rel="canonical" href="__CUBI_BASE_URL__\/fa\/" \/>/);
 });
+
+
+test("About Us ships approved localized routes in all eight product languages", () => {
+  const localized = [
+    ["en", "ltr", "public/about/index.html"],
+    ["fa", "rtl", "public/fa/about/index.html"],
+    ["de", "ltr", "public/de/about/index.html"],
+    ["zh-Hans", "ltr", "public/zh-Hans/about/index.html"],
+    ["ar", "rtl", "public/ar/about/index.html"],
+    ["fr", "ltr", "public/fr/about/index.html"],
+    ["ja", "ltr", "public/ja/about/index.html"],
+    ["ko", "ltr", "public/ko/about/index.html"],
+  ] as const;
+  for (const [locale, direction, file] of localized) {
+    assert.ok(existsSync(join(root, file)), `missing localized About route: ${file}`);
+    const html = readDoc(file);
+    assert.ok(html.includes(`<html lang="${locale}" dir="${direction}">`), `${file} language and direction`);
+    assert.ok(html.includes('hreflang="en"') && html.includes('hreflang="fa"'), `${file} English/Persian alternates`);
+    assert.ok(html.includes('hreflang="de"') && html.includes('hreflang="zh-Hans"'), `${file} German/Chinese alternates`);
+    assert.ok(html.includes('hreflang="ar"') && html.includes('hreflang="fr"'), `${file} Arabic/French alternates`);
+    assert.ok(html.includes('hreflang="ja"') && html.includes('hreflang="ko"'), `${file} Japanese/Korean alternates`);
+    assert.ok(html.includes("global-assistant-launcher.bundle.js"), `${file} shared assistant launcher`);
+    assert.ok(html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard"), `${file} approved founder facts`);
+    assert.match(html, /<h1>[^<\u0600-\u06FF]*[^<]+<\/h1>/);
+  }
+  assert.ok(readDoc("apps/web/src/landing.ts").includes('["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)'));
+});
