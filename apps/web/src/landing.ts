@@ -474,6 +474,46 @@ export function getLandingCopyForLocale(requestedLocale: string): LandingCopy & 
   return getLandingCopy(requestedLocale);
 }
 
+
+export type LandingSecurityCard = { icon: string; title: string; body: string; status: string };
+export type LandingSecurityCopy = { eyebrow: string; title: string; intro: string; cards: LandingSecurityCard[]; disclosure: string };
+
+const securitySectionCopy: Record<string, LandingSecurityCopy> = {
+  en: {
+    eyebrow: "SECURITY & RELIABILITY",
+    title: "Your projects deserve transparent protection.",
+    intro: "CUBI distinguishes hosting capabilities that are confirmed today from controls that still need configuration. Cloud hosting does not remove every operational or data-loss risk.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Render provides managed TLS certificates for web services and redirects inbound HTTP traffic to HTTPS." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "A service-specific firewall configuration or entitlement for this deployment has not been verified. It is not represented as an active CUBI control." },
+      { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Render documents automatic DDoS protection for applications hosted on its platform, including free services." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "No Render Postgres database or verified application backup configuration was found in the connected workspace. Free web-service filesystems are ephemeral." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Render service logs and event history are available. Independent uptime monitoring and full alert coverage have not been verified." },
+      { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "A tested backup source and successful restore drill have not been established. Recovery is not promised until both are configured and tested." }
+    ],
+    disclosure: "Hosting audit: the connected Render workspace currently has two Free web services in Frankfurt and no Render Postgres instance. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
+  },
+  fa: {
+    eyebrow: "امنیت و پایداری",
+    title: "امنیت پروژه‌های شما؛ با شفافیت درباره آنچه واقعاً فعال است.",
+    intro: "کوبی قابلیت‌های تأییدشده در زیرساخت میزبانی فعلی و مواردی را که هنوز به پیکربندی نیاز دارند، شفاف اعلام می‌کند. میزبانی ابری به‌تنهایی همه خطرهای عملیاتی یا از دست رفتن داده را حذف نمی‌کند.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "Render گواهی TLS مدیریت‌شده را برای سرویس‌های وب ارائه می‌کند و درخواست‌های HTTP ورودی را به HTTPS هدایت می‌کند." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "فعال بودن پیکربندی فایروال اختصاصی برای این استقرار یا برخورداری این سرویس از آن تأیید نشده است؛ بنابراین آن را به‌عنوان کنترل فعال کوبی معرفی نمی‌کنیم." },
+      { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "طبق مستندات Render، محافظت خودکار در برابر حملات DDoS برای برنامه‌های میزبانی‌شده، از جمله سرویس‌های رایگان، ارائه می‌شود." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "در فضای کاری متصل، دیتابیس Render Postgres یا پیکربندی تأییدشده پشتیبان‌گیری برنامه مشاهده نشد. فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "لاگ‌ها و سوابق رخداد سرویس در Render در دسترس‌اند؛ مانیتورینگ مستقل دسترس‌پذیری و پوشش کامل هشدارها تأیید نشده است." },
+      { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی ثبت نشده است. تا زمان پیکربندی و آزمایش هر دو، بازیابی اطلاعات تضمین نمی‌شود." }
+    ],
+    disclosure: "نتیجه بررسی میزبانی: در فضای کاری متصل Render، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه Render Postgres مشاهده نشد. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
+  }
+};
+
+export function getLandingSecurityCopyForLocale(requestedLocale: string): LandingSecurityCopy {
+  const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
+  return securitySectionCopy[normalizedLocale] ?? { ...securitySectionCopy.en!, eyebrow: "SECURITY & RELIABILITY" };
+}
+
 function escapeLandingCopy<T>(value: T): T {
   if (typeof value === "string") return escapeHtml(value) as T;
   if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
@@ -489,6 +529,7 @@ function escapeHtml(value: string): string {
 
 function renderLanding(container: HTMLElement): void {
   const t = getLandingCopy(locale);
+  const security = getLandingSecurityCopyForLocale(locale);
   const c = t.chrome;
   setLandingDocumentLocale();
   // Language routes live one level below the site root, so workspace and
@@ -529,6 +570,11 @@ function renderLanding(container: HTMLElement): void {
         <section class="cubi-exact-features" id="capabilities">
           <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
           <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon${f.assistantAvatar ? " cubi-feature-icon-assistant" : ""}" aria-hidden="true">${f.assistantAvatar ? `<img src="${cubiAssistantAvatarUrl()}" width="50" height="50" alt="" />` : f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
+        </section>
+        <section class="cubi-exact-features cubi-security-section" id="security" aria-labelledby="cubi-security-title">
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">${security.eyebrow}</p><h2 id="cubi-security-title">${security.title}</h2><p>${security.intro}</p></div>
+          <div class="cubi-exact-feature-grid cubi-security-grid">${security.cards.map((card) => `<article><div class="cubi-feature-icon" aria-hidden="true">${card.icon}</div><h3>${card.title}</h3><p class="cubi-security-status"><strong>${card.status}</strong></p><p>${card.body}</p></article>`).join("")}</div>
+          <p class="cubi-security-disclosure">${security.disclosure}</p>
         </section>
         <section class="cubi-exact-features cubi-exact-industries" id="industries" aria-labelledby="cubi-industries-title"><div class="cubi-exact-section-head"><p class="cubi-kicker">${t.industriesEyebrow}</p><h2 id="cubi-industries-title">${t.industriesTitle}</h2><p>${t.industriesBody}</p></div></section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
