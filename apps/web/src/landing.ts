@@ -486,7 +486,7 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
       { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Encrypted connection between your browser and CUBI." },
       { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "No IP-based access restrictions are configured for the two connected web services. A separate application firewall rule set has not been verified; CUBI authentication remains a separate layer." },
       { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Protection against attacks that disrupt service availability, provided by the hosting platform." },
-      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / NOT VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
       { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Hosting logs and service events are available; independent alert coverage is not verified." },
       { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
     ],
@@ -515,7 +515,7 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
       { icon: "🔒", title: "Sichere SSL-Verbindung", status: "AKTIV — HOSTVERWALTET", body: "Verschlüsselte Verbindung zwischen Ihrem Browser und CUBI über verwaltete TLS-Zertifikate und HTTPS-Weiterleitung." },
       { icon: "🛡", title: "Cloud-Firewall-Schutz", status: "NICHT BESTÄTIGT", body: "Für beide verbundenen Webdienste ist keine IP-basierte Zugriffsbeschränkung konfiguriert. Eine separate Anwendungsfirewall wurde nicht bestätigt; die CUBI-Authentifizierung ist eine eigene Sicherheitsebene." },
       { icon: "◈", title: "DDoS-Schutz", status: "DURCH HOSTER", body: "Der aktuelle Hosting-Anbieter dokumentiert automatischen DDoS-Schutz für gehostete Anwendungen, einschließlich kostenloser Dienste." },
-      { icon: "☁", title: "Automatische Cloud-Sicherung", status: "NICHT EINGERICHTET / BESTÄTIGT", body: "Eine verwaltete PostgreSQL-Datenbank oder geprüfte Anwendungssicherung wurde im verbundenen Workspace nicht gefunden. Das Dateisystem kostenloser Webdienste ist flüchtig." },
+      { icon: "☁", title: "Automatische Cloud-Sicherung", status: "NICHT EINGERICHTET / NICHT BESTÄTIGT", body: "Eine verwaltete PostgreSQL-Datenbank oder geprüfte Anwendungssicherung wurde im verbundenen Workspace nicht gefunden. Das Dateisystem kostenloser Webdienste ist flüchtig." },
       { icon: "⌁", title: "Infrastrukturüberwachung", status: "TEILWEISE", body: "Hosting-Protokolle und Ereignisse sind verfügbar. Unabhängige Verfügbarkeitsüberwachung und vollständige Alarmierung sind nicht bestätigt." },
       { icon: "↻", title: "Datenwiederherstellung", status: "NICHT BESTÄTIGT", body: "Eine getestete Sicherungsquelle und ein erfolgreicher Wiederherstellungstest liegen nicht vor." }
     ],
@@ -557,7 +557,7 @@ const securitySectionCopy: Record<string, LandingSecurityCopy> = {
       { icon: "🔒", title: "Connexion SSL sécurisée", status: "ACTIVE — GÉRÉE PAR L’HÉBERGEUR", body: "Connexion chiffrée entre votre navigateur et CUBI grâce aux certificats TLS gérés et à la redirection HTTPS." },
       { icon: "🛡", title: "Protection par pare-feu cloud", status: "NON VÉRIFIÉE", body: "Aucune restriction d’accès par IP n’est configurée sur les deux services Web connectés. Un pare-feu applicatif distinct n’a pas été vérifié ; l’authentification CUBI reste une couche séparée." },
       { icon: "◈", title: "Protection DDoS", status: "FOURNIE PAR L’HÉBERGEUR", body: "L’hébergeur actuel documente une protection DDoS automatique pour les applications hébergées, y compris les services gratuits." },
-      { icon: "☁", title: "Sauvegarde cloud automatique", status: "NON CONFIGURÉE / VÉRIFIÉE", body: "Aucune base PostgreSQL gérée ni sauvegarde applicative vérifiée n’a été trouvée dans l’espace connecté. Le système de fichiers des services gratuits est éphémère." },
+      { icon: "☁", title: "Sauvegarde cloud automatique", status: "NON CONFIGURÉE / NON VÉRIFIÉE", body: "Aucune base PostgreSQL gérée ni sauvegarde applicative vérifiée n’a été trouvée dans l’espace connecté. Le système de fichiers des services gratuits est éphémère." },
       { icon: "⌁", title: "Surveillance de l’infrastructure", status: "PARTIELLE", body: "Les journaux et événements d’hébergement sont disponibles. La surveillance indépendante de disponibilité et la couverture des alertes ne sont pas vérifiées." },
       { icon: "↻", title: "Récupération des données", status: "NON VÉRIFIÉE", body: "Aucune source de sauvegarde testée ni restauration réussie n’a été établie." }
     ],
