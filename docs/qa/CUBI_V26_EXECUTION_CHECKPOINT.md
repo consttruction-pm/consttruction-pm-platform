@@ -3012,3 +3012,35 @@ Evidence: `docs/workspace/evidence/activity-table-font-v26-2026-11-12/`
 `testedCodeSha` `dbe361aeed4e4e5feb2b48bcd44b8d7db6579db8`, screenshots 01–05,
 `CHECKLIST.md`). Web suite at the same code: 953 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
+
+## WBS band format (2026-11-12)
+
+- **Scope.** ACT-004 moved from NOT_AUDITED to WIRED_WRITE at code `138208c8`.
+- **Controls.** User Preferences gained a WBS Band Format fieldset that writes a band
+  typeface, size, ink mode (automatic contrast or a custom colour), band height and the
+  three text fields (Show Title, Show Code, Show Name) plus the six level colours. The
+  values live in `WorkspacePresentation.wbs` and are published as `--cp-wbs-font-family`,
+  `--cp-wbs-font-size`, `--cp-wbs-ink` and `--cp-wbs-row-height` on each band row, so the
+  table rows keep their own font and height.
+- **Reset.** Reset band format restores only `DEFAULT_PRESENTATION.wbs` (Tahoma 11 px,
+  automatic ink, 22 px, code and name shown, shipped level colours) and publishes it with a
+  new layout revision; the timescale, table and Gantt settings are untouched.
+- **Defect fixed.** The Gantt advanced between rows by the activity row height only, so each
+  band pushed every following bar 4 px out of step with the table. `ganttDisplayMetrics`
+  now assigns a per-row height (band pitch for WBS groups), link geometry and progress
+  points use those centres, and every Gantt row is told its height, so the chart and table
+  rows agree to within the 1 px row rule.
+- **Verified behaviour.** The default bands show 7 rows with code and name in Tahoma 11 px
+  on the shipped level colours; the dialog writes Cairo 14 px, `#102030`, 30 px and
+  Show Title only, the table stays Tahoma 11 px, the layout publishes revision 2 and the
+  Gantt offsets match the table; a full reload restores it; Reset returns the defaults and
+  survives a reload; Persian RTL at 1280×720 and en at 1920×1080 render without overflow.
+- **Known limits.** One typeface and ink rule applies to every level (automatic mode still
+  derives ink per level colour); the band height is a single value for all levels; Show
+  Title prints the literal label WBS; WBS bands appear only under WBS grouping.
+
+Evidence: `docs/workspace/evidence/activity-wbs-band-v26-2026-11-12/`
+(`activity-wbs-band-v26.json`, 6/6 scenarios, 0 exceptions/console errors/5xx,
+`testedCodeSha` `138208c805ec2ee52bc3a85cb16e949868a103d4`, screenshots 01–06,
+`CHECKLIST.md`). Web suite at the same code: 963 + 14 tests pass; `tsc --noEmit` and
+`npm run build` pass.

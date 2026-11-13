@@ -1,0 +1,92 @@
+{
+  "contract": "cubi-activity-wbs-band-v26.v1",
+  "baseUrl": "http://127.0.0.1:4199",
+  "gitHead": "138208c805ec2ee52bc3a85cb16e949868a103d4",
+  "testedCodeSha": "138208c8",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T00:02:46.659Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "WBS bands render with code, name and the table-independent defaults",
+      "status": "pass",
+      "at": "2026-11-13T00:02:49.062Z",
+      "bands": 7,
+      "height": 23
+    },
+    {
+      "id": "02",
+      "name": "the dialog writes a band font, ink, height and label selection",
+      "status": "pass",
+      "at": "2026-11-13T00:02:51.576Z",
+      "revision": 2,
+      "wbs": {
+        "fontFamily": "cairo",
+        "fontSize": 14,
+        "inkMode": "custom",
+        "labels": {
+          "code": false,
+          "name": true,
+          "title": true
+        },
+        "levelColors": [
+          "#0000ff",
+          "#80ff80",
+          "#ffff00",
+          "#ffb3b3",
+          "#b3d9ff",
+          "#d9b3ff"
+        ],
+        "rowHeight": 30,
+        "textColor": "#102030"
+      }
+    },
+    {
+      "id": "03",
+      "name": "the saved band format survives a full reload",
+      "status": "pass",
+      "at": "2026-11-13T00:02:53.109Z",
+      "height": 31,
+      "bands": 7
+    },
+    {
+      "id": "04",
+      "name": "Reset band format restores the defaults and keeps the other presentation values",
+      "status": "pass",
+      "at": "2026-11-13T00:02:56.093Z",
+      "revision": 3,
+      "height": 23
+    },
+    {
+      "id": "05",
+      "name": "the band dialog and hierarchy render in Persian RTL at 1280",
+      "status": "pass",
+      "at": "2026-11-13T00:02:58.106Z",
+      "title": "ترجیحات کاربر",
+      "reset": "بازنشانی قالب باند",
+      "legend": "قلم و رنگ جدول | ارتفاع ردیف | قالب باند WBS | نمایش",
+      "overflow": 0
+    },
+    {
+      "id": "06",
+      "name": "the band format fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-13T00:02:59.151Z",
+      "bands": 7,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-wbs-band-defaults-en-1366.png",
+    "02-wbs-band-cairo-30px-en-1366.png",
+    "03-wbs-band-after-reload-en-1366.png",
+    "04-wbs-band-reset-en-1366.png",
+    "05-wbs-band-dialog-fa-rtl-1280.png",
+    "06-wbs-band-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 6,
+  "failed": 0
+}
