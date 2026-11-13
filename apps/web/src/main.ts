@@ -642,6 +642,24 @@ function openProjectSettings(
     dateSystemSelect.append(option);
   }
 
+  const businessDomainSelect = document.createElement("select");
+  businessDomainSelect.name = "business_domain";
+  businessDomainSelect.dataset.projectBusinessDomain = "true";
+  for (const [value, text] of [
+    ["", labels.businessDomainNotClassified],
+    ["construction", labels.businessDomainConstruction],
+    ["oil_gas", labels.businessDomainOilGas],
+    ["infrastructure", labels.businessDomainInfrastructure],
+    ["industrial", labels.businessDomainIndustrial],
+    ["energy", labels.businessDomainEnergy],
+    ["other", labels.businessDomainOther],
+  ] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    businessDomainSelect.append(option);
+  }
+
   const calendarInput = document.createElement("input");
   calendarInput.name = "primary_calendar_id";
   calendarInput.maxLength = 200;
@@ -709,6 +727,7 @@ function openProjectSettings(
     labelled(labels.projectDescription, descriptionInput, labels.projectDescriptionPlaceholder),
     labelled(labels.projectStartDate, startDateInput),
     labelled(labels.projectDateSystem, dateSystemSelect),
+    labelled(labels.projectBusinessDomain, businessDomainSelect),
     labelled(labels.settingsPrimaryCalendar, calendarInput, labels.settingsPrimaryCalendarHint),
     statusField,
   );
@@ -737,6 +756,7 @@ function openProjectSettings(
     descriptionInput.value = project.description ?? "";
     startDateInput.value = project.start_date ?? "";
     dateSystemSelect.value = project.date_system === "jalali" ? "jalali" : "gregorian";
+    businessDomainSelect.value = project.business_domain ?? "";
     calendarInput.value = project.primary_calendar_id ?? "";
     loadedStatus = (project.status ?? "active") as ProjectStatus;
     projectStatusSelect.value = loadedStatus;
@@ -822,6 +842,14 @@ function openProjectSettings(
         start_date: startDate || null,
         date_system: dateSystemSelect.value === "jalali" ? "jalali" : "gregorian",
         primary_calendar_id: calendarInput.value.trim() || null,
+        business_domain: businessDomainSelect.value as
+          | "construction"
+          | "oil_gas"
+          | "infrastructure"
+          | "industrial"
+          | "energy"
+          | "other"
+          | "",
       },
       loadedRevision,
     );
@@ -3446,6 +3474,27 @@ function renderBootstrapState(
     hint.className = "cp-form-hint";
     hint.textContent = t.projectNameHint;
 
+    const businessDomainLabel = document.createElement("label");
+    businessDomainLabel.textContent = t.projectBusinessDomain;
+    const businessDomainSelect = document.createElement("select");
+    businessDomainSelect.name = "projectBusinessDomain";
+    businessDomainSelect.id = "cp-project-business-domain";
+    for (const [value, text] of [
+      ["", t.businessDomainNotClassified],
+      ["construction", t.businessDomainConstruction],
+      ["oil_gas", t.businessDomainOilGas],
+      ["infrastructure", t.businessDomainInfrastructure],
+      ["industrial", t.businessDomainIndustrial],
+      ["energy", t.businessDomainEnergy],
+      ["other", t.businessDomainOther],
+    ] as const) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      businessDomainSelect.append(option);
+    }
+    businessDomainLabel.append(businessDomainSelect);
+
     const descriptionLabel = document.createElement("label");
     descriptionLabel.textContent = t.projectDescription;
     const descriptionInput = document.createElement("textarea");
@@ -3547,7 +3596,7 @@ function renderBootstrapState(
       input.removeAttribute("aria-invalid");
     };
 
-    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, dateError, errorMessage);
+    form.append(label, hint, businessDomainLabel, descriptionLabel, startDateLabel, dateSystemLabel, dateError, errorMessage);
 
     const submit = document.createElement("button");
     submit.type = "submit";
@@ -3586,12 +3635,21 @@ function renderBootstrapState(
       descriptionInput.disabled = true;
       startDateInput.disabled = true;
       dateSystemSelect.disabled = true;
+      businessDomainSelect.disabled = true;
       submit.textContent = t.creating;
       form.setAttribute("aria-busy", "true");
       const next = await bootstrap.createProject(createProjectId(), name, locale, {
         description: descriptionInput.value.trim(),
         start_date: canonicalStartDate,
         date_system: selectedDateSystem,
+        business_domain: businessDomainSelect.value as
+          | "construction"
+          | "oil_gas"
+          | "infrastructure"
+          | "industrial"
+          | "energy"
+          | "other"
+          | "",
       });
       form.removeAttribute("aria-busy");
       if (!next) return;
@@ -3604,6 +3662,7 @@ function renderBootstrapState(
       descriptionInput.disabled = false;
       startDateInput.disabled = false;
       dateSystemSelect.disabled = false;
+      businessDomainSelect.disabled = false;
       submit.textContent = t.createAndOpen;
       if (next.status === "error") {
         const copy = getBootstrapErrorCopy(locale, next.error);

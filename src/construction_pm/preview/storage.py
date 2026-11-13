@@ -111,6 +111,7 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         primary_calendar_id=None if row[7] is None else str(row[7]),
         settings_revision=int(row[8]) if len(row) > 8 else 0,
         status=str(row[9]) if len(row) > 9 and row[9] else "active",
+        business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
     )
 
 
@@ -367,6 +368,7 @@ class PreviewStore:
                 primary_calendar_id TEXT,
                 settings_revision INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'active',
+                business_domain TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (tenant_id, project_id)
             );
             CREATE TABLE IF NOT EXISTS preview_project_status_event (
@@ -424,6 +426,10 @@ class PreviewStore:
                 "status",
                 "ALTER TABLE preview_project ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
             ),
+            (
+                "business_domain",
+                "ALTER TABLE preview_project ADD COLUMN business_domain TEXT NOT NULL DEFAULT ''",
+            ),
         ):
             if column not in existing_columns:
                 self.connection.execute(ddl)
@@ -450,6 +456,7 @@ class PreviewStore:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
         commit: bool = True,
     ) -> None:
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
@@ -467,8 +474,9 @@ class PreviewStore:
         self.connection.execute(
             "INSERT INTO preview_project "
             "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at, "
-            "description, start_date, date_system, primary_calendar_id, settings_revision) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "description, start_date, date_system, primary_calendar_id, settings_revision, "
+            "business_domain) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -482,6 +490,7 @@ class PreviewStore:
                 date_system,
                 primary_calendar_id,
                 0,
+                business_domain,
             ),
         )
         if owns_transaction:
@@ -521,7 +530,7 @@ class PreviewStore:
         rows = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision, p.status "
+            "p.settings_revision, p.status, p.business_domain "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -537,7 +546,7 @@ class PreviewStore:
         row = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision, p.status "
+            "p.settings_revision, p.status, p.business_domain "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -560,6 +569,7 @@ class PreviewStore:
         start_date: str | None,
         date_system: str,
         primary_calendar_id: str | None,
+        business_domain: str | None = None,
     ) -> bool:
         """Apply a configuration-revision-guarded metadata update.
 
@@ -583,7 +593,9 @@ class PreviewStore:
         owns_transaction = not self.connection.in_transaction
         cursor = self.connection.execute(
             "UPDATE preview_project SET name=?, description=?, start_date=?, "
-            "date_system=?, primary_calendar_id=?, settings_revision=settings_revision+1 "
+            "date_system=?, primary_calendar_id=?, "
+            "business_domain=COALESCE(?, business_domain), "
+            "settings_revision=settings_revision+1 "
             "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
             "SELECT 1 FROM preview_project_member m "
             "WHERE m.tenant_id=preview_project.tenant_id "
@@ -594,6 +606,7 @@ class PreviewStore:
                 start_date,
                 date_system,
                 primary_calendar_id,
+                business_domain,
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -845,6 +858,7 @@ class PreviewProjectRepository:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
     ) -> ProjectSummary:
         if self.store.project_exists(tenant_id, project_id):
             raise ValueError("PROJECT_ALREADY_EXISTS")
@@ -872,6 +886,7 @@ class PreviewProjectRepository:
                 start_date=start_date,
                 date_system=date_system,
                 primary_calendar_id=primary_calendar_id,
+                business_domain=business_domain,
                 commit=False,
             )
             self.store.add_members(
@@ -895,6 +910,7 @@ class PreviewProjectRepository:
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
         )
 
     def update_for_user(
@@ -909,6 +925,7 @@ class PreviewProjectRepository:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str | None = None,
     ) -> ProjectSummary | None:
         updated = self.store.update_project(
             tenant_id,
@@ -920,6 +937,7 @@ class PreviewProjectRepository:
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
         )
         if not updated:
             return None

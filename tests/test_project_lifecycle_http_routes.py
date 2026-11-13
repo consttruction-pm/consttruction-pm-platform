@@ -102,17 +102,19 @@ class Projects:
             date_system=project.date_system,
             primary_calendar_id=project.primary_calendar_id,
             settings_revision=project.settings_revision,
+            business_domain=project.business_domain,
         )
 
     def create_for_user(
         self, tenant_id, user_id, project_id, name, *,
         description="", start_date=None, date_system="gregorian",
-        primary_calendar_id=None,
+        primary_calendar_id=None, business_domain="",
     ):
         project = ProjectSummary(
             project_id, tenant_id, name, 0,
             description=description, start_date=start_date,
             date_system=date_system, primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
         )
         self.items[project_id] = project
         return project
@@ -120,7 +122,7 @@ class Projects:
     def update_for_user(
         self, tenant_id, user_id, project_id, *, expected_revision, name,
         description="", start_date=None, date_system="gregorian",
-        primary_calendar_id=None,
+        primary_calendar_id=None, business_domain=None,
     ):
         project = self.items.get(project_id)
         if project is None or project.settings_revision != expected_revision: return None
@@ -129,6 +131,9 @@ class Projects:
             description=description, start_date=start_date,
             date_system=date_system, primary_calendar_id=primary_calendar_id,
             settings_revision=project.settings_revision + 1,
+            business_domain=(
+                business_domain if business_domain is not None else project.business_domain
+            ),
         )
         self.items[project_id] = updated
         return updated
@@ -2779,6 +2784,56 @@ def test_project_http_create_persists_metadata_and_reads_it_back():
     )
     listed = {item["project_id"]: item for item in json.loads(body)["projects"]}
     assert listed["p7"]["date_system"] == "jalali"
+
+
+def test_project_http_business_domain_persists_and_is_preserved_when_omitted():
+    r = routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "project_id": "p8",
+            "name": "Domain Project",
+            "business_domain": "infrastructure",
+        }).encode(),
+    )
+    assert status == 201
+
+    status, _, body = r.handle("GET", "/api/projects/p8", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(body)["project"]["business_domain"] == "infrastructure"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p8",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "Domain Project Renamed", "expected_revision": 0}).encode(),
+    )
+    assert status == 200, body
+    assert json.loads(body)["project"]["business_domain"] == "infrastructure"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p8",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Domain Project Renamed",
+            "business_domain": "energy",
+            "expected_revision": 1,
+        }).encode(),
+    )
+    assert status == 200, body
+    assert json.loads(body)["project"]["business_domain"] == "energy"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p8",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Domain Project Renamed",
+            "business_domain": "not-a-domain",
+            "expected_revision": 2,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_BUSINESS_DOMAIN_INVALID"
 
 
 def test_project_http_patch_updates_metadata_under_expected_revision():

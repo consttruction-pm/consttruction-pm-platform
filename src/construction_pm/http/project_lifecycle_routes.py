@@ -6309,6 +6309,7 @@ class ProjectLifecycleHttpRoutes:
                     start_date=payload.get("start_date"),
                     date_system=payload.get("date_system", "gregorian"),
                     primary_calendar_id=payload.get("primary_calendar_id"),
+                    business_domain=payload.get("business_domain", ""),
                     now=now,
                 )
                 return self._json(201, {"context": asdict(response.context)})
@@ -6327,6 +6328,11 @@ class ProjectLifecycleHttpRoutes:
                     start_date=payload.get("start_date"),
                     date_system=payload.get("date_system", "gregorian"),
                     primary_calendar_id=payload.get("primary_calendar_id"),
+                    business_domain=(
+                        payload["business_domain"]
+                        if "business_domain" in payload
+                        else None
+                    ),
                     expected_revision=payload.get("expected_revision"),
                     now=now,
                 )

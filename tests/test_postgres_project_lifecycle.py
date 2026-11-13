@@ -66,7 +66,7 @@ def test_project_creation_persists_metadata_columns():
     assert p.description == "Scope" and p.start_date == "2026-11-02"
     assert p.date_system == "jalali"
     insert_params = c.calls[0][1]
-    assert insert_params == ("t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1")
+    assert insert_params == ("t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "")
 
 
 def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
@@ -87,7 +87,7 @@ def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     assert "settings_revision=%s" in sql and "RETURNING" in sql
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
-        "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2",
+        "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2", None,
         "t1", "p2", 2, "u1",
     )
 
@@ -97,6 +97,25 @@ def test_project_update_returns_none_when_revision_is_stale():
     assert PostgresProjectRepository(c).update_for_user(
         "t1", "u1", "p2", expected_revision=1, name="Stale"
     ) is None
+
+
+def test_project_creation_and_update_persist_the_business_domain():
+    c = FakeConnection()
+    p = PostgresProjectRepository(c).create_for_user(
+        "t1", "u1", "p2", "Project 2", business_domain="infrastructure"
+    )
+    assert p.business_domain == "infrastructure"
+    assert c.calls[0][1][-1] == "infrastructure"
+    assert "business_domain" in c.calls[0][0]
+
+    c.next_rows = [
+        ("p2", "t1", "Project 2", 0, "", None, "gregorian", None, 1, "active", "energy")
+    ]
+    updated = PostgresProjectRepository(c).update_for_user(
+        "t1", "u1", "p2", expected_revision=0, name="Project 2", business_domain="energy"
+    )
+    assert updated is not None and updated.business_domain == "energy"
+    assert "business_domain=COALESCE(%s, business_domain)" in c.calls[2][0]
 
 
 def test_project_summary_carries_the_persisted_status():

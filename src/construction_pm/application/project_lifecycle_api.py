@@ -82,6 +82,7 @@ class ProjectLifecycleAPI:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
         now: datetime,
     ) -> ProjectContextResponse:
         return ProjectContextResponse(
@@ -93,6 +94,7 @@ class ProjectLifecycleAPI:
                 start_date=start_date,
                 date_system=date_system,
                 primary_calendar_id=primary_calendar_id,
+                business_domain=business_domain,
                 now=now,
             )
         )
@@ -112,6 +114,7 @@ class ProjectLifecycleAPI:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -123,6 +126,7 @@ class ProjectLifecycleAPI:
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
             expected_revision=expected_revision,
             now=now,
         )

@@ -49,6 +49,7 @@ class Projects:
         start_date=None,
         date_system="gregorian",
         primary_calendar_id=None,
+        business_domain="",
     ):
         project = ProjectSummary(
             project_id,
@@ -59,6 +60,7 @@ class Projects:
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
         )
         self.items[(tenant_id, user_id, project_id)] = project
         return project
@@ -75,6 +77,7 @@ class Projects:
         start_date=None,
         date_system="gregorian",
         primary_calendar_id=None,
+        business_domain=None,
     ):
         current = self.items.get((tenant_id, user_id, project_id))
         if current is None or current.settings_revision != expected_revision:
@@ -89,6 +92,9 @@ class Projects:
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             settings_revision=current.settings_revision + 1,
+            business_domain=(
+                business_domain if business_domain is not None else current.business_domain
+            ),
         )
         self.items[(tenant_id, user_id, project_id)] = updated
         return updated
@@ -300,3 +306,91 @@ def test_viewer_cannot_update_project_metadata():
             expected_revision=7,
             now=now,
         )
+
+
+def test_business_domain_is_stored_for_new_projects_and_normalized():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+
+    service.create_project(
+        "session-a",
+        "project-b",
+        "Project B",
+        business_domain="Oil & Gas",
+        now=now,
+    )
+    assert projects.get_for_user("tenant-a", "project-b", "user-a").business_domain == "oil_gas"
+
+
+def test_business_domain_rejects_unknown_classification():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_BUSINESS_DOMAIN_INVALID"):
+        service.create_project(
+            "session-a",
+            "project-b",
+            "Project B",
+            business_domain="north-region",
+            now=now,
+        )
+
+
+def test_business_domain_update_is_revision_guarded_and_survives_omission():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+
+    updated = service.update_project(
+        "session-a",
+        "project-a",
+        name="Project A Renamed",
+        business_domain="infrastructure",
+        expected_revision=0,
+        now=now,
+    )
+    assert updated.business_domain == "infrastructure"
+
+    # A metadata edit that omits the field must not erase the classification.
+    again = service.update_project(
+        "session-a",
+        "project-a",
+        name="Project A Renamed Again",
+        expected_revision=1,
+        now=now,
+    )
+    assert again.business_domain == "infrastructure"
+    assert again.settings_revision == 2
+
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_REVISION_CONFLICT"):
+        service.update_project(
+            "session-a",
+            "project-a",
+            name="Stale",
+            business_domain="energy",
+            expected_revision=1,
+            now=now,
+        )
+    assert projects.get_for_user("tenant-a", "project-a", "user-a").business_domain == "infrastructure"
+
+
+def test_project_list_requires_the_project_read_grant_in_addition_to_membership():
+    now, _ = make_session()
+    no_roles = AuthenticatedSession(
+        session_id="session-a",
+        user_id="user-a",
+        tenant_id="tenant-a",
+        roles=frozenset(),
+        expires_at=now + timedelta(hours=1),
+    )
+    assert make_service(no_roles).list_projects("session-a", now=now) == ()
+
+    _, viewer = make_session(roles=frozenset({"viewer"}))
+    assert [project.project_id for project in make_service(viewer).list_projects("session-a", now=now)] == [
+        "project-a"
+    ]

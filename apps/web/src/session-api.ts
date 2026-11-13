@@ -22,7 +22,20 @@ export type ProjectSummary = {
   settings_revision?: number;
   /** V26 General tab status: active, inactive, planned or what_if. */
   status?: ProjectStatus;
+  /**
+   * CUBI Business Domain (the EPS-level classification in P6 terms). The
+   * empty string means the project has not been classified yet.
+   */
+  business_domain?: BusinessDomain | "";
 };
+
+export type BusinessDomain =
+  | "construction"
+  | "oil_gas"
+  | "infrastructure"
+  | "industrial"
+  | "energy"
+  | "other";
 
 export type ProjectStatus = "active" | "inactive" | "planned" | "what_if";
 
@@ -43,12 +56,14 @@ export type ProjectMetadataInput = {
   start_date: string | null;
   date_system: "gregorian" | "jalali";
   primary_calendar_id?: string | null;
+  business_domain?: BusinessDomain | "";
 };
 
 export type ProjectCreateMetadata = {
   description?: string;
   start_date?: string | null;
   date_system?: "gregorian" | "jalali";
+  business_domain?: BusinessDomain | "";
 };
 
 export type ProjectContext = {

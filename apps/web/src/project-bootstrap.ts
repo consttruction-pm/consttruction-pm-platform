@@ -109,6 +109,14 @@ export class ProjectBootstrap {
       description?: string;
       start_date?: string | null;
       date_system?: "gregorian" | "jalali";
+      business_domain?:
+        | "construction"
+        | "oil_gas"
+        | "infrastructure"
+        | "industrial"
+        | "energy"
+        | "other"
+        | "";
     } = {},
   ): Promise<ProjectBootstrapState | null> {
     const generation = ++this.generation;
@@ -145,6 +153,14 @@ export class ProjectBootstrap {
       start_date: string | null;
       date_system: "gregorian" | "jalali";
       primary_calendar_id?: string | null;
+      business_domain?:
+        | "construction"
+        | "oil_gas"
+        | "infrastructure"
+        | "industrial"
+        | "energy"
+        | "other"
+        | "";
     },
     expectedRevision: number,
   ): Promise<ApiResult<{ project: ProjectSummary }>> {
