@@ -5406,8 +5406,41 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   background: #e6ebf2;
 }
 .cp-p6 .cp-p6-network-head h2 { margin: 0; font-size: 11px; font-weight: 700; }
+.cp-p6 .cp-p6-network-head .cp-p6-network-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+.cp-p6 .cp-p6-network-zoom-label {
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: #33465c;
+}
+.cp-p6 .cp-p6-network-actions button {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid #9db4cc;
+  border-radius: 3px;
+  background: #fff;
+  color: #1f2d3d;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cp-p6 .cp-p6-network-actions button:disabled { opacity: .45; cursor: default; }
+.cp-p6 .cp-network-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  cursor: pointer;
+}
+.cp-p6 .cp-network-edge-group:focus-visible .cp-network-edge,
+.cp-p6 .cp-network-edge-group:hover .cp-network-edge { stroke: #1e5fa8; stroke-width: 2; }
 .cp-p6 .cp-p6-network-head span { font-size: 10px; color: #4a5c70; }
-.cp-p6 .cp-p6-network-note { max-width: 58%; text-align: end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-p6 .cp-p6-network-note { order: 3; max-width: 52%; text-align: end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-p6 .cp-p6-network .cp-register-notice { margin: 4px 8px; }
 .cp-p6 .cp-network-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px; background: #f7f9fb; }
 .cp-p6 .cp-network-svg { display: block; }

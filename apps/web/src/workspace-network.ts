@@ -42,6 +42,36 @@ export type ActivityNetworkModel = {
 
 export const MAX_NETWORK_ACTIVITIES = 150;
 
+export const NETWORK_ZOOM_MIN = 0.2;
+export const NETWORK_ZOOM_MAX = 2;
+export const NETWORK_ZOOM_DEFAULT = 1;
+
+/** View scaling for the diagram; never affects the layout or any stored data. */
+export function clampNetworkZoom(value: number): number {
+  if (!Number.isFinite(value)) return NETWORK_ZOOM_DEFAULT;
+  return Math.min(NETWORK_ZOOM_MAX, Math.max(NETWORK_ZOOM_MIN, Math.round(value * 20) / 20));
+}
+
+export function readNetworkZoom(storageKey: string, storage?: Storage): number {
+  try {
+    const raw = (storage ?? (typeof window === "undefined" ? null : window.localStorage))?.getItem(storageKey);
+    const parsed = raw === null || raw === undefined ? Number.NaN : Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? clampNetworkZoom(parsed) : NETWORK_ZOOM_DEFAULT;
+  } catch {
+    return NETWORK_ZOOM_DEFAULT;
+  }
+}
+
+export function storeNetworkZoom(storageKey: string, value: number, storage?: Storage): number {
+  const zoom = clampNetworkZoom(value);
+  try {
+    (storage ?? (typeof window === "undefined" ? null : window.localStorage))?.setItem(storageKey, String(zoom));
+  } catch {
+    // Preference storage is optional; the chosen zoom still applies to this render.
+  }
+  return zoom;
+}
+
 const NODE_WIDTH = 190;
 const NODE_HEIGHT = 62;
 const COLUMN_GAP = 96;
@@ -165,6 +195,8 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+const escapeAttribute = escapeHtml;
+
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, Math.max(0, max - 1))}…` : value;
 }
@@ -195,6 +227,8 @@ export function renderActivityNetwork(
   relationships: readonly WorkspaceRelationshipRow[],
   locale: string,
   selectedActivityId: string | null,
+  zoom: number = NETWORK_ZOOM_DEFAULT,
+  storageKey = "",
 ): string {
   const model = buildActivityNetwork(activities, relationships);
   const t = (en: string, fa: string): string => translateWorkspaceUiText(locale, en, fa);
@@ -206,8 +240,11 @@ export function renderActivityNetwork(
     ))}</div></section>`;
   }
 
-  const width = PADDING * 2 + Math.max(1, model.levelCount) * NODE_WIDTH + Math.max(0, model.levelCount - 1) * COLUMN_GAP;
-  const height = PADDING * 2 + Math.max(1, model.rowCount) * NODE_HEIGHT + Math.max(0, model.rowCount - 1) * ROW_GAP;
+  const level = clampNetworkZoom(zoom);
+  const baseWidth = PADDING * 2 + Math.max(1, model.levelCount) * NODE_WIDTH + Math.max(0, model.levelCount - 1) * COLUMN_GAP;
+  const baseHeight = PADDING * 2 + Math.max(1, model.rowCount) * NODE_HEIGHT + Math.max(0, model.rowCount - 1) * ROW_GAP;
+  const width = Math.round(baseWidth * level);
+  const height = Math.round(baseHeight * level);
   const nodesById = new Map(model.nodes.map((node) => [node.id, node]));
 
   const edgeMarkup = model.edges
@@ -222,7 +259,8 @@ export function renderActivityNetwork(
       const ty = nodeY(to.row) + NODE_HEIGHT / 2;
       const labelX = tx > sx + 12 ? sx + (tx - sx) / 2 + 4 : Math.max(sx, tx) + 14;
       const labelY = (sy + ty) / 2 - 5;
-      return `<g class="cp-network-edge-group${from.critical && to.critical ? " is-critical" : ""}" data-relationship-id="${escapeHtml(edge.relationshipId)}"><path class="cp-network-edge" d="${edgePath(from, to)}" marker-end="url(#cp-network-arrowhead)" /><text class="cp-network-edge-label" x="${labelX}" y="${labelY}">${escapeHtml(edge.label)}</text></g>`;
+      const title = `${edge.type} ${edge.from} → ${edge.to}${edge.lagValue === "0" ? "" : ` (${edge.lagValue} ${edge.lagUnit})`}`;
+      return `<g class="cp-network-edge-group${from.critical && to.critical ? " is-critical" : ""}" data-network-relationship-id="${escapeHtml(edge.relationshipId)}" data-link-from="${escapeHtml(edge.from)}" data-link-to="${escapeHtml(edge.to)}" data-link-type="${escapeHtml(edge.type)}" role="button" tabindex="0" aria-label="${escapeHtml(title)}"><title>${escapeHtml(title)}</title><path class="cp-network-edge-hit" data-network-edge-hit="${escapeHtml(edge.relationshipId)}" d="${edgePath(from, to)}" /><path class="cp-network-edge" d="${edgePath(from, to)}" marker-end="url(#cp-network-arrowhead)" /><text class="cp-network-edge-label" x="${labelX}" y="${labelY}">${escapeHtml(edge.label)}</text></g>`;
     })
     .join("");
 
@@ -253,7 +291,7 @@ export function renderActivityNetwork(
     ));
   }
 
-  return `<section class="cp-p6-network" data-network-view data-network-levels="${model.levelCount}" data-network-nodes="${model.nodes.length}" data-network-edges="${model.edges.length}">
+  return `<section class="cp-p6-network" data-network-view data-network-levels="${model.levelCount}" data-network-nodes="${model.nodes.length}" data-network-edges="${model.edges.length}" data-network-base-width="${baseWidth}" data-network-base-height="${baseHeight}" data-network-zoom="${level}" data-network-storage-key="${escapeHtml(storageKey)}">
     <header class="cp-p6-network-head">
       <div>
         <h2>${escapeHtml(t("Activity Network", "شبکهٔ فعالیت‌ها"))}</h2>
@@ -262,6 +300,12 @@ export function renderActivityNetwork(
           `${model.nodes.length} فعالیت · ${model.edges.length} رابطه`,
         ))}</span>
       </div>
+      <div class="cp-p6-network-actions">
+        <span class="cp-p6-network-zoom-label" data-network-zoom-label>${Math.round(level * 100)}%</span>
+        <button type="button" data-network-zoom="in" title="${escapeAttribute(t("Zoom In", "بزرگ‌نمایی"))}" aria-label="${escapeAttribute(t("Zoom In", "بزرگ‌نمایی"))}"${level >= NETWORK_ZOOM_MAX ? " disabled" : ""}>+</button>
+        <button type="button" data-network-zoom="out" title="${escapeAttribute(t("Zoom Out", "کوچک‌نمایی"))}" aria-label="${escapeAttribute(t("Zoom Out", "کوچک‌نمایی"))}"${level <= NETWORK_ZOOM_MIN ? " disabled" : ""}>−</button>
+        <button type="button" data-network-zoom="fit" title="${escapeAttribute(t("Zoom to Best Fit", "تنظیم برای بهترین جاگیری"))}" aria-label="${escapeAttribute(t("Zoom to Best Fit", "تنظیم برای بهترین جاگیری"))}">${escapeHtml(t("Fit", "جاگیری"))}</button>
+      </div>
       <span class="cp-p6-network-note">${escapeHtml(t(
         "Projection of the persisted plan logic. Dates are read from the shared scheduling result and are not recalculated in this view.",
         "نمایشی از منطق ذخیره‌شدهٔ برنامه. تاریخ‌ها از نتیجهٔ زمان‌بندی هستهٔ مشترک خوانده می‌شوند و در این نما بازمحاسبه نمی‌شوند.",
@@ -269,7 +313,7 @@ export function renderActivityNetwork(
     </header>
     ${notices.map((notice) => `<p class="cp-register-notice">${escapeHtml(notice)}</p>`).join("")}
     <div class="cp-network-scroll" dir="ltr">
-      <svg class="cp-network-svg" role="img" dir="ltr" aria-label="${escapeHtml(t("Activity Network diagram", "نمودار شبکهٔ فعالیت‌ها"))}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      <svg class="cp-network-svg" role="img" dir="ltr" aria-label="${escapeHtml(t("Activity Network diagram", "نمودار شبکهٔ فعالیت‌ها"))}" width="${width}" height="${height}" viewBox="0 0 ${baseWidth} ${baseHeight}">
         <defs><marker id="cp-network-arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 Z" class="cp-network-arrow" /></marker></defs>
         <g class="cp-network-edges">${edgeMarkup}</g>
         <g class="cp-network-nodes">${nodeMarkup}</g>
