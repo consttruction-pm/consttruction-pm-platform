@@ -1171,6 +1171,17 @@ def test_session_and_project_routes_bridge_application_to_web_contract():
     assert json.loads(body)["context"]["project_id"] == "p1"
 
 
+def test_session_response_never_reflects_the_session_credential():
+    r = routes()
+    status, _, body = r.handle("GET", "/api/session", cookies={"cp_session": "s1"})
+    assert status == 200
+    payload = json.loads(body)
+    assert "session_id" not in payload
+    assert "s1" not in body.decode("utf-8")
+    assert payload["user_id"] == "u1"
+    assert payload["tenant_id"] == "t1"
+
+
 def test_browser_cannot_supply_identity_headers_as_authority():
     r = routes()
     status, _, _ = r.handle("GET", "/api/projects", cookies={"cp_session": "missing"})
