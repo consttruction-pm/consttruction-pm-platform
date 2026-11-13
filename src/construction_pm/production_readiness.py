@@ -28,6 +28,7 @@ from .document_object_storage import (
     DocumentStorageConfigurationError,
     s3_settings_from_environment,
 )
+from .metrics_export import MetricsExportSettings
 from .observability import current_correlation_id
 
 PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
@@ -487,6 +488,29 @@ def _validate_observability(
         require_https=True,
     ):
         problems.append("INVALID_OTEL_ENDPOINT")
+    elif endpoint:
+        # The variable is reserved: there is no span exporter, collector or
+        # trace-context propagation in this codebase. Warn rather than let an
+        # operator believe traces are being delivered.
+        warnings.append(
+            ConfigurationIssue(
+                "OTEL_ENDPOINT_NOT_IMPLEMENTED",
+                "CONSTRUCTION_PM_OTEL_ENDPOINT",
+                "reserved; no span exporter is implemented",
+            )
+        )
+
+    export = MetricsExportSettings.from_environment(env)
+    if export.enabled and export.error is not None:
+        variable = {
+            "METRICS_EXPORT_TOKEN_MISSING": "CONSTRUCTION_PM_METRICS_EXPORT_TOKEN",
+            "METRICS_EXPORT_TOKEN_INVALID": "CONSTRUCTION_PM_METRICS_EXPORT_TOKEN",
+            "METRICS_EXPORT_MAX_BYTES_INVALID": "CONSTRUCTION_PM_METRICS_EXPORT_MAX_BYTES",
+            "METRICS_EXPORT_MAX_SERIES_INVALID": "CONSTRUCTION_PM_METRICS_EXPORT_MAX_SERIES",
+            "METRICS_EXPORT_ENABLED_INVALID": "CONSTRUCTION_PM_METRICS_EXPORT_ENABLED",
+        }.get(export.error, "CONSTRUCTION_PM_METRICS_EXPORT_ENABLED")
+        errors.append(ConfigurationIssue(export.error, variable))
+        problems.append(export.error)
     return not problems, problems
 
 

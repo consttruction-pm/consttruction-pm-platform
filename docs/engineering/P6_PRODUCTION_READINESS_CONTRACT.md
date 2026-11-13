@@ -32,7 +32,7 @@ setting for every mandatory dependency:
 | Job queue (`CONSTRUCTION_PM_JOB_QUEUE`) | `durable`; `in_process` rejected | in_process or durable |
 | Retention (`CONSTRUCTION_PM_RETENTION`) | `enabled` | enabled or disabled |
 | Logging (`CONSTRUCTION_PM_LOG_FORMAT`, `CONSTRUCTION_PM_LOG_LEVEL`) | JSON required; known level | JSON or text |
-| Tracing (`CONSTRUCTION_PM_OTEL_ENDPOINT`) | Optional HTTPS URL | Optional |
+| Tracing (`CONSTRUCTION_PM_OTEL_ENDPOINT`) | Reserved; no span exporter is implemented. Setting it produces the `OTEL_ENDPOINT_NOT_IMPLEMENTED` warning | Reserved |
 
 An invalid value (unknown kind, malformed URL, conflicting database variables)
 is an error in any environment. A production override can be supplied with
@@ -82,7 +82,10 @@ unusual embedding, but a production deployment should keep the probes enabled.
 
 `construction_pm.metrics_export` adds an optional, bounded exporter from the
 in-process `OperationalMetrics` registry. It is disabled by default and is not
-required by health or readiness.
+required by health or readiness. Enabling export with a missing, weak or
+malformed token, or with an invalid bound, is a configuration **error** under
+the `observability` readiness component, so a misconfigured deployment reports
+`not_ready` in production instead of silently serving `503` on the scrape route.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
