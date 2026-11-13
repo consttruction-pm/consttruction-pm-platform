@@ -435,3 +435,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** 9 adapter tests (clean/infected/failed, header and body forwarding, 5xx, invalid/incomplete/oversized response, redirect refusal, unreachable service, concurrent scans, endpoint/token/timeout/payload validation, token non-leakage, factory selection), 3 upload-timestamp tests, and live PostgreSQL timestamp round-trip plus legacy `null`.
 - **Verification at head `1918a1e`:** full SQLite suite → **3980 passed, 168 skipped**; live PostgreSQL → **4174 passed, 20 skipped**; all 7 PR checks **success**.
 - **External gate:** a deployed scanner service, its credentials/licence and quarantine review workflow remain external. The adapter is tested against a local HTTP service only; no production scanner verification is claimed.
+
+## Application run telemetry — 2026-11-13 (merged; PR #1846)
+
+- **Base and merge:** branch cut from merged `main` `6d2a78b`, squash-merged as **`a48f20f`** via PR #1846, completing the Workstream 7 observability gap for exchange and report runs.
+- **Exchange:** `ExchangeService` accepts optional `metrics` and `logger`. Preview, apply success, invalid batch, rolled-back batch, replay and export emit `exchange_runs_total{operation,dataset,status}` and `exchange.run` with dataset, operation, format, validity, row counts, run id and export checksum only. File content, parsed rows and diagnostics are never logged.
+- **Reports:** `ReportApplicationService` accepts optional `metrics` and `logger`. Materialization emits `report_runs_total{source,status}` and `report.run.completed` with report id, run id, interactive/scheduled source, report and project revision and row count.
+- **Contract:** `P6_PRODUCTION_READINESS_CONTRACT.md` now lists every application event with its bounded fields and the full counter/observation catalogue.
+- **Verification at `d739ced`:** full SQLite suite → **3982 passed, 168 skipped**; live PostgreSQL → **4176 passed, 20 skipped**; focused exchange/report suites → **30 passed**. All 7 PR checks succeeded; merged `main` runs for ConstructionPM CI, PostgreSQL Sync State Integration and Client Typecheck completed **success**.
+- **Not claimed:** no external metrics backend, tracing exporter or log shipping is configured; `OperationalMetrics` remains an in-process bounded registry awaiting a deployment bridge.
