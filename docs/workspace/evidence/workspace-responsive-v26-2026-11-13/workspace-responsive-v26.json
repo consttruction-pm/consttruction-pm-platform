@@ -1,0 +1,143 @@
+{
+  "contract": "cubi-workspace-responsive-v26.v1",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "cb9e931f65ca8d81616f15f84be0f0b9514f1da9",
+  "testedCodeSha": "cb9e931f65ca8d81616f15f84be0f0b9514f1da9",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-13T08:13:50.198Z",
+  "expected": {
+    "total": 554,
+    "viewports": [
+      "1280x720",
+      "1366x768",
+      "1920x1080",
+      "844x390"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "1280x720 keeps every pane inside the viewport with no page overflow",
+      "status": "pass",
+      "at": "2026-11-13T08:13:54.595Z",
+      "rows": 554,
+      "gantt": 592,
+      "grid": 596,
+      "scrollX": 0,
+      "compact": 57
+    },
+    {
+      "id": "02",
+      "name": "1366x768 grows the panes without overlap or clipping",
+      "status": "pass",
+      "at": "2026-11-13T08:13:55.337Z",
+      "gantt": 635,
+      "main": 603
+    },
+    {
+      "id": "03",
+      "name": "1920x1080 gives the Gantt the extra width and keeps every row",
+      "status": "pass",
+      "at": "2026-11-13T08:13:56.185Z",
+      "gantt": 912,
+      "rows": 554
+    },
+    {
+      "id": "04",
+      "name": "844x390 landscape keeps the workspace reachable through its own scroller",
+      "status": "pass",
+      "at": "2026-11-13T08:13:56.975Z",
+      "scrollTop": 295,
+      "detailsTop": 180,
+      "tableScrollX": 203,
+      "compact": 57
+    },
+    {
+      "id": "05",
+      "name": "Every menu stays inside the viewport and Escape restores the trigger",
+      "status": "pass",
+      "at": "2026-11-13T08:14:00.069Z",
+      "menus": 6,
+      "scrolls": 4
+    },
+    {
+      "id": "06",
+      "name": "Application keys work from document.body and never steal a text-field chord",
+      "status": "pass",
+      "at": "2026-11-13T08:14:05.065Z",
+      "menuFocus": "file.new",
+      "selected": 554,
+      "fieldSelected": 2
+    },
+    {
+      "id": "07",
+      "name": "Full Screen performs a real transition and keeps layout and data unchanged",
+      "status": "pass",
+      "at": "2026-11-13T08:14:07.634Z",
+      "entered": "Return to Main View",
+      "rows": 554
+    },
+    {
+      "id": "08",
+      "name": "The table/Gantt splitter drags, clamps, persists and resets",
+      "status": "pass",
+      "at": "2026-11-13T08:14:17.799Z",
+      "dragged": "36.74%",
+      "keyed": "38.74%",
+      "clamped": "25%",
+      "restored": "25.00%"
+    },
+    {
+      "id": "09",
+      "name": "The details splitter responds to pointer and keys, and reset restores 70",
+      "status": "pass",
+      "at": "2026-11-13T08:14:22.158Z",
+      "initial": "70.00%",
+      "keyed": "72%",
+      "max": "80",
+      "dragged": "66",
+      "restored": "66"
+    },
+    {
+      "id": "10",
+      "name": "Persian RTL keeps the same geometry inside 1280x720",
+      "status": "pass",
+      "at": "2026-11-13T08:14:26.494Z",
+      "direction": "rtl",
+      "overflow": 0,
+      "menu": [
+        922,
+        1184
+      ],
+      "splitBefore": 50,
+      "splitAfter": 48
+    },
+    {
+      "id": "11",
+      "name": "The responsive and keyboard work never touches schedule input",
+      "status": "pass",
+      "at": "2026-11-13T08:14:26.532Z",
+      "activities": 554,
+      "writes": 0
+    }
+  ],
+  "screenshots": [
+    "01-1280x720.png",
+    "02-1366x768.png",
+    "03-1920x1080.png",
+    "04-landscape-mobile.png",
+    "05-menu-landscape.png",
+    "06-keyboard-body.png",
+    "07-fullscreen.png",
+    "08-splitter.png",
+    "09-details-splitter.png",
+    "10-rtl.png"
+  ],
+  "scheduleMutations": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-13T08:14:26.532Z",
+  "passed": 11,
+  "failed": 0
+}
