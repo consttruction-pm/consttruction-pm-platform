@@ -1,0 +1,790 @@
+{
+  "contract": "cubi-prj-001-project-register.v1",
+  "testedCodeSha": "02369cbe",
+  "gitHead": "02369cbecfa84b12f55eb333e33e82881b4012d7",
+  "evidenceCommitSha": "02369cbe",
+  "baseUrl": "http://127.0.0.1:4195",
+  "fixtureId": "E2E-PRJ-MWEZ8BMC",
+  "startedAt": "2026-11-13T12:52:26.437Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "The register shows exactly the session-authorized projects with their persisted Business Domain",
+      "status": "pass",
+      "at": "2026-11-13T12:52:29.519Z",
+      "durationMs": 86,
+      "details": {
+        "count": "2 of 2 projects",
+        "groups": [
+          {
+            "key": "infrastructure",
+            "count": "1"
+          },
+          {
+            "key": "industrial",
+            "count": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "02",
+      "name": "Search narrows the tree and the table to matching persisted rows",
+      "status": "pass",
+      "at": "2026-11-13T12:52:30.739Z",
+      "durationMs": 1220,
+      "details": {
+        "filtered": "1 of 2"
+      }
+    },
+    {
+      "id": "03",
+      "name": "Business Domain filter and sort reorder only the visible view",
+      "status": "pass",
+      "at": "2026-11-13T12:52:32.206Z",
+      "durationMs": 1467,
+      "details": {
+        "expected": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ]
+      }
+    },
+    {
+      "id": "04",
+      "name": "Selecting a project previews its record without opening it",
+      "status": "pass",
+      "at": "2026-11-13T12:52:35.315Z",
+      "durationMs": 3109,
+      "details": {
+        "opened": "preview-nse-02"
+      }
+    },
+    {
+      "id": "05",
+      "name": "The tree collapses and keyboard selection works on the register",
+      "status": "pass",
+      "at": "2026-11-13T12:52:36.519Z",
+      "durationMs": 1204,
+      "details": {
+        "keyboard": "Enter",
+        "collapsed": true
+      }
+    },
+    {
+      "id": "06",
+      "name": "Business Domain edits are persisted, revision-guarded and validated",
+      "status": "pass",
+      "at": "2026-11-13T12:52:39.148Z",
+      "durationMs": 2629,
+      "details": {
+        "fixtureId": "E2E-PRJ-MWEZ8BMC",
+        "domain": "energy",
+        "settingsRevision": 1
+      }
+    },
+    {
+      "id": "07",
+      "name": "Persian renders the register right-to-left at 1280x720",
+      "status": "pass",
+      "at": "2026-11-13T12:52:40.788Z",
+      "durationMs": 1640,
+      "details": {
+        "dir": "rtl",
+        "overflow": 0
+      }
+    },
+    {
+      "id": "08",
+      "name": "A Viewer sees the authorized register but cannot change a Business Domain",
+      "status": "pass",
+      "at": "2026-11-13T12:52:42.900Z",
+      "durationMs": 2112,
+      "details": {
+        "status": 403
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "prj1-present",
+      "name": "the Projects window renders the register",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-count",
+      "name": "the register reports every project in the session list",
+      "ok": true,
+      "detail": {
+        "count": "2 of 2 projects",
+        "api": 2
+      }
+    },
+    {
+      "id": "prj1-exact-rows",
+      "name": "table rows are exactly the API projects",
+      "ok": true,
+      "detail": {
+        "rowIds": [
+          "preview-nse-02",
+          "preview-rps-01"
+        ],
+        "apiIds": [
+          "preview-nse-02",
+          "preview-rps-01"
+        ]
+      }
+    },
+    {
+      "id": "prj1-tenant",
+      "name": "every listed project belongs to the session tenant",
+      "ok": true,
+      "detail": {
+        "tenant": "cubi-preview-tenant",
+        "tenants": [
+          "cubi-preview-tenant"
+        ]
+      }
+    },
+    {
+      "id": "prj1-domain-cells",
+      "name": "each row shows its stored Business Domain",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "preview-rps-01",
+            "domain": "infrastructure",
+            "cell": "Infrastructure"
+          },
+          {
+            "id": "preview-nse-02",
+            "domain": "industrial",
+            "cell": "Industrial"
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-tree-groups",
+      "name": "the tree groups the persisted domains",
+      "ok": true,
+      "detail": {
+        "groups": [
+          "infrastructure",
+          "industrial"
+        ],
+        "expectedGroups": [
+          "industrial",
+          "infrastructure"
+        ]
+      }
+    },
+    {
+      "id": "prj1-tree-projects",
+      "name": "the tree contains every project once",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-current",
+      "name": "the open project is the only aria-current row",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-selection-default",
+      "name": "the open project is selected before any click",
+      "ok": true,
+      "detail": {
+        "selection": {
+          "header": "Currently open",
+          "fields": [
+            {
+              "label": "Project ID",
+              "value": "preview-rps-01"
+            },
+            {
+              "label": "Project Name",
+              "value": "Riverside Pump Station Upgrade"
+            },
+            {
+              "label": "Business Domain",
+              "value": "Infrastructure"
+            },
+            {
+              "label": "Status",
+              "value": "Active"
+            },
+            {
+              "label": "Start Date",
+              "value": "2026-09-21"
+            },
+            {
+              "label": "Date System",
+              "value": "Gregorian"
+            },
+            {
+              "label": "Primary Calendar",
+              "value": "CUBI-RPS-CAL"
+            },
+            {
+              "label": "Organization",
+              "value": "cubi-preview-tenant"
+            },
+            {
+              "label": "Data revision",
+              "value": "R7"
+            },
+            {
+              "label": "Configuration revision",
+              "value": "R0"
+            }
+          ],
+          "openTarget": null,
+          "hasSettings": true
+        }
+      }
+    },
+    {
+      "id": "prj1-search-rows",
+      "name": "only the matching project row remains",
+      "ok": true,
+      "detail": {
+        "rows": [
+          "preview-nse-02"
+        ]
+      }
+    },
+    {
+      "id": "prj1-search-count",
+      "name": "the count reports the filtered result",
+      "ok": true,
+      "detail": {
+        "count": "1 of 2 projects"
+      }
+    },
+    {
+      "id": "prj1-search-tree",
+      "name": "the tree shows only the matching domain group",
+      "ok": true,
+      "detail": {
+        "tree": [
+          {
+            "key": "industrial",
+            "expanded": true,
+            "label": "Industrial",
+            "count": "1",
+            "projects": [
+              {
+                "id": "preview-nse-02",
+                "pressed": false,
+                "label": "نوسازی سامانه شرقی"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-search-empty",
+      "name": "an unmatched search shows a no-match state, not fabricated rows",
+      "ok": true,
+      "detail": {
+        "count": "0 of 2 projects",
+        "rows": 0
+      }
+    },
+    {
+      "id": "prj1-search-reset",
+      "name": "Clear filters restores every authorized row",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-domain-filter",
+      "name": "the domain filter keeps only that domain",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "preview-rps-01",
+            "domain": "infrastructure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-sort-start",
+      "name": "Start date sorts the persisted rows ascending",
+      "ok": true,
+      "detail": {
+        "rows": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ],
+        "expected": [
+          "preview-rps-01",
+          "preview-nse-02"
+        ],
+        "api": [
+          "2026-09-21",
+          "2027-02-02"
+        ]
+      }
+    },
+    {
+      "id": "prj1-select-nse",
+      "name": "the tree selection marks the chosen project, not the open one",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "preview-rps-01",
+            "selected": false,
+            "current": true
+          },
+          {
+            "id": "preview-nse-02",
+            "selected": true,
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-selection-record",
+      "name": "the selection card shows the persisted record",
+      "ok": true,
+      "detail": {
+        "selection": {
+          "header": "Not open",
+          "fields": [
+            {
+              "label": "Project ID",
+              "value": "preview-nse-02"
+            },
+            {
+              "label": "Project Name",
+              "value": "نوسازی سامانه شرقی"
+            },
+            {
+              "label": "Business Domain",
+              "value": "Industrial"
+            },
+            {
+              "label": "Status",
+              "value": "Active"
+            },
+            {
+              "label": "Start Date",
+              "value": "2027-02-02"
+            },
+            {
+              "label": "Date System",
+              "value": "Jalali"
+            },
+            {
+              "label": "Primary Calendar",
+              "value": "CUBI-NSE-CAL"
+            },
+            {
+              "label": "Organization",
+              "value": "cubi-preview-tenant"
+            },
+            {
+              "label": "Data revision",
+              "value": "R2"
+            },
+            {
+              "label": "Configuration revision",
+              "value": "R0"
+            }
+          ],
+          "openTarget": "preview-nse-02",
+          "hasSettings": false
+        }
+      }
+    },
+    {
+      "id": "prj1-no-open",
+      "name": "selection does not change the open project",
+      "ok": true,
+      "detail": {
+        "detailsSubtitle": "Riverside Pump Station Upgrade — preview-rps-01"
+      }
+    },
+    {
+      "id": "prj1-open-from-selection",
+      "name": "Open project switches the workspace and marks the row current",
+      "ok": true,
+      "detail": {
+        "current": [
+          "preview-nse-02"
+        ],
+        "selection": {
+          "header": "Currently open",
+          "fields": [
+            {
+              "label": "Project ID",
+              "value": "preview-nse-02"
+            },
+            {
+              "label": "Project Name",
+              "value": "نوسازی سامانه شرقی"
+            },
+            {
+              "label": "Business Domain",
+              "value": "Industrial"
+            },
+            {
+              "label": "Status",
+              "value": "Active"
+            },
+            {
+              "label": "Start Date",
+              "value": "2027-02-02"
+            },
+            {
+              "label": "Date System",
+              "value": "Jalali"
+            },
+            {
+              "label": "Primary Calendar",
+              "value": "CUBI-NSE-CAL"
+            },
+            {
+              "label": "Organization",
+              "value": "cubi-preview-tenant"
+            },
+            {
+              "label": "Data revision",
+              "value": "R2"
+            },
+            {
+              "label": "Configuration revision",
+              "value": "R0"
+            }
+          ],
+          "openTarget": null,
+          "hasSettings": true
+        }
+      }
+    },
+    {
+      "id": "prj1-keyboard-select",
+      "name": "Enter on a focused row selects that project",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "preview-rps-01",
+            "selected": true
+          },
+          {
+            "id": "preview-nse-02",
+            "selected": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-collapse",
+      "name": "the domain group collapses without losing its rows",
+      "ok": true,
+      "detail": {
+        "group": {
+          "key": "infrastructure",
+          "expanded": false,
+          "label": "Infrastructure",
+          "count": "1",
+          "projects": []
+        }
+      }
+    },
+    {
+      "id": "prj1-expand",
+      "name": "the group expands again",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-create",
+      "name": "a project created through the API starts in its chosen domain",
+      "ok": true,
+      "detail": {
+        "status": 201,
+        "body": {
+          "context": {
+            "tenant_id": "cubi-preview-tenant",
+            "project_id": "E2E-PRJ-MWEZ8BMC",
+            "revision": 0,
+            "user_id": "preview-admin"
+          }
+        }
+      }
+    },
+    {
+      "id": "prj1-create-persisted",
+      "name": "the new record is in the authorized list with its domain",
+      "ok": true,
+      "detail": {
+        "stored": {
+          "project_id": "E2E-PRJ-MWEZ8BMC",
+          "tenant_id": "cubi-preview-tenant",
+          "name": "E2E Domain Project MWEZ8BMC",
+          "revision": 0,
+          "description": "Created by the PRJ-001 browser acceptance suite.",
+          "start_date": "2026-11-20",
+          "date_system": "gregorian",
+          "primary_calendar_id": null,
+          "settings_revision": 0,
+          "status": "active",
+          "business_domain": "construction"
+        }
+      }
+    },
+    {
+      "id": "prj1-create-tree",
+      "name": "the reloaded tree contains the new Construction group",
+      "ok": true,
+      "detail": {
+        "groups": [
+          {
+            "key": "construction",
+            "projects": [
+              "E2E-PRJ-MWEZ8BMC"
+            ]
+          },
+          {
+            "key": "infrastructure",
+            "projects": [
+              "preview-rps-01"
+            ]
+          },
+          {
+            "key": "industrial",
+            "projects": [
+              "preview-nse-02"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-update",
+      "name": "a revision-guarded PATCH moves the project to Energy",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "project": {
+          "project_id": "E2E-PRJ-MWEZ8BMC",
+          "tenant_id": "cubi-preview-tenant",
+          "name": "E2E Domain Project MWEZ8BMC",
+          "revision": 0,
+          "description": "Created by the PRJ-001 browser acceptance suite.",
+          "start_date": "2026-11-20",
+          "date_system": "gregorian",
+          "primary_calendar_id": null,
+          "settings_revision": 1,
+          "status": "active",
+          "business_domain": "energy"
+        }
+      }
+    },
+    {
+      "id": "prj1-stale",
+      "name": "a stale configuration revision is rejected without overwriting",
+      "ok": true,
+      "detail": {
+        "status": 409,
+        "body": {
+          "code": "PROJECT_REVISION_CONFLICT",
+          "retryable": false,
+          "message_key": "error.project.revision_conflict",
+          "available_actions": []
+        }
+      }
+    },
+    {
+      "id": "prj1-invalid-domain",
+      "name": "an unknown classification is rejected",
+      "ok": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "code": "PROJECT_BUSINESS_DOMAIN_INVALID",
+          "retryable": false,
+          "message_key": "error.project.lifecycle",
+          "available_actions": []
+        }
+      }
+    },
+    {
+      "id": "prj1-update-persisted",
+      "name": "the stored record still holds the last accepted domain",
+      "ok": true,
+      "detail": {
+        "project": {
+          "project_id": "E2E-PRJ-MWEZ8BMC",
+          "tenant_id": "cubi-preview-tenant",
+          "name": "E2E Domain Project MWEZ8BMC",
+          "revision": 0,
+          "description": "Created by the PRJ-001 browser acceptance suite.",
+          "start_date": "2026-11-20",
+          "date_system": "gregorian",
+          "primary_calendar_id": null,
+          "settings_revision": 1,
+          "status": "active",
+          "business_domain": "energy"
+        }
+      }
+    },
+    {
+      "id": "prj1-update-tree",
+      "name": "the Energy group now contains the project and Construction is gone",
+      "ok": true,
+      "detail": {
+        "groups": [
+          "infrastructure",
+          "industrial",
+          "energy"
+        ]
+      }
+    },
+    {
+      "id": "prj1-rtl",
+      "name": "the Persian workspace is right-to-left",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "lang": "fa"
+      }
+    },
+    {
+      "id": "prj1-fa-labels",
+      "name": "the tree and rows use Persian domain labels",
+      "ok": true,
+      "detail": {
+        "labels": "زیرساخت صنعتی انرژی زیرساخت"
+      }
+    },
+    {
+      "id": "prj1-fa-controls",
+      "name": "search, filter and selection surfaces are present in Persian",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-fa-overflow",
+      "name": "the register does not overflow the 1280 viewport",
+      "ok": true,
+      "detail": {
+        "overflow": 0
+      }
+    },
+    {
+      "id": "prj1-viewer-list",
+      "name": "the Viewer sees exactly the session-authorized records",
+      "ok": true,
+      "detail": {
+        "rows": [
+          "E2E-PRJ-MWEZ8BMC",
+          "preview-rps-01",
+          "preview-nse-02"
+        ],
+        "api": [
+          "E2E-PRJ-MWEZ8BMC",
+          "preview-rps-01",
+          "preview-nse-02"
+        ]
+      }
+    },
+    {
+      "id": "prj1-viewer-tree",
+      "name": "the Viewer gets the same Business Domain hierarchy",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "prj1-viewer-denied",
+      "name": "a Viewer PATCH is denied by the server",
+      "ok": true,
+      "detail": {
+        "status": 403,
+        "body": {
+          "code": "AUTHORIZATION_PERMISSION_DENIED",
+          "retryable": false,
+          "message_key": "error.authorization.denied",
+          "available_actions": []
+        }
+      }
+    }
+  ],
+  "screenshots": [
+    "01-register-domain-tree.png",
+    "02-search-narrows-register.png",
+    "03-search-no-matches.png",
+    "04-domain-filter-and-sort.png",
+    "05-selection-preview.png",
+    "06-selection-opened.png",
+    "07-collapsed-domain.png",
+    "08-persisted-domain-update.png",
+    "09-register-fa-rtl-1280.png",
+    "10-viewer-register.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/E2E-PRJ-MWEZ8BMC"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/E2E-PRJ-MWEZ8BMC"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/E2E-PRJ-MWEZ8BMC"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/E2E-PRJ-MWEZ8BMC"
+    }
+  ],
+  "passed": 38,
+  "failed": 0,
+  "finishedAt": "2026-11-13T12:52:42.900Z",
+  "status": "passed"
+}
