@@ -444,3 +444,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Contract:** `P6_PRODUCTION_READINESS_CONTRACT.md` now lists every application event with its bounded fields and the full counter/observation catalogue.
 - **Verification at `d739ced`:** full SQLite suite → **3982 passed, 168 skipped**; live PostgreSQL → **4176 passed, 20 skipped**; focused exchange/report suites → **30 passed**. All 7 PR checks succeeded; merged `main` runs for ConstructionPM CI, PostgreSQL Sync State Integration and Client Typecheck completed **success**.
 - **Not claimed:** no external metrics backend, tracing exporter or log shipping is configured; `OperationalMetrics` remains an in-process bounded registry awaiting a deployment bridge.
+
+## Background job correlation — 2026-11-13 (merged; PR #1849)
+
+- **Base and merge:** branch cut from merged `main` `dbeffae`, squash-merged as **`a7a6114`** via PR #1849. Completes the Workstream 7 traceability requirement for scheduled jobs and the optional OCR queue.
+- **Behavior:** `DocumentOcrRunner` emits `document.ocr.job` with correlation `ocr:{tenant}:{document}:{version}`; `ReportScheduleRunner` emits `report.schedule.run` with correlation `report-schedule:{schedule}:{scheduled UTC}`. Each event sets and resets the correlation contextvar in a `finally`, so worker threads cannot leak an id into the next job. Loggers still normalize and bound the value.
+- **Tests:** deterministic correlation and event fields for both runners, plus the schedule counter assertion.
+- **Verification:** full SQLite suite → **3984 passed, 168 skipped**; live PostgreSQL → **4178 passed, 20 skipped**; all 7 PR checks succeeded and the merged `main` ConstructionPM CI, PostgreSQL Sync State Integration and Client Typecheck runs for `a7a6114` completed **success**.
+- **Not claimed:** no distributed tracing exporter; correlation is propagated in-process and through the HTTP `X-Request-ID` only.
