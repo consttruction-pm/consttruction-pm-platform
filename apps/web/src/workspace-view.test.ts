@@ -2637,3 +2637,58 @@ test("opening another project from the table dispatches exactly one switch reque
   listeners.get("click")?.({ target: current } as unknown as Event);
   assert.deepEqual(opened, ["p-2"]);
 });
+
+test("Projects register groups real records by persisted Business Domain and shows selection controls", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const listed: ProjectSummary[] = [
+    { project_id: "p-1", tenant_id: "tenant-1", name: "Metro Line", revision: 3, business_domain: "infrastructure", status: "active" },
+    { project_id: "p-2", tenant_id: "tenant-1", name: "Refinery", revision: 1, business_domain: "oil_gas", status: "planned" },
+    { project_id: "p-3", tenant_id: "tenant-1", name: "Unassigned", revision: 0 },
+  ];
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { projects: listed });
+  const html = container.innerHTML;
+  assert.match(html, /data-project-register/);
+  assert.match(html, /data-project-search/);
+  assert.match(html, /data-project-domain-filter/);
+  assert.match(html, /data-project-sort/);
+  assert.match(html, /3 of 3 projects/);
+  assert.match(html, /data-project-domain-group="infrastructure"/);
+  assert.match(html, /data-project-domain-group="oil_gas"/);
+  assert.match(html, /data-project-domain-group="__unclassified__"/);
+  assert.match(html, /Infrastructure/);
+  assert.match(html, /Oil &amp; Gas/);
+  assert.match(html, /Not classified/);
+  assert.match(html, /data-project-select="p-1"/);
+  assert.match(html, /data-project-select="p-2"/);
+  assert.match(html, /data-project-selection/);
+  assert.match(html, /Business Domain<\/th>/);
+  assert.match(html, /Planned/);
+});
+
+test("Projects register renders empty and loading states without inventing rows", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const empty = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(empty as unknown as HTMLElement, state, { projects: [] });
+  assert.match(empty.innerHTML, /The session service returned no projects\./);
+  assert.doesNotMatch(empty.innerHTML, /data-project-row=/);
+
+  const loading = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(loading as unknown as HTMLElement, state, {});
+  assert.match(loading.innerHTML, /Loading the session-authorized project list/);
+  assert.match(loading.innerHTML, /data-project-register aria-busy="true"/);
+});
+
+test("Projects register localizes the Business Domain tree for Persian", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "fa"), activeMenu: "project" as const };
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    projects: [{ project_id: "p-1", tenant_id: "tenant-1", name: "خط مترو", revision: 3, business_domain: "infrastructure" }],
+  });
+  const html = container.innerHTML;
+  assert.match(html, /حوزه‌های کاری/);
+  assert.match(html, /زیرساخت/);
+  assert.match(html, /جست‌وجوی پروژه‌ها/);
+  assert.match(html, /پروژهٔ انتخاب‌شده/);
+  assert.doesNotMatch(html, /Infrastructure/);
+});

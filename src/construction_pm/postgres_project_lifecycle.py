@@ -55,7 +55,7 @@ class PostgresProjectRepository(ProjectRepository):
     _SELECT = (
         "SELECT p.project_id, p.tenant_id, p.name, p.revision, p.description, "
         "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision, "
-        "p.status "
+        "p.status, p.business_domain "
         "FROM project_lifecycle_projects p "
     )
 
@@ -91,13 +91,23 @@ class PostgresProjectRepository(ProjectRepository):
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
     ) -> ProjectSummary:
         self._connection.execute(
             "INSERT INTO project_lifecycle_projects "
             "(tenant_id, project_id, name, revision, description, start_date, date_system, "
-            "primary_calendar_id, settings_revision) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0)",
-            (tenant_id, project_id, name, description, start_date, date_system, primary_calendar_id),
+            "primary_calendar_id, settings_revision, business_domain) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s)",
+            (
+                tenant_id,
+                project_id,
+                name,
+                description,
+                start_date,
+                date_system,
+                primary_calendar_id,
+                business_domain,
+            ),
         )
         self._connection.execute(
             "INSERT INTO project_lifecycle_memberships (tenant_id, project_id, user_id) "
@@ -113,6 +123,7 @@ class PostgresProjectRepository(ProjectRepository):
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            business_domain=business_domain,
         )
 
     def update_for_user(
@@ -127,23 +138,27 @@ class PostgresProjectRepository(ProjectRepository):
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str | None = None,
     ) -> ProjectSummary | None:
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET name=%s, description=%s, "
             "start_date=%s, date_system=%s, primary_calendar_id=%s, "
+            "business_domain=COALESCE(%s, business_domain), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
             "SELECT 1 FROM project_lifecycle_memberships m "
             "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
-            "start_date, date_system, primary_calendar_id, settings_revision",
+            "start_date, date_system, primary_calendar_id, settings_revision, status, "
+            "business_domain",
             (
                 name,
                 description,
                 start_date,
                 date_system,
                 primary_calendar_id,
+                business_domain,
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -266,6 +281,7 @@ def _summary(row: Any) -> ProjectSummary:
         primary_calendar_id=None if row[7] is None else str(row[7]),
         settings_revision=int(row[8]) if len(row) > 8 and row[8] is not None else 0,
         status=str(row[9]) if len(row) > 9 and row[9] else "active",
+        business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
     )
 
 

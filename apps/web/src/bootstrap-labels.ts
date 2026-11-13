@@ -23,6 +23,14 @@ export type BootstrapLabels = {
   projectDateSystem: string;
   dateSystemGregorian: string;
   dateSystemJalali: string;
+  projectBusinessDomain: string;
+  businessDomainNotClassified: string;
+  businessDomainConstruction: string;
+  businessDomainOilGas: string;
+  businessDomainInfrastructure: string;
+  businessDomainIndustrial: string;
+  businessDomainEnergy: string;
+  businessDomainOther: string;
   projectSettings: string;
   settingsTitle: string;
   settingsClose: string;
@@ -92,6 +100,14 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDateSystem: "Date system",
     dateSystemGregorian: "Gregorian",
     dateSystemJalali: "Jalali",
+    projectBusinessDomain: "Business Domain",
+    businessDomainNotClassified: "Not classified",
+    businessDomainConstruction: "Construction",
+    businessDomainOilGas: "Oil & Gas",
+    businessDomainInfrastructure: "Infrastructure",
+    businessDomainIndustrial: "Industrial",
+    businessDomainEnergy: "Energy",
+    businessDomainOther: "Other",
     projectSettings: "Project settings",
     settingsTitle: "Project settings",
     settingsClose: "Close",
@@ -159,6 +175,14 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDateSystem: "تقویم نمایشی",
     dateSystemGregorian: "میلادی",
     dateSystemJalali: "شمسی",
+    projectBusinessDomain: "حوزهٔ کاری",
+    businessDomainNotClassified: "طبقه‌بندی‌نشده",
+    businessDomainConstruction: "ساخت‌وساز",
+    businessDomainOilGas: "نفت و گاز",
+    businessDomainInfrastructure: "زیرساخت",
+    businessDomainIndustrial: "صنعتی",
+    businessDomainEnergy: "انرژی",
+    businessDomainOther: "سایر",
     projectSettings: "تنظیمات پروژه",
     settingsTitle: "تنظیمات پروژه",
     settingsClose: "بستن",

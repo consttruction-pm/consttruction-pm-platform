@@ -203,6 +203,7 @@ class DemoProjectFixture:
     capacities: tuple[DemoCapacitySegment, ...] = ()
     rates: tuple[DemoRateFact, ...] = ()
     resources: tuple[DemoResource, ...] = ()
+    business_domain: str = ""
 
 
 RPS_CALENDAR_ID = "CUBI-RPS-CAL"
@@ -357,6 +358,7 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
         project_id="preview-rps-01",
         name="Riverside Pump Station Upgrade",
         revision=7,
+        business_domain="infrastructure",
         project_start=date(2026, 9, 21),
         calendar_id=RPS_CALENDAR_ID,
         calendar_name="Riverside Mon-Fri (Gregorian)",
@@ -420,6 +422,7 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
         project_id="preview-nse-02",
         name="نوسازی سامانه شرقی",
         revision=2,
+        business_domain="industrial",
         project_start=date(2027, 2, 2),
         calendar_id=NSE_CALENDAR_ID,
         calendar_name="NSE Sat-Wed (Jalali)",

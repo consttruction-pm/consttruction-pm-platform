@@ -902,6 +902,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       return;
     }
+    const projectSearch = target.closest<HTMLInputElement>("[data-project-search]");
+    if (projectSearch) {
+      projectRegisterStateFor(container).query = projectSearch.value;
+      refreshProjectRegister(container);
+      return;
+    }
     const searchInput = target.closest<HTMLInputElement>("[data-reference-search-input]");
     if (!searchInput) return;
     const query = searchInput.value.trim().toLocaleLowerCase();
@@ -1021,7 +1027,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1191,6 +1197,29 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.projectOpen !== undefined) {
       const projectId = target.dataset.projectOpen;
       if (projectId && projectId !== state.context.project_id) options.onProjectOpen?.(projectId);
+      return;
+    }
+    if (target.dataset.projectFilterReset !== undefined) {
+      const register = projectRegisterStateFor(container);
+      register.query = "";
+      register.domain = PROJECT_DOMAIN_FILTER_ALL;
+      refreshProjectRegister(container);
+      container.querySelector<HTMLInputElement>("[data-project-search]")?.focus();
+      return;
+    }
+    if (target.dataset.projectDomainToggle !== undefined) {
+      const register = projectRegisterStateFor(container);
+      const key = target.dataset.projectDomainToggle;
+      if (register.collapsed.has(key)) register.collapsed.delete(key);
+      else register.collapsed.add(key);
+      refreshProjectRegister(container);
+      return;
+    }
+    if (target.dataset.projectSelect !== undefined || target.dataset.projectRow !== undefined) {
+      const projectId = target.dataset.projectSelect ?? target.dataset.projectRow;
+      if (!projectId) return;
+      projectRegisterStateFor(container).selectedId = projectId;
+      refreshProjectRegister(container);
       return;
     }
     if (target.dataset.resetTableSplit !== undefined) { resetTableSplit(container); return; }
@@ -1470,6 +1499,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
+      const projectRow = keyTarget?.closest?.<HTMLElement>("[data-project-row]") ?? null;
+      // A focusable table row selects the project; a nested button keeps its
+      // native activation (Open or select), so only handle the row itself.
+      if (projectRow && !keyTarget?.closest?.("button")) {
+        event.preventDefault();
+        projectRegisterStateFor(container).selectedId = projectRow.dataset.projectRow ?? null;
+        refreshProjectRegister(container);
+        return;
+      }
       const activationTarget = keyTarget && typeof keyTarget.closest === "function"
         ? keyTarget.closest<HTMLElement>("[data-network-relationship-id],[data-gantt-activity-id],[data-activity-id],[data-document-row],[data-wbs-row]")
         : null;
@@ -1551,6 +1589,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "projectDomainFilter")) {
+      const value = (element as HTMLSelectElement).value;
+      projectRegisterStateFor(container).domain = value || PROJECT_DOMAIN_FILTER_ALL;
+      refreshProjectRegister(container);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "projectSort")) {
+      const value = (element as HTMLSelectElement).value;
+      if (value !== "name" && value !== "start_date" && value !== "status") return;
+      projectRegisterStateFor(container).sort = value;
+      refreshProjectRegister(container);
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
       const value = (element as HTMLSelectElement).value;
       const record = workspaceRenderRecords.get(container);
@@ -2924,6 +2975,234 @@ function renderCalendarCatalog(state: WorkspaceState): string {
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
+
+type ProjectRegisterSort = "name" | "start_date" | "status";
+type ProjectRegisterState = {
+  query: string;
+  domain: string;
+  sort: ProjectRegisterSort;
+  selectedId: string | null;
+  collapsed: Set<string>;
+};
+const projectRegisterStates = new WeakMap<HTMLElement, ProjectRegisterState>();
+const PROJECT_DOMAIN_FILTER_ALL = "__all__";
+const PROJECT_DOMAIN_FILTER_UNCLASSIFIED = "__unclassified__";
+const PROJECT_DOMAIN_ORDER = [
+  "construction",
+  "oil_gas",
+  "infrastructure",
+  "industrial",
+  "energy",
+  "other",
+] as const;
+
+function businessDomainLabel(locale: string, domain: string | undefined): string {
+  switch (domain) {
+    case "construction": return uiText(locale, "Construction", "ساخت‌وساز");
+    case "oil_gas": return uiText(locale, "Oil & Gas", "نفت و گاز");
+    case "infrastructure": return uiText(locale, "Infrastructure", "زیرساخت");
+    case "industrial": return uiText(locale, "Industrial", "صنعتی");
+    case "energy": return uiText(locale, "Energy", "انرژی");
+    case "other": return uiText(locale, "Other", "سایر");
+    default: return uiText(locale, "Not classified", "طبقه‌بندی‌نشده");
+  }
+}
+
+function projectStatusLabel(locale: string, status: string | undefined): string {
+  switch (status) {
+    case "inactive": return uiText(locale, "Inactive", "غیرفعال");
+    case "planned": return uiText(locale, "Planned", "برنامه‌ریزی‌شده");
+    case "what_if": return uiText(locale, "What-If", "فرضی");
+    default: return uiText(locale, "Active", "فعال");
+  }
+}
+
+function projectRegisterStateFor(container: HTMLElement): ProjectRegisterState {
+  let register = projectRegisterStates.get(container);
+  if (!register) {
+    register = { query: "", domain: PROJECT_DOMAIN_FILTER_ALL, sort: "name", selectedId: null, collapsed: new Set() };
+    projectRegisterStates.set(container, register);
+  }
+  return register;
+}
+
+function sortProjectRows(rows: readonly ProjectSummary[], sort: ProjectRegisterSort, locale: string): ProjectSummary[] {
+  const byName = (a: ProjectSummary, b: ProjectSummary): number =>
+    (a.name || a.project_id).localeCompare(b.name || b.project_id, locale);
+  return [...rows].sort((a, b) => {
+    if (sort === "start_date") {
+      const left = a.start_date ?? "";
+      const right = b.start_date ?? "";
+      if (!left && !right) return byName(a, b);
+      if (!left) return 1;
+      if (!right) return -1;
+      return left.localeCompare(right) || byName(a, b);
+    }
+    if (sort === "status") {
+      return (a.status ?? "active").localeCompare(b.status ?? "active") || byName(a, b);
+    }
+    return byName(a, b);
+  });
+}
+
+function renderProjectRegister(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  const locale = state.locale;
+  const currentId = state.context.project_id;
+  const listed = options.projects;
+  if (!listed) {
+    return `<section class="cp-project-register" data-project-register aria-busy="true"><p class="cp-project-register-empty">${escapeHtml(uiText(locale, "Loading the session-authorized project list…", "در حال بارگذاری فهرست پروژه‌های مجاز نشست…"))}</p></section>`;
+  }
+  const register = projectRegisterStateFor(container);
+  const summary = options.projectSummary ?? null;
+  // The session list is authoritative for which projects exist; the freshly
+  // read summary replaces the list's row for the open project so a renamed
+  // project never shows a stale name.
+  const rows: ProjectSummary[] = listed.map((row) => (row.project_id === currentId && summary ? summary : row));
+  if (summary && !rows.some((row) => row.project_id === currentId)) rows.unshift(summary);
+
+  const query = register.query.trim().toLocaleLowerCase(locale);
+  const matches = (row: ProjectSummary): boolean => {
+    const domain = row.business_domain ?? "";
+    const domainOk = register.domain === PROJECT_DOMAIN_FILTER_ALL
+      || (register.domain === PROJECT_DOMAIN_FILTER_UNCLASSIFIED ? !domain : domain === register.domain);
+    if (!domainOk) return false;
+    if (!query) return true;
+    const haystack = [row.project_id, row.name, row.description ?? "", businessDomainLabel(locale, domain)]
+      .join(" ")
+      .toLocaleLowerCase(locale);
+    return haystack.includes(query);
+  };
+  const visibleRows = sortProjectRows(rows.filter(matches), register.sort, locale);
+  const selected = rows.find((row) => row.project_id === register.selectedId)
+    ?? rows.find((row) => row.project_id === currentId)
+    ?? null;
+  const selectedId = selected?.project_id ?? null;
+
+  const presentDomains = [...new Set(rows.map((row) => row.business_domain ?? ""))]
+    .sort((a, b) => {
+      const left = a ? PROJECT_DOMAIN_ORDER.indexOf(a as typeof PROJECT_DOMAIN_ORDER[number]) : PROJECT_DOMAIN_ORDER.length;
+      const right = b ? PROJECT_DOMAIN_ORDER.indexOf(b as typeof PROJECT_DOMAIN_ORDER[number]) : PROJECT_DOMAIN_ORDER.length;
+      return left - right;
+    });
+  const domainOptions = [
+    `<option value="${PROJECT_DOMAIN_FILTER_ALL}"${register.domain === PROJECT_DOMAIN_FILTER_ALL ? " selected" : ""}>${escapeHtml(uiText(locale, "All business domains", "همهٔ حوزه‌های کاری"))}</option>`,
+    ...presentDomains.map((domain) => {
+      const value = domain || PROJECT_DOMAIN_FILTER_UNCLASSIFIED;
+      return `<option value="${escapeAttribute(value)}"${register.domain === value ? " selected" : ""}>${escapeHtml(businessDomainLabel(locale, domain))} (${rows.filter((row) => (row.business_domain ?? "") === domain).length})</option>`;
+    }),
+  ].join("");
+
+  const groups = new Map<string, ProjectSummary[]>();
+  for (const row of visibleRows) {
+    const key = row.business_domain ?? "";
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  const orderedGroups = [...groups.entries()].sort((a, b) => {
+    const left = a[0] ? PROJECT_DOMAIN_ORDER.indexOf(a[0] as typeof PROJECT_DOMAIN_ORDER[number]) : PROJECT_DOMAIN_ORDER.length;
+    const right = b[0] ? PROJECT_DOMAIN_ORDER.indexOf(b[0] as typeof PROJECT_DOMAIN_ORDER[number]) : PROJECT_DOMAIN_ORDER.length;
+    return left - right;
+  });
+
+  const tree = orderedGroups.length
+    ? `<ul class="cp-project-domain-groups">${orderedGroups.map(([domain, groupRows]) => {
+      const key = domain || PROJECT_DOMAIN_FILTER_UNCLASSIFIED;
+      const collapsed = register.collapsed.has(key);
+      const projects = groupRows.map((row) => {
+        const active = row.project_id === selectedId;
+        return `<li><button type="button" class="cp-project-tree-project${active ? " is-selected" : ""}" data-project-select="${escapeAttribute(row.project_id)}" aria-pressed="${active}" title="${escapeAttribute(`${row.project_id} · ${projectStatusLabel(locale, row.status)}`)}"><strong>${escapeHtml(row.name || row.project_id)}</strong><small>${escapeHtml(row.project_id)}</small>${row.project_id === currentId ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : ""}</button></li>`;
+      }).join("");
+      return `<li class="cp-project-domain-group${collapsed ? " is-collapsed" : ""}" data-project-domain-group="${escapeAttribute(key)}"><button type="button" class="cp-project-domain-toggle" data-project-domain-toggle="${escapeAttribute(key)}" aria-expanded="${!collapsed}"><span class="cp-project-domain-name">${escapeHtml(businessDomainLabel(locale, domain))}</span><span class="cp-project-domain-count">${groupRows.length}</span></button>${collapsed ? "" : `<ul class="cp-project-domain-projects">${projects}</ul>`}</li>`;
+    }).join("")}</ul>`
+    : `<p class="cp-project-register-empty" data-project-no-matches>${rows.length ? escapeHtml(uiText(locale, "No projects match the current search or business domain filter.", "هیچ پروژه‌ای با جست‌وجو یا فیلتر حوزهٔ کاری فعلی مطابقت ندارد.")) : escapeHtml(uiText(locale, "The session service returned no projects.", "سرویس نشست هیچ پروژه‌ای برنگرداند."))}</p>`;
+
+  const dateSystemLabel = (row: ProjectSummary): string => row.date_system === "jalali"
+    ? uiText(locale, "Jalali", "شمسی")
+    : row.date_system === "gregorian" ? uiText(locale, "Gregorian", "میلادی") : "—";
+  const tableRows = visibleRows.length
+    ? visibleRows.map((row) => {
+      const current = row.project_id === currentId;
+      const active = row.project_id === selectedId;
+      return `<tr data-project-row="${escapeAttribute(row.project_id)}"${current ? ' aria-current="true"' : ""} data-project-domain="${escapeAttribute(row.business_domain ?? "")}" data-project-selected="${active}" tabindex="0" aria-selected="${active}"><td><code>${escapeHtml(row.project_id)}</code></td><td>${escapeHtml(row.name || row.project_id)}</td><td>${escapeHtml(businessDomainLabel(locale, row.business_domain))}</td><td>${escapeHtml(row.start_date || "—")}</td><td>${escapeHtml(dateSystemLabel(row))}</td><td>${escapeHtml(row.primary_calendar_id || "—")}</td><td>${current ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : `<button type="button" data-project-open="${escapeAttribute(row.project_id)}">${escapeHtml(uiText(locale, "Open", "بازکردن"))}</button>`}</td></tr>`;
+    }).join("")
+    : `<tr><td colspan="7">${escapeHtml(rows.length ? uiText(locale, "No projects match the current search or business domain filter.", "هیچ پروژه‌ای با جست‌وجو یا فیلتر حوزهٔ کاری فعلی مطابقت ندارد.") : uiText(locale, "The session service returned no projects.", "سرویس نشست هیچ پروژه‌ای برنگرداند."))}</td></tr>`;
+
+  const selection = selected
+    ? `<section class="cp-project-selection" data-project-selection aria-live="polite" aria-label="${escapeAttribute(uiText(locale, "Selected project", "پروژهٔ انتخاب‌شده"))}">
+        <header><h3>${escapeHtml(uiText(locale, "Selected project", "پروژهٔ انتخاب‌شده"))}</h3><span>${selected.project_id === currentId ? escapeHtml(uiText(locale, "Currently open", "اکنون باز است")) : escapeHtml(uiText(locale, "Not open", "باز نیست"))}</span></header>
+        <div class="cp-project-selection-fields">
+          <div><span>${escapeHtml(uiText(locale, "Project ID", "شناسه پروژه"))}</span><strong>${escapeHtml(selected.project_id)}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Project Name", "نام پروژه"))}</span><strong>${escapeHtml(selected.name || selected.project_id)}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Business Domain", "حوزهٔ کاری"))}</span><strong>${escapeHtml(businessDomainLabel(locale, selected.business_domain))}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Status", "وضعیت"))}</span><strong>${escapeHtml(projectStatusLabel(locale, selected.status))}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Start Date", "تاریخ شروع"))}</span><strong>${escapeHtml(selected.start_date || "—")}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Date System", "تقویم"))}</span><strong>${escapeHtml(dateSystemLabel(selected))}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Primary Calendar", "تقویم اصلی"))}</span><strong>${escapeHtml(selected.primary_calendar_id || "—")}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Organization", "سازمان"))}</span><strong>${escapeHtml(selected.tenant_id)}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Data revision", "ویرایش داده"))}</span><strong>R${selected.revision}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Configuration revision", "ویرایش تنظیمات"))}</span><strong>R${selected.settings_revision ?? 0}</strong></div>
+        </div>
+        ${selected.description?.trim() ? `<p class="cp-project-selection-description">${escapeHtml(selected.description.trim())}</p>` : ""}
+        <div class="cp-project-selection-actions">
+          ${selected.project_id === currentId
+            ? `<button type="button" data-project-settings>${escapeHtml(uiText(locale, "Edit project properties", "ویرایش مشخصات پروژه"))}</button>`
+            : `<button type="button" data-project-open="${escapeAttribute(selected.project_id)}">${escapeHtml(uiText(locale, "Open project", "بازکردن پروژه"))}</button>`}
+        </div>
+      </section>`
+    : `<p class="cp-project-register-empty">${escapeHtml(uiText(locale, "Select a project in the business domain tree or the table to see its record.", "برای دیدن رکورد پروژه، آن را در درخت حوزهٔ کاری یا جدول انتخاب کنید."))}</p>`;
+
+  return `<section class="cp-project-register" data-project-register aria-label="${escapeAttribute(uiText(locale, "Project Table", "جدول پروژه‌ها"))}">
+    <div class="cp-project-register-toolbar">
+      <label class="cp-project-register-field"><span>${escapeHtml(uiText(locale, "Search projects", "جست‌وجوی پروژه‌ها"))}</span><input type="search" data-project-search value="${escapeAttribute(register.query)}" autocomplete="off" placeholder="${escapeAttribute(uiText(locale, "Project ID, name or description", "شناسه، نام یا توضیح پروژه"))}"></label>
+      <label class="cp-project-register-field"><span>${escapeHtml(uiText(locale, "Business Domain", "حوزهٔ کاری"))}</span><select data-project-domain-filter>${domainOptions}</select></label>
+      <label class="cp-project-register-field"><span>${escapeHtml(uiText(locale, "Sort by", "ترتیب بر اساس"))}</span><select data-project-sort><option value="name"${register.sort === "name" ? " selected" : ""}>${escapeHtml(uiText(locale, "Name", "نام"))}</option><option value="start_date"${register.sort === "start_date" ? " selected" : ""}>${escapeHtml(uiText(locale, "Start date", "تاریخ شروع"))}</option><option value="status"${register.sort === "status" ? " selected" : ""}>${escapeHtml(uiText(locale, "Status", "وضعیت"))}</option></select></label>
+      <span class="cp-project-register-count" data-project-register-count role="status" aria-live="polite">${escapeHtml(uiText(locale, `${visibleRows.length} of ${rows.length} projects`, `${visibleRows.length} از ${rows.length} پروژه`))}</span>
+      ${query || register.domain !== PROJECT_DOMAIN_FILTER_ALL ? `<button type="button" class="cp-project-filter-reset" data-project-filter-reset>${escapeHtml(uiText(locale, "Clear filters", "پاک‌کردن فیلترها"))}</button>` : ""}
+    </div>
+    <div class="cp-project-register-layout">
+      <nav class="cp-project-domain-tree" aria-label="${escapeAttribute(uiText(locale, "Business Domain hierarchy", "سلسله‌مراتب حوزهٔ کاری"))}">
+        <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(locale, "Business Domains", "حوزه‌های کاری"))}</h3><span>${escapeHtml(uiText(locale, "EPS-level classification", "طبقه‌بندی سطح سازمانی"))}</span></div>
+        ${tree}
+      </nav>
+      <div class="cp-project-register-main">
+        <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(locale, "Project Table", "جدول پروژه‌ها"))}</h3><span>${escapeHtml(uiText(locale, "Server project list", "فهرست پروژه‌های سرور"))}</span></div>
+        <div class="cp-project-table-wrap">
+          <table class="cp-project-register-table cp-project-table">
+            <thead><tr><th>${escapeHtml(uiText(locale, "Project ID", "شناسه پروژه"))}</th><th>${escapeHtml(uiText(locale, "Project Name", "نام پروژه"))}</th><th>${escapeHtml(uiText(locale, "Business Domain", "حوزهٔ کاری"))}</th><th>${escapeHtml(uiText(locale, "Start Date", "تاریخ شروع"))}</th><th>${escapeHtml(uiText(locale, "Date System", "تقویم"))}</th><th>${escapeHtml(uiText(locale, "Primary Calendar", "تقویم اصلی"))}</th><th>${escapeHtml(uiText(locale, "Status", "وضعیت"))}</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        ${selection}
+      </div>
+    </div>
+  </section>`;
+}
+
+function refreshProjectRegister(container: HTMLElement): void {
+  const record = workspaceRenderRecords.get(container);
+  const section = container.querySelector<HTMLElement>("[data-project-register]");
+  if (!record || !section) return;
+  const active = document.activeElement as HTMLElement | null;
+  const focusKind = active?.dataset.projectSearch !== undefined ? "search"
+    : active?.dataset.projectDomainFilter !== undefined ? "domain"
+    : active?.dataset.projectSort !== undefined ? "sort"
+    : active?.dataset.projectDomainToggle !== undefined ? `domain:${active.dataset.projectDomainToggle}`
+    : active?.dataset.projectSelect !== undefined ? `project:${active.dataset.projectSelect}`
+    : null;
+  const caret = active instanceof HTMLInputElement && focusKind === "search" ? active.selectionStart : null;
+  section.outerHTML = renderProjectRegister(container, record.state, record.options);
+  if (!focusKind) return;
+  const selector = focusKind === "search" ? "[data-project-search]"
+    : focusKind === "domain" ? "[data-project-domain-filter]"
+    : focusKind === "sort" ? "[data-project-sort]"
+    : focusKind.startsWith("domain:") ? `[data-project-domain-toggle="${CSS.escape(focusKind.slice(7))}"]`
+    : `[data-project-select="${CSS.escape(focusKind.slice(8))}"]`;
+  const next = container.querySelector<HTMLElement>(selector);
+  next?.focus({ preventScroll: true });
+  if (next instanceof HTMLInputElement && caret !== null) {
+    next.setSelectionRange(caret, caret);
+  }
+}
+
 function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels, options: WorkspaceRendererOptions): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
   const navigation = getWorkspaceNavigation(state.activeMenu);
@@ -2935,42 +3214,18 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   let body = "";
   switch (state.activeMenu) {
     case "project": {
-      const currentId = state.context.project_id;
       const summary = options.projectSummary ?? null;
-      const listed = options.projects ?? [];
-      // The session list is authoritative for which projects exist; the freshly
-      // read summary replaces the list's row for the open project so a renamed
-      // project never shows a stale name.
-      const rows: ProjectSummary[] = listed.map((row) => (row.project_id === currentId && summary ? summary : row));
-      if (summary && !rows.some((row) => row.project_id === currentId)) rows.unshift(summary);
-      const dateSystemLabel = (row: ProjectSummary): string => row.date_system === "jalali"
-        ? uiText(state.locale, "Jalali", "شمسی")
-        : row.date_system === "gregorian" ? uiText(state.locale, "Gregorian", "میلادی") : "—";
-      const tableRows = rows.length
-        ? rows.map((row) => {
-          const current = row.project_id === currentId;
-          return `<tr data-project-row="${escapeAttribute(row.project_id)}"${current ? ' aria-current="true"' : ""}><td><code>${escapeHtml(row.project_id)}</code></td><td>${escapeHtml(row.name || row.project_id)}</td><td>${escapeHtml(row.start_date || "—")}</td><td>${escapeHtml(dateSystemLabel(row))}</td><td>${escapeHtml(row.primary_calendar_id || "—")}</td><td>${current ? `<span class="cp-project-current">${escapeHtml(uiText(state.locale, "Open", "باز"))}</span>` : `<button type="button" data-project-open="${escapeAttribute(row.project_id)}">${escapeHtml(uiText(state.locale, "Open", "بازکردن"))}</button>`}</td></tr>`;
-        }).join("")
-        : `<tr><td colspan="6">${escapeHtml(uiText(state.locale, "The session service returned no projects.", "سرویس نشست هیچ پروژه‌ای برنگرداند."))}</td></tr>`;
       body = `
         <div class="cp-project-window-toolbar">
           ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
           <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Session-authorized projects", "پروژه‌های مجاز نشست"))}</span>
         </div>
-        <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Project Table", "جدول پروژه‌ها"))}">
-          <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه‌ها"))}</h3><span>${escapeHtml(uiText(state.locale, "Server project list", "فهرست پروژه‌های سرور"))}</span></div>
-          <div class="cp-project-table-wrap">
-            <table class="cp-project-register-table cp-project-table">
-              <thead><tr><th>${escapeHtml(uiText(state.locale, "Project ID", "شناسه پروژه"))}</th><th>${escapeHtml(uiText(state.locale, "Project Name", "نام پروژه"))}</th><th>${escapeHtml(uiText(state.locale, "Start Date", "تاریخ شروع"))}</th><th>${escapeHtml(uiText(state.locale, "Date System", "تقویم"))}</th><th>${escapeHtml(uiText(state.locale, "Primary Calendar", "تقویم اصلی"))}</th><th>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}</th></tr></thead>
-              <tbody>${tableRows}</tbody>
-            </table>
-          </div>
-        </section>
+        ${renderProjectRegister(container, state, options)}
         <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
           <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
           ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
         </section>
-        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "The table lists exactly the projects the session service returned. Opening a project re-reads that project's workspace from the server; nothing outside the session's membership is invented.", "جدول دقیقاً همان پروژه‌هایی را فهرست می‌کند که سرویس نشست برگردانده است. بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند و هیچ پروژه‌ای بیرون از عضویت نشست ساخته نمی‌شود."))}</p>
+        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "The register lists exactly the projects the session service returned, grouped by the Business Domain stored on each project. Opening a project re-reads that project's workspace from the server; nothing outside the session's membership is invented.", "این فهرست دقیقاً همان پروژه‌هایی را نشان می‌دهد که سرویس نشست برگردانده و بر اساس حوزهٔ کاری ذخیره‌شده در هر پروژه گروه‌بندی شده است. بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند و هیچ پروژه‌ای بیرون از عضویت نشست ساخته نمی‌شود."))}</p>
         ${summary ? "" : `<p class="cp-project-window-note" data-project-metadata-pending="true">${escapeHtml(uiText(state.locale, "The authoritative project record has not been read yet, so schedule fields stay blank instead of showing placeholder values.", "رکورد مرجع پروژه هنوز خوانده نشده است؛ بنابراین فیلدهای زمان‌بندی به‌جای نمایش مقدار جایگزین، خالی می‌مانند."))}</p>`}`;
       break;
     }
@@ -5134,6 +5389,8 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
         return `<div class="cp-activity-detail-fields">
           ${field(uiText(state.locale, "Project Name", "نام پروژه"), summary.name || summary.project_id)}
           ${field(uiText(state.locale, "Project ID", "شناسه پروژه"), summary.project_id)}
+          ${field(uiText(state.locale, "Business Domain", "حوزهٔ کاری"), businessDomainLabel(state.locale, summary.business_domain))}
+          ${field(uiText(state.locale, "Status", "وضعیت"), projectStatusLabel(state.locale, summary.status))}
           ${field(uiText(state.locale, "Description", "توضیحات"), summary.description?.trim() || "—")}
           ${field(uiText(state.locale, "Start Date", "تاریخ شروع"), summary.start_date || "—")}
           ${field(uiText(state.locale, "Date System", "تقویم"), dateSystemLabel(summary))}
@@ -5154,6 +5411,7 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
         return `<div class="cp-activity-detail-fields">
           ${field(uiText(state.locale, "Date System", "تقویم"), dateSystemLabel(summary))}
           ${field(uiText(state.locale, "Primary Calendar", "تقویم اصلی"), summary.primary_calendar_id || "—")}
+          ${field(uiText(state.locale, "Business Domain", "حوزهٔ کاری"), businessDomainLabel(state.locale, summary.business_domain))}
           ${field(uiText(state.locale, "Settings revision", "ویرایش تنظیمات"), `R${summary.settings_revision ?? 0}`)}
         </div>
         <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Fiscal year start, default price per unit and activity ID numbering are not stored on the project record this server exposes, so they are not shown as editable.", "شروع سال مالی، قیمت پیش‌فرض واحد و شماره‌گذاری شناسهٔ فعالیت در رکورد پروژه‌ای که این سرور ارائه می‌دهد ذخیره نمی‌شوند؛ بنابراین قابل ویرایش نمایش داده نمی‌شوند."))}</p>`;

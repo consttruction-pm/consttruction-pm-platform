@@ -61,10 +61,20 @@ class ProjectSummary:
     # V26 Project Details General tab status. Metadata edits carry their own
     # revision; the status change is a separate, audited lifecycle operation.
     status: str = "active"
+    # CUBI replaces the P6 EPS classification with a Business Domain. It is a
+    # persisted project attribute, so the Projects register groups real records
+    # rather than deriving a hierarchy from names. The empty string means the
+    # record has not been classified yet.
+    business_domain: str = ""
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
 PROJECT_STATUSES = frozenset({"active", "inactive", "planned", "what_if"})
+# CUBI Business Domain taxonomy (workspace-information-architecture.md). The
+# stored value is a stable code; the browser localizes the label.
+BUSINESS_DOMAINS = frozenset(
+    {"construction", "oil_gas", "infrastructure", "industrial", "energy", "other"}
+)
 MAX_PROJECT_DESCRIPTION = 2000
 MAX_PROJECT_CALENDAR_ID = 200
 
@@ -112,6 +122,31 @@ def normalize_project_calendar_id(value: object) -> str | None:
     if len(calendar_id) > MAX_PROJECT_CALENDAR_ID:
         raise ProjectLifecycleError("PROJECT_PRIMARY_CALENDAR_ID_INVALID")
     return calendar_id
+
+
+def normalize_project_business_domain(value: object) -> str:
+    """Normalise the CUBI Business Domain classification.
+
+    ``None`` and the empty string are the explicit "not classified" state for
+    records created before the field existed. Any other value must be one of
+    the six documented domains; the API never stores an arbitrary grouping
+    label, so the Projects tree cannot invent a domain from a typo.
+    """
+    if value is None or value == "":
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_BUSINESS_DOMAIN_INVALID")
+    cleaned = value.strip().lower()
+    # Accept the human label from the V26 Help taxonomy as well as the stable
+    # code, so a form can submit "Oil & Gas" without inventing a new domain.
+    aliases = {
+        "oil & gas": "oil_gas",
+        "oil and gas": "oil_gas",
+    }
+    domain = aliases.get(cleaned, cleaned.replace("-", "_").replace(" ", "_"))
+    if domain not in BUSINESS_DOMAINS:
+        raise ProjectLifecycleError("PROJECT_BUSINESS_DOMAIN_INVALID")
+    return domain
 
 
 def normalize_project_status(value: object) -> str:
@@ -202,6 +237,7 @@ class ProjectRepository(Protocol):
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
     ) -> ProjectSummary: ...
     def update_for_user(
         self,
@@ -215,6 +251,7 @@ class ProjectRepository(Protocol):
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str | None = None,
     ) -> ProjectSummary | None: ...
     def set_status_for_user(
         self,
@@ -265,7 +302,24 @@ class ProjectLifecycleService:
         self, session_id: str, *, now: datetime
     ) -> tuple[ProjectSummary, ...]:
         session = self.session(session_id, now=now)
-        return self._projects.list_for_user(session.tenant_id, session.user_id)
+        listed = self._projects.list_for_user(session.tenant_id, session.user_id)
+        # Membership decides which rows the query may return; the role policy
+        # decides whether this session may read a project at all. Both gates
+        # apply, so a membership row alone cannot surface a project to a role
+        # that has no project.read grant.
+        return tuple(
+            project
+            for project in listed
+            if self._policy.is_allowed(
+                AuthorizationContext(
+                    tenant_id=project.tenant_id,
+                    project_id=project.project_id,
+                    user_id=session.user_id,
+                    roles=session.roles,
+                ),
+                Permission.PROJECT_READ,
+            )
+        )
 
     def _open_project_for_session(
         self, session: AuthenticatedSession, project_id: str
@@ -316,6 +370,7 @@ class ProjectLifecycleService:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str = "",
         now: datetime,
     ) -> ProjectContext:
         session = self.session(session_id, now=now)
@@ -337,6 +392,7 @@ class ProjectLifecycleService:
         normalized_start_date = normalize_project_start_date(start_date)
         normalized_date_system = normalize_project_date_system(date_system)
         normalized_calendar_id = normalize_project_calendar_id(primary_calendar_id)
+        normalized_business_domain = normalize_project_business_domain(business_domain)
         project = self._projects.create_for_user(
             session.tenant_id,
             session.user_id,
@@ -346,6 +402,7 @@ class ProjectLifecycleService:
             start_date=normalized_start_date,
             date_system=normalized_date_system,
             primary_calendar_id=normalized_calendar_id,
+            business_domain=normalized_business_domain,
         )
         return ProjectContext(
             tenant_id=project.tenant_id,
@@ -384,6 +441,7 @@ class ProjectLifecycleService:
         start_date: str | None = None,
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
+        business_domain: str | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -417,6 +475,14 @@ class ProjectLifecycleService:
         normalized_start_date = normalize_project_start_date(start_date)
         normalized_date_system = normalize_project_date_system(date_system)
         normalized_calendar_id = normalize_project_calendar_id(primary_calendar_id)
+        # ``None`` keeps the stored classification: a client that only edits
+        # the name must not silently erase the Business Domain. An explicit
+        # empty string clears it.
+        normalized_business_domain = (
+            None
+            if business_domain is None
+            else normalize_project_business_domain(business_domain)
+        )
         updated = self._projects.update_for_user(
             session.tenant_id,
             session.user_id,
@@ -427,6 +493,7 @@ class ProjectLifecycleService:
             start_date=normalized_start_date,
             date_system=normalized_date_system,
             primary_calendar_id=normalized_calendar_id,
+            business_domain=normalized_business_domain,
         )
         if updated is None:
             if self._projects.get_for_user(

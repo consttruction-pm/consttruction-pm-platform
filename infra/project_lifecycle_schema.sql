@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
     settings_revision INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
     status TEXT NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'inactive', 'planned', 'what_if')),
+    business_domain TEXT NOT NULL DEFAULT ''
+        CHECK (business_domain IN ('', 'construction', 'oil_gas', 'infrastructure',
+                                   'industrial', 'energy', 'other')),
     PRIMARY KEY (tenant_id, project_id)
 );
 
@@ -37,6 +40,8 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS settings_revision INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS business_domain TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,

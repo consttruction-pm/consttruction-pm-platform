@@ -1113,6 +1113,7 @@ def seed_demo_project(
         start_date=fixture.project_start.isoformat(),
         date_system=fixture.calendar_system.value,
         primary_calendar_id=fixture.calendar_id,
+        business_domain=fixture.business_domain,
     )
     store.add_members(PREVIEW_TENANT_ID, fixture.project_id, DEMO_PROJECT_MEMBER_USER_IDS)
 

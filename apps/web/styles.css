@@ -9218,3 +9218,138 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
 .cp-p6 .cp-usage-profile-bar .cp-usage-bar-value { margin-bottom: 2px; font-size: 9px; color: #24486f; font-variant-numeric: tabular-nums; }
 .cp-p6 .cp-usage-profile-bar em { margin-top: 2px; font-style: normal; font-size: 9px; color: #66788c; }
 
+
+/* Projects register: persisted Business Domain tree, search/filter/sort and
+   selection. The tree and the table are two views of the same server list. */
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-toolbar {
+  display: flex; align-items: end; gap: 8px; flex-wrap: wrap;
+  padding: 8px; border-bottom: 1px solid #d5dde7; background: #f8fafc;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-field {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  color: #53657b; font-size: 9px; font-weight: 700;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-field input,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-field select {
+  min-width: 120px; padding: 3px 6px; border: 1px solid #c3cfdb;
+  border-radius: 3px; background: #fff; color: #172b43; font: inherit; font-size: 10px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-field input[type="search"] {
+  min-width: 190px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-count {
+  margin-inline-start: auto; color: #53657b; font-size: 9px; font-weight: 700;
+  white-space: nowrap;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-filter-reset {
+  padding: 3px 8px; border: 1px solid #b9c9db; border-radius: 3px;
+  background: #fff; color: #123a6b; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-layout {
+  display: grid; grid-template-columns: minmax(180px, 0.38fr) minmax(0, 1fr);
+  gap: 8px; padding: 8px; align-items: start;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-tree,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-main {
+  min-width: 0; border: 1px solid #e1e7ee; background: #fff;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-groups,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-projects {
+  list-style: none; margin: 0; padding: 0;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 5px 8px; border: 0; border-bottom: 1px solid #edf0f4;
+  background: #f3f6fa; color: #123a6b; font: inherit; font-size: 10px;
+  font-weight: 700; text-align: start; cursor: pointer;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-toggle::before {
+  content: "▾"; color: #65758a; font-size: 9px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-group.is-collapsed .cp-project-domain-toggle::before {
+  content: "▸";
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-p6-workspace[data-active-menu="project"] .cp-project-domain-count {
+  margin-inline-start: auto; padding: 0 5px; border-radius: 8px;
+  background: #dbe6f3; color: #123a6b; font-size: 9px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1px 6px; width: 100%; padding: 4px 8px 4px 20px;
+  border: 0; border-bottom: 1px solid #f2f4f7; background: #fff;
+  color: #172b43; font: inherit; text-align: start; cursor: pointer;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project strong {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project small {
+  grid-column: 1; color: #65758a; font-size: 8px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project .cp-project-current {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project:hover,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project:focus-visible,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project.is-selected {
+  background: #eef5ff;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project[aria-pressed="true"] {
+  box-shadow: inset 3px 0 0 #123a6b;
+}
+[dir="rtl"] .cp-p6-workspace[data-active-menu="project"] .cp-project-tree-project[aria-pressed="true"] {
+  box-shadow: inset -3px 0 0 #123a6b;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-table tbody tr[aria-selected="true"] {
+  outline: 1px solid #9ab6d6; outline-offset: -1px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-table tbody tr:focus-visible {
+  outline: 2px solid #123a6b; outline-offset: -2px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection {
+  margin: 8px 0 0; border-top: 1px solid #d5dde7; background: #fbfcfe;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection > header {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 5px 8px; background: #eef2f7; border-bottom: 1px solid #d5dde7;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection > header h3 {
+  margin: 0; color: #123a6b; font-size: 10px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection > header span {
+  color: #53657b; font-size: 9px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-fields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 4px 10px; padding: 7px 8px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-fields > div {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-fields span {
+  color: #65758a; font-size: 8px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-fields strong {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #172b43; font-size: 10px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-description {
+  margin: 0; padding: 0 8px 6px; color: #53657b; font-size: 9px; line-height: 1.5;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-actions {
+  padding: 0 8px 8px;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-selection-actions button {
+  padding: 3px 10px; border: 1px solid #b9c9db; border-radius: 3px;
+  background: #f6f9fc; color: #123a6b; font: inherit; font-size: 9px;
+  font-weight: 700; cursor: pointer;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register-empty {
+  margin: 0; padding: 12px 8px; color: #65758a; font-size: 10px;
+}
+@media (max-width: 1100px) {
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-register-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
