@@ -35,6 +35,8 @@ from .exchange_persistence import (
     ExchangeImportRun,
     ExchangeStore,
 )
+from .observability import OperationalMetrics
+from .production_readiness import StructuredEventLogger
 from .p6_activity_master_api import P6ActivityMasterAPI
 from .p6_expense_repository import P6Expense, P6ExpenseApplicationService
 from .p6_resource_assignment_repository import (
@@ -431,6 +433,52 @@ class ExchangeService:
     assignment_service: P6ResourceAssignmentApplicationService | None = None
     expense_service: P6ExpenseApplicationService | None = None
     transaction_manager: object | None = None
+    metrics: OperationalMetrics | None = None
+    logger: StructuredEventLogger | None = None
+
+    def _record_exchange(
+        self,
+        operation: str,
+        dataset: str,
+        *,
+        status: str,
+        result: Mapping[str, Any] | None = None,
+        run_id: str | None = None,
+        content_sha256: str | None = None,
+    ) -> None:
+        """Emit bounded exchange telemetry; never includes file content."""
+        if self.metrics is not None:
+            try:
+                self.metrics.increment(
+                    "exchange_runs_total",
+                    labels={
+                        "operation": operation,
+                        "dataset": dataset,
+                        "status": status,
+                    },
+                )
+            except ValueError:
+                pass
+        if self.logger is not None:
+            fields: dict[str, Any] = {
+                "operation": operation,
+                "dataset": dataset,
+                "status": status,
+                "run_id": run_id or "none",
+            }
+            if result is not None:
+                fields.update(
+                    {
+                        "format": result.get("format", "csv"),
+                        "valid": bool(result.get("valid", False)),
+                        "row_count": int(result.get("row_count", 0)),
+                        "accepted": int(result.get("accepted", 0)),
+                        "rejected": int(result.get("rejected", 0)),
+                    }
+                )
+            if content_sha256 is not None:
+                fields["content_sha256"] = content_sha256
+            self.logger.emit("exchange.run", fields=fields)
 
     # -- catalogue and export -------------------------------------------------
 
@@ -480,6 +528,13 @@ class ExchangeService:
             result["content_base64"] = base64.b64encode(document).decode("ascii")
             result["content_type"] = _XLSX_CONTENT_TYPE
             result["content_sha256"] = hashlib.sha256(document).hexdigest()
+        self._record_exchange(
+            "export",
+            dataset,
+            status="succeeded",
+            result=result,
+            content_sha256=result.get("content_sha256"),
+        )
         return result
 
     def _export_rows(
@@ -643,6 +698,9 @@ class ExchangeService:
             result=result,
             idempotency_key=None,
         )
+        self._record_exchange(
+            "preview", dataset, status="succeeded" if result["valid"] else "failed", result=result
+        )
         return result
 
     def apply_import(
@@ -670,6 +728,9 @@ class ExchangeService:
             run = self.store.read_run(scope.tenant_id, scope.project_id, existing.run_id)
             if run is None:
                 raise ExchangeError("EXCHANGE_RUN_NOT_FOUND")
+            self._record_exchange(
+                "apply", dataset, status="replayed", run_id=run.run_id
+            )
             return {**run.result, "run_id": run.run_id, "replayed": True}
 
         result = self._validate_import(scope, dataset, content, import_format)
@@ -686,6 +747,7 @@ class ExchangeService:
                 result=result,
                 idempotency_key=key,
             )
+            self._record_exchange("apply", dataset, status="failed", result=result)
             return result
         if self.transaction_manager is None:
             raise ExchangeError("EXCHANGE_TRANSACTION_UNAVAILABLE")
@@ -745,8 +807,12 @@ class ExchangeService:
                 result=failed,
                 idempotency_key=None,
             )
+            self._record_exchange("apply", dataset, status="failed", result=failed)
             return failed
         applied["run_id"] = run.run_id
+        self._record_exchange(
+            "apply", dataset, status="succeeded", result=applied, run_id=run.run_id
+        )
         return applied
 
     def _apply_rows(
