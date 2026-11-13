@@ -1824,6 +1824,17 @@ test("an authoritative Data Date draws the line with the saved style", () => {
   assert.match(container.innerHTML, /--cp-data-date-color:#00aa55/);
 });
 
+test("progress points are classified against the authoritative Data Date", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({ gantt: { progressLine: { visible: true } } });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation, dataDate: "2026-09-03" });
+  // A-1 starts before the date, A-2 starts on it, the milestone sits after it.
+  assert.match(container.innerHTML, /data-gantt-progress-data-date="2026-09-03"/);
+  assert.match(container.innerHTML, /data-gantt-progress-behind="1"/);
+  assert.match(container.innerHTML, /data-gantt-progress-on="1"/);
+  assert.match(container.innerHTML, /data-gantt-progress-ahead="1"/);
+});
+
 test("summary bars consume the configured summary style", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   const presentation = normalizePresentation({

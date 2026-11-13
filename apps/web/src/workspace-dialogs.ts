@@ -653,7 +653,7 @@ function ganttChartEditor(optionsInput: DialogOptions): string {
   const gantt = optionsInput.presentation.gantt;
   const dataDate = optionsInput.dataDate ?? null;
   const dataDateNote = dataDate
-    ? `<p class="cp-dialog-note">${esc(t(locale, "The Data Date line marks the project data date on the chart.", "خط تاریخ داده، تاریخ دادهٔ پروژه را روی نمودار نشان می‌دهد."))}</p>`
+    ? `<p class="cp-dialog-note">${esc(t(locale, `The line marks the project Data Date (${dataDate}) on the chart.`, `خط، تاریخ دادهٔ پروژه (${dataDate}) را روی نمودار نشان می‌دهد.`))}</p>`
     : `<p class="cp-dialog-note">${esc(t(locale, "This project's read model exposes no Data Date, so the line is not drawn. The saved line settings will apply as soon as an authoritative date exists.", "مدل خواندنی این پروژه تاریخ داده ارائه نمی‌کند؛ بنابراین خط رسم نمی‌شود. تنظیمات ذخیره‌شده به‌محض وجود تاریخ معتبر اعمال خواهد شد."))}</p>`;
   const dataDateDisabled = dataDate ? "" : " disabled";
   return `<fieldset class="cp-dialog-group" data-gantt-options>
@@ -723,7 +723,7 @@ function ganttChartEditor(optionsInput: DialogOptions): string {
             <input type="color" name="gantt.progressLine.color" value="${esc(gantt.progressLine.color)}" aria-label="${esc(t(locale, "Progress line colour", "رنگ خط پیشرفت"))}">
           </label>
         </div>
-        <p class="cp-dialog-note">${esc(t(locale, "Joins the saved progress point of each drawn activity. Ahead/behind colouring is not offered because it needs the project Data Date, which this read model does not expose.", "نقاط پیشرفت ذخیره‌شدهٔ هر فعالیت رسم‌شده را به هم وصل می‌کند. رنگ‌بندی جلو/عقب ارائه نشده است زیرا به تاریخ دادهٔ پروژه نیاز دارد و مدل خواندنی فعلی آن را ارائه نمی‌کند."))}</p>
+        <p class="cp-dialog-note">${esc(t(locale, "Joins the saved progress point of each drawn activity. A point left of the Data Date is behind schedule, on the date is on schedule, and right of it is ahead.", "نقاط پیشرفت ذخیره‌شدهٔ هر فعالیت رسم‌شده را به هم وصل می‌کند. نقطهٔ سمت چپ تاریخ داده عقب‌تر از برنامه، روی تاریخ داده مطابق برنامه و سمت راست آن جلوتر از برنامه است."))}</p>
       </fieldset>
     </fieldset>`;
 }

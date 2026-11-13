@@ -684,3 +684,24 @@ function round(value: number): number {
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
+
+export type GanttProgressRelation = "behind" | "on" | "ahead";
+
+/**
+ * Reads a progress point against the Data Date the way P6 does: a point left
+ * of the date is behind schedule, on the date is on schedule, and right of the
+ * date is ahead. Half a day either side counts as "on" because the chart only
+ * knows calendar days, not the activity's time of day.
+ */
+export function progressPointRelation(
+  xPercent: number,
+  dataDatePercent: number,
+  rangeMs: number,
+): GanttProgressRelation | null {
+  if (!Number.isFinite(xPercent) || !Number.isFinite(dataDatePercent)) return null;
+  if (!Number.isFinite(rangeMs) || rangeMs <= 0) return null;
+  const tolerance = (86_400_000 / rangeMs) * 100 * 0.5;
+  if (xPercent < dataDatePercent - tolerance) return "behind";
+  if (xPercent > dataDatePercent + tolerance) return "ahead";
+  return "on";
+}
