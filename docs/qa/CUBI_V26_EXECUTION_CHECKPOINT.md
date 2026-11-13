@@ -3442,3 +3442,29 @@ screenshots 01–12, `CHECKLIST.md`).
 Evidence: `docs/workspace/evidence/layout-selector-v26-2026-11-13/`
 (`layout-selector-v26.json`, 15/15 scenarios, 0 exceptions/console errors/5xx,
 screenshots 01–18, `CHECKLIST.md`).
+
+## ACT-003 filters — typed list values, Optimize and Duplicate (2026-11-13)
+
+- **Delivered.** List parameters (Activity Status, Activity Type, Critical) now
+  render the documented value picker (`select[name="filter.value.N"]`,
+  `data-filter-choice`) instead of a free-text box; an unknown stored value is
+  preserved, and `is-empty`/`is-not-empty` disable the picker. Critical shows
+  Yes/No while storing `true`/`false`. The builder gained the Help's Optimize
+  review: blank rows are dropped only when a complete criterion remains, exact
+  duplicates collapse, and criteria implied by another are removed (All keeps
+  `equals X` over `contains X`, the longer `contains`, and `not-contains X`
+  over `not-equals X`; Any keeps the broader criterion), with the matched row
+  set proven unchanged. Duplicate stores `Name (copy)` in the same category,
+  selects it, and leaves built-in filters read-only.
+- **Boundary.** Every edit still travels through `readLayoutPatch` into
+  `WorkspacePresentation.filters` and the saved-layout metadata; no schedule
+  input changes.
+- **Known limits.** Make Global is still a within-project scope label (no
+  tenant-wide sharing), nested AND/OR groups are not modelled, Optimize does
+  not compare numeric/date bounds, and criterion-level copy/paste is absent.
+
+Evidence: `docs/workspace/evidence/activity-filters-v26-2026-11-13/`
+(`activity-filters-v26.json`, contract `cubi-activity-filters-v26.v2`, 12/12
+scenarios, 0 exceptions/console errors/5xx, screenshots 01–11, `CHECKLIST.md`).
+Code `d9452209`; unit tests 999 `tsx` + 14 `node --test`, `tsc --noEmit` and
+`npm run build` pass.

@@ -2,7 +2,7 @@ import type { WorkspaceActivityRow, WorkspaceMenuKey, WorkspaceWbsNode } from ".
 import type { WorkspaceTheme } from "./workspace-theme.js";
 import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
 import { addFilterCriterion, defaultLayoutPatch, filterCriterionRows, formatFilterPreview, loadFilterEditor, moveFilterCriterion, readLayoutPatch, removeFilterCriterion, renderLayoutDialogs, renumberFilterRows, resetFilterEditor, setFilterCriterionRows, setFilterListEnabled, sortFilterList, syncFilterField, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
-import { createActivityFilterDateContext, findActivityFilter, normalizeActivityFilter, previewActivityFilter, type ActivityFilterCriterion, type ActivityFilterDefinition } from "./workspace-activity-filters.js";
+import { createActivityFilterDateContext, findActivityFilter, normalizeActivityFilter, optimizeActivityFilterCriteria, previewActivityFilter, type ActivityFilterCriterion, type ActivityFilterDefinition } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { desktopMenuIcon } from "./workspace-command-icons.js";
@@ -1431,6 +1431,23 @@ function bindHost(host: HTMLElement): void {
       if (row) markCurrentFilterRow(filterDialog, row);
       return;
     }
+    const filterOptimize = target.closest<HTMLElement>("[data-filter-optimize]");
+    if (filterOptimize && filterDialog) {
+      const match = filterDialog.querySelector<HTMLSelectElement>('select[name="filterMatch"]')?.value === "any" ? "any" : "all";
+      const result = optimizeActivityFilterCriteria(filterCriterionRows(filterDialog), match);
+      const status = filterDialog.querySelector<HTMLElement>("[data-filter-optimize-status]");
+      if (result.removed > 0) {
+        setFilterCriterionRows(filterDialog, result.criteria);
+        renumberFilterRows(filterDialog);
+      }
+      if (status) {
+        status.textContent = result.removed > 0
+          ? translateWorkspaceUiText(runtime.state.locale, `Removed ${result.removed} redundant criteria.`, `${result.removed} معیار تکراری حذف شد.`)
+          : translateWorkspaceUiText(runtime.state.locale, "No redundant criteria found.", "معیار تکراری پیدا نشد.");
+      }
+      updateFilterPreview(host, filterDialog);
+      return;
+    }
     const filterModify = target.closest<HTMLElement>("[data-filter-modify]");
     if (filterModify && filterDialog) {
       const currentRow = filterDialog.querySelector<HTMLElement>("tr.is-current");
@@ -1529,6 +1546,10 @@ function bindHost(host: HTMLElement): void {
       }
       if (target instanceof HTMLSelectElement && target.name.startsWith("filter.operator.")) {
         syncFilterOperator(target);
+        updateFilterPreview(host, dialog);
+        return;
+      }
+      if (target instanceof HTMLSelectElement && target.name.startsWith("filter.value.")) {
         updateFilterPreview(host, dialog);
         return;
       }
