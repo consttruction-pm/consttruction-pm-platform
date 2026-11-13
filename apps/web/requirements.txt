@@ -1,0 +1,4 @@
+# Python runtime for the Vercel functions in this project.
+# Keep in sync with the repository root requirements.txt; the functions import
+# the same construction_pm package the API and integration tests exercise.
+psycopg[binary]>=3.2,<3.4

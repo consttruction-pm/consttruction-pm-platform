@@ -25,3 +25,7 @@ apps/web/e2e/artifacts/
 .coverage
 htmlcov/
 coverage.xml
+
+# Vercel project build artifacts (apps/web is the Vercel root)
+apps/web/vercel-site/
+apps/web/vercel-runtime/
