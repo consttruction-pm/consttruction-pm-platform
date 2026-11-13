@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Iterator, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from xml.etree import ElementTree
 
 from .document_storage import (
@@ -41,6 +41,7 @@ from .document_storage import (
 
 S3_STORAGE_REF_PREFIX = "s3:v1"
 DOCUMENT_STORAGE_KINDS = ("local", "s3")
+MAX_INVENTORY_PAGES = 10_000
 
 _BUCKET = re.compile(r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
 _PREFIX = re.compile(r"^[A-Za-z0-9._/-]{1,120}$")
@@ -48,6 +49,22 @@ _HEX16 = re.compile(r"^[0-9a-f]{16}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX2 = re.compile(r"^[0-9a-f]{2}$")
 _SAFE_EXTENSION = re.compile(r"^\.[a-z0-9]{1,8}$")
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Never follow an object-storage redirect.
+
+    urllib's default handler re-sends request headers to the redirect target.
+    A compromised or misconfigured endpoint could redirect to an internal
+    address and receive the signed ``Authorization`` header and any session
+    token. The object-storage client always addresses one fixed endpoint.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        raise HTTPError(req.full_url, code, "object storage redirect refused", headers, fp)
+
+
+_NO_REDIRECT_OPENER = build_opener(_RejectRedirects())
 
 
 class DocumentStorageConfigurationError(ValueError):
@@ -272,7 +289,9 @@ class S3CompatibleDocumentStorage:
             headers=request_headers,
         )
         try:
-            with urlopen(request, timeout=self.settings.read_timeout) as response:
+            with _NO_REDIRECT_OPENER.open(
+                request, timeout=self.settings.read_timeout
+            ) as response:
                 return int(response.status), response.read(self.max_bytes + 1)
         except HTTPError as exc:
             if exc.code == 404:
@@ -293,7 +312,12 @@ class S3CompatibleDocumentStorage:
         prefix are the only scope, so a caller must never pass untrusted input.
         """
         token: str | None = None
+        seen_tokens: set[str] = set()
+        pages = 0
         while True:
+            pages += 1
+            if pages > MAX_INVENTORY_PAGES:
+                raise DocumentStorageError("DOCUMENT_STORAGE_INVENTORY_TOO_LARGE")
             query = {"list-type": "2", "max-keys": "1000"}
             if prefix:
                 query["prefix"] = prefix
@@ -309,6 +333,11 @@ class S3CompatibleDocumentStorage:
             yield from page
             if not truncated or not token:
                 return
+            if token in seen_tokens:
+                # A repeated continuation token would loop forever and let a
+                # misbehaving endpoint drive unbounded requests.
+                raise DocumentStorageError("DOCUMENT_STORAGE_INVENTORY_INVALID")
+            seen_tokens.add(token)
 
     # -- port --------------------------------------------------------------
     def put(

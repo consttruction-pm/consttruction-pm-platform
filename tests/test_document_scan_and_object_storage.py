@@ -951,3 +951,85 @@ def test_storage_factory_detects_production_from_environment(tmp_path) -> None:
             environ={"CONSTRUCTION_PM_ENVIRONMENT": "production"},
         )
     assert str(caught.value) == "DOCUMENT_STORAGE_CONFIGURATION_REQUIRED"
+
+
+def test_s3_listing_rejects_repeated_continuation_token() -> None:
+    settings = DocumentObjectStorageSettings(
+        endpoint_url="https://s3.example.invalid",
+        bucket="example-bucket",
+        region="us-east-1",
+        access_key="access",
+        secret_key="secret",
+    )
+    storage = S3CompatibleDocumentStorage(settings)
+    repeated = (
+        b"<ListBucketResult><IsTruncated>true</IsTruncated>"
+        b"<NextContinuationToken>same-token</NextContinuationToken>"
+        b"</ListBucketResult>"
+    )
+    calls: list[dict[str, str] | None] = []
+
+    def fake_request(method, url, *, payload=None, query=None):
+        calls.append(query)
+        return {}, repeated
+
+    storage._http_request = fake_request  # type: ignore[method-assign]
+    with pytest.raises(DocumentStorageError, match="DOCUMENT_STORAGE_INVENTORY_INVALID"):
+        list(storage.list_objects())
+    assert len(calls) == 2
+
+
+def test_s3_refuses_redirects_instead_of_forwarding_signed_request() -> None:
+    hits: list[str] = []
+
+    class Target(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            hits.append(self.path)
+            payload = b"<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    target = ThreadingHTTPServer(("127.0.0.1", 0), Target)
+    target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+    target_thread.start()
+
+    class Redirect(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header(
+                "Location", f"http://127.0.0.1:{target.server_port}/latest/meta-data"
+            )
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+    redirect_thread = threading.Thread(target=redirect.serve_forever, daemon=True)
+    redirect_thread.start()
+    try:
+        settings = DocumentObjectStorageSettings(
+            endpoint_url=f"http://127.0.0.1:{redirect.server_port}",
+            bucket="example-bucket",
+            region="us-east-1",
+            access_key="access",
+            secret_key="secret",
+            session_token="session-token-value",
+        )
+        storage = S3CompatibleDocumentStorage(settings)
+        with pytest.raises(DocumentStorageError, match="DOCUMENT_STORAGE_OBJECT_UNAVAILABLE:302"):
+            list(storage.list_objects())
+        assert hits == []
+    finally:
+        redirect.shutdown()
+        redirect.server_close()
+        redirect_thread.join(timeout=5)
+        target.shutdown()
+        target.server_close()
+        target_thread.join(timeout=5)
