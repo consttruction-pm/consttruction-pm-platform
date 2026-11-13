@@ -3167,3 +3167,56 @@ errors/5xx, 0 schedule writes, `testedCodeSha`/`gitHead`
 `04fba0298652cd6e29d9e436b665dd615f691314`, screenshots 01–08, `CHECKLIST.md`).
 Web suite at the same code: 969 + 14 tests pass; `tsc --noEmit` and
 `npm run build` pass.
+
+## Activity Network nodes, edges and selection (2026-11-13)
+
+- **Scope.** ACT-013 moved from NOT_AUDITED to WIRED_WRITE at code
+  `a9776bb9ed8d16a2f5752b5b0909f74f002a5c2a`, covering the Help topics
+  Activity Network, Move around in the Activity Network, and View Activity
+  Network Activity Details.
+- **Projection.** `buildActivityNetwork` keeps its longest-path layout: every
+  persisted activity becomes one node and every persisted relationship one
+  edge, so the fixture draws 14 nodes, 15 edges and 10 levels, marks critical
+  activities, and keeps the SS `REL-RPS-170` A140→A170 `+5d` visible. Nothing
+  is recalculated, invented or dropped.
+- **Edge details.** Each edge now carries `data-network-relationship-id` and
+  `data-link-from/to/type` identity, a wide transparent hit path, a `<title>`
+  with the type, endpoints and lag, and keyboard focusability. Hovering or
+  focusing highlights the line; double-clicking or pressing Enter on it opens
+  the existing relationship editor in the Tools drawer with the stored
+  revision.
+- **Selection.** Network nodes already carry `data-gantt-activity-id`, so the
+  shared `onGanttActivitySelect` / `onActivitySelect` path is reused: node and
+  table stay synchronised in both directions, and Enter on a focused node
+  selects it. There is no second selection store.
+- **Menus.** `workspaceContextAt` now classifies `network-activity` and
+  `network-link`; right-clicking a node opens the activity menu and
+  right-clicking an edge opens the relationship menu with Edit, Delete, Go to
+  Predecessor and Go to Successor.
+- **Zoom.** Header controls expose Zoom In, Zoom Out and Zoom to Best Fit.
+  `clampNetworkZoom` bounds the value to 0.2–2.0, `readNetworkZoom` /
+  `storeNetworkZoom` persist it per tenant, project and window, and the SVG
+  only changes its rendered size. A reload restores the stored zoom; Best Fit
+  frames the full ten-level diagram at 20 %.
+- **Persistence.** Zoom is a presentation preference and never touches the
+  schedule. Opening the edge editor writes nothing; this suite observed zero
+  relationship writes, zero non-GET schedule or activity requests, 0 console
+  errors and 0 failing API responses.
+- **Verified behaviour.** 14 nodes/15 edges/10 levels with FS and SS types and
+  tooltips; A120↔A145 selection sync; Enter selects A150; edge
+  `REL-RPS-100` opens revision 1; the edge menu's Go to Successor selects
+  A110; the node menu lists Details through WBS collapse; 100 %→120 %→reload→
+  110 %→Best Fit 20 %; fa RTL at 1280 and en at 1920 both render with 0 px
+  horizontal overflow.
+- **Known limits.** The layout is deterministic longest path, not
+  user-positioned: Reorganize, box dragging and saved Activity Network layouts
+  are not offered yet. The left pane is the shared Activity Table with WBS
+  bands rather than a WBS-only hierarchy. Node boxes show ID, name and progress
+  only. Zoom is browser-local, not saved layout metadata.
+
+Evidence: `docs/workspace/evidence/activity-network-v26-2026-11-13/`
+(`activity-network-v26.json`, 9/9 scenarios, 0 exceptions/console
+errors/5xx, 0 schedule writes, 0 relationship writes, `testedCodeSha`/`gitHead`
+`a9776bb9ed8d16a2f5752b5b0909f74f002a5c2a`, screenshots 01–07,
+`CHECKLIST.md`). Web suite at the same code: 970 + 14 tests pass;
+`tsc --noEmit` and `npm run build` pass.
