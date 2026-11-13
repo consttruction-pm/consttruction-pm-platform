@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { bindRegisterContextMenus } from "./workspace-register-context-menu.js";
 
 /**
  * Project risk register client.
@@ -894,6 +895,36 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       await reloadRisks(result.data.riskId);
       if (state.selectedId) void reloadHistory(result.data.riskId);
     })();
+  });
+
+  bindRegisterContextMenus(host, {
+    locale,
+    canWrite,
+    menus: [
+      {
+        kind: "risk-register",
+        label: { en: "Project Risk", fa: "ریسک پروژه" },
+        rowSelector: "[data-risk-row]",
+        rowIdAttribute: "data-risk-id",
+        commands: [
+          {
+            command: "risk-edit",
+            label: { en: "Edit Risk", fa: "ویرایش ریسک" },
+            icon: "edit",
+            control: "[data-risk-edit]",
+            requiresWrite: true,
+          },
+          {
+            command: "risk-delete",
+            label: { en: "Delete Risk", fa: "حذف ریسک" },
+            icon: "delete",
+            control: "[data-risk-delete]",
+            requiresWrite: true,
+            separatorBefore: true,
+          },
+        ],
+      },
+    ],
   });
 
   void reloadRisks(null);

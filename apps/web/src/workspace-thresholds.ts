@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { bindRegisterContextMenus } from "./workspace-register-context-menu.js";
 
 /**
  * Project threshold register client.
@@ -993,6 +994,43 @@ export function mountWorkspaceThresholdsPage(
         void reloadHistory(result.data.thresholdId);
       }
     })();
+  });
+
+  bindRegisterContextMenus(host, {
+    locale,
+    canWrite,
+    menus: [
+      {
+        kind: "threshold-register",
+        label: { en: "Project Threshold", fa: "آستانهٔ پروژه" },
+        rowSelector: "[data-threshold-row]",
+        rowIdAttribute: "data-threshold-id",
+        commands: [
+          {
+            command: "threshold-edit",
+            label: { en: "Edit Threshold", fa: "ویرایش آستانه" },
+            icon: "edit",
+            control: "[data-threshold-edit]",
+            requiresWrite: true,
+          },
+          {
+            command: "threshold-monitor",
+            label: { en: "Run Monitoring", fa: "اجرای پایش" },
+            icon: "progress",
+            control: "[data-threshold-monitor]",
+            requiresWrite: true,
+            separatorBefore: true,
+          },
+          {
+            command: "threshold-delete",
+            label: { en: "Delete Threshold", fa: "حذف آستانه" },
+            icon: "delete",
+            control: "[data-threshold-delete]",
+            requiresWrite: true,
+          },
+        ],
+      },
+    ],
   });
 
   void reloadThresholds(null);
