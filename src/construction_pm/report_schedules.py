@@ -38,7 +38,11 @@ from .report_persistence import (
     ReportStore,
     ReportAuditEvent,
 )
-from .observability import OperationalMetrics
+from .observability import (
+    OperationalMetrics,
+    reset_correlation_id,
+    set_correlation_id,
+)
 from .production_readiness import StructuredEventLogger
 
 SCHEDULE_CADENCES = ("daily", "weekly", "monthly")
@@ -1028,15 +1032,23 @@ class ReportScheduleRunner:
                 except ValueError:
                     pass
             if self.logger is not None:
-                self.logger.emit(
-                    "report.schedule.run",
-                    fields={
-                        "schedule_id": outcome.schedule_id,
-                        "state": outcome.state,
-                        "run_id": outcome.run_id or "none",
-                        "content_sha256": outcome.content_sha256 or "none",
-                    },
+                correlation_id = (
+                    f"report-schedule:{outcome.schedule_id}:"
+                    f"{outcome.scheduled_for.astimezone(timezone.utc):%Y%m%dT%H%M%SZ}"
                 )
+                token = set_correlation_id(correlation_id)
+                try:
+                    self.logger.emit(
+                        "report.schedule.run",
+                        fields={
+                            "schedule_id": outcome.schedule_id,
+                            "state": outcome.state,
+                            "run_id": outcome.run_id or "none",
+                            "content_sha256": outcome.content_sha256 or "none",
+                        },
+                    )
+                finally:
+                    reset_correlation_id(token)
 
     def _execute(self, claim: ScheduleClaim, now: datetime) -> ScheduleOutcome:
         schedule = claim.schedule
