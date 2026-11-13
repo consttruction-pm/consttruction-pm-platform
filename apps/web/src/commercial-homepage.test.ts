@@ -268,3 +268,12 @@ test("About Us is a first-class bilingual public route with approved founder fac
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
 });
+
+
+test("homepage About navigation follows the selected supported language without opening an incomplete locale route tree", () => {
+  assert.match(landing, /const aboutLocale = locale === "zh-Hant" \? "zh-Hans" : locale/);
+  assert.match(landing, /\["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"\]\.includes\(aboutLocale\)/);
+  assert.match(landing, /const aboutPageHref = \[/);
+  assert.equal((landing.match(/href="\$\{aboutPageHref\}"/g) ?? []).length, 2);
+  assert.match(landing, /publicRootHref\}about\//);
+});
