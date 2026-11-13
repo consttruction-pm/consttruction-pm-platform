@@ -1,0 +1,617 @@
+{
+  "contract": "cubi-wbs-002-status-milestones.v1",
+  "testedCodeSha": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
+  "gitHead": "154825b00b0cd36fef7268a7c7c5bdb63e410b7e",
+  "evidenceCommitSha": null,
+  "baseUrl": "http://127.0.0.1:4234",
+  "startedAt": "2026-11-13T13:38:55.963Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "WBS details read the persisted status and technique",
+      "status": "pass",
+      "at": "2026-11-13T13:38:58.709Z",
+      "durationMs": 791,
+      "details": {
+        "wbs_id": "WBS-RPS-CIVIL",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 1,
+        "status": "planned",
+        "percent_complete_technique": "activities",
+        "percent_complete": null
+      }
+    },
+    {
+      "id": "02",
+      "name": "Saving status Active and technique WBS Milestones persists both fields",
+      "status": "pass",
+      "at": "2026-11-13T13:39:00.303Z",
+      "durationMs": 1594,
+      "details": {
+        "revision": 2
+      }
+    },
+    {
+      "id": "03",
+      "name": "The milestone editor rolls up weighted completion before saving",
+      "status": "pass",
+      "at": "2026-11-13T13:39:00.867Z",
+      "durationMs": 564,
+      "details": {
+        "rows": [
+          {
+            "id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true
+          },
+          {
+            "id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": false
+          }
+        ],
+        "rollup": "75.00%",
+        "total": "12",
+        "revision": 2,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight12\n          Weighted percent complete75.00%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n    1\n    \n    \n    \n    \n    \n  \n    2\n    \n    \n    \n    \n    \n  \n    3\n    \n    \n    \n    \n    \n  \n    4\n    \n    \n    \n    \n    \n  \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    },
+    {
+      "id": "04",
+      "name": "Saved milestones persist and the roll-up matches the workspace read",
+      "status": "pass",
+      "at": "2026-11-13T13:39:02.751Z",
+      "durationMs": 1884,
+      "details": {
+        "contract_version": "p6-wbs-master-api.v1",
+        "kind": "p6_wbs_milestones",
+        "wbs_id": "WBS-RPS-CIVIL",
+        "record_revision": 3,
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75,
+        "milestones": [
+          {
+            "milestone_id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true,
+            "sequence_number": 0,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 1,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 2,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 3,
+            "record_revision": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "05",
+      "name": "Completing a second milestone advances the revision and the weighted roll-up",
+      "status": "pass",
+      "at": "2026-11-13T13:39:04.635Z",
+      "durationMs": 1884,
+      "details": {
+        "wbs_id": "WBS-RPS-CIVIL",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 4,
+        "status": "active",
+        "percent_complete_technique": "milestones",
+        "percent_complete": 83.33
+      }
+    },
+    {
+      "id": "06",
+      "name": "A stale revision cannot overwrite the saved milestone list",
+      "status": "pass",
+      "at": "2026-11-13T13:39:04.643Z",
+      "durationMs": 8,
+      "details": {
+        "status": 409
+      }
+    },
+    {
+      "id": "07",
+      "name": "Duplicate IDs and zero weights are rejected in the editor without a request",
+      "status": "pass",
+      "at": "2026-11-13T13:39:06.155Z",
+      "durationMs": 1513,
+      "details": {
+        "duplicateError": "Each milestone needs a unique ID and a name, with a weight greater than zero.",
+        "zero": {
+          "weight": "0",
+          "valid": false
+        }
+      }
+    },
+    {
+      "id": "08",
+      "name": "Persian RTL shows the milestone editor and status without page overflow",
+      "status": "pass",
+      "at": "2026-11-13T13:39:08.072Z",
+      "durationMs": 1916,
+      "details": {
+        "dir": "rtl",
+        "lang": "fa",
+        "overflow": 0,
+        "rows": 4,
+        "rollup": "83.33%",
+        "general": "شناسه WBSWBS-RPS-CIVILکد WBS2نام WBSCivil worksوضعیتفعالروش درصد تکمیلنقاط عطف وزنیدرصد تکمیل وزنی83.33%نوع والدعنصر WBSوالد1 — Riverside Pump Station Upgradeترتیب20ویرایش رکورد4\n        \n          وضعیتبرنامه‌ریزی‌شدهفعالغیرفعالفرضی\n          روش درصد تکمیلفعالیت‌هانقاط عطف وزنی\n          ذخیره تنظیمات WBS\n        "
+      }
+    },
+    {
+      "id": "09",
+      "name": "A reload restores the persisted status, technique and milestones",
+      "status": "pass",
+      "at": "2026-11-13T13:39:11.387Z",
+      "durationMs": 3315,
+      "details": {
+        "rows": [
+          {
+            "id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true
+          },
+          {
+            "id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": true
+          }
+        ],
+        "rollup": "83.33%",
+        "total": "12",
+        "revision": 4,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight12\n          Weighted percent complete83.33%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n        1\n        \n        \n        \n        \n        \n      \n        2\n        \n        \n        \n        \n        \n      \n        3\n        \n        \n        \n        \n        \n      \n        4\n        \n        \n        \n        \n        \n      \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "wbs2-general-status",
+      "name": "the General tab shows the persisted status and technique instead of placeholders",
+      "ok": true,
+      "detail": {
+        "status": "planned",
+        "technique": "activities"
+      }
+    },
+    {
+      "id": "wbs2-settings-form",
+      "name": "the General tab exposes the status and technique editor",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "wbs2-status-saved",
+      "name": "PATCH persists status=active and technique=milestones with an advanced revision",
+      "ok": true,
+      "detail": {
+        "before": 1,
+        "after": 2,
+        "status": "active"
+      }
+    },
+    {
+      "id": "wbs2-general-reflects-save",
+      "name": "the General tab reflects the saved status and technique",
+      "ok": true,
+      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete0.00%Parent kindWBS elementParent1 — Riverside Pump Station UpgradeSequence20Record revision2\n        \n          Sta"
+    },
+    {
+      "id": "wbs2-milestones-empty",
+      "name": "a node without milestones shows an empty authoritative list, not fabricated rows",
+      "ok": true,
+      "detail": {
+        "rows": [],
+        "rollup": "0.00%",
+        "total": "0",
+        "revision": 2,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight0\n          Weighted percent complete0.00%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    },
+    {
+      "id": "wbs2-live-rollup",
+      "name": "the editor previews 9 of 12 weight complete as 75.00%",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true
+          },
+          {
+            "id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": false
+          }
+        ],
+        "rollup": "75.00%",
+        "total": "12",
+        "revision": 2,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight12\n          Weighted percent complete75.00%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n    1\n    \n    \n    \n    \n    \n  \n    2\n    \n    \n    \n    \n    \n  \n    3\n    \n    \n    \n    \n    \n  \n    4\n    \n    \n    \n    \n    \n  \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    },
+    {
+      "id": "wbs2-milestones-persisted",
+      "name": "PUT persists four weighted milestones and returns 75%",
+      "ok": true,
+      "detail": {
+        "contract_version": "p6-wbs-master-api.v1",
+        "kind": "p6_wbs_milestones",
+        "wbs_id": "WBS-RPS-CIVIL",
+        "record_revision": 3,
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75,
+        "milestones": [
+          {
+            "milestone_id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true,
+            "sequence_number": 0,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 1,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 2,
+            "record_revision": 1
+          },
+          {
+            "milestone_id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": false,
+            "sequence_number": 3,
+            "record_revision": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "wbs2-node-rollup",
+      "name": "the WBS record exposes the same weighted percent complete",
+      "ok": true,
+      "detail": {
+        "wbs_id": "WBS-RPS-CIVIL",
+        "parent_kind": "wbs",
+        "parent_wbs_id": "WBS-RPS-ROOT",
+        "code": "2",
+        "name": "Civil works",
+        "sequence_number": 20,
+        "record_revision": 3,
+        "status": "active",
+        "percent_complete_technique": "milestones",
+        "percent_complete": 75
+      }
+    },
+    {
+      "id": "wbs2-ui-rollup",
+      "name": "the reloaded milestone tab shows the persisted weights and 75.00%",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true
+          },
+          {
+            "id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": false
+          }
+        ],
+        "rollup": "75.00%",
+        "total": "12",
+        "revision": 3,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight12\n          Weighted percent complete75.00%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n        1\n        \n        \n        \n        \n        \n      \n        2\n        \n        \n        \n        \n        \n      \n        3\n        \n        \n        \n        \n        \n      \n        4\n        \n        \n        \n        \n        \n      \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    },
+    {
+      "id": "wbs2-toggle-m4",
+      "name": "the fourth milestone completion can be toggled",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "id": "wbs2-live-rollup-after-toggle",
+      "name": "the editor previews 10 of 12 weight complete as 83.33%",
+      "ok": true,
+      "detail": "83.33%"
+    },
+    {
+      "id": "wbs2-second-save",
+      "name": "saving advances the WBS revision and persists 83.33%",
+      "ok": true,
+      "detail": {
+        "revisionBefore": 3,
+        "revisionAfter": 4,
+        "percent": 83.33
+      }
+    },
+    {
+      "id": "wbs2-revision-conflict",
+      "name": "a PUT with an old expected revision returns 409 REVISION_CONFLICT",
+      "ok": true,
+      "detail": {
+        "status": 409,
+        "body": {
+          "code": "REVISION_CONFLICT",
+          "retryable": false,
+          "message_key": "error.revision.conflict",
+          "available_actions": []
+        }
+      }
+    },
+    {
+      "id": "wbs2-conflict-no-write",
+      "name": "the rejected write leaves the persisted milestones untouched",
+      "ok": true,
+      "detail": [
+        {
+          "milestone_id": "M-1",
+          "name": "Mobilize",
+          "weight": 9,
+          "completed": true,
+          "sequence_number": 0,
+          "record_revision": 1
+        },
+        {
+          "milestone_id": "M-2",
+          "name": "Foundations",
+          "weight": 1,
+          "completed": false,
+          "sequence_number": 1,
+          "record_revision": 1
+        },
+        {
+          "milestone_id": "M-3",
+          "name": "Steel",
+          "weight": 1,
+          "completed": false,
+          "sequence_number": 2,
+          "record_revision": 1
+        },
+        {
+          "milestone_id": "M-4",
+          "name": "Handover",
+          "weight": 1,
+          "completed": true,
+          "sequence_number": 3,
+          "record_revision": 1
+        }
+      ]
+    },
+    {
+      "id": "wbs2-duplicate-guard",
+      "name": "a duplicate milestone ID is explained in the editor and no milestone write is sent",
+      "ok": true,
+      "detail": {
+        "error": "Each milestone needs a unique ID and a name, with a weight greater than zero.",
+        "writesAdded": 0
+      }
+    },
+    {
+      "id": "wbs2-weight-guard",
+      "name": "a zero weight is blocked by the field constraints and no milestone write is sent",
+      "ok": true,
+      "detail": {
+        "zero": {
+          "weight": "0",
+          "valid": false
+        },
+        "writesAdded": 0
+      }
+    },
+    {
+      "id": "wbs2-fa-rtl",
+      "name": "the Persian WBS status and milestones are right-to-left",
+      "ok": true,
+      "detail": {
+        "dir": "rtl",
+        "lang": "fa"
+      }
+    },
+    {
+      "id": "wbs2-fa-localized",
+      "name": "the Persian details show the localized status labels",
+      "ok": true,
+      "detail": "شناسه WBSWBS-RPS-CIVILکد WBS2نام WBSCivil worksوضعیتفعالروش درصد تکمیلنقاط عطف وزنیدرصد تکمیل وزنی83.33%نوع والدعنصر WBSوالد1 — Riverside Pump Station Upgradeترتیب20ویرایش رکورد4\n        \n          وضعیتبرنامه‌ریزی‌شدهفعالغیرفعالفرضی\n      "
+    },
+    {
+      "id": "wbs2-fa-rows",
+      "name": "the persisted milestones and roll-up are visible in Persian",
+      "ok": true,
+      "detail": {
+        "rows": 4,
+        "rollup": "83.33%"
+      }
+    },
+    {
+      "id": "wbs2-fa-no-overflow",
+      "name": "the page does not overflow horizontally",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "id": "wbs2-reload-general",
+      "name": "the reloaded General tab still shows Active and WBS Milestones",
+      "ok": true,
+      "detail": "WBS IDWBS-RPS-CIVILWBS Code2WBS NameCivil worksStatusActivePercent complete techniqueWBS MilestonesWeighted percent complete83.33%Parent kindWBS elementParent1 — Riverside Pump Station UpgradeSequence20Record revision4\n        \n          St"
+    },
+    {
+      "id": "wbs2-reload-milestones",
+      "name": "the reloaded milestone editor lists all four persisted milestones at 83.33%",
+      "ok": true,
+      "detail": {
+        "rows": [
+          {
+            "id": "M-1",
+            "name": "Mobilize",
+            "weight": 9,
+            "completed": true
+          },
+          {
+            "id": "M-2",
+            "name": "Foundations",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-3",
+            "name": "Steel",
+            "weight": 1,
+            "completed": false
+          },
+          {
+            "id": "M-4",
+            "name": "Handover",
+            "weight": 1,
+            "completed": true
+          }
+        ],
+        "rollup": "83.33%",
+        "total": "12",
+        "revision": 4,
+        "panelText": "\n        \n          TechniqueWBS Milestones\n          Total weight12\n          Weighted percent complete83.33%\n        \n        \n          \n            \n              #\n              Milestone ID\n              Name\n              Weight\n              Completed\n              \n            \n            \n        1\n        \n        \n        \n        \n        \n      \n        2\n        \n        \n        \n        \n        \n      \n        3\n        \n        \n        \n        \n        \n      \n        4\n        \n        \n        \n        \n        \n      \n          \n          \n            Add milestone\n            Save milestones\n          \n          The weighted percent complete is completed milestone weight divided by total weight. Saving replaces the element's milestone list and advances its record revision.\n        \n      "
+      }
+    }
+  ],
+  "screenshots": [
+    "01-wbs-general-status.png",
+    "02-wbs-status-saved.png",
+    "03-wbs-milestone-editor.png",
+    "04-wbs-milestones-saved.png",
+    "05-wbs-milestones-83.png",
+    "06-wbs-milestone-validation.png",
+    "07-wbs-milestones-fa-rtl.png",
+    "08-wbs-reloaded.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL"
+    },
+    {
+      "method": "PUT",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/milestones"
+    },
+    {
+      "method": "PUT",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/milestones"
+    },
+    {
+      "method": "PUT",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-CIVIL/milestones"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    }
+  ],
+  "finishedAt": "2026-11-13T13:39:11.387Z",
+  "status": "passed"
+}
