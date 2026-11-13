@@ -164,15 +164,25 @@ project, and `/app` 200 with the shell HTML.
 
 ## Deployment status and the remaining external input
 
-Observed on the Vercel preview origin
-`https://cubi-web-preview-git-feat-producti-c31a74-foroughichamshir-7811.vercel.app`
-on 2026-11-13 16:54 UTC (commit `e8999339`):
+PR #1919 was squash-merged as `ca4b3c8e`. The production deployment for that
+commit succeeded and the project's production alias
+`https://cubi-web-preview-foroughichamshir-7811.vercel.app` serves the new
+build (`last-modified` 17:03 UTC). The short domain
+`https://cubi-web-preview.vercel.app` still serves the 16:23 static deployment
+(`/login` and `/api/*` return 404), i.e. that name is pinned to an older
+deployment and is not following the project's production alias. Reassigning it
+to the project is a dashboard action; if it is kept as the user-facing origin,
+`CONSTRUCTION_PM_PUBLIC_ORIGIN` must match it exactly.
+
+Observed on the production alias on 2026-11-13 17:03 UTC (commit `ca4b3c8e`),
+with the same responses on the branch preview of `e8999339` at 16:54 UTC:
 
 | Request | Response |
 | --- | --- |
 | `GET /` | 200 HTML (landing page) |
 | `GET /login` | 200 HTML, title `CUBI Workspace — Sign in`, bilingual form present |
 | `GET /app` | 503 configuration page (gate reached, not faked) |
+| `GET /app/`, `GET /app.html` | 503 configuration page (same rewrite) |
 | `GET /api/health/live` | 200 `{"status":"ok"}` |
 | `GET /api/health/ready` | 503 `{"status":"not_ready","code":"CONFIGURATION_REQUIRED"}` |
 | `POST /api/session` | 503 `CONFIGURATION_REQUIRED` |
@@ -187,15 +197,17 @@ variables. The complete and exact input needed is:
    endpoint, or any reachable PostgreSQL 12+).
 2. `CONSTRUCTION_PM_SESSION_SECRET` — at least 32 random characters
    (e.g. `python -c "import secrets;print(secrets.token_urlsafe(48))"`).
-3. `CONSTRUCTION_PM_PUBLIC_ORIGIN=https://cubi-web-preview.vercel.app`
-   (and the preview origin if preview login is wanted).
+3. `CONSTRUCTION_PM_PUBLIC_ORIGIN` — the exact origin users open. Use
+   `https://cubi-web-preview-foroughichamshir-7811.vercel.app` today, or
+   `https://cubi-web-preview.vercel.app` once that domain is reassigned to the
+   project's production deployment. A mismatch is rejected by design.
 4. The first real user's password, passed to `scripts/provision_workspace.py`
    on stdin; it is hashed locally and never stored in Git or chat.
 
 Set these for the project (Production scope; Preview too if preview data is
 intended), redeploy, then provision the user and project. No code change is
 required after that: `/api/health/ready` becomes 200 and login works on the
-same domain.
+origin configured in `CONSTRUCTION_PM_PUBLIC_ORIGIN`.
 
 The other two Vercel projects connected to this repository
 (`consttruction-pm-platform-public`, `consttruction-pm-platform-web`) report
