@@ -103,7 +103,7 @@ Threats and primary controls:
 | SEC-016 | Low | Document-list `search` is unescaped and length-unbounded in `LIKE` | Fixed `2b2873b3` |
 | SEC-017 | Low | Internal exception text reflected as the response `code` | Open |
 | SEC-018 | Low | `error_dto` catch-alls turn unexpected faults into client 4xx codes | Open |
-| SEC-019 | Low | AI action propose/approve/execute can be one subject | Open |
+| SEC-019 | Low | AI action propose/approve/execute can be one subject | Fixed `9c362d15` |
 | SEC-020 | Low | Knowledge ingestion follows redirects (operator CLI only) | Open |
 | SEC-021 | Low | `/api/metrics` auth failures are unlogged and unmetered; token policy is length-only | Fixed `8581697` |
 | SEC-022 | Low | Composition reads `CUBI_AI_ENABLED` from `os.environ`, ignoring its config mapping | Fixed `8581697` |
@@ -416,6 +416,17 @@ Threats and primary controls:
   destructive tools.
 - **Negative test:** with the policy on, the proposer's decision raises
   `AI_ACTION_SELF_APPROVAL_FORBIDDEN` and the proposal stays `proposed`.
+- **Resolution:** `AIActionApprovalPolicy` adds `allow_self_approval` (default
+  `True`) and `require_distinct_approver_for` (tool allow-list for destructive
+  actions). `AIActionApprovalService` refuses an approval when the authenticated
+  actor equals `proposal.requested_by` under the policy. The policy is threaded
+  through `AIActionRuntime` and composed from
+  `CUBI_AI_REQUIRE_DISTINCT_APPROVER` in the preview runtime. Tests:
+  `test_policy_refuses_self_approval_and_audits_the_denial`,
+  `test_policy_can_require_a_distinct_approver_for_listed_tools_only`,
+  `test_self_approval_policy_denies_proposer_and_leaves_proposal_proposed`.
+  The default is unchanged, so the recommendation's destructive-tool default
+  remains an operator decision listed in `require_distinct_approver_for`.
 
 ### SEC-020 — Knowledge ingestion follows redirects (Low)
 
@@ -532,9 +543,9 @@ Threats and primary controls:
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
 - **Open Medium/Low findings.** SEC-010, SEC-012, SEC-013, SEC-017,
-  SEC-019, SEC-020 and SEC-023 remain open;
-  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-021,
-  SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
+  SEC-020 and SEC-023 remain open;
+  SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
+  SEC-021, SEC-022, SEC-024 and SEC-025 are fixed with negative tests. Open findings are recorded here rather than
   silently closed, and the fixed ones are marked in the register above.
 
 ## Verdict
