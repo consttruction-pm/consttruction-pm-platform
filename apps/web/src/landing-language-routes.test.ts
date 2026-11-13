@@ -24,6 +24,12 @@ const SHIPPED_ROUTES = new Set([
   "/contact/",
   "/about/",
   "/fa/about/",
+  "/de/about/",
+  "/zh-Hans/about/",
+  "/ar/about/",
+  "/fr/about/",
+  "/ja/about/",
+  "/ko/about/",
   "/pricing/",
   "/fa/pricing/",
   "/fa/platform/",
@@ -161,6 +167,7 @@ test("no public document links to a route that is not shipped", () => {
     { file: "public/fa/index.html", from: "https://cubi.test/fa/" },
     ...MARKETING_ROUTES.map((route) => ({ file: `public/${route}/index.html`, from: `https://cubi.test/${route}/` })),
     ...MARKETING_ROUTES.map((route) => ({ file: `public/fa/${route}/index.html`, from: `https://cubi.test/fa/${route}/` })),
+    ...["de", "zh-Hans", "ar", "fr", "ja", "ko"].map((locale) => ({ file: `public/${locale}/about/index.html`, from: `https://cubi.test/${locale}/about/` })),
   ];
   for (const document of documents) {
     const html = readDoc(document.file);
@@ -184,4 +191,35 @@ test("the Persian landing document boots the same JavaScript entries as the Engl
   }
   assert.match(faHome, /<html lang="fa" dir="rtl">/);
   assert.match(faHome, /<link rel="canonical" href="__CUBI_BASE_URL__\/fa\/" \/>/);
+});
+
+
+test("About Us ships approved localized routes in all eight product languages", () => {
+  const localized = [
+    ["en", "ltr", "public/about/index.html"],
+    ["fa", "rtl", "public/fa/about/index.html"],
+    ["de", "ltr", "public/de/about/index.html"],
+    ["zh-Hans", "ltr", "public/zh-Hans/about/index.html"],
+    ["ar", "rtl", "public/ar/about/index.html"],
+    ["fr", "ltr", "public/fr/about/index.html"],
+    ["ja", "ltr", "public/ja/about/index.html"],
+    ["ko", "ltr", "public/ko/about/index.html"],
+  ] as const;
+  for (const [locale, direction, file] of localized) {
+    assert.ok(existsSync(join(root, file)), `missing localized About route: ${file}`);
+    const html = readDoc(file);
+    assert.ok(html.includes(`<html lang="${locale}" dir="${direction}">`), `${file} language and direction`);
+    assert.ok(html.includes('hreflang="en"') && html.includes('hreflang="fa"'), `${file} English/Persian alternates`);
+    assert.ok(html.includes('hreflang="de"') && html.includes('hreflang="zh-Hans"'), `${file} German/Chinese alternates`);
+    assert.ok(html.includes('hreflang="ar"') && html.includes('hreflang="fr"'), `${file} Arabic/French alternates`);
+    assert.ok(html.includes('hreflang="ja"') && html.includes('hreflang="ko"'), `${file} Japanese/Korean alternates`);
+    assert.ok(html.includes("global-assistant-launcher.bundle.js"), `${file} shared assistant launcher`);
+    if (locale === "fa") {
+      assert.ok(html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد"), `${file} approved Persian founder facts`);
+    } else {
+      assert.ok(html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard"), `${file} approved founder facts`);
+    }
+    assert.match(html, /<h1>[^<\u0600-\u06FF]*[^<]+<\/h1>/);
+  }
+  assert.ok(readDoc("apps/web/src/landing.ts").includes('["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)'));
 });
