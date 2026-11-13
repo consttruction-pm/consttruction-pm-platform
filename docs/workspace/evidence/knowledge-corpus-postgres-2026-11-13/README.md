@@ -98,7 +98,7 @@ Evidence (`translation-policy-reconciliation.json`,
   coverage report exposes `legacy.storage_codes` and
   `legacy.normalized_records`.
 
-Remaining human-review work: the seven product seed cards (`fa`, `de`,
+Remaining human-review work: the seven product seed translations (`fa`, `de`,
 `zh-Hans`, `ar`, `fr`, `ja`, `ko`) each need a human reviewer to approve and
 publish through the review queue. The legacy Russian record requires no product
 review. Machine approval is impossible by construction.
