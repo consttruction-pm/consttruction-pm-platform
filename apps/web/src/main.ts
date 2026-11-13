@@ -567,7 +567,12 @@ function openProjectSettings(
   close.className = "cp-project-settings-close";
   close.dataset.projectSettingsClose = "true";
   close.textContent = labels.settingsClose;
-  close.addEventListener("click", () => panel.remove());
+  close.addEventListener("click", () => {
+    panel.remove();
+    // The panel is an unsaved overlay on the active window; dismissing it
+    // clears the dirty marker it contributed to.
+    syncWindowDirtyIndicator(container);
+  });
 
   const revision = document.createElement("p");
   revision.className = "cp-project-settings-revision";
@@ -714,6 +719,9 @@ function openProjectSettings(
   panel.append(heading, revision, status, form, historyPanel, actions);
   const shell = container.querySelector<HTMLElement>(".cp-app-shell");
   (shell ?? container).append(panel);
+  // The panel is rendered outside the workspace pass, so the active tab's
+  // dirty marker has to be refreshed here rather than by a re-render.
+  syncWindowDirtyIndicator(container);
 
   let loadedRevision = state.context.revision;
   let loadedStatus: ProjectStatus = "active";
@@ -965,7 +973,13 @@ function workspaceHasPendingEdits(container: HTMLElement): boolean {
   const entered = container.querySelectorAll<HTMLInputElement>(
     "[data-activity-create-form] input, [data-wbs-create-form] input, [data-wbs-edit-form] input",
   );
-  return Array.from(entered).some((input) => input.value.trim().length > 0);
+  // The rendered editors ship with defaults (duration "1", sequence "0", the
+  // selected WBS code and name). Only a value the user changed is pending;
+  // comparing with the element's own default keeps an untouched form clean
+  // while still counting values restored from the draft capture.
+  return Array.from(entered).some(
+    (input) => input.value.trim().length > 0 && input.value !== input.defaultValue,
+  );
 }
 
 /**
@@ -1260,6 +1274,12 @@ function renderApp(
       result.active === state.activeMenu ? state : { ...state, activeMenu: result.active },
       persistence,
     );
+    // Closing the window that owned an unsaved overlay must discard the
+    // overlay too; otherwise it would keep marking the next active tab dirty.
+    if (menu === state.activeMenu) {
+      container.querySelector<HTMLElement>("[data-project-settings-panel]")?.remove();
+      syncWindowDirtyIndicator(container);
+    }
   };
 
   const runDesktopCommand = (command: DesktopCommand): void => {

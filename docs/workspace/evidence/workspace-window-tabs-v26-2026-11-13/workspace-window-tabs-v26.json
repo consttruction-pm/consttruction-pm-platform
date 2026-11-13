@@ -1,0 +1,185 @@
+{
+  "contract": "cubi-window-tabs-v26.v1",
+  "baseUrl": "http://127.0.0.1:41787",
+  "project": "preview-rps-01",
+  "gitHead": "0121d9d1f89015455a10d284a3eed47b3a486e5d",
+  "testedCodeSha": "0121d9d1",
+  "capturedAt": "2026-11-13T09:48:46.086Z",
+  "scenarios": [
+    {
+      "order": [
+        "schedule",
+        "project"
+      ],
+      "activeMenu": "schedule",
+      "id": "01",
+      "name": "the default tab set has one active tab and no duplicates",
+      "status": "pass",
+      "at": "2026-11-13T09:48:48.953Z"
+    },
+    {
+      "order": [
+        "project",
+        "schedule"
+      ],
+      "id": "02",
+      "name": "re-opening the active window does not duplicate its tab",
+      "status": "pass",
+      "at": "2026-11-13T09:48:50.236Z"
+    },
+    {
+      "activeMenu": "project",
+      "order": [
+        "project",
+        "schedule"
+      ],
+      "id": "03",
+      "name": "clicking a tab switches the active window without reordering",
+      "status": "pass",
+      "at": "2026-11-13T09:48:50.786Z"
+    },
+    {
+      "opened": [
+        "project",
+        "schedule",
+        "reports"
+      ],
+      "closed": [
+        "schedule",
+        "reports"
+      ],
+      "id": "04",
+      "name": "opening a third window appends a tab and closing a non-active tab keeps the active one",
+      "status": "pass",
+      "at": "2026-11-13T09:48:52.677Z"
+    },
+    {
+      "before": [
+        "schedule",
+        "reports"
+      ],
+      "after": [
+        "reports",
+        "schedule"
+      ],
+      "reloaded": [
+        "reports",
+        "schedule"
+      ],
+      "id": "05",
+      "name": "keyboard reorder moves a tab and survives a full reload",
+      "status": "pass",
+      "at": "2026-11-13T09:48:55.178Z"
+    },
+    {
+      "before": [
+        "reports",
+        "schedule"
+      ],
+      "after": [
+        "schedule",
+        "reports"
+      ],
+      "id": "06",
+      "name": "pointer drag reorder moves the first tab onto the second",
+      "status": "pass",
+      "at": "2026-11-13T09:48:55.911Z"
+    },
+    {
+      "active": "reports",
+      "kept": [
+        "schedule",
+        "reports"
+      ],
+      "discarded": [
+        "schedule"
+      ],
+      "id": "07",
+      "name": "unsaved edits mark only the active tab and closing it asks before discarding",
+      "status": "pass",
+      "at": "2026-11-13T09:48:57.437Z"
+    },
+    {
+      "order": [
+        "schedule"
+      ],
+      "id": "08",
+      "name": "the last open window has no close control",
+      "status": "pass",
+      "at": "2026-11-13T09:48:57.535Z"
+    },
+    {
+      "before": [
+        "schedule",
+        "resources",
+        "calendars"
+      ],
+      "after": [
+        "schedule",
+        "resources",
+        "calendars"
+      ],
+      "active": "calendars",
+      "id": "09",
+      "name": "tab set, order and active window are restored after a full reload",
+      "status": "pass",
+      "at": "2026-11-13T09:49:02.045Z"
+    },
+    {
+      "order": [
+        "schedule",
+        "resources",
+        "calendars"
+      ],
+      "labels": [
+        "فعالیت‌ها",
+        "منابع",
+        "تقویم‌ها"
+      ],
+      "id": "10",
+      "name": "Persian right-to-left tabs fit 1280x720 without overflow",
+      "status": "pass",
+      "at": "2026-11-13T09:49:03.681Z"
+    },
+    {
+      "writes": 3,
+      "sessionOpens": 3,
+      "id": "11",
+      "name": "no schedule write is issued while tabs are managed",
+      "status": "pass",
+      "at": "2026-11-13T09:49:03.682Z"
+    }
+  ],
+  "screenshots": [
+    "01-default-tabs.png",
+    "02-no-duplicate.png",
+    "03-switch.png",
+    "04-close-inactive.png",
+    "05-keyboard-reorder.png",
+    "06-pointer-reorder.png",
+    "07-dirty-confirm-cancel.png",
+    "07-dirty-confirm-accept.png",
+    "08-last-window.png",
+    "09-reload-restored.png",
+    "10-persian-rtl-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-13T09:49:03.682Z",
+  "status": "passed",
+  "writes": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:41787/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:41787/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:41787/api/projects/preview-rps-01/open"
+    }
+  ]
+}
