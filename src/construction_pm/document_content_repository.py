@@ -218,6 +218,13 @@ class DocumentContentRepository(Protocol):
         self, tenant_id: str, project_id: str, document_id: str
     ) -> tuple[DocumentContentVersion, ...]: ...
 
+    def list_all(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[DocumentContentVersion, ...]: ...
+
     def get_by_idempotency(
         self, tenant_id: str, project_id: str, document_id: str, key: str
     ) -> DocumentContentVersion | None: ...
@@ -310,6 +317,24 @@ class SQLiteDocumentContentRepository:
             "WHERE tenant_id=? AND project_id=? AND document_id=? ORDER BY version",
             (tenant_id, project_id, document_id),
         ).fetchall()
+        return tuple(_from_json(row[0]) for row in rows)
+
+    def list_all(self, *, tenant_id: str | None = None, project_id: str | None = None):
+        statement = (
+            "SELECT content_json FROM project_document_content"
+        )
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            parameters.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=?")
+            parameters.append(project_id)
+        if clauses:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY tenant_id, project_id, document_id, version"
+        rows = self.connection.execute(statement, tuple(parameters)).fetchall()
         return tuple(_from_json(row[0]) for row in rows)
 
     def get_by_idempotency(
@@ -409,6 +434,22 @@ class PostgresDocumentContentRepository:
             "WHERE tenant_id=%s AND project_id=%s AND document_id=%s ORDER BY version",
             (tenant_id, project_id, document_id),
         ).fetchall()
+        return tuple(_from_json(_json_value(row[0])) for row in rows)
+
+    def list_all(self, *, tenant_id: str | None = None, project_id: str | None = None):
+        statement = "SELECT content_json FROM project_document_content"
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=%s")
+            parameters.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=%s")
+            parameters.append(project_id)
+        if clauses:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY tenant_id, project_id, document_id, version"
+        rows = self.connection.execute(statement, tuple(parameters)).fetchall()
         return tuple(_from_json(_json_value(row[0])) for row in rows)
 
     def get_by_idempotency(

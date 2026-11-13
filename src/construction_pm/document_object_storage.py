@@ -20,10 +20,11 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Mapping
+from typing import Iterator, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
+from xml.etree import ElementTree
 
 from .document_storage import (
     DEFAULT_MAX_DOCUMENT_BYTES,
@@ -163,6 +164,13 @@ class S3CompatibleDocumentStorage:
         parsed = urlsplit(endpoint)
         return f"{parsed.scheme}://{self.settings.bucket}.{parsed.netloc}/{quoted}"
 
+    def _bucket_url(self) -> str:
+        endpoint = self.settings.endpoint_url.rstrip("/")
+        if self.settings.path_style:
+            return f"{endpoint}/{quote(self.settings.bucket, safe='-_.~')}"
+        parsed = urlsplit(endpoint)
+        return f"{parsed.scheme}://{self.settings.bucket}.{parsed.netloc}"
+
     @staticmethod
     def _signing_key(secret: str, datestamp: str, region: str) -> bytes:
         date_key = hmac.new(
@@ -173,9 +181,25 @@ class S3CompatibleDocumentStorage:
         return hmac.new(service_key, b"aws4_request", hashlib.sha256).digest()
 
     def _request(
-        self, method: str, key: str, *, payload: bytes | None = None
+        self,
+        method: str,
+        key: str,
+        *,
+        payload: bytes | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> tuple[int, bytes]:
-        url = self._url(key)
+        return self._http_request(
+            method, self._url(key), payload=payload, query=query
+        )
+
+    def _http_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        payload: bytes | None = None,
+        query: Mapping[str, str] | None = None,
+    ) -> tuple[int, bytes]:
         parsed = urlsplit(url)
         now = datetime.now(timezone.utc)
         amz_date = now.strftime("%Y%m%dT%H%M%SZ")
@@ -192,11 +216,24 @@ class S3CompatibleDocumentStorage:
         if self.settings.server_side_encryption and method == "PUT":
             headers["x-amz-server-side-encryption"] = self.settings.server_side_encryption
         canonical_uri = parsed.path or "/"
+        pairs = sorted(
+            (quote(str(name), safe="-_.~"), quote(str(value), safe="-_.~"))
+            for name, value in (query or {}).items()
+        )
+        canonical_query = "&".join(f"{name}={value}" for name, value in pairs)
+        request_url = f"{url}?{canonical_query}" if canonical_query else url
         names = sorted(headers)
         canonical_headers = "".join(f"{name}:{headers[name]}\n" for name in names)
         signed_headers = ";".join(names)
         canonical_request = "\n".join(
-            (method, canonical_uri, "", canonical_headers, signed_headers, payload_hash)
+            (
+                method,
+                canonical_uri,
+                canonical_query,
+                canonical_headers,
+                signed_headers,
+                payload_hash,
+            )
         )
         scope = f"{datestamp}/{self.settings.region}/s3/aws4_request"
         string_to_sign = "\n".join(
@@ -229,7 +266,7 @@ class S3CompatibleDocumentStorage:
                 self.settings.server_side_encryption
             )
         request = Request(
-            url,
+            request_url,
             data=body if method == "PUT" else None,
             method=method,
             headers=request_headers,
@@ -245,6 +282,33 @@ class S3CompatibleDocumentStorage:
             ) from exc
         except URLError as exc:
             raise DocumentStorageError("DOCUMENT_STORAGE_OBJECT_UNAVAILABLE") from exc
+
+    # -- inventory ---------------------------------------------------------
+    def list_objects(
+        self, *, prefix: str = ""
+    ) -> Iterator[tuple[str, int, datetime | None]]:
+        """Yield ``(key, size, last_modified)`` for every object under prefix.
+
+        Listing is paginated with ``ListObjectsV2``. The configured bucket and
+        prefix are the only scope, so a caller must never pass untrusted input.
+        """
+        token: str | None = None
+        while True:
+            query = {"list-type": "2", "max-keys": "1000"}
+            if prefix:
+                query["prefix"] = prefix
+            if token:
+                query["continuation-token"] = token
+            try:
+                _, body = self._http_request("GET", self._bucket_url(), query=query)
+            except DocumentContentNotFound as exc:
+                raise DocumentStorageError(
+                    "DOCUMENT_STORAGE_INVENTORY_UNAVAILABLE"
+                ) from exc
+            page, truncated, token = _parse_list_objects(body)
+            yield from page
+            if not truncated or not token:
+                return
 
     # -- port --------------------------------------------------------------
     def put(
@@ -308,6 +372,56 @@ class S3CompatibleDocumentStorage:
             self._request("DELETE", key)
         except DocumentContentNotFound:
             return
+
+
+def _local_name(tag: object) -> str:
+    return str(tag).rsplit("}", 1)[-1]
+
+
+def _s3_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _parse_list_objects(
+    payload: bytes,
+) -> tuple[list[tuple[str, int, datetime | None]], bool, str | None]:
+    """Parse one ``ListObjectsV2`` page without resolving external entities."""
+    try:
+        root = ElementTree.fromstring(payload)
+    except ElementTree.ParseError as exc:
+        raise DocumentStorageError("DOCUMENT_STORAGE_INVENTORY_UNAVAILABLE") from exc
+    if _local_name(root.tag) != "ListBucketResult":
+        raise DocumentStorageError("DOCUMENT_STORAGE_INVENTORY_UNAVAILABLE")
+    items: list[tuple[str, int, datetime | None]] = []
+    truncated = False
+    token: str | None = None
+    for node in root:
+        name = _local_name(node.tag)
+        if name == "Contents":
+            values = {_local_name(child.tag): (child.text or "") for child in node}
+            key = values.get("Key", "")
+            try:
+                size = int(values.get("Size") or 0)
+            except ValueError as exc:
+                raise DocumentStorageError(
+                    "DOCUMENT_STORAGE_INVENTORY_UNAVAILABLE"
+                ) from exc
+            if not key:
+                continue
+            items.append((key, size, _s3_timestamp(values.get("LastModified"))))
+        elif name == "IsTruncated":
+            truncated = (node.text or "").strip().lower() == "true"
+        elif name == "NextContinuationToken":
+            token = (node.text or "").strip() or None
+    return items, truncated, token
 
 
 _S3_ENVIRONMENT = {

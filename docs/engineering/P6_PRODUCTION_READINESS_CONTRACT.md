@@ -162,6 +162,50 @@ root, reading every restored version with hash verification, detecting a
 deleted object as `missing`, and detecting same-length tampering as
 `integrity_failed`.
 
+## Storage reconciliation and orphan cleanup
+
+`construction_pm.document_storage_reconciliation.DocumentStorageReconciler`
+classifies drift between the metadata store and the byte store and can remove
+bytes that are provably unreferenced. It deliberately separates detection from
+destruction:
+
+- `reconcile()` defaults to `dry_run=True` and writes nothing to either system;
+  a dry run does not advance the observation counter either.
+- The metadata snapshot (content versions, dispositions, retention policies) is
+  read before the object store is listed. A metadata or inventory failure
+  returns `status="aborted"` and deletes nothing, so an unavailable database
+  cannot be mistaken for "everything is an orphan".
+- Classes are `match`, `metadata_only`, `orphan_object`, `checksum_mismatch`,
+  `size_mismatch`, `incomplete_upload`, `pending_deletion`, `unknown_object`,
+  `retention_protected` and `unavailable`. Only `orphan_object`,
+  `incomplete_upload` and `pending_deletion` are destructive candidates.
+- `ReconciliationPolicy.min_observations` is validated to be at least two and
+  the default grace period is 24 hours; the conditional claim re-checks both in
+  SQL, so a single pass can never delete and a competing reconciler skips.
+- Tenant/project ownership is proven by mapping the object scope hash back to
+  exactly one metadata scope. Unmapped or ambiguous scopes are
+  `unknown_object` and are never deleted.
+- `pending_deletion` requires every version that references the same
+  content-addressed object to be disposed; a live version or a legal hold keeps
+  the bytes. This is the reference-count protection for deduplicated content.
+- The lease is committed before the external delete, and `deleted` / `failed`
+  outcomes commit immediately with an append-only cleanup row (actor, reason,
+  object handle, checksum, size, status, attempt, timestamp). Failed deletes
+  are retryable on the next pass.
+- The machine-readable report contains document ids, versions and opaque
+  object handles only; storage references, filesystem paths, bucket names and
+  credentials are never emitted.
+- `LocalDocumentObjectInventory` walks the content-addressed layout and detects
+  `.upload-*` staging files; `S3DocumentObjectInventory` uses signed
+  `ListObjectsV2` pagination over the configured bucket and prefix. Local
+  deletion revalidates the path, rejects symlinks and re-checks the scope hash.
+
+A default deployment should run a dry run, compare its counts, and then run
+repeated apply passes. The reconciler does not schedule itself and does not
+replace the retention `dispose` action: deliberate disposition still deletes
+bytes through the retention service, and reconciliation only cleans residual
+objects.
+
 ## Not claimed
 
 - No production or staging deployment occurred.
@@ -172,5 +216,8 @@ deleted object as `missing`, and detecting same-length tampering as
   configuration, not a live scanner verdict.
 - Alert routing, dashboard provisioning and on-call ownership remain
   deployment-owner responsibilities.
+- Storage reconciliation is not scheduled, no production bucket or object root
+  was reconciled, and no operator actor identity was provisioned. Local and
+  live PostgreSQL tests only.
 
 These are explicit external gates, not implementation gaps.
