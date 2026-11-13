@@ -15,6 +15,7 @@ import {
   presentationDataAvailability,
   presentationFontFamily,
   selectPrimaryBarKind,
+  wbsBandInk,
   wbsLevelColor,
   type GanttBarFacts,
 } from "./workspace-presentation.js";
@@ -91,6 +92,39 @@ test("timescale and WBS level colours normalise and persist with the layout", ()
   assert.equal(normalized.wbs.levelColors[2], "#333333");
   assert.equal(wbsLevelColor(normalized.wbs, 99), DEFAULT_WBS_LEVEL_COLORS[5]);
   assert.equal(normalizePresentation({ timescale: { ordinalStart: "05/01/2026" } }).timescale.ordinalStart, null);
+});
+
+test("WBS band format keeps its own typeface, ink and label flags across reloads", () => {
+  const normalized = normalizePresentation({
+    wbs: {
+      fontFamily: "cairo",
+      fontSize: 44,
+      inkMode: "custom",
+      textColor: "#ABC",
+      rowHeight: 99,
+      labels: { title: true, code: false, name: "yes" },
+    },
+  });
+  assert.equal(normalized.wbs.fontFamily, "cairo");
+  assert.equal(normalized.wbs.fontSize, 16);
+  assert.equal(normalized.wbs.inkMode, "custom");
+  assert.equal(normalized.wbs.textColor, "#aabbcc");
+  assert.equal(normalized.wbs.rowHeight, 40);
+  assert.equal(normalized.wbs.labels.title, true);
+  assert.equal(normalized.wbs.labels.code, false);
+  // A non-boolean label flag falls back instead of being treated as false.
+  assert.equal(normalized.wbs.labels.name, DEFAULT_PRESENTATION.wbs.labels.name);
+  assert.equal(normalizePresentation({ wbs: { fontFamily: "comic", inkMode: "flashy" } }).wbs.fontFamily, DEFAULT_PRESENTATION.wbs.fontFamily);
+  assert.equal(normalizePresentation({ wbs: { fontFamily: "comic", inkMode: "flashy" } }).wbs.inkMode, "auto");
+});
+
+test("WBS band ink uses the level contrast colour unless a custom ink is chosen", () => {
+  const auto = normalizePresentation(undefined);
+  // Level 1 is blue with yellow reference ink; a custom colour wins unchanged.
+  assert.equal(wbsBandInk(auto.wbs, 0), "#ffff00");
+  const custom = normalizePresentation({ wbs: { inkMode: "custom", textColor: "#102030" } });
+  assert.equal(wbsBandInk(custom.wbs, 0), "#102030");
+  assert.equal(wbsBandInk(custom.wbs, 2), "#102030");
 });
 
 test("each bar style is independent and does not share mutable defaults", () => {

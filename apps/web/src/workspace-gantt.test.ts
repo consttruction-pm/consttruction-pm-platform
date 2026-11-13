@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GANTT_CONTENT_WIDTH, GANTT_SCALE_ORDER, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, fitGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
+import { GANTT_CONTENT_WIDTH, GANTT_SCALE_ORDER, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttScale, fitGanttScale, ganttDisplayMetrics, ganttRowCenter, ganttRowPitch, ganttRowsHeight, resolveGanttLabelPosition } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -178,8 +178,7 @@ test("Gantt geometry pins FS, SS, FF and SF links to the configured row pitch", 
 
   assert.equal(ganttRowPitch(30), 30);
   assert.equal(ganttRowCenter(1, 30), 45);
-  assert.equal(ganttRowsHeight(3, 30), 90);
-  const byId = new Map(links.map((link) => [link.relationshipId, link]));
+  assert.equal(ganttRowsHeight(3, 30), 90);  const byId = new Map(links.map((link) => [link.relationshipId, link]));
   assert.equal(byId.get("FS")?.path, "M 300 15 H 315 V 45 H 600");
   assert.equal(byId.get("SS")?.path, "M 100 15 H 77 V 45 H 600");
   assert.equal(byId.get("FF")?.path, "M 300 15 H 831 V 45 H 800");
@@ -189,6 +188,31 @@ test("Gantt geometry pins FS, SS, FF and SF links to the configured row pitch", 
   assert.equal(byId.get("FS")?.lag, null);
   assert.deepEqual(byId.get("SS")?.lag, { value: "2", unit: "working-day" });
   assert.equal(byId.get("FS")?.critical, true);
+});
+
+test("Gantt rows use the band height for WBS rows and stay cumulative", () => {
+  const rows = [
+    { kind: "wbs" },
+    { kind: "activity" },
+    { kind: "wbs" },
+    { kind: "activity" },
+  ];
+  const { metrics, total } = ganttDisplayMetrics(rows, 18, 30);
+  // Every rendered row includes the 1 px rule below the table row.
+  assert.deepEqual(metrics.map((metric) => metric.height), [31, 19, 31, 19]);
+  assert.deepEqual(metrics.map((metric) => metric.top), [0, 31, 50, 81]);
+  assert.deepEqual(metrics.map((metric) => metric.center), [15.5, 40.5, 65.5, 90.5]);
+  assert.equal(total, 100);
+  // A supplied centre list routes the link to the real row centre instead of
+  // assuming a single pitch for every row.
+  const scale = createGanttScale(activities);
+  assert.ok(scale);
+  const bars = activities.slice(0, 2).map((activity) => createGanttBarGeometry(activity, scale)).filter((bar) => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["A-1", 0], ["A-2", 1]]), { rowCenters: metrics.map((metric) => metric.center), xUnits: 10 });
+  assert.equal(links[0]?.fromY, 15.5);
+  assert.equal(links[0]?.toY, 40.5);
 });
 
 test("Gantt links skip relationships whose endpoints are filtered out", () => {  const scale = createGanttScale(activities);

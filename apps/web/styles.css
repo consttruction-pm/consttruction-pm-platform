@@ -7756,6 +7756,13 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   color: var(--cp-wbs-ink, #000000);
   border-bottom: 1px solid rgba(0, 0, 0, .25);
   font-weight: 700;
+  /* Band typography and height are independent of the activity table. */
+  font-family: var(--cp-wbs-font-family, inherit);
+  font-size: var(--cp-wbs-font-size, inherit);
+  height: var(--cp-wbs-row-height, auto);
+}
+.cp-p6 #cp-activity-grid tbody tr.cp-p6-tree-band .cp-p6-tree-guides {
+  height: var(--cp-wbs-row-height, var(--cp-p6-row-height, 22px));
 }
 .cp-p6 #cp-activity-grid tbody tr.cp-p6-tree-band:hover > td {
   background-image: linear-gradient(0deg, rgba(0, 0, 0, .06), rgba(0, 0, 0, .06));
@@ -7806,6 +7813,8 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-p6-wbs-icon .cp-icon { width: 13px; height: 13px; }
 .cp-p6 .cp-p6-wbs-code { font-weight: 700; }
 .cp-p6 .cp-p6-wbs-name { font-weight: 700; }
+.cp-p6 .cp-p6-wbs-title { font-weight: 700; opacity: .85; }
+.cp-p6 .cp-p6-wbs-title::after { content: ":"; }
 .cp-p6 .cp-p6-wbs-cell-td[data-rollup="display"] { color: inherit; }
 
 .cp-context-menu {
@@ -8043,8 +8052,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 /* The activity table grows by one row rule per row; the Gantt must advance by
    the same amount or every bar drifts a further pixel from its table row. */
 .cp-p6 .cp-gantt-row {
-  height: calc(var(--cp-p6-row-height, 18px) + 1px);
-  min-height: calc(var(--cp-p6-row-height, 18px) + 1px);
+  /* A band row publishes its own pitch so a taller WBS band keeps the same
+     height as its table row; other rows follow the table row height. */
+  height: calc(var(--cp-gantt-row-height, var(--cp-p6-row-height, 18px)) + 1px);
+  min-height: calc(var(--cp-gantt-row-height, var(--cp-p6-row-height, 18px)) + 1px);
 }
 
 /* ====================================================================== */

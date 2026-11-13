@@ -5,8 +5,7 @@ import { isWorkspaceTopLayoutAvailable, isWorkspaceTraceLogicAvailable, readWork
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
-import { normalizePresentation } from "./workspace-presentation.js";
-import type { ProjectSummary } from "./session-api.js";
+import { DEFAULT_PRESENTATION, normalizePresentation } from "./workspace-presentation.js";import type { ProjectSummary } from "./session-api.js";
 import { setCollapsedWbsIds } from "./workspace-wbs-display.js";
 
 type RenderContainer = {
@@ -2250,12 +2249,15 @@ test("activity grid renders colored WBS bands with expand controls and matching 
   renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
   const html = container.innerHTML;
 
-  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00"/);
-  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000"/);
-  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff"/);
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00;--cp-wbs-font-family:Tahoma, &quot;Segoe UI&quot;, sans-serif;--cp-wbs-font-size:11px;--cp-wbs-row-height:22px"/);
+  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000;--cp-wbs-font-family:Tahoma/);
+  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff;--cp-wbs-font-family:Tahoma/);
+  // The band carries its own label composition: code and name by default, and
+  // the "WBS" title only when Show Title is enabled.
+  assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
+  assert.doesNotMatch(html, /class="cp-p6-wbs-title"/);
   assert.match(html, /data-wbs-toggle="W-ROOT" aria-expanded="true"[^>]*>−</);
   assert.match(html, /data-wbs-toggle="W-A1" aria-expanded="true"[^>]*>−</);
-  assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
   assert.match(html, /data-rollup="display" title="Derived for display from 2 persisted child activities"[^>]*>4<\/td>/);
   assert.match(html, /data-activity-id="A-1"[^>]*data-wbs-depth="3"/);
   // Each level draws a solid vertical spine inside the tree cell, so the
@@ -2280,6 +2282,31 @@ test("activity grid renders colored WBS bands with expand controls and matching 
   assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-A1" data-gantt-depth="2"/);
   assert.match(html, /data-gantt-summary="derived" data-gantt-wbs-id="W-ROOT"/);
   assert.equal((html.match(/data-gantt-summary="derived"/g) ?? []).length, 4);
+});
+
+test("WBS band format applies its own font, ink, height and label selection", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState(), {
+    presentation: {
+      ...DEFAULT_PRESENTATION,
+      wbs: {
+        ...DEFAULT_PRESENTATION.wbs,
+        fontFamily: "cairo",
+        fontSize: 14,
+        inkMode: "custom",
+        textColor: "#102030",
+        rowHeight: 30,
+        labels: { title: true, code: false, name: false },
+      },
+    },
+  });
+  const html = container.innerHTML;
+  // Band typography and height are published per row, independent of the
+  // activity table's font and row-height variables.
+  assert.match(html, /--cp-wbs-level:#0000ff;--cp-wbs-ink:#102030;--cp-wbs-font-family:&quot;Cairo&quot;, &quot;Vazirmatn&quot;, &quot;Segoe UI&quot;, sans-serif;--cp-wbs-font-size:14px;--cp-wbs-row-height:30px/);
+  assert.match(html, /class="cp-p6-wbs-title">WBS</);
+  assert.doesNotMatch(html, /class="cp-p6-wbs-code">/);
+  assert.doesNotMatch(html, /class="cp-p6-wbs-name"/);
 });
 
 test("collapsing a WBS branch removes its table rows and Gantt bars together", () => {
