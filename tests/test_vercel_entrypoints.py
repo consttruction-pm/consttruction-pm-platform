@@ -68,34 +68,39 @@ def _call(app, method: str, path: str, query: str = "", body: bytes = b""):
         captured["headers"] = headers
 
     payload = b"".join(app(environ, start_response))
-    return int(str(captured["status"]).split()[0]), payload
+    headers = {key.lower(): value for key, value in captured["headers"]}
+    return int(str(captured["status"]).split()[0]), headers, payload
 
 
 def test_liveness_stays_available_without_configuration(unconfigured):
     index, _ = unconfigured
-    status, body = _call(index.app, "GET", "/api", "__path=health/live")
+    status, headers, body = _call(index.app, "GET", "/api", "__path=health/live")
     assert status == 200
+    assert headers["x-content-type-options"] == "nosniff"
+    assert headers["x-frame-options"] == "DENY"
     assert json.loads(body)["status"] == "ok"
 
 
 def test_readiness_reports_configuration_required(unconfigured):
     index, _ = unconfigured
-    status, body = _call(index.app, "GET", "/api", "__path=health/ready")
+    status, _, body = _call(index.app, "GET", "/api", "__path=health/ready")
     assert status == 503
     assert json.loads(body) == {"status": "not_ready", "code": "CONFIGURATION_REQUIRED"}
 
 
 def test_login_is_not_faked_when_configuration_is_missing(unconfigured):
     index, _ = unconfigured
-    status, body = _call(index.app, "POST", "/api", "__path=session", b"{}")
+    status, _, body = _call(index.app, "POST", "/api", "__path=session", b"{}")
     assert status == 503
     assert json.loads(body)["code"] == "CONFIGURATION_REQUIRED"
 
 
 def test_app_shell_never_serves_workspace_html_without_configuration(unconfigured):
     _, shell = unconfigured
-    status, body = _call(shell.app, "GET", "/api/shell")
+    status, headers, body = _call(shell.app, "GET", "/api/shell")
     assert status == 503
+    assert headers["x-frame-options"] == "DENY"
+    assert headers["x-content-type-options"] == "nosniff"
     assert b"<html" in body
     assert b"workspace" not in body.lower()
 
@@ -116,3 +121,10 @@ def test_project_configuration_targets_the_authenticated_runtime():
     rewrites = {entry["source"]: entry["destination"] for entry in config["rewrites"]}
     assert rewrites["/app"] == "/api/shell"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
+    headers = {
+        entry["source"]: {item["key"]: item["value"] for item in entry["headers"]}
+        for entry in config["headers"]
+    }
+    assert headers["/login"]["Cache-Control"] == "no-store"
+    assert headers["/login"]["X-Frame-Options"] == "DENY"
+    assert headers["/login.html"]["X-Content-Type-Options"] == "nosniff"

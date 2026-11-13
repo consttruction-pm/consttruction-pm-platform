@@ -749,12 +749,16 @@ def clear_csrf_cookie_header(*, name: str, secure: bool) -> str:
 def load_identity_settings(environment: Mapping[str, str]) -> dict[str, Any]:
     """Read and validate the non-secret production identity settings."""
     secret = environment.get("CONSTRUCTION_PM_SESSION_SECRET", "").strip()
-    secure = environment.get("CONSTRUCTION_PM_INSECURE_COOKIES", "").strip() not in {
-        "1",
-        "true",
-        "yes",
-    }
     origin = environment.get("CONSTRUCTION_PM_PUBLIC_ORIGIN", "").strip().rstrip("/")
+    # An HTTPS deployment can never be talked into an insecure cookie: the
+    # escape hatch below exists only for a loopback HTTP harness.
+    secure = True
+    if not origin.startswith("https://"):
+        secure = environment.get("CONSTRUCTION_PM_INSECURE_COOKIES", "").strip() not in {
+            "1",
+            "true",
+            "yes",
+        }
     return {
         "csrf_secret": secret,
         "secure_cookies": secure,

@@ -35,6 +35,8 @@ def _json(start_response, status: int, payload: dict[str, object]):
             ("Content-Length", str(len(body))),
             ("Cache-Control", "no-store"),
             ("X-Content-Type-Options", "nosniff"),
+            ("X-Frame-Options", "DENY"),
+            ("Referrer-Policy", "no-referrer"),
         ],
     )
     return [body]

@@ -27,6 +27,7 @@ from construction_pm.identity_session import (
     csrf_token,
     hash_client_ip,
     hash_password,
+    load_identity_settings,
     normalize_email,
     password_policy_error,
     session_cookie_header,
@@ -307,3 +308,26 @@ def test_touch_updates_last_seen_so_active_sessions_survive(store):
     for _ in range(5):
         advance(timedelta(minutes=5))
         assert service.resolve(issued.token) is not None
+
+
+def test_https_origin_can_never_disable_secure_cookies():
+    settings = load_identity_settings(
+        {
+            "CONSTRUCTION_PM_SESSION_SECRET": SECRET,
+            "CONSTRUCTION_PM_PUBLIC_ORIGIN": "https://cubi.example.test",
+            "CONSTRUCTION_PM_INSECURE_COOKIES": "true",
+        }
+    )
+    assert settings["secure_cookies"] is True
+    assert settings["public_origin"] == "https://cubi.example.test"
+
+
+def test_loopback_http_harness_may_opt_out_of_secure_cookies():
+    settings = load_identity_settings(
+        {
+            "CONSTRUCTION_PM_SESSION_SECRET": SECRET,
+            "CONSTRUCTION_PM_PUBLIC_ORIGIN": "http://127.0.0.1:4180",
+            "CONSTRUCTION_PM_INSECURE_COOKIES": "1",
+        }
+    )
+    assert settings["secure_cookies"] is False
