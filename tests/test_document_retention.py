@@ -31,6 +31,7 @@ from construction_pm.document_persistence import (
 from construction_pm.document_retention import (
     DocumentContentAlreadyDisposed,
     DocumentContentDisposed,
+    DocumentDisposition,
     DocumentRetentionLegalHold,
     DocumentRetentionNotEligible,
     DocumentRetentionNotFound,
@@ -43,6 +44,7 @@ from construction_pm.document_scan import ReferenceDocumentScanner
 from construction_pm.document_storage import (
     DocumentContentNotFound,
     LocalDocumentStorage,
+    validate_document_content,
 )
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
@@ -595,3 +597,53 @@ def test_http_retention_rejects_bad_confirmation_and_viewer_writes(tmp_path) -> 
     )
     assert status == 403, raw
     assert json.loads(raw)["code"] == "DOCUMENT_PERMISSION_DENIED"
+
+
+def test_legacy_reference_is_never_served_after_a_disposition(tmp_path) -> None:
+    harness = _Harness(tmp_path)
+    data = b"legacy bytes\n"
+    blob = validate_document_content(
+        data, declared_content_type="text/plain", filename="legacy.txt"
+    )
+    ref = harness.storage.put(
+        tenant_id="t1",
+        project_id="p1",
+        content_hash=blob.content_hash,
+        extension=blob.extension,
+        data=data,
+    )
+    harness.store.persist(
+        DocumentRecord(
+            document_id="DOC-LEGACY",
+            tenant_id="t1",
+            project_id="p1",
+            resource_type="drawing",
+            title="Legacy drawing",
+            status="draft",
+            storage_ref=ref,
+            content_hash=blob.content_hash,
+        ),
+        idempotency_key="legacy-create",
+        actor_id="u1",
+        occurred_at=NOW,
+    )
+    harness.retention_store.record_disposition(
+        DocumentDisposition(
+            tenant_id="t1",
+            project_id="p1",
+            document_id="DOC-LEGACY",
+            version=1,
+            content_hash=blob.content_hash,
+            reason="retention elapsed",
+            actor_id="u1",
+            disposed_at=NOW,
+        )
+    )
+
+    with pytest.raises(DocumentContentDisposed, match="DOCUMENT_CONTENT_DISPOSED"):
+        harness.service.download_content(
+            tenant_id="t1",
+            project_id="p1",
+            document_id="DOC-LEGACY",
+            context=harness.context,
+        )

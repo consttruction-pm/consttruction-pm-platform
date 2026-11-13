@@ -136,6 +136,7 @@ class DocumentApplicationService:
         occurred_at: datetime,
     ) -> StoredDocument:
         self._authorize_write(document, context, actor_id)
+        self._verify_content_reference(document)
         with self.transaction_manager.transaction():
             return self.store.persist(
                 document,
@@ -202,6 +203,13 @@ class DocumentApplicationService:
             current = self.store.get(
                 document.tenant_id, document.project_id, document.document_id
             )
+            # Only upload_content may change the content binding. A metadata
+            # edit may not retarget the document at other bytes.
+            if (
+                document.storage_ref != current.document.storage_ref
+                or document.content_hash != current.document.content_hash
+            ):
+                raise ValueError("DOCUMENT_CONTENT_REFERENCE_IMMUTABLE")
             if document.status != current.document.status:
                 # Status is an approval decision with its own revision-guarded,
                 # audited transition endpoint. A metadata edit must not bypass it.
@@ -244,6 +252,26 @@ class DocumentApplicationService:
                 occurred_at=occurred_at,
                 reason=reason,
             )
+
+    def _verify_content_reference(self, document: DocumentRecord) -> None:
+        """Reject a client-supplied legacy reference that does not resolve.
+
+        ``local:v1/`` references are the only form the legacy download branch
+        will serve. When a storage adapter is configured, the object must exist
+        in the caller's own tenant/project scope with the declared digest; an
+        unverified reference never becomes metadata.
+        """
+        if self.storage is None or not document.storage_ref.startswith("local:v1/"):
+            return
+        try:
+            self.storage.read(
+                document.storage_ref,
+                tenant_id=document.tenant_id,
+                project_id=document.project_id,
+                expected_content_hash=document.content_hash,
+            )
+        except (DocumentContentNotFound, DocumentContentIntegrityError, DocumentStorageError):
+            raise ValueError("DOCUMENT_CONTENT_REFERENCE_UNVERIFIED") from None
 
     def upload_content(
         self,
@@ -425,6 +453,15 @@ class DocumentApplicationService:
             # was written before version tracking existed. Serve it only when
             # the adapter recognises the reference and the digest matches.
             document = current.document
+            if (
+                self.disposition_repository is not None
+                and self.disposition_repository.list_dispositions(
+                    tenant_id, project_id, document_id
+                )
+            ):
+                # A legacy reference has no version to match against, so any
+                # recorded disposition for the document blocks serving it.
+                raise DocumentContentDisposed("DOCUMENT_CONTENT_DISPOSED")
             if self.require_scanned_content:
                 # Legacy references carry no scan verdict at all, so they can
                 # never satisfy a quarantine-first serving policy.

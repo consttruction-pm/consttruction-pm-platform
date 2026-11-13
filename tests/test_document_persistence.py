@@ -99,6 +99,7 @@ def test_document_record_rejects_invalid_type_and_hash():
         make_document(content_hash="md5:bad").validate()
 
 
+
 def test_persist_replays_same_idempotency_key():
     connection = FakeConnection()
     store = PostgresDocumentStore(connection)
