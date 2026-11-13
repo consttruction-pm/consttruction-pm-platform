@@ -27,6 +27,7 @@ from construction_pm.ai_action_activity_tools import (
     build_activity_create_tool,
 )
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
+from construction_pm.ai_action_boundary import AIActionApprovalPolicy
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
 from construction_pm.ai_assistant_orchestration import OpenAICompatibleChatProvider
 from construction_pm.application.authorization import (
@@ -1670,6 +1671,11 @@ def open_preview_runtime(
     ai_actions_enabled = ai_assistant_enabled or os.environ.get(
         "CUBI_AI_ACTIONS_ENABLED", ""
     ).strip().lower() in {"1", "true", "yes"}
+    # Optional separation-of-duty policy: the proposer cannot approve their own
+    # proposal. Off by default so a single-operator deployment keeps working.
+    ai_require_distinct_approver = os.environ.get(
+        "CUBI_AI_REQUIRE_DISTINCT_APPROVER", ""
+    ).strip().lower() in {"1", "true", "yes"}
     ai_assistant_provider = None
     ai_action_runtime = None
     ai_tool_names: tuple[str, ...] = ()
@@ -1710,6 +1716,9 @@ def open_preview_runtime(
             tools=(activity_tool, project_plan_tool),
             clock=lambda: datetime.now(timezone.utc),
             transaction_manager=repositories.transaction_manager,
+            approval_policy=AIActionApprovalPolicy(
+                allow_self_approval=not ai_require_distinct_approver
+            ),
         )
         ai_tool_names = ("activity.create", "project.plan.create")
 

@@ -9,6 +9,7 @@ from typing import Callable, Iterable, Mapping, Protocol
 from uuid import uuid4
 
 from .ai_action_boundary import (
+    AIActionApprovalPolicy,
     AIActionApprovalService,
     AIActionAuditSink,
     AIActionBoundaryError,
@@ -471,6 +472,7 @@ class AIActionRuntime:
         tools: Iterable[AIActionToolDefinition],
         clock: Callable[[], datetime] | None = None,
         transaction_manager: AIActionTransactionManager | None = None,
+        approval_policy: AIActionApprovalPolicy | None = None,
     ) -> None:
         definitions: dict[str, AIActionToolDefinition] = {}
         for definition in tools:
@@ -484,6 +486,7 @@ class AIActionRuntime:
         self.tools = definitions
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.transaction_manager = transaction_manager
+        self.approval_policy = approval_policy or AIActionApprovalPolicy()
         if transaction_manager is not None:
             connection = getattr(transaction_manager, "connection", None)
             if connection is None:
@@ -642,7 +645,9 @@ class AIActionRuntime:
                 metadata={"current_status": record.status}, happened_at=self._now(),
             )
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_PENDING")
-        decision_service = AIActionApprovalService(self.permission_adapter, self.audit_sink)
+        decision_service = AIActionApprovalService(
+            self.permission_adapter, self.audit_sink, policy=self.approval_policy
+        )
         try:
             decision_service.decide(
                 proposal, actor_id=context.subject_id, approved=approved, subject_id=context.subject_id

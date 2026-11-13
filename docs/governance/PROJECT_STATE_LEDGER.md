@@ -746,3 +746,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** the existing integration assertion now expects `APIErrorCategory.PERSISTENCE` and `DOCUMENT_INTERNAL_ERROR`; new `test_unexpected_report_fault_is_a_server_error_without_internal_text` proves the report message does not leak. `pytest tests/integration/test_document_application.py tests/test_report_api.py` = **11 passed**.
 - **Boundary:** SEC-017 (per-site reflected codes across 125 `_error` call sites) stays open; this change closes only the catch-all fall-throughs.
 - **Docs:** security register and SEC-018 section updated; SEC-018 removed from the open-findings gate.
+
+## SEC-019 AI action self-approval policy — 2026-11-13
+
+- **Finding:** `AIActionRuntime._decide_in_transaction` passed the same authenticated subject as proposer and approver, so "separate human approval" did not require a second account.
+- **Fix (code `9c362d15`):** new `AIActionApprovalPolicy(allow_self_approval=True, require_distinct_approver_for=frozenset())`. `AIActionApprovalService` denies an approval when the authenticated actor equals `proposal.requested_by` and the policy requires separation, recording a denied decision and raising `AI_ACTION_SELF_APPROVAL_FORBIDDEN`. `AIActionRuntime` accepts and forwards the policy; the preview runtime composes it from `CUBI_AI_REQUIRE_DISTINCT_APPROVER` (off by default, so existing single-operator deployments are unchanged). Rejections and a distinct approver remain allowed.
+- **Tests:** `test_policy_refuses_self_approval_and_audits_the_denial`, `test_policy_can_require_a_distinct_approver_for_listed_tools_only`, `test_default_policy_preserves_self_approval_for_existing_deployments`, and `test_self_approval_policy_denies_proposer_and_leaves_proposal_proposed` (status stays `proposed`, no executor call, denial audited). `pytest tests/test_ai_action_* tests/test_ai_assistant_orchestration.py tests/test_preview_runtime.py` = **89 passed**.
+- **Boundary:** the policy is opt-in. Destructive-tool enforcement requires the operator to list tool names in `require_distinct_approver_for`; no built-in "destructive" classifier was invented for the two registered create tools.
+- **Docs:** security register and SEC-019 section updated; SEC-019 removed from the open-findings gate.

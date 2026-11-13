@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 
 from construction_pm.ai_action_boundary import (
+    AIActionApprovalPolicy,
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
@@ -46,7 +47,7 @@ def tool(executor):
     )
 
 
-def setup_runtime(*, grants=None, executor=None):
+def setup_runtime(*, grants=None, executor=None, approval_policy=None):
     conn = sqlite3.connect(":memory:")
     store = SQLiteAIActionRuntimeStore(conn)
     current_grants = list([grant()] if grants is None else grants)
@@ -62,6 +63,7 @@ def setup_runtime(*, grants=None, executor=None):
         audit_sink=store,
         tools=[tool(executor or run)],
         clock=lambda: datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc),
+        approval_policy=approval_policy,
     )
     context = AIActionRuntimeContext(
         subject_id="user-1",
@@ -192,3 +194,27 @@ def test_execution_failure_is_marked_uncertain_and_cannot_be_replayed():
     with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_NOT_APPROVED"):
         runtime.execute(context, record.proposal.proposal_id)
     assert len(side_effects) == 1
+
+
+def test_self_approval_policy_denies_proposer_and_leaves_proposal_proposed():
+    conn, store, runtime, context, _, calls = setup_runtime(
+        approval_policy=AIActionApprovalPolicy(allow_self_approval=False)
+    )
+    record = runtime.propose(context, tool_name="activity.create", payload={"name": "Excavation"})
+
+    with pytest.raises(AIActionRuntimeError, match="AI_ACTION_SELF_APPROVAL_FORBIDDEN"):
+        runtime.decide(context, record.proposal.proposal_id, approved=True)
+    conn.commit()
+
+    fresh = store.get(record.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1")
+    assert fresh is not None
+    assert fresh.status == "proposed"
+    assert calls == []
+    events = conn.execute(
+        "SELECT event_type, event_json FROM ai_action_audit_events ORDER BY rowid"
+    ).fetchall()
+    event_types = [event[0] for event in events]
+    assert event_types[0] == "proposal_created"
+    assert "proposal_approved" not in event_types
+    assert event_types.count("decision_denied") >= 1
+    assert any("AI_ACTION_SELF_APPROVAL_FORBIDDEN" in event_json for _, event_json in events)
