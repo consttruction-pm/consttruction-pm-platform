@@ -96,7 +96,7 @@ Threats and primary controls:
 | SEC-009 | Medium | Formula parser recursion is unbounded and escapes all handlers | Fixed `8581697` |
 | SEC-010 | Medium | Unscoped, unlimited metadata loads (`list_all`, document list) | Open |
 | SEC-011 | Medium | S3 endpoint may be cleartext HTTP; readiness does not apply its HTTPS rule | Fixed `8581697` |
-| SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Open |
+| SEC-012 | Medium | Client-supplied `storage_ref` bypasses version-scoped disposal | Fixed `afb18263` |
 | SEC-013 | Medium | Reconciliation treats document-record-only references as orphans | Fixed `c921ac8b` |
 | SEC-014 | Medium | Delete completion is not bound to the claim token | Fixed `8581697` |
 | SEC-015 | Medium | `GET /api/session` reflects the session credential | Fixed `67dd5ed` |
@@ -309,6 +309,20 @@ Threats and primary controls:
   through the storage adapter; make the legacy branch consult dispositions.
 - **Negative test:** an update carrying a foreign/invalid `storage_ref` is
   rejected and persisted references always equal a server-minted ref.
+- **Resolution:** `DocumentApplicationService.create` resolves every
+  `local:v1/` reference through the storage adapter in the caller's own
+  tenant/project scope and rejects a missing, out-of-scope or digest-mismatched
+  object with `DOCUMENT_CONTENT_REFERENCE_UNVERIFIED`. `update` now refuses any
+  change to `storage_ref`/`content_hash` with
+  `DOCUMENT_CONTENT_REFERENCE_IMMUTABLE`; only `upload_content` (which mints the
+  reference from scanned bytes) may change them. The legacy download branch
+  consults recorded dispositions before checking the scan policy and refuses a
+  disposed document with `DOCUMENT_CONTENT_DISPOSED`. Tests:
+  `test_create_rejects_a_legacy_reference_that_does_not_resolve`,
+  `test_create_accepts_a_legacy_reference_that_resolves_in_scope`,
+  `test_update_cannot_retarget_the_content_reference`,
+  `test_legacy_reference_is_never_served_after_a_disposition`. Non-`local:v1`
+  placeholders remain inert because the legacy branch never serves them.
 
 ### SEC-013 — Reconciliation treats document-record-only references as orphans (Medium)
 
@@ -567,7 +581,7 @@ Threats and primary controls:
   `document_backup_consistency.py`, `staging_smoke.py` and `p6_*` calculators
   outside `p6_formula_engine.py` received little or no review and must be
   treated as unassessed rather than clean.
-- **Open Medium/Low findings.** SEC-010, SEC-012 and SEC-017 remain open;
+- **Open Medium/Low findings.** SEC-010 and SEC-017 remain open;
   SEC-007, SEC-008, SEC-009, SEC-011, SEC-014, SEC-016, SEC-018, SEC-019,
   SEC-020, SEC-021, SEC-022, SEC-023, SEC-024 and SEC-025 are fixed with
   negative tests. Open findings are recorded here rather than
