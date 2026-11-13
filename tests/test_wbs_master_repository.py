@@ -378,3 +378,170 @@ def test_existing_database_gains_status_columns_with_planned_defaults():
     loaded = repo.get(scope(), "W-OLD")
     assert loaded.status.value == "planned"
     assert loaded.percent_complete_technique.value == "activities"
+
+
+def _copy_fixture() -> tuple[SQLiteWBSMasterRepository, WBSMaster]:
+    from construction_pm.wbs_master_repository import (
+        PercentCompleteTechnique,
+        WBSMilestone,
+        WBSStatus,
+    )
+
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(root())
+    repo.save(
+        WBSMaster(
+            scope(),
+            "W-CIVIL",
+            WBSParentKind.WBS,
+            "W-ROOT",
+            "1.1",
+            "Civil",
+            0,
+            status=WBSStatus.ACTIVE,
+            percent_complete_technique=PercentCompleteTechnique.MILESTONES,
+        )
+    )
+    repo.save(child("W-CIVIL-SITE", "W-CIVIL", code="1.1.1", name="Site works", sequence_number=0))
+    repo.save(child("W-PM", "W-ROOT", code="1.2", name="Project management", sequence_number=1))
+    source = repo.replace_milestones(
+        scope(),
+        "W-CIVIL",
+        (
+            WBSMilestone(scope(), "W-CIVIL", "M-1", "Design", 9.0, True, 0),
+            WBSMilestone(scope(), "W-CIVIL", "M-2", "Permits", 3.0, False, 1),
+        ),
+        expected_revision=1,
+    )[0]
+    return repo, source
+
+
+def test_copy_subtree_creates_new_records_and_keeps_the_source_unchanged():
+    repo, source = _copy_fixture()
+
+    copied = repo.copy_subtree(
+        scope(),
+        "W-CIVIL",
+        target_parent_wbs_id="W-PM",
+        root_code="1.2.1",
+        expected_revision=source.record_revision,
+    )
+
+    assert len(copied) == 2
+    copy_root, copy_child = copied
+    assert copy_root.wbs_id.startswith("WBS-COPY-")
+    assert copy_root.parent_kind is WBSParentKind.WBS
+    assert copy_root.parent_wbs_id == "W-PM"
+    assert copy_root.code == "1.2.1"
+    assert copy_root.name == "Civil"
+    assert copy_root.record_revision == 1
+    assert copy_root.status.value == "active"
+    assert copy_root.percent_complete_technique.value == "milestones"
+    assert copy_child.parent_wbs_id == copy_root.wbs_id
+    assert copy_child.code == "1.1.1"
+    assert copy_child.name == "Site works"
+
+    original = repo.get(scope(), "W-CIVIL")
+    assert original is not None
+    assert original.record_revision == source.record_revision
+    # The source subtree and its original child are still in place; the copy
+    # added two further records beneath the target.
+    assert len(repo.list(scope())) == 6
+    assert repo.get(scope(), "W-CIVIL-SITE") is not None
+
+
+def test_copy_subtree_copies_weighted_milestones():
+    from construction_pm.wbs_master_repository import weighted_percent_complete
+
+    repo, source = _copy_fixture()
+    copied = repo.copy_subtree(
+        scope(),
+        "W-CIVIL",
+        target_parent_wbs_id="W-PM",
+        root_code="1.2.1",
+        expected_revision=source.record_revision,
+    )
+
+    milestones = repo.list_milestones(scope(), copied[0].wbs_id)
+    assert [item.milestone_id for item in milestones] == ["M-1", "M-2"]
+    assert [item.record_revision for item in milestones] == [1, 1]
+    assert weighted_percent_complete(milestones) == 75.0
+
+
+def test_copy_subtree_rejects_a_stale_source_revision():
+    repo, source = _copy_fixture()
+
+    with pytest.raises(WBSPersistenceError, match="REVISION_CONFLICT"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="W-PM",
+            root_code="1.2.1",
+            expected_revision=source.record_revision - 1,
+        )
+    assert len(repo.list(scope())) == 4
+
+
+def test_copy_subtree_rejects_a_sibling_code_collision_without_writing():
+    repo, source = _copy_fixture()
+    repo.save(child("W-PM-EXISTING", "W-PM", code="1.2.1", name="Existing", sequence_number=0))
+
+    with pytest.raises(WBSPersistenceError, match="WBS_SIBLING_CODE_CONFLICT"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="W-PM",
+            root_code="1.2.1",
+            expected_revision=source.record_revision,
+        )
+    assert not any(node.wbs_id.startswith("WBS-COPY-") for node in repo.list(scope()))
+
+
+def test_copy_subtree_rejects_an_unknown_target():
+    repo, source = _copy_fixture()
+
+    with pytest.raises(WBSPersistenceError, match="WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="W-MISSING",
+            root_code="1.2.1",
+            expected_revision=source.record_revision,
+        )
+    with pytest.raises(WBSPersistenceError, match="WBS_NOT_FOUND"):
+        repo.copy_subtree(
+            scope(),
+            "W-MISSING",
+            target_parent_wbs_id="W-PM",
+            root_code="1.2.1",
+            expected_revision=1,
+        )
+
+
+def test_copy_subtree_validates_its_arguments():
+    repo, source = _copy_fixture()
+
+    with pytest.raises(WBSPersistenceError, match="INVALID_WBS_PARENT"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="",
+            root_code="1.2.1",
+            expected_revision=source.record_revision,
+        )
+    with pytest.raises(WBSPersistenceError, match="INVALID_WBS_CODE"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="W-PM",
+            root_code="   ",
+            expected_revision=source.record_revision,
+        )
+    with pytest.raises(WBSPersistenceError, match="EXPECTED_REVISION_REQUIRED"):
+        repo.copy_subtree(
+            scope(),
+            "W-CIVIL",
+            target_parent_wbs_id="W-PM",
+            root_code="1.2.1",
+            expected_revision=0,
+        )

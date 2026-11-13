@@ -566,3 +566,141 @@ def test_wbs_milestone_write_requires_project_write_permission(tmp_path):
     assert denied["code"] == "AUTHORIZATION_PERMISSION_DENIED"
     connection.close()
     admin_connection.close()
+
+
+def _seed_wbs_copy_hierarchy(app, base: str) -> None:
+    for payload in (
+        {
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+        {
+            "wbs_id": "W-CIVIL",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-ROOT",
+            "code": "1.1",
+            "name": "Civil",
+            "sequence_number": 0,
+        },
+        {
+            "wbs_id": "W-CIVIL-SITE",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-CIVIL",
+            "code": "1.1.1",
+            "name": "Site works",
+            "sequence_number": 0,
+        },
+        {
+            "wbs_id": "W-PM",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-ROOT",
+            "code": "1.2",
+            "name": "Project management",
+            "sequence_number": 1,
+        },
+    ):
+        status, _ = _request(app, "POST", base, {"contract_version": P6_WBS_MASTER_API_VERSION, **payload})
+        assert status == "201 Created"
+
+
+def test_wbs_copy_route_creates_a_new_subtree_and_preserves_the_source():
+    app, _repository, connection = _app()
+    base = "/api/projects/p1/p6/wbs"
+    _seed_wbs_copy_hierarchy(app, base)
+    status, _ = _request(app, "PATCH", base + "/W-CIVIL", {
+        "expected_revision": 1,
+        "percent_complete_technique": "milestones",
+    })
+    assert status == "200 OK"
+    status, _ = _request(app, "PUT", base + "/W-CIVIL/milestones", {
+        "expected_revision": 2,
+        "milestones": [
+            {"milestone_id": "M-1", "name": "Design", "weight": 9, "completed": True},
+            {"milestone_id": "M-2", "name": "Permits", "weight": 3, "completed": False},
+        ],
+    })
+    assert status == "200 OK"
+
+    status, copied = _request(app, "POST", base + "/W-CIVIL/copy", {
+        "contract_version": P6_WBS_MASTER_API_VERSION,
+        "expected_revision": 3,
+        "target_parent_wbs_id": "W-PM",
+        "code": "1.2.1",
+    })
+    assert status == "201 Created"
+    assert copied["kind"] == "p6_wbs_copy"
+    assert copied["source_wbs_id"] == "W-CIVIL"
+    assert copied["target_parent_wbs_id"] == "W-PM"
+    assert copied["root_wbs_id"].startswith("WBS-COPY-")
+    assert [node["wbs"]["code"] for node in copied["wbs_nodes"]] == ["1.2.1", "1.1.1"]
+    copy_root = copied["wbs_nodes"][0]["wbs"]
+    assert copy_root["parent_wbs_id"] == "W-PM"
+    assert copy_root["record_revision"] == 1
+    assert copy_root["percent_complete"] == 75.0
+    assert [item["milestone_id"] for item in copied["wbs_nodes"][0]["milestones"]] == ["M-1", "M-2"]
+
+    status, listed = _request(app, "GET", base)
+    assert status == "200 OK"
+    assert len(listed["wbs_nodes"]) == 6
+    source = next(node for node in listed["wbs_nodes"] if node["wbs"]["wbs_id"] == "W-CIVIL")
+    assert source["wbs"]["record_revision"] == 3
+
+    status, stale = _request(app, "POST", base + "/W-CIVIL/copy", {
+        "expected_revision": 1,
+        "target_parent_wbs_id": "W-PM",
+        "code": "1.2.3",
+    })
+    assert status == "409 Conflict"
+    assert stale["code"] == "REVISION_CONFLICT"
+
+    status, conflict = _request(app, "POST", base + "/W-CIVIL/copy", {
+        "expected_revision": 3,
+        "target_parent_wbs_id": "W-PM",
+        "code": "1.2.1",
+    })
+    assert status == "400 Bad Request"
+    assert conflict["code"] == "WBS_SIBLING_CODE_CONFLICT"
+
+    status, missing = _request(app, "POST", base + "/W-MISSING/copy", {
+        "expected_revision": 1,
+        "target_parent_wbs_id": "W-PM",
+        "code": "1.2.4",
+    })
+    assert status == "404 Not Found"
+    status, missing_target = _request(app, "POST", base + "/W-CIVIL/copy", {
+        "expected_revision": 3,
+        "target_parent_wbs_id": "W-NOWHERE",
+        "code": "1.2.4",
+    })
+    assert status == "400 Bad Request"
+    assert missing_target["code"] == "WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"
+    connection.close()
+
+
+def test_wbs_copy_route_requires_project_write_permission(tmp_path):
+    db_path = str(tmp_path / "cubi-wbs-copy-permission.sqlite")
+    app, _repository, connection = _app(role="viewer", db_path=db_path)
+    base = "/api/projects/p1/p6/wbs"
+    admin, _admin_repository, admin_connection = _app(role="project_admin", db_path=db_path)
+    _seed_wbs_copy_hierarchy(admin, base)
+
+    status, listed = _request(app, "GET", base)
+    assert status == "200 OK"
+    source = next(node for node in listed["wbs_nodes"] if node["wbs"]["wbs_id"] == "W-CIVIL")
+
+    status, denied = _request(app, "POST", base + "/W-CIVIL/copy", {
+        "expected_revision": source["wbs"]["record_revision"],
+        "target_parent_wbs_id": "W-PM",
+        "code": "1.2.1",
+    })
+    assert status == "403 Forbidden"
+    assert denied["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+
+    status, after = _request(app, "GET", base)
+    assert len(after["wbs_nodes"]) == 4
+    connection.close()
+    admin_connection.close()

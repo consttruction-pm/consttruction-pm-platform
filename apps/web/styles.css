@@ -1128,6 +1128,23 @@ th {
   font-size: 11px;
 }
 
+.cp-wbs-clipboard,
+.cp-wbs-clipboard-error {
+  align-self: center;
+  font-size: 11px;
+}
+
+.cp-wbs-clipboard {
+  color: #4b5563;
+}
+
+.cp-wbs-clipboard-error,
+.cp-wbs-delete-guidance {
+  margin: 6px 0;
+  color: #8a1c1c;
+  font-size: 11px;
+}
+
 
 .cp-navigation-surface {
   margin: 0 0 12px;

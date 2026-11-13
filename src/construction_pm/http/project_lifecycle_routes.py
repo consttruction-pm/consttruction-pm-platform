@@ -2116,6 +2116,27 @@ class ProjectLifecycleHttpRoutes:
                                 ),
                             )
                         return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
+                    if method == "POST" and len(parts) == 2 and parts[0] and parts[1] == "copy":
+                        target_parent_wbs_id = payload.get("target_parent_wbs_id")
+                        if not isinstance(target_parent_wbs_id, str) or not target_parent_wbs_id.strip():
+                            raise ValueError("INVALID_WBS_PARENT")
+                        root_code = payload.get("code")
+                        if not isinstance(root_code, str) or not root_code.strip():
+                            raise ValueError("INVALID_WBS_CODE")
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            201,
+                            self._p6_wbs_master_api.copy(
+                                scope,
+                                parts[0],
+                                target_parent_wbs_id=target_parent_wbs_id,
+                                root_code=root_code,
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_wbs_master_api.get(scope, parts[0], auth_context=auth)
                         if result is None:
