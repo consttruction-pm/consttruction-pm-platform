@@ -160,7 +160,25 @@ const documentForRoute = (route) => join(output, route === "/" ? "index.html" : 
 
 // Language-aware sitemap: every URL declares both language alternates.
 const sitemapUrls = [];
+const localizedAboutRoutes = {
+  en: "/about/", fa: "/fa/about/", de: "/de/about/", "zh-Hans": "/zh-Hans/about/",
+  ar: "/ar/about/", fr: "/fr/about/", ja: "/ja/about/", ko: "/ko/about/",
+};
 for (const { en, fa } of languageRoutes) {
+  if (en === "/about/") {
+    for (const [locale, route] of Object.entries(localizedAboutRoutes)) {
+      sitemapUrls.push(
+        "  <url>",
+        "    <loc>" + baseUrl + route + "</loc>",
+        ...Object.entries(localizedAboutRoutes).map(([alternateLocale, alternateRoute]) =>
+          '    <xhtml:link rel="alternate" hreflang="' + alternateLocale + '" href="' + baseUrl + alternateRoute + '"/>'
+        ),
+        '    <xhtml:link rel="alternate" hreflang="x-default" href="' + baseUrl + localizedAboutRoutes.en + '"/>',
+        "  </url>",
+      );
+    }
+    continue;
+  }
   sitemapUrls.push(
     "  <url>",
     "    <loc>" + baseUrl + en + "</loc>",
@@ -188,6 +206,7 @@ for (const file of [
   "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.bundle.js", "dist/web/src/pro-checkout.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html", "about/index.html",
   "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html", "fa/about/index.html",
+  "de/about/index.html", "zh-Hans/about/index.html", "ar/about/index.html", "fr/about/index.html", "ja/about/index.html", "ko/about/index.html",
   "pricing/index.html", "fa/pricing/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
@@ -204,6 +223,12 @@ const expectedTitles = new Map([
   ["fa/resources/index.html", "منابع کوبی | معرفی محصول و راهنما"],
   ["fa/contact/index.html", "تماس با کوبی | دسترسی به حساب و اطلاعات محصول"],
   ["fa/about/index.html", "درباره کوبی | بنیان‌گذاران و تیم توسعه"],
+  ["de/about/index.html", "Über CUBI | Gründer und Entwicklungsteam"],
+  ["zh-Hans/about/index.html", "关于 CUBI | 创始人与开发团队"],
+  ["ar/about/index.html", "عن CUBI | المؤسسون وفريق التطوير"],
+  ["fr/about/index.html", "À propos de CUBI | Fondateurs et équipe de développement"],
+  ["ja/about/index.html", "CUBIについて | 創設者と開発チーム"],
+  ["ko/about/index.html", "CUBI 소개 | 창립자 및 개발팀"],
   ["pricing/index.html", "CUBI Pro Monthly | Pricing and Checkout"],
   ["fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت"],
 ]);
@@ -223,6 +248,20 @@ for (const [path, title] of expectedTitles) {
   assert(html.includes("<title>" + title + "</title>"), path + " title mismatch");
   assert(html.includes('<link rel="canonical" href="' + baseUrl + route + '/">'), path + " canonical mismatch");
   assert(html.includes('property="og:url" content="' + baseUrl + route + '/">'), path + " social URL mismatch");
+}
+for (const [locale, route] of Object.entries(localizedAboutRoutes)) {
+  const html = readFileSync(documentForRoute(route), "utf8");
+  const expectedDirection = locale === "fa" || locale === "ar" ? "rtl" : "ltr";
+  assert(html.includes('<html lang="' + locale + '" dir="' + expectedDirection + '">'), route + " language/direction mismatch");
+  for (const [alternateLocale, alternateRoute] of Object.entries(localizedAboutRoutes)) {
+    assert(html.includes('hreflang="' + alternateLocale + '" href="' + baseUrl + alternateRoute + '"'), route + " missing alternate " + alternateLocale);
+  }
+  assert(html.includes('hreflang="x-default" href="' + baseUrl + localizedAboutRoutes.en + '"'), route + " missing x-default alternate");
+  assert(html.includes("global-assistant-launcher.bundle.js"), route + " must mount the shared assistant");
+  const hasApprovedProfiles = locale === "fa"
+    ? html.includes("جلال فروغی فرد") && html.includes("جواد فروغی فرد")
+    : html.includes("Jalal Foroughi Fard") && html.includes("Javad Foroughi Fard");
+  assert(hasApprovedProfiles, route + " must retain approved team profiles");
 }
 for (const { en, fa } of languageRoutes) {
   const enDocument = readFileSync(documentForRoute(en), "utf8");

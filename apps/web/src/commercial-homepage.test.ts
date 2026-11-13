@@ -114,7 +114,7 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /"resources\/#documentation"/);
   // Pricing links are locale-rooted for every shipped locale, not hard-coded to Persian only.
   assert.match(landing, /const publicLocaleRootHref = locale === "fa"/);
-  assert.ok(landing.includes('publicPageHref("about")'));
+  assert.ok(landing.includes("aboutPageHref"));
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -264,7 +264,53 @@ test("About Us is a first-class bilingual public route with approved founder fac
   for (const name of ["جلال فروغی فرد", "جواد فروغی فرد", "محمد فروغی فرد", "سام فروغی فرد"]) {
     assert.ok(persian.includes(name), "Missing approved Persian founder profile: " + name);
   }
-  assert.ok(landing.includes('publicPageHref("about")'));
+  assert.ok(landing.includes('aboutPageHref'));
   assert.ok(english.includes('href="../about/" aria-current="page">About Us'));
   assert.ok(persian.includes('href="../about/" aria-current="page">درباره ما'));
+});
+
+
+test("homepage About navigation follows the selected supported language without opening an incomplete locale route tree", () => {
+  assert.match(landing, /const aboutLocale = locale === "zh-Hant" \? "zh-Hans" : locale/);
+  assert.match(landing, /\["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"\]\.includes\(aboutLocale\)/);
+  assert.match(landing, /const aboutPageHref = \[/);
+  assert.equal((landing.match(/href="\$\{aboutPageHref\}"/g) ?? []).length, 2);
+  assert.match(landing, /publicRootHref\}about\//);
+});
+
+test("homepage security section discloses verified hosting controls and all six approved capability areas", () => {
+  for (const marker of [
+    'id="security"',
+    'aria-labelledby="cubi-security-title"',
+    'title: "Secure SSL Connection"',
+    'title: "Cloud Firewall Protection"',
+    'title: "DDoS Protection"',
+    'title: "Automatic Cloud Backup"',
+    'title: "Infrastructure Monitoring"',
+    'title: "Data Recovery"',
+    'status: "ACTIVE — HOST MANAGED"',
+    'status: "NOT VERIFIED"',
+    "no managed PostgreSQL instance",
+    "IP-based access restrictions are not configured",
+    "free web-service filesystems are ephemeral",
+    "successful restore drill",
+    "getLandingSecurityCopyForLocale",
+  ]) assert.ok(landing.includes(marker), "Missing security disclosure requirement: " + marker);
+  assert.match(landing, /cubi-security-disclosure/);
+  assert.match(landing, /securitySectionCopy\[normalizedLocale\] \?\? \{/);
+  assert.match(styles, /\.cubi-security-disclosure/);
+  assert.match(styles, /\.cubi-security-status/);
+});
+
+
+test("homepage footer links to the public Security and Reliability section", () => {
+  assert.match(landing, /href="#security"/);
+  assert.match(landing, /Security & Reliability/);
+});
+
+test("security and reliability content is localized in all eight approved product languages", () => {
+  for (const locale of ["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"]) {
+    assert.ok(landing.includes(`  ${locale}: {`), "Missing security copy for " + locale);
+  }
+  assert.match(landing, /normalizedLocale === "zh-Hant" \? "zh-Hans" : normalizedLocale/);
 });

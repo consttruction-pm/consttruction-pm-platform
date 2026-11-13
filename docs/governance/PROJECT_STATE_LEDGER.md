@@ -452,3 +452,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests:** deterministic correlation and event fields for both runners, plus the schedule counter assertion.
 - **Verification:** full SQLite suite → **3984 passed, 168 skipped**; live PostgreSQL → **4178 passed, 20 skipped**; all 7 PR checks succeeded and the merged `main` ConstructionPM CI, PostgreSQL Sync State Integration and Client Typecheck runs for `a7a6114` completed **success**.
 - **Not claimed:** no distributed tracing exporter; correlation is propagated in-process and through the HTTP `X-Request-ID` only.
+
+## Public website pages checkpoint — 2026-11-13
+
+- **About Us:** the consolidated implementation adds localized About routes for English, Persian, German, Simplified Chinese, Arabic, French, Japanese and Korean. Homepage About navigation follows the selected locale for those eight routes; zh-Hant maps to Simplified Chinese and Russian falls back to English. Founder/team content is limited to previously approved facts. Code checkpoint before this ledger update: a48387215a0b3bcc4d71088cf2c387a69bd55e13.
+- **Security & Reliability:** the homepage includes all six approved capability areas with explicit active/provider-provided/partial/not-verified statuses. The connected Render workspace has two Free web services in Frankfurt and no Render Postgres instance. Render-managed TLS and platform DDoS protection are documented. Both services currently allow 0.0.0.0/0 at the IP allowlist layer; separate firewall rules, CUBI backups, independent monitoring, external database/backup providers and tested recovery remain unverified.
+- **Payments and pricing:** unchanged by the owner's explicit hold. No checkout, payment provider, subscription, price or payment configuration was modified.
+- **Release status:** implementation is on branch assistant/public-about-security-final-2026-11-13. Exact-head CI, production-shaped artifact validation and browser acceptance must pass before merge or deployment. No production deployment is claimed.

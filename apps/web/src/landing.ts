@@ -474,6 +474,131 @@ export function getLandingCopyForLocale(requestedLocale: string): LandingCopy & 
   return getLandingCopy(requestedLocale);
 }
 
+export type LandingSecurityCard = { icon: string; title: string; body: string; status: string };
+export type LandingSecurityCopy = { eyebrow: string; title: string; intro: string; cards: LandingSecurityCard[]; disclosure: string };
+
+const securitySectionCopy: Record<string, LandingSecurityCopy> = {
+  en: {
+    eyebrow: "SECURITY & RELIABILITY",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "Manage your projects in a secure and always-accessible environment. With cloud infrastructure, security capabilities, and backup services, CUBI helps you manage your project information and records with greater confidence.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "ACTIVE — HOST MANAGED", body: "Encrypted connection between your browser and CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "NOT VERIFIED", body: "No IP-based access restrictions are configured for the two connected web services. A separate application firewall rule set has not been verified; CUBI authentication remains a separate layer." },
+      { icon: "◈", title: "DDoS Protection", status: "PROVIDER-PROVIDED", body: "Protection against attacks that disrupt service availability, provided by the hosting platform." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "NOT CONFIGURED / NOT VERIFIED", body: "Automatic backups reduce the risk of losing project information. No CUBI backup configuration has yet been verified; free web-service filesystems are ephemeral." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "PARTIAL", body: "Monitoring of infrastructure health and performance. Hosting logs and service events are available; independent alert coverage is not verified." },
+      { icon: "↻", title: "Data Recovery", status: "NOT VERIFIED", body: "Recovery of information from available backup copies. No tested backup source or successful restore drill has been established." }
+    ],
+    disclosure: "CUBI lets you focus on project management while cloud infrastructure supports the protection of your information. Hosting audit: the connected workspace currently has two Free web services in Frankfurt and no managed PostgreSQL instance. IP-based access restrictions are not configured at the hosting layer. External databases or backup providers, if any, have not been verified. Free web services can spin down and their local filesystem is not persistent. Statuses will change only after configuration and evidence checks."
+  },
+  fa: {
+    eyebrow: "امنیت و پایداری",
+    title: "Your Projects. Securely Connected. Reliably Protected.",
+    intro: "مدیریت پروژه‌های خود را به محیطی امن و همیشه در دسترس بسپارید.\nCUBI با بهره‌گیری از زیرساخت ابری، امکانات امنیتی و خدمات پشتیبان‌گیری، به شما کمک می‌کند اطلاعات و سوابق پروژه‌های خود را با اطمینان بیشتری مدیریت کنید.",
+    cards: [
+      { icon: "🔒", title: "Secure SSL Connection", status: "فعال — مدیریت‌شده توسط میزبان", body: "ارتباط امن و رمزنگاری‌شده با CUBI." },
+      { icon: "🛡", title: "Cloud Firewall Protection", status: "تأیید نشده", body: "در دو سرویس وب متصل، محدودیت دسترسی مبتنی بر IP پیکربندی نشده است. پیکربندی جداگانه فایروال برنامه تأیید نشده و احراز هویت کوبی لایه‌ای مستقل است." },
+      { icon: "◈", title: "DDoS Protection", status: "ارائه‌شده توسط میزبان", body: "محافظت در برابر حملات مختل‌کننده سرویس؛ این قابلیت توسط زیرساخت میزبان ارائه می‌شود." },
+      { icon: "☁", title: "Automatic Cloud Backup", status: "پیکربندی یا تأیید نشده", body: "پشتیبان‌گیری خودکار برای کاهش خطر از دست رفتن اطلاعات. پیکربندی پشتیبان‌گیری کوبی هنوز تأیید نشده و فایل‌سیستم سرویس وب رایگان ماندگار نیست." },
+      { icon: "⌁", title: "Infrastructure Monitoring", status: "محدود / جزئی", body: "پایش سلامت و عملکرد زیرساخت. لاگ‌ها و رخدادهای سرویس در داشبورد میزبان در دسترس‌اند؛ پوشش هشداردهی مستقل تأیید نشده است." },
+      { icon: "↻", title: "Data Recovery", status: "تأیید نشده", body: "امکان بازیابی اطلاعات از نسخه‌های پشتیبان. منبع پشتیبان آزمایش‌شده و آزمون موفق بازیابی هنوز ثبت نشده است." }
+    ],
+    disclosure: "کوبی؛ تمرکز شما بر مدیریت پروژه، حفاظت از اطلاعات بر عهده زیرساخت ابری. نتیجه بررسی میزبانی: در فضای کاری متصل، دو سرویس وب رایگان در فرانکفورت و هیچ نمونه PostgreSQL مدیریت‌شده مشاهده نشد. در لایه میزبانی، محدودیت دسترسی مبتنی بر IP پیکربندی نشده است. دیتابیس یا ارائه‌دهنده پشتیبان خارجی احتمالی هنوز بررسی نشده است. سرویس‌های وب رایگان ممکن است متوقف شوند و فایل‌سیستم محلی آن‌ها ماندگار نیست. وضعیت‌ها فقط پس از پیکربندی و بررسی شواهد به‌روزرسانی می‌شوند."
+  }
+
+  de: {
+    eyebrow: "SICHERHEIT & ZUVERLÄSSIGKEIT",
+    title: "Ihre Projekte. Sicher verbunden. Zuverlässig geschützt.",
+    intro: "Verwalten Sie Ihre Projekte in einer sicheren Umgebung. CUBI unterstützt Sie mit Cloud-Infrastruktur und Sicherheitsfunktionen; der tatsächliche Status jeder Schutzmaßnahme wird transparent ausgewiesen.",
+    cards: [
+      { icon: "🔒", title: "Sichere SSL-Verbindung", status: "AKTIV — HOSTVERWALTET", body: "Verschlüsselte Verbindung zwischen Ihrem Browser und CUBI über verwaltete TLS-Zertifikate und HTTPS-Weiterleitung." },
+      { icon: "🛡", title: "Cloud-Firewall-Schutz", status: "NICHT BESTÄTIGT", body: "Für beide verbundenen Webdienste ist keine IP-basierte Zugriffsbeschränkung konfiguriert. Eine separate Anwendungsfirewall wurde nicht bestätigt; die CUBI-Authentifizierung ist eine eigene Sicherheitsebene." },
+      { icon: "◈", title: "DDoS-Schutz", status: "DURCH HOSTER", body: "Der aktuelle Hosting-Anbieter dokumentiert automatischen DDoS-Schutz für gehostete Anwendungen, einschließlich kostenloser Dienste." },
+      { icon: "☁", title: "Automatische Cloud-Sicherung", status: "NICHT EINGERICHTET / NICHT BESTÄTIGT", body: "Eine verwaltete PostgreSQL-Datenbank oder geprüfte Anwendungssicherung wurde im verbundenen Workspace nicht gefunden. Das Dateisystem kostenloser Webdienste ist flüchtig." },
+      { icon: "⌁", title: "Infrastrukturüberwachung", status: "TEILWEISE", body: "Hosting-Protokolle und Ereignisse sind verfügbar. Unabhängige Verfügbarkeitsüberwachung und vollständige Alarmierung sind nicht bestätigt." },
+      { icon: "↻", title: "Datenwiederherstellung", status: "NICHT BESTÄTIGT", body: "Eine getestete Sicherungsquelle und ein erfolgreicher Wiederherstellungstest liegen nicht vor." }
+    ],
+    disclosure: "Hosting-Prüfung: Der verbundene Workspace enthält zwei kostenlose Webdienste in Frankfurt und keine verwaltete PostgreSQL-Instanz. IP-basierte Zugriffsbeschränkungen sind auf Hosting-Ebene nicht konfiguriert. Externe Datenbanken und Sicherungsanbieter wurden nicht geprüft. Kostenlose Webdienste können inaktiv werden; ihr lokales Dateisystem ist nicht dauerhaft."
+  },
+  "zh-Hans": {
+    eyebrow: "安全与可靠性",
+    title: "您的项目，安全连接，可靠保护。",
+    intro: "在安全的环境中管理项目。CUBI 提供云基础设施与安全能力，并透明展示每项保护措施当前是否已配置和验证。",
+    cards: [
+      { icon: "🔒", title: "安全 SSL 连接", status: "已启用 — 托管平台管理", body: "通过托管 TLS 证书和 HTTPS 重定向，在浏览器与 CUBI 之间建立加密连接。" },
+      { icon: "🛡", title: "云防火墙保护", status: "尚未验证", body: "两个已连接的 Web 服务均未配置基于 IP 的访问限制。尚未确认独立的应用防火墙；CUBI 身份验证是单独的安全层。" },
+      { icon: "◈", title: "DDoS 防护", status: "由托管平台提供", body: "当前托管服务商说明，其平台托管的应用（包括免费服务）会自动获得 DDoS 防护。" },
+      { icon: "☁", title: "自动云备份", status: "未配置或未验证", body: "连接的工作区中未发现托管 PostgreSQL 数据库或经过验证的应用备份配置。免费 Web 服务的文件系统不是持久存储。" },
+      { icon: "⌁", title: "基础设施监控", status: "部分可用", body: "可以查看托管日志和服务事件；独立运行时间监控及完整告警覆盖尚未验证。" },
+      { icon: "↻", title: "数据恢复", status: "尚未验证", body: "尚未建立经过测试的备份来源，也没有成功的恢复演练。" }
+    ],
+    disclosure: "托管审查：连接的工作区在法兰克福有两个免费 Web 服务，没有托管 PostgreSQL 实例。托管层未配置基于 IP 的访问限制。外部数据库和备份服务尚未验证。免费 Web 服务可能休眠，其本地文件系统不具备持久性。"
+  },
+  ar: {
+    eyebrow: "الأمان والموثوقية",
+    title: "مشاريعك متصلة بأمان ومحميّة بموثوقية.",
+    intro: "أدر مشاريعك ضمن بيئة آمنة. تعرض CUBI بوضوح حالة إعداد كل وسيلة حماية والتحقق منها في بيئة الاستضافة الحالية.",
+    cards: [
+      { icon: "🔒", title: "اتصال SSL آمن", status: "نشط — يديره مزود الاستضافة", body: "اتصال مشفّر بين المتصفح وCUBI باستخدام شهادات TLS مُدارة وإعادة توجيه HTTP إلى HTTPS." },
+      { icon: "🛡", title: "حماية جدار الحماية السحابي", status: "غير مؤكد", body: "لا توجد قيود وصول معتمدة على عنوان IP للخدمتين المتصلتين. لم يتم التحقق من جدار حماية مستقل للتطبيق؛ ويظل تسجيل الدخول في CUBI طبقة منفصلة." },
+      { icon: "◈", title: "الحماية من DDoS", status: "يوفرها مزود الاستضافة", body: "يوثق مزود الاستضافة الحالي حماية تلقائية من DDoS للتطبيقات المستضافة، بما فيها الخدمات المجانية." },
+      { icon: "☁", title: "النسخ الاحتياطي السحابي التلقائي", status: "غير مُعد أو غير مؤكد", body: "لم يتم العثور على قاعدة PostgreSQL مُدارة أو إعداد نسخ احتياطي موثق للتطبيق. نظام ملفات خدمة الويب المجانية مؤقت." },
+      { icon: "⌁", title: "مراقبة البنية التحتية", status: "جزئي", body: "تتوفر سجلات الاستضافة وأحداث الخدمة؛ ولم يتم التحقق من مراقبة مستقلة للتوافر أو تغطية التنبيهات." },
+      { icon: "↻", title: "استعادة البيانات", status: "غير مؤكد", body: "لم يتم إثبات مصدر نسخ احتياطي مختبر أو اختبار استعادة ناجح." }
+    ],
+    disclosure: "مراجعة الاستضافة: تحتوي مساحة العمل المتصلة على خدمتي ويب مجانيتين في فرانكفورت ولا تحتوي على قاعدة PostgreSQL مُدارة. لا توجد قيود وصول قائمة على IP في طبقة الاستضافة. لم يتم التحقق من قواعد البيانات أو مزودي النسخ الاحتياطي الخارجيين. قد تتوقف الخدمات المجانية مؤقتاً ونظام ملفاتها المحلي غير دائم."
+  },
+  fr: {
+    eyebrow: "SÉCURITÉ ET FIABILITÉ",
+    title: "Vos projets. Connectés en sécurité. Protégés en toute transparence.",
+    intro: "Gérez vos projets dans un environnement sécurisé. CUBI indique clairement quelles protections sont actives, partiellement disponibles ou encore à configurer.",
+    cards: [
+      { icon: "🔒", title: "Connexion SSL sécurisée", status: "ACTIVE — GÉRÉE PAR L’HÉBERGEUR", body: "Connexion chiffrée entre votre navigateur et CUBI grâce aux certificats TLS gérés et à la redirection HTTPS." },
+      { icon: "🛡", title: "Protection par pare-feu cloud", status: "NON VÉRIFIÉE", body: "Aucune restriction d’accès par IP n’est configurée sur les deux services Web connectés. Un pare-feu applicatif distinct n’a pas été vérifié ; l’authentification CUBI reste une couche séparée." },
+      { icon: "◈", title: "Protection DDoS", status: "FOURNIE PAR L’HÉBERGEUR", body: "L’hébergeur actuel documente une protection DDoS automatique pour les applications hébergées, y compris les services gratuits." },
+      { icon: "☁", title: "Sauvegarde cloud automatique", status: "NON CONFIGURÉE / NON VÉRIFIÉE", body: "Aucune base PostgreSQL gérée ni sauvegarde applicative vérifiée n’a été trouvée dans l’espace connecté. Le système de fichiers des services gratuits est éphémère." },
+      { icon: "⌁", title: "Surveillance de l’infrastructure", status: "PARTIELLE", body: "Les journaux et événements d’hébergement sont disponibles. La surveillance indépendante de disponibilité et la couverture des alertes ne sont pas vérifiées." },
+      { icon: "↻", title: "Récupération des données", status: "NON VÉRIFIÉE", body: "Aucune source de sauvegarde testée ni restauration réussie n’a été établie." }
+    ],
+    disclosure: "Audit d’hébergement : l’espace connecté contient deux services Web gratuits à Francfort et aucune instance PostgreSQL gérée. Aucune restriction d’accès par IP n’est configurée au niveau de l’hébergement. Les bases de données et sauvegardes externes ne sont pas vérifiées. Les services gratuits peuvent s’endormir et leur système de fichiers local n’est pas persistant."
+  },
+  ja: {
+    eyebrow: "セキュリティと信頼性",
+    title: "プロジェクトを安全につなぎ、透明性をもって保護します。",
+    intro: "安全な環境でプロジェクトを管理できます。CUBI は、各保護機能の設定状況と検証状況を明確に示します。",
+    cards: [
+      { icon: "🔒", title: "安全な SSL 接続", status: "有効 — ホスト管理", body: "管理 TLS 証明書と HTTPS リダイレクトにより、ブラウザーと CUBI 間の通信を暗号化します。" },
+      { icon: "🛡", title: "クラウドファイアウォール保護", status: "未確認", body: "接続された 2 つの Web サービスには IP ベースのアクセス制限が設定されていません。独立したアプリケーションファイアウォールは未確認で、CUBI 認証は別の保護層です。" },
+      { icon: "◈", title: "DDoS 保護", status: "ホスト提供", body: "現在のホスティング事業者は、無料サービスを含むホスト済みアプリに自動 DDoS 保護を提供すると説明しています。" },
+      { icon: "☁", title: "自動クラウドバックアップ", status: "未設定／未確認", body: "接続されたワークスペースに管理 PostgreSQL データベースや検証済みバックアップ設定はありません。無料 Web サービスのファイルシステムは一時的です。" },
+      { icon: "⌁", title: "インフラ監視", status: "一部", body: "ホスティングログとサービスイベントは利用できます。独立した稼働監視やアラート範囲は確認されていません。" },
+      { icon: "↻", title: "データ復旧", status: "未確認", body: "テスト済みバックアップ元と復元テストの成功は確認されていません。" }
+    ],
+    disclosure: "ホスティング監査：接続されたワークスペースにはフランクフルトの無料 Web サービスが 2 つあり、管理 PostgreSQL インスタンスはありません。ホスティング層に IP アクセス制限は設定されていません。外部データベースやバックアップは未確認です。無料 Web サービスはスリープする場合があり、ローカルファイルシステムは永続的ではありません。"
+  },
+  ko: {
+    eyebrow: "보안 및 안정성",
+    title: "프로젝트를 안전하게 연결하고 투명하게 보호합니다.",
+    intro: "안전한 환경에서 프로젝트를 관리하세요. CUBI는 각 보호 기능의 실제 구성 및 검증 상태를 명확히 공개합니다.",
+    cards: [
+      { icon: "🔒", title: "보안 SSL 연결", status: "활성 — 호스팅 제공업체 관리", body: "관리형 TLS 인증서와 HTTPS 리디렉션을 통해 브라우저와 CUBI 간 연결을 암호화합니다." },
+      { icon: "🛡", title: "클라우드 방화벽 보호", status: "확인되지 않음", body: "연결된 두 웹 서비스에는 IP 기반 접근 제한이 설정되어 있지 않습니다. 별도의 애플리케이션 방화벽은 확인되지 않았으며 CUBI 인증은 독립적인 보안 계층입니다." },
+      { icon: "◈", title: "DDoS 보호", status: "호스팅 제공업체 제공", body: "현재 호스팅 제공업체는 무료 서비스를 포함한 호스팅 앱에 자동 DDoS 보호를 제공한다고 안내합니다." },
+      { icon: "☁", title: "자동 클라우드 백업", status: "구성 또는 확인되지 않음", body: "연결된 작업 공간에서 관리형 PostgreSQL 데이터베이스나 검증된 앱 백업 구성을 찾지 못했습니다. 무료 웹 서비스의 파일 시스템은 임시 저장소입니다." },
+      { icon: "⌁", title: "인프라 모니터링", status: "부분 제공", body: "호스팅 로그와 서비스 이벤트는 확인할 수 있습니다. 독립 가동 시간 모니터링과 경보 범위는 검증되지 않았습니다." },
+      { icon: "↻", title: "데이터 복구", status: "확인되지 않음", body: "테스트된 백업 원본과 성공적인 복구 훈련이 확인되지 않았습니다." }
+    ],
+    disclosure: "호스팅 점검 결과: 연결된 작업 공간에는 프랑크푸르트의 무료 웹 서비스 2개가 있으며 관리형 PostgreSQL 인스턴스는 없습니다. 호스팅 계층에 IP 접근 제한이 설정되어 있지 않습니다. 외부 데이터베이스와 백업 서비스는 확인되지 않았습니다. 무료 웹 서비스는 유휴 상태에서 중지될 수 있고 로컬 파일 시스템은 영구 저장소가 아닙니다."
+  },
+};
+
+export function getLandingSecurityCopyForLocale(requestedLocale: string): LandingSecurityCopy {
+  const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
+  const resolvedLocale = normalizedLocale === "zh-Hant" ? "zh-Hans" : normalizedLocale;
+  return securitySectionCopy[resolvedLocale] ?? { ...securitySectionCopy.en!, eyebrow: "SECURITY & RELIABILITY" };
+}
+
 function escapeLandingCopy<T>(value: T): T {
   if (typeof value === "string") return escapeHtml(value) as T;
   if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
@@ -489,6 +614,7 @@ function escapeHtml(value: string): string {
 
 function renderLanding(container: HTMLElement): void {
   const t = getLandingCopy(locale);
+  const security = getLandingSecurityCopyForLocale(locale);
   const c = t.chrome;
   setLandingDocumentLocale();
   // Language routes live one level below the site root, so workspace and
@@ -499,12 +625,16 @@ function renderLanding(container: HTMLElement): void {
   const publicLocaleRootHref = locale === "fa" ? resolveLandingLanguageHref("fa", window.location.pathname) : publicRootHref;
   const publicPageHref = (route: string) => `${publicLocaleRootHref}${route}/`;
   const pricingHref = publicPageHref("pricing");
+  const aboutLocale = locale === "zh-Hant" ? "zh-Hans" : locale;
+  const aboutPageHref = ["en", "fa", "de", "zh-Hans", "ar", "fr", "ja", "ko"].includes(aboutLocale)
+    ? `${resolveLandingLanguageHref(aboutLocale, window.location.pathname)}about/`
+    : `${publicRootHref}about/`;
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="${c.brandAria}"><img src="${cubiPlatformLogoUrl()}" width="180" height="60" alt="${c.brandAlt}" /></a>
         <nav class="cubi-exact-nav" aria-label="${c.primaryNavigation}">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${aboutPageHref}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
           <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
@@ -530,6 +660,11 @@ function renderLanding(container: HTMLElement): void {
           <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
           <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon${f.assistantAvatar ? " cubi-feature-icon-assistant" : ""}" aria-hidden="true">${f.assistantAvatar ? `<img src="${cubiAssistantAvatarUrl()}" width="50" height="50" alt="" />` : f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
+        <section class="cubi-exact-features cubi-security-section" id="security" aria-labelledby="cubi-security-title">
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">${security.eyebrow}</p><h2 id="cubi-security-title">${security.title}</h2><p>${security.intro}</p></div>
+          <div class="cubi-exact-feature-grid cubi-security-grid">${security.cards.map((card) => `<article><div class="cubi-feature-icon" aria-hidden="true">${card.icon}</div><h3>${card.title}</h3><p class="cubi-security-status"><strong>${card.status}</strong></p><p>${card.body}</p></article>`).join("")}</div>
+          <p class="cubi-security-disclosure">${security.disclosure}</p>
+        </section>
         <section class="cubi-exact-features cubi-exact-industries" id="industries" aria-labelledby="cubi-industries-title"><div class="cubi-exact-section-head"><p class="cubi-kicker">${t.industriesEyebrow}</p><h2 id="cubi-industries-title">${t.industriesTitle}</h2><p>${t.industriesBody}</p></div></section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
@@ -544,7 +679,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="${cubiPlatformLogoUrl()}" width="160" height="45" alt="${c.brandAlt}" /></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${publicPageHref("about")}">${c.about}</a></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["platform/#project-controls", "platform/#scheduling", "platform/#resources-cost"], ["solutions/#construction-teams", "solutions/#project-leadership", "solutions/#project-delivery"], ["resources/#documentation", "resources/#overview", "contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${publicLocaleRootHref}${targets[columnIndex]?.[linkIndex] ?? ""}">${link}</a>`).join("")}</div>`; }).join("")}<div class="cubi-footer-col"><b>${c.company}</b><a href="${aboutPageHref}">${c.about}</a><a href="#security">${locale === "fa" ? "امنیت و پایداری" : "Security & Reliability"}</a></div>
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. ${c.copyright}</small></div>
       </footer>
       </div>`;
