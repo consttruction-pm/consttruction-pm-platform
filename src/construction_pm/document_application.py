@@ -28,6 +28,8 @@ from .document_persistence import (
 )
 from .document_ocr import DocumentOcrJob, DocumentOcrRepository
 from .document_retention import DocumentContentDisposed, DocumentRetentionStore
+from .observability import OperationalMetrics
+from .production_readiness import StructuredEventLogger
 from .document_scan import (
     DocumentScanError,
     DocumentScanRejected,
@@ -84,6 +86,37 @@ class DocumentApplicationService:
     require_scanned_content: bool = False
     ocr_store: DocumentOcrRepository | None = None
     disposition_repository: DocumentRetentionStore | None = None
+    metrics: OperationalMetrics | None = None
+    logger: StructuredEventLogger | None = None
+
+    def _record_upload(self, upload: DocumentContentUpload) -> DocumentContentUpload:
+        version = upload.content
+        replay = "true" if upload.idempotent_replay else "false"
+        if self.metrics is not None:
+            try:
+                self.metrics.increment(
+                    "document_uploads_total",
+                    labels={
+                        "content_type": version.content_type,
+                        "scan_status": version.scan_status,
+                        "replay": replay,
+                    },
+                )
+            except ValueError:
+                pass
+        if self.logger is not None:
+            self.logger.emit(
+                "document.content.uploaded",
+                fields={
+                    "document_id": version.document_id,
+                    "version": version.version,
+                    "content_type": version.content_type,
+                    "byte_size": version.byte_size,
+                    "scan_status": version.scan_status,
+                    "replay": replay,
+                },
+            )
+        return upload
 
     def create(
         self,
@@ -260,10 +293,12 @@ class DocumentApplicationService:
                 or replay.byte_size != blob.byte_size
             ):
                 raise DocumentIdempotencyReuse("DOCUMENT_CONTENT_IDEMPOTENCY_KEY_REUSE")
-            return DocumentContentUpload(
-                content=replay,
-                storage_ref=replay.storage_ref,
-                idempotent_replay=True,
+            return self._record_upload(
+                DocumentContentUpload(
+                    content=replay,
+                    storage_ref=replay.storage_ref,
+                    idempotent_replay=True,
+                )
             )
 
         verdict = self._scan_payload(data, blob.content_type)
@@ -289,10 +324,12 @@ class DocumentApplicationService:
                     or existing.byte_size != blob.byte_size
                 ):
                     raise DocumentIdempotencyReuse("DOCUMENT_CONTENT_IDEMPOTENCY_KEY_REUSE")
-                return DocumentContentUpload(
-                    content=existing,
-                    storage_ref=existing.storage_ref,
-                    idempotent_replay=True,
+                return self._record_upload(
+                    DocumentContentUpload(
+                        content=existing,
+                        storage_ref=existing.storage_ref,
+                        idempotent_replay=True,
+                    )
                 )
             versions = self.content_repository.list(tenant_id, project_id, document_id)
             updated = self.store.update(
@@ -345,7 +382,9 @@ class DocumentApplicationService:
                         next_attempt_at=occurred_at,
                     )
                 )
-            return DocumentContentUpload(content=version, storage_ref=storage_ref)
+            return self._record_upload(
+                DocumentContentUpload(content=version, storage_ref=storage_ref)
+            )
 
     def download_content(
         self,

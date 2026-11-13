@@ -358,3 +358,42 @@ def test_leveling_enabled_snapshot_without_immutable_leveling_input_returns_stru
     assert payload_out["error"]["retryable"] is False
     assert "data" not in payload_out
     conn.close()
+
+
+def test_production_composition_exposes_operational_health_endpoints() -> None:
+    conn = sqlite3.connect(":memory:")
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=SQLiteScheduleInputSnapshotRepository(conn),
+        calendar_registry_factory=lambda: CalendarResolverRegistry(),
+        calculation_context_repository=SQLiteCalculationContextRepository(conn),
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        environment={},
+        operational_endpoints=True,
+    )
+
+    def request(path: str):
+        captured: dict[str, object] = {}
+
+        def start_response(status: str, headers: list[tuple[str, str]]) -> None:
+            captured["status"] = status
+            captured["headers"] = dict(headers)
+
+        body = b"".join(
+            app({"REQUEST_METHOD": "GET", "PATH_INFO": path}, start_response)
+        )
+        return captured, body
+
+    captured, body = request("/api/health/live")
+    assert captured["status"] == "200 OK"
+    assert json.loads(body)["status"] == "alive"
+    assert "X-Request-ID" in captured["headers"]
+
+    captured, body = request("/api/health/ready")
+    assert captured["status"] == "200 OK"
+    payload = json.loads(body)
+    assert payload["status"] in {"ready", "degraded"}
+    assert any(component["name"] == "configuration" for component in payload["components"])
+    conn.close()

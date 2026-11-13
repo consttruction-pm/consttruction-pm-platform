@@ -1,0 +1,64 @@
+# Generic container manifest template — replace every REPLACE_* value.
+# Agent 3 did not apply this manifest to any cluster or cloud account.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: REPLACE_DEPLOYMENT_NAME
+  namespace: REPLACE_NAMESPACE
+spec:
+  replicas: REPLACE_REPLICAS
+  selector:
+    matchLabels:
+      app: REPLACE_APP_LABEL
+  template:
+    metadata:
+      labels:
+        app: REPLACE_APP_LABEL
+    spec:
+      containers:
+        - name: REPLACE_APP_LABEL
+          image: REPLACE_IMAGE_DIGEST
+          ports:
+            - name: http
+              containerPort: REPLACE_CONTAINER_PORT
+          envFrom:
+            - configMapRef:
+                name: REPLACE_CONFIG_MAP
+            - secretRef:
+                name: REPLACE_SECRET_NAME
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: REPLACE_CPU_REQUEST
+              memory: REPLACE_MEMORY_REQUEST
+            limits:
+              cpu: REPLACE_CPU_LIMIT
+              memory: REPLACE_MEMORY_LIMIT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: REPLACE_SERVICE_NAME
+  namespace: REPLACE_NAMESPACE
+spec:
+  selector:
+    app: REPLACE_APP_LABEL
+  ports:
+    - name: http
+      port: REPLACE_SERVICE_PORT
+      targetPort: http
