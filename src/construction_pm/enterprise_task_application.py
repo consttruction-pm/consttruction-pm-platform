@@ -21,6 +21,10 @@ from .enterprise_task_repository import (
 )
 
 
+_ENTERPRISE_READ_ROLES = frozenset({"enterprise_viewer", "enterprise_user", "enterprise_admin"})
+_ENTERPRISE_WRITE_ROLES = frozenset({"enterprise_user", "enterprise_admin"})
+
+
 class EnterpriseTaskAuthorizationError(PermissionError):
     """The authenticated actor is outside the task's authorized scope."""
 
@@ -77,7 +81,7 @@ class EnterpriseTaskApplicationService:
         *,
         idempotency_key: str,
     ) -> StoredEnterpriseTask:
-        session = self._session(session_id)
+        session = self._session(session_id, write=True)
         if not isinstance(payload, Mapping):
             raise EnterpriseTaskError("ENTERPRISE_TASK_REQUEST_INVALID")
         allowed = {"contract_version", "title", "description", "priority", "project_id", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "tenant_id", "created_by_user_id"}
@@ -130,7 +134,7 @@ class EnterpriseTaskApplicationService:
         task_id: str,
         payload: Mapping[str, object],
     ) -> StoredEnterpriseTask:
-        session = self._session(session_id)
+        session = self._session(session_id, write=True)
         if not isinstance(payload, Mapping):
             raise EnterpriseTaskError("ENTERPRISE_TASK_REQUEST_INVALID")
         allowed = {"contract_version", "expected_revision", "title", "description", "priority", "status", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "task_id", "tenant_id", "created_by_user_id", "created_at", "project_id"}
@@ -192,10 +196,19 @@ class EnterpriseTaskApplicationService:
             occurred_at=now,
         )
 
-    def _session(self, session_id: str):
+    def _session(self, session_id: str, *, write: bool = False):
         if not isinstance(session_id, str) or not session_id:
             raise EnterpriseTaskAuthorizationError("SESSION_REQUIRED")
-        return self._lifecycle.get_session(session_id, now=self._now())
+        session = self._lifecycle.get_session(session_id, now=self._now())
+        roles = getattr(session, "roles", frozenset())
+        if not isinstance(roles, (set, frozenset, tuple, list)):
+            raise EnterpriseTaskAuthorizationError("ENTERPRISE_ACCESS_DENIED")
+        role_set = frozenset(role for role in roles if isinstance(role, str))
+        if not role_set.intersection(_ENTERPRISE_READ_ROLES):
+            raise EnterpriseTaskAuthorizationError("ENTERPRISE_ACCESS_DENIED")
+        if write and not role_set.intersection(_ENTERPRISE_WRITE_ROLES):
+            raise EnterpriseTaskAuthorizationError("ENTERPRISE_WRITE_DENIED")
+        return session
 
     def _authorize_project(self, session_id: str, tenant_id: str, project_id: str, permission: Permission) -> None:
         try:
