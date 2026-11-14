@@ -4203,3 +4203,40 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   V26 fixture comparison is `BLOCKED_EXTERNAL`; open-ended criticality is a
   core option rather than a separate control, and leveling interactions remain
   SCH-005.
+
+### SCH-004 Schedule Check and diagnostics — 2026-11-14 (`8948bff4`)
+
+- Negative-float diagnostics existed in the core and were exposed by the
+  authoritative query, but there was no rule catalogue, no counts and no UI.
+  Open ends, constraints and negative lags were implicit in the source input.
+- **Stored contract.** New `scheduling/schedule_checks.py` evaluates exactly
+  six rules (`NEGATIVE_FLOAT`, `OPEN_START`, `OPEN_FINISH`,
+  `ACTIVITY_CONSTRAINT`, `MANDATORY_CONSTRAINT`, `NEGATIVE_LAG`) with fixed
+  severities from the authoritative source plus the date/time result. WBS
+  Summary and Level of Effort are excluded from open ends, mandatory
+  constraints are split from non-mandatory ones, and findings sort
+  deterministically. `build_schedule_check_payload` emits
+  `p6-schedule-check.v1` (`kind: schedule_check`) with scope, snapshot
+  identity, total/severity counts, a rules array including zero-count rules
+  and ordered findings. The date and time FACT/EXPLANATION responses include
+  the block; FILTER is unchanged.
+- **Acceptance.** The Schedule window run-results panel parses and renders the
+  block, one row per rule including zero counts, the findings and a focus
+  button that selects and scrolls the matching activity grid row. With the
+  `A140` constraint present, `A140` appears as `ACTIVITY_CONSTRAINT`; after
+  deleting it and rerunning, the six rules are `NEGATIVE_FLOAT 0 /
+  OPEN_START 1 / OPEN_FINISH 2 / ACTIVITY_CONSTRAINT 0 /
+  MANDATORY_CONSTRAINT 0 / NEGATIVE_LAG 0`, total `3`, open start `A100`,
+  open finish `A210`, and the `A100` focus button selects that row. 101/101
+  checks at `8948bff4`, 55 screenshots, zero exceptions/API 5xx. Evidence:
+  `docs/workspace/evidence/sch-004-schedule-check-2026-11-14/`.
+- **Tests at the same code.** New `tests/scheduling/test_schedule_checks.py`
+  (6), extended `tests/test_authoritative_schedule_query.py`, and 3 new
+  `apps/web/src/schedule-cycle.test.ts` cases; Python `4329 passed,
+  204 skipped`, Web `1165 + 15`, `tsc` and esbuild clean.
+- **Remaining gaps.** The catalogue is bounded to the six conditions the core
+  can evaluate; the external V26 rule-catalogue comparison is
+  `BLOCKED_EXTERNAL` (no licensed V26 schedule export or rule fixture). The
+  check renders inside the Schedule window rather than a separate docked
+  window, and negative float stays a WARNING while genuine infeasibility still
+  raises `ScheduleInfeasibilityError`.
