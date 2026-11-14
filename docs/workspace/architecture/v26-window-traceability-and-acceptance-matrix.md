@@ -344,6 +344,15 @@ the 20 required browser tests are in
 `docs/qa/V26_DUAL_RAIL_TOOLBAR_MATRIX_2026-11-14.md`. Unit tests 1117 `tsx` + 14
 `node --test`, `tsc --noEmit` and the esbuild bundle pass at the same code.
 
+The pre-existing preview journey was realigned at `82d1cc1d`: it now asserts
+the single rail-owned `action.assistant` entry against `#cp-ai-assistant-chat`,
+reads navigation from `[data-nav-flyout]`, measures the right-rail button inside
+its own scroll container, and keeps the failed-bootstrap page free of a
+duplicate floating assistant. `npm run test:e2e:preview` passes locally with 97
+recorded checks and 51 screenshots, and every PR #1923 check is green on
+`82d1cc1d`. That commit changes tests and docs only; the toolbar implementation
+code remains `7aa9a2d4`.
+
 The "floating" state is a persisted horizontal dock above the workspace, not a
 free-position palette with saved coordinates; icon style is family-level;
 browser coverage is English and Persian; preferences are browser-local. These

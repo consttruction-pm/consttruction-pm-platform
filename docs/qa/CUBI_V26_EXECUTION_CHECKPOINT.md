@@ -3579,3 +3579,14 @@ Code `d9452209`; unit tests 999 `tsx` + 14 `node --test`, `tsc --noEmit` and
   browser-local per user/project. Enterprise, administrator, publish, report
   and other unavailable commands remain visibly disabled. P4 custom formula
   lifecycle stays BLOCKED_EXTERNAL.
+- **CI alignment, 2026-11-14 (`82d1cc1d`).** The pre-existing
+  `apps/web/e2e/preview-e2e.mjs` journey still assumed the public floating
+  assistant and the old inline navigation. It now asserts the single
+  rail-owned `action.assistant` entry against `#cp-ai-assistant-chat` and
+  drives the `[data-nav-flyout]` menu, including scoping the right-rail button
+  inside its own scroll container and keeping the failed-bootstrap page free of
+  a duplicate assistant. The full suite passes locally (97 recorded checks, 51
+  screenshots), and all PR #1923 checks — including `web`, PostgreSQL, Python
+  3.11/3.12/3.13 and all client typechecks — pass on `82d1cc1d`
+  (`feat/vercel-preview-fixtures`). The toolbar implementation code remains
+  `7aa9a2d4`; this commit changes tests and docs only.
