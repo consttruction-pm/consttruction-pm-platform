@@ -485,6 +485,8 @@ New child matrix: [Data Dictionary, Extended Schema & API Field Surface](EPPM_V2
 
 New child matrix: [Import/Export XER/XML/XLSX Field Mapping](EPPM_V26_IMPORT_EXPORT_XER_XML_XLSX_FIELD_MAPPING_MATRIX.md) — 61 rows comparing shared V26 field maps and explicit Pro-only/EPPM-only XER structures, XLSX field names, import-option/security differences, secure codes, risks, location scope and role-rate handling.
 
+New child matrix: [Document Repository & Review Lifecycle](EPPM_V26_DOCUMENT_REPOSITORY_REVIEW_LIFECYCLE_MATRIX.md) — 49 rows comparing base document records, optional EPPM Content Repository, check-in/out, versions/history, security policies, review types/states, Professional public/private file references, EPPM-connected Professional limitations and Web Services fields.
+
 Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
 
 ## H. CUBI project boundary
