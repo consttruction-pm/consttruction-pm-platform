@@ -4111,6 +4111,34 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   `docs/workspace/architecture/p6-resource-curve-shift-contract-request.md`.
 - `RES-004` availability/overallocation is now `WIRED_READ` through the
   Resources window Usage tab (stored assignment periods + each assignment's
-  stored Units/Time against the service-resolved Max Units per period start).
-  Overtime, a timescale/bucket editor, a usage profile chart, actual/remaining/
-  forecast spread types and a leveling run/apply remain open.
+  stored Units/Time against the service-resolved Max Units per period start),
+  with a Day/Week/Month stored usage profile chart that never spreads amounts.
+  Overtime, a stored bucket-width/spread editor, actual/remaining/forecast
+  spread profiles and a leveling run/apply remain open.
+
+### SCH-001 typed schedule options and Data Date — 2026-11-14 (`41d4f267`)
+
+- The Schedule window settings form is generated from the frozen
+  `ScheduleOptions` model: mode, stored project calendar, calendar system, Data
+  Date/project start and finish, leveling priority and one typed control per
+  option (boolean, enum, number, date, JSON). Saves go through the
+  revision-guarded `p6-project-schedule-settings-api.v1` contract with the
+  checkout lease and `PROJECT_SCHEDULE` permission; stale revisions,
+  unknown fields and invalid/typed Jalali dates fail closed.
+- The snapshot composer re-reads the stored settings and hashes
+  `schedule_options` into the published snapshot, so the calculation is bound
+  to the exact saved options.
+- **Acceptance.** The full-stack browser suite (`apps/web/e2e/preview-e2e.mjs`)
+  adds `typed schedule options persist and bind to the next snapshot hash`:
+  it saves `maximum_multiple_float_paths=3`, `min_float_to_preserve=2` and
+  `data_date=2026-09-28` from the real form, reads the exact values and advanced
+  revision back, republishes and asserts a different snapshot hash, then
+  restores the defaults. 98/98 checks at `41d4f267`, zero exceptions/API 5xx.
+  Evidence: `docs/workspace/evidence/sch-001-schedule-options-2026-11-14/`.
+- **Tests at the same code.** Web `1151 + 14`, Python `4290 passed,
+  194 skipped`; server tests already cover stale revision, permissions,
+  checkout lease, numeric/date validation and Data Date CPM semantics.
+- **Remaining gaps.** Multi-project/external and leveling options persist and
+  enter the snapshot hash but their calculation behavior needs capabilities
+  that do not exist yet (SCH-005 leveling run, multi-project float). The
+  settings surface is a Schedule window panel, not the V26 modal dialog.
