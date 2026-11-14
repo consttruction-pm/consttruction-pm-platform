@@ -171,6 +171,7 @@ from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
 from ..p6_activity_progress_api import P6ActivityProgressAPI
 from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
+from ..project_checkout import ProjectCheckoutConflict
 from ..wbs_master_repository import (
     PercentCompleteTechnique,
     WBSMaster,
@@ -1484,6 +1485,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ProjectCheckoutConflict as exc:
+                    return self._error(
+                        409, exc.code, "error.project.checkout_conflict"
+                    )
                 except ValueError:
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/obs-nodes" in path and self._p6_obs_node_api is not None:
@@ -2131,6 +2136,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ProjectCheckoutConflict as exc:
+                    return self._error(
+                        409, exc.code, "error.project.checkout_conflict"
+                    )
                 except (ValueError, ArithmeticError) as exc:
                     return self._error(
                         400,
@@ -2351,6 +2360,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ProjectCheckoutConflict as exc:
+                    return self._error(
+                        409, exc.code, "error.project.checkout_conflict"
+                    )
                 except ValueError as exc:
                     return self._error(
                         400,
@@ -2434,6 +2447,10 @@ class ProjectLifecycleHttpRoutes:
                     if method == "DELETE" and str(exc) == "REVISION_CONFLICT":
                         return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+                except ProjectCheckoutConflict as exc:
+                    return self._error(
+                        409, exc.code, "error.project.checkout_conflict"
+                    )
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
             if self._tracking_read_api is not None:

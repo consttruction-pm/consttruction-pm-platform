@@ -11,6 +11,10 @@ from .application.authorization import (
 )
 from .backend_p0.models import BackendScope
 from .p6_cost_account_repository import P6CostAccount, P6CostAccountApplicationService
+from .project_checkout import (
+    ProjectCheckoutLease,
+    require_project_write_ownership,
+)
 
 P6_COST_ACCOUNT_API_VERSION = "p6-cost-account-api.v1"
 
@@ -55,6 +59,7 @@ class P6CostAccountAPI:
 
     service: P6CostAccountApplicationService
     authorization_policy: AuthorizationPolicy
+    checkout_lease: ProjectCheckoutLease | None = None
 
     def create(
         self,
@@ -64,6 +69,7 @@ class P6CostAccountAPI:
     ) -> dict[str, Any]:
         _require_scope(account.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_write_ownership(self.checkout_lease, account.scope, auth_context)
         return _dto(self.service.save(account))
 
     def get(

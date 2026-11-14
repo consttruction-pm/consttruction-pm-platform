@@ -1612,12 +1612,15 @@ def open_preview_runtime(
         rules_version=PREVIEW_RULES_VERSION,
         engine_version=PREVIEW_ENGINE_VERSION,
     )
+    # One authoritative reader for every project-scoped write boundary: the
+    # preview store row that holds the exclusive checkout lease.
+    checkout_lease = _PreviewCheckoutLease(store)
     snapshot_api = P6ScheduleSnapshotPublicationAPI(
         publisher,
         policy,
         repositories.settings,
         repositories.calendars,
-        checkout_lease=_PreviewCheckoutLease(store),
+        checkout_lease=checkout_lease,
     )
     baseline_api = P6BaselineAPI(
         P6BaselineApplicationService(
@@ -1724,9 +1727,14 @@ def open_preview_runtime(
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
-        activity_api = P6ActivityMasterAPI(repositories.activities, policy)
+        activity_api = P6ActivityMasterAPI(
+            repositories.activities, policy, checkout_lease=checkout_lease
+        )
         relationship_api = P6RelationshipAPI(
-            repositories.relationships, policy, repositories.activities,
+            repositories.relationships,
+            policy,
+            repositories.activities,
+            checkout_lease=checkout_lease,
         )
         activity_tool = build_activity_create_tool(
             activity_api=activity_api,
@@ -1818,8 +1826,12 @@ def open_preview_runtime(
             repositories.risks,
             policy,
             wbs_repository=repositories.wbs,
-            activity_api=P6ActivityMasterAPI(repositories.activities, policy),
-            wbs_api=P6WBSMasterAPI(repositories.wbs, policy),
+            activity_api=P6ActivityMasterAPI(
+                repositories.activities, policy, checkout_lease=checkout_lease
+            ),
+            wbs_api=P6WBSMasterAPI(
+                repositories.wbs, policy, checkout_lease=checkout_lease
+            ),
             assignment_service=repositories.resource_assignment_service,
             expense_service=repositories.expense_service,
             transaction_manager=repositories.transaction_manager,
@@ -1849,10 +1861,17 @@ def open_preview_runtime(
         or str(database.parent / "knowledge.sqlite3")
     )
     knowledge_plan_port = MasterDataPlanPort(
-        wbs_api=P6WBSMasterAPI(repositories.wbs, policy),
-        activity_api=P6ActivityMasterAPI(repositories.activities, policy),
+        wbs_api=P6WBSMasterAPI(
+            repositories.wbs, policy, checkout_lease=checkout_lease
+        ),
+        activity_api=P6ActivityMasterAPI(
+            repositories.activities, policy, checkout_lease=checkout_lease
+        ),
         relationship_api=P6RelationshipAPI(
-            repositories.relationships, policy, repositories.activities
+            repositories.relationships,
+            policy,
+            repositories.activities,
+            checkout_lease=checkout_lease,
         ),
         settings_port=RealScheduleSettingsWriter(
             publication_api=snapshot_api,
@@ -1876,6 +1895,7 @@ def open_preview_runtime(
         tracking_resource_repository=repositories.resources,
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
+        checkout_lease=checkout_lease,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
         p6_field_registry_api=P6FieldRegistryAPI(
@@ -1950,7 +1970,9 @@ def open_preview_runtime(
             repositories.calendars,
         ),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
-        p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
+        p6_cost_account_api=P6CostAccountAPI(
+            repositories.cost_account_service, policy, checkout_lease=checkout_lease
+        ),
         p6_obs_node_api=P6OBSNodeAPI(repositories.obs_node_service, policy),
         p6_financial_period_api=P6FinancialPeriodAPI(
             repositories.financial_period_service, policy

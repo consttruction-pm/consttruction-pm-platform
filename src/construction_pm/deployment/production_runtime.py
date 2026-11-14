@@ -31,6 +31,7 @@ from ..application.authorization import (
 )
 from ..application.project_lifecycle import ProjectLifecycleService
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
+from ..backend_p0.models import BackendScope
 from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
 from ..http.production_composition import build_project_lifecycle_wsgi_app
@@ -159,6 +160,30 @@ class RequestConnection:
         return getattr(connection, name)
 
 
+class PostgresProjectCheckoutLease:
+    """Read the exclusive project checkout holder on the request transaction.
+
+    The same pooled connection serves the write that follows, so the ownership
+    check and the mutation it guards see one consistent database state.
+    """
+
+    def __init__(self, connection: RequestConnection) -> None:
+        self._connection = connection
+
+    def checked_out_by(self, scope: BackendScope) -> str | None:
+        row = self._connection.execute(
+            "SELECT checkout_state, checked_out_by FROM project_lifecycle_projects "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (scope.tenant_id, scope.project_id),
+        ).fetchone()
+        if row is None:
+            return None
+        state, holder = row[0], row[1]
+        if str(state) != "checked_out" or not holder:
+            return None
+        return str(holder)
+
+
 class PostgresConnectionPool:
     """Small, bounded pool. Vercel reuses a warm instance across requests."""
 
@@ -275,6 +300,7 @@ class ProductionRuntime:
                 obs_nodes=obs_node_repository,
             )
         )
+        checkout_lease = PostgresProjectCheckoutLease(connection)
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
@@ -313,6 +339,7 @@ class ProductionRuntime:
             activity_master_repository=activity_repository,
             wbs_master_repository=wbs_repository,
             relationship_master_repository=relationship_repository,
+            checkout_lease=checkout_lease,
             workspace_read_v2_service=workspace_read_service,
             p6_field_registry_api=P6FieldRegistryAPI(
                 field_service=field_service,
@@ -324,6 +351,7 @@ class ProductionRuntime:
                     cost_account_repository, transaction_manager
                 ),
                 policy,
+                checkout_lease=checkout_lease,
             ),
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),

@@ -6,6 +6,10 @@ from typing import Any
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .activity_master_repository import ActivityMasterRepository
 from .backend_p0.models import BackendScope
+from .project_checkout import (
+    ProjectCheckoutLease,
+    require_project_write_ownership,
+)
 from .relationship_master_repository import (
     RelationshipMaster,
     RelationshipMasterRepository,
@@ -56,16 +60,23 @@ class P6RelationshipAPI:
     repository: RelationshipMasterRepository
     authorization_policy: AuthorizationPolicy
     activity_repository: ActivityMasterRepository | None = None
+    checkout_lease: ProjectCheckoutLease | None = None
 
     def create(self, relationship: RelationshipMaster, *, auth_context: AuthorizationContext, expected_revision: int | None = None) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_write_ownership(
+            self.checkout_lease, relationship.scope, auth_context
+        )
         self._validate_network(relationship, previous_id=None)
         return _dto(self.repository.save(relationship, expected_revision=expected_revision))
 
     def update(self, relationship: RelationshipMaster, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_write_ownership(
+            self.checkout_lease, relationship.scope, auth_context
+        )
         self._validate_network(relationship, previous_id=relationship.relationship_id)
         return _dto(self.repository.save(relationship, expected_revision=expected_revision))
 
@@ -115,6 +126,7 @@ class P6RelationshipAPI:
     def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_write_ownership(self.checkout_lease, scope, auth_context)
         deleted = self.repository.delete(scope, relationship_id, expected_revision=expected_revision)
         return {
             "contract_version": P6_RELATIONSHIP_API_VERSION,

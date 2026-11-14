@@ -49,6 +49,7 @@ from construction_pm.p6_role_details_api import P6RoleDetailsAPI
 from construction_pm.p6_resource_master_api import P6ResourceAPI
 from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.project_checkout import ProjectCheckoutLease
 from construction_pm.p6_obs_api import P6OBSNodeAPI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
 from construction_pm.p6_issue_api import P6IssueAPI
@@ -118,6 +119,7 @@ def build_project_lifecycle_wsgi_app(
     wbs_master_repository: WBSMasterRepository | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
+    checkout_lease: ProjectCheckoutLease | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     p6_field_registry_api: P6FieldRegistryAPI | None = None,
@@ -279,6 +281,7 @@ def build_project_lifecycle_wsgi_app(
             permission_adapter=ai_action_permission_adapter,
             transaction_manager=ai_action_transaction_manager,
             clock=None if clock is None else clock.now,
+            checkout_lease=checkout_lease,
         )
 
     ai_assistant_orchestrator = None
@@ -293,7 +296,11 @@ def build_project_lifecycle_wsgi_app(
     activity_master_api = (
         None
         if activity_master_repository is None
-        else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
+        else P6ActivityMasterAPI(
+            activity_master_repository,
+            authorization_policy,
+            checkout_lease=checkout_lease,
+        )
     )
     if (
         activity_progress_history_repository is not None
@@ -319,7 +326,11 @@ def build_project_lifecycle_wsgi_app(
     wbs_master_api = (
         None
         if wbs_master_repository is None
-        else P6WBSMasterAPI(wbs_master_repository, authorization_policy)
+        else P6WBSMasterAPI(
+            wbs_master_repository,
+            authorization_policy,
+            checkout_lease=checkout_lease,
+        )
     )
     relationship_api = (
         None
@@ -328,6 +339,7 @@ def build_project_lifecycle_wsgi_app(
             relationship_master_repository,
             authorization_policy,
             activity_master_repository,
+            checkout_lease=checkout_lease,
         )
     )
     if (

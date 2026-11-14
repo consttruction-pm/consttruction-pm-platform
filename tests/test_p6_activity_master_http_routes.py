@@ -140,6 +140,14 @@ class Projects:
         return tuple(getattr(self, "defaults_events", ()))
 
 
+class Lease:
+    def __init__(self, holder: str | None) -> None:
+        self.holder = holder
+
+    def checked_out_by(self, scope):
+        return self.holder
+
+
 class CostAccounts:
     def __init__(self, account_ids=("CA-CIVIL",)):
         self.account_ids = set(account_ids)
@@ -162,6 +170,7 @@ def _app(
     default_duration_type: str = "Fixed Duration & Units",
     default_cost_account_id: str = "",
     cost_accounts: CostAccounts | None = None,
+    checkout_holder: str | None = None,
 ):
     now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
@@ -185,8 +194,12 @@ def _app(
     routes = ProjectLifecycleHttpRoutes(
         lifecycle,
         clock=type("Clock", (), {"now": lambda self: now})(),
-        p6_activity_master_api=P6ActivityMasterAPI(repository, policy),
-        p6_wbs_master_api=P6WBSMasterAPI(wbs_repository, policy),
+        p6_activity_master_api=P6ActivityMasterAPI(
+            repository, policy, checkout_lease=Lease(checkout_holder)
+        ),
+        p6_wbs_master_api=P6WBSMasterAPI(
+            wbs_repository, policy, checkout_lease=Lease(checkout_holder)
+        ),
         p6_cost_account_api=accounts,
     )
     return ProjectLifecycleWsgiApp(routes), repository, connection
@@ -1058,3 +1071,35 @@ def test_activity_cost_account_inherits_the_project_default_and_can_change_per_a
         assert error["code"] == "P6_ACTIVITY_COST_ACCOUNT_NOT_FOUND"
     finally:
         connection.close()
+
+
+def test_checkout_holder_blocks_activity_and_wbs_writes_with_409(tmp_path):
+    db_path = str(tmp_path / "cubi-checkout-http.sqlite")
+    app, _repository, _connection = _app(db_path=db_path, checkout_holder="u-other")
+
+    status, body = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "activity_id": "A-1",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+        },
+    )
+    assert status == "409 Conflict"
+    assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
+
+    status, body = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/wbs",
+        {
+            "wbs_id": "W-1",
+            "parent_kind": "project",
+            "code": "W-1",
+            "name": "Civil",
+        },
+    )
+    assert status == "409 Conflict"
+    assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
