@@ -54,13 +54,27 @@ class PostgresEnterpriseOrganizationAccessRepository:
             ON enterprise_team_memberships (tenant_id, user_id, status, team_id)
             """,
             """
+            CREATE UNIQUE INDEX IF NOT EXISTS enterprise_team_single_active_owner
+            ON enterprise_team_memberships (tenant_id,team_id)
+            WHERE role='owner' AND status='active'
+            """,
+            """
+            ALTER TABLE enterprise_access_audit
+            DROP CONSTRAINT IF EXISTS enterprise_access_audit_action_check
+            """,
+            """
+            ALTER TABLE enterprise_access_audit
+            ADD CONSTRAINT enterprise_access_audit_action_check
+            CHECK (action IN ('team_created','member_added','member_removed','team_owner_transferred'))
+            """,
+            """
             CREATE TABLE IF NOT EXISTS enterprise_access_audit (
                 audit_id TEXT PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
                 team_id TEXT NOT NULL,
                 actor_user_id TEXT NOT NULL,
                 target_user_id TEXT,
-                action TEXT NOT NULL CHECK (action IN ('team_created','member_added','member_removed')),
+                action TEXT NOT NULL CHECK (action IN ('team_created','member_added','member_removed','team_owner_transferred')),
                 before_state JSONB,
                 after_state JSONB NOT NULL,
                 occurred_at TIMESTAMPTZ NOT NULL,
@@ -184,6 +198,60 @@ class PostgresEnterpriseOrganizationAccessRepository:
         self._audit(tenant_id, team_id, actor_id, user_id, "member_removed",
                     self._membership_json(current), self._membership_json(removed), occurred_at)
         return removed
+
+    def transfer_ownership(
+        self, tenant_id: str, team_id: str, current_owner_id: str,
+        new_owner_id: str, *, expected_team_revision: int, occurred_at: datetime,
+    ) -> EnterpriseTeam:
+        team_row = self._connection.execute(
+            "SELECT owner_user_id,revision FROM enterprise_teams "
+            "WHERE tenant_id=%s AND team_id=%s FOR UPDATE",
+            (tenant_id, team_id),
+        ).fetchone()
+        if team_row is None:
+            raise OrganizationAccessError("TEAM_NOT_FOUND")
+        if str(team_row[0]) != current_owner_id:
+            raise OrganizationAccessError("TEAM_OWNER_CHANGED")
+        if int(team_row[1]) != expected_team_revision:
+            raise OrganizationAccessError("TEAM_REVISION_CONFLICT")
+        target_user = self._connection.execute(
+            "SELECT tenant_id,active FROM identity_users WHERE user_id=%s",
+            (new_owner_id,),
+        ).fetchone()
+        if target_user is None or str(target_user[0]) != tenant_id or not bool(target_user[1]):
+            raise OrganizationAccessError("NEW_TEAM_OWNER_ACCOUNT_NOT_FOUND")
+        current_membership = self.get_membership(tenant_id, team_id, current_owner_id)
+        target_membership = self.get_membership(tenant_id, team_id, new_owner_id)
+        if current_membership is None or current_membership.status != "active" or current_membership.role != "owner":
+            raise OrganizationAccessError("CURRENT_TEAM_OWNER_MEMBERSHIP_INVALID")
+        if target_membership is None or target_membership.status != "active":
+            raise OrganizationAccessError("NEW_TEAM_OWNER_MUST_BE_ACTIVE_MEMBER")
+        self._connection.execute(
+            "UPDATE enterprise_team_memberships SET role='admin',revision=revision+1 "
+            "WHERE tenant_id=%s AND team_id=%s AND user_id=%s AND status='active' AND role='owner'",
+            (tenant_id, team_id, current_owner_id),
+        )
+        self._connection.execute(
+            "UPDATE enterprise_team_memberships SET role='owner',revision=revision+1 "
+            "WHERE tenant_id=%s AND team_id=%s AND user_id=%s AND status='active'",
+            (tenant_id, team_id, new_owner_id),
+        )
+        updated = self._connection.execute(
+            "UPDATE enterprise_teams SET owner_user_id=%s,revision=revision+1,updated_at=%s "
+            "WHERE tenant_id=%s AND team_id=%s AND revision=%s "
+            "RETURNING tenant_id,team_id,name,owner_user_id,status,revision,created_at,updated_at",
+            (new_owner_id, occurred_at, tenant_id, team_id, expected_team_revision),
+        ).fetchone()
+        if updated is None:
+            raise OrganizationAccessError("TEAM_REVISION_CONFLICT")
+        result = self._team(updated)
+        self._audit(
+            tenant_id, team_id, current_owner_id, new_owner_id, "team_owner_transferred",
+            {"owner_user_id":current_owner_id,"revision":expected_team_revision},
+            {"owner_user_id":new_owner_id,"previous_owner_role":"admin","revision":result.revision},
+            occurred_at,
+        )
+        return result
 
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]:
         rows = self._connection.execute(
