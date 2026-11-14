@@ -1069,3 +1069,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests at the same code:** repository round trip/independent update/legacy migration; activity HTTP inheritance, explicit override, PATCH persistence and invalid-value rejection; project service/HTTP/PostgreSQL/preview-store persistence and validation; web create-form field. Python 4235 passed / 190 skipped, web 1147 + 14 passed, `tsc` and `npm run build` clean.
 - **Browser evidence:** `docs/workspace/evidence/project-details-v26-2026-11-14/` — `testedCodeSha`/`gitHead` `ae6d2116`, 9/9 scenarios, 12 screenshots, zero exceptions/console errors/API failures. Scenario `02b` saves `Fixed Units/Time`, reads it back from the project API, survives a full reload, prefills the create drawer, creates an activity and reads its stored duration type back.
 - **Remaining:** the default Cost Account, the audited defaults history and the enterprise OBS hierarchy are still open. The checkout lease is not yet consulted by activity, WBS or relationship writes. Cost Account selection needs the real hierarchy before it can be stored.
+
+
+## CUBI Enterprise foundation and Task API — 2026-11-15
+
+- **Current branch:** `feat/cubi-enterprise-task-vertical-v1`, based on current `main`; earlier drafts #1944, #1946 and #1947 were superseded and closed, not merged.
+- **Implemented slice:** versioned task contract/domain; PostgreSQL task repository; composite pagination; tenant-serialized dependency graph locking; append-only audit; authenticated personal/project Task application service and HTTP middleware; production session/CSRF integration; production schema initialization; task API docs; unit/HTTP/live PostgreSQL tests.
+- **Authorization limits:** personal tasks derive tenant/actor from session; project tasks use existing `PROJECT_READ`/`PROJECT_WRITE`. Team assignment and Engineering references remain disabled until their owning authorization foundations exist.
+- **Priority boundary:** Engineering remains primary. No Engineering calculations or shell are changed.
+- **Not yet claimed:** organization/team persistence, Task Center UI, workflow/approval, full PMBOK, production readiness.
