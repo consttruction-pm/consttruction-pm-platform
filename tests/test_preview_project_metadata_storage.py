@@ -187,3 +187,36 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
         assert updated.increment_activity_id is True
     finally:
         connection.close()
+
+
+def test_preview_store_exposes_the_exclusive_checkout_holder():
+    connection = _legacy_connection()
+    try:
+        store = PreviewStore(connection)
+        assert store.checkout_holder("t1", "p1") is None
+        assert store.checkout_holder("other", "p1") is None
+
+        assert store.set_project_checkout(
+            "t1",
+            "p1",
+            "u1",
+            checked_out=True,
+            expected_revision=0,
+            actor_user_id="u1",
+            changed_at=datetime(2026, 11, 14, 12, 0, tzinfo=timezone.utc),
+        )
+        assert store.checkout_holder("t1", "p1") == "u1"
+        assert store.checkout_holder("t1", "missing") is None
+
+        assert store.set_project_checkout(
+            "t1",
+            "p1",
+            "u1",
+            checked_out=False,
+            expected_revision=1,
+            actor_user_id="u1",
+            changed_at=datetime(2026, 11, 14, 12, 5, tzinfo=timezone.utc),
+        )
+        assert store.checkout_holder("t1", "p1") is None
+    finally:
+        connection.close()

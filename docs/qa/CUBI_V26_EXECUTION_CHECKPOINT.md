@@ -3888,14 +3888,34 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   Apply Actuals window or bulk write is offered and the Progress window never
   recalculates dates, remaining work or cost.
 
+### PRJ-002 checkout lease on schedule settings — 2026-11-14 (`91991e71`)
+
+- The canonical `p6-project-schedule-settings-api.v1` write path now consults
+  the exclusive project checkout lease. A user other than the stored holder
+  receives `PROJECT_CHECKED_OUT_BY_OTHER` before calendar validation or
+  persistence, and the route returns `409` with the checkout-conflict message
+  key. The checkout owner and an unleased project behave as before; runtimes
+  that do not provide a lease reader keep the previous behaviour.
+- The preview lease reader reads the same `preview_project` row used by the
+  checkout endpoint, so the two surfaces cannot disagree.
+- The Project Details leveling control now shows the localized checkout
+  conflict and reloads the stored settings instead of a generic error.
+- Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`,
+  scenario `04b`, 9/9 scenarios and 12 screenshots. The owner saves priority
+  44 while checked out; a Planner write for 45 returns `409
+  PROJECT_CHECKED_OUT_BY_OTHER` and leaves priority and record revision
+  untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
+  1147 + 14 passed, typecheck and build clean at the same code.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
   a validated project string pending the Agent 3 OBS contract, not a linked OBS
   element.
-- Canonical schedule-settings writes (including the new leveling priority) do
-  not yet consult the project checkout lease; only lifecycle metadata/status
-  writes are blocked while another user holds it.
+- Canonical schedule-settings writes now reject another user's write while the
+  project is checked out (`409 PROJECT_CHECKED_OUT_BY_OTHER`); metadata and
+  status writes already did. The lease is still not consulted by activity,
+  WBS or relationship writes.
 - The Defaults tab now stores activity type, percent complete type and the
   Activity ID numbering fields. Duration Type, Cost Account and the calendar
   default are still absent (no validated Activity/Cost Account field; the

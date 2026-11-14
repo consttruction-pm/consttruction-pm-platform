@@ -505,6 +505,85 @@ async function main() {
       return { owner: "preview-admin", revision: api.settings_revision };
     });
 
+    await scenario("04b", "canonical schedule-settings writes honour the exclusive checkout lease", async () => {
+      const project = await readProject(page);
+      const checkedOut = await page.evaluate(`fetch("/api/projects/${PROJECT}/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked_out: true, expected_revision: ${project.settings_revision} }),
+      }).then(async (response) => ({ status: response.status, body: await response.json().catch(() => null) }))`, { awaitPromise: true });
+      assert(checkedOut.status === 200, `checkout ${checkedOut.status}`);
+      assert(checkedOut.body?.project?.checkout_state === "checked_out", "checkout did not persist");
+
+      const before = await readSchedule(page);
+      const ownerWrite = await page.evaluate(`(async () => {
+        const settings = ${JSON.stringify(before)};
+        const response = await fetch("/api/projects/${PROJECT}/p6/schedule/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contract_version: "p6-project-schedule-settings-api.v1",
+            expected_record_revision: settings.record_revision,
+            mode: settings.mode,
+            project_calendar_id: settings.project_calendar.calendar_id,
+            project_calendar_version: settings.project_calendar.calendar_version,
+            project_calendar_system: settings.project_calendar.system,
+            project_start: settings.project_start,
+            project_finish: settings.project_finish,
+            schedule_options: settings.schedule_options,
+            project_leveling_priority: 44,
+          }),
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`, { awaitPromise: true });
+      assert(ownerWrite.status === 200, `owner schedule write ${ownerWrite.status}`);
+      const ownerRead = await readSchedule(page);
+      assert(ownerRead.project_leveling_priority === 44, `owner priority ${ownerRead.project_leveling_priority}`);
+
+      await loginAs(page, "Planner");
+      const blocked = await page.evaluate(`(async () => {
+        const settings = ${JSON.stringify(ownerRead)};
+        const response = await fetch("/api/projects/${PROJECT}/p6/schedule/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contract_version: "p6-project-schedule-settings-api.v1",
+            expected_record_revision: settings.record_revision,
+            mode: settings.mode,
+            project_calendar_id: settings.project_calendar.calendar_id,
+            project_calendar_version: settings.project_calendar.calendar_version,
+            project_calendar_system: settings.project_calendar.system,
+            project_start: settings.project_start,
+            project_finish: settings.project_finish,
+            schedule_options: settings.schedule_options,
+            project_leveling_priority: 45,
+          }),
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`, { awaitPromise: true });
+      assert(blocked.status === 409, `blocked schedule write ${blocked.status}`);
+      assert(blocked.body?.code === "PROJECT_CHECKED_OUT_BY_OTHER", `blocked code ${JSON.stringify(blocked.body)}`);
+      const afterBlocked = await readSchedule(page);
+      assert(afterBlocked.project_leveling_priority === 44, `blocked write changed priority to ${afterBlocked.project_leveling_priority}`);
+      assert(afterBlocked.record_revision === ownerRead.record_revision, "blocked write advanced the settings revision");
+
+      await loginAs(page, "Project administrator");
+      const latest = await readProject(page);
+      const checkedIn = await page.evaluate(`fetch("/api/projects/${PROJECT}/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked_out: false, expected_revision: ${latest.settings_revision} }),
+      }).then(async (response) => ({ status: response.status, body: await response.json().catch(() => null) }))`, { awaitPromise: true });
+      assert(checkedIn.status === 200, `check-in ${checkedIn.status}`);
+      assert(checkedIn.body?.project?.checkout_state === "checked_in", "check-in did not persist");
+      knownSchedule = await readSchedule(page);
+      await openProjectSettings(page);
+      await waitLevelingLoaded(page);
+      await reveal(page, "[data-project-leveling-priority]");
+      await capture(page, "04b-schedule-settings-checkout-lease");
+      return { priority: knownSchedule.project_leveling_priority, blockedStatus: blocked.status, blockedCode: blocked.body.code };
+    });
+
     await scenario("05", "a stale Project Details save is rejected and reloads the latest values", async () => {
       const current = await readProject(page);
       const bumped = await directPatch(page, { website_url: "https://example.com/direct-write" });
@@ -608,7 +687,7 @@ async function main() {
       assert(state.direction === "rtl", `panel direction ${state.direction}`);
       assert(state.obs === "Dana Whitfield", `fa OBS ${state.obs}`);
       assert(state.website === "https://example.com/direct-write", `fa website ${state.website}`);
-      assert(state.leveling === "42", `fa leveling ${state.leveling}`);
+      assert(state.leveling === "44", `fa leveling ${state.leveling}`);
       assert(state.defaultsLabel === "پیش‌فرض‌ها", `fa defaults label ${state.defaultsLabel}`);
       assert(state.defaultActivityType === "Level of Effort", `fa default activity type ${state.defaultActivityType}`);
       assert(state.defaultsVisible, "defaults section is not visible in the Persian layout");

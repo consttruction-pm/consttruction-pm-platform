@@ -3,7 +3,7 @@ from __future__ import annotations
 """Authenticated API boundary for publishing authoritative schedule snapshots."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from .application.authorization import (
     AuthorizationContext,
@@ -39,6 +39,12 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
         raise AuthorizationError("CROSS_SCOPE_ACCESS")
 
 
+class ProjectCheckoutLease(Protocol):
+    """Read the exclusive checkout holder for one project scope, if any."""
+
+    def checked_out_by(self, scope: BackendScope) -> str | None: ...
+
+
 @dataclass(frozen=True)
 class P6ScheduleSnapshotPublicationAPI:
     """Requires scheduling permission and publishes only from fresh persisted reads."""
@@ -47,6 +53,7 @@ class P6ScheduleSnapshotPublicationAPI:
     authorization_policy: AuthorizationPolicy
     project_schedule_settings_repository: ProjectScheduleSettingsRepository
     calendar_repository: CalendarMasterRepository
+    checkout_lease: ProjectCheckoutLease | None = None
 
     def _require_schedule_permission(
         self,
@@ -94,6 +101,12 @@ class P6ScheduleSnapshotPublicationAPI:
         self._require_schedule_permission(scope, auth_context)
         if settings.scope != scope:
             raise ProjectScheduleSettingsPersistenceError("SETTINGS_SCOPE_MISMATCH")
+        if self.checkout_lease is not None:
+            holder = self.checkout_lease.checked_out_by(scope)
+            if holder is not None and holder != auth_context.user_id:
+                raise ProjectScheduleSettingsPersistenceError(
+                    "PROJECT_CHECKED_OUT_BY_OTHER"
+                )
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
             raise ProjectScheduleSettingsPersistenceError("INVALID_EXPECTED_REVISION")
         try:

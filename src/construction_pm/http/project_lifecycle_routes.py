@@ -1647,6 +1647,8 @@ class ProjectLifecycleHttpRoutes:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.revision.conflict")
+                    if code == "PROJECT_CHECKED_OUT_BY_OTHER":
+                        return self._error(409, code, "error.project.checkout_conflict")
                     return self._error(400, code, "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
