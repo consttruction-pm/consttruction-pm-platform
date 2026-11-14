@@ -121,17 +121,17 @@ Each proposal requires a short feasibility record covering: user/business value,
 - Broad third-party integrations are not an active priority. Keep contracts extensible, but do not let connector expansion consume current Enterprise capacity.
 - The existing task-domain foundation remains a technical foundation only; it does not override the EPPM-first functional roadmap.
 
-### Unified CUBI visual identity and complete environment shells
+### Initial product design and future visual convergence
 
-Create and govern one CUBI Product Design System before expanding Enterprise screens.
+A coherent CUBI experience is a long-term design objective, **not a mandatory shared-design implementation constraint at this stage**.
 
-- One coherent CUBI brand and design language across Engineering and Enterprise.
-- Purpose-specific but consistent environment shells; shared design tokens, typography, spacing, iconography, control behavior, navigation grammar and accessibility.
-- A centrally governed semantic color system; no arbitrary per-module palettes and no direct copying of Oracle, Microsoft, Autodesk or other vendor visual themes.
-- Consistent buttons, menus, tabs, forms, tables, filters, dialogs, charts, notifications, status indicators and interaction states.
-- Full RTL/Persian and LTR support, responsive layouts, keyboard navigation and accessible contrast.
-- Distinct environment context may use restrained semantic accents, not a different product identity.
-- Preserve the existing Engineering shell and visual workspace. No Engineering visual refactor or shared CSS migration is authorized by this document. Any adoption that could affect Engineering requires a separately scoped, reviewed and approved change.
-- Enterprise must use the CUBI design system from its first real shell, avoiding temporary inconsistent module styling.
+- Allow the initial CUBI Enterprise design to emerge from its actual user roles, EPPM-first workflows, information density and product requirements.
+- Do not require Enterprise to adopt shared Engineering tokens, components, shell patterns, colors or navigation before its initial design is evaluated.
+- Preserve the existing Engineering shell. No visual refactor, shared CSS migration or component replacement in Engineering is authorized by this plan.
+- Keep the CUBI design-system document as an exploratory design brief and candidate set of principles—not a binding implementation specification or release gate.
+- After initial representative screens and user journeys exist in the relevant environments, evaluate which visual and interaction patterns genuinely benefit from convergence.
+- Any proposed shared tokens, components or shell conventions must be tested for usability, RTL/Persian and LTR behavior, accessibility, responsive behavior, regression risk and compatibility with each environment.
+- Adopt shared elements only after the relevant tests pass, evidence is reviewed and the responsible product owners explicitly approve the change. Until then, environment-specific design is acceptable.
+- Do not spend Enterprise capacity on premature visual harmonization, and do not let design-system work delay the P6 EPPM functional baseline or the higher-priority Engineering workstream.
 
-Detailed specification: `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md`.
+Reference: `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md` (exploratory; non-binding pending validation and approval).
