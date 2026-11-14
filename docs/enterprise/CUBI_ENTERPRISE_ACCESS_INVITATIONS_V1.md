@@ -32,7 +32,7 @@ These references describe user administration, module/project access, security p
 - Only a SHA-256 token digest is persisted.
 - Acceptance is bound to the authenticated target account and writes the membership plus access audit in the same database transaction.
 - Decline, revoke and expiry are explicit states; duplicate pending invitations are constrained by a partial unique index.
-- The recipient inbox endpoint returns only pending invitations for the authenticated user in the current tenant; it never returns invitation tokens. Expiry is surfaced via expires_at and is enforced atomically on accept.
+- The recipient inbox endpoint returns only pending invitations for the authenticated user in the current tenant; it never returns invitation tokens. Inbox accept/decline actions bind to the authenticated target user and unguessable invitation ID; external token-based accept/decline remains supported. Expiry is surfaced via expires_at and enforced atomically on accept.
 - Authenticated API routes are mounted behind the production session, Origin and CSRF boundary, including GET /api/enterprise/invitations/inbox. Team membership does not grant project access. Project/OBS grants, notification delivery and the Organization & Access UI remain subsequent acceptance gates. Team ownership transfer is now exposed through the team administration API.
 
 ## Verification required before promotion
