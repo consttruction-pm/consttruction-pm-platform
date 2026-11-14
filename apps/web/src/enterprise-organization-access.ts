@@ -23,7 +23,7 @@ const COPY = {
     transferred:"Team ownership transferred.", removed:"Member removed.", accepted:"Invitation accepted.",
     declined:"Invitation declined.", copied:"CUBI ID copied.", lookupFound:"Found",
     expiry:"Expires", selectTeam:"Select a team", confirmTransfer:"Transfer team ownership to this active member?",
-    confirmRemove:"Remove this team member?", entitlement:"Team creation requires an active Pro entitlement and enterprise administrator access.",
+    confirmRemove:"Remove this team member?", entitlement:"Team creation requires an active Pro entitlement and enterprise administrator access.", noManager:"You do not have permission to manage this team.",
   },
   fa: {
     title:"سازمان و دسترسی", subtitle:"مدیریت تیم‌ها، دعوت‌ها، عضویت‌ها و مالکیت.",
@@ -40,7 +40,7 @@ const COPY = {
     transferred:"مالکیت تیم منتقل شد.", removed:"عضو حذف شد.", accepted:"دعوت پذیرفته شد.",
     declined:"دعوت رد شد.", copied:"شناسه CUBI کپی شد.", lookupFound:"یافت شد",
     expiry:"انقضا", selectTeam:"انتخاب تیم", confirmTransfer:"مالکیت تیم به این عضو فعال منتقل شود؟",
-    confirmRemove:"این عضو از تیم حذف شود؟", entitlement:"ایجاد تیم به اشتراک فعال Pro و دسترسی مدیر سازمان نیاز دارد.",
+    confirmRemove:"این عضو از تیم حذف شود؟", entitlement:"ایجاد تیم به اشتراک فعال Pro و دسترسی مدیر سازمان نیاز دارد.", noManager:"مجوز مدیریت این تیم را ندارید.",
   },
 } as const;
 
@@ -162,9 +162,18 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   };
   const loadMembers=async():Promise<void>=>{
     if(!selected){members.replaceChildren(el("p","oa-muted",t.noTeams));transferSelect.replaceChildren();return;}
-    const result=await api<{memberships:Membership[]}>(`/api/enterprise/teams/${encodeURIComponent(selected.team_id)}/members`);
+    let result: {memberships:Membership[]};
+    try {
+      result=await api<{memberships:Membership[]}>(`/api/enterprise/teams/${encodeURIComponent(selected.team_id)}/members`);
+    } catch {
+      members.replaceChildren(el("p","oa-muted",t.noManager));
+      inviteForm.hidden=true; transferRow.hidden=true;
+      return;
+    }
     membersData=result.memberships; members.replaceChildren(); transferSelect.replaceChildren();
     const current=membersData.find(item=>item.user_id===currentUserId);
+    const canManage=Boolean(current && current.status==="active" && (current.role==="owner" || current.role==="admin"));
+    inviteForm.hidden=!canManage;
     for(const member of membersData){
       const row=el("article","oa-row");
       const info=el("div"); info.append(el("strong","",member.user_id),el("small","",`${t[member.role as keyof typeof t] ?? member.role} · ${member.status}`));
@@ -191,6 +200,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     await loadMembers();
   };
   const loadAll=async():Promise<void>=>{await loadTeams();await loadInbox();};
+  cubiInput.addEventListener("input",()=>{foundIdentity=null;identityResult.hidden=true;});
   lookup.addEventListener("click",async()=>{foundIdentity=null;identityResult.hidden=true;try{const result=await api<{identity:Identity}>(`/api/enterprise/cubi-id?value=${encodeURIComponent(cubiInput.value)}`);foundIdentity=result.identity;identityResult.textContent=`${t.lookupFound}: ${foundIdentity.display_name} · ${foundIdentity.cubi_id}`;identityResult.hidden=false;}catch(e){showError(e);}});
   createForm.addEventListener("submit",async(event)=>{event.preventDefault();try{await api("/api/enterprise/teams","POST",{contract_version:"cubi-enterprise-organization-access.v1",name:teamName.value.trim()});teamName.value="";showStatus(t.created);await loadTeams();}catch(e){showError(e);}});
   inviteForm.addEventListener("submit",async(event)=>{event.preventDefault();if(!foundIdentity){showError(new Error("LOOKUP_REQUIRED"));return;}try{await api(`/api/enterprise/teams/${encodeURIComponent(selected?.team_id ?? "")}/invitations`,"POST",{contract_version:"cubi-team-invitation.v1",cubi_id:foundIdentity.cubi_id,role:role.value});cubiInput.value="";foundIdentity=null;identityResult.hidden=true;showStatus(t.invited);}catch(e){showError(e);}});
@@ -203,6 +213,8 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const session=await new FetchSessionApi(window.location.origin).getSession();
     if(!session.ok){window.location.assign(`/login?next=${encodeURIComponent("/enterprise/organization")}`);return;}
     currentUserId=session.data.user_id;
+    const roles=new Set(session.data.roles);
+    createForm.hidden=!(roles.has("enterprise_admin") && roles.has("pro_monthly_active"));
     const identity=await api<{cubi_id:string}>("/api/enterprise/cubi-id/me");
     myId.textContent=identity.cubi_id;
     await loadAll();
