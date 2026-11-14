@@ -36,12 +36,12 @@ def initialize_production_schema(connection: Any) -> None:
     """Create every table the deployed surface reads or writes."""
     PostgresIdentityStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
-    PostgresProjectAccessRepository(connection).initialize()
     PostgresEnterpriseOrganizationAccessRepository(connection).initialize()
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
     PostgresP6CostAccountRepository(connection).initialize()
     PostgresP6OBSRepository(connection).initialize()
+    PostgresProjectAccessRepository(connection).initialize()
     PostgresWBSMasterRepository(connection).initialize()
     PostgresRelationshipMasterRepository(connection).initialize()
     PostgresP6FieldRegistryRepository(connection).initialize()
