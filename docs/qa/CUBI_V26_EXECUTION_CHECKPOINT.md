@@ -3590,3 +3590,52 @@ Code `d9452209`; unit tests 999 `tsx` + 14 `node --test`, `tsc --noEmit` and
   3.11/3.12/3.13 and all client typechecks — pass on `82d1cc1d`
   (`feat/vercel-preview-fixtures`). The toolbar implementation code remains
   `7aa9a2d4`; this commit changes tests and docs only.
+
+## P7 windows acceptance — 2026-11-14
+
+Reference: Oracle Primavera P6 Professional Help Version 26 —
+[General tab - Project Details](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_project_details.htm)
+and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/en_US/filter_by_project_status.htm).
+
+### Defect found and fixed
+
+- `openProjectSettings` (`apps/web/src/main.ts`) classified authorization
+  failures with case-sensitive `includes("authorization")`, while the server
+  emits `AUTHORIZATION_PERMISSION_DENIED`. A denied metadata or status save
+  therefore rendered the generic failure text and hid the localized permission
+  message. The helper now lower-cases the code and also matches
+  `permission_denied`; the metadata form and the status control share it.
+
+### Acceptance
+
+- `apps/web/e2e/project-status-v26.mjs` at code
+  `d98fa1d7ed2b7803bda6368d34e57aa98e1ade59`: **6/6 scenarios**, screenshots
+  01–06, zero exceptions/console errors/5xx. Scenario 05 now reports
+  `Your account does not have permission to edit this project.`, reverts the
+  select to the stored `planned` status and still records a 403 for the direct
+  write. The remaining cells (empty history, append-only status event, reload,
+  1920×1080, Persian 1280×720 RTL) pass unchanged.
+- Evidence: `docs/workspace/evidence/project-status-v26-2026-11-14/`
+  (`report.json` `testedCodeSha`/`gitHead` = the code above).
+- Regression acceptance on the same dual-rail build:
+  `project-tabs-v26.mjs` **30/30** checks (tab set, per-project window sets,
+  unsaved-switch guard, stale revision, Viewer scope, Persian RTL) and
+  `project-register-v26.mjs` **38/38** checks (tenant-scoped register, Business
+  Domain tree/search/sort, create/settings writes, Viewer denial). Each suite
+  ran against its own fresh SQLite runtime; running them on one shared database
+  mutates the expected revision and is not a valid ordering.
+- Unit/type/build at `d98fa1d7`: 1117 `tsx` + 14 `node --test` pass,
+  `tsc --noEmit` clean, esbuild bundle written.
+
+### Remaining PRJ-002 / window gaps
+
+- Project Details still has no OBS responsible manager, leveling-priority,
+  checkout or web-site fields; adding them requires stored fields in the single
+  project model and its existing registry API, so they are not fabricated in the
+  dialog. Project status filtering/portfolios and audited defaults application
+  also remain open.
+- `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
+  shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
+  export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are
+  the next P7 candidates and need their own stored contracts where the current
+  read models do not expose the data.
