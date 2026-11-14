@@ -1,6 +1,6 @@
 # CUBI Enterprise Task API v1
 
-**Status:** Implemented in canonical PR #1951; exact-head ConstructionPM CI, PostgreSQL Integration (175 passed) and Client Typecheck passed on `89f3a223560eace09e9ddb9b6ad3cf37692d5043`; independent security review and product acceptance remain required  
+**Status:** Backend API implemented and previously CI-verified in PR #1951; Enterprise Task Center UI is now implemented on `feat/cubi-enterprise-task-center-v1`; exact-head UI CI/browser acceptance is pending  
 **Route root:** `/api/enterprise/tasks`
 
 ## Authentication and trust boundary
@@ -52,3 +52,11 @@ The list response returns `next_cursor` when another page exists. Cursor fields 
 ## Production runtime verification
 
 The live PostgreSQL production-runtime integration exercises this API through the real WSGI composition: missing CSRF is rejected before the task middleware, authenticated personal and project tasks can be created and listed under their authorized scopes, and completion attribution is server-authored. This is integration coverage, not a deployed-production acceptance claim.
+
+
+## UI and product parity boundary
+
+- Authenticated UI route: `/enterprise` (same-origin application shell, session-gated by the client bootstrap).
+- UI: `apps/web/src/enterprise-task-center.ts`; filters/search, project scope selector, create form, and revision-checked status actions.
+- UI verification: `apps/web/src/enterprise-task-center.test.ts` and preview shell route test. CI and browser E2E must pass on the final head before this UI is accepted.
+- Mandatory reference: `docs/enterprise/CUBI_ENTERPRISE_PRIMAVERA_P6_EPPM_HELP_PARITY_V26.md`. Generic Enterprise tasks are not P6 schedule activities, Team Member activity status updates, or timesheets.
