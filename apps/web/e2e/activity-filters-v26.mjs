@@ -31,6 +31,9 @@ const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4198";
 const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-12";
 const testedCodeSha = process.env.CUBI_TESTED_CODE_SHA || gitHead();
 const evidenceCommitSha = process.env.CUBI_EVIDENCE_COMMIT_SHA || null;
+// Optional artificial latency. The deployed preview answers through a relay, so
+// local runs can reproduce that timing and prove layout saves stay serialised.
+const networkLatencyMs = Number(process.env.CUBI_NETWORK_LATENCY_MS || 0);
 const outDir = join(artifactsDir, "activity-filters-v26");
 const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", `activity-filters-v26-${evidenceDate}`);
 mkdirSync(outDir, { recursive: true });
@@ -38,7 +41,9 @@ mkdirSync(evidenceDir, { recursive: true });
 
 const exceptions = [];
 const consoleErrors = [];
+const consoleErrorLog = [];
 const apiFailures = [];
+const layoutWrites = [];
 const scenarios = [];
 const screenshots = [];
 
@@ -181,16 +186,49 @@ async function main() {
   const chrome = await launchChrome();
   const page = new Page(chrome.cdp);
   await page.initialize();
+  if (networkLatencyMs > 0) {
+    await page.cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      latency: networkLatencyMs,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    });
+  }
   page.cdp.on("Runtime.exceptionThrown", (params) => {
     exceptions.push(params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? "unknown exception");
   });
   page.cdp.on("Runtime.consoleAPICalled", (params) => {
     if (params.type !== "error") return;
-    consoleErrors.push((params.args ?? []).map((arg) => arg.value ?? arg.description ?? arg.type).join(" "));
+    const message = (params.args ?? []).map((arg) => arg.value ?? arg.description ?? arg.type).join(" ");
+    consoleErrors.push(message);
+    consoleErrorLog.push({ at: params.timestamp ?? null, message });
+  });
+  // Layout revisions are append-only: two overlapping saves from the same base
+  // are a client race, not a server error. Recording the POSTs makes that race
+  // visible instead of hiding it behind the recovery reload.
+  const layoutRequests = new Map();
+  page.cdp.on("Network.requestWillBeSent", (params) => {
+    const request = params.request ?? {};
+    if (request.method !== "POST") return;
+    if (!/\/p6\/layouts\/[^/]+\/[^/?]+/.test(request.url ?? "")) return;
+    const entry = { requestId: params.requestId, at: params.timestamp, url: request.url, revision: null };
+    try {
+      entry.revision = JSON.parse(request.postData ?? "{}").revision ?? null;
+    } catch {
+      entry.revision = null;
+    }
+    layoutRequests.set(params.requestId, entry);
+  });
+  page.cdp.on("Network.loadingFinished", (params) => {
+    const entry = layoutRequests.get(params.requestId);
+    if (!entry) return;
+    layoutWrites.push({ ...entry, finishedAt: params.timestamp, status: "finished" });
   });
   page.cdp.on("Network.responseReceived", (params) => {
     const url = params.response?.url ?? "";
     if (url.includes("/api/") && params.response.status >= 500) apiFailures.push({ status: params.response.status, url });
+    const entry = layoutRequests.get(params.requestId);
+    if (entry) entry.httpStatus = params.response.status;
   });
 
   const report = {
@@ -204,7 +242,9 @@ async function main() {
     screenshots,
     exceptions,
     consoleErrors,
+    consoleErrorLog,
     apiFailures,
+    layoutWrites,
   };
 
   function writeReport() {
