@@ -32,8 +32,33 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         settings_revision BIGINT NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'active',
         business_domain TEXT NOT NULL DEFAULT '',
+        obs_responsible_manager TEXT NOT NULL DEFAULT '',
+        website_url TEXT NOT NULL DEFAULT '',
+        checkout_state TEXT NOT NULL DEFAULT 'checked_in',
+        checked_out_by TEXT NOT NULL DEFAULT '',
+        checked_out_at TIMESTAMPTZ,
         PRIMARY KEY (tenant_id, project_id)
     )
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS obs_responsible_manager TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS website_url TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS checkout_state TEXT NOT NULL DEFAULT 'checked_in'
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS checked_out_by TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS checked_out_at TIMESTAMPTZ
     """,
     """
     CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
@@ -104,7 +129,8 @@ class PostgresProjectRepository(ProjectRepository):
     _SELECT = (
         "SELECT p.project_id, p.tenant_id, p.name, p.revision, p.description, "
         "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision, "
-        "p.status, p.business_domain "
+        "p.status, p.business_domain, p.obs_responsible_manager, p.website_url, "
+        "p.checkout_state, p.checked_out_by, p.checked_out_at "
         "FROM project_lifecycle_projects p "
     )
 
@@ -141,12 +167,15 @@ class PostgresProjectRepository(ProjectRepository):
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
     ) -> ProjectSummary:
         self._connection.execute(
             "INSERT INTO project_lifecycle_projects "
             "(tenant_id, project_id, name, revision, description, start_date, date_system, "
-            "primary_calendar_id, settings_revision, business_domain) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s)",
+            "primary_calendar_id, settings_revision, business_domain, "
+            "obs_responsible_manager, website_url) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s)",
             (
                 tenant_id,
                 project_id,
@@ -156,6 +185,8 @@ class PostgresProjectRepository(ProjectRepository):
                 date_system,
                 primary_calendar_id,
                 business_domain,
+                obs_responsible_manager,
+                website_url,
             ),
         )
         self._connection.execute(
@@ -173,6 +204,8 @@ class PostgresProjectRepository(ProjectRepository):
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
         )
 
     def update_for_user(
@@ -188,11 +221,15 @@ class PostgresProjectRepository(ProjectRepository):
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
     ) -> ProjectSummary | None:
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET name=%s, description=%s, "
             "start_date=%s, date_system=%s, primary_calendar_id=%s, "
             "business_domain=COALESCE(%s, business_domain), "
+            "obs_responsible_manager=COALESCE(%s, obs_responsible_manager), "
+            "website_url=COALESCE(%s, website_url), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
             "SELECT 1 FROM project_lifecycle_memberships m "
@@ -200,7 +237,8 @@ class PostgresProjectRepository(ProjectRepository):
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
-            "business_domain",
+            "business_domain, obs_responsible_manager, website_url, checkout_state, "
+            "checked_out_by, checked_out_at",
             (
                 name,
                 description,
@@ -208,6 +246,8 @@ class PostgresProjectRepository(ProjectRepository):
                 date_system,
                 primary_calendar_id,
                 business_domain,
+                obs_responsible_manager,
+                website_url,
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -254,7 +294,9 @@ class PostgresProjectRepository(ProjectRepository):
             "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
-            "start_date, date_system, primary_calendar_id, settings_revision, status",
+            "start_date, date_system, primary_calendar_id, settings_revision, status, "
+            "business_domain, obs_responsible_manager, website_url, checkout_state, "
+            "checked_out_by, checked_out_at",
             (status, tenant_id, project_id, expected_revision, user_id),
         ).fetchone()
         if row is None:
@@ -285,6 +327,52 @@ class PostgresProjectRepository(ProjectRepository):
         if stored is None or str(stored[0]) != from_status or str(stored[1]) != status:
             raise ValueError("PROJECT_STATUS_READBACK_MISMATCH")
         return _summary(row)
+
+    def set_checkout_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        actor_user_id: str,
+        changed_at: datetime,
+    ) -> ProjectSummary | None:
+        """Atomically acquire or release the exclusive checkout lease."""
+        if checked_out:
+            next_state, next_owner, next_at = "checked_out", actor_user_id, changed_at
+            lease_condition = "checkout_state='checked_in'"
+            lease_values: tuple[object, ...] = ()
+        else:
+            next_state, next_owner, next_at = "checked_in", "", None
+            lease_condition = "checkout_state='checked_out' AND checked_out_by=%s"
+            lease_values = (actor_user_id,)
+        row = self._connection.execute(
+            "UPDATE project_lifecycle_projects SET checkout_state=%s, "
+            "checked_out_by=%s, checked_out_at=%s, "
+            "settings_revision=settings_revision+1 "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
+            "AND " + lease_condition + " AND EXISTS ("
+            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
+            "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
+            "RETURNING project_id, tenant_id, name, revision, description, "
+            "start_date, date_system, primary_calendar_id, settings_revision, status, "
+            "business_domain, obs_responsible_manager, website_url, checkout_state, "
+            "checked_out_by, checked_out_at",
+            (
+                next_state,
+                next_owner,
+                next_at,
+                tenant_id,
+                project_id,
+                expected_revision,
+                *lease_values,
+                user_id,
+            ),
+        ).fetchone()
+        return None if row is None else _summary(row)
 
     def status_history_for_user(
         self, tenant_id: str, project_id: str, user_id: str
@@ -331,6 +419,17 @@ def _summary(row: Any) -> ProjectSummary:
         settings_revision=int(row[8]) if len(row) > 8 and row[8] is not None else 0,
         status=str(row[9]) if len(row) > 9 and row[9] else "active",
         business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
+        obs_responsible_manager=str(row[11]) if len(row) > 11 and row[11] else "",
+        website_url=str(row[12]) if len(row) > 12 and row[12] else "",
+        checkout_state=(
+            str(row[13]) if len(row) > 13 and row[13] else "checked_in"
+        ),
+        checked_out_by=str(row[14]) if len(row) > 14 and row[14] else "",
+        checked_out_at=(
+            None
+            if len(row) <= 15 or row[15] is None
+            else _as_datetime(row[15]).isoformat()
+        ),
     )
 
 

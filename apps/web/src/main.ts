@@ -9,7 +9,7 @@ import {
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
+import { FetchSessionApi, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -719,6 +719,21 @@ function openProjectSettings(
   calendarInput.maxLength = 200;
   calendarInput.autocomplete = "off";
 
+  const obsManagerInput = document.createElement("input");
+  obsManagerInput.name = "obs_responsible_manager";
+  obsManagerInput.maxLength = 160;
+  obsManagerInput.autocomplete = "off";
+  obsManagerInput.dataset.projectObsResponsibleManager = "true";
+
+  const websiteInput = document.createElement("input");
+  websiteInput.name = "website_url";
+  websiteInput.type = "url";
+  websiteInput.maxLength = 2048;
+  websiteInput.inputMode = "url";
+  websiteInput.autocomplete = "on";
+  websiteInput.placeholder = "https://";
+  websiteInput.dataset.projectWebsite = "true";
+
   const projectStatusSelect = document.createElement("select");
   projectStatusSelect.name = "project_status";
   projectStatusSelect.dataset.projectStatusSelect = "true";
@@ -737,6 +752,49 @@ function openProjectSettings(
   statusSave.type = "button";
   statusSave.dataset.projectStatusSave = "true";
   statusSave.textContent = labels.settingsStatusSave;
+
+  const checkoutSection = document.createElement("section");
+  checkoutSection.className = "cp-project-settings-section";
+  checkoutSection.dataset.projectCheckout = "true";
+  const checkoutHeading = document.createElement("h3");
+  checkoutHeading.textContent = labels.projectCheckout;
+  const checkoutState = document.createElement("p");
+  checkoutState.dataset.projectCheckoutState = "true";
+  const checkoutDetail = document.createElement("p");
+  checkoutDetail.className = "cp-form-hint";
+  checkoutDetail.dataset.projectCheckoutOwner = "true";
+  const checkoutButton = document.createElement("button");
+  checkoutButton.type = "button";
+  checkoutButton.dataset.projectCheckoutToggle = "true";
+  checkoutSection.append(checkoutHeading, checkoutState, checkoutDetail, checkoutButton);
+
+  const levelingSection = document.createElement("section");
+  levelingSection.className = "cp-project-settings-section";
+  levelingSection.dataset.projectLevelingPriority = "true";
+  const levelingHeading = document.createElement("h3");
+  levelingHeading.textContent = labels.projectLevelingPriority;
+  const levelingHint = document.createElement("p");
+  levelingHint.className = "cp-form-hint";
+  levelingHint.textContent = labels.projectLevelingPriorityHint;
+  const levelingRow = document.createElement("div");
+  levelingRow.className = "cp-project-settings-inline";
+  const levelingInput = document.createElement("input");
+  levelingInput.type = "number";
+  levelingInput.min = "1";
+  levelingInput.max = "100";
+  levelingInput.step = "1";
+  levelingInput.name = "project_leveling_priority";
+  levelingInput.dataset.projectLevelingInput = "true";
+  const levelingSave = document.createElement("button");
+  levelingSave.type = "button";
+  levelingSave.dataset.projectLevelingSave = "true";
+  levelingSave.textContent = labels.projectLevelingPrioritySave;
+  const levelingStatus = document.createElement("span");
+  levelingStatus.setAttribute("role", "status");
+  levelingStatus.setAttribute("aria-live", "polite");
+  levelingStatus.dataset.projectLevelingStatus = "true";
+  levelingRow.append(levelingInput, levelingSave, levelingStatus);
+  levelingSection.append(levelingHeading, levelingHint, levelingRow);
 
   const historyPanel = document.createElement("div");
   historyPanel.className = "cp-project-settings-history";
@@ -782,6 +840,12 @@ function openProjectSettings(
     labelled(labels.projectStartDate, startDateInput),
     labelled(labels.projectDateSystem, dateSystemSelect),
     labelled(labels.projectBusinessDomain, businessDomainSelect),
+    labelled(
+      labels.projectObsResponsibleManager,
+      obsManagerInput,
+      labels.projectObsResponsibleManagerHint,
+    ),
+    labelled(labels.projectWebsite, websiteInput, labels.projectWebsiteHint),
     labelled(labels.settingsPrimaryCalendar, calendarInput, labels.settingsPrimaryCalendarHint),
     statusField,
   );
@@ -789,7 +853,16 @@ function openProjectSettings(
   actions.className = "cp-project-settings-actions";
   actions.append(save, retry, reloadLatest, close);
 
-  panel.append(heading, revision, status, form, historyPanel, actions);
+  panel.append(
+    heading,
+    revision,
+    status,
+    form,
+    checkoutSection,
+    levelingSection,
+    historyPanel,
+    actions,
+  );
   const shell = container.querySelector<HTMLElement>(".cp-app-shell");
   (shell ?? container).append(panel);
   // The panel is rendered outside the workspace pass, so the active tab's
@@ -798,6 +871,10 @@ function openProjectSettings(
 
   let loadedRevision = state.context.revision;
   let loadedStatus: ProjectStatus = "active";
+  let loadedCheckoutState: "checked_in" | "checked_out" = "checked_in";
+  let loadedCheckoutOwner = "";
+  let loadedCheckoutAt: string | null = null;
+  let loadedScheduleSettings: ProjectScheduleSettings | null = null;
   let saving = false;
 
   const applyLoaded = (project: ProjectSummary): void => {
@@ -811,10 +888,16 @@ function openProjectSettings(
     startDateInput.value = project.start_date ?? "";
     dateSystemSelect.value = project.date_system === "jalali" ? "jalali" : "gregorian";
     businessDomainSelect.value = project.business_domain ?? "";
+    obsManagerInput.value = project.obs_responsible_manager ?? "";
+    websiteInput.value = project.website_url ?? "";
     calendarInput.value = project.primary_calendar_id ?? "";
     loadedStatus = (project.status ?? "active") as ProjectStatus;
     projectStatusSelect.value = loadedStatus;
+    loadedCheckoutState = project.checkout_state === "checked_out" ? "checked_out" : "checked_in";
+    loadedCheckoutOwner = project.checked_out_by ?? "";
+    loadedCheckoutAt = project.checked_out_at ?? null;
     revision.textContent = `${labels.settingsRevision} R${loadedRevision}`;
+    renderCheckout();
   };
 
   const statusLabel = (value: string): string => {
@@ -846,6 +929,141 @@ function openProjectSettings(
     renderHistory(result.data.events ?? []);
   };
 
+  function renderCheckout(): void {
+    const checkedOut = loadedCheckoutState === "checked_out";
+    checkoutSection.dataset.checkoutState = loadedCheckoutState;
+    checkoutState.textContent = checkedOut
+      ? labels.projectCheckoutCheckedOut
+      : labels.projectCheckoutCheckedIn;
+    checkoutDetail.textContent = checkedOut && loadedCheckoutOwner
+      ? labels.projectCheckoutOwner
+          .replace("{user}", loadedCheckoutOwner)
+          .replace("{time}", (loadedCheckoutAt ?? "").slice(0, 16).replace("T", " "))
+      : "";
+    checkoutButton.textContent = checkedOut
+      ? labels.projectCheckoutCheckIn
+      : labels.projectCheckoutCheckOut;
+    checkoutButton.disabled = saving;
+  }
+
+  const toggleCheckout = async (): Promise<void> => {
+    if (saving) return;
+    checkoutButton.disabled = true;
+    setStatus(labels.settingsSaving, "info");
+    const result = await bootstrap.setProjectCheckout(
+      state.context.project_id,
+      loadedCheckoutState !== "checked_out",
+      loadedRevision,
+    );
+    checkoutButton.disabled = false;
+    if (result.ok) {
+      applyLoaded(result.data.project);
+      setStatus(
+        `${loadedCheckoutState === "checked_out"
+          ? labels.projectCheckoutCheckedOut
+          : labels.projectCheckoutCheckedIn} R${loadedRevision}.`,
+        "success",
+      );
+      return;
+    }
+    if (result.error.code === "PROJECT_REVISION_CONFLICT") {
+      setStatus(labels.settingsConflict, "conflict");
+      reloadLatest.hidden = false;
+      return;
+    }
+    if (isForbidden(result.error.code)) {
+      setStatus(labels.settingsForbidden, "error");
+      return;
+    }
+    if (
+      result.error.code === "PROJECT_CHECKOUT_CONFLICT" ||
+      result.error.code === "PROJECT_CHECKED_OUT_BY_OTHER"
+    ) {
+      setStatus(labels.projectCheckoutConflict, "conflict");
+      void load();
+      return;
+    }
+    setStatus(`${labels.settingsFailed} (${result.error.code})`, "error");
+  };
+  checkoutButton.addEventListener("click", () => { void toggleCheckout(); });
+
+  const renderLeveling = (): void => {
+    const available = loadedScheduleSettings !== null;
+    levelingInput.disabled = !available;
+    levelingSave.disabled = !available;
+  };
+
+  const loadLeveling = async (): Promise<void> => {
+    const result = await bootstrap.loadProjectScheduleSettings(state.context.project_id);
+    if (!result.ok) {
+      loadedScheduleSettings = null;
+      renderLeveling();
+      const forbidden = isForbidden(result.error.code);
+      levelingStatus.textContent = forbidden
+        ? labels.settingsForbidden
+        : labels.projectLevelingPriorityUnavailable;
+      levelingStatus.dataset.state = forbidden ? "error" : "info";
+      return;
+    }
+    loadedScheduleSettings = result.data;
+    levelingInput.value = String(result.data.project_leveling_priority ?? 10);
+    levelingStatus.textContent = "";
+    levelingStatus.dataset.state = "";
+    renderLeveling();
+  };
+
+  const saveLeveling = async (): Promise<void> => {
+    if (!loadedScheduleSettings) return;
+    const raw = Number(levelingInput.value);
+    if (!Number.isInteger(raw) || raw < 1 || raw > 100) {
+      levelingStatus.textContent = labels.projectLevelingPriorityHint;
+      levelingStatus.dataset.state = "error";
+      levelingInput.focus();
+      return;
+    }
+    const settings = loadedScheduleSettings;
+    levelingSave.disabled = true;
+    levelingStatus.textContent = labels.settingsSaving;
+    levelingStatus.dataset.state = "info";
+    const result = await bootstrap.saveProjectScheduleSettings(
+      state.context.project_id,
+      {
+        contract_version: "p6-project-schedule-settings-api.v1",
+        expected_record_revision: settings.record_revision,
+        mode: settings.mode,
+        project_calendar_id: settings.project_calendar.calendar_id,
+        project_calendar_version: settings.project_calendar.calendar_version,
+        project_calendar_system: settings.project_calendar.system,
+        project_start: settings.project_start,
+        project_finish: settings.project_finish,
+        schedule_options: settings.schedule_options,
+        project_leveling_priority: raw,
+      },
+    );
+    levelingSave.disabled = false;
+    if (result.ok) {
+      loadedScheduleSettings = result.data;
+      levelingInput.value = String(result.data.project_leveling_priority);
+      levelingStatus.textContent = `${labels.projectLevelingPrioritySaved} R${result.data.record_revision}.`;
+      levelingStatus.dataset.state = "success";
+      return;
+    }
+    if (result.error.code === "REVISION_CONFLICT") {
+      levelingStatus.textContent = labels.settingsConflict;
+      levelingStatus.dataset.state = "conflict";
+      await loadLeveling();
+      return;
+    }
+    if (isForbidden(result.error.code)) {
+      levelingStatus.textContent = labels.settingsForbidden;
+      levelingStatus.dataset.state = "error";
+      return;
+    }
+    levelingStatus.textContent = `${labels.settingsFailed} (${result.error.code})`;
+    levelingStatus.dataset.state = "error";
+  };
+  levelingSave.addEventListener("click", () => { void saveLeveling(); });
+
   const load = async (): Promise<void> => {
     setStatus(labels.loading, "info");
     const result = await bootstrap.loadProjectSummary(state.context.project_id);
@@ -858,6 +1076,7 @@ function openProjectSettings(
     setStatus("", "info");
     retry.hidden = true;
     void loadHistory();
+    void loadLeveling();
   };
 
   const isForbidden = (code: string): boolean => {
@@ -889,6 +1108,22 @@ function openProjectSettings(
       startDateInput.focus();
       return;
     }
+    const website = websiteInput.value.trim();
+    if (website) {
+      let validWebsite = false;
+      try {
+        const parsed = new URL(website);
+        validWebsite = (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+          Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+      } catch {
+        validWebsite = false;
+      }
+      if (!validWebsite) {
+        setStatus(labels.projectWebsiteHint, "error");
+        websiteInput.focus();
+        return;
+      }
+    }
     saving = true;
     save.disabled = true;
     retry.hidden = true;
@@ -911,6 +1146,8 @@ function openProjectSettings(
           | "energy"
           | "other"
           | "",
+        obs_responsible_manager: obsManagerInput.value.trim(),
+        website_url: website,
       },
       loadedRevision,
     );
@@ -942,7 +1179,19 @@ function openProjectSettings(
       setStatus(labels.settingsForbidden, "error");
       return;
     }
-    if (result.error.code === "PROJECT_START_DATE_INVALID" || result.error.code === "PROJECT_DESCRIPTION_TOO_LONG") {
+    if (
+      result.error.code === "PROJECT_CHECKED_OUT_BY_OTHER" ||
+      result.error.code === "PROJECT_CHECKOUT_CONFLICT"
+    ) {
+      setStatus(labels.projectCheckoutConflict, "conflict");
+      return;
+    }
+    if (
+      result.error.code === "PROJECT_START_DATE_INVALID" ||
+      result.error.code === "PROJECT_DESCRIPTION_TOO_LONG" ||
+      result.error.code === "PROJECT_WEBSITE_URL_INVALID" ||
+      result.error.code === "PROJECT_OBS_RESPONSIBLE_MANAGER_TOO_LONG"
+    ) {
       setStatus(labels.settingsFailed, "error");
       return;
     }
@@ -986,6 +1235,14 @@ function openProjectSettings(
 
   retry.addEventListener("click", () => { void submit(); });
   reloadLatest.addEventListener("click", () => { void load(); });
+  // The action bar sits outside <form> (it also holds the close/retry
+  // controls), so the submit button needs an explicit requestSubmit. Without
+  // it, clicking "Save changes" did nothing and the new Project Details values
+  // were never sent.
+  save.addEventListener("click", (event) => {
+    event.preventDefault();
+    form.requestSubmit();
+  });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void submit();

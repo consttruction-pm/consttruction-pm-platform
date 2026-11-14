@@ -66,7 +66,9 @@ def test_project_creation_persists_metadata_columns():
     assert p.description == "Scope" and p.start_date == "2026-11-02"
     assert p.date_system == "jalali"
     insert_params = c.calls[0][1]
-    assert insert_params == ("t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "")
+    assert insert_params == (
+        "t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "", "", ""
+    )
 
 
 def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
@@ -88,7 +90,7 @@ def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
         "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2", None,
-        "t1", "p2", 2, "u1",
+        None, None, "t1", "p2", 2, "u1",
     )
 
 
@@ -105,7 +107,7 @@ def test_project_creation_and_update_persist_the_business_domain():
         "t1", "u1", "p2", "Project 2", business_domain="infrastructure"
     )
     assert p.business_domain == "infrastructure"
-    assert c.calls[0][1][-1] == "infrastructure"
+    assert c.calls[0][1][-3] == "infrastructure"
     assert "business_domain" in c.calls[0][0]
 
     c.next_rows = [
@@ -136,3 +138,52 @@ def test_status_history_maps_persisted_events():
     assert events[0].from_status == "active" and events[0].to_status == "planned"
     assert events[0].settings_revision == 1
     assert events[0].recorded_at == datetime(2026, 11, 12, tzinfo=timezone.utc)
+
+
+def test_project_creation_persists_obs_manager_and_website():
+    c = FakeConnection()
+    p = PostgresProjectRepository(c).create_for_user(
+        "t1", "u1", "p2", "Project 2",
+        obs_responsible_manager="Dana Whitfield",
+        website_url="https://example.com/p2",
+    )
+    assert p.obs_responsible_manager == "Dana Whitfield"
+    assert p.website_url == "https://example.com/p2"
+    params = c.calls[0][1]
+    assert params[-2:] == ("Dana Whitfield", "https://example.com/p2")
+
+
+def test_project_summary_carries_checkout_lease():
+    c = FakeConnection()
+    c.next_rows = [(
+        "p1", "t1", "Project 1", 4, "Scope", None, "gregorian", None, 2,
+        "active", "", "Manager", "https://example.com", "checked_out", "u2",
+        datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc),
+    )]
+    p = PostgresProjectRepository(c).get_for_user("t1", "p1", "u1")
+    assert p is not None
+    assert p.checkout_state == "checked_out"
+    assert p.checked_out_by == "u2"
+    assert p.checked_out_at == "2026-11-14T09:30:00+00:00"
+
+
+def test_checkout_is_a_conditional_revision_guarded_update():
+    c = FakeConnection()
+    c.next_rows = [(
+        "p1", "t1", "Project 1", 4, "", None, "gregorian", None, 3,
+        "active", "", "", "", "checked_out", "u1",
+        datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc),
+    )]
+    changed_at = datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc)
+    project = PostgresProjectRepository(c).set_checkout_for_user(
+        "t1", "u1", "p1",
+        checked_out=True,
+        expected_revision=2,
+        actor_user_id="u1",
+        changed_at=changed_at,
+    )
+    assert project is not None and project.checkout_state == "checked_out"
+    sql, params = c.calls[0]
+    assert "checkout_state='checked_in'" in sql
+    assert "settings_revision=settings_revision+1" in sql
+    assert params == ("checked_out", "u1", changed_at, "t1", "p1", 2, "u1")

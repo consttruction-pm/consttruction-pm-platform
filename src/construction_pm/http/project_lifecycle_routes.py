@@ -6417,6 +6417,26 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
                 response = self._api.open_project(session_id, project_id, now=now)
                 return self._json(200, {"context": asdict(response.context)})
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/checkout"):
+                project_id = path[len("/api/projects/"):-len("/checkout")].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "PROJECT_REQUEST_INVALID", "error.request.invalid")
+                if "checked_out" not in payload:
+                    return self._error(400, "PROJECT_CHECKOUT_STATE_INVALID", "error.request.invalid")
+                project = self._api.set_project_checkout(
+                    session_id,
+                    project_id,
+                    checked_out=payload.get("checked_out"),
+                    expected_revision=payload.get("expected_revision"),
+                    now=now,
+                )
+                return self._json(200, {
+                    "contract_version": "project-checkout-api.v1",
+                    "project": asdict(project),
+                })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/status"):
                 project_id = path[len("/api/projects/"):-len("/status")].rstrip("/")
                 if not project_id or "/" in project_id:
@@ -6469,6 +6489,8 @@ class ProjectLifecycleHttpRoutes:
                     date_system=payload.get("date_system", "gregorian"),
                     primary_calendar_id=payload.get("primary_calendar_id"),
                     business_domain=payload.get("business_domain", ""),
+                    obs_responsible_manager=payload.get("obs_responsible_manager", ""),
+                    website_url=payload.get("website_url", ""),
                     now=now,
                 )
                 return self._json(201, {"context": asdict(response.context)})
@@ -6491,6 +6513,14 @@ class ProjectLifecycleHttpRoutes:
                         payload["business_domain"]
                         if "business_domain" in payload
                         else None
+                    ),
+                    obs_responsible_manager=(
+                        payload["obs_responsible_manager"]
+                        if "obs_responsible_manager" in payload
+                        else None
+                    ),
+                    website_url=(
+                        payload["website_url"] if "website_url" in payload else None
                     ),
                     expected_revision=payload.get("expected_revision"),
                     now=now,
@@ -6554,6 +6584,8 @@ class ProjectLifecycleHttpRoutes:
                 return self._error(403, code, "error.authorization.denied")
             if code == "PROJECT_STATUS_INVALID":
                 return self._error(400, code, "error.project.status_invalid")
+            if code in {"PROJECT_CHECKED_OUT_BY_OTHER", "PROJECT_CHECKOUT_CONFLICT"}:
+                return self._error(409, code, "error.project.checkout_conflict")
             if code == "PROJECT_STATUS_READBACK_MISMATCH":
                 return self._error(500, code, "error.project.status_readback")
             return self._error(400, code, "error.project.lifecycle")
