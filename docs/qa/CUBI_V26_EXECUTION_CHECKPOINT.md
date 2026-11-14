@@ -3907,6 +3907,34 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
   1147 + 14 passed, typecheck and build clean at the same code.
 
+### PRJ-002 stored default cost account — 2026-11-14 (`9b25bdb5`)
+
+- `ProjectSummary.default_cost_account_id` is a validated reference into the
+  project's real revision-scoped P6 cost account hierarchy
+  (`PROJECT_DEFAULT_COST_ACCOUNT_INVALID/NOT_FOUND/UNAVAILABLE`) stored behind
+  the settings revision; create rejects a non-empty default because no
+  hierarchy exists yet, and PATCH checks existence through
+  `ProjectCostAccountLookup`.
+- `ActivityMaster.cost_account_id` persists in both activity repositories with
+  in-place migrations. `POST …/p6/activities` copies the default only when the
+  request omits the field; an explicit value wins, unknown accounts are
+  rejected, PATCH can set or clear, and existing activities are never rewritten.
+- Preview and production runtimes wire the cost account repository/API into the
+  lifecycle service and activity routes; the read model exposes
+  `activity.cost_account`. The Defaults tab, create drawer and inline editor
+  use the hierarchy in en/fa.
+- Defect found and fixed (`9b25bdb5`): the hierarchy was cached at boot, so an
+  account created afterwards never appeared in the Defaults select; Project
+  Details now re-reads the hierarchy when the panel opens.
+- Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`
+  (`testedCodeSha`/`gitHead` `9b25bdb5f947962c7554c0f04b082b7711440410`, 9/9
+  scenarios, 12 screenshots, zero exceptions/console errors/API failures);
+  scenario `02b` creates `CA-CIVIL`, selects it as the default, reads it back
+  from the project API, survives a reload, shows it on the Defaults tab and
+  stores an activity with that cost account. Python 4244 passed / 190 skipped,
+  live PostgreSQL lifecycle 420 passed, web 1148 + 14 passed, typecheck and
+  build clean.
+
 ### PRJ-002 stored default duration type — 2026-11-14 (`ae6d2116`)
 
 - `ActivityMaster` gains the four V26 Duration Type values, persisted by both
@@ -3940,9 +3968,8 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   status writes already did. The lease is still not consulted by activity,
   WBS or relationship writes.
 - The Defaults tab now stores activity type, percent complete type, duration
-  type and the Activity ID numbering fields. The default Cost Account and an
-  audited defaults history are still absent; storing a Cost Account requires
-  the real hierarchy (Agent 3 contract) rather than a static list.
+  type, the cost account (validated against the real hierarchy) and the
+  Activity ID numbering fields. An audited defaults history is still absent.
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
