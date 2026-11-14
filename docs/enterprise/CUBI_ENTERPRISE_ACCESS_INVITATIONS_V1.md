@@ -1,6 +1,6 @@
 # CUBI Enterprise — CUBI-ID Team Invitations V1
 
-**Status:** Backend domain, PostgreSQL persistence and authenticated HTTP API including recipient-scoped inbox; browser UI and notification delivery remain open.
+**Status:** Backend domain, PostgreSQL persistence and authenticated HTTP API including recipient-scoped inbox; browser UI and notification delivery remain open; team ownership transfer is now included in the backend/API slice.
 **Baseline:** Oracle P6 EPPM Help Version 26, with CUBI-native identity and invitation behavior.
 
 ## Version 26 functional traceability
@@ -33,10 +33,24 @@ These references describe user administration, module/project access, security p
 - Acceptance is bound to the authenticated target account and writes the membership plus access audit in the same database transaction.
 - Decline, revoke and expiry are explicit states; duplicate pending invitations are constrained by a partial unique index.
 - The recipient inbox endpoint returns only pending invitations for the authenticated user in the current tenant; it never returns invitation tokens. Expiry is surfaced via expires_at and is enforced atomically on accept.
-- Authenticated API routes are mounted behind the production session, Origin and CSRF boundary, including GET /api/enterprise/invitations/inbox. Team membership does not grant project access. Project/OBS grants, ownership transfer, notification delivery and the Organization & Access UI remain subsequent acceptance gates.
+- Authenticated API routes are mounted behind the production session, Origin and CSRF boundary, including GET /api/enterprise/invitations/inbox. Team membership does not grant project access. Project/OBS grants, notification delivery and the Organization & Access UI remain subsequent acceptance gates. Team ownership transfer is now exposed through the team administration API.
 
 ## Verification required before promotion
 
 - Unit tests: tests/test_enterprise_invitation.py.
 - Live PostgreSQL integration must cover unique public IDs, tenant isolation, duplicate invitation prevention, concurrent accept/replay, token secrecy, expiry, revocation, atomic membership creation and append-only audit.
-- Production API composition and recipient-scoped inbox are wired; exact-head CI and live PostgreSQL verification are required before promotion. The browser UI and push/email notification delivery are not included in this slice.
+- Production API composition and recipient-scoped inbox are wired; exact-head CI and live PostgreSQL verification are required before promotion. The browser UI and push/email notification delivery are not included in this slice. Team creation/listing, member add/remove and ownership transfer are exposed through the production Organization & Access API.
+
+## Team administration and ownership transfer API
+
+The production team API is versioned as cubi-enterprise-organization-access.v1:
+
+- GET /api/enterprise/teams — list teams for the authenticated user.
+- POST /api/enterprise/teams — create a team (active Pro entitlement and enterprise_admin role required).
+- POST /api/enterprise/teams/{team_id}/members — add a same-tenant active user with a team role.
+- DELETE /api/enterprise/teams/{team_id}/members/{user_id} — remove a member using expected_revision.
+- POST /api/enterprise/teams/{team_id}/transfer-ownership — transfer ownership using expected_team_revision.
+
+Ownership transfer is restricted to the current active owner. The successor must already be an active team member and an active account in the same tenant. The old owner is retained as an admin; the new owner becomes the sole active owner. Team revision and both membership revisions advance in one request transaction, and the transfer is recorded in the append-only access audit. A partial unique index enforces one active owner per team. Removing the final owner is prohibited.
+
+Oracle Help V26 reference: [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm) and [Assigning OBS Elements to Users](https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm). Team membership and ownership are CUBI-native extensions, not P6 project-security-profile behavior.
