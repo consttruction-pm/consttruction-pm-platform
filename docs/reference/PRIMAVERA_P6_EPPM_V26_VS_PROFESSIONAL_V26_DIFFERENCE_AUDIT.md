@@ -471,7 +471,7 @@ The following documentary slices are now present on this branch and linked from 
 | [Unifier / Gateway / Primavera Cloud Integration](EPPM_V26_UNIFIER_GATEWAY_PRIMAVERA_CLOUD_INTEGRATION_MATRIX.md) | 40 |
 | [Dashboards / Portlets / UI Views / Access](EPPM_V26_DASHBOARD_PORTLET_UI_VIEW_ACCESS_MATRIX.md) | 40 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
 
-**Total technical child-matrix entries: 504 rows across twelve topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
+**Total technical child-matrix entries: 505 rows across twelve topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
 
 ### Source inventory status — do not confuse line counts with topic counts
 
