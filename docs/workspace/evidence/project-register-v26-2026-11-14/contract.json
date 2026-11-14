@@ -1,18 +1,18 @@
 {
   "contract": "cubi-prj-001-project-register.v1",
-  "testedCodeSha": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
-  "gitHead": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
+  "testedCodeSha": "f5dcafef7c5d6ebdd3afe1fb979e41975dccd832",
+  "gitHead": "f5dcafef7c5d6ebdd3afe1fb979e41975dccd832",
   "evidenceCommitSha": null,
-  "baseUrl": "http://127.0.0.1:4262",
-  "fixtureId": "E2E-PRJ-MWG9I7A4",
-  "startedAt": "2026-11-14T10:27:49.688Z",
+  "baseUrl": "http://127.0.0.1:4282",
+  "fixtureId": "E2E-PRJ-MWGAAEXZ",
+  "startedAt": "2026-11-14T10:49:46.011Z",
   "scenarios": [
     {
       "id": "01",
       "name": "The register shows exactly the session-authorized projects with their persisted Business Domain",
       "status": "pass",
-      "at": "2026-11-14T10:27:52.731Z",
-      "durationMs": 74,
+      "at": "2026-11-14T10:49:49.029Z",
+      "durationMs": 75,
       "details": {
         "count": "2 of 2 projects",
         "groups": [
@@ -31,7 +31,7 @@
       "id": "02",
       "name": "Search narrows the tree and the table to matching persisted rows",
       "status": "pass",
-      "at": "2026-11-14T10:27:53.954Z",
+      "at": "2026-11-14T10:49:50.253Z",
       "durationMs": 1223,
       "details": {
         "filtered": "1 of 2"
@@ -41,8 +41,8 @@
       "id": "03",
       "name": "Business Domain filter and sort reorder only the visible view",
       "status": "pass",
-      "at": "2026-11-14T10:27:55.421Z",
-      "durationMs": 1467,
+      "at": "2026-11-14T10:49:51.719Z",
+      "durationMs": 1466,
       "details": {
         "expected": [
           "preview-rps-01",
@@ -54,8 +54,8 @@
       "id": "04",
       "name": "Selecting a project previews its record without opening it",
       "status": "pass",
-      "at": "2026-11-14T10:27:58.599Z",
-      "durationMs": 3178,
+      "at": "2026-11-14T10:49:54.928Z",
+      "durationMs": 3209,
       "details": {
         "opened": "preview-nse-02"
       }
@@ -64,8 +64,8 @@
       "id": "05",
       "name": "The tree collapses and keyboard selection works on the register",
       "status": "pass",
-      "at": "2026-11-14T10:27:59.803Z",
-      "durationMs": 1204,
+      "at": "2026-11-14T10:49:56.134Z",
+      "durationMs": 1206,
       "details": {
         "keyboard": "Enter",
         "collapsed": true
@@ -75,20 +75,31 @@
       "id": "06",
       "name": "Business Domain edits are persisted, revision-guarded and validated",
       "status": "pass",
-      "at": "2026-11-14T10:28:02.668Z",
-      "durationMs": 2865,
+      "at": "2026-11-14T10:49:58.867Z",
+      "durationMs": 2733,
       "details": {
-        "fixtureId": "E2E-PRJ-MWG9I7A4",
+        "fixtureId": "E2E-PRJ-MWGAAEXZ",
         "domain": "energy",
         "settingsRevision": 1
+      }
+    },
+    {
+      "id": "06b",
+      "name": "Project status filter narrows the register to the stored status",
+      "status": "pass",
+      "at": "2026-11-14T10:50:04.151Z",
+      "durationMs": 5284,
+      "details": {
+        "plannedCount": 1,
+        "activeCount": 2
       }
     },
     {
       "id": "07",
       "name": "Persian renders the register right-to-left at 1280x720",
       "status": "pass",
-      "at": "2026-11-14T10:28:04.366Z",
-      "durationMs": 1698,
+      "at": "2026-11-14T10:50:05.843Z",
+      "durationMs": 1692,
       "details": {
         "dir": "rtl",
         "overflow": 0
@@ -98,8 +109,8 @@
       "id": "08",
       "name": "A Viewer sees the authorized register but cannot change a Business Domain",
       "status": "pass",
-      "at": "2026-11-14T10:28:06.532Z",
-      "durationMs": 2166,
+      "at": "2026-11-14T10:50:07.980Z",
+      "durationMs": 2137,
       "details": {
         "status": 403
       }
@@ -518,7 +529,7 @@
         "body": {
           "context": {
             "tenant_id": "cubi-preview-tenant",
-            "project_id": "E2E-PRJ-MWG9I7A4",
+            "project_id": "E2E-PRJ-MWGAAEXZ",
             "revision": 0,
             "user_id": "preview-admin"
           }
@@ -531,9 +542,9 @@
       "ok": true,
       "detail": {
         "stored": {
-          "project_id": "E2E-PRJ-MWG9I7A4",
+          "project_id": "E2E-PRJ-MWGAAEXZ",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWG9I7A4",
+          "name": "E2E Domain Project MWGAAEXZ",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -559,7 +570,7 @@
           {
             "key": "construction",
             "projects": [
-              "E2E-PRJ-MWG9I7A4"
+              "E2E-PRJ-MWGAAEXZ"
             ]
           },
           {
@@ -584,9 +595,9 @@
       "detail": {
         "status": 200,
         "project": {
-          "project_id": "E2E-PRJ-MWG9I7A4",
+          "project_id": "E2E-PRJ-MWGAAEXZ",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWG9I7A4",
+          "name": "E2E Domain Project MWGAAEXZ",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -637,9 +648,9 @@
       "ok": true,
       "detail": {
         "project": {
-          "project_id": "E2E-PRJ-MWG9I7A4",
+          "project_id": "E2E-PRJ-MWGAAEXZ",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWG9I7A4",
+          "name": "E2E Domain Project MWGAAEXZ",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -669,6 +680,165 @@
       }
     },
     {
+      "id": "prj1-status-read",
+      "name": "the second project is readable before the filter check",
+      "ok": true,
+      "detail": {
+        "status": 200
+      }
+    },
+    {
+      "id": "prj1-status-write",
+      "name": "the project status is stored through the lifecycle contract",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "contract_version": "project-status-api.v1",
+          "project": {
+            "project_id": "preview-nse-02",
+            "tenant_id": "cubi-preview-tenant",
+            "name": "نوسازی سامانه شرقی",
+            "revision": 2,
+            "description": "",
+            "start_date": "2027-02-02",
+            "date_system": "jalali",
+            "primary_calendar_id": "CUBI-NSE-CAL",
+            "settings_revision": 1,
+            "status": "planned",
+            "business_domain": "industrial",
+            "obs_responsible_manager": "",
+            "website_url": "",
+            "checkout_state": "checked_in",
+            "checked_out_by": "",
+            "checked_out_at": null
+          }
+        }
+      }
+    },
+    {
+      "id": "prj1-status-filter-rows",
+      "name": "only the planned project remains in the tree and table",
+      "ok": true,
+      "detail": {
+        "rows": [
+          "preview-nse-02"
+        ],
+        "tree": [
+          {
+            "key": "industrial",
+            "expanded": true,
+            "label": "Industrial",
+            "count": "1",
+            "projects": [
+              {
+                "id": "preview-nse-02",
+                "pressed": false,
+                "label": "نوسازی سامانه شرقی"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "prj1-status-filter-count",
+      "name": "the count reports the filtered subset",
+      "ok": true,
+      "detail": {
+        "count": "1 of 3 projects"
+      }
+    },
+    {
+      "id": "prj1-status-filter-cell",
+      "name": "the surviving row shows its stored Planned status",
+      "ok": true,
+      "detail": {
+        "cells": [
+          "preview-nse-02",
+          "نوسازی سامانه شرقی",
+          "Industrial",
+          "2027-02-02",
+          "Jalali",
+          "CUBI-NSE-CAL",
+          "Planned",
+          "Open"
+        ]
+      }
+    },
+    {
+      "id": "prj1-status-filter-open",
+      "name": "the status column is separate from the Open action",
+      "ok": true,
+      "detail": {
+        "cells": [
+          "preview-nse-02",
+          "نوسازی سامانه شرقی",
+          "Industrial",
+          "2027-02-02",
+          "Jalali",
+          "CUBI-NSE-CAL",
+          "Planned",
+          "Open"
+        ],
+        "openButton": true
+      }
+    },
+    {
+      "id": "prj1-status-filter-options",
+      "name": "the filter lists every present status with its count",
+      "ok": true,
+      "detail": {
+        "filter": {
+          "value": "planned",
+          "options": [
+            {
+              "value": "__all__",
+              "label": "All project statuses"
+            },
+            {
+              "value": "active",
+              "label": "Active (2)"
+            },
+            {
+              "value": "planned",
+              "label": "Planned (1)"
+            }
+          ]
+        },
+        "activeCount": 2,
+        "plannedCount": 1
+      }
+    },
+    {
+      "id": "prj1-status-filter-active",
+      "name": "the Active filter excludes the planned project",
+      "ok": true,
+      "detail": {
+        "rows": [
+          "E2E-PRJ-MWGAAEXZ",
+          "preview-rps-01"
+        ]
+      }
+    },
+    {
+      "id": "prj1-status-filter-reset",
+      "name": "Clear filters restores the full status set",
+      "ok": true,
+      "detail": {
+        "count": "3 of 3 projects",
+        "filter": "__all__"
+      }
+    },
+    {
+      "id": "prj1-status-restore",
+      "name": "the suite restores the fixture status",
+      "ok": true,
+      "detail": {
+        "status": 200
+      }
+    },
+    {
       "id": "prj1-rtl",
       "name": "the Persian workspace is right-to-left",
       "ok": true,
@@ -687,9 +857,23 @@
     },
     {
       "id": "prj1-fa-controls",
-      "name": "search, filter and selection surfaces are present in Persian",
+      "name": "search, domain, status and selection surfaces are present in Persian",
       "ok": true,
-      "detail": {}
+      "detail": {
+        "filter": {
+          "value": "__all__",
+          "options": [
+            {
+              "value": "__all__",
+              "label": "همهٔ وضعیت‌های پروژه"
+            },
+            {
+              "value": "active",
+              "label": "فعال (3)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "prj1-fa-overflow",
@@ -705,12 +889,12 @@
       "ok": true,
       "detail": {
         "rows": [
-          "E2E-PRJ-MWG9I7A4",
+          "E2E-PRJ-MWGAAEXZ",
           "preview-rps-01",
           "preview-nse-02"
         ],
         "api": [
-          "E2E-PRJ-MWG9I7A4",
+          "E2E-PRJ-MWGAAEXZ",
           "preview-rps-01",
           "preview-nse-02"
         ]
@@ -746,6 +930,7 @@
     "06-selection-opened.png",
     "07-collapsed-domain.png",
     "08-persisted-domain-update.png",
+    "09-status-filter-planned.png",
     "09-register-fa-rtl-1280.png",
     "10-viewer-register.png"
   ],
@@ -775,15 +960,31 @@
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWG9I7A4"
+      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWG9I7A4"
+      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWG9I7A4"
+      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/status"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-nse-02/status"
     },
     {
       "method": "POST",
@@ -795,11 +996,11 @@
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWG9I7A4"
+      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
     }
   ],
-  "passed": 38,
+  "passed": 48,
   "failed": 0,
-  "finishedAt": "2026-11-14T10:28:06.532Z",
+  "finishedAt": "2026-11-14T10:50:07.981Z",
   "status": "passed"
 }

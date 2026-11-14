@@ -3665,6 +3665,26 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   `project-tabs-v26.mjs` **30/30**, `project-register-v26.mjs` **38/38**,
   `project-status-v26.mjs` **6/6**, `preview-e2e.mjs` **97** checks.
 
+### PRJ-001 status filtering — 2026-11-14 (`f5dcafef`)
+
+- The Projects register now has a **Project status** filter beside search,
+  Business Domain and sort. Options come only from statuses present in the
+  authorized rows, with counts; the same predicate filters the domain tree and
+  the table; Clear filters resets query, domain and status; search also matches
+  the localized status label.
+- **Defect fixed:** the table's last column was headed Status but rendered the
+  Open action, so the stored status was never shown in a row. Status now has
+  its own cell and Open a separate column (colspan 8).
+- `apps/web/e2e/project-register-v26.mjs`: **48/48** checks at
+  `f5dcafef7c5d6ebdd3afe1fb979e41975dccd832`. Scenario `06b` writes `planned`
+  through the lifecycle API, reloads, filters Planned (one row, Industrial
+  group, `1 of N`), verifies option counts, filters Active, resets, and
+  restores the fixture status. Evidence:
+  `docs/workspace/evidence/project-register-v26-2026-11-14/`.
+- Web at the same code: 1118 `tsx` + 14 `node --test`, `tsc --noEmit` and
+  esbuild pass. Limit: filtering is in-memory over the authorized list; no
+  server-side status query parameter was added.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is

@@ -1,6 +1,6 @@
 # PRJ-001 project register acceptance — 2026-11-14
 
-Tested code SHA: `f1ecba6eeea4310dc05e231b21a83d6e1d6073c8`
+Tested code SHA: `f5dcafef7c5d6ebdd3afe1fb979e41975dccd832`
 Contract: `cubi-prj-001-project-register.v1`
 
 PASS — the Projects window renders the register
@@ -34,9 +34,19 @@ PASS — a stale configuration revision is rejected without overwriting
 PASS — an unknown classification is rejected
 PASS — the stored record still holds the last accepted domain
 PASS — the Energy group now contains the project and Construction is gone
+PASS — the second project is readable before the filter check
+PASS — the project status is stored through the lifecycle contract
+PASS — only the planned project remains in the tree and table
+PASS — the count reports the filtered subset
+PASS — the surviving row shows its stored Planned status
+PASS — the status column is separate from the Open action
+PASS — the filter lists every present status with its count
+PASS — the Active filter excludes the planned project
+PASS — Clear filters restores the full status set
+PASS — the suite restores the fixture status
 PASS — the Persian workspace is right-to-left
 PASS — the tree and rows use Persian domain labels
-PASS — search, filter and selection surfaces are present in Persian
+PASS — search, domain, status and selection surfaces are present in Persian
 PASS — the register does not overflow the 1280 viewport
 PASS — the Viewer sees exactly the session-authorized records
 PASS — the Viewer gets the same Business Domain hierarchy
