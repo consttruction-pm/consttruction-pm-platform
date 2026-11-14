@@ -3833,6 +3833,30 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   "saved layout" would misrepresent storage. Status is `BLOCKED_EXTERNAL` until
   Agent 3 provides the contract.
 
+### UTIL-001 Global Change audit — 2026-11-14 (`a63c34f8`)
+
+- **Finding:** there is no Global Change window, typed evaluator, preview,
+  apply or run-history route, and no `global-change`/bulk-update module in
+  `src/construction_pm`. The dialog inventory already recorded it as `Missing`,
+  and `p6_code_reference.py` TOOLS-001 states that no verified safe evaluator or
+  transaction path exists.
+- **Only existing write:** `PATCH /api/projects/{id}/p6/activities/{id}` through
+  `P6ActivityMasterAPI.update`, which requires a record
+  `expected_revision >= 1` and `PROJECT_WRITE`. It is per-activity, not atomic
+  across a set, has no before/after run audit, and does not advance the project
+  revision.
+- **Decision:** do not expose `Tools > Global Change` as a fake window or apply
+  through a browser loop of row writes, and do not evaluate conditions in the
+  page. Status is `MISSING`; a viewer-facing surface is deferred until the
+  service exists.
+- **Requested contract:** `docs/workspace/architecture/p6-global-change-contract-request.md`
+  specifies `p6-global-change-api.v1` (activities-only typed field/operator
+  whitelists with `all`/`any`, no expression language, project-revision-bound
+  single-use preview token, server-computed counts and before/after, atomic
+  apply with once-only project-revision advance and idempotency key, immutable
+  `GCH-<n>` runs with per-activity revisions, failure codes, and Agent 3 tests
+  including stale-preview, rollback and a 250-activity fixture).
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
