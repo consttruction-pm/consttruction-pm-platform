@@ -29,7 +29,7 @@ The HTML Help title page identifies this source as "Oracle Primavera P6 EPPM Hel
 
 ## 3. V26 functional navigation and parity map
 
-The P6 web help organizes the application around Dashboards, Portfolios, Projects, Resources, Reports and Administration, with user/help controls and role-specific views. The following is the CUBI Enterprise parity backlog. It supplements the existing EPPM-first roadmap and does not replace the Engineering roadmap.
+The V26 HTML topic “Working with P6” explicitly lists seven main sections: Dashboards, Portfolios, Projects, Resources, Approvals, Reports and Administration. Access to sections and features is constrained by security profiles, access settings, user-interface views, preferences and assignments. The following is the CUBI Enterprise parity backlog. It supplements the existing EPPM-first roadmap and does not replace the Engineering roadmap.
 
 | P6 EPPM V26 capability family | CUBI Enterprise destination / work package | Current evidence / state |
 |---|---|---|
@@ -37,6 +37,7 @@ The P6 web help organizes the application around Dashboards, Portfolios, Project
 | Portfolios, portfolio analysis, scorecards and project grouping | Portfolio & Executive Center | Planned; portfolio control read model and decision boundary exist as foundations, not full UI parity |
 | Projects, EPS, project lifecycle, WBS and project overview | Project Portal and Engineering-linked project context | Partial across CUBI platform; authoritative schedule structures remain Engineering-owned |
 | Resources, resource administration, analysis and capacity | Organization & Access / Resource and Capacity views | Partial foundations; verify resource and team membership semantics separately |
+| Approvals for timesheets and configured activity status updates | Feedback & Approval Center with Engineering Activity Status review integration | Planned; approval authority must stay with the owning Engineering/team workflow and role grants |
 | Team Member Web, My Activities, status updates and timesheets | Team & Task Center plus future Engineering Activity Status surface | Separate concepts: current Enterprise Task is an organizational task, not a P6 schedule Activity or a timesheet |
 | Risks and issues | Project Portal / Risk & Issue Management | Partial in Engineering; Enterprise must consume authorized, revision-pinned records rather than duplicate authoritative risk/schedule data |
 | Reports and performance status | Portfolio & Executive Center / Reporting | Existing reporting capabilities require end-to-end parity verification |
@@ -71,14 +72,14 @@ The initial Task Center is a narrow, truthful slice of the Enterprise Team & Tas
 |---|---|---|
 | Authenticated personal work list | Read personal tasks for the signed-in user | Existing /api/enterprise/tasks session-bound GET |
 | Project context | Select an authorized project and list its tasks | Server-side project read authorization |
-| Status views | All, Active, Blocked, Overdue and Completed filters | filterEnterpriseTasks unit tests |
+| Status views | All, Active, Due today, Overdue, Blocked and Completed filters | filterEnterpriseTasks unit tests |
 | Task search | Case-insensitive title and description search | enterprise-task-center.test.ts |
 | Create | Title, description, priority, due date and personal/project scope | Authenticated POST with CSRF and idempotency key |
 | Update lifecycle | Start, complete and reopen via revision-checked PATCH | Authenticated PATCH; server owns completion actor/time |
 | Scope and security | Same-origin credentials, CSRF, no client-supplied tenant/actor authority | Production WSGI integration coverage |
 | Responsive and RTL | Narrow-screen layout and Persian RTL direction | Browser QA required before acceptance |
 
-Not included in V1: team assignment (disabled server-side until membership persistence), Engineering references (disabled until the authorized resolver), stars, activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
+Not included in V1: team assignment (disabled server-side until membership persistence), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
 
 ## 6. Mandatory design and QA workflow
 
