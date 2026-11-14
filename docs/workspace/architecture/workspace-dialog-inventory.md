@@ -59,7 +59,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Update Progress | Scope, percent/actual entry | Missing |
 | Recalculate Assignment Costs | Scope, confirmation | Missing |
 | Store Period Performance | Financial period, project | Missing |
-| Global Change | Parameter rows, preview count, apply | Missing |
+| Global Change | Parameter rows, preview count, apply | Missing; contract requested in `docs/workspace/architecture/p6-global-change-contract-request.md` |
 | Monitor Thresholds / Issue Navigator | Scope and results | Missing |
 | Reports runner | Report, parameters, preview, export | Missing |
 
