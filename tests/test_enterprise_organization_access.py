@@ -81,6 +81,10 @@ class Repository:
         self.teams[(tenant_id, team_id)] = updated
         return updated
 
+    def list_members(self, tenant_id, team_id):
+        return tuple(item for (t,team,_),item in self.members.items()
+                     if t == tenant_id and team == team_id)
+
     def list_teams_for_user(self, tenant_id, user_id):
         return tuple(
             team for team in self.teams.values()
@@ -169,3 +173,12 @@ def test_only_current_owner_can_transfer_and_transfer_preserves_previous_owner_a
             "viewer-session", team.team_id, "viewer",
             expected_team_revision=updated.revision,
         )
+
+
+def test_only_team_managers_can_list_members():
+    app, repository = service()
+    team = app.create_team("owner-session", "Team A")
+    app.add_member("owner-session", team.team_id, "member-1", "member")
+    assert {item.user_id for item in app.list_members("owner-session", team.team_id)} == {"owner","member-1"}
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
+        app.list_members("viewer-session", team.team_id)
