@@ -47,7 +47,7 @@ Evidence is deliberately classified: a requirement or schema is not proof of a r
 | Audit | existing audit-event patterns and security event contracts | Audit infrastructure exists in multiple domains; append-only and actor provenance must be verified per store | Reuse canonical event conventions; no unaudited mutations |
 | Storage/documents | document and object-storage repositories with scoped access patterns | Existing durable storage foundation | Reuse scoped storage, quotas and retention policy |
 | Form Builder | `docs/engineering/PMBOK_FORM_BUILDER_AND_FORM_CALCULATIONS.md`; `CUBI-FORM-CALC-001`; `CUBI-FORM-DESIGN-002`; Issues #1481/#1617 | Shared contracts and implementation work exist; full end-to-end UI/runtime status must be verified | One shared Form Builder capability with environment-specific context and grants |
-| Task persistence | `src/construction_pm/enterprise_task_repository.py` in this branch | PostgreSQL repository foundation added in this slice; not yet production API-wired | Verify integration tests, then build application/API boundary |
+| Task application/API | `enterprise_task_repository.py`, `enterprise_task_application.py`, `enterprise_task_http.py`, production runtime and schema wiring | Authenticated personal/project task API is wired to the production session + CSRF boundary; team assignment and Engineering references remain closed | Reuse project authorization; add organization/team grants before team assignment |
 
 ## 4. Implementation priority and gates
 
@@ -63,8 +63,8 @@ Evidence is deliberately classified: a requirement or schema is not proof of a r
 ### P1 — Team & Task Center
 1. Stabilize the versioned task DTO and PostgreSQL repository.
 2. Verify idempotency, revision concurrency, stable pagination, dependency cycles and append-only audit.
-3. Add an application service that authorizes every task operation against actor, tenant, team and project scope.
-4. Add authenticated HTTP routes and contract tests.
+3. Extend authorization from personal/project scope to verified organization/team grants before team assignment.
+4. Add cross-environment reference authorization through versioned Engineering contracts.
 5. Build the UI only after real API and authorization tests pass.
 
 **Exit gate:** fresh-connection read-after-write, tenant isolation, permission-denied cases, audit provenance and exact-head CI pass.
@@ -114,6 +114,6 @@ Only after baseline coverage is reviewed may extensions be considered: capacity 
 
 ## 7. Current slice and remaining gates
 
-This branch adds the versioned task contract/domain, a PostgreSQL repository with composite cursor pagination, tenant-serialized dependency graph validation, completion actor attribution and append-only audit protection, plus live-PostgreSQL integration tests.
+The foundation branch adds the versioned task contract/domain and PostgreSQL repository. The stacked Task API branch adds an authenticated application service and `/api/enterprise/tasks` WSGI middleware, mounted behind the production session and CSRF boundary and included in production schema initialization. The API currently supports personal and project-scoped tasks; project access is checked server-side, while team assignment and Engineering references fail closed until their owning authorization adapters are available.
 
-Not yet claimed: production Organization persistence, Task application/API authorization, HTTP routes, UI, production composition, live PostgreSQL test execution or production readiness. These remain explicit subsequent gates.
+Not yet claimed: production Organization/team persistence, team assignment, cross-environment reference authorization, Task Center UI, full PMBOK workflows or production readiness. These remain explicit subsequent gates.
