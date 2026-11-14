@@ -47,3 +47,8 @@ The list response returns `next_cursor` when another page exists. Cursor fields 
 - Team assignment is intentionally disabled until Organization & Access membership persistence is implemented and tested.
 - Cross-environment Activity/WBS/Document/Risk references are intentionally disabled until an authorized, revision-pinned Engineering reference resolver exists.
 - No UI is included in this backend vertical slice.
+
+
+## Production runtime verification
+
+The live PostgreSQL production-runtime integration exercises this API through the real WSGI composition: missing CSRF is rejected before the task middleware, authenticated personal and project tasks can be created and listed under their authorized scopes, and completion attribution is server-authored. This is integration coverage, not a deployed-production acceptance claim.
