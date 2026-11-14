@@ -467,8 +467,7 @@ class PostgresProjectRepository(ProjectRepository):
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET status=%s, "
             "settings_revision=settings_revision+1 "
-            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
             "AND cubi_user_has_project_access(tenant_id,%s,project_id,'project.admin') "
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
