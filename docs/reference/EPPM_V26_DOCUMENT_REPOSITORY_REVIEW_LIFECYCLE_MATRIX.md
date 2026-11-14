@@ -47,7 +47,7 @@
 | 25 | Read Only policy | Project team may view but cannot modify/delete | Public Location makes the file available to participants; no equivalent built-in read-only lock is documented by that field | Not a direct match. CONFIRMED |
 | 26 | Shared policy | Project team may view, modify and delete document/folder subject to privileges | Public Location only describes file audience; it does not grant shared repository operations | Not a direct match. CONFIRMED |
 | 27 | Document category | EPPM category is configured in P6 and associated with the document | Professional connected to EPPM DB uses P6 categories; connected to Professional DB uses Admin Categories | Category source depends on database context. CONFIRMED |
-| 28 | Document Status | Configurable status field used to track document progress | Status designations are created through Admin Categories or P6 categories according to database context | Shared metadata concept; not the same as Review Status. CONFIRMED |
+| 28 | Document Status | Web Services exposes DocumentStatusName values blank, Not Started, Under Review, In Progress, Completed and On Hold; status-code name/object ID are separate fields | Status designations are created through Admin Categories or P6 categories according to database context; examples include Not Started, In Progress and On Hold | Shared configurable metadata concept; do not confuse with Review Status. CONFIRMED |
 | 29 | Review Status | Repository review lifecycle: Blank, In Review, Approved, Rejected, Terminated | Professional V26 WP & Docs guide documents Status and Version, not the same EPPM document-review workflow | EPPM repository-specific lifecycle. CONFIRMED |
 | 30 | Review prerequisite | Optional content repository must be installed/configured | Professional V26 does not document a native Start Review workflow | EPPM-only documented review mechanism. CONFIRMED |
 | 31 | Review-eligible security policy | Shared or Read Only documents can start a review | Professional Private/Public location fields do not implement this review gate | EPPM review prerequisite. CONFIRMED |
@@ -68,6 +68,7 @@
 | 46 | Document repository internal ID | EPPM Web Services exposes ContentRepositoryDocumentInternalId | Professional record/location reference model does not expose this same V26 repository field in its User Guide | Repository-specific identifier. CONFIRMED |
 | 47 | Parent/child document hierarchy | EPPM Web Services exposes ParentObjectId and repository folders | Professional document records can be associated to Activities/WBS but no equivalent repository folder-parent contract is documented | Do not equate assignments with folder hierarchy. CONFIRMED |
 | 48 | Content type and file format | EPPM repository stores document content and version metadata | Professional references external file locations and opens via Launch | Different file-content ownership. CONFIRMED |
+| 49 | DocumentType API classification | V26 Web Services distinguishes Non-Collaboration Document, Collaboration Document and Repository Document | Professional V26 UI describes records and file locations but no matching V26 API enum | EPPM service contract distinguishes repository/collaboration document classes. CONFIRMED; Pro API parity NOT VERIFIED |
 
 ## 3. Lifecycle distinctions that must remain separate
 
