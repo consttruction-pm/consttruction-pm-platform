@@ -1242,14 +1242,15 @@ function openProjectSettings(
       retry.hidden = false;
       return;
     }
-    if (activeCostAccountsProjectId !== state.context.project_id) {
-      const accounts = await bootstrap.loadProjectCostAccounts(state.context.project_id);
-      if (accounts.ok) {
-        activeCostAccounts = accounts.data.cost_accounts
-          .map((entry) => entry.cost_account)
-          .filter((entry) => entry && typeof entry.account_id === "string" && entry.account_id.trim());
-        activeCostAccountsProjectId = state.context.project_id;
-      }
+    // Re-read the hierarchy whenever the editor opens: accounts can be created
+    // in another window after the workspace booted, and a stale cached list
+    // would hide a valid default from the select.
+    const accounts = await bootstrap.loadProjectCostAccounts(state.context.project_id);
+    if (accounts.ok) {
+      activeCostAccounts = accounts.data.cost_accounts
+        .map((entry) => entry.cost_account)
+        .filter((entry) => entry && typeof entry.account_id === "string" && entry.account_id.trim());
+      activeCostAccountsProjectId = state.context.project_id;
     }
     applyLoaded(result.data.project);
     setStatus("", "info");
