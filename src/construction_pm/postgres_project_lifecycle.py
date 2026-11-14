@@ -207,19 +207,73 @@ class PostgresProjectRepository(ProjectRepository):
 
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
         rows = self._connection.execute(
-            self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND m.user_id=%s ORDER BY p.project_id",
-            (tenant_id, user_id),
+            """WITH RECURSIVE project_obs(tenant_id,project_id,obs_id,parent_obs_id) AS (
+                   SELECT p.tenant_id,p.project_id,o.obs_id,o.parent_obs_id
+                   FROM project_lifecycle_projects p
+                   JOIN p6_obs_node o ON o.tenant_id=p.tenant_id AND o.obs_id=p.obs_id
+                   WHERE p.tenant_id=%s
+                   UNION ALL
+                   SELECT po.tenant_id,po.project_id,parent.obs_id,parent.parent_obs_id
+                   FROM project_obs po
+                   JOIN p6_obs_node parent ON parent.tenant_id=po.tenant_id
+                       AND parent.obs_id=po.parent_obs_id
+               )
+               SELECT p.project_id,p.tenant_id,p.name,p.revision,p.description,
+                   p.start_date,p.date_system,p.primary_calendar_id,p.settings_revision,
+                   p.status,p.business_domain,p.obs_responsible_manager,p.website_url,
+                   p.default_activity_type,p.default_percent_complete_type,
+                   p.activity_id_prefix,p.activity_id_suffix,p.activity_id_increment,
+                   p.increment_activity_id,p.checkout_state,p.checked_out_by,p.checked_out_at,
+                   p.default_duration_type,p.default_cost_account_id,p.obs_id
+               FROM project_lifecycle_projects p
+               WHERE p.tenant_id=%s AND (
+                   EXISTS (SELECT 1 FROM project_lifecycle_memberships m
+                       WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=%s)
+                   OR EXISTS (SELECT 1 FROM project_obs po
+                       JOIN enterprise_user_obs_assignments a ON a.tenant_id=po.tenant_id
+                           AND a.user_id=%s AND a.obs_id=po.obs_id AND a.active=TRUE
+                       JOIN enterprise_project_security_profiles sp ON sp.tenant_id=a.tenant_id
+                           AND sp.profile_id=a.profile_id AND sp.active=TRUE
+                       WHERE po.tenant_id=p.tenant_id AND po.project_id=p.project_id
+                           AND sp.permissions ? 'project.read')
+               ) ORDER BY p.project_id""",
+            (tenant_id, tenant_id, user_id, user_id),
         ).fetchall()
         return tuple(_summary(r) for r in rows)
 
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None:
         row = self._connection.execute(
-            self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND m.user_id=%s",
-            (tenant_id, project_id, user_id),
+            """WITH RECURSIVE project_obs(tenant_id,project_id,obs_id,parent_obs_id) AS (
+                   SELECT p.tenant_id,p.project_id,o.obs_id,o.parent_obs_id
+                   FROM project_lifecycle_projects p
+                   JOIN p6_obs_node o ON o.tenant_id=p.tenant_id AND o.obs_id=p.obs_id
+                   WHERE p.tenant_id=%s AND p.project_id=%s
+                   UNION ALL
+                   SELECT po.tenant_id,po.project_id,parent.obs_id,parent.parent_obs_id
+                   FROM project_obs po
+                   JOIN p6_obs_node parent ON parent.tenant_id=po.tenant_id
+                       AND parent.obs_id=po.parent_obs_id
+               )
+               SELECT p.project_id,p.tenant_id,p.name,p.revision,p.description,
+                   p.start_date,p.date_system,p.primary_calendar_id,p.settings_revision,
+                   p.status,p.business_domain,p.obs_responsible_manager,p.website_url,
+                   p.default_activity_type,p.default_percent_complete_type,
+                   p.activity_id_prefix,p.activity_id_suffix,p.activity_id_increment,
+                   p.increment_activity_id,p.checkout_state,p.checked_out_by,p.checked_out_at,
+                   p.default_duration_type,p.default_cost_account_id,p.obs_id
+               FROM project_lifecycle_projects p
+               WHERE p.tenant_id=%s AND p.project_id=%s AND (
+                   EXISTS (SELECT 1 FROM project_lifecycle_memberships m
+                       WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=%s)
+                   OR EXISTS (SELECT 1 FROM project_obs po
+                       JOIN enterprise_user_obs_assignments a ON a.tenant_id=po.tenant_id
+                           AND a.user_id=%s AND a.obs_id=po.obs_id AND a.active=TRUE
+                       JOIN enterprise_project_security_profiles sp ON sp.tenant_id=a.tenant_id
+                           AND sp.profile_id=a.profile_id AND sp.active=TRUE
+                       WHERE po.tenant_id=p.tenant_id AND po.project_id=p.project_id
+                           AND sp.permissions ? 'project.read')
+               )""",
+            (tenant_id, project_id, tenant_id, project_id, user_id, user_id),
         ).fetchone()
         return None if row is None else _summary(row)
 
