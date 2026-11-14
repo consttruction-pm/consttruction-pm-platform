@@ -1,6 +1,6 @@
 # CUBI Enterprise — CUBI-ID Team Invitations V1
 
-**Status:** Backend domain and PostgreSQL persistence slice; not yet exposed as a production HTTP/UI feature.
+**Status:** Backend domain, PostgreSQL persistence and authenticated HTTP API including recipient-scoped inbox; browser UI and notification delivery remain open.
 **Baseline:** Oracle P6 EPPM Help Version 26, with CUBI-native identity and invitation behavior.
 
 ## Version 26 functional traceability
@@ -18,6 +18,7 @@ The CUBI Organization & Access capability is aligned to the V26 User Administrat
 ### Official Version 26 HTML references
 
 - https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm — Users Page, P6 EPPM Help V26.
+- https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm — Assigning OBS Elements to Users, P6 EPPM Help V26.
 - https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/35460_1.htm — Assigning OBS Elements to Users, Application Administration Guide V26.
 - https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm — P6 EPPM Help V26 contents.
 
@@ -31,10 +32,11 @@ These references describe user administration, module/project access, security p
 - Only a SHA-256 token digest is persisted.
 - Acceptance is bound to the authenticated target account and writes the membership plus access audit in the same database transaction.
 - Decline, revoke and expiry are explicit states; duplicate pending invitations are constrained by a partial unique index.
-- Authenticated API routes are mounted behind the production session, Origin and CSRF boundary. Team membership does not grant project access. Project/OBS grants, ownership transfer, invitation inbox/notifications and the Organization & Access UI remain subsequent acceptance gates.
+- The recipient inbox endpoint returns only pending invitations for the authenticated user in the current tenant; it never returns invitation tokens. Expiry is surfaced via expires_at and is enforced atomically on accept.
+- Authenticated API routes are mounted behind the production session, Origin and CSRF boundary, including GET /api/enterprise/invitations/inbox. Team membership does not grant project access. Project/OBS grants, ownership transfer, notification delivery and the Organization & Access UI remain subsequent acceptance gates.
 
 ## Verification required before promotion
 
 - Unit tests: tests/test_enterprise_invitation.py.
 - Live PostgreSQL integration must cover unique public IDs, tenant isolation, duplicate invitation prevention, concurrent accept/replay, token secrecy, expiry, revocation, atomic membership creation and append-only audit.
-- Production API composition is wired; exact-head CI and live PostgreSQL verification are required before promotion. The UI and invitation inbox/notification delivery are not included in this slice.
+- Production API composition and recipient-scoped inbox are wired; exact-head CI and live PostgreSQL verification are required before promotion. The browser UI and push/email notification delivery are not included in this slice.
