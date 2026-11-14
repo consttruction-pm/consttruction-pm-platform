@@ -109,11 +109,11 @@ class PostgresEnterpriseTaskRepository:
         )
         self.connection.execute(
             """CREATE OR REPLACE FUNCTION enterprise_task_audit_reject_mutation()
-            RETURNS trigger LANGUAGE plpgsql AS $
+            RETURNS trigger LANGUAGE plpgsql AS $enterprise_task_audit$
             BEGIN
                 RAISE EXCEPTION 'ENTERPRISE_TASK_AUDIT_APPEND_ONLY';
             END;
-            $"""
+            $enterprise_task_audit$"""
         )
         self.connection.execute(
             "DROP TRIGGER IF EXISTS enterprise_task_audit_append_only "
