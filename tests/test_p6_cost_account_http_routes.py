@@ -7,6 +7,7 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.p6_cost_account_api import P6_COST_ACCOUNT_API_VERSION
+from construction_pm.project_checkout import ProjectCheckoutConflict
 
 
 class Sessions:
@@ -171,3 +172,31 @@ def test_p6_cost_account_http_rejects_malformed_payload_and_missing_session():
         "GET", "/api/projects/p1/p6/cost-accounts"
     )
     assert status == 401
+
+
+def test_cost_account_http_create_reports_checkout_conflict_as_409():
+    class ConflictingCostAccountAPI:
+        def create(self, account, *, auth_context):
+            raise ProjectCheckoutConflict("u-other")
+
+    now = datetime(2026, 10, 9, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(
+            ProjectLifecycleService(
+                Sessions(session), Projects(), default_project_policy()
+            )
+        ),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_cost_account_api=ConflictingCostAccountAPI(),
+    )
+    status, _, body = routes.handle(
+        "POST",
+        "/api/projects/p1/p6/cost-accounts",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"account_id": "CA-01", "name": "Civil"}).encode(),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"

@@ -314,3 +314,53 @@ def test_postgres_lifecycle_schema_initialization_executes_every_statement():
         "checkout_state",
         "checked_out_by",
     } <= columns
+
+
+def test_postgres_checkout_lease_reads_the_exclusive_holder():
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.deployment.production_runtime import (
+        PostgresProjectCheckoutLease,
+    )
+
+    tenant, user, project = (
+        "tenant-checkout-live",
+        "user-checkout-live",
+        "project-checkout-live",
+    )
+    now = datetime(2026, 11, 14, 8, 30, tzinfo=timezone.utc)
+    with connect() as connection:
+        _prepare(connection, tenant)
+        repo = PostgresProjectRepository(connection)
+        repo.create_for_user(tenant, user, project, "Checkout Live")
+        connection.commit()
+        lease = PostgresProjectCheckoutLease(connection)
+        scope = BackendScope(tenant, project, 0)
+
+        assert lease.checked_out_by(scope) is None
+        assert lease.checked_out_by(BackendScope("tenant-other", project, 0)) is None
+
+        checked_out = repo.set_checkout_for_user(
+            tenant,
+            user,
+            project,
+            checked_out=True,
+            expected_revision=0,
+            actor_user_id=user,
+            changed_at=now,
+        )
+        connection.commit()
+        assert checked_out is not None and checked_out.checkout_state == "checked_out"
+        assert lease.checked_out_by(scope) == user
+
+        released = repo.set_checkout_for_user(
+            tenant,
+            user,
+            project,
+            checked_out=False,
+            expected_revision=checked_out.settings_revision,
+            actor_user_id=user,
+            changed_at=now,
+        )
+        connection.commit()
+        assert released is not None
+        assert lease.checked_out_by(scope) is None

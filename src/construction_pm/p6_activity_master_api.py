@@ -13,6 +13,10 @@ from .application.authorization import (
 )
 from .activity_master_repository import ActivityMaster, ActivityMasterRepository
 from .backend_p0.models import BackendScope
+from .project_checkout import (
+    ProjectCheckoutLease,
+    require_project_write_ownership,
+)
 from .scheduling.activity import (
     ActivityDurationType,
     ActivityLevelingPriority,
@@ -83,6 +87,7 @@ class P6ActivityMasterAPI:
 
     repository: ActivityMasterRepository
     authorization_policy: AuthorizationPolicy
+    checkout_lease: ProjectCheckoutLease | None = None
 
     def create(
         self,
@@ -93,6 +98,7 @@ class P6ActivityMasterAPI:
         _require_scope(activity.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=0))
 
     def update(
@@ -111,6 +117,7 @@ class P6ActivityMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
     def get(

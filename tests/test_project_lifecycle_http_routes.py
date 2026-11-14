@@ -940,14 +940,26 @@ def test_authenticated_sync_routes_require_session():
     assert status == 401
     assert json.loads(raw)["code"] == "SESSION_REQUIRED"
 
-def relationship_routes():
+class _Lease:
+    def __init__(self, holder: str | None) -> None:
+        self.holder = holder
+
+    def checked_out_by(self, scope):
+        return self.holder
+
+
+def relationship_routes(checkout_holder: str | None = None):
     import sqlite3
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
     session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
     service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
         Sessions(session), Projects(), default_project_policy()
     )
-    relationship_api = P6RelationshipAPI(SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:")), default_project_policy())
+    relationship_api = P6RelationshipAPI(
+        SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:")),
+        default_project_policy(),
+        checkout_lease=_Lease(checkout_holder),
+    )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -3328,3 +3340,23 @@ def test_project_http_persists_a_default_cost_account_from_the_hierarchy():
     )
     assert status == 400
     assert json.loads(body)["code"] == "PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND"
+
+
+def test_relationship_http_write_reports_checkout_conflict_as_409():
+    r = relationship_routes(checkout_holder="u-other")
+    payload = {
+        "relationship_id": "rel-1",
+        "predecessor_id": "A-1",
+        "successor_id": "A-2",
+        "relationship_type": "FS",
+        "lag_value": "0",
+        "lag_unit": DurationUnit.WORKING_DAY.value,
+    }
+    status, _, raw = r.handle(
+        "POST",
+        "/api/projects/p1/p6/relationships",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"

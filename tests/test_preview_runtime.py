@@ -2102,3 +2102,116 @@ def test_preview_resource_calendar_assignment_is_validated_in_the_service(
         assert json.loads(body)["resource"]["calendar_id"] == "CUBI-RPS-CAL"
     finally:
         reopened.close()
+
+
+def test_preview_checkout_blocks_every_write_domain_for_other_users(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview-checkout.sqlite3", reset=True)
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+
+        status, _, body = _request(
+            runtime.app, "GET", "/api/projects", cookie=admin.session_id
+        )
+        assert status == 200
+        project = next(
+            item
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == RPS_PROJECT
+        )
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/checkout",
+            cookie=admin.session_id,
+            body=json.dumps(
+                {
+                    "checked_out": True,
+                    "expected_revision": project["settings_revision"],
+                }
+            ).encode(),
+        )
+        assert status == 200, body
+        assert json.loads(body)["project"]["checked_out_by"] == "preview-admin"
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/p6/wbs",
+            cookie=admin.session_id,
+        )
+        assert status == 200
+        root_wbs_id = json.loads(body)["wbs_nodes"][0]["wbs"]["wbs_id"]
+
+        writes = (
+            (
+                f"/api/projects/{RPS_PROJECT}/p6/activities",
+                {
+                    "activity_id": "A-CHECKOUT",
+                    "duration_value": "2",
+                    "duration_unit": "working-day",
+                    "wbs_id": root_wbs_id,
+                },
+            ),
+            (
+                f"/api/projects/{RPS_PROJECT}/p6/wbs",
+                {
+                    "wbs_id": "W-CHECKOUT",
+                    "parent_kind": "project",
+                    "code": "W-CHECKOUT",
+                    "name": "Checkout probe",
+                },
+            ),
+            (
+                f"/api/projects/{RPS_PROJECT}/p6/relationships",
+                {
+                    "relationship_id": "R-CHECKOUT",
+                    "predecessor_id": "A130",
+                    "successor_id": "A140",
+                    "relationship_type": "FS",
+                    "lag_value": "0",
+                    "lag_unit": "working-day",
+                },
+            ),
+            (
+                f"/api/projects/{RPS_PROJECT}/p6/cost-accounts",
+                {"account_id": "CA-CHECKOUT", "name": "Checkout probe"},
+            ),
+        )
+        for path, payload in writes:
+            status, _, body = _request(
+                runtime.app,
+                "POST",
+                path,
+                cookie=planner.session_id,
+                body=json.dumps(payload).encode(),
+            )
+            assert status == 409, (path, status, body)
+            assert json.loads(body)["code"] == "PROJECT_CHECKED_OUT_BY_OTHER", path
+
+        # Nothing was persisted by the rejected writes.
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/p6/activities",
+            cookie=planner.session_id,
+        )
+        assert status == 200
+        assert "A-CHECKOUT" not in {
+            item["activity"]["activity_id"] for item in json.loads(body)["activities"]
+        }
+
+        # The holder keeps write access.
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/p6/activities",
+            cookie=admin.session_id,
+            body=json.dumps(writes[0][1]).encode(),
+        )
+        assert status == 201, body
+    finally:
+        runtime.close()

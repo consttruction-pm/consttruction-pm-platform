@@ -19,6 +19,7 @@ from .application.authorization import AuthorizationContext, AuthorizationPolicy
 from .backend_p0.idempotency import fingerprint
 from .backend_p0.models import BackendScope
 from .p6_activity_master_api import P6ActivityMasterAPI
+from .project_checkout import ProjectCheckoutLease
 from .activity_master_repository import (
     ActivityMaster,
     ActivityMasterRepository,
@@ -150,6 +151,7 @@ def build_activity_create_runtime(
     permission_adapter: AIToolPermissionAdapter,
     transaction_manager: object,
     clock: Callable[[], datetime] | None = None,
+    checkout_lease: ProjectCheckoutLease | None = None,
 ) -> AIActionRuntime:
     """Compose the first production typed tool only when real dependencies are supplied.
 
@@ -174,7 +176,11 @@ def build_activity_create_runtime(
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_UNSUPPORTED")
 
     tool = build_activity_create_tool(
-        activity_api=P6ActivityMasterAPI(activity_master_repository, authorization_policy),
+        activity_api=P6ActivityMasterAPI(
+            activity_master_repository,
+            authorization_policy,
+            checkout_lease=checkout_lease,
+        ),
         idempotency_store=idempotency_store,
         transaction_manager=transaction_manager,
     )
