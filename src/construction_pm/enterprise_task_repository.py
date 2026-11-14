@@ -165,6 +165,8 @@ class PostgresEnterpriseTaskRepository:
                 )
             return self.get(task.tenant_id, str(existing[0]))
 
+        if task.dependency_ids:
+            self._lock_dependency_graph(task.tenant_id)
         self._validate_dependencies(task.tenant_id, task.task_id, task.dependency_ids)
         stored_task = replace(task, revision=1)
         payload = self._serialize(stored_task)
@@ -257,6 +259,10 @@ class PostgresEnterpriseTaskRepository:
         self._revision(expected_revision)
         if task.revision != expected_revision:
             raise EnterpriseTaskRevisionConflict("ENTERPRISE_TASK_REVISION_CONFLICT")
+        # Acquire the tenant graph lock before locking the task row. Acquiring
+        # it afterwards can deadlock against a concurrent edge insert's FK
+        # key-share lock on the other task.
+        self._lock_dependency_graph(task.tenant_id)
         row = self.connection.execute(
             "SELECT task_json, revision FROM enterprise_tasks "
             "WHERE tenant_id=%s AND task_id=%s FOR UPDATE",
@@ -322,16 +328,17 @@ class PostgresEnterpriseTaskRepository:
             for row in rows
         )
 
+    def _lock_dependency_graph(self, tenant_id: str) -> None:
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"enterprise-task-dependencies:{tenant_id}",),
+        )
+
     def _validate_dependencies(
         self, tenant_id: str, task_id: str, dependency_ids: tuple[str, ...]
     ) -> None:
         if not dependency_ids:
             return
-        # Serialize dependency graph changes across workers for this tenant.
-        self.connection.execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            (f"enterprise-task-dependencies:{tenant_id}",),
-        )
         rows = self.connection.execute(
             "SELECT task_id FROM enterprise_tasks "
             "WHERE tenant_id=%s AND task_id = ANY(%s)",
