@@ -350,8 +350,15 @@ async function main() {
     assert(iconMenu.actions.includes("style-family"), "icon menu is missing style choices");
     assert(iconMenu.actions.includes("toggle-separator"), "icon menu is missing Begin a Group");
     await capture(page, "right-click-icon-1366x768-en");
+    await page.evaluate(`document.querySelector('.cp-tool-menu [data-tool-menu-action="hide-button"]').click()`);
+    await sleep(400);
+    assert(!(await buttonVisible(page, "layout", "layout.open")), "right-click Hide Button did not remove the command");
+    await openFamilyMenu(page, "layout");
+    await clickMenuItem(page, "reset-family", { toolFamily: "layout" });
     await closeMenus(page);
+    assert(await buttonVisible(page, "layout", "layout.open"), "Reset Toolbar did not restore the hidden icon");
     record("right-clicking a toolbar and an icon opens distinct real customization menus", iconMenu);
+    record("the icon menu hides a command and Reset Toolbar restores it");
 
     // ------------------------------------------------------------- dragging
     // A taller viewport keeps both ends of a long rail visible while the
@@ -511,6 +518,25 @@ async function main() {
     assert(JSON.stringify(afterReload.leftFamilies) === JSON.stringify(expected.leftFamilies), "left rail arrangement changed after reload");
     await capture(page, "after-reload-1366x768-en");
     record("every toolbar customization survives a full reload", { expected, afterReload });
+
+    // Delete the custom toolbar from the rail context menu.
+    await scrollToElement(page, '[data-tool-rail="right"] [data-tool-rail-menu]');
+    await page.realClick('[data-tool-rail="right"] [data-tool-rail-menu]');
+    await page.waitFor(`Boolean(document.querySelector(".cp-tool-menu"))`, "rail menu before delete", 4000);
+    const deleted = await page.evaluate(`(() => {
+      const menu = document.querySelector(".cp-tool-menu");
+      const target = [...menu.querySelectorAll('[data-tool-menu-action="delete-custom"]')].find((item) => item.dataset.toolFamily === ${JSON.stringify(customId)});
+      if (!target) return false;
+      target.click();
+      return true;
+    })()`);
+    assert(deleted, "the rail menu does not offer Delete Custom Toolbar");
+    await sleep(600);
+    assert(await page.evaluate(`!document.querySelector('[data-toolbar-dock] [data-tool-family^="custom:"]')`), "the custom toolbar was not deleted");
+    await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload after custom toolbar delete");
+    await sleep(1000);
+    assert(await page.evaluate(`!document.querySelector('[data-toolbar-dock] [data-tool-family^="custom:"]')`), "the deleted custom toolbar returned after reload");
+    record("a custom toolbar can be deleted and stays deleted after reload", { customId });
 
     // ------------------------------------------------------- user isolation
     await logout(page);

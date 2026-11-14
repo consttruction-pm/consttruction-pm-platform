@@ -361,11 +361,15 @@ function customToolbarActions(session: ToolbarRailSession, families: readonly To
   if (!custom.length) return "";
   return `<div class="cp-tool-menu-separator" role="separator"></div>
     ${menuHeading(tr(session, "Custom toolbars", "نوارهای ابزار سفارشی"))}
-    ${custom.map((family) => menuItem(
+    ${custom.map((family) => `${menuItem(
       familyName(family, session),
       "rename-custom",
       { key: `rename:${family.id}`, dataset: { "tool-family": family.id }, hint: tr(session, "Rename", "تغییر نام") },
-    )).join("")}`;
+    )}${menuItem(
+      tr(session, `Delete Custom Toolbar — ${familyName(family, session)}`, `حذف نوار ابزار سفارشی — ${familyName(family, session)}`),
+      "delete-custom",
+      { key: `delete:${family.id}`, dataset: { "tool-family": family.id }, hint: tr(session, "Delete", "حذف") },
+    )}`).join("")}`;
 }
 
 function buttonContent(
