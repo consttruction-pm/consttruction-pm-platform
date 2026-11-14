@@ -4811,10 +4811,18 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, self._p6_expense_api.create(expense, auth_context=auth))
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_EXPENSE_REQUEST_INVALID", "error.request.invalid")
-            if path.startswith("/api/projects/") and "/p6/activity-period-actuals" in path and self._p6_activity_period_actual_api is not None:
+            if "/p6/activity-period-actuals" in path and self._p6_activity_period_actual_api is not None:
+                split = urlsplit(path)
+                route_path = split.path
+                query = {
+                    key: values[-1]
+                    for key, values in parse_qs(split.query, keep_blank_values=True).items()
+                }
+                if not route_path.startswith("/api/projects/"):
+                    return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
                 prefix = "/p6/activity-period-actuals"
-                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
-                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                project_id = route_path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = route_path[len("/api/projects/") + len(project_id) + len(prefix):]
                 if not project_id:
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
                 try:
@@ -4832,7 +4840,9 @@ class ProjectLifecycleHttpRoutes:
                     if not isinstance(payload, dict):
                         raise ValueError("invalid payload")
                     if method == "GET" and not parts:
-                        result = self._p6_activity_period_actual_api.list(scope, activity_id=payload.get("activity_id"), period_id=payload.get("period_id"), auth_context=auth)
+                        activity_id = query.get("activity_id", payload.get("activity_id"))
+                        period_id = query.get("period_id", payload.get("period_id"))
+                        result = self._p6_activity_period_actual_api.list(scope, activity_id=activity_id, period_id=period_id, auth_context=auth)
                         return self._json(200, {"contract_version": P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION, "activity_period_actuals": list(result)})
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_period_actual_api.get(scope, parts[0], auth_context=auth)
@@ -4841,11 +4851,31 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, result)
                     if method == "POST" and not parts:
                         from ..p6_activity_period_actual_repository import P6ActivityPeriodActual
+                        activity_id = payload.get("activity_id", "")
+                        period_id = payload.get("period_id", "")
+                        # A stored period actual is a period-addressed fact: reject a
+                        # dangling activity or financial period instead of persisting an
+                        # unreconcilable reference. The checks are skipped when the
+                        # composed runtime does not provide the referenced registers.
+                        if (
+                            self._p6_activity_master_api is not None
+                            and isinstance(activity_id, str)
+                            and activity_id.strip()
+                            and self._p6_activity_master_api.get(scope, activity_id, auth_context=auth) is None
+                        ):
+                            return self._error(404, "P6_ACTIVITY_PERIOD_ACTUAL_ACTIVITY_NOT_FOUND", "error.p6.activity_period_actual.activity_not_found")
+                        if (
+                            self._p6_financial_period_api is not None
+                            and isinstance(period_id, str)
+                            and period_id.strip()
+                            and self._p6_financial_period_api.get(scope, period_id, auth_context=auth) is None
+                        ):
+                            return self._error(404, "P6_ACTIVITY_PERIOD_ACTUAL_PERIOD_NOT_FOUND", "error.p6.activity_period_actual.period_not_found")
                         actual = P6ActivityPeriodActual(
                             scope=scope,
                             actual_id=payload.get("actual_id", ""),
-                            activity_id=payload.get("activity_id", ""),
-                            period_id=payload.get("period_id", ""),
+                            activity_id=activity_id,
+                            period_id=period_id,
                             actual_units=None if payload.get("actual_units") is None else Decimal(str(payload.get("actual_units"))),
                             actual_cost=None if payload.get("actual_cost") is None else Decimal(str(payload.get("actual_cost"))),
                             unit=payload.get("unit"),
@@ -4855,6 +4885,10 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, self._p6_activity_period_actual_api.create(actual, auth_context=auth))
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except P6ActivityPeriodActualPersistenceError as exc:
+                    code = str(exc)
+                    status = 409 if code in {"IMMUTABLE_ACTIVITY_PERIOD_ACTUAL", "REVISION_CONFLICT"} else 400
+                    return self._error(status, code, "error.p6.activity_period_actual.write_rejected")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):

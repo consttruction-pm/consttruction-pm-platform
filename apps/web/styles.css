@@ -7827,6 +7827,8 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 @media(max-width:560px){.cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{grid-template-columns:minmax(0,1fr)}}
 .cp-p6 .cp-register-notice{padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b}
 .cp-p6 .cp-progress-details-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-height:0;flex:0 0 auto;align-items:start}
+.cp-p6 .cp-period-actuals{margin-top:8px}
+.cp-p6 .cp-progress-fields .cp-expense-note{grid-column:1/-1}
 .cp-p6 [data-progress-page] .cp-register-details{min-height:0}
 .cp-p6 [data-progress-page] .cp-register-details .cp-register-detail-content{min-height:0;overflow:auto}
 @media(max-width:1000px){.cp-p6 .cp-progress-details-grid{grid-template-columns:minmax(0,1fr)}}

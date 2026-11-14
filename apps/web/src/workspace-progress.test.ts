@@ -6,6 +6,7 @@ import {
   buildProgressPayload,
   loadProgressActivities,
   loadProgressHistory,
+  mountWorkspaceProgressPage,
   parseProgressActivity,
   parseProgressHistory,
   saveProgress,
@@ -450,4 +451,186 @@ test("progress history accepts an empty register and a null review", async () =>
   assert.deepEqual(result.data.events, []);
   assert.deepEqual(result.data.trend, []);
   assert.equal(result.data.review, null);
+});
+
+const PERIOD_LIST = {
+  contract_version: "p6-financial-period-api.v1",
+  financial_periods: [
+    {
+      contract_version: "p6-financial-period-api.v1",
+      kind: "p6_financial_period",
+      financial_period: {
+        period_id: "2026-09",
+        name: "Sep 2026",
+        start_date: "2026-09-01",
+        end_date: "2026-09-30",
+        status: "OPEN",
+      },
+    },
+  ],
+};
+
+const PERIOD_ACTUAL_LIST = {
+  contract_version: "p6-activity-period-actual-api.v1",
+  activity_period_actuals: [
+    {
+      contract_version: "p6-activity-period-actual-api.v1",
+      kind: "p6_activity_period_actual",
+      scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+      activity_period_actual: {
+        actual_id: "SPP-A140-2026-09",
+        activity_id: "A140",
+        period_id: "2026-09",
+        actual_units: "3.125",
+        actual_cost: "20.50",
+        unit: "h",
+        currency: "USD",
+        note: "period actual",
+      },
+    },
+  ],
+};
+
+function mountProgressHost() {
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = {
+    dataset: {} as Record<string, string>,
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    contains: () => true,
+  };
+  const clickRow = (activityId: string): void => {
+    const target = {
+      dataset: { activityId },
+      closest: (selector: string) => (selector === "[data-progress-row]" ? target : null),
+    };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  const submitPeriodActual = (values: Record<string, string>): void => {
+    const form = {
+      matches: (selector: string) => selector === "[data-period-actual-form]",
+      querySelector: (selector: string) => {
+        const match = /\[name="([^"]+)"\]/.exec(selector);
+        return { value: match ? values[match[1]] ?? "" : "" };
+      },
+    };
+    listeners.get("submit")?.({ target: form, preventDefault: () => {} } as unknown as Event);
+  };
+  return { host, clickRow, submitPeriodActual };
+}
+
+function progressTransport(
+  postResult: ApiResult<unknown>,
+  calls: { gets: string[]; posts: { path: string; request: unknown }[] },
+): ApiTransport {
+  return {
+    async get<T>(path: string): Promise<ApiResult<T>> {
+      calls.gets.push(path);
+      if (path === "/api/projects/project-1/p6/activities") {
+        return { ok: true, data: { contract_version: "p6-activity-master-api.v1", activities: [envelope()] } } as ApiResult<T>;
+      }
+      if (path === "/api/projects/project-1/p6/activities/A140/progress-history") {
+        return { ok: true, data: { ...HISTORY, events: [], percent_complete_trend: [], out_of_sequence_review: null } } as ApiResult<T>;
+      }
+      if (path === "/api/projects/project-1/p6/financial-periods") {
+        return { ok: true, data: PERIOD_LIST } as ApiResult<T>;
+      }
+      if (path === "/api/projects/project-1/p6/activity-period-actuals") {
+        return { ok: true, data: PERIOD_ACTUAL_LIST } as ApiResult<T>;
+      }
+      throw new Error(`unexpected GET ${path}`);
+    },
+    async post(path, request) {
+      calls.posts.push({ path, request });
+      return postResult as ApiResult<never>;
+    },
+  };
+}
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test("the Progress page renders stored period performance and posts an exact period actual", async () => {
+  const calls = { gets: [] as string[], posts: [] as { path: string; request: unknown }[] };
+  const { host, clickRow, submitPeriodActual } = mountProgressHost();
+  mountWorkspaceProgressPage(host as unknown as HTMLElement, {
+    transport: progressTransport({ ok: true, data: PERIOD_ACTUAL_LIST.activity_period_actuals[0] }, calls),
+    context: CONTEXT,
+    locale: "en",
+  });
+  await tick();
+  await tick();
+  assert.match(host.innerHTML, /Stored Period Performance/);
+  assert.match(host.innerHTML, /Sep 2026/);
+  assert.match(host.innerHTML, /SPP-A140-2026-09/);
+  assert.match(host.innerHTML, /3\.125/);
+  assert.match(host.innerHTML, /immutable/);
+
+  clickRow("A140");
+  await tick();
+  submitPeriodActual({
+    "period-id": "2026-09",
+    "period-units": "3.125",
+    "period-cost": "20.50",
+    "period-unit": "h",
+    "period-currency": "USD",
+    "period-note": "period actual",
+  });
+  await tick();
+  await tick();
+  assert.deepEqual(calls.posts, [
+    {
+      path: "/api/projects/project-1/p6/activity-period-actuals",
+      request: {
+        contract_version: "p6-activity-period-actual-api.v1",
+        actual_id: "SPP-A140-2026-09",
+        activity_id: "A140",
+        period_id: "2026-09",
+        actual_units: "3.125",
+        actual_cost: "20.50",
+        unit: "h",
+        currency: "USD",
+        note: "period actual",
+      },
+    },
+  ]);
+  assert.match(host.innerHTML, /Period actual stored for 2026-09\./);
+});
+
+test("the Progress page explains an immutable stored period actual in Persian", async () => {
+  const calls = { gets: [] as string[], posts: [] as { path: string; request: unknown }[] };
+  const { host, clickRow, submitPeriodActual } = mountProgressHost();
+  mountWorkspaceProgressPage(host as unknown as HTMLElement, {
+    transport: progressTransport(
+      {
+        ok: false,
+        error: {
+          code: "IMMUTABLE_ACTIVITY_PERIOD_ACTUAL",
+          retryable: false,
+          message_key: "error.request.invalid",
+          available_actions: [],
+        },
+      },
+      calls,
+    ),
+    context: CONTEXT,
+    locale: "fa",
+  });
+  await tick();
+  await tick();
+  clickRow("A140");
+  await tick();
+  submitPeriodActual({
+    "period-id": "2026-09",
+    "period-units": "4",
+    "period-cost": "",
+    "period-unit": "",
+    "period-currency": "",
+    "period-note": "",
+  });
+  await tick();
+  await tick();
+  assert.match(host.innerHTML, /تغییرناپذیر/);
+  assert.match(host.innerHTML, /واقعی دوره/);
 });

@@ -61,6 +61,7 @@ from construction_pm.administration_api import AdministrationAPI
 from construction_pm.backup_api import BackupAPI
 from construction_pm.exchange_api import ExchangeAPI
 from construction_pm.threshold_api import ThresholdAPI
+from construction_pm.p6_activity_period_actual_api import P6ActivityPeriodActualAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.wbs_master_repository import WBSMasterRepository
@@ -133,6 +134,7 @@ def build_project_lifecycle_wsgi_app(
     p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
     p6_baseline_capture_api: P6BaselineCaptureAPI | None = None,
     p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
+    p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
     p6_interchange_api: P6InterchangeAPI | None = None,
     p6_role_api: P6RoleAPI | None = None,
     p6_role_details_api: P6RoleDetailsAPI | None = None,
@@ -363,6 +365,7 @@ def build_project_lifecycle_wsgi_app(
         p6_baseline_conversion_api=p6_baseline_conversion_api,
         p6_baseline_capture_api=p6_baseline_capture_api,
         p6_earned_value_read_api=p6_earned_value_read_api,
+        p6_activity_period_actual_api=p6_activity_period_actual_api,
         p6_interchange_api=p6_interchange_api,
         p6_role_api=p6_role_api,
         p6_role_details_api=p6_role_details_api,

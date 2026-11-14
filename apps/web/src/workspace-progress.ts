@@ -1,5 +1,13 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { translateUiString } from "./workspace-ui-translations.js";
+import { loadFinancialPeriods, type FinancialPeriod } from "./workspace-administration.js";
+import {
+  loadPeriodActuals,
+  periodActualErrorNotice,
+  savePeriodActual,
+  type PeriodActualInput,
+  type StoredPeriodActual,
+} from "./workspace-period-actuals.js";
 
 export const ACTIVITY_API_VERSION = "p6-activity-master-api.v1";
 export const PROGRESS_HISTORY_API_VERSION = "p6-activity-progress-history-api.v1";
@@ -419,6 +427,15 @@ type PageState = {
   historyStatus: "idle" | "loading" | "loaded" | "error";
   history: ProgressHistory | null;
   historyError: string | null;
+  periodsStatus: "idle" | "loading" | "loaded" | "error";
+  periods: readonly FinancialPeriod[];
+  periodsError: string | null;
+  periodActualsStatus: "idle" | "loading" | "loaded" | "error";
+  periodActuals: readonly StoredPeriodActual[];
+  periodActualsError: string | null;
+  periodDraft: { periodId: string; units: string; cost: string; unit: string; currency: string; note: string };
+  periodBusy: boolean;
+  periodNotice: { kind: "ok" | "error"; message: string } | null;
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
 };
@@ -474,6 +491,15 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     historyStatus: "idle",
     history: null,
     historyError: null,
+    periodsStatus: "idle",
+    periods: [],
+    periodsError: null,
+    periodActualsStatus: "idle",
+    periodActuals: [],
+    periodActualsError: null,
+    periodDraft: { periodId: "", units: "", cost: "", unit: "", currency: "", note: "" },
+    periodBusy: false,
+    periodNotice: null,
     busy: false,
     notice: null,
   };
@@ -579,6 +605,92 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     return `${renderTrend(history)}${reviewLine}<div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Revision", "ویرایش"))}</th><th>${escapeHtml(say("Recorded", "زمان ثبت"))}</th><th>${escapeHtml(say("Actor", "ثبت‌کننده"))}</th><th>${escapeHtml(say("Changes", "تغییرات"))}</th><th>${escapeHtml(say("Sequence", "توالی"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
+  function periodStatusLabel(status: FinancialPeriod["status"]): string {
+    return status === "OPEN" ? say("Open", "باز") : say("Closed", "بسته");
+  }
+
+  async function loadPeriods(): Promise<void> {
+    state.periodsStatus = "loading";
+    state.periodsError = null;
+    render();
+    const result = await loadFinancialPeriods(transport, context);
+    if (result.ok) {
+      state.periodsStatus = "loaded";
+      state.periods = result.data;
+      if (!state.periodDraft.periodId && result.data.length) {
+        const preferred = result.data.find((item) => item.status === "OPEN") ?? result.data[0];
+        state.periodDraft.periodId = preferred.periodId;
+      }
+    } else {
+      state.periodsStatus = "error";
+      state.periodsError = result.error.code;
+    }
+    render();
+  }
+
+  async function loadStoredPeriodActuals(): Promise<void> {
+    state.periodActualsStatus = "loading";
+    state.periodActualsError = null;
+    render();
+    const result = await loadPeriodActuals(transport, context);
+    if (result.ok) {
+      state.periodActualsStatus = "loaded";
+      state.periodActuals = result.data;
+    } else {
+      state.periodActualsStatus = "error";
+      state.periodActualsError = result.error.code;
+    }
+    render();
+  }
+
+  function renderPeriodActuals(): string {
+    const item = selectedActivity();
+    const periods = state.periods;
+    const periodOptions = periods
+      .map(
+        (period) =>
+          `<option value="${escapeHtml(period.periodId)}"${period.periodId === state.periodDraft.periodId ? " selected" : ""}>${escapeHtml(`${period.name} · ${period.startDate} – ${period.endDate} · ${periodStatusLabel(period.status)}`)}</option>`,
+      )
+      .join("");
+    const disabled = state.periodBusy || !item || !periods.length || !state.periodDraft.periodId;
+    const scopeHint = !item
+      ? `<p class="cp-register-notice">${escapeHtml(say("Select an activity from the register above to store its period performance.", "برای ذخیرهٔ عملکرد دوره، یک فعالیت را از فهرست بالا انتخاب کنید."))}</p>`
+      : state.periodsStatus === "loading"
+        ? `<p class="cp-calendar-empty" role="status">${escapeHtml(say("Reading financial periods…", "در حال خواندن دوره‌های مالی…"))}</p>`
+        : state.periodsStatus === "error"
+          ? `<p class="cp-calendar-empty" role="alert">${escapeHtml(say("Financial periods could not be read", "خواندن دوره‌های مالی ناموفق بود"))} (${escapeHtml(state.periodsError ?? "unknown")})</p>`
+          : !periods.length
+            ? `<p class="cp-register-notice">${escapeHtml(say("No financial periods are stored for this project. Add one in Administration › Financial Periods before storing period performance.", "هیچ دورهٔ مالی برای این پروژه ذخیره نشده است. پیش از ذخیرهٔ عملکرد دوره، یکی را در مدیریت › دوره‌های مالی اضافه کنید."))}</p>`
+            : "";
+    const form = `<form data-period-actual-form class="cp-progress-fields">
+      <label>${escapeHtml(say("Activity", "فعالیت"))}<input readonly value="${escapeHtml(item ? `${item.activityId} — ${item.name}` : "")}" placeholder="${escapeHtml(say("Select an activity above", "یک فعالیت را بالا انتخاب کنید"))}"></label>
+      <label>${escapeHtml(say("Financial period", "دورهٔ مالی"))}<select name="period-id"${periods.length ? "" : " disabled"}>${periodOptions || `<option value="">${escapeHtml(say("No period stored", "دوره‌ای ذخیره نشده"))}</option>`}</select></label>
+      <label>${escapeHtml(say("Actual units", "واحد واقعی"))}<input name="period-units" inputmode="decimal" value="${escapeHtml(state.periodDraft.units)}" placeholder="${escapeHtml(missing)}"></label>
+      <label>${escapeHtml(say("Actual cost", "هزینهٔ واقعی"))}<input name="period-cost" inputmode="decimal" value="${escapeHtml(state.periodDraft.cost)}" placeholder="${escapeHtml(missing)}"></label>
+      <label>${escapeHtml(say("Unit", "واحد"))}<input name="period-unit" value="${escapeHtml(state.periodDraft.unit)}" placeholder="${escapeHtml(say("optional", "اختیاری"))}"></label>
+      <label>${escapeHtml(say("Currency", "ارز"))}<input name="period-currency" value="${escapeHtml(state.periodDraft.currency)}" placeholder="${escapeHtml(say("optional", "اختیاری"))}"></label>
+      <label class="cp-expense-note">${escapeHtml(say("Note", "یادداشت"))}<input name="period-note" value="${escapeHtml(state.periodDraft.note)}" placeholder="${escapeHtml(say("optional", "اختیاری"))}"></label>
+      <div class="cp-calendar-panel-actions"><button type="submit"${disabled ? " disabled" : ""}>${escapeHtml(say("Store period actual", "ذخیرهٔ واقعی دوره"))}</button><button type="button" data-progress-action="reload-periods"${state.periodBusy ? " disabled" : ""}>${escapeHtml(say("Reload stored periods", "بارگذاری دوبارهٔ دوره‌های ذخیره‌شده"))}</button></div>
+    </form>`;
+    let stored = "";
+    if (state.periodActualsStatus === "loading") {
+      stored = `<p class="cp-calendar-empty" role="status">${escapeHtml(say("Reading stored period actuals…", "در حال خواندن واقعی‌های ذخیره‌شدهٔ دوره…"))}</p>`;
+    } else if (state.periodActualsStatus === "error") {
+      stored = `<p class="cp-calendar-empty" role="alert">${escapeHtml(say("Stored period actuals could not be read", "خواندن واقعی‌های ذخیره‌شدهٔ دوره ناموفق بود"))} (${escapeHtml(state.periodActualsError ?? "unknown")})</p>`;
+    } else if (!state.periodActuals.length) {
+      stored = `<p class="cp-calendar-empty">${escapeHtml(say("No period performance is stored for this project yet.", "هنوز عملکرد دوره‌ای برای این پروژه ذخیره نشده است."))}</p>`;
+    } else {
+      const rows = state.periodActuals
+        .map(
+          (actual) =>
+            `<tr data-period-actual-row data-actual-id="${escapeHtml(actual.actualId)}"><td>${escapeHtml(actual.activityId)}</td><td>${escapeHtml(actual.periodId)}</td><td>${escapeHtml(displayValue(actual.actualUnits, missing))}</td><td>${escapeHtml(displayValue(actual.actualCost, missing))}</td><td>${escapeHtml(displayValue(actual.unit, missing))}</td><td>${escapeHtml(displayValue(actual.currency, missing))}</td><td>${escapeHtml(displayValue(actual.note, missing))}</td></tr>`,
+        )
+        .join("");
+      stored = `<div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Activity", "فعالیت"))}</th><th>${escapeHtml(say("Period", "دوره"))}</th><th>${escapeHtml(say("Actual Units", "واحد واقعی"))}</th><th>${escapeHtml(say("Actual Cost", "هزینهٔ واقعی"))}</th><th>${escapeHtml(say("Unit", "واحد"))}</th><th>${escapeHtml(say("Currency", "ارز"))}</th><th>${escapeHtml(say("Note", "یادداشت"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    return `${scopeHint}${form}${stored}<p class="cp-register-notice">${escapeHtml(say("Stored period actuals are immutable: one record per activity and financial period. A different value for the same pair is rejected rather than overwritten, and this page never recalculates dates, remaining work or cost.", "واقعی‌های ذخیره‌شدهٔ دوره تغییرناپذیرند: یک رکورد برای هر فعالیت و دورهٔ مالی. مقدار متفاوت برای همان جفت به‌جای بازنویسی رد می‌شود و این صفحه هرگز تاریخ‌ها، کار باقی‌مانده یا هزینه را بازمحاسبه نمی‌کند."))}</p>`;
+  }
+
   function renderRegister(): string {
     if (state.status === "loading") {
       return `<div class="cp-calendar-empty" role="status">${escapeHtml(say("Reading activity progress…", "در حال خواندن پیشرفت فعالیت‌ها…"))}</div>`;
@@ -622,7 +734,9 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
         <section class="cp-register-details"><header><strong>${escapeHtml(say("Progress Details", "جزئیات پیشرفت"))}</strong><span>${escapeHtml(state.selectedActivityId ?? say("No selection", "بدون انتخاب"))}</span></header><div class="cp-register-detail-content">${renderEditor()}</div></section>
         <section class="cp-register-details" data-progress-history><header><strong>${escapeHtml(say("Update History", "تاریخچهٔ به‌روزرسانی"))}</strong><span>${escapeHtml(state.history ? String(state.history.events.length) : say("No selection", "بدون انتخاب"))}</span></header><div class="cp-register-detail-content">${renderHistory()}</div></section>
       </div>
+      <section class="cp-register-details cp-period-actuals" data-progress-period-actuals><header><strong>${escapeHtml(say("Stored Period Performance", "عملکرد ذخیره‌شدهٔ دوره"))}</strong><span>${escapeHtml(state.periodActualsStatus === "loaded" ? `${state.periodActuals.length} ${say("stored", "ذخیره‌شده")}` : say("Not read", "خوانده نشده"))}</span></header><div class="cp-register-detail-content">${renderPeriodActuals()}</div></section>
       <p class="cp-register-notice">${escapeHtml(say("Progress values are validated and stored by the shared activity service. Schedule dates are recalculated only by Run Schedule on the Schedule page; this page does not compute dates.", "مقادیر پیشرفت توسط سرویس مشترک فعالیت اعتبارسنجی و ذخیره می‌شوند. تاریخ‌های زمان‌بندی فقط با اجرای زمان‌بندی در صفحهٔ زمان‌بندی بازمحاسبه می‌شوند؛ این صفحه تاریخ محاسبه نمی‌کند."))}</p>
+      ${state.periodNotice ? `<p class="cp-calendar-notice" data-period-actual-notice data-state="${state.periodNotice.kind}" role="status">${escapeHtml(state.periodNotice.message)}</p>` : ""}
       ${state.notice ? `<p class="cp-calendar-notice" data-progress-notice data-state="${state.notice.kind}" role="status">${escapeHtml(state.notice.message)}</p>` : ""}`;
     // Keep the selected register row visible after an in-place re-render.
     const activeRow = host.querySelector<HTMLElement>("[data-progress-row].is-selected");
@@ -641,6 +755,58 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
       actualFinish: read("actual-finish"),
       remainingDuration: read("remaining-duration"),
     };
+  }
+
+  function readPeriodDraft(form: HTMLFormElement): PageState["periodDraft"] {
+    const read = (name: string): string =>
+      form.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)?.value ?? "";
+    return {
+      periodId: read("period-id"),
+      units: read("period-units"),
+      cost: read("period-cost"),
+      unit: read("period-unit"),
+      currency: read("period-currency"),
+      note: read("period-note"),
+    };
+  }
+
+  async function savePeriodActualForm(form: HTMLFormElement): Promise<void> {
+    const item = selectedActivity();
+    const draft = readPeriodDraft(form);
+    state.periodDraft = draft;
+    if (!item) {
+      state.periodNotice = {
+        kind: "error",
+        message: periodActualErrorNotice("PERIOD_ACTUAL_SCOPE_REQUIRED", locale),
+      };
+      render();
+      return;
+    }
+    const input: PeriodActualInput = {
+      activityId: item.activityId,
+      periodId: draft.periodId,
+      actualUnits: draft.units,
+      actualCost: draft.cost,
+      unit: draft.unit,
+      currency: draft.currency,
+      note: draft.note,
+    };
+    state.periodBusy = true;
+    state.periodNotice = null;
+    render();
+    const result = await savePeriodActual(transport, context, input);
+    state.periodBusy = false;
+    if (!result.ok) {
+      state.periodNotice = { kind: "error", message: periodActualErrorNotice(result.error.code, locale) };
+      render();
+      return;
+    }
+    state.periodNotice = {
+      kind: "ok",
+      message: say(`Period actual stored for ${draft.periodId}.`, `واقعی دوره برای ${draft.periodId} ذخیره شد.`),
+    };
+    state.periodDraft = { ...draft, units: "", cost: "", note: "" };
+    await loadStoredPeriodActuals();
   }
 
   async function reload(keepSelection: string | null): Promise<void> {
@@ -681,6 +847,10 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
     const action = target.closest<HTMLElement>("[data-progress-action]")?.dataset.progressAction;
     if (!action) return;
     if (action === "refresh") void reload(state.selectedActivityId);
+    if (action === "reload-periods") {
+      void loadPeriods();
+      void loadStoredPeriodActuals();
+    }
     if (action === "reload") {
       const item = selectedActivity();
       if (item) {
@@ -705,6 +875,12 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
 
   host.addEventListener("submit", (event) => {
     const form = event.target as HTMLFormElement;
+    if (form.matches("[data-period-actual-form]")) {
+      event.preventDefault();
+      if (state.periodBusy) return;
+      void savePeriodActualForm(form);
+      return;
+    }
     if (!form.matches("[data-progress-form]")) return;
     event.preventDefault();
     const item = selectedActivity();
@@ -740,4 +916,6 @@ export function mountWorkspaceProgressPage(host: HTMLElement, options: ProgressP
   });
 
   void reload(options.initialActivityId ?? null);
+  void loadPeriods();
+  void loadStoredPeriodActuals();
 }
