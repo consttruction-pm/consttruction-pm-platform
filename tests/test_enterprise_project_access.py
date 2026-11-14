@@ -112,6 +112,9 @@ def test_non_admin_cannot_manage_project_access():
 
 def test_obs_project_authorization_requires_both_global_module_and_project_profile():
     repository = FakeRepository()
+    repository.assignments[("tenant-a","member-1","root","read_only")] = UserOBSAssignment(
+        "tenant-a","member-1","root","read_only",True,1,"admin-1",NOW
+    )
     role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
     class Connection:
         def execute(self, sql, params):
