@@ -1023,6 +1023,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Evidence:** `docs/workspace/evidence/resources-v26-2026-11-14/` (`resources-v26.json` records `testedCodeSha`/`gitHead` = `35f2283a008c1cb6bb94112e20a291af165eaa5f`; 14 screenshots).
 - **Remaining limits:** no overtime, timescale/bucket editor, usage profile chart, actual/remaining/forecast spread types or leveling run/apply. RES-005/TRK-001/PRO-002 remain unaudited.
 
+## RES-004 stored usage profile chart — 2026-11-14
+
+- **Implementation (`14e3c16f`):** the Usage tab now shows a **Stored usage profile** chart above the per-period comparison table, with a Day/Week/Month timescale select. `groupResourceUsageBuckets` sums only the stored period rows whose `period_start` falls inside each bucket using exact decimal addition; weeks are UTC Monday–Sunday, months are first-to-last day, and an unparseable stored date stays in its own bucket. A stored amount is never spread across days and no bucket width, spread type or overtime is inferred. Overallocation remains per stored period from the existing comparison, and a bar is flagged only when one of its stored periods is overallocated.
+- **Boundary:** the chart counts stored period starts, so two assignments sharing one start appear as one bucket period but still as two assignments in the table row. No scheduler or leveling pass runs in the page.
+- **Tests at the same code:** `resource-usage.test.ts` 9 (new bucket-bound and exact weekly/monthly sum cases) and `workspace-resources.test.ts` 13 (new day/week/month DOM case, including unknown-timescale fallback); full Web 1151 `tsx` + 14 `node --test`, `tsc --noEmit` and esbuild pass; Python `4290 passed, 194 skipped`. `apps/web/e2e/resources-v26.mjs` 14/14 at `14e3c16f` on a fresh SQLite preview, with `05b` switching Day→Week→Month and asserting the bucket values, and Persian RTL scenario `12` asserting the option labels and bar facts.
+- **Evidence:** `docs/workspace/evidence/res-004-usage-profile-2026-11-14/` (`resources-v26.json` records `testedCodeSha` = `14e3c16f`; day, month, Persian and 1280×720 screenshots).
+- **Remaining limits:** no overtime, no stored bucket-width/spread editor, no actual/remaining/forecast spread profiles and no leveling run/apply. RES-005 curves/shifts stay `BLOCKED_EXTERNAL`; TRK-001 lifecycle and PRO-002 remain as recorded.
+
 ## RES-005 effective-dated resource rates — 2026-11-14
 
 - **Requirement:** resource prices are effective-dated; the UI must let a writer append a real rate change, preserve the earlier interval, and never compute or guess the rate in force.

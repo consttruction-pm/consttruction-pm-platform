@@ -3778,6 +3778,37 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   run/apply; a resource with stored capacity segments but no assignment rate
   still reports demand as missing rather than inferring one.
 
+### RES-004 stored usage profile chart — 2026-11-14 (`14e3c16f`)
+
+- The Usage tab now renders a **Stored usage profile** chart above the
+  per-period table, driven only by the stored assignment period rows and a
+  Day/Week/Month display timescale.
+- `groupResourceUsageBuckets` sums stored values whose `period_start` falls in
+  each bucket with exact decimal arithmetic (UTC Monday–Sunday weeks,
+  first–last-day months, invalid dates kept in their own bucket). It never
+  spreads an amount across days and never infers a bucket width, spread type or
+  overtime; the en/fa hint states this.
+- Overallocation is still evaluated per stored period in the table; a bar is
+  flagged `is-overallocated` only when one of its stored periods is
+  overallocated. The chart exposes `data-resource-usage-chart`,
+  `data-timescale`, `data-resource-usage-bar` (start/end/demand/periods) and a
+  `data-resource-usage-timescale` select.
+- **Acceptance.** `apps/web/e2e/resources-v26.mjs` **14/14** at `14e3c16f` on a
+  fresh SQLite preview (`--reset`); scenario `05b` asserts Day
+  (`2026-09-30` 16 overallocated, `2026-10-16` 4 within), Week
+  (`2026-09-28→2026-10-04` 16, `2026-10-12→2026-10-18` 4) and Month
+  (`2026-09` 16, `2026-10` 4) buckets, plus the option labels; scenario `12`
+  repeats the chart in Persian RTL at 1280×720. Evidence:
+  `docs/workspace/evidence/res-004-usage-profile-2026-11-14/`.
+- **Tests at the same code.** `resource-usage.test.ts` 9 and
+  `workspace-resources.test.ts` 13 pass; full Web `1151 tsx` +
+  `14 node --test`, `tsc --noEmit` and esbuild pass; Python
+  `4290 passed, 194 skipped`.
+- **Remaining gaps.** No overtime, no stored bucket-width/spread input, no
+  actual/remaining/forecast spread profiles and no leveling run/apply. The
+  chart counts stored period starts, so assignments sharing a start collapse
+  into one bucket period while the table still counts each assignment.
+
 ### RES-005 effective-dated rate changes — 2026-11-14 (`fe1a306e`)
 
 - The Resources **Rates** tab no longer only lists stored facts: it appends a
