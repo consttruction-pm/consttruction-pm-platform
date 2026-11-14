@@ -47,6 +47,7 @@ The production team API is versioned as cubi-enterprise-organization-access.v1:
 
 - GET /api/enterprise/teams — list teams for the authenticated user.
 - POST /api/enterprise/teams — create a team (active Pro entitlement and enterprise_admin role required).
+- GET /api/enterprise/teams/{team_id}/members — list membership and roles (owner/admin only).
 - POST /api/enterprise/teams/{team_id}/members — add a same-tenant active user with a team role.
 - DELETE /api/enterprise/teams/{team_id}/members/{user_id} — remove a member using expected_revision.
 - POST /api/enterprise/teams/{team_id}/transfer-ownership — transfer ownership using expected_team_revision.
