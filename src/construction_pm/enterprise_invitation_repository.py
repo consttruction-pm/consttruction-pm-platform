@@ -237,6 +237,16 @@ class PostgresEnterpriseInvitationRepository:
         ).fetchall()
         return tuple(self._item(row) for row in rows)
 
+    def list_received_invitations(self, tenant_id: str, target_user_id: str) -> tuple[TeamInvitation, ...]:
+        rows = self._connection.execute(
+            "SELECT invitation_id,tenant_id,team_id,target_user_id,invited_by_user_id,role,status,expires_at,created_at,responded_at "
+            "FROM enterprise_team_invitations "
+            "WHERE tenant_id=%s AND target_user_id=%s AND status='pending' "
+            "ORDER BY created_at DESC,invitation_id",
+            (tenant_id,target_user_id),
+        ).fetchall()
+        return tuple(self._item(row) for row in rows)
+
     def _transition(self, tenant_id: str, invitation_id: str, status: str, actor_id: str, now: datetime):
         before = self.get_invitation(tenant_id, invitation_id)
         if before is None or before.status != "pending":
