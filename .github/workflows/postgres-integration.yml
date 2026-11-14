@@ -104,7 +104,7 @@ on:
       - "src/construction_pm/enterprise_organization_access.py"
       - "src/construction_pm/enterprise_organization_access_repository.py"
       - "tests/test_enterprise_organization_access.py"
-      - "tests/integration/test_enterprise_organization_access_postgres_live.py"
+      - "tests/integration/test_enterprise_organization_access_postgres_live.py tests/integration/test_enterprise_invitation_postgres_live.py"
 
   pull_request:
     paths:
@@ -199,6 +199,12 @@ on:
       - "src/construction_pm/enterprise_organization_access_repository.py"
       - "tests/test_enterprise_organization_access.py"
       - "tests/integration/test_enterprise_organization_access_postgres_live.py"
+      - "src/construction_pm/enterprise_invitation.py"
+      - "src/construction_pm/enterprise_invitation_repository.py"
+      - "src/construction_pm/enterprise_invitation_http.py"
+      - "tests/test_enterprise_invitation.py"
+      - "tests/test_enterprise_invitation_http.py"
+      - "tests/integration/test_enterprise_invitation_postgres_live.py"
 
 jobs:
   postgres:
