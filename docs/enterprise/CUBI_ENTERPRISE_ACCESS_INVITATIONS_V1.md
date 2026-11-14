@@ -55,3 +55,12 @@ The production team API is versioned as cubi-enterprise-organization-access.v1:
 Ownership transfer is restricted to the current active owner. The successor must already be an active team member and an active account in the same tenant. The old owner is retained as an admin; the new owner becomes the sole active owner. Team revision and both membership revisions advance in one request transaction, and the transfer is recorded in the append-only access audit. A partial unique index enforces one active owner per team. Removing the final owner is prohibited.
 
 Oracle Help V26 reference: [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm) and [Assigning OBS Elements to Users](https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm). Team membership and ownership are CUBI-native extensions, not P6 project-security-profile behavior.
+
+
+## Invitation inbox API
+
+- GET /api/enterprise/invitations/inbox — list pending invitations only for the authenticated recipient in the current tenant; token hashes and raw tokens are never returned.
+- POST /api/enterprise/invitations/{invitation_id}/accept-from-inbox — accept after server-side verification of the authenticated target account.
+- POST /api/enterprise/invitations/{invitation_id}/decline-from-inbox — decline after the same target-account verification.
+
+The inbox actions do not require a token in the browser because the invitation ID is high-entropy and the server also checks tenant, pending state, expiry and exact authenticated target user. External token-based accept/decline routes remain available for secure invitation links. Expired invitations are transitioned and audited when the recipient attempts acceptance; the inbox exposes expires_at so the UI can label them before action.
