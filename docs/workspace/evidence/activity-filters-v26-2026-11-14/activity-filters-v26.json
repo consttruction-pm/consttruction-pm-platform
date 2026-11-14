@@ -1,0 +1,175 @@
+{
+  "contract": "cubi-activity-filters-v26.v3",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "5fe7cf0210d1a0374c91d293692d8948f9a355da",
+  "testedCodeSha": "5fe7cf0210d1a0374c91d293692d8948f9a355da",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-14T00:07:56.540Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the manager and editor expose the version 26 surfaces",
+      "status": "pass",
+      "at": "2026-11-14T00:07:59.282Z",
+      "rows": 2,
+      "actions": [
+        "apply",
+        "delete",
+        "cut",
+        "copy",
+        "duplicate",
+        "paste",
+        "make-global",
+        "copy-as-layout"
+      ],
+      "groups": [
+        "default",
+        "global",
+        "layout",
+        "user"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the editor validates typed and relative dates before Apply",
+      "status": "pass",
+      "at": "2026-11-14T00:08:00.063Z",
+      "matched": 9,
+      "total": 14,
+      "text": "9 of 14 activities match."
+    },
+    {
+      "id": "03",
+      "name": "Add and the High value column save a compound lookahead filter",
+      "status": "pass",
+      "at": "2026-11-14T00:08:02.691Z",
+      "matched": 1,
+      "rows": 1
+    },
+    {
+      "id": "04",
+      "name": "the saved filter and its result survive a full reload",
+      "status": "pass",
+      "at": "2026-11-14T00:08:04.625Z",
+      "rows": 1,
+      "saved": [
+        "in progress",
+        "not started",
+        "completed",
+        "critical",
+        "non critical",
+        "negative float",
+        "milestone",
+        "six-week lookahead"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Any selected filter highlights instead of removing rows",
+      "status": "pass",
+      "at": "2026-11-14T00:08:06.113Z",
+      "rows": 14,
+      "matched": 7
+    },
+    {
+      "id": "06",
+      "name": "All Activities clears the filter and the highlight",
+      "status": "pass",
+      "at": "2026-11-14T00:08:07.569Z",
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "criterion rows renumber when moved and deleted",
+      "status": "pass",
+      "at": "2026-11-14T00:08:09.123Z",
+      "rows": 3,
+      "saved": 8
+    },
+    {
+      "id": "08",
+      "name": "the editor renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-14T00:08:11.871Z",
+      "dir": "rtl",
+      "matched": 7,
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "the dialog fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-14T00:08:14.131Z",
+      "rows": 2,
+      "overflow": 0
+    },
+    {
+      "id": "10",
+      "name": "list parameters use a typed picker and the saved choice reloads",
+      "status": "pass",
+      "at": "2026-11-14T00:08:20.112Z",
+      "matched": 1,
+      "rows": 1,
+      "saved": 9
+    },
+    {
+      "id": "11",
+      "name": "Optimize removes duplicate and implied criteria without changing matches",
+      "status": "pass",
+      "at": "2026-11-14T00:08:22.844Z",
+      "before": 1,
+      "after": 1,
+      "optimizeStatus": "Removed 1 redundant criteria.",
+      "clean": "No redundant criteria found."
+    },
+    {
+      "id": "12",
+      "name": "Duplicate stores a second filter and keeps the original",
+      "status": "pass",
+      "at": "2026-11-14T00:08:25.892Z",
+      "before": 9,
+      "after": 10,
+      "checked": [
+        "custom:six-week-lookahead-copy"
+      ]
+    },
+    {
+      "id": "13",
+      "name": "Cut moves a saved filter to the clipboard and Paste restores it",
+      "status": "pass",
+      "at": "2026-11-14T00:08:32.221Z",
+      "before": 10,
+      "cut": 9,
+      "pasted": 10,
+      "reloaded": 10
+    },
+    {
+      "id": "14",
+      "name": "Clear empties the filter definition without touching the applied filter",
+      "status": "pass",
+      "at": "2026-11-14T00:08:34.988Z",
+      "overflow": 0,
+      "rows": 1
+    }
+  ],
+  "screenshots": [
+    "01-filters-dialog-en-1366.png",
+    "02-filter-preview-en-1366.png",
+    "03-saved-lookahead-en-1366.png",
+    "04-filter-after-reload-en-1366.png",
+    "05-highlight-critical-in-progress-en-1366.png",
+    "06-filters-dialog-fa-rtl-1280.png",
+    "07-filters-dialog-en-1920.png",
+    "08-filter-choice-picker-en-1366.png",
+    "09-filter-choice-reload-en-1366.png",
+    "10-filter-optimize-en-1366.png",
+    "11-filter-duplicate-en-1366.png",
+    "12-filter-cut-paste-en-1366.png",
+    "13-filter-clear-fa-rtl-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 14,
+  "failed": 0
+}
