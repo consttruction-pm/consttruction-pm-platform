@@ -3,8 +3,8 @@
 - **Status:** IN PROGRESS — initial official-Help comparison; not exhaustive and not an implementation authorization.
 - **Baseline:** Oracle Primavera P6 EPPM Version 26 and P6 Professional Version 26.
 - **Prepared:** 2026-11-14
-- **Purpose:** Record product/surface differences so CUBI can distinguish Professional-compatible project-control behavior from EPPM web/enterprise capabilities.
-- **Scope boundary:** This is a reference and product-analysis document only. It does not authorize changes to the current CUBI Project Control Workspace, scheduler, navigation, or UI. The Professional V26 parity mission remains separate.
+- **Purpose:** Independently compare P6 EPPM V26 and P6 Professional V26 product capabilities, workflows, data contracts and integration boundaries using Oracle primary sources.
+- **Scope boundary:** This is a product-documentation audit only. It is not a CUBI workspace, application, agent, implementation or feature-development task. No workspace/code/agent work is inspected or modified by this audit.
 
 ## 1. Official source set
 
@@ -83,9 +83,9 @@ Both help trees document the core planning model: EPS/projects, WBS, activities,
 5. Check the EPPM User Guide, Professional User Guide, Administration Guides, Reporting Guides, Integration Guides, API references and Data Dictionaries where Help topics point outside the main help.
 6. Record each difference with exact Oracle URLs, topic titles, relevant quotations kept short, and a paraphrased behavioral summary.
 7. Assign one of the classifications in section 2. An unmatched TOC topic remains NOT_YET_VERIFIED until the opposing product's complete source set is checked.
-8. Cross-check the existing CUBI `p6_code_reference.py`, scheduling option reference, field/API registry, tests and product requirements. Reuse existing entries; do not duplicate the Professional parity register.
-9. Create a trace from Oracle topic -> difference ID -> CUBI requirement/decision -> code/test only when the feature is in the approved scope.
-10. Have an independent reviewer verify the source interpretation before any implementation decision.
+8. Keep the comparison independent of product implementation: do not inspect or modify any workspace, application code, agent-owned task, scheduler, menu or project data as part of this audit.
+9. Record unresolved product/API/runtime questions explicitly; do not convert them into implementation tasks or assume missing documentation proves missing capability.
+10. Have an independent reviewer verify the source interpretation before declaring the audit complete.
 
 ## 7. Deliverables and acceptance criteria
 
@@ -95,23 +95,22 @@ Both help trees document the core planning model: EPS/projects, WBS, activities,
 - [ ] Every confirmed difference has exact Oracle source links and behavior notes.
 - [ ] Reverse-direction Professional-only features are included.
 - [ ] Deployment, license, module and integration dependencies are separately recorded.
-- [ ] Existing CUBI references are cross-linked and duplicates avoided.
+- [ ] All remaining product/API/runtime gaps are either closed with V26 evidence or explicitly retained as NOT VERIFIED.
 - [ ] Independent review and evidence log completed.
-- [ ] Product owner approves any proposed CUBI scope separately.
+- [ ] Any future implementation request is handled separately and is not part of this audit.
 
-**Current state:** the initial TOC comparison and explicit product qualifiers are recorded. The exhaustive topic-page comparison is not complete. No CUBI implementation work is authorized by this document.
+**Current state:** the initial TOC comparison and explicit product qualifiers are recorded. The exhaustive topic-page comparison is not complete. This document does not inspect or authorize any product/workspace implementation.
 
-## 8. Repository references
+## 8. Audit tracking and official references
 
-- Existing Professional compatibility registry: `src/construction_pm/p6_code_reference.py`
-- Existing mapping matrix: `docs/workspace/architecture/p6-to-cubi-mapping-matrix.md`
-- Existing Knowledge V26 source audit: `docs/workspace/evidence/knowledge-multilingual-v26-2026-11-12/SOURCE_STATUS.md`
-- Existing documentation-first gate: Issue #1447
+- Related audit Issue: https://github.com/consttruction-pm/consttruction-pm-platform/issues/1925
+- Related documentation PR: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1926
 - EPPM V26 Help: https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
 - Professional V26 Help: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+- EPPM V26 All Guides: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/books.html
+- Professional V26 All Guides: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html
 
-
----
+This audit does not cross-reference or validate implementation registries, application code, workspace files, tests or agent work. Those are outside the requested product-comparison scope.
 
 ## 9. Full product-model correction — what “EPPM Only” actually means
 
@@ -252,24 +251,9 @@ Not established, and therefore not claimed:
 
 These remaining items require full guide-topic ingestion and an automated/manual topic-pairing pass. This artifact is now a substantially expanded product-level difference register, but must not be marked as an exhaustive page-by-page source audit until those evidence items are produced.
 
-## 13. CUBI product implications — reference only, no implementation authorization
+## 13. Product-only scope boundary
 
-For the future EPPM MENU concept, the most relevant EPPM enterprise capabilities to model as candidate modules are:
-
-1. Personal and shared dashboards / portlet-style widgets.
-2. My assigned activities, status submissions and review state.
-3. Timesheets, approvals, delegates and history.
-4. Issues, project risks, risk response plans and document reviews.
-5. Portfolio/project performance and capacity indicators.
-6. Notifications, email status, resource-team communications.
-7. Documents and managed repository/review references.
-8. Reports, report run history and published project data.
-9. User access, module entitlements, OBS/resource scoping and UI-view permissions.
-10. API-backed integrations and data provenance.
-
-This is a product-design input only. Do not implement these modules, alter the current Project Control Workspace, or modify Professional V26 parity work under this audit. Any future EPPM MENU scope requires separate explicit approval and a dedicated implementation plan.
-
-
+This audit compares Oracle P6 EPPM V26 and P6 Professional V26 as products. It does not propose, design, implement or validate a third-party workspace or product. It does not inspect or modify any CUBI workspace, application code, scheduler, navigation, project data, tests or agent-owned work. Any implementation request must be separate, explicit and outside this comparison.
 
 ---
 
