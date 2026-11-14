@@ -8,6 +8,18 @@ from construction_pm.enterprise_invitation_http import EnterpriseInvitationHttpM
 
 
 class Service:
+    def accept_from_inbox(self, session_id, invitation_id):
+        item=type("Invitation",(),{"invitation_id":invitation_id,"team_id":"team-1","role":"member",
+            "status":"accepted","expires_at":datetime(2026,11,22,tzinfo=timezone.utc),
+            "created_at":datetime(2026,11,15,tzinfo=timezone.utc),"token":None})()
+        membership=type("Membership",(),{"team_id":"team-1","user_id":"member-1","role":"member","status":"active"})()
+        return item,membership
+
+    def decline_from_inbox(self, session_id, invitation_id):
+        return type("Invitation",(),{"invitation_id":invitation_id,"team_id":"team-1","role":"member",
+            "status":"declined","expires_at":datetime(2026,11,22,tzinfo=timezone.utc),
+            "created_at":datetime(2026,11,15,tzinfo=timezone.utc),"token":None})()
+
     def list_received(self, session_id):
         return (type("Invitation", (), {
             "invitation_id":"invite-inbox-1","team_id":"team-1","role":"member",
@@ -71,3 +83,15 @@ def test_invitation_inbox_is_scoped_to_authenticated_recipient_and_never_returns
     assert payload["contract_version"] == "cubi-team-invitation-inbox.v1"
     assert payload["invitations"][0]["invitation_id"] == "invite-inbox-1"
     assert "token" not in payload["invitations"][0]
+
+
+def test_inbox_actions_accept_and_decline_without_returning_token():
+    app=EnterpriseInvitationHttpMiddleware(lambda e,s:[b"fallback"],Service())
+    accepted=_request(app,"/api/enterprise/invitations/invite-1/accept-from-inbox",method="POST")
+    payload=json.loads(accepted["body"])
+    assert accepted["status"].startswith("200")
+    assert payload["invitation"]["status"]=="accepted"
+    assert payload["membership"]["user_id"]=="member-1"
+    assert "token" not in payload["invitation"]
+    declined=_request(app,"/api/enterprise/invitations/invite-2/decline-from-inbox",method="POST")
+    assert json.loads(declined["body"])["invitation"]["status"]=="declined"
