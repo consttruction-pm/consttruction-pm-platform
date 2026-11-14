@@ -11,7 +11,7 @@ A web-ready construction project management platform designed as a structured re
 - `tests/` — automated tests and conformance tests.
 - `infra/` — deployment, database and environment definitions.
 - `tools/` — developer and migration utilities.
-- `docs/roadmap/` — staged implementation roadmap and completion tracking.
+- `docs/roadmap/` — staged implementation and completion tracking.
 
 ## Core engineering rules
 1. Primavera P6 logic is the baseline for overlapping scheduling/project-control behavior.
@@ -23,14 +23,18 @@ A web-ready construction project management platform designed as a structured re
 7. Audit/revision history is append-only for effective project changes.
 8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
-10. **CUBI has exactly one product environment: the Visual Workspace.** The public website contains Home and normal informational pages, followed by one product entry point. Login opens the Visual Workspace by default; logout returns to Home. No separate dashboard, generic authenticated app, alternate workspace or visual-demo route may be introduced. All product capabilities live inside this single workspace.
+10. **CUBI is one product platform with two complementary environments: CUBI Engineering and CUBI Enterprise.** The personal workbench is the entry/personal coordination surface, not a third environment. See [CUBI Two-Environment Product Architecture](docs/architecture/CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md).
+11. **CUBI Engineering is the active primary completion workstream.** The first development agent implements it; ChatGPT coordinates and issues scoped instructions. CUBI Enterprise is a separate parallel workstream owned/coordinated by ChatGPT and must not block, delay, destabilize or become a prerequisite for Engineering or website completion.
+12. PMBOK-aligned management and organizational collaboration capabilities belong to CUBI Enterprise. **Form Builder is shared** by both environments, with context-specific permissions/workflows and a common safe calculation contract. Existing form specifications and issues remain implementation requirements, not proof of completion.
+13. Until final authentication is delivered, role selection is a temporary login substitute for development navigation only. The intended flow is role/context selection (temporary login substitute) → personal workbench/dashboard → authorized environment selection (Engineering or Enterprise). This temporary mechanism is not production authentication or authorization.
+14. Engineering remains authoritative for engineering calculations and records. Cross-environment operations require explicit, versioned, permission-checked contracts. No duplicated engineering calculation engines or Enterprise work that degrades Engineering runtime/release gates.
 
 ## Mandatory continuity entrypoint
 
 Before starting any implementation, read [PROJECT_CONTINUITY_PROTOCOL.md](docs/governance/PROJECT_CONTINUITY_PROTOCOL.md) and [PROJECT_STATE_LEDGER.md](docs/governance/PROJECT_STATE_LEDGER.md). The protocol requires a current-main/exact-SHA check, the correct workstream schedule, evidence-based status, no scope reduction, and a ledger update at handoff. For website-only CUBISITE work use the standalone `cubisite.xlsx` Library schedule; do not substitute Jalal 5 or infer whole-product completion from the website plan.
 
 ## Team responsibility model
-The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
+The current three-person development ownership model is documented in [docs/team-responsibilities.md](docs/team-responsibilities.md):
 - **Jalal** — Lead Developer / Architect / Integration; Shared Core, scheduling/calculation, P6 parity, integration and final technical acceptance.
 - **Hasan** — Backend / Database / API; PostgreSQL, backend/application/repository, API contracts, sync and database-backed verification.
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
@@ -85,3 +89,6 @@ Current Stage 34 focus:
 - Keep Shared P6/Scheduling, Progress/EVM and Resource/Cost calculations out of backend resource boundaries.
 
 No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics are changed by the current sync-platform gates.
+
+## Two-environment no-regression rule
+No CUBI Enterprise or platform-entry change may silently alter the existing CUBI Engineering shell, engineering calculation authority, routes, data contracts, tests or delivery priority. Any cross-boundary change requires an explicit scoped proposal, approval and exact-head verification.

@@ -1,63 +1,81 @@
-# CUBI Product Surface Architecture — One Canonical Visual Workspace
+# CUBI Product Surface Architecture — Two Complementary Environments
 
 **Status:** Product-owner decision / mandatory architecture principle  
-**Decision date:** 2026-11-04  
-**Acceptance issue:** [#1712](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1712)
+**Decision date:** 2026-11-14  
+**Decision record:** [CUBI-ARCH-ENV-001](../architecture/CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md)
 
-## 1. Non-negotiable product identity
+## 1. Product identity
 
-CUBI has exactly one main product environment: the **Visual Workspace**. This is the actual product interface, not a demo, optional mode, secondary route or alternative to a dashboard.
+CUBI is one product platform with two complementary product environments:
 
-There is no separate authenticated dashboard, generic SaaS app, second workspace shell or parallel product environment. Do not create one.
+- **CUBI Engineering** — the primary engineering and project-controls environment.
+- **CUBI Enterprise** — the organizational and project-collaboration environment.
 
-## 2. Website information architecture
+The environments have distinct responsibilities and must not become duplicate products. The Engineering Visual Workspace remains the canonical Engineering shell. Enterprise is a separately developed environment and must not disrupt Engineering completion.
 
-The public website and authenticated product are distinct layers in one site:
+The earlier one-environment-only decision is superseded to the extent that it prohibited CUBI Enterprise. Its Engineering no-regression protections remain in force.
 
-1. **Home** — public homepage and primary product introduction.
-2. **Normal public pages** — Platform, Solutions, Resources, Pricing, Contact and other approved informational/marketing pages.
-3. **Single product entry** — one clear Login / Open Workspace entry leading to the Visual Workspace.
+## 2. Public website and product entry
 
-The public pages remain conventional website pages. They are not alternate product environments. The site must not expose a second app/dashboard entry.
+The public website contains:
+1. Home and normal public/informational pages.
+2. A product entry flow.
+3. Role or working-context selection (temporary login substitute until final authentication).
+4. The personal workbench / personal dashboard for the selected user context.
+5. Selection from that workbench of an authorized environment: CUBI Engineering or CUBI Enterprise.
 
-## 3. Authentication and navigation
+The personal workbench is an entry/personal coordination surface, not a third product environment. It must not replace or absorb either environment's workspace.
 
-- Successful login opens the Visual Workspace by default.
-- If the user requested an authorized deep link before login, restore that destination as a window/page inside the same workspace shell.
-- Logout returns to the public Home page.
-- Refresh, direct URL entry and session restoration must preserve the same workspace shell and authorized project/window context.
-- No route may open a second authenticated shell or generic dashboard.
+## 3. Temporary entry behavior and final authentication
 
-## 4. Where product capabilities live
+The final login/authentication system is not yet implemented. Until its final-stage delivery, role selection is a temporary substitute for login for current development navigation only. After selecting a role/context, the user enters the personal workbench/dashboard and selects an authorized environment there. This is not production authentication and must not be treated as proof of identity or authorization.
 
-Every authenticated capability belongs inside the Visual Workspace, using its existing persistent shell:
-- global menus, nested menus and toolbars;
-- project windows, page tabs and navigation tree;
-- engineering engines, scheduling, resource, cost, progress and quality controls;
-- reports, charts, forms and document tools;
-- administration, preferences, audit and security;
-- dialogs, drawers, contextual panels and page-specific Details.
+At the final authentication milestone:
+- role selection opens the personal workbench/dashboard, from which environment choices are sourced from authenticated identity and server-side grants;
+- users see only the roles and environments they are authorized to access;
+- the intended personal workbench → role/context → environment selection flow is preserved unless separately approved.
 
-New capabilities extend this workspace. They do not become a separate app.
+## 4. Environment responsibilities
 
-## 5. Visual no-regression rules
+### CUBI Engineering
 
-- Preserve the approved visual workspace as the primary post-login screen.
-- Preserve existing page dimensions, window proportions, Gantt sizing, toolbar placement, navigation and page-specific Details layouts unless a separate explicit approval authorizes a change.
-- Do not move the visual workspace behind a Help route, demo route, secondary menu or generic dashboard.
-- Do not remove or replace existing workspace functionality while enforcing this entry flow.
-- Any controls not yet connected must communicate their truthful state; no fake success.
+- Primary current completion workstream.
+- Owns engineering/project-control behavior and authoritative calculations and records.
+- Its current Visual Workspace shell, layout, routes, data contracts, tests and delivery sequence are protected from unrelated Enterprise changes.
+- The first development agent continues its implementation. ChatGPT coordinates by issuing scoped instructions and reviewing boundaries/evidence.
 
-## 6. Acceptance evidence
+### CUBI Enterprise
 
-The rule is considered implemented only when the running website demonstrates:
-1. Home and ordinary public pages work as public routes.
-2. Exactly one product entry leads to authentication / workspace.
-3. Login opens the Visual Workspace by default.
-4. Logout returns to Home.
-5. Direct workspace links and refresh remain inside the same shell.
-6. All product tools and engineering engines open within that shell.
-7. No competing dashboard, second app shell or visual-demo route is exposed.
-8. Browser E2E tests cover the full journey, deep links, session restoration and permissions.
+- Separate, currently developing environment.
+- Owns organizational and collaboration capabilities, including PMBOK-aligned management features, teams, tasks, workflows, approvals, communication, operations, stakeholder collaboration and portfolio/executive coordination.
+- ChatGPT owns its architecture definition, workstream separation, gap analysis, planning and staged coordination.
+- Its unfinished state is not a blocker or prerequisite for Engineering or website completion.
+- Its designated current entry point is the hidden Enterprise menu/entry, subject to the product's role and environment access rules.
 
-Documentation or a route catalogue alone is not implementation proof. Keep issue #1712 open until runtime evidence passes.
+## 5. Form Builder is shared
+
+Form Builder exists as a cross-environment capability:
+- Both Engineering and Enterprise may use forms and form workflows in their own contexts.
+- Form libraries, schema/version ownership, access, submissions and approval boundaries must be explicit.
+- The shared Formula/Calculation Core remains the sole authority for supported calculations.
+- Form Builder must not create shadow engineering calculations.
+- CUBI-FORM-CALC-001, CUBI-FORM-DESIGN-002 and issues #1481/#1617 remain mandatory implementation references; documentation is not implementation evidence.
+
+## 6. Integration and no-interference rules
+
+- Distinct environment responsibilities, code ownership, navigation and release boundaries.
+- Versioned, permission-checked APIs/events for cross-environment operations.
+- Engineering remains authoritative for engineering calculations and records.
+- No direct Enterprise access to Engineering operational tables unless a separately approved architecture explicitly establishes a safe contract.
+- Enterprise jobs must not degrade Engineering runtime or delivery gates.
+- No broad Engineering shell, route, database or calculation refactor is authorized by Enterprise work.
+
+## 7. Delivery priority
+
+CUBI Engineering and the currently committed website work remain the active completion priority. CUBI Enterprise proceeds as a separate parallel workstream only where it cannot block, delay or destabilize Engineering.
+
+No unfinished Enterprise module, PMBOK capability, Form Builder feature, personal dashboard or authentication flow may be made a prerequisite for Engineering completion.
+
+## 8. Acceptance
+
+The platform is accepted only when the two environments, the personal entry flow, temporary role-selection limitation, final authentication boundary, shared Form Builder rules and non-interference guarantees are demonstrated with implementation and test evidence.
