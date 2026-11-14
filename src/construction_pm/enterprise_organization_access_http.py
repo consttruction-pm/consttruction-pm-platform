@@ -64,6 +64,10 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 return 201, {"contract_version":_VERSION,"team":self._team(team)}
             return 405, {"code":"METHOD_NOT_ALLOWED"}
         if len(parts) == 5 and parts[:3] == ["api","enterprise","teams"] and parts[4] == "members":
+            if method == "GET":
+                members = self._service.list_members(session_id, parts[3])
+                return 200, {"contract_version":_VERSION,
+                             "memberships":[self._membership(item) for item in members]}
             if method != "POST":
                 return 405, {"code":"METHOD_NOT_ALLOWED"}
             payload = self._body(environ)
