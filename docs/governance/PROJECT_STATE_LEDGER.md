@@ -1073,7 +1073,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 
 ## CUBI Enterprise foundation implementation — 2026-11-15
 
-- **Current branch:** `feat/cubi-enterprise-foundation-v1-current-main`, created from current `main`; earlier PRs #1941 and #1942 were superseded during base-branch reconciliation and are closed, not merged.
+- **Current branch:** `feat/cubi-enterprise-foundation-v1-final`, created from current `main`; earlier PRs #1941 and #1942 were superseded during base-branch reconciliation and are closed, not merged.
 - **Scope:** versioned Enterprise task contract/domain; PostgreSQL repository; composite cursor pagination including NULL ordering; tenant-scoped advisory serialization for dependency graph mutation; completion actor attribution; append-only audit trigger and restrictive audit foreign key; domain and live PostgreSQL integration tests; reuse-first Enterprise foundation roadmap; independent environment design governance.
 - **Priority boundary:** CUBI Engineering remains the active primary completion priority. This Enterprise slice does not modify Engineering routes, calculation core, shell, production composition or release behavior.
 - **Not yet claimed:** organization/team persistence, task application authorization, HTTP API, Task Center UI, production composition, live PostgreSQL execution or production readiness.
