@@ -487,6 +487,8 @@ New child matrix: [Import/Export XER/XML/XLSX Field Mapping](EPPM_V26_IMPORT_EXP
 
 New child matrix: [Document Repository & Review Lifecycle](EPPM_V26_DOCUMENT_REPOSITORY_REVIEW_LIFECYCLE_MATRIX.md) — 49 rows comparing base document records, optional EPPM Content Repository, check-in/out, versions/history, security policies, review types/states, Professional public/private file references, EPPM-connected Professional limitations and Web Services fields.
 
+New child matrix: [Risk Model, Scoring & Response Plans](EPPM_V26_RISK_MODEL_SCORING_RESPONSE_PLAN_MATRIX.md) — 53 rows comparing EPPM configurable risk thresholds/matrices, three scoring methods, custom impacts, multiple response plans/actions and REST objects with Professional's fixed six-level Probability/Cost/Schedule scoring and single response section.
+
 Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
 
 ## H. CUBI project boundary
