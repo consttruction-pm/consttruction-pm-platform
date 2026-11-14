@@ -61,16 +61,16 @@ Form Builder is a cross-environment capability, not exclusively an Enterprise mo
 
 The intended post-entry journey is:
 
-1. User reaches the personal workbench / personal dashboard after entering the product.
-2. User selects or confirms their role / working context.
-3. User chooses an authorized environment:
+1. User selects or confirms their role / working context. While final authentication is unavailable, this role selection temporarily serves as the login step.
+2. The selected role/context opens the user's personal workbench / personal dashboard.
+3. From the personal workbench, the user chooses an authorized environment:
    - CUBI Engineering; or
    - CUBI Enterprise (currently reached through the designated hidden menu / entry point).
 4. The selected environment opens in its own appropriate workspace context.
 
-**Temporary pre-authentication behavior:** The product does not yet have the final login/authentication flow. Until the final authentication milestone, the role-selection step is a temporary login substitute for development and navigation purposes. It must be treated as provisional, not as production-grade identity verification or authorization.
+**Temporary pre-authentication behavior:** The product does not yet have the final login/authentication flow. Until the final authentication milestone, the role-selection step is a temporary login substitute; after role selection the user enters their personal workbench/dashboard and chooses an environment from there. This is provisional and is not production-grade identity verification or authorization.
 
-**Final-stage behavior:** At the final authentication stage, role and environment choices must be derived from authenticated identity, grants and access policy. The user must only be offered environments and roles they are authorized to use. Preserve the intended personal workbench → role/context → environment selection sequence unless a separately approved UX decision changes it.
+**Final-stage behavior:** At the final authentication stage, role and environment choices must be derived from authenticated identity, grants and access policy. The user must only be offered environments and roles they are authorized to use. Preserve the intended role/authentication → personal workbench/dashboard → environment selection sequence unless a separately approved UX decision changes it.
 
 The personal workbench is an entry and personal coordination surface; it is not a third product environment and must not be used to merge the two environment shells.
 
