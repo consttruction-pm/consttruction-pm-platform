@@ -1,14 +1,14 @@
 # CUBI Product Design System & Environment Shells
 
 **Document ID:** CUBI-DESIGN-SYSTEM-001  
-**Status:** Product-owner direction / design-system specification baseline  
+**Status:** Exploratory design brief — non-binding; requires product design, compatibility review, tests and explicit approval before adoption  
 **Date:** 2026-11-14  
 **Applies to:** CUBI platform, CUBI Engineering, CUBI Enterprise and the personal workbench entry surface  
 **Governed by:** `CUBI-ARCH-ENV-001`
 
 ## 1. Product design objective
 
-CUBI must look and behave like one professionally designed, coherent software product. Engineering and Enterprise are distinct work environments with different users, workflows, information density and navigation needs, but they must share one CUBI visual identity and one interaction language.
+CUBI should deliver a professional and coherent overall experience. At this stage, however, a shared visual identity implementation, shared shell, shared tokens or shared component library is a hypothesis to evaluate—not a mandatory constraint. Engineering and Enterprise may require different visual and interaction decisions based on their users, workflows, information density and existing technical foundations.
 
 The objective is not to imitate the appearance of Primavera, Microsoft, Autodesk, Planview or another reference product. Those products may inform functional research and usability analysis; their vendor-specific palettes, isolated component conventions and visual identities must not be copied into individual CUBI modules.
 
@@ -19,13 +19,13 @@ The visual and navigation hierarchy is:
 1. **CUBI platform identity** — the stable brand, typography, design tokens and global interaction principles.
 2. **Personal workbench / entry surface** — the user's personal starting point and authorized environment switch; it is not a third work environment.
 3. **CUBI Engineering shell** — the specialist engineering workspace, preserving its existing approved visual workspace and behavior.
-4. **CUBI Enterprise shell** — the organizational and project-management workspace, built with the same CUBI design language.
+4. **CUBI Enterprise shell** — the organizational and project-management workspace, designed initially around its own validated product needs.
 
-Engineering and Enterprise may have different navigation structures and work surfaces. They must not look like unrelated applications.
+Engineering and Enterprise may have different navigation structures, visual treatments and work surfaces during initial design. Potential commonality should be evaluated from real screens and user journeys rather than imposed in advance.
 
 ## 3. Single source of truth: design tokens
 
-Create a centrally governed token system with semantic names. Components must consume semantic tokens rather than hard-coded colors, spacing, radii or shadows.
+A semantic token system is a candidate future shared foundation. Do not require initial screens or components in either environment to consume a common token system before design exploration and compatibility validation are complete.
 
 Required token families:
 
@@ -41,10 +41,10 @@ Do not finalize raw hex palettes, typography choices or visual assets by copying
 
 ## 4. Color governance and environment distinction
 
-- CUBI has one centrally managed color system.
-- Colors communicate semantic meaning consistently across every module. For example, danger must not mean a neutral status in one module and success in another.
+- A centrally managed CUBI color system may be considered after the initial environment designs are reviewed.
+- If shared semantic colors are adopted, their meanings must remain consistent across the scopes where they are used.
 - Engineering and Enterprise may use a restrained environment-context accent to help users recognize where they are. This accent is a tokenized context cue, not a separate brand palette.
-- Module owners cannot invent their own unrelated palette or assign arbitrary colors to imitate the source product from which a feature was researched.
+- During initial design, environment-specific palettes are permitted. Avoid arbitrary or inaccessible choices; do not copy a vendor's brand palette as CUBI identity.
 - Charts, badges, buttons, status indicators, alerts and navigation states must follow the same semantic rules.
 - Theme variants must derive from the same token definitions and pass contrast checks.
 
@@ -131,15 +131,16 @@ Components must have consistent interaction states, keyboard behavior, focus vis
 8. RTL/LTR and accessibility review checklist.
 9. Visual regression and design acceptance criteria.
 
-## 10. Acceptance criteria
+## 10. Future evaluation criteria (not current release gates)
 
-- [ ] One CUBI product identity is visible across the platform.
-- [ ] Engineering and Enterprise are distinct environments but share one design language.
-- [ ] Semantic tokens are the only approved source for shared color, typography, spacing, shape and state values.
-- [ ] No module copies a vendor palette or creates an unrelated local visual identity.
-- [ ] Complete shell specifications exist for the personal workbench and both environments.
-- [ ] Enterprise modules use shared components and interaction rules.
-- [ ] Persian/RTL and English/LTR are covered.
-- [ ] Accessibility, keyboard behavior and contrast are reviewed.
-- [ ] Existing Engineering shell is protected; no redesign is implied or authorized.
-- [ ] Implementation status is reported separately from specification status.
+The following are evaluation criteria for a possible later shared design system. They are not requirements that must be satisfied before either environment can progress independently.
+
+- [ ] Initial Engineering and Enterprise designs have been reviewed in their actual product contexts.
+- [ ] Candidate shared identity, tokens, components and shell patterns have demonstrated measurable value.
+- [ ] Usability and responsive behavior have been evaluated across representative user journeys.
+- [ ] Persian/RTL and English/LTR behavior has been tested.
+- [ ] Accessibility, keyboard behavior and contrast have been reviewed.
+- [ ] Regression and compatibility tests pass for every environment affected by a proposed shared element.
+- [ ] Existing Engineering behavior and shell remain protected unless a separately approved change explicitly says otherwise.
+- [ ] Product owners explicitly approve the scope and timing of any shared-system adoption.
+- [ ] Implementation and validation status are reported separately from this exploratory specification.
