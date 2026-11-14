@@ -119,12 +119,12 @@ def test_postgres_task_pagination_has_stable_composite_cursor_for_equal_timestam
         second = repository.list_for_tenant(
             tenant, limit=2, before_updated_at=last.updated_at, before_task_id=last.task_id
         )
-        assert [item.task.task_id for item in second] == ["task-c"]
-        assert len({item.task.task_id for item in first + second}) == 3
+        assert [item.task.task_id for item in second] == ["task-c", "null-a"]
+        assert len({item.task.task_id for item in first + second}) == 4
         null_page = repository.list_for_tenant(
-            tenant, limit=2, before_updated_at=None, before_task_id="null-b"
+            tenant, limit=2, before_updated_at=None, before_task_id="null-a"
         )
-        assert [item.task.task_id for item in null_page] == ["null-c"]
+        assert [item.task.task_id for item in null_page] == ["null-b", "null-c"]
 
 
 def test_postgres_completion_actor_must_match_authenticated_operation_actor() -> None:
