@@ -4,7 +4,9 @@ import test from "node:test";
 import type { AssignmentPeriod, AssignmentRecord } from "./workspace-assignments.js";
 import {
   buildResourceUsage,
+  groupResourceUsageBuckets,
   groupResourceUsagePeriods,
+  resourceUsageBucketBounds,
   normalizeDecimalText,
   parseAssignmentRate,
   resourceUsageResolveKey,
@@ -211,4 +213,60 @@ test("buildResourceUsage never invents capacity or combines unrunnable rows", ()
   const [noRate] = buildResourceUsage([group], new Map([["AS-1", assignment({ unitsPerTime: null })]]), new Map());
   assert.equal(noRate.status, "missing-rate");
   assert.equal(noRate.unitsPerTime, null);
+});
+
+test("usage buckets group stored period starts by day, Monday week and calendar month", () => {
+  assert.deepEqual(resourceUsageBucketBounds("2026-09-30", "day"), {
+    start: "2026-09-30",
+    end: "2026-09-30",
+  });
+  assert.deepEqual(resourceUsageBucketBounds("2026-09-30", "week"), {
+    start: "2026-09-28",
+    end: "2026-10-04",
+  });
+  assert.deepEqual(resourceUsageBucketBounds("2026-10-04", "week"), {
+    start: "2026-09-28",
+    end: "2026-10-04",
+  });
+  assert.deepEqual(resourceUsageBucketBounds("2026-10-05", "week"), {
+    start: "2026-10-05",
+    end: "2026-10-11",
+  });
+  assert.deepEqual(resourceUsageBucketBounds("2026-02-01", "month"), {
+    start: "2026-02-01",
+    end: "2026-02-28",
+  });
+  assert.deepEqual(resourceUsageBucketBounds("2024-02-29", "month"), {
+    start: "2024-02-01",
+    end: "2024-02-29",
+  });
+  assert.equal(resourceUsageBucketBounds("2026-13-01", "month"), null);
+  assert.equal(resourceUsageBucketBounds("not-a-date", "week"), null);
+});
+
+test("usage buckets sum stored values exactly and keep overallocated period counts", () => {
+  const groups = groupResourceUsagePeriods(
+    [
+      period({ periodStart: "2026-09-30", units: "12", cost: "960" }),
+      period({ periodStart: "2026-10-02", assignmentId: "AS-2", units: "4", cost: "320" }),
+      period({ periodStart: "2026-10-16", units: "0.5", cost: "40.25" }),
+      period({ periodStart: "not-a-date", units: "1", cost: "8" }),
+    ],
+    "RPS-CIVIL-CREW",
+  );
+  const weekly = groupResourceUsageBuckets(groups, "week", new Set(["2026-09-30"]));
+  assert.deepEqual(weekly.map((bucket) => [bucket.bucketStart, bucket.demandUnits, bucket.demandCost, bucket.overallocatedPeriods]), [
+    ["2026-09-28", "16", "1280", 1],
+    ["2026-10-12", "0.5", "40.25", 0],
+    ["not-a-date", "1", "8", 0],
+  ]);
+  assert.deepEqual(weekly[0].periodStarts, ["2026-09-30", "2026-10-02"]);
+  assert.deepEqual(weekly[0].assignmentIds, ["AS-1", "AS-2"]);
+
+  const monthly = groupResourceUsageBuckets(groups, "month");
+  assert.deepEqual(monthly.map((bucket) => [bucket.bucketStart, bucket.bucketEnd, bucket.demandUnits]), [
+    ["2026-09-01", "2026-09-30", "12"],
+    ["2026-10-01", "2026-10-31", "4.5"],
+    ["not-a-date", "not-a-date", "1"],
+  ]);
 });

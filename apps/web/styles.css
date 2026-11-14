@@ -10250,3 +10250,14 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
   .cp-tool-menu { min-width: 186px; max-width: 260px; }
   .cp-tool-customize { width: calc(100vw - 16px); }
 }
+.cp-p6 .cp-usage-chart-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;color:#244463;font-size:10px}
+.cp-p6 .cp-usage-chart-head label{display:flex;align-items:center;gap:4px;color:#52657a;font-size:9px}
+.cp-p6 .cp-usage-chart-head select{min-height:24px;border:1px solid #cbd5e1;background:#f7f9fc;color:#173d68;font:inherit}
+.cp-p6 .cp-usage-chart{margin:0 0 8px;padding:6px 8px 4px;border:1px solid #d8e0e9;background:#fbfcfe;overflow-x:auto}
+.cp-p6 .cp-usage-chart-bars{display:flex;align-items:flex-end;gap:10px;min-height:96px;padding-bottom:2px}
+.cp-p6 .cp-usage-bar{display:flex;flex:1 1 64px;flex-direction:column;align-items:center;gap:2px;min-width:56px;max-width:140px;color:#52657a;font-size:9px}
+.cp-p6 .cp-usage-bar-track{display:flex;align-items:flex-end;justify-content:center;width:100%;height:66px;border-bottom:1px solid #c3cedb;background:linear-gradient(180deg,transparent 49%,#e7edf4 50%,transparent 51%)}
+.cp-p6 .cp-usage-bar-fill{display:block;width:70%;min-height:2px;background:#2f6fb3}
+.cp-p6 .cp-usage-bar.is-overallocated .cp-usage-bar-fill{background:#b4462f}
+.cp-p6 .cp-usage-bar-value{color:#173d68;font-weight:700}
+.cp-p6 .cp-usage-bar-label{color:#748399;text-align:center;line-height:1.3}

@@ -573,11 +573,19 @@ function mountHost() {
     };
     listeners.get("click")?.({ target } as unknown as Event);
   };
+  const change = (value: string): void => {
+    const target = {
+      value,
+      matches: (selector: string) => selector === "[data-resource-usage-timescale]",
+    };
+    listeners.get("change")?.({ target } as unknown as Event);
+  };
   return {
     host,
     click: (action: string) => fire({ resourceAction: action }, "action"),
     clickRow: (resourceId: string) => fire({ resourceId }, "row"),
     clickTab: (tab: string) => fire({ resourceTab: tab }, "tab"),
+    change,
   };
 }
 
@@ -737,6 +745,126 @@ test("the Usage tab compares stored assignment Units/Time with the service-resol
     basis: "day",
     hours_per_time_period: "8",
   });
+});
+
+test("the usage chart groups stored periods by the selected display timescale without spreading amounts", async () => {
+  const { host, clickRow, clickTab, change } = mountHost();
+  const periods = [
+    { period_start: "2026-09-29", units: "12", cost: "960" },
+    { period_start: "2026-09-30", units: "12", cost: "960" },
+    { period_start: "2026-10-16", units: "4", cost: "320" },
+  ].map((period) => ({
+    contract_version: "p6-resource-read-api.v1",
+    kind: "resource_assignment_period",
+    scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+    period: {
+      assignment_id: "AS-1",
+      activity_id: "A100",
+      resource_id: "RPS-CIVIL-CREW",
+      ...period,
+    },
+  }));
+  const transport = transportWith(
+    {
+      "/api/projects/project-1/p6/resource-assignments": {
+        ok: true,
+        data: {
+          contract_version: "p6-resource-read-api.v1",
+          assignments: [assignmentDto({
+            ...ASSIGNMENT_DTO,
+            units_per_time: "12",
+            units_per_time_period: "day",
+            hours_per_units_time_period: "8",
+          })],
+        },
+      },
+      "/api/projects/project-1/p6/resource-capacities": {
+        ok: true,
+        data: { contract_version: "p6-resource-capacity-read-api.v1", capacities: [] },
+      },
+      "/api/projects/project-1/p6/resource-rates": {
+        ok: true,
+        data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
+      },
+      [RESOURCES_PATH]: { ok: true, data: resourceList(master()) },
+      "/api/projects/project-1/p6/calendars": { ok: true, data: calendarCatalogue() },
+      "/api/projects/project-1/p6/resource-assignment-periods": {
+        ok: true,
+        data: { contract_version: "p6-resource-read-api.v1", periods },
+      },
+    },
+    [],
+    {
+      "/api/projects/project-1/p6/resource-capacities/RPS-CIVIL-CREW/resolve": (request) => {
+        const period = (request as { period: string }).period;
+        return {
+          ok: true,
+          data: {
+            contract_version: "p6-resource-capacity-read-api.v1",
+            kind: "resource_capacity_value",
+            period,
+            capacity: period === "2026-09-30" ? "8" : "20",
+            basis: "day",
+            identity: "segment-1",
+            source: "preview-fixture:RPS-rev7-capacity-1",
+            status: "RESOLVED",
+          },
+        };
+      },
+    },
+  );
+  mountWorkspaceResourcesPage(host as unknown as HTMLElement, {
+    transport,
+    context: CONTEXT,
+    locale: "en",
+  });
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  await flush();
+  clickRow("RPS-CIVIL-CREW");
+  clickTab("usage");
+  await flush();
+  await flush();
+  await flush();
+
+  const bars = () => [...host.innerHTML.matchAll(
+    /data-resource-usage-bar data-bucket-start="([^"]+)" data-bucket-end="([^"]+)" data-demand="([^"]+)" data-periods="(\d+)"/g,
+  )].map((match) => [match[1], match[2], match[3], match[4]]);
+
+  assert.match(host.innerHTML, /data-resource-usage-chart data-timescale="day"/);
+  assert.match(host.innerHTML, /Stored usage profile/);
+  assert.match(host.innerHTML, /Each bar sums the stored period values/);
+  assert.deepEqual(bars(), [
+    ["2026-09-29", "2026-09-29", "12", "1"],
+    ["2026-09-30", "2026-09-30", "12", "1"],
+    ["2026-10-16", "2026-10-16", "4", "1"],
+  ]);
+  assert.match(
+    host.innerHTML,
+    /class="cp-usage-bar is-overallocated" data-resource-usage-bar data-bucket-start="2026-09-30"/,
+  );
+  assert.match(
+    host.innerHTML,
+    /class="cp-usage-bar" data-resource-usage-bar data-bucket-start="2026-09-29"/,
+  );
+
+  change("week");
+  assert.match(host.innerHTML, /data-resource-usage-chart data-timescale="week"/);
+  assert.deepEqual(bars(), [
+    ["2026-09-28", "2026-10-04", "24", "2"],
+    ["2026-10-12", "2026-10-18", "4", "1"],
+  ]);
+  assert.match(host.innerHTML, /2026-09-28 → 2026-10-04/);
+
+  change("month");
+  assert.match(host.innerHTML, /data-resource-usage-chart data-timescale="month"/);
+  assert.deepEqual(bars(), [
+    ["2026-09-01", "2026-09-30", "24", "2"],
+    ["2026-10-01", "2026-10-31", "4", "1"],
+  ]);
+  assert.match(host.innerHTML, /2026-10/);
+
+  change("fortnight");
+  assert.match(host.innerHTML, /data-resource-usage-chart data-timescale="day"/);
 });
 
 const RATE_INPUT: ResourceRateInput = {
