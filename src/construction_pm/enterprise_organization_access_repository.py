@@ -220,6 +220,12 @@ class PostgresEnterpriseOrganizationAccessRepository:
         ).fetchone()
         if target_user is None or str(target_user[0]) != tenant_id or not bool(target_user[1]):
             raise OrganizationAccessError("NEW_TEAM_OWNER_ACCOUNT_NOT_FOUND")
+        target_user = self._connection.execute(
+            "SELECT tenant_id,active FROM identity_users WHERE user_id=%s",
+            (new_owner_id,),
+        ).fetchone()
+        if target_user is None or str(target_user[0]) != tenant_id or not bool(target_user[1]):
+            raise OrganizationAccessError("NEW_TEAM_OWNER_ACCOUNT_NOT_FOUND")
         current_membership = self.get_membership(tenant_id, team_id, current_owner_id)
         target_membership = self.get_membership(tenant_id, team_id, new_owner_id)
         if current_membership is None or current_membership.status != "active" or current_membership.role != "owner":
