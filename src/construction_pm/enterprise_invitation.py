@@ -49,6 +49,10 @@ class EnterpriseInvitationRepository(Protocol):
     def create_invitation(self, invitation: TeamInvitation, token_hash: str) -> TeamInvitation: ...
     def accept_invitation(self, tenant_id: str, invitation_id: str, token_hash: str, user_id: str,
                           *, now: datetime) -> tuple[TeamInvitation, EnterpriseTeamMembership | None]: ...
+    def accept_invitation_from_recipient(self, tenant_id: str, invitation_id: str, user_id: str,
+                                         *, now: datetime) -> tuple[TeamInvitation, EnterpriseTeamMembership | None]: ...
+    def decline_invitation_from_recipient(self, tenant_id: str, invitation_id: str, user_id: str,
+                                          *, now: datetime) -> TeamInvitation: ...
     def decline_invitation(self, tenant_id: str, invitation_id: str, token_hash: str, user_id: str,
                            *, now: datetime) -> TeamInvitation: ...
     def revoke_invitation(self, tenant_id: str, invitation_id: str, actor_id: str,
@@ -131,6 +135,18 @@ class EnterpriseInvitationService:
         session = self._session(session_id)
         return self._repository.decline_invitation(
             session.tenant_id, invitation_id, self._token_hash(token), session.user_id, now=self._now()
+        )
+
+    def accept_from_inbox(self, session_id: str, invitation_id: str) -> tuple[TeamInvitation, EnterpriseTeamMembership | None]:
+        session = self._session(session_id)
+        return self._repository.accept_invitation_from_recipient(
+            session.tenant_id, invitation_id, session.user_id, now=self._now()
+        )
+
+    def decline_from_inbox(self, session_id: str, invitation_id: str) -> TeamInvitation:
+        session = self._session(session_id)
+        return self._repository.decline_invitation_from_recipient(
+            session.tenant_id, invitation_id, session.user_id, now=self._now()
         )
 
     def revoke(self, session_id: str, invitation_id: str) -> TeamInvitation:
