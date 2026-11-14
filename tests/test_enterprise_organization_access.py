@@ -20,9 +20,11 @@ class Lifecycle:
         self.roles = roles
 
     def get_session(self, session_id, *, now):
-        if session_id != "owner-session":
-            raise ValueError("SESSION_REQUIRED")
-        return SimpleNamespace(user_id="owner", tenant_id="tenant-a", roles=self.roles)
+        if session_id == "owner-session":
+            return SimpleNamespace(user_id="owner", tenant_id="tenant-a", roles=self.roles)
+        if session_id == "viewer-session":
+            return SimpleNamespace(user_id="viewer", tenant_id="tenant-a", roles=frozenset({"enterprise_user"}))
+        raise ValueError("SESSION_REQUIRED")
 
 
 class Repository:
@@ -113,7 +115,7 @@ def test_non_manager_cannot_add_members_and_owner_cannot_be_removed():
     )
     repository.members[("tenant-a", team.team_id, "viewer")] = viewer
     with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
-        app.add_member("owner-session", team.team_id, "member-2", "member")
+        app.add_member("viewer-session", team.team_id, "member-2", "member")
     with pytest.raises(OrganizationAccessDenied, match="TEAM_OWNER_TRANSFER_REQUIRED"):
         app.remove_member("owner-session", team.team_id, "owner", expected_revision=1)
 
