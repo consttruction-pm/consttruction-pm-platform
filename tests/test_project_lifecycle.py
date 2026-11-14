@@ -58,6 +58,7 @@ class Projects:
         default_percent_complete_type="DURATION",
         default_duration_type="Fixed Duration & Units",
         default_cost_account_id="",
+        obs_id="",
         activity_id_prefix="",
         activity_id_suffix="",
         activity_id_increment=10,
@@ -79,6 +80,7 @@ class Projects:
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
             default_cost_account_id=default_cost_account_id,
+            obs_id=obs_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -106,6 +108,7 @@ class Projects:
         default_percent_complete_type=None,
         default_duration_type=None,
         default_cost_account_id=None,
+        obs_id=None,
         activity_id_prefix=None,
         activity_id_suffix=None,
         activity_id_increment=None,
@@ -154,6 +157,9 @@ class Projects:
                 default_cost_account_id
                 if default_cost_account_id is not None
                 else current.default_cost_account_id
+            ),
+            obs_id=(
+                obs_id if obs_id is not None else current.obs_id
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -264,12 +270,13 @@ def make_session(*, roles=frozenset({"planner"}), expired=False):
     )
 
 
-def make_service(session, cost_accounts=None):
+def make_service(session, cost_accounts=None, obs_nodes=None):
     return ProjectLifecycleService(
         Sessions(session),
         Projects(),
         default_project_policy(),
         cost_accounts=cost_accounts,
+        obs_nodes=obs_nodes,
     )
 
 
@@ -840,6 +847,107 @@ def test_project_default_cost_account_requires_an_authoritative_lookup():
             "project-new",
             "Project New",
             default_cost_account_id="CA-CIVIL",
+            now=now,
+        )
+
+
+class OBSNodes:
+    def __init__(self, obs_ids=("OBS-CIVIL",)):
+        self.obs_ids = set(obs_ids)
+        self.calls = []
+
+    def obs_node_exists(self, tenant_id, obs_id):
+        self.calls.append((tenant_id, obs_id))
+        return obs_id in self.obs_ids
+
+
+def test_project_admin_assigns_a_responsibility_structure_node_from_the_enterprise_tree():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    obs_nodes = OBSNodes({"OBS-CIVIL", "OBS-MEP"})
+    service = make_service(session, obs_nodes=obs_nodes)
+
+    created = service.create_project(
+        "session-a",
+        "project-obs",
+        "Project OBS",
+        obs_id=" OBS-CIVIL ",
+        now=now,
+    )
+    assert service.get_project("session-a", "project-obs", now=now).obs_id == "OBS-CIVIL"
+    assert created.project_id == "project-obs"
+    assert obs_nodes.calls == [("tenant-a", "OBS-CIVIL")]
+
+    # Omitted keeps it; an explicit empty string clears it.
+    preserved = service.update_project(
+        "session-a",
+        "project-obs",
+        name="Project OBS",
+        expected_revision=0,
+        now=now,
+    )
+    assert preserved.obs_id == "OBS-CIVIL"
+    cleared = service.update_project(
+        "session-a",
+        "project-obs",
+        name="Project OBS",
+        obs_id="",
+        expected_revision=1,
+        now=now,
+    )
+    assert cleared.obs_id == ""
+
+
+def test_project_responsibility_structure_node_must_exist_for_the_tenant():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session, obs_nodes=OBSNodes({"OBS-CIVIL"}))
+    service.create_project("session-a", "project-obs", "Project OBS", now=now)
+
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_OBS_NODE_NOT_FOUND"
+    ):
+        service.create_project(
+            "session-a",
+            "project-obs-2",
+            "Project OBS 2",
+            obs_id="OBS-UNKNOWN",
+            now=now,
+        )
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_OBS_NODE_NOT_FOUND"
+    ):
+        service.update_project(
+            "session-a",
+            "project-obs",
+            name="Project OBS",
+            obs_id="OBS-UNKNOWN",
+            expected_revision=0,
+            now=now,
+        )
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_OBS_ID_INVALID"):
+        service.update_project(
+            "session-a",
+            "project-obs",
+            name="Project OBS",
+            obs_id="OBS\x00BAD",
+            expected_revision=0,
+            now=now,
+        )
+
+
+def test_project_responsibility_structure_requires_an_authoritative_lookup():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    service.create_project("session-a", "project-obs", "Project OBS", now=now)
+
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_OBS_NODE_UNAVAILABLE"
+    ):
+        service.update_project(
+            "session-a",
+            "project-obs",
+            name="Project OBS",
+            obs_id="OBS-CIVIL",
+            expected_revision=0,
             now=now,
         )
 

@@ -9,7 +9,7 @@ import {
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi, type CostAccountOption, type ProjectDefaultsApplicationEvent, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
+import { FetchSessionApi, type CostAccountOption, type OBSNode, type ProjectDefaultsApplicationEvent, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -729,6 +729,39 @@ function openProjectSettings(
   obsManagerInput.autocomplete = "off";
   obsManagerInput.dataset.projectObsResponsibleManager = "true";
 
+  // The Responsibility Structure is one enterprise hierarchy: the select is
+  // filled from the tenant-wide nodes and stores only the node reference.
+  const obsNodeSelect = document.createElement("select");
+  obsNodeSelect.name = "obs_id";
+  obsNodeSelect.dataset.projectObsNode = "true";
+  const renderObsNodeOptions = (
+    selectedValue: string,
+    nodes: readonly OBSNode[],
+  ): void => {
+    obsNodeSelect.replaceChildren();
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = labels.projectObsNodeNone;
+    obsNodeSelect.append(none);
+    for (const node of nodes) {
+      const option = document.createElement("option");
+      option.value = node.obs_id;
+      option.textContent = node.code
+        ? `${node.code} — ${node.name}`
+        : node.name || node.obs_id;
+      obsNodeSelect.append(option);
+    }
+    // A stored reference that is no longer listed stays visible instead of
+    // being silently replaced by the empty value.
+    if (selectedValue && !nodes.some((node) => node.obs_id === selectedValue)) {
+      const stored = document.createElement("option");
+      stored.value = selectedValue;
+      stored.textContent = selectedValue;
+      obsNodeSelect.append(stored);
+    }
+    obsNodeSelect.value = selectedValue;
+  };
+
   const websiteInput = document.createElement("input");
   websiteInput.name = "website_url";
   websiteInput.type = "url";
@@ -1012,6 +1045,7 @@ function openProjectSettings(
       obsManagerInput,
       labels.projectObsResponsibleManagerHint,
     ),
+    labelled(labels.projectObsNode, obsNodeSelect, labels.projectObsNodeHint),
     labelled(labels.projectWebsite, websiteInput, labels.projectWebsiteHint),
     labelled(labels.settingsPrimaryCalendar, calendarInput, labels.settingsPrimaryCalendarHint),
     statusField,
@@ -1038,6 +1072,7 @@ function openProjectSettings(
   syncWindowDirtyIndicator(container);
 
   let loadedRevision = state.context.revision;
+  let loadedOBSNodes: OBSNode[] = [];
   let loadedStatus: ProjectStatus = "active";
   let loadedCheckoutState: "checked_in" | "checked_out" = "checked_in";
   let loadedCheckoutOwner = "";
@@ -1057,6 +1092,7 @@ function openProjectSettings(
     dateSystemSelect.value = project.date_system === "jalali" ? "jalali" : "gregorian";
     businessDomainSelect.value = project.business_domain ?? "";
     obsManagerInput.value = project.obs_responsible_manager ?? "";
+    renderObsNodeOptions(project.obs_id ?? "", loadedOBSNodes);
     websiteInput.value = project.website_url ?? "";
     defaultActivityTypeSelect.value = project.default_activity_type ?? "Task Dependent";
     defaultPercentCompleteSelect.value = (project.default_percent_complete_type ?? "DURATION").toUpperCase();
@@ -1301,6 +1337,12 @@ function openProjectSettings(
         .filter((entry) => entry && typeof entry.account_id === "string" && entry.account_id.trim());
       activeCostAccountsProjectId = state.context.project_id;
     }
+    const obsNodes = await bootstrap.loadOBSNodes(state.context.project_id);
+    if (obsNodes.ok) {
+      loadedOBSNodes = obsNodes.data.obs_nodes.filter(
+        (node) => node && typeof node.obs_id === "string" && node.obs_id.trim(),
+      );
+    }
     applyLoaded(result.data.project);
     setStatus("", "info");
     retry.hidden = true;
@@ -1393,6 +1435,7 @@ function openProjectSettings(
           | "other"
           | "",
         obs_responsible_manager: obsManagerInput.value.trim(),
+        obs_id: obsNodeSelect.value,
         website_url: website,
         default_activity_type: defaultActivityTypeSelect.value,
         default_percent_complete_type: defaultPercentCompleteSelect.value,

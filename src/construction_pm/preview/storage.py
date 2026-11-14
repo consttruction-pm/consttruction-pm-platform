@@ -140,6 +140,7 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         default_cost_account_id=(
             str(row[23]) if len(row) > 23 and row[23] else ""
         ),
+        obs_id=str(row[24]) if len(row) > 24 and row[24] else "",
     )
 
 
@@ -403,6 +404,7 @@ class PreviewStore:
                 default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
                 default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units',
                 default_cost_account_id TEXT NOT NULL DEFAULT '',
+                obs_id TEXT NOT NULL DEFAULT '',
                 activity_id_prefix TEXT NOT NULL DEFAULT '',
                 activity_id_suffix TEXT NOT NULL DEFAULT '',
                 activity_id_increment INTEGER NOT NULL DEFAULT 10,
@@ -514,6 +516,10 @@ class PreviewStore:
                 "ALTER TABLE preview_project ADD COLUMN default_cost_account_id TEXT NOT NULL DEFAULT ''",
             ),
             (
+                "obs_id",
+                "ALTER TABLE preview_project ADD COLUMN obs_id TEXT NOT NULL DEFAULT ''",
+            ),
+            (
                 "activity_id_prefix",
                 "ALTER TABLE preview_project ADD COLUMN activity_id_prefix TEXT NOT NULL DEFAULT ''",
             ),
@@ -574,6 +580,7 @@ class PreviewStore:
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
         default_cost_account_id: str = "",
+        obs_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -598,9 +605,9 @@ class PreviewStore:
             "description, start_date, date_system, primary_calendar_id, settings_revision, "
             "business_domain, obs_responsible_manager, website_url, "
             "default_activity_type, default_percent_complete_type, "
-            "default_duration_type, default_cost_account_id, activity_id_prefix, "
+            "default_duration_type, default_cost_account_id, obs_id, activity_id_prefix, "
             "activity_id_suffix, activity_id_increment, increment_activity_id) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -621,6 +628,7 @@ class PreviewStore:
                 default_percent_complete_type,
                 default_duration_type,
                 default_cost_account_id,
+                obs_id,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -670,7 +678,7 @@ class PreviewStore:
             "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
             "p.increment_activity_id, p.checkout_state, "
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
-            "p.default_cost_account_id "
+            "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -692,7 +700,7 @@ class PreviewStore:
             "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
             "p.increment_activity_id, p.checkout_state, "
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
-            "p.default_cost_account_id "
+            "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -734,6 +742,7 @@ class PreviewStore:
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
         default_cost_account_id: str | None = None,
+        obs_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -769,6 +778,7 @@ class PreviewStore:
             "default_percent_complete_type=COALESCE(?, default_percent_complete_type), "
             "default_duration_type=COALESCE(?, default_duration_type), "
             "default_cost_account_id=COALESCE(?, default_cost_account_id), "
+            "obs_id=COALESCE(?, obs_id), "
             "activity_id_prefix=COALESCE(?, activity_id_prefix), "
             "activity_id_suffix=COALESCE(?, activity_id_suffix), "
             "activity_id_increment=COALESCE(?, activity_id_increment), "
@@ -791,6 +801,7 @@ class PreviewStore:
                 default_percent_complete_type,
                 default_duration_type,
                 default_cost_account_id,
+                obs_id,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -1232,6 +1243,7 @@ class PreviewProjectRepository:
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
         default_cost_account_id: str = "",
+        obs_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -1270,6 +1282,7 @@ class PreviewProjectRepository:
                 default_percent_complete_type=default_percent_complete_type,
                 default_duration_type=default_duration_type,
                 default_cost_account_id=default_cost_account_id,
+                obs_id=obs_id,
                 activity_id_prefix=activity_id_prefix,
                 activity_id_suffix=activity_id_suffix,
                 activity_id_increment=activity_id_increment,
@@ -1304,6 +1317,7 @@ class PreviewProjectRepository:
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
             default_cost_account_id=default_cost_account_id,
+            obs_id=obs_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -1329,6 +1343,7 @@ class PreviewProjectRepository:
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
         default_cost_account_id: str | None = None,
+        obs_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -1351,6 +1366,7 @@ class PreviewProjectRepository:
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
             default_cost_account_id=default_cost_account_id,
+            obs_id=obs_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,

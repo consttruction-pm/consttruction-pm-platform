@@ -5,6 +5,11 @@ from pathlib import Path
 import pytest
 
 from construction_pm.postgres_project_lifecycle import PostgresProjectRepository
+from construction_pm.p6_obs_repository import (
+    P6OBSApplicationService,
+    P6OBSNode,
+    PostgresP6OBSRepository,
+)
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("CONSTRUCTION_PM_POSTGRES_DSN"),
@@ -213,3 +218,67 @@ def test_postgres_defaults_application_history_is_append_only_and_scoped():
         # Another tenant and a non-member cannot read the row.
         assert repo.defaults_history_for_user("tenant-other", project, user) == ()
         assert repo.defaults_history_for_user(tenant, project, "user-other") == ()
+
+
+def test_postgres_responsibility_structure_and_project_assignment_round_trip():
+    tenant, user, project = (
+        "tenant-obs-live",
+        "user-obs-live",
+        "project-obs-live",
+    )
+    with connect() as connection:
+        _prepare(connection, tenant)
+        obs_repository = PostgresP6OBSRepository(connection)
+        obs_repository.initialize()
+        connection.execute(
+            "DELETE FROM p6_obs_node WHERE tenant_id=%s", (tenant,)
+        )
+        connection.commit()
+
+        service = P6OBSApplicationService(obs_repository)
+        service.save(
+            P6OBSNode(tenant, "OBS-ROOT", None, "ROOT", "Company", sequence_number=1)
+        )
+        service.save(
+            P6OBSNode(tenant, "OBS-CIVIL", "OBS-ROOT", "CIV", "Civil")
+        )
+        connection.commit()
+
+        assert obs_repository.obs_node_exists(tenant, "OBS-CIVIL") is True
+        assert obs_repository.obs_node_exists("tenant-other", "OBS-CIVIL") is False
+        assert [item.obs_id for item in obs_repository.list(tenant)] == [
+            "OBS-CIVIL",
+            "OBS-ROOT",
+        ]
+
+        repo = PostgresProjectRepository(connection)
+        created = repo.create_for_user(
+            tenant, user, project, "OBS Live", obs_id="OBS-CIVIL"
+        )
+        connection.commit()
+        assert created.obs_id == "OBS-CIVIL"
+
+        read_back = repo.get_for_user(tenant, project, user)
+        assert read_back is not None and read_back.obs_id == "OBS-CIVIL"
+
+        moved = repo.update_for_user(
+            tenant,
+            user,
+            project,
+            expected_revision=0,
+            name="OBS Live",
+            obs_id="OBS-ROOT",
+        )
+        connection.commit()
+        assert moved is not None and moved.obs_id == "OBS-ROOT"
+
+        cleared = repo.update_for_user(
+            tenant,
+            user,
+            project,
+            expected_revision=1,
+            name="OBS Live",
+            obs_id="",
+        )
+        connection.commit()
+        assert cleared is not None and cleared.obs_id == ""

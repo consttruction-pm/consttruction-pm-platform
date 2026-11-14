@@ -26,6 +26,9 @@ export type BootstrapLabels = {
   projectBusinessDomain: string;
   projectObsResponsibleManager: string;
   projectObsResponsibleManagerHint: string;
+  projectObsNode: string;
+  projectObsNodeNone: string;
+  projectObsNodeHint: string;
   projectWebsite: string;
   projectWebsiteHint: string;
   projectLevelingPriority: string;
@@ -145,8 +148,11 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     dateSystemGregorian: "Gregorian",
     dateSystemJalali: "Jalali",
     projectBusinessDomain: "Business Domain",
-    projectObsResponsibleManager: "OBS responsible manager",
+    projectObsResponsibleManager: "Responsibility structure manager",
     projectObsResponsibleManagerHint: "Recorded on the project and shown in Project Details after reload.",
+    projectObsNode: "Responsibility structure",
+    projectObsNodeNone: "No responsibility structure",
+    projectObsNodeHint: "One enterprise hierarchy shared by every project in this organization.",
     projectWebsite: "Web-site",
     projectWebsiteHint: "Optional absolute http:// or https:// address.",
     projectLevelingPriority: "Leveling priority",
@@ -264,8 +270,11 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     dateSystemGregorian: "میلادی",
     dateSystemJalali: "شمسی",
     projectBusinessDomain: "حوزهٔ کاری",
-    projectObsResponsibleManager: "مدیر مسئول OBS",
+    projectObsResponsibleManager: "مدیر ساختار مسئولیت",
     projectObsResponsibleManagerHint: "روی پروژه ذخیره می‌شود و پس از بازخوانی در جزئیات پروژه نمایش داده می‌شود.",
+    projectObsNode: "ساختار مسئولیت",
+    projectObsNodeNone: "بدون ساختار مسئولیت",
+    projectObsNodeHint: "یک سلسله‌مراتب سازمانی مشترک برای همهٔ پروژه‌های این سازمان.",
     projectWebsite: "وب‌سایت",
     projectWebsiteHint: "نشانی کامل و اختیاری با http:// یا https://.",
     projectLevelingPriority: "اولویت تسطیح",

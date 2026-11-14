@@ -208,6 +208,45 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
         connection.close()
 
 
+def test_preview_store_round_trips_the_responsibility_structure_node():
+    connection = _legacy_connection()
+    try:
+        store = PreviewStore(connection)
+        assert store.get_for_user("t1", "p1", "u1").obs_id == ""
+
+        store.insert_project(
+            tenant_id="t1",
+            project_id="p2",
+            name="Assigned",
+            revision=0,
+            wbs_by_activity={},
+            demo=False,
+            created_at=datetime(2026, 11, 14, tzinfo=timezone.utc),
+            obs_id="OBS-CIVIL",
+        )
+        store.add_members("t1", "p2", ("u1",))
+        assert store.get_for_user("t1", "p2", "u1").obs_id == "OBS-CIVIL"
+
+        assert store.update_project(
+            "t1", "p2", "u1", expected_revision=0,
+            name="Assigned renamed", description="", start_date=None,
+            date_system="gregorian", primary_calendar_id=None,
+        )
+        assert store.get_for_user("t1", "p2", "u1").obs_id == "OBS-CIVIL", (
+            "an omitted edit keeps the reference"
+        )
+
+        assert store.update_project(
+            "t1", "p2", "u1", expected_revision=1,
+            name="Assigned renamed", description="", start_date=None,
+            date_system="gregorian", primary_calendar_id=None,
+            obs_id="",
+        )
+        assert store.get_for_user("t1", "p2", "u1").obs_id == ""
+    finally:
+        connection.close()
+
+
 def test_preview_store_exposes_the_exclusive_checkout_holder():
     connection = _legacy_connection()
     try:

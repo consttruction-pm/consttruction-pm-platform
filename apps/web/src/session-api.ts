@@ -30,6 +30,11 @@ export type ProjectSummary = {
   business_domain?: BusinessDomain | "";
   /** Responsible manager recorded on the project (OBS reference when available). */
   obs_responsible_manager?: string;
+  /**
+   * Reference into the tenant-wide Responsibility Structure (the enterprise
+   * OBS hierarchy). The empty string means the project is unassigned.
+   */
+  obs_id?: string;
   /** Optional absolute http(s) project web-site address. */
   website_url?: string;
   checkout_state?: "checked_in" | "checked_out";
@@ -89,6 +94,8 @@ export type ProjectMetadataInput = {
   business_domain?: BusinessDomain | "";
   /** Responsible manager recorded on the project (OBS reference when available). */
   obs_responsible_manager?: string;
+  /** Tenant-wide Responsibility Structure node this project belongs to. */
+  obs_id?: string;
   /** Optional absolute http(s) project web-site address. */
   website_url?: string;
   default_activity_type?: string;
@@ -166,6 +173,20 @@ export type CostAccountList = {
   }>;
 };
 
+export type OBSNode = {
+  obs_id: string;
+  parent_obs_id: string | null;
+  code: string;
+  name: string;
+  manager_user_id: string;
+  sequence_number: number;
+};
+
+export type OBSNodeList = {
+  contract_version: string;
+  obs_nodes: OBSNode[];
+};
+
 export type ProjectContext = {
   tenant_id: string;
   project_id: string;
@@ -199,6 +220,7 @@ export type SessionApi = {
     projectId: string,
   ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>>;
   listCostAccounts?(projectId: string): Promise<ApiResult<CostAccountList>>;
+  listOBSNodes?(projectId: string): Promise<ApiResult<OBSNodeList>>;
   projectDefaultsHistory?(
     projectId: string,
   ): Promise<
@@ -288,6 +310,12 @@ export class FetchSessionApi implements SessionApi {
   listCostAccounts(projectId: string) {
     return this.request<CostAccountList>(
       `/api/projects/${encodeURIComponent(projectId)}/p6/cost-accounts`,
+    );
+  }
+
+  listOBSNodes(projectId: string) {
+    return this.request<OBSNodeList>(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/obs-nodes`,
     );
   }
 

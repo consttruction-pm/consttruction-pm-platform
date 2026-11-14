@@ -68,7 +68,7 @@ def test_project_creation_persists_metadata_columns():
     insert_params = c.calls[0][1]
     assert insert_params == (
         "t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "", "", "",
-        "Task Dependent", "DURATION", "Fixed Duration & Units", "", "", "", 10, False,
+        "Task Dependent", "DURATION", "Fixed Duration & Units", "", "", "", "", 10, False,
     )
 
 
@@ -91,7 +91,8 @@ def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
         "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2", None,
-        None, None, None, None, None, None, None, None, None, None, "t1", "p2", 2, "u1",
+        None, None, None, None, None, None, None, None, None, None, None,
+        "t1", "p2", 2, "u1",
     )
 
 
@@ -154,6 +155,29 @@ def test_project_creation_persists_obs_manager_and_website():
     assert params[8:10] == ("Dana Whitfield", "https://example.com/p2")
 
 
+def test_project_creation_and_update_persist_the_responsibility_structure_node():
+    c = FakeConnection()
+    p = PostgresProjectRepository(c).create_for_user(
+        "t1", "u1", "p2", "Project 2", obs_id="OBS-CIVIL"
+    )
+    assert p.obs_id == "OBS-CIVIL"
+    assert c.calls[0][1][14] == "OBS-CIVIL"
+
+    c.next_rows = [(
+        "p2", "t1", "Project 2", 0, "", None, "gregorian", None, 1,
+        "active", "", "", "",
+        "Task Dependent", "DURATION", "", "", 10, False,
+        "checked_in", "", None, "Fixed Duration & Units", "", "OBS-CIVIL",
+    )]
+    updated = PostgresProjectRepository(c).update_for_user(
+        "t1", "u1", "p2", expected_revision=0, name="Project 2"
+    )
+    assert updated is not None and updated.obs_id == "OBS-CIVIL"
+    sql, params = c.calls[2]
+    assert "obs_id=COALESCE(%s, obs_id)" in sql
+    assert params[12] is None
+
+
 def test_project_summary_carries_checkout_lease():
     c = FakeConnection()
     c.next_rows = [(
@@ -213,7 +237,7 @@ def test_project_creation_and_update_persist_activity_defaults():
     assert p.increment_activity_id is True
     params = c.calls[0][1]
     assert params[10:] == (
-        "Resource Dependent", "UNITS", "Fixed Duration & Units", "", "AH-", "-X", 25, True,
+        "Resource Dependent", "UNITS", "Fixed Duration & Units", "", "", "AH-", "-X", 25, True,
     )
 
     c.next_rows = [(
@@ -232,7 +256,7 @@ def test_project_creation_and_update_persist_activity_defaults():
     sql, params = c.calls[2]
     assert "default_activity_type=COALESCE(%s, default_activity_type)" in sql
     assert "increment_activity_id=COALESCE(%s, increment_activity_id)" in sql
-    assert params[8:16] == (None, None, None, None, None, None, 5, None)
+    assert params[8:17] == (None, None, None, None, None, None, None, 5, None)
 
 
 def test_defaults_application_is_appended_and_read_back_scoped():

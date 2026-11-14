@@ -103,6 +103,11 @@ from construction_pm.p6_activity_period_actual_repository import (
     SQLiteP6ActivityPeriodActualRepository,
 )
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_obs_api import P6OBSNodeAPI
+from construction_pm.p6_obs_repository import (
+    P6OBSApplicationService,
+    SQLiteP6OBSRepository,
+)
 from construction_pm.p6_cost_account_repository import (
     P6CostAccountApplicationService,
     SQLiteP6CostAccountRepository,
@@ -439,6 +444,8 @@ class PreviewRepositories:
     expenses: SQLiteP6ExpenseRepository
     expense_service: P6ExpenseApplicationService
     cost_accounts: SQLiteP6CostAccountRepository
+    obs_nodes: SQLiteP6OBSRepository
+    obs_node_service: P6OBSApplicationService
     cost_account_service: P6CostAccountApplicationService
     financial_periods: SQLiteP6FinancialPeriodRepository
     financial_period_service: P6FinancialPeriodApplicationService
@@ -529,6 +536,8 @@ class PreviewRepositories:
         cost_account_service = P6CostAccountApplicationService(
             cost_accounts, transaction_manager
         )
+        obs_nodes = SQLiteP6OBSRepository(connection)
+        obs_node_service = P6OBSApplicationService(obs_nodes)
         financial_periods = SQLiteP6FinancialPeriodRepository(connection)
         financial_period_service = P6FinancialPeriodApplicationService(
             financial_periods, transaction_manager
@@ -610,6 +619,8 @@ class PreviewRepositories:
             expense_service=expense_service,
             cost_accounts=cost_accounts,
             cost_account_service=cost_account_service,
+            obs_nodes=obs_nodes,
+            obs_node_service=obs_node_service,
             financial_periods=financial_periods,
             financial_period_service=financial_period_service,
             issues=issues,
@@ -1539,6 +1550,7 @@ def open_preview_runtime(
         project_repository,
         policy,
         cost_accounts=repositories.cost_accounts,
+        obs_nodes=repositories.obs_nodes,
     )
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)
 
@@ -1939,6 +1951,7 @@ def open_preview_runtime(
         ),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
         p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
+        p6_obs_node_api=P6OBSNodeAPI(repositories.obs_node_service, policy),
         p6_financial_period_api=P6FinancialPeriodAPI(
             repositories.financial_period_service, policy
         ),

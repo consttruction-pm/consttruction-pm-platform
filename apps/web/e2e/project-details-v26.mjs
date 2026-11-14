@@ -169,6 +169,9 @@ const panelState = `(() => {
   const rect = panel.getBoundingClientRect();
   return {
     obs: panel.querySelector('[data-project-obs-responsible-manager]')?.value ?? null,
+    obsNode: panel.querySelector("[data-project-obs-node]")?.value ?? null,
+    obsNodeLabel: panel.querySelector("[data-project-obs-node]")
+      ?.closest(".cp-project-settings-field")?.querySelector("label")?.firstChild?.textContent?.trim() ?? null,
     website: panel.querySelector('[data-project-website]')?.value ?? null,
     name: panel.querySelector('[data-project-settings-form] [name="name"]')?.value ?? null,
     revision: panel.querySelector("[data-project-settings-revision]")?.textContent?.trim() ?? null,
@@ -331,11 +334,39 @@ async function main() {
       return { obs: state.obs, website: state.website, leveling: state.leveling };
     });
 
-    await scenario("02", "OBS responsible manager and web-site persist through the lifecycle API", async () => {
+    await scenario("02", "Responsibility structure, OBS manager and web-site persist through the lifecycle API", async () => {
+      // The enterprise hierarchy is tenant-wide and must exist before a project
+      // can reference it, so create the node through its own API first.
+      const obsNode = await page.evaluate(
+        `fetch("/api/projects/${PROJECT}/p6/obs-nodes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ obs_id: "OBS-CIVIL", code: "CIVIL", name: "Civil works", sequence_number: 1 }),
+        }).then(async (response) => ({ status: response.status, body: await response.json() }))`,
+        { awaitPromise: true },
+      );
+      assert(obsNode.status === 200, `responsibility structure node create ${obsNode.status}`);
+      // The hierarchy is read when Project Details opens; reopen the panel the
+      // way a user does after creating a node in the enterprise window.
+      await page.evaluate(`(() => {
+        document.querySelector("[data-project-settings-close]")?.click();
+        return true;
+      })()`);
+      await page.waitFor(
+        `!document.querySelector("[data-project-settings-panel]")`,
+        "settings panel closed before selecting the responsibility structure",
+      );
+      await openProjectSettings(page);
+      await page.waitFor(
+        `Array.from(document.querySelectorAll("[data-project-obs-node] option")).some((option) => option.value === "OBS-CIVIL")`,
+        "responsibility structure option loads from the enterprise hierarchy",
+      );
+      await page.setSelect("[data-project-obs-node]", "OBS-CIVIL");
       await page.setInput('[data-project-settings-form] [name="obs_responsible_manager"]', "Dana Whitfield");
       await page.setInput('[data-project-settings-form] [name="website_url"]', "https://example.com/riverside");
       await saveMetadata(page);
       const api = await readProject(page);
+      assert(api.obs_id === "OBS-CIVIL", `API responsibility structure ${api.obs_id}`);
       assert(api.obs_responsible_manager === "Dana Whitfield", `API OBS ${api.obs_responsible_manager}`);
       assert(api.website_url === "https://example.com/riverside", `API website ${api.website_url}`);
       assert(api.settings_revision >= 1, `metadata revision ${api.settings_revision}`);
@@ -347,10 +378,12 @@ async function main() {
       await openProjectSettings(page);
       await waitLevelingLoaded(page);
       const state = await readPanel(page);
+      assert(state.obsNode === "OBS-CIVIL", `reloaded responsibility structure ${state.obsNode}`);
       assert(state.obs === "Dana Whitfield", `reloaded OBS ${state.obs}`);
       assert(state.website === "https://example.com/riverside", `reloaded website ${state.website}`);
+      await reveal(page, "[data-project-obs-node]");
       await capture(page, "02-project-details-persisted");
-      return { revision: api.settings_revision };
+      return { revision: api.settings_revision, obsId: api.obs_id };
     });
 
     await scenario("02b", "Defaults tab values persist and prefill a new activity", async () => {
@@ -699,6 +732,7 @@ async function main() {
       await sleep(1200);
       let state = await readPanel(page);
       assert(state.obs === "Dana Whitfield", `viewer OBS ${state.obs}`);
+      assert(state.obsNode === "OBS-CIVIL", `viewer responsibility structure ${state.obsNode}`);
       assert(state.levelingDisabled, "viewer leveling input must be disabled");
       assert(/permission/.test(state.levelingStatus), `viewer leveling reason ${state.levelingStatus}`);
 
@@ -763,6 +797,8 @@ async function main() {
       const state = await readPanel(page);
       assert(state.direction === "rtl", `panel direction ${state.direction}`);
       assert(state.obs === "Dana Whitfield", `fa OBS ${state.obs}`);
+      assert(state.obsNode === "OBS-CIVIL", `fa responsibility structure ${state.obsNode}`);
+      assert(state.obsNodeLabel === "ساختار مسئولیت", `fa responsibility structure label ${state.obsNodeLabel}`);
       assert(state.website === "https://example.com/direct-write", `fa website ${state.website}`);
       assert(state.leveling === "44", `fa leveling ${state.leveling}`);
       assert(state.defaultsLabel === "پیش‌فرض‌ها", `fa defaults label ${state.defaultsLabel}`);
