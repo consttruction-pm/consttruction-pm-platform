@@ -26,7 +26,7 @@ export type EnterpriseTaskRecord = {
 type TaskListResponse = { contract_version: string; tasks: EnterpriseTaskRecord[]; next_cursor: unknown };
 type TaskMutationResponse = { task: EnterpriseTaskRecord; revision: number };
 type Locale = "en" | "fa";
-type Filter = "all" | "active" | "blocked" | "completed" | "overdue";
+type Filter = "all" | "active" | "blocked" | "due" | "completed" | "overdue";
 
 const COPY = {
   en: {
@@ -35,7 +35,7 @@ const COPY = {
     taskTitle: "Task title", description: "Description", project: "Project scope", personal: "Personal tasks",
     due: "Due date", priority: "Priority", low: "Low", normal: "Normal", high: "High", urgent: "Urgent",
     save: "Create task", cancel: "Cancel", all: "All", active: "Active", blocked: "Blocked", completed: "Completed",
-    overdue: "Overdue", search: "Search tasks", empty: "No tasks in this view.", loading: "Loading tasks…",
+    dueFilter: "Due today", overdue: "Overdue", search: "Search tasks", empty: "No tasks in this view.", loading: "Loading tasks…",
     open: "Open", in_progress: "In progress", blockedStatus: "Blocked", completedStatus: "Completed", cancelled: "Cancelled",
     markProgress: "Start", markComplete: "Complete", reopen: "Reopen", status: "Status", task: "Task",
     dueLabel: "Due", scope: "Scope", priorityLabel: "Priority", error: "Something went wrong. Please try again.",
@@ -51,7 +51,7 @@ const COPY = {
     taskTitle: "عنوان وظیفه", description: "شرح", project: "محدوده پروژه", personal: "وظایف شخصی",
     due: "سررسید", priority: "اولویت", low: "کم", normal: "عادی", high: "زیاد", urgent: "فوری",
     save: "ایجاد وظیفه", cancel: "انصراف", all: "همه", active: "فعال", blocked: "متوقف", completed: "تکمیل‌شده",
-    overdue: "سررسید گذشته", search: "جستجوی وظایف", empty: "وظیفه‌ای در این نما وجود ندارد.", loading: "در حال دریافت وظایف…",
+    dueFilter: "سررسید امروز", overdue: "سررسید گذشته", search: "جستجوی وظایف", empty: "وظیفه‌ای در این نما وجود ندارد.", loading: "در حال دریافت وظایف…",
     open: "باز", in_progress: "در حال انجام", blockedStatus: "متوقف", completedStatus: "تکمیل‌شده", cancelled: "لغوشده",
     markProgress: "شروع", markComplete: "تکمیل", reopen: "بازگشایی", status: "وضعیت", task: "وظیفه",
     dueLabel: "سررسید", scope: "محدوده", priorityLabel: "اولویت", error: "خطایی رخ داد. دوباره تلاش کنید.",
@@ -77,6 +77,7 @@ export function filterEnterpriseTasks(
     if (!matchesText) return false;
     if (filter === "active") return task.status === "open" || task.status === "in_progress";
     if (filter === "blocked") return task.status === "blocked";
+    if (filter === "due") return Boolean(task.due_at && new Date(task.due_at).toDateString() === new Date(now).toDateString() && task.status !== "completed" && task.status !== "cancelled");
     if (filter === "completed") return task.status === "completed" || task.status === "cancelled";
     if (filter === "overdue") return Boolean(task.due_at && Date.parse(task.due_at) < now && task.status !== "completed" && task.status !== "cancelled");
     return true;
@@ -168,7 +169,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   const filters = element("nav", "ce-filters");
   filters.setAttribute("aria-label", t.title);
   const filterDefs: Array<[Filter, string]> = [
-    ["all", t.all], ["active", t.active], ["blocked", t.blocked], ["overdue", t.overdue], ["completed", t.completed],
+    ["all", t.all], ["active", t.active], ["due", t.dueFilter], ["overdue", t.overdue], ["blocked", t.blocked], ["completed", t.completed],
   ];
   let activeFilter: Filter = "all";
   const filterButtons = new Map<Filter, HTMLButtonElement>();
