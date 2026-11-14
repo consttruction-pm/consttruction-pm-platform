@@ -3685,6 +3685,44 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   esbuild pass. Limit: filtering is in-memory over the authorized list; no
   server-side status query parameter was added.
 
+### PRJ-002 Defaults tab — 2026-11-14 (`95dead66`)
+
+- **Stored contract.** `ProjectSummary` gains `default_activity_type`,
+  `default_percent_complete_type`, `activity_id_prefix`, `activity_id_suffix`,
+  `activity_id_increment` and `increment_activity_id`. Create/PATCH normalize
+  them (activity types and percent complete types are the same values the
+  Activity Master API accepts; prefixes/suffixes trim, reject whitespace and
+  allow 20 characters; the increment is 1–10000) with stable
+  `PROJECT_*_INVALID` codes. An omitted PATCH field keeps the stored value.
+  The SQLite preview store, `infra/project_lifecycle_schema.sql` and the
+  PostgreSQL repository add the columns with in-place `ADD COLUMN IF NOT
+  EXISTS` migrations.
+- **Application.** `POST /api/projects/{id}/p6/activities` copies the stored
+  activity type and percent complete type only when the request omits them.
+  Explicit values still win, PATCH edits never consult defaults, and existing
+  activities are never rewritten when a default changes.
+- **UI.** The Project Details Defaults section saves all six values with en/fa
+  labels. The activity create drawer selects the stored enums and prefills a
+  suggested Activity ID from prefix/suffix/increment, using the selected
+  activity as the base when `increment_activity_id` is on. The pure
+  `computeNextActivityId` helper is unit-tested; the server validates and
+  stores what the user confirms.
+- **Acceptance.** `apps/web/e2e/project-details-v26.mjs` **8/8** at
+  `95dead662363a2b63acf3b947d69ea4584b2af2d` (en 1366×768, Viewer 1366×768,
+  fa RTL 1280×720, 11 screenshots, zero exceptions/console errors/API
+  failures). Scenario `02b` saves the defaults, verifies the API, reloads,
+  checks the panel, opens the real create drawer, verifies the prefilled
+  enums and `AH-…-B` suggestion, creates the activity and reads its stored
+  type/percent back. Evidence:
+  `docs/workspace/evidence/project-details-v26-2026-11-14/`.
+- **Tests at the same code.** Python full suite: `4440 passed, 20 skipped`
+  (PostgreSQL-marked suites that need their own schema skip on this DB);
+  workflow PostgreSQL integration list: `157 passed`; new Python tests cover
+  service normalization, HTTP round trip/preservation/rejection, preview
+  SQLite migration/readback and PostgreSQL fake + live round trip. Web:
+  `1124 tsx` tests (including the new `activity-id` suite), `tsc --noEmit`
+  and esbuild pass.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3693,9 +3731,14 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Canonical schedule-settings writes (including the new leveling priority) do
   not yet consult the project checkout lease; only lifecycle metadata/status
   writes are blocked while another user holds it.
+- The Defaults tab now stores activity type, percent complete type and the
+  Activity ID numbering fields. Duration Type, Cost Account and the calendar
+  default are still absent (no validated Activity/Cost Account field; the
+  project primary calendar already exists), and defaults changes are not an
+  audited history.
 - Project status filtering/portfolios, audited defaults application, and the
-  remaining Project Register/Details tab behaviors (status filter, default
-  settings, project properties) remain open.
+  remaining Project Register/Details tab behaviors (default settings beyond
+  this slice, project properties) remain open.
 - `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
   shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
   export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are

@@ -1,6 +1,6 @@
 # PRJ-003 project tab lifecycle acceptance — 2026-11-14
 
-Tested code SHA: `f1ecba6eeea4310dc05e231b21a83d6e1d6073c8`
+Tested code SHA: `95dead662363a2b63acf3b947d69ea4584b2af2d`
 Contract: `cubi-prj-003-project-tabs.v1`
 
 PASS — one tab exists for the opened project

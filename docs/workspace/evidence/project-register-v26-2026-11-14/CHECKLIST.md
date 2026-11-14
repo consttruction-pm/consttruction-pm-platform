@@ -1,6 +1,6 @@
 # PRJ-001 project register acceptance — 2026-11-14
 
-Tested code SHA: `f5dcafef7c5d6ebdd3afe1fb979e41975dccd832`
+Tested code SHA: `95dead662363a2b63acf3b947d69ea4584b2af2d`
 Contract: `cubi-prj-001-project-register.v1`
 
 PASS — the Projects window renders the register
