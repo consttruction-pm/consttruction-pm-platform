@@ -239,3 +239,49 @@ def test_preview_store_exposes_the_exclusive_checkout_holder():
         assert store.checkout_holder("t1", "p1") is None
     finally:
         connection.close()
+
+
+def test_preview_store_appends_defaults_application_events_immutably():
+    connection = _legacy_connection()
+    try:
+        store = PreviewStore(connection)
+        recorded_at = datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc)
+        event = store.record_project_defaults_application(
+            "t1",
+            "p1",
+            "u1",
+            activity_id="A1000",
+            applied_activity_type="Level of Effort",
+            applied_percent_complete_type="",
+            applied_duration_type="Fixed Units",
+            applied_cost_account_id="CA-CIVIL",
+            actor_user_id="u1",
+            recorded_at=recorded_at,
+        )
+        assert event.event_id == "p1@A1000"
+        assert event.recorded_at == recorded_at
+
+        # A repeated write keeps the first row instead of updating it.
+        replay = store.record_project_defaults_application(
+            "t1",
+            "p1",
+            "u1",
+            activity_id="A1000",
+            applied_activity_type="Changed",
+            applied_percent_complete_type="",
+            applied_duration_type="",
+            applied_cost_account_id="",
+            actor_user_id="u2",
+            recorded_at=recorded_at,
+        )
+        assert replay.applied_activity_type == "Level of Effort"
+        assert replay.actor_user_id == "u1"
+
+        history = store.project_defaults_history("t1", "p1", "u1")
+        assert [item.event_id for item in history] == ["p1@A1000"]
+        assert history[0].applied_cost_account_id == "CA-CIVIL"
+
+        # Membership scopes the read; a non-member sees nothing.
+        assert store.project_defaults_history("t1", "p1", "u2") == ()
+    finally:
+        connection.close()

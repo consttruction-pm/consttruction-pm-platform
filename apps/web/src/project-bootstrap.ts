@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { CostAccountList, ProjectContext as SessionProjectContext, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
+import type { CostAccountList, ProjectContext as SessionProjectContext, ProjectDefaultsApplicationEvent, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
@@ -286,6 +286,25 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.projectStatusHistory(projectId);
+  }
+
+  /** Immutable, server-written history of defaults applied to new activities. */
+  async loadProjectDefaultsHistory(
+    projectId: string,
+  ): Promise<
+    ApiResult<{ contract_version: string; events: ProjectDefaultsApplicationEvent[] }>
+  > {
+    if (!this.dependencies.sessionApi.projectDefaultsHistory) {
+      return {
+        ok: false,
+        error: localError(
+          "PROJECT_DEFAULTS_HISTORY_UNAVAILABLE",
+          "error.project.metadata_unavailable",
+          ["refresh"],
+        ),
+      };
+    }
+    return this.dependencies.sessionApi.projectDefaultsHistory(projectId);
   }
 
   /** Projects the current session may open, exactly as the session service listed them. */

@@ -47,6 +47,8 @@ export type BootstrapLabels = {
   projectDefaultDurationType: string;
   projectDefaultCostAccount: string;
   projectDefaultCostAccountNone: string;
+  projectDefaultsHistory: string;
+  projectDefaultsHistoryEmpty: string;
   durationTypeFixedUnitsTime: string;
   durationTypeFixedDurationUnitsTime: string;
   durationTypeFixedUnits: string;
@@ -166,6 +168,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultDurationType: "Default duration type",
     projectDefaultCostAccount: "Default cost account",
     projectDefaultCostAccountNone: "No default cost account",
+    projectDefaultsHistory: "Defaults applied to new activities",
+    projectDefaultsHistoryEmpty: "No new activity has taken the project defaults yet.",
     durationTypeFixedUnitsTime: "Fixed Units/Time",
     durationTypeFixedDurationUnitsTime: "Fixed Duration & Units/Time",
     durationTypeFixedUnits: "Fixed Units",
@@ -283,6 +287,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultDurationType: "نوع پیش‌فرض مدت",
     projectDefaultCostAccount: "حساب هزینهٔ پیش‌فرض",
     projectDefaultCostAccountNone: "بدون حساب هزینهٔ پیش‌فرض",
+    projectDefaultsHistory: "پیش‌فرض‌های اعمال‌شده بر فعالیت‌های جدید",
+    projectDefaultsHistoryEmpty: "هنوز هیچ فعالیت جدیدی پیش‌فرض‌های پروژه را به کار نگرفته است.",
     durationTypeFixedUnitsTime: "واحد/زمان ثابت",
     durationTypeFixedDurationUnitsTime: "مدت و واحد/زمان ثابت",
     durationTypeFixedUnits: "واحد ثابت",

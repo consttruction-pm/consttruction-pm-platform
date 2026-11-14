@@ -101,6 +101,44 @@ class Projects:
             self.default_cost_account_id = default_cost_account_id
         return self.get_for_user(tenant_id, project_id, user_id)
 
+    def record_defaults_application_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at,
+    ):
+        from construction_pm.application.project_lifecycle import (
+            ProjectDefaultsApplicationEvent,
+        )
+
+        event = ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=f"{project_id}@{activity_id}",
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+        if not hasattr(self, "defaults_events"):
+            self.defaults_events = []
+        self.defaults_events.append(event)
+        return event
+
+    def defaults_history_for_user(self, tenant_id: str, project_id: str, user_id: str):
+        return tuple(getattr(self, "defaults_events", ()))
+
 
 class CostAccounts:
     def __init__(self, account_ids=("CA-CIVIL",)):
@@ -836,6 +874,20 @@ def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_p
         assert created["activity"]["percent_complete_type"] == "PHYSICAL"
         assert created["activity"]["duration_type"] == "Fixed Units"
 
+        # The server records exactly which defaults were applied to the new
+        # activity; the client never supplies this history.
+        status, history = _request(app, "GET", "/api/projects/p1/defaults-history")
+        assert status == "200 OK"
+        assert history["contract_version"] == "project-defaults-history-api.v1"
+        assert [event["activity_id"] for event in history["events"]] == ["A-DEFAULT"]
+        event = history["events"][0]
+        assert event["event_id"] == "p1@A-DEFAULT"
+        assert event["applied_activity_type"] == "Level of Effort"
+        assert event["applied_percent_complete_type"] == "PHYSICAL"
+        assert event["applied_duration_type"] == "Fixed Units"
+        assert event["applied_cost_account_id"] == ""
+        assert event["actor_user_id"] == "u1"
+
         explicit = {
             **inherited,
             "activity_id": "A-EXPLICIT",
@@ -848,6 +900,12 @@ def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_p
         assert created["activity"]["activity_type"] == "Start Milestone"
         assert created["activity"]["percent_complete_type"] == "SCOPE"
         assert created["activity"]["duration_type"] == "Fixed Units/Time"
+
+        # A request that supplies every default writes no application row:
+        # the defaults contributed nothing.
+        status, history = _request(app, "GET", "/api/projects/p1/defaults-history")
+        assert status == "200 OK"
+        assert [event["activity_id"] for event in history["events"]] == ["A-DEFAULT"]
 
         # Changing a default afterwards never rewrites the stored activities:
         # each activity keeps the independent value it was created with.
@@ -922,6 +980,11 @@ def test_activity_cost_account_inherits_the_project_default_and_can_change_per_a
         )
         assert status == "201 Created"
         assert created["activity"]["cost_account_id"] == "CA-CIVIL"
+
+        status, history = _request(app, "GET", "/api/projects/p1/defaults-history")
+        assert status == "200 OK"
+        assert history["events"][0]["applied_cost_account_id"] == "CA-CIVIL"
+        assert history["events"][0]["actor_user_id"] == "u1"
 
         status, created = _request(
             app,

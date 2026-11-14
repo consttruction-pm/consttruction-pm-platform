@@ -5,6 +5,7 @@ import pytest
 from construction_pm.application.authorization import AuthorizationError, Permission, default_project_policy
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
+    ProjectDefaultsApplicationEvent,
     ProjectLifecycleError,
     ProjectLifecycleService,
     ProjectSummary,
@@ -27,6 +28,7 @@ class Projects:
                 "project-a", "tenant-a", "Project A", 7
             )
         }
+        self.defaults_events = []
 
     def list_for_user(self, tenant_id, user_id):
         return tuple(
@@ -214,6 +216,41 @@ class Projects:
         )
         self.items[(tenant_id, user_id, project_id)] = updated
         return updated
+
+    def record_defaults_application_for_user(
+        self,
+        tenant_id,
+        user_id,
+        project_id,
+        *,
+        activity_id,
+        applied_activity_type,
+        applied_percent_complete_type,
+        applied_duration_type,
+        applied_cost_account_id,
+        actor_user_id,
+        recorded_at,
+    ):
+        event = ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=f"{project_id}@{activity_id}",
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+        if not any(
+            e.event_id == event.event_id for e in self.defaults_events
+        ):
+            self.defaults_events.append(event)
+        return event
+
+    def defaults_history_for_user(self, tenant_id, project_id, user_id):
+        return tuple(self.defaults_events)
 
 
 def make_session(*, roles=frozenset({"planner"}), expired=False):
@@ -804,4 +841,85 @@ def test_project_default_cost_account_requires_an_authoritative_lookup():
             "Project New",
             default_cost_account_id="CA-CIVIL",
             now=now,
+        )
+
+
+def test_defaults_application_records_the_applied_values_and_actor():
+    now, session = make_session(roles=frozenset({"planner"}))
+    service = make_service(session)
+
+    event = service.record_defaults_application(
+        "session-a",
+        "project-a",
+        activity_id="A1000",
+        applied_activity_type="Level of Effort",
+        applied_cost_account_id="CA-CIVIL",
+        now=now,
+    )
+
+    assert event.event_id == "project-a@A1000"
+    assert event.activity_id == "A1000"
+    assert event.applied_activity_type == "Level of Effort"
+    assert event.applied_percent_complete_type == ""
+    assert event.applied_duration_type == ""
+    assert event.applied_cost_account_id == "CA-CIVIL"
+    # The actor and timestamp come from the session, never the request body.
+    assert event.actor_user_id == "user-a"
+    assert event.recorded_at == now
+    assert service.project_defaults_history("session-a", "project-a", now=now) == (
+        event,
+    )
+
+
+def test_defaults_application_history_is_idempotent_per_activity():
+    now, session = make_session(roles=frozenset({"planner"}))
+    service = make_service(session)
+
+    first = service.record_defaults_application(
+        "session-a",
+        "project-a",
+        activity_id="A1000",
+        applied_activity_type="Task Dependent",
+        now=now,
+    )
+    second = service.record_defaults_application(
+        "session-a",
+        "project-a",
+        activity_id="A1000",
+        applied_activity_type="Task Dependent",
+        now=now,
+    )
+
+    assert first.event_id == second.event_id
+    assert len(service.project_defaults_history("session-a", "project-a", now=now)) == 1
+
+
+def test_defaults_application_requires_write_and_a_non_empty_application():
+    now, session = make_session(roles=frozenset({"viewer"}))
+    viewer_service = make_service(session)
+    with pytest.raises(AuthorizationError):
+        viewer_service.record_defaults_application(
+            "session-a",
+            "project-a",
+            activity_id="A1000",
+            applied_activity_type="Task Dependent",
+            now=now,
+        )
+
+    planner_now, planner = make_session(roles=frozenset({"planner"}))
+    with pytest.raises(
+        ProjectLifecycleError, match="INVALID_PROJECT_DEFAULTS_EVENT_APPLIED"
+    ):
+        make_service(planner).record_defaults_application(
+            "session-a", "project-a", activity_id="A1000", now=planner_now
+        )
+
+
+def test_defaults_history_rejects_non_members():
+    now, session = make_session(roles=frozenset({"planner"}))
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    ):
+        make_service(session).project_defaults_history(
+            "session-a", "project-other", now=now
         )

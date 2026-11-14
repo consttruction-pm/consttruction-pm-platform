@@ -21,6 +21,7 @@ from typing import Callable, Iterable, Mapping
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     PROJECT_STATUSES,
+    ProjectDefaultsApplicationEvent,
     ProjectStatusEvent,
     ProjectSummary,
 )
@@ -427,6 +428,24 @@ class PreviewStore:
             );
             CREATE INDEX IF NOT EXISTS idx_preview_project_status_event
                 ON preview_project_status_event(tenant_id, project_id, settings_revision);
+            CREATE TABLE IF NOT EXISTS preview_project_defaults_event (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                activity_id TEXT NOT NULL,
+                applied_activity_type TEXT NOT NULL DEFAULT '',
+                applied_percent_complete_type TEXT NOT NULL DEFAULT '',
+                applied_duration_type TEXT NOT NULL DEFAULT '',
+                applied_cost_account_id TEXT NOT NULL DEFAULT '',
+                actor_user_id TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, event_id),
+                FOREIGN KEY (tenant_id, project_id)
+                    REFERENCES preview_project(tenant_id, project_id)
+                    ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_preview_project_defaults_event
+                ON preview_project_defaults_event(tenant_id, project_id, recorded_at);
             CREATE TABLE IF NOT EXISTS preview_project_member (
                 tenant_id TEXT NOT NULL,
                 project_id TEXT NOT NULL,
@@ -977,6 +996,121 @@ class PreviewStore:
             for row in rows
         )
 
+    def record_project_defaults_application(
+        self,
+        tenant_id: str,
+        project_id: str,
+        user_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectDefaultsApplicationEvent:
+        """Append one defaults-application event; never updates an existing row."""
+        if not tenant_id.strip() or not project_id.strip() or not user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
+        if not activity_id.strip() or not actor_user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_DEFAULTS_EVENT_REQUIRED")
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise ValueError("PREVIEW_PROJECT_CLOCK_MUST_BE_TIMEZONE_AWARE")
+        event = ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=f"{project_id}@{activity_id}",
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+        event.validate()
+        owns_transaction = not self.connection.in_transaction
+        try:
+            self.connection.execute(
+                "INSERT INTO preview_project_defaults_event "
+                "(tenant_id, project_id, event_id, activity_id, "
+                "applied_activity_type, applied_percent_complete_type, "
+                "applied_duration_type, applied_cost_account_id, "
+                "actor_user_id, recorded_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",
+                (
+                    tenant_id,
+                    project_id,
+                    event.event_id,
+                    activity_id,
+                    applied_activity_type,
+                    applied_percent_complete_type,
+                    applied_duration_type,
+                    applied_cost_account_id,
+                    actor_user_id,
+                    recorded_at.isoformat(),
+                ),
+            )
+            row = self.connection.execute(
+                "SELECT activity_id, applied_activity_type, "
+                "applied_percent_complete_type, applied_duration_type, "
+                "applied_cost_account_id, actor_user_id, recorded_at "
+                "FROM preview_project_defaults_event "
+                "WHERE tenant_id=? AND project_id=? AND event_id=?",
+                (tenant_id, project_id, event.event_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("PREVIEW_PROJECT_DEFAULTS_EVENT_MISSING")
+            if owns_transaction:
+                self.connection.commit()
+        except Exception:
+            if owns_transaction:
+                self.connection.rollback()
+            raise
+        return ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=event.event_id,
+            activity_id=str(row[0]),
+            applied_activity_type=str(row[1]),
+            applied_percent_complete_type=str(row[2]),
+            applied_duration_type=str(row[3]),
+            applied_cost_account_id=str(row[4]),
+            actor_user_id=str(row[5]),
+            recorded_at=datetime.fromisoformat(str(row[6])),
+        )
+
+    def project_defaults_history(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]:
+        rows = self.connection.execute(
+            "SELECT e.event_id, e.activity_id, e.applied_activity_type, "
+            "e.applied_percent_complete_type, e.applied_duration_type, "
+            "e.applied_cost_account_id, e.actor_user_id, e.recorded_at "
+            "FROM preview_project_defaults_event e "
+            "JOIN preview_project_member m "
+            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
+            "WHERE e.tenant_id=? AND e.project_id=? AND m.user_id=? "
+            "ORDER BY e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id),
+        ).fetchall()
+        return tuple(
+            ProjectDefaultsApplicationEvent(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                event_id=str(row[0]),
+                activity_id=str(row[1]),
+                applied_activity_type=str(row[2]),
+                applied_percent_complete_type=str(row[3]),
+                applied_duration_type=str(row[4]),
+                applied_cost_account_id=str(row[5]),
+                actor_user_id=str(row[6]),
+                recorded_at=datetime.fromisoformat(str(row[7])),
+            )
+            for row in rows
+        )
+
     def project_rows(self) -> tuple[dict[str, object], ...]:
         rows = self.connection.execute(
             "SELECT tenant_id, project_id, name, project_revision, demo, created_at "
@@ -1278,6 +1412,38 @@ class PreviewProjectRepository:
         self, tenant_id: str, project_id: str, user_id: str
     ) -> tuple[ProjectStatusEvent, ...]:
         return self.store.project_status_history(tenant_id, project_id, user_id)
+
+    def record_defaults_application_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectDefaultsApplicationEvent:
+        return self.store.record_project_defaults_application(
+            tenant_id,
+            project_id,
+            user_id,
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+
+    def defaults_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]:
+        return self.store.project_defaults_history(tenant_id, project_id, user_id)
 
 
 __all__ = [
