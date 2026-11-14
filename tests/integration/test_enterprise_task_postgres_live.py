@@ -218,6 +218,7 @@ def test_postgres_create_idempotency_ignores_generated_task_id_and_timestamp() -
         )
         retry_task = replace(
             _task("generated-retry", tenant),
+            title=first.task.title,
             created_at=datetime(2026, 11, 15, 13, 2, tzinfo=timezone.utc),
         )
         retried = repository.create(
