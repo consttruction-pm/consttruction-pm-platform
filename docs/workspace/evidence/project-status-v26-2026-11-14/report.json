@@ -1,9 +1,9 @@
 {
   "contract": "cubi-project-status-v26.v1",
-  "baseUrl": "http://127.0.0.1:4220",
-  "gitHead": "d98fa1d7ed2b7803bda6368d34e57aa98e1ade59",
-  "testedCodeSha": "d98fa1d7ed2b7803bda6368d34e57aa98e1ade59",
-  "capturedAt": "2026-11-14T03:42:08.513Z",
+  "baseUrl": "http://127.0.0.1:4263",
+  "gitHead": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
+  "testedCodeSha": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
+  "capturedAt": "2026-11-14T10:30:24.835Z",
   "cells": [
     {
       "viewport": "1366x768",
@@ -36,28 +36,28 @@
       "revision": "Configuration revision R0",
       "id": "01",
       "name": "the settings panel shows the stored status and an empty event history",
-      "at": "2026-11-14T03:42:12.723Z"
+      "at": "2026-11-14T10:30:29.052Z"
     },
     {
       "status": "pass",
       "eventId": "preview-rps-01@1",
       "id": "02",
       "name": "changing the status stores the row and records an event with the actor and revision",
-      "at": "2026-11-14T03:42:13.605Z"
+      "at": "2026-11-14T10:30:29.937Z"
     },
     {
       "status": "pass",
       "history": 1,
       "id": "03",
       "name": "a full reload re-reads the same status and append-only history",
-      "at": "2026-11-14T03:42:17.040Z"
+      "at": "2026-11-14T10:30:33.368Z"
     },
     {
       "viewport": "1920x1080",
       "status": "pass",
       "id": "04",
       "name": "the same record redraws at 1920x1080",
-      "at": "2026-11-14T03:42:17.764Z"
+      "at": "2026-11-14T10:30:34.100Z"
     },
     {
       "viewerEvents": 1,
@@ -65,14 +65,14 @@
       "id": "05",
       "name": "a viewer reads the history but the server rejects a status change",
       "status": "pass",
-      "at": "2026-11-14T03:42:22.239Z"
+      "at": "2026-11-14T10:30:38.588Z"
     },
     {
       "locale": "fa",
       "status": "pass",
       "id": "06",
       "name": "the status history fits the Persian 1280x720 layout",
-      "at": "2026-11-14T03:42:26.732Z"
+      "at": "2026-11-14T10:30:43.114Z"
     }
   ],
   "screenshots": [
