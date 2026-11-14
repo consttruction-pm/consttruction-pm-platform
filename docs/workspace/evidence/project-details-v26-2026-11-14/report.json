@@ -1,9 +1,9 @@
 {
   "contract": "cubi-project-details-v26.v1",
-  "baseUrl": "http://127.0.0.1:4500",
-  "gitHead": "ae6d211668c063096a163b1f1b4e0ec61d1870f5",
-  "testedCodeSha": "ae6d211668c063096a163b1f1b4e0ec61d1870f5",
-  "capturedAt": "2026-11-14T20:31:44.710Z",
+  "baseUrl": "http://127.0.0.1:4317",
+  "gitHead": "9b25bdb5f947962c7554c0f04b082b7711440410",
+  "testedCodeSha": "9b25bdb5f947962c7554c0f04b082b7711440410",
+  "capturedAt": "2026-11-14T21:01:03.323Z",
   "cells": [
     {
       "viewport": "1366x768",
@@ -32,24 +32,25 @@
       "id": "01",
       "name": "Project Details reads the stored OBS, web-site, checkout and leveling values",
       "status": "pass",
-      "at": "2026-11-14T20:31:49.097Z"
+      "at": "2026-11-14T21:01:07.757Z"
     },
     {
       "revision": 1,
       "id": "02",
       "name": "OBS responsible manager and web-site persist through the lifecycle API",
       "status": "pass",
-      "at": "2026-11-14T20:31:53.165Z"
+      "at": "2026-11-14T21:01:12.208Z"
     },
     {
       "activityId": "AH-A230-B",
       "activityType": "Level of Effort",
       "percentCompleteType": "PHYSICAL",
       "durationType": "Fixed Units/Time",
+      "costAccountId": "CA-CIVIL",
       "id": "02b",
       "name": "Defaults tab values persist and prefill a new activity",
       "status": "pass",
-      "at": "2026-11-14T20:31:57.868Z"
+      "at": "2026-11-14T21:01:18.467Z"
     },
     {
       "recordRevision": 2,
@@ -57,7 +58,7 @@
       "id": "03",
       "name": "leveling priority saves through the canonical schedule-settings contract",
       "status": "pass",
-      "at": "2026-11-14T20:32:01.799Z"
+      "at": "2026-11-14T21:01:22.824Z"
     },
     {
       "owner": "preview-admin",
@@ -65,7 +66,7 @@
       "id": "04",
       "name": "project checkout is an exclusive stored lease with check-in",
       "status": "pass",
-      "at": "2026-11-14T20:32:02.766Z"
+      "at": "2026-11-14T21:01:23.792Z"
     },
     {
       "priority": 44,
@@ -74,7 +75,7 @@
       "id": "04b",
       "name": "canonical schedule-settings writes honour the exclusive checkout lease",
       "status": "pass",
-      "at": "2026-11-14T20:32:09.665Z"
+      "at": "2026-11-14T21:01:30.792Z"
     },
     {
       "staleWebsite": "https://example.com/stale-write",
@@ -82,7 +83,7 @@
       "id": "05",
       "name": "a stale Project Details save is rejected and reloads the latest values",
       "status": "pass",
-      "at": "2026-11-14T20:32:09.863Z"
+      "at": "2026-11-14T21:01:31.091Z"
     },
     {
       "directPatch": 403,
@@ -91,7 +92,7 @@
       "id": "06",
       "name": "a viewer reads Project Details but the server rejects every write",
       "status": "pass",
-      "at": "2026-11-14T20:32:15.064Z"
+      "at": "2026-11-14T21:01:36.340Z"
     },
     {
       "locale": "fa",
@@ -100,7 +101,7 @@
       "id": "07",
       "name": "the new fields fit the Persian 1280x720 layout in RTL",
       "status": "pass",
-      "at": "2026-11-14T20:32:20.040Z"
+      "at": "2026-11-14T21:01:41.533Z"
     }
   ],
   "screenshots": [
