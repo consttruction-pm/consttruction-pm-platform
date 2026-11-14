@@ -409,6 +409,15 @@ async function main() {
     assert(await page.evaluate(`!document.querySelector("[data-toolbar-dock] [data-tool-family]")`), "the dock was not emptied");
     record("a docked toolbar re-docks to a rail and the dock stays recoverable");
 
+    // Reorder whole toolbar rows inside the right rail.
+    const railOrderBefore = await page.evaluate(`[...document.querySelectorAll('[data-tool-rail="right"] [data-tool-family]')].map((family) => family.dataset.toolFamily)`);
+    await realDrag(page, '[data-tool-family="layout"] [data-tool-family-handle]', '[data-tool-family="edit"]');
+    const railOrderAfter = await page.evaluate(`[...document.querySelectorAll('[data-tool-rail="right"] [data-tool-family]')].map((family) => family.dataset.toolFamily)`);
+    assert(JSON.stringify(railOrderAfter) !== JSON.stringify(railOrderBefore), "the toolbar row did not move inside the rail");
+    assert(JSON.stringify([...railOrderAfter].sort()) === JSON.stringify([...railOrderBefore].sort()), "reordering toolbar rows must not drop a family");
+    await capture(page, "family-reordered-1366x768-en");
+    record("pointer drag reorders whole toolbar rows inside a rail", { before: railOrderBefore.slice(0, 5), after: railOrderAfter.slice(0, 5) });
+
     await setViewport(page, 1366, 768);
     // ------------------------------------------------------------- keyboard
     await scrollToElement(page, '[data-tool-family="layout"] [data-tool-command-id="layout.open"]');
