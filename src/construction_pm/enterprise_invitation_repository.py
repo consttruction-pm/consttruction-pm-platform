@@ -112,6 +112,13 @@ class PostgresEnterpriseInvitationRepository:
                 ).fetchone()
                 if inserted is not None:
                     break
+                # A concurrent request may have provisioned this same user ID.
+                existing = self._connection.execute(
+                    "SELECT user_id FROM enterprise_public_cubi_ids WHERE tenant_id=%s AND user_id=%s",
+                    (tenant_id, user_id),
+                ).fetchone()
+                if existing is not None:
+                    break
             else:
                 raise InvitationError("CUBI_ID_GENERATION_FAILED")
 

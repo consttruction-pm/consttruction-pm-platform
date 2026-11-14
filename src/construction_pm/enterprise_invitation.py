@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
 from .enterprise_organization_access import (
-    EnterpriseTeamMembership, OrganizationAccessDenied, TEAM_ROLES,
+    EnterpriseTeamMembership, TEAM_ROLES,
 )
 
 _CUBI_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -106,9 +106,13 @@ class EnterpriseInvitationService:
             raise InvitationError("SELF_INVITATION_NOT_ALLOWED")
         now = self._now()
         raw_token = secrets.token_urlsafe(32)
+        target_user_id = self._repository.user_id_for_cubi_id(session.tenant_id, target.cubi_id)
+        existing = self._access.get_membership(session.tenant_id, team_id, target_user_id)
+        if existing is not None and existing.status == "active":
+            raise InvitationError("USER_ALREADY_TEAM_MEMBER")
         invitation = TeamInvitation(
             invitation_id=f"invite-{uuid4().hex}", tenant_id=session.tenant_id,
-            team_id=team_id, target_user_id=self._repository.user_id_for_cubi_id(session.tenant_id, target.cubi_id),
+            team_id=team_id, target_user_id=target_user_id,
             invited_by_user_id=session.user_id, role=role, status="pending",
             expires_at=now + self._ttl, created_at=now, token=raw_token,
         )
