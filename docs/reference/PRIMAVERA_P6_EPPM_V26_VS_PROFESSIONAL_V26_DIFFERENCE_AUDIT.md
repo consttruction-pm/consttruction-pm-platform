@@ -456,18 +456,18 @@ The following documentary slices are now present on this branch and linked from 
 | Artifact | Rows / scope | Status |
 |---|---:|---|
 | Capability-level master register | 60 capability areas | Completed as a first-pass surface comparison; not a page-level census |
-| Security / User Access / OBS / Dashboard | 26 | Evidence-backed child matrix; full checkbox-level privilege parity remains open |
-| Team Member / Status / Timesheet | 36 | Evidence-backed lifecycle matrix; exhaustive API field parity remains open |
-| Reporting / Publication / Scheduled Services / Audit | 32 | Evidence-backed service/reporting matrix; all parameter and service fields remain open |
-| Scheduling Options / Calculation Semantics | 40 | Evidence-backed V26 options and calculation comparison; runtime parity/API gaps remain open |
-| Data Dictionary / Extended Schema / API Field Surface | 44 | Evidence-backed field-surface comparison; Professional V26 API schema and physical-column mapping remain open |
-| Import/Export XER/XML/XLSX | 61 | Evidence-backed mapping comparison; exhaustive parsing of all format maps and round-trip tests remain open |
-| Document Repository / Review Lifecycle | 50 | Evidence-backed optional-repository and review lifecycle comparison; repository connector/API gaps remain open |
-| Risk Model / Scoring / Response Plans | 53 |
-| Portfolio / Capacity Planning / What-if | 42 |
-| Resource/Role Planning / Teams / Assignments | 40 |
-| Unifier / Gateway / Primavera Cloud Integration | 40 |
-| Dashboards / Portlets / UI Views / Access | 40 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
+| [Security / User Access / OBS / Dashboard](EPPM_V26_SECURITY_USER_ACCESS_OBS_DASHBOARD_PERMISSION_MATRIX.md) | 26 | Evidence-backed child matrix; full checkbox-level privilege parity remains open |
+| [Team Member / Status / Timesheet](EPPM_V26_TEAM_MEMBER_STATUS_TIMESHEET_APPROVAL_LIFECYCLE_MATRIX.md) | 36 | Evidence-backed lifecycle matrix; exhaustive API field parity remains open |
+| [Reporting / Publication / Scheduled Services / Audit](EPPM_V26_REPORTING_PUBLICATION_SCHEDULED_SERVICES_AUDIT_MATRIX.md) | 32 | Evidence-backed service/reporting matrix; all parameter and service fields remain open |
+| [Scheduling Options / Calculation Semantics](EPPM_V26_SCHEDULING_OPTIONS_CALCULATION_SEMANTICS_MATRIX.md) | 40 | Evidence-backed V26 options and calculation comparison; runtime parity/API gaps remain open |
+| [Data Dictionary / Extended Schema / API Field Surface](EPPM_V26_DATA_DICTIONARY_EXTENDED_SCHEMA_API_FIELD_SURFACE_MATRIX.md) | 44 | Evidence-backed field-surface comparison; Professional V26 API schema and physical-column mapping remain open |
+| [Import/Export XER/XML/XLSX](EPPM_V26_IMPORT_EXPORT_XER_XML_XLSX_FIELD_MAPPING_MATRIX.md) | 61 | Evidence-backed mapping comparison; exhaustive parsing of all format maps and round-trip tests remain open |
+| [Document Repository / Review Lifecycle](EPPM_V26_DOCUMENT_REPOSITORY_REVIEW_LIFECYCLE_MATRIX.md) | 50 | Evidence-backed optional-repository and review lifecycle comparison; repository connector/API gaps remain open |
+| [Risk Model / Scoring / Response Plans](EPPM_V26_RISK_MODEL_SCORING_RESPONSE_PLAN_MATRIX.md) | 53 |
+| [Portfolio / Capacity Planning / What-if](EPPM_V26_PORTFOLIO_CAPACITY_PLANNING_WHAT_IF_MATRIX.md) | 42 |
+| [Resource/Role Planning / Teams / Assignments](EPPM_V26_RESOURCE_ROLE_PLANNING_TEAMS_ASSIGNMENTS_MATRIX.md) | 40 |
+| [Unifier / Gateway / Primavera Cloud Integration](EPPM_V26_UNIFIER_GATEWAY_PRIMAVERA_CLOUD_INTEGRATION_MATRIX.md) | 40 |
+| [Dashboards / Portlets / UI Views / Access](EPPM_V26_DASHBOARD_PORTLET_UI_VIEW_ACCESS_MATRIX.md) | 40 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
 
 **Total technical child-matrix entries: 504 rows across twelve topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
 
