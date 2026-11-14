@@ -191,6 +191,7 @@ const panelState = `(() => {
     checkoutLabel: checkout?.querySelector("h3")?.textContent?.trim() ?? null,
     defaultActivityType: panel.querySelector("[data-project-default-activity-type]")?.value ?? null,
     defaultPercentComplete: panel.querySelector("[data-project-default-percent-complete]")?.value ?? null,
+    defaultDurationType: panel.querySelector("[data-project-default-duration-type]")?.value ?? null,
     activityIdPrefix: panel.querySelector("[data-project-activity-id-prefix]")?.value ?? null,
     activityIdSuffix: panel.querySelector("[data-project-activity-id-suffix]")?.value ?? null,
     activityIdIncrement: panel.querySelector("[data-project-activity-id-increment]")?.value ?? null,
@@ -354,6 +355,7 @@ async function main() {
     await scenario("02b", "Defaults tab values persist and prefill a new activity", async () => {
       await page.setSelect('[data-project-default-activity-type]', "Level of Effort");
       await page.setSelect('[data-project-default-percent-complete]', "PHYSICAL");
+      await page.setSelect('[data-project-default-duration-type]', "Fixed Units/Time");
       await page.setInput('[data-project-activity-id-prefix]', "AH-");
       await page.setInput('[data-project-activity-id-suffix]', "-B");
       await page.setInput('[data-project-activity-id-increment]', "20");
@@ -365,6 +367,7 @@ async function main() {
       const api = await readProject(page);
       assert(api.default_activity_type === "Level of Effort", `API activity type ${api.default_activity_type}`);
       assert(api.default_percent_complete_type === "PHYSICAL", `API percent type ${api.default_percent_complete_type}`);
+      assert(api.default_duration_type === "Fixed Units/Time", `API duration type ${api.default_duration_type}`);
       assert(api.activity_id_prefix === "AH-", `API prefix ${api.activity_id_prefix}`);
       assert(api.activity_id_suffix === "-B", `API suffix ${api.activity_id_suffix}`);
       assert(api.activity_id_increment === 20, `API increment ${api.activity_id_increment}`);
@@ -379,6 +382,7 @@ async function main() {
       const state = await readPanel(page);
       assert(state.defaultActivityType === "Level of Effort", `reloaded activity type ${state.defaultActivityType}`);
       assert(state.defaultPercentComplete === "PHYSICAL", `reloaded percent type ${state.defaultPercentComplete}`);
+      assert(state.defaultDurationType === "Fixed Units/Time", `reloaded duration type ${state.defaultDurationType}`);
       assert(state.activityIdPrefix === "AH-", `reloaded prefix ${state.activityIdPrefix}`);
       assert(state.activityIdSuffix === "-B", `reloaded suffix ${state.activityIdSuffix}`);
       assert(state.activityIdIncrement === "20", `reloaded increment ${state.activityIdIncrement}`);
@@ -389,6 +393,7 @@ async function main() {
       })()`);
       assert(/Level of Effort/.test(defaultsTab.text), `Defaults tab activity type ${defaultsTab.text}`);
       assert(/Physical/.test(defaultsTab.text), `Defaults tab percent type ${defaultsTab.text}`);
+      assert(/Fixed Units\/Time/.test(defaultsTab.text), `Defaults tab duration type ${defaultsTab.text}`);
       assert(/AH-/.test(defaultsTab.text) && /-B/.test(defaultsTab.text), `Defaults tab affixes ${defaultsTab.text}`);
       assert(/ID increment20/.test(defaultsTab.text), `Defaults tab increment ${defaultsTab.text}`);
       await reveal(page, "[data-project-defaults]");
@@ -407,6 +412,7 @@ async function main() {
           activityId: form.querySelector('[name="activity_id"]')?.value ?? "",
           activityType: form.querySelector('[name="activity_type"]')?.value ?? "",
           percentCompleteType: form.querySelector('[name="percent_complete_type"]')?.value ?? "",
+          durationType: form.querySelector('[name="duration_type"]')?.value ?? "",
           hint: form.querySelector("[data-activity-id-suggestion]")?.textContent?.trim() ?? "",
           wbsId: form.querySelector('[name="wbs_id"]')?.value ?? "",
         };
@@ -414,6 +420,7 @@ async function main() {
       assert(form, "activity create form is missing");
       assert(form.activityType === "Level of Effort", `form activity type ${form.activityType}`);
       assert(form.percentCompleteType === "PHYSICAL", `form percent type ${form.percentCompleteType}`);
+      assert(form.durationType === "Fixed Units/Time", `form duration type ${form.durationType}`);
       assert(/^AH-.+-B$/.test(form.activityId), `suggested activity ID ${form.activityId}`);
       assert(form.hint.length > 0, "activity ID suggestion hint is missing");
 
@@ -433,12 +440,14 @@ async function main() {
       assert(stored, `created activity ${form.activityId} is missing`);
       assert(stored.activity.activity_type === "Level of Effort", `stored activity type ${stored.activity.activity_type}`);
       assert(stored.activity.percent_complete_type === "PHYSICAL", `stored percent type ${stored.activity.percent_complete_type}`);
+      assert(stored.activity.duration_type === "Fixed Units/Time", `stored duration type ${stored.activity.duration_type}`);
       await page.evaluate(`document.querySelector("[data-tools-close]")?.click()`);
       await capture(page, "02b-activity-created-from-defaults");
       return {
         activityId: form.activityId,
         activityType: stored.activity.activity_type,
         percentCompleteType: stored.activity.percent_complete_type,
+        durationType: stored.activity.duration_type,
       };
     });
 

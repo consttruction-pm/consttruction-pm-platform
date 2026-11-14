@@ -36,6 +36,7 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         website_url TEXT NOT NULL DEFAULT '',
         default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
         default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+        default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units',
         activity_id_prefix TEXT NOT NULL DEFAULT '',
         activity_id_suffix TEXT NOT NULL DEFAULT '',
         activity_id_increment INTEGER NOT NULL DEFAULT 10,
@@ -61,6 +62,10 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
     """
     ALTER TABLE project_lifecycle_projects
         ADD COLUMN IF NOT EXISTS default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units'
     """,
     """
     ALTER TABLE project_lifecycle_projects
@@ -162,7 +167,8 @@ class PostgresProjectRepository(ProjectRepository):
         "p.status, p.business_domain, p.obs_responsible_manager, p.website_url, "
         "p.default_activity_type, p.default_percent_complete_type, "
         "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
-        "p.increment_activity_id, p.checkout_state, p.checked_out_by, p.checked_out_at "
+        "p.increment_activity_id, p.checkout_state, p.checked_out_by, p.checked_out_at, "
+        "p.default_duration_type "
         "FROM project_lifecycle_projects p "
     )
 
@@ -203,6 +209,7 @@ class PostgresProjectRepository(ProjectRepository):
         website_url: str = "",
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
+        default_duration_type: str = "Fixed Duration & Units",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -213,9 +220,9 @@ class PostgresProjectRepository(ProjectRepository):
             "(tenant_id, project_id, name, revision, description, start_date, date_system, "
             "primary_calendar_id, settings_revision, business_domain, "
             "obs_responsible_manager, website_url, default_activity_type, "
-            "default_percent_complete_type, activity_id_prefix, activity_id_suffix, "
-            "activity_id_increment, increment_activity_id) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "default_percent_complete_type, default_duration_type, activity_id_prefix, "
+            "activity_id_suffix, activity_id_increment, increment_activity_id) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 tenant_id,
                 project_id,
@@ -229,6 +236,7 @@ class PostgresProjectRepository(ProjectRepository):
                 website_url,
                 default_activity_type,
                 default_percent_complete_type,
+                default_duration_type,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -254,6 +262,7 @@ class PostgresProjectRepository(ProjectRepository):
             website_url=website_url,
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
+            default_duration_type=default_duration_type,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -277,6 +286,7 @@ class PostgresProjectRepository(ProjectRepository):
         website_url: str | None = None,
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -290,6 +300,7 @@ class PostgresProjectRepository(ProjectRepository):
             "website_url=COALESCE(%s, website_url), "
             "default_activity_type=COALESCE(%s, default_activity_type), "
             "default_percent_complete_type=COALESCE(%s, default_percent_complete_type), "
+            "default_duration_type=COALESCE(%s, default_duration_type), "
             "activity_id_prefix=COALESCE(%s, activity_id_prefix), "
             "activity_id_suffix=COALESCE(%s, activity_id_suffix), "
             "activity_id_increment=COALESCE(%s, activity_id_increment), "
@@ -302,9 +313,10 @@ class PostgresProjectRepository(ProjectRepository):
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
-            "default_activity_type, default_percent_complete_type, activity_id_prefix, "
-            "activity_id_suffix, activity_id_increment, increment_activity_id, "
-            "checkout_state, checked_out_by, checked_out_at",
+            "default_activity_type, default_percent_complete_type, "
+            "activity_id_prefix, activity_id_suffix, activity_id_increment, "
+            "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
+            "default_duration_type",
             (
                 name,
                 description,
@@ -316,6 +328,7 @@ class PostgresProjectRepository(ProjectRepository):
                 website_url,
                 default_activity_type,
                 default_percent_complete_type,
+                default_duration_type,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -367,8 +380,11 @@ class PostgresProjectRepository(ProjectRepository):
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
-            "business_domain, obs_responsible_manager, website_url, checkout_state, "
-            "checked_out_by, checked_out_at",
+            "business_domain, obs_responsible_manager, website_url, "
+            "default_activity_type, default_percent_complete_type, "
+            "activity_id_prefix, activity_id_suffix, activity_id_increment, "
+            "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
+            "default_duration_type",
             (status, tenant_id, project_id, expected_revision, user_id),
         ).fetchone()
         if row is None:
@@ -431,8 +447,11 @@ class PostgresProjectRepository(ProjectRepository):
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
-            "business_domain, obs_responsible_manager, website_url, checkout_state, "
-            "checked_out_by, checked_out_at",
+            "business_domain, obs_responsible_manager, website_url, "
+            "default_activity_type, default_percent_complete_type, "
+            "activity_id_prefix, activity_id_suffix, activity_id_increment, "
+            "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
+            "default_duration_type",
             (
                 next_state,
                 next_owner,
@@ -513,6 +532,11 @@ def _summary(row: Any) -> ProjectSummary:
             None
             if len(row) <= 21 or row[21] is None
             else _as_datetime(row[21]).isoformat()
+        ),
+        default_duration_type=(
+            str(row[22])
+            if len(row) > 22 and row[22]
+            else "Fixed Duration & Units"
         ),
     )
 

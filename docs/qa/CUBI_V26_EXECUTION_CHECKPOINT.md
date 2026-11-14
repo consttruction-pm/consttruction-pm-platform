@@ -3907,6 +3907,29 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
   1147 + 14 passed, typecheck and build clean at the same code.
 
+### PRJ-002 stored default duration type — 2026-11-14 (`ae6d2116`)
+
+- `ActivityMaster` gains the four V26 Duration Type values, persisted by both
+  activity repositories in `activity_master.duration_type` with an in-place
+  SQLite migration and a PostgreSQL `ADD COLUMN IF NOT EXISTS`; existing rows
+  decode to `Fixed Duration & Units`. The activity master API returns the
+  stored value on create, read, list and PATCH.
+- `ProjectSummary.default_duration_type` stores the project default behind the
+  settings revision (`PROJECT_DEFAULT_DURATION_TYPE_INVALID`), and
+  `POST …/p6/activities` copies it only when the request omits the field. An
+  explicit value wins, PATCH edits one activity, and changing the default never
+  rewrites stored activities.
+- The Defaults tab edits and saves the default; the create drawer prefills it,
+  the inline editor changes it, and the read model plus the Defaults details
+  tab display it, in en/fa. No scheduling or duration math runs in the browser.
+- Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`
+  (`testedCodeSha`/`gitHead` `ae6d211668c063096a163b1f1b4e0ec61d1870f5`, 9/9
+  scenarios, 12 screenshots, zero exceptions/console errors/API failures);
+  scenario `02b` stores `Fixed Units/Time`, reads it back from the project and
+  activity APIs, survives a reload, prefills the create drawer and stores a
+  created activity with that value. Python 4235 passed / 190 skipped, web 1147
+  + 14 passed, typecheck and build clean.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3916,11 +3939,10 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   project is checked out (`409 PROJECT_CHECKED_OUT_BY_OTHER`); metadata and
   status writes already did. The lease is still not consulted by activity,
   WBS or relationship writes.
-- The Defaults tab now stores activity type, percent complete type and the
-  Activity ID numbering fields. Duration Type, Cost Account and the calendar
-  default are still absent (no validated Activity/Cost Account field; the
-  project primary calendar already exists), and defaults changes are not an
-  audited history.
+- The Defaults tab now stores activity type, percent complete type, duration
+  type and the Activity ID numbering fields. The default Cost Account and an
+  audited defaults history are still absent; storing a Cost Account requires
+  the real hierarchy (Agent 3 contract) rather than a static list.
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.

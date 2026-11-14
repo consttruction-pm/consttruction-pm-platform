@@ -282,6 +282,8 @@ test("Activity entry is localized and requires an authoritative WBS selection", 
   assert.match(persian, /نوع درصد تکمیل/);
   assert.match(persian, /وابسته به منابع/);
   assert.match(empty, /name="percent_complete_type"/);
+  assert.match(empty, /name="duration_type"/);
+  assert.match(persian, /نوع مدت/);
   assert.match(empty, /name="leveling_priority"/);
 });
 
@@ -296,7 +298,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
   );
-  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string } | null = null;
+  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; levelingPriority: string } | null = null;
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onActivityCreate: (input) => { created = input; },
   });
@@ -310,6 +312,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     '[name="status"]': { value: "In Progress" },
     '[name="status_code"]': { value: "Active" },
     '[name="percent_complete_type"]': { value: "PHYSICAL" },
+    '[name="duration_type"]': { value: "Fixed Units" },
     '[name="leveling_priority"]': { value: "High" },
   };
   const form = {
@@ -329,6 +332,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     status: "In Progress",
     statusCode: "Active",
     percentCompleteType: "PHYSICAL",
+    durationType: "Fixed Units",
     levelingPriority: "High",
   });
 });

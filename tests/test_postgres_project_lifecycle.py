@@ -68,7 +68,7 @@ def test_project_creation_persists_metadata_columns():
     insert_params = c.calls[0][1]
     assert insert_params == (
         "t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "", "", "",
-        "Task Dependent", "DURATION", "", "", 10, False,
+        "Task Dependent", "DURATION", "Fixed Duration & Units", "", "", 10, False,
     )
 
 
@@ -91,7 +91,7 @@ def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
         "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2", None,
-        None, None, None, None, None, None, None, None, "t1", "p2", 2, "u1",
+        None, None, None, None, None, None, None, None, None, "t1", "p2", 2, "u1",
     )
 
 
@@ -213,14 +213,14 @@ def test_project_creation_and_update_persist_activity_defaults():
     assert p.increment_activity_id is True
     params = c.calls[0][1]
     assert params[10:] == (
-        "Resource Dependent", "UNITS", "AH-", "-X", 25, True,
+        "Resource Dependent", "UNITS", "Fixed Duration & Units", "AH-", "-X", 25, True,
     )
 
     c.next_rows = [(
         "p2", "t1", "Project 2", 0, "", None, "gregorian", None, 1,
         "active", "", "", "",
         "Resource Dependent", "UNITS", "AH-", "-X", 5, True,
-        "checked_in", "", None,
+        "checked_in", "", None, "Fixed Duration & Units",
     )]
     updated = PostgresProjectRepository(c).update_for_user(
         "t1", "u1", "p2",
@@ -232,4 +232,4 @@ def test_project_creation_and_update_persist_activity_defaults():
     sql, params = c.calls[2]
     assert "default_activity_type=COALESCE(%s, default_activity_type)" in sql
     assert "increment_activity_id=COALESCE(%s, increment_activity_id)" in sql
-    assert params[8:13] == (None, None, None, None, 5)
+    assert params[8:15] == (None, None, None, None, None, 5, None)

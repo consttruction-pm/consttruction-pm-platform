@@ -54,6 +54,7 @@ class Projects:
         website_url="",
         default_activity_type="Task Dependent",
         default_percent_complete_type="DURATION",
+        default_duration_type="Fixed Duration & Units",
         activity_id_prefix="",
         activity_id_suffix="",
         activity_id_increment=10,
@@ -73,6 +74,7 @@ class Projects:
             website_url=website_url,
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
+            default_duration_type=default_duration_type,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -98,6 +100,7 @@ class Projects:
         website_url=None,
         default_activity_type=None,
         default_percent_complete_type=None,
+        default_duration_type=None,
         activity_id_prefix=None,
         activity_id_suffix=None,
         activity_id_increment=None,
@@ -136,6 +139,11 @@ class Projects:
                 default_percent_complete_type
                 if default_percent_complete_type is not None
                 else current.default_percent_complete_type
+            ),
+            default_duration_type=(
+                default_duration_type
+                if default_duration_type is not None
+                else current.default_duration_type
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -535,6 +543,7 @@ def test_project_admin_can_store_activity_defaults():
         "Project C",
         default_activity_type="Resource Dependent",
         default_percent_complete_type="units",
+        default_duration_type="Fixed Units/Time",
         activity_id_prefix=" AH- ",
         activity_id_suffix=" -X",
         activity_id_increment="25",
@@ -544,6 +553,7 @@ def test_project_admin_can_store_activity_defaults():
     project = service.get_project("session-a", created.project_id, now=now)
     assert project.default_activity_type == "Resource Dependent"
     assert project.default_percent_complete_type == "UNITS"
+    assert project.default_duration_type == "Fixed Units/Time"
     assert project.activity_id_prefix == "AH-"
     assert project.activity_id_suffix == "-X"
     assert project.activity_id_increment == 25
@@ -560,6 +570,7 @@ def test_project_admin_can_store_activity_defaults():
     )
     assert updated.activity_id_increment == 5
     assert updated.default_activity_type == "Resource Dependent"
+    assert updated.default_duration_type == "Fixed Units/Time"
     assert updated.activity_id_prefix == "AH-"
 
     cleared = service.update_project(
@@ -583,6 +594,10 @@ def test_project_activity_defaults_reject_invalid_values():
         (
             {"default_percent_complete_type": "WEIGHTED"},
             "PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID",
+        ),
+        (
+            {"default_duration_type": "Fixed Effort"},
+            "PROJECT_DEFAULT_DURATION_TYPE_INVALID",
         ),
         ({"activity_id_prefix": "A B"}, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"),
         ({"activity_id_suffix": "X" * 21}, "PROJECT_ACTIVITY_ID_SUFFIX_INVALID"),

@@ -44,6 +44,11 @@ export type BootstrapLabels = {
   projectDefaultsHint: string;
   projectDefaultActivityType: string;
   projectDefaultPercentCompleteType: string;
+  projectDefaultDurationType: string;
+  durationTypeFixedUnitsTime: string;
+  durationTypeFixedDurationUnitsTime: string;
+  durationTypeFixedUnits: string;
+  durationTypeFixedDurationUnits: string;
   projectActivityIdPrefix: string;
   projectActivityIdSuffix: string;
   projectActivityIdIncrement: string;
@@ -156,6 +161,11 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultsHint: "Applied when a new activity is created. Existing activities keep their values.",
     projectDefaultActivityType: "Default activity type",
     projectDefaultPercentCompleteType: "Percent complete type",
+    projectDefaultDurationType: "Default duration type",
+    durationTypeFixedUnitsTime: "Fixed Units/Time",
+    durationTypeFixedDurationUnitsTime: "Fixed Duration & Units/Time",
+    durationTypeFixedUnits: "Fixed Units",
+    durationTypeFixedDurationUnits: "Fixed Duration & Units",
     projectActivityIdPrefix: "Activity ID prefix",
     projectActivityIdSuffix: "Activity ID suffix",
     projectActivityIdIncrement: "Increment",
@@ -266,6 +276,11 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultsHint: "هنگام ساخت فعالیت جدید اعمال می‌شود. فعالیت‌های موجود مقادیر خود را نگه می‌دارند.",
     projectDefaultActivityType: "نوع پیش‌فرض فعالیت",
     projectDefaultPercentCompleteType: "نوع درصد تکمیل",
+    projectDefaultDurationType: "نوع پیش‌فرض مدت",
+    durationTypeFixedUnitsTime: "واحد/زمان ثابت",
+    durationTypeFixedDurationUnitsTime: "مدت و واحد/زمان ثابت",
+    durationTypeFixedUnits: "واحد ثابت",
+    durationTypeFixedDurationUnits: "مدت و واحد ثابت",
     projectActivityIdPrefix: "پیشوند شناسهٔ فعالیت",
     projectActivityIdSuffix: "پسوند شناسهٔ فعالیت",
     projectActivityIdIncrement: "گام افزایش",

@@ -131,6 +131,11 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         ),
         checked_out_by=str(row[20]) if len(row) > 20 and row[20] else "",
         checked_out_at=None if len(row) <= 21 or row[21] is None else str(row[21]),
+        default_duration_type=(
+            str(row[22])
+            if len(row) > 22 and row[22]
+            else "Fixed Duration & Units"
+        ),
     )
 
 
@@ -392,6 +397,7 @@ class PreviewStore:
                 website_url TEXT NOT NULL DEFAULT '',
                 default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
                 default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+                default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units',
                 activity_id_prefix TEXT NOT NULL DEFAULT '',
                 activity_id_suffix TEXT NOT NULL DEFAULT '',
                 activity_id_increment INTEGER NOT NULL DEFAULT 10,
@@ -477,6 +483,10 @@ class PreviewStore:
                 "ALTER TABLE preview_project ADD COLUMN default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'",
             ),
             (
+                "default_duration_type",
+                "ALTER TABLE preview_project ADD COLUMN default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units'",
+            ),
+            (
                 "activity_id_prefix",
                 "ALTER TABLE preview_project ADD COLUMN activity_id_prefix TEXT NOT NULL DEFAULT ''",
             ),
@@ -535,6 +545,7 @@ class PreviewStore:
         website_url: str = "",
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
+        default_duration_type: str = "Fixed Duration & Units",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -559,9 +570,9 @@ class PreviewStore:
             "description, start_date, date_system, primary_calendar_id, settings_revision, "
             "business_domain, obs_responsible_manager, website_url, "
             "default_activity_type, default_percent_complete_type, "
-            "activity_id_prefix, activity_id_suffix, activity_id_increment, "
-            "increment_activity_id) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "default_duration_type, activity_id_prefix, activity_id_suffix, "
+            "activity_id_increment, increment_activity_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -580,6 +591,7 @@ class PreviewStore:
                 website_url,
                 default_activity_type,
                 default_percent_complete_type,
+                default_duration_type,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -628,7 +640,7 @@ class PreviewStore:
             "p.default_activity_type, p.default_percent_complete_type, "
             "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
             "p.increment_activity_id, p.checkout_state, "
-            "p.checked_out_by, p.checked_out_at "
+            "p.checked_out_by, p.checked_out_at, p.default_duration_type "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -649,7 +661,7 @@ class PreviewStore:
             "p.default_activity_type, p.default_percent_complete_type, "
             "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
             "p.increment_activity_id, p.checkout_state, "
-            "p.checked_out_by, p.checked_out_at "
+            "p.checked_out_by, p.checked_out_at, p.default_duration_type "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -689,6 +701,7 @@ class PreviewStore:
         website_url: str | None = None,
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -722,6 +735,7 @@ class PreviewStore:
             "website_url=COALESCE(?, website_url), "
             "default_activity_type=COALESCE(?, default_activity_type), "
             "default_percent_complete_type=COALESCE(?, default_percent_complete_type), "
+            "default_duration_type=COALESCE(?, default_duration_type), "
             "activity_id_prefix=COALESCE(?, activity_id_prefix), "
             "activity_id_suffix=COALESCE(?, activity_id_suffix), "
             "activity_id_increment=COALESCE(?, activity_id_increment), "
@@ -742,6 +756,7 @@ class PreviewStore:
                 website_url,
                 default_activity_type,
                 default_percent_complete_type,
+                default_duration_type,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -1066,6 +1081,7 @@ class PreviewProjectRepository:
         website_url: str = "",
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
+        default_duration_type: str = "Fixed Duration & Units",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -1102,6 +1118,7 @@ class PreviewProjectRepository:
                 website_url=website_url,
                 default_activity_type=default_activity_type,
                 default_percent_complete_type=default_percent_complete_type,
+                default_duration_type=default_duration_type,
                 activity_id_prefix=activity_id_prefix,
                 activity_id_suffix=activity_id_suffix,
                 activity_id_increment=activity_id_increment,
@@ -1134,6 +1151,7 @@ class PreviewProjectRepository:
             website_url=website_url,
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
+            default_duration_type=default_duration_type,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -1157,6 +1175,7 @@ class PreviewProjectRepository:
         website_url: str | None = None,
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -1177,6 +1196,7 @@ class PreviewProjectRepository:
             website_url=website_url,
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
+            default_duration_type=default_duration_type,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,

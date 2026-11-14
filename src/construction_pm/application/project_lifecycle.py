@@ -77,6 +77,7 @@ class ProjectSummary:
     # rewrites existing activities.
     default_activity_type: str = "Task Dependent"
     default_percent_complete_type: str = "DURATION"
+    default_duration_type: str = "Fixed Duration & Units"
     activity_id_prefix: str = ""
     activity_id_suffix: str = ""
     activity_id_increment: int = 10
@@ -114,6 +115,16 @@ DEFAULT_ACTIVITY_TYPES = frozenset(
     }
 )
 DEFAULT_PERCENT_COMPLETE_TYPES = frozenset({"DURATION", "UNITS", "PHYSICAL", "SCOPE"})
+# P6 Activity.DurationType values (V26 Help: "Duration Type"). The stored string
+# is the P6 label the Activity Master API already accepts.
+DEFAULT_DURATION_TYPES = frozenset(
+    {
+        "Fixed Units/Time",
+        "Fixed Duration & Units/Time",
+        "Fixed Units",
+        "Fixed Duration & Units",
+    }
+)
 MAX_ACTIVITY_ID_AFFIX = 20
 MAX_ACTIVITY_ID_INCREMENT = 10000
 DEFAULT_ACTIVITY_ID_INCREMENT = 10
@@ -256,6 +267,17 @@ def normalize_default_percent_complete_type(value: object) -> str:
     return percent_type
 
 
+def normalize_default_duration_type(value: object) -> str:
+    if value is None or value == "":
+        return "Fixed Duration & Units"
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_DEFAULT_DURATION_TYPE_INVALID")
+    duration_type = value.strip()
+    if duration_type not in DEFAULT_DURATION_TYPES:
+        raise ProjectLifecycleError("PROJECT_DEFAULT_DURATION_TYPE_INVALID")
+    return duration_type
+
+
 def normalize_activity_id_affix(value: object, code: str) -> str:
     if value is None:
         return ""
@@ -383,6 +405,7 @@ class ProjectRepository(Protocol):
         website_url: str = "",
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
+        default_duration_type: str = "Fixed Duration & Units",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -405,6 +428,7 @@ class ProjectRepository(Protocol):
         website_url: str | None = None,
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -543,6 +567,7 @@ class ProjectLifecycleService:
         website_url: str = "",
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
+        default_duration_type: str = "Fixed Duration & Units",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -590,6 +615,9 @@ class ProjectLifecycleService:
             ),
             default_percent_complete_type=normalize_default_percent_complete_type(
                 default_percent_complete_type
+            ),
+            default_duration_type=normalize_default_duration_type(
+                default_duration_type
             ),
             activity_id_prefix=normalize_activity_id_affix(
                 activity_id_prefix, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"
@@ -646,6 +674,7 @@ class ProjectLifecycleService:
         website_url: str | None = None,
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -723,6 +752,11 @@ class ProjectLifecycleService:
             if default_percent_complete_type is None
             else normalize_default_percent_complete_type(default_percent_complete_type)
         )
+        normalized_default_duration_type = (
+            None
+            if default_duration_type is None
+            else normalize_default_duration_type(default_duration_type)
+        )
         normalized_activity_id_prefix = (
             None
             if activity_id_prefix is None
@@ -762,6 +796,7 @@ class ProjectLifecycleService:
             website_url=normalized_website_url,
             default_activity_type=normalized_default_activity_type,
             default_percent_complete_type=normalized_default_percent_complete_type,
+            default_duration_type=normalized_default_duration_type,
             activity_id_prefix=normalized_activity_id_prefix,
             activity_id_suffix=normalized_activity_id_suffix,
             activity_id_increment=normalized_activity_id_increment,

@@ -515,6 +515,7 @@ def _activity_payload(
         "activity.name": display_name,
         "activity.status": _enum_text(activity.status),
         "activity.type": _enum_text(activity.activity_type),
+        "activity.duration_type": _enum_text(activity.duration_type),
         "activity.status_code": _enum_text(activity.status_code),
         "activity.leveling_priority": _enum_text(activity.leveling_priority),
         "activity.wbs": wbs_display,

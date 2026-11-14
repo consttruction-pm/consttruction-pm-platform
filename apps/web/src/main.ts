@@ -810,6 +810,12 @@ function openProjectSettings(
     if (value === "SCOPE") return labels.percentTypeScope;
     return labels.percentTypeDuration;
   };
+  const durationTypeLabel = (value: string): string => {
+    if (value === "Fixed Units/Time") return labels.durationTypeFixedUnitsTime;
+    if (value === "Fixed Duration & Units/Time") return labels.durationTypeFixedDurationUnitsTime;
+    if (value === "Fixed Units") return labels.durationTypeFixedUnits;
+    return labels.durationTypeFixedDurationUnits;
+  };
 
   const defaultsSection = document.createElement("section");
   defaultsSection.className = "cp-project-settings-section";
@@ -845,6 +851,21 @@ function openProjectSettings(
     option.value = value;
     option.textContent = percentTypeLabel(value);
     defaultPercentCompleteSelect.append(option);
+  }
+
+  const defaultDurationTypeSelect = document.createElement("select");
+  defaultDurationTypeSelect.name = "default_duration_type";
+  defaultDurationTypeSelect.dataset.projectDefaultDurationType = "true";
+  for (const value of [
+    "Fixed Units/Time",
+    "Fixed Duration & Units/Time",
+    "Fixed Units",
+    "Fixed Duration & Units",
+  ]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = durationTypeLabel(value);
+    defaultDurationTypeSelect.append(option);
   }
 
   const activityIdPrefixInput = document.createElement("input");
@@ -889,6 +910,7 @@ function openProjectSettings(
     defaultsHint,
     labelled(labels.projectDefaultActivityType, defaultActivityTypeSelect),
     labelled(labels.projectDefaultPercentCompleteType, defaultPercentCompleteSelect),
+    labelled(labels.projectDefaultDurationType, defaultDurationTypeSelect),
     defaultsInline,
     incrementRow,
   );
@@ -990,6 +1012,7 @@ function openProjectSettings(
     websiteInput.value = project.website_url ?? "";
     defaultActivityTypeSelect.value = project.default_activity_type ?? "Task Dependent";
     defaultPercentCompleteSelect.value = (project.default_percent_complete_type ?? "DURATION").toUpperCase();
+    defaultDurationTypeSelect.value = project.default_duration_type ?? "Fixed Duration & Units";
     activityIdPrefixInput.value = project.activity_id_prefix ?? "";
     activityIdSuffixInput.value = project.activity_id_suffix ?? "";
     activityIdIncrementInput.value = String(project.activity_id_increment ?? 10);
@@ -1276,6 +1299,7 @@ function openProjectSettings(
         website_url: website,
         default_activity_type: defaultActivityTypeSelect.value,
         default_percent_complete_type: defaultPercentCompleteSelect.value,
+        default_duration_type: defaultDurationTypeSelect.value,
         activity_id_prefix: activityIdPrefix,
         activity_id_suffix: activityIdSuffix,
         activity_id_increment: activityIdIncrement,
@@ -3112,7 +3136,7 @@ function renderApp(
     onActivityCreate: async (input) => {
       try {
         const response = await aiTransport.post<
-          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; leveling_priority: string },
+          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; duration_type: string; leveling_priority: string },
           { activity: { activity_id: string } }
         >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, {
           contract_version: "p6-activity-master-api.v1",
@@ -3125,6 +3149,7 @@ function renderApp(
           status: input.status,
           status_code: input.statusCode,
           percent_complete_type: input.percentCompleteType,
+          duration_type: input.durationType,
           leveling_priority: input.levelingPriority,
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
@@ -3214,6 +3239,7 @@ function renderApp(
             duration_value: string | number;
             duration_unit: string;
             wbs_id: string | null;
+            duration_type?: string;
             record_revision: number;
           };
         }>(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activityId)}`, state.context);
@@ -3272,6 +3298,25 @@ function renderApp(
         }
         wbsLabel.append(wbsSelect);
         form.append(wbsLabel);
+        const durationTypeLabel = document.createElement("label");
+        durationTypeLabel.append(document.createTextNode(t("Duration type", "نوع مدت") + " "));
+        const durationTypeSelect = document.createElement("select");
+        durationTypeSelect.name = "duration_type";
+        const durationTypeOptions: Array<[string, string]> = [
+          ["Fixed Units/Time", t("Fixed Units/Time", "واحد/زمان ثابت")],
+          ["Fixed Duration & Units/Time", t("Fixed Duration & Units/Time", "مدت و واحد/زمان ثابت")],
+          ["Fixed Units", t("Fixed Units", "واحد ثابت")],
+          ["Fixed Duration & Units", t("Fixed Duration & Units", "مدت و واحد ثابت")],
+        ];
+        for (const [value, labelText] of durationTypeOptions) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = labelText;
+          option.selected = (activity.duration_type ?? "Fixed Duration & Units") === value;
+          durationTypeSelect.append(option);
+        }
+        durationTypeLabel.append(durationTypeSelect);
+        form.append(durationTypeLabel);
         const save = document.createElement("button");
         save.type = "submit";
         save.textContent = t("Save changes", "ذخیره تغییرات");
@@ -3288,7 +3333,7 @@ function renderApp(
           try {
             if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
             const updated = await aiTransport.patch<
-              { contract_version: string; expected_revision: number; name: string; duration_value: number; duration_unit: string; wbs_id: string },
+              { contract_version: string; expected_revision: number; name: string; duration_value: number; duration_unit: string; wbs_id: string; duration_type: string },
               { activity: { activity_id: string } }
             >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activity.activity_id)}`, {
               contract_version: "p6-activity-master-api.v1",
@@ -3297,6 +3342,7 @@ function renderApp(
               duration_value: durationValue,
               duration_unit: unit.value,
               wbs_id: wbsId,
+              duration_type: durationTypeSelect.value,
             }, state.context);
             if (!updated.ok) throw new Error(updated.error.code);
             // The edit is committed; the refreshed grid must not resurrect the

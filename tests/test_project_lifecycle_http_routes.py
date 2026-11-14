@@ -94,6 +94,7 @@ class Projects:
                 website_url=p.website_url,
                 default_activity_type=p.default_activity_type,
                 default_percent_complete_type=p.default_percent_complete_type,
+                default_duration_type=p.default_duration_type,
                 activity_id_prefix=p.activity_id_prefix,
                 activity_id_suffix=p.activity_id_suffix,
                 activity_id_increment=p.activity_id_increment,
@@ -119,6 +120,7 @@ class Projects:
             website_url=project.website_url,
             default_activity_type=project.default_activity_type,
             default_percent_complete_type=project.default_percent_complete_type,
+            default_duration_type=project.default_duration_type,
             activity_id_prefix=project.activity_id_prefix,
             activity_id_suffix=project.activity_id_suffix,
             activity_id_increment=project.activity_id_increment,
@@ -135,6 +137,7 @@ class Projects:
         obs_responsible_manager="", website_url="",
         default_activity_type="Task Dependent",
         default_percent_complete_type="DURATION",
+        default_duration_type="Fixed Duration & Units",
         activity_id_prefix="", activity_id_suffix="",
         activity_id_increment=10, increment_activity_id=False,
     ):
@@ -147,6 +150,7 @@ class Projects:
             website_url=website_url,
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
+            default_duration_type=default_duration_type,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -161,6 +165,7 @@ class Projects:
         primary_calendar_id=None, business_domain=None,
         obs_responsible_manager=None, website_url=None,
         default_activity_type=None, default_percent_complete_type=None,
+        default_duration_type=None,
         activity_id_prefix=None, activity_id_suffix=None,
         activity_id_increment=None, increment_activity_id=None,
     ):
@@ -191,6 +196,11 @@ class Projects:
                 default_percent_complete_type
                 if default_percent_complete_type is not None
                 else project.default_percent_complete_type
+            ),
+            default_duration_type=(
+                default_duration_type
+                if default_duration_type is not None
+                else project.default_duration_type
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -3138,6 +3148,7 @@ def test_project_http_persists_activity_defaults_and_preserves_them_when_omitted
             "name": "Project One",
             "default_activity_type": "Level of Effort",
             "default_percent_complete_type": "physical",
+            "default_duration_type": "Fixed Units/Time",
             "activity_id_prefix": "AH-",
             "activity_id_suffix": "-B",
             "activity_id_increment": 20,
@@ -3149,6 +3160,7 @@ def test_project_http_persists_activity_defaults_and_preserves_them_when_omitted
     project = json.loads(body)["project"]
     assert project["default_activity_type"] == "Level of Effort"
     assert project["default_percent_complete_type"] == "PHYSICAL"
+    assert project["default_duration_type"] == "Fixed Units/Time"
     assert project["activity_id_prefix"] == "AH-"
     assert project["activity_id_suffix"] == "-B"
     assert project["activity_id_increment"] == 20
@@ -3167,6 +3179,7 @@ def test_project_http_persists_activity_defaults_and_preserves_them_when_omitted
     stored = json.loads(body)["project"]
     assert stored["activity_id_increment"] == 2
     assert stored["default_activity_type"] == "Level of Effort"
+    assert stored["default_duration_type"] == "Fixed Units/Time"
     assert stored["activity_id_prefix"] == "AH-"
 
     status, _, body = r.handle(
@@ -3180,6 +3193,18 @@ def test_project_http_persists_activity_defaults_and_preserves_them_when_omitted
     )
     assert status == 400
     assert json.loads(body)["code"] == "PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "default_duration_type": "Fixed Effort",
+            "expected_revision": 2,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_DEFAULT_DURATION_TYPE_INVALID"
 
 
 def test_project_http_checkout_and_checkin_round_trip():
