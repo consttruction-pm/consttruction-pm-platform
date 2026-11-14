@@ -80,6 +80,7 @@ import {
 } from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
+import { mountEnterpriseTaskCenter } from "./enterprise-task-center.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { createWorkspaceLanguageSelect } from "./workspace-language-switch.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
@@ -4862,6 +4863,11 @@ function getInitialLocale(): WorkspaceLocale {
 async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
+
+  if (window.location.pathname === "/enterprise" || window.location.pathname === "/enterprise/") {
+    await mountEnterpriseTaskCenter(container);
+    return;
+  }
 
   if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
     renderLandingPage(container);

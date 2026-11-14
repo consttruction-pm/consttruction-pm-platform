@@ -62,7 +62,7 @@ def runtime() -> ProductionRuntime:
             tenant_id=tenant_a,
             email=f"admin-{suffix}@example.test",
             display_name="Admin",
-            roles=frozenset({"project_admin"}),
+            roles=frozenset({"project_admin", "enterprise_admin"}),
             password_hash=hash_password(PASSWORD),
         ),
         "viewer": IdentityUser(
@@ -70,7 +70,7 @@ def runtime() -> ProductionRuntime:
             tenant_id=tenant_a,
             email=f"viewer-{suffix}@example.test",
             display_name="Viewer",
-            roles=frozenset({"viewer"}),
+            roles=frozenset({"viewer", "enterprise_viewer"}),
             password_hash=hash_password(VIEWER_PASSWORD),
         ),
         "planner": IdentityUser(
@@ -78,7 +78,7 @@ def runtime() -> ProductionRuntime:
             tenant_id=tenant_a,
             email=f"planner-{suffix}@example.test",
             display_name="Planner",
-            roles=frozenset({"planner"}),
+            roles=frozenset({"planner", "enterprise_user"}),
             password_hash=hash_password(PASSWORD),
         ),
         "outsider": IdentityUser(
@@ -86,6 +86,14 @@ def runtime() -> ProductionRuntime:
             tenant_id=tenant_b,
             email=f"outsider-{suffix}@example.test",
             display_name="Outsider",
+            roles=frozenset({"project_admin", "enterprise_admin"}),
+            password_hash=hash_password(PASSWORD),
+        ),
+        "unentitled": IdentityUser(
+            user_id=f"user-unentitled-{suffix}",
+            tenant_id=tenant_a,
+            email=f"unentitled-{suffix}@example.test",
+            display_name="Project Admin Without Enterprise Grant",
             roles=frozenset({"project_admin"}),
             password_hash=hash_password(PASSWORD),
         ),
@@ -476,3 +484,115 @@ def test_health_probes_and_api_survive_a_database_outage(runtime, monkeypatch):
     status, _, body = call(runtime, "GET", "/api/projects")
     assert status == 503
     assert json.loads(body)["code"] == "SERVICE_UNAVAILABLE"
+
+
+
+def test_enterprise_task_api_uses_production_session_csrf_and_project_authorization(runtime):
+    ids = runtime.test_ids
+    cookie, csrf = login(runtime, "admin")
+    request = {
+        "contract_version": "cubi-enterprise-task.v1",
+        "title": "Production Task API smoke test",
+    }
+
+    # The production web boundary must reject a state-changing task request
+    # before the Enterprise middleware is reached when the CSRF token is absent.
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/enterprise/tasks",
+        cookie=cookie,
+        body=request,
+        headers={"Idempotency-Key": "production-task-personal-1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "CSRF_TOKEN_INVALID"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/enterprise/tasks",
+        cookie=cookie,
+        csrf=csrf,
+        body=request,
+        headers={"Idempotency-Key": "production-task-personal-1"},
+    )
+    assert status == 201, body
+    personal = json.loads(body)["task"]
+    assert personal["created_by_user_id"] == ids["users"]["admin"].user_id
+    assert personal["tenant_id"] == ids["tenant_a"]
+
+    status, _, body = call(
+        runtime, "GET", "/api/enterprise/tasks", cookie=cookie
+    )
+    assert status == 200, body
+    assert personal["task_id"] in {
+        task["task_id"] for task in json.loads(body)["tasks"]
+    }
+
+    project_request = {
+        "contract_version": "cubi-enterprise-task.v1",
+        "title": "Authorized project task",
+        "project_id": ids["project_a"],
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/enterprise/tasks",
+        cookie=cookie,
+        csrf=csrf,
+        body=project_request,
+        headers={"Idempotency-Key": "production-task-project-1"},
+    )
+    assert status == 201, body
+    project_task = json.loads(body)["task"]
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/enterprise/tasks",
+        cookie=cookie,
+        query="project_id=" + ids["project_a"],
+    )
+    assert status == 200, body
+    assert project_task["task_id"] in {
+        task["task_id"] for task in json.loads(body)["tasks"]
+    }
+
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        "/api/enterprise/tasks/" + project_task["task_id"],
+        cookie=cookie,
+        csrf=csrf,
+        body={
+            "contract_version": "cubi-enterprise-task.v1",
+            "expected_revision": 1,
+            "status": "completed",
+        },
+    )
+    assert status == 200, body
+    completed = json.loads(body)["task"]
+    assert completed["completed_by_user_id"] == ids["users"]["admin"].user_id
+
+
+def test_enterprise_task_api_requires_an_explicit_environment_role(runtime):
+    cookie, csrf = login(runtime, "unentitled")
+    status, _, body = call(runtime, "GET", "/api/enterprise/tasks", cookie=cookie)
+    assert status == 403
+    assert json.loads(body)["code"] == "ENTERPRISE_ACCESS_DENIED"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/enterprise/tasks",
+        cookie=cookie,
+        csrf=csrf,
+        body={
+            "contract_version": "cubi-enterprise-task.v1",
+            "title": "Must be denied without Enterprise entitlement",
+        },
+        headers={"Idempotency-Key": "unentitled-enterprise-task-1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "ENTERPRISE_ACCESS_DENIED"
