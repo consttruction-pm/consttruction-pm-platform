@@ -263,6 +263,7 @@ from construction_pm.p6_resource_rate_repository import (
 )
 from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.p6_role_api import P6RoleAPI
 from construction_pm.p6_role_details_api import P6RoleDetailsAPI
 from construction_pm.p6_role_dictionary_repository import (
@@ -1895,6 +1896,7 @@ def open_preview_runtime(
         tracking_resource_repository=repositories.resources,
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
+        constraint_master_repository=repositories.constraints,
         checkout_lease=checkout_lease,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,

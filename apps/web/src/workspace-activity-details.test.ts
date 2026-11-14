@@ -133,6 +133,50 @@ test("status At Complete is never replaced by the scheduled-duration grid fact",
   }
 });
 
+test("status renders stored constraints and offers a typed write form only when authorized", () => {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: { getItem: (key: string) => (key === ACTIVITY_DETAILS_STORAGE_KEY ? "status" : null) } },
+  });
+  const input = (canWrite: boolean): Parameters<typeof renderActivityDetailsPanel>[0] => ({
+    locale: "en",
+    activities: [{ id: "act-1", wbsId: "wbs-1", code: "A140", name: "Piling", cells: {} }],
+    selectedActivityId: "act-1",
+    relationships: [],
+    projectName: "Shared Core",
+    dataDate: "2026-10-07",
+    calendarMode: "gregorian",
+    canWrite,
+    data: {
+      constraints: {
+        status: "loaded",
+        errorCode: null,
+        records: [
+          { constraintId: "c-1", activityId: "act-1", constraintType: "START_NO_EARLIER_THAN", constraintDate: "2026-10-20", recordRevision: 1 },
+          { constraintId: "c-2", activityId: "act-other", constraintType: "MANDATORY_FINISH", constraintDate: "2026-11-01", recordRevision: 1 },
+        ],
+      },
+    },
+  });
+  try {
+    const writable = renderActivityDetailsPanel(input(true));
+    assert.match(writable, /data-constraint-row[\s\S]*data-constraint-id="c-1"/);
+    assert.match(writable, /Start No Earlier Than/);
+    assert.match(writable, /2026-10-20 · r1/);
+    assert.match(writable, /data-constraint-delete="c-1"/);
+    assert.doesNotMatch(writable, /data-constraint-id="c-2"/);
+    assert.match(writable, /data-details-form="constraints"/);
+    assert.match(writable, /<select[^>]*name="constraintType"/);
+    assert.match(writable, /<input[^>]*name="constraintDate"[^>]*type="date"/);
+    const readOnly = renderActivityDetailsPanel(input(false));
+    assert.match(readOnly, /data-constraint-row/);
+    assert.doesNotMatch(readOnly, /data-details-form="constraints"/);
+    assert.doesNotMatch(readOnly, /data-constraint-delete/);
+  } finally {
+    Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
 test("WPS & Docs reads real linked project documents", () => {
   const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 });
   const withDocs = {

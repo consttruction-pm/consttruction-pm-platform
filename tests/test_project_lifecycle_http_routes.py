@@ -59,6 +59,8 @@ from construction_pm.dependency_graph_api import DependencyGraphAPI
 from construction_pm.p6_financial_period_repository import P6FinancialPeriodApplicationService, SQLiteP6FinancialPeriodRepository
 from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
 from construction_pm.p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
+from construction_pm.p6_constraint_api import P6ConstraintAPI, P6_CONSTRAINT_API_VERSION
+from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
 from construction_pm.relationship_master_repository import DurationUnit, SQLiteRelationshipMasterRepository
 from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
 from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
@@ -1052,6 +1054,108 @@ def test_relationship_http_boundary_rejects_cross_scope_missing_permission_stale
     )
     assert status == 403
     assert "AUTHORIZATION_PERMISSION_DENIED" in json.loads(raw)["code"]
+
+
+def constraint_routes(checkout_holder: str | None = None):
+    import sqlite3
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    constraint_api = P6ConstraintAPI(
+        SQLiteConstraintMasterRepository(sqlite3.connect(":memory:")),
+        default_project_policy(),
+        checkout_lease=_Lease(checkout_holder),
+    )
+    return ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_constraint_api=constraint_api,
+    )
+
+
+def test_authenticated_constraint_http_boundary_supports_create_read_list_update_and_delete():
+    r = constraint_routes()
+    payload = {
+        "contract_version": P6_CONSTRAINT_API_VERSION,
+        "constraint_id": "c-1",
+        "activity_id": "A-1",
+        "constraint_type": "START_NO_EARLIER_THAN",
+        "constraint_date": "2026-10-20",
+    }
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 200
+    created = json.loads(raw)
+    assert created["contract_version"] == P6_CONSTRAINT_API_VERSION
+    assert created["constraint"]["constraint_type"] == "START_NO_EARLIER_THAN"
+    assert created["constraint"]["constraint_date"] == "2026-10-20"
+    assert created["constraint"]["record_revision"] == 1
+
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/constraints/c-1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(raw) == created
+
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"})
+    assert status == 200
+    listed = json.loads(raw)
+    assert listed["contract_version"] == P6_CONSTRAINT_API_VERSION
+    assert [item["constraint"]["constraint_id"] for item in listed["constraints"]] == ["c-1"]
+
+    status, _, raw = r.handle(
+        "PATCH", "/api/projects/p1/p6/constraints/c-1", cookies={"cp_session": "s1"},
+        body=json.dumps({**payload, "constraint_type": "MANDATORY_FINISH", "expected_revision": 1}).encode(),
+    )
+    assert status == 200
+    updated = json.loads(raw)
+    assert updated["constraint"]["constraint_type"] == "MANDATORY_FINISH"
+    assert updated["constraint"]["record_revision"] == 2
+
+    status, _, raw = r.handle(
+        "DELETE", "/api/projects/p1/p6/constraints/c-1", cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 2}).encode(),
+    )
+    assert status == 200
+    assert json.loads(raw)["deleted"] is True
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"})
+    assert json.loads(raw)["constraints"] == []
+
+
+def test_constraint_http_boundary_rejects_missing_record_stale_revision_and_bad_payloads():
+    r = constraint_routes()
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/constraints/missing", cookies={"cp_session": "s1"})
+    assert status == 404
+    assert json.loads(raw)["code"] == "P6_CONSTRAINT_NOT_FOUND"
+
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"}, body=b"{not-json")
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_CONSTRAINT_REQUEST_INVALID"
+
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"},
+        body=json.dumps({"constraint_id": "c-1", "activity_id": "A-1", "constraint_type": "BAD", "constraint_date": "2026-10-20"}).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_CONSTRAINT_REQUEST_INVALID"
+
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"},
+        body=json.dumps({"constraint_id": "c-1", "activity_id": "A-1", "constraint_type": "MANDATORY_START", "constraint_date": "2026-10-20"}).encode(),
+    )
+    assert status == 200
+    status, _, raw = r.handle(
+        "PATCH", "/api/projects/p1/p6/constraints/c-1", cookies={"cp_session": "s1"},
+        body=json.dumps({"constraint_id": "c-1", "activity_id": "A-1", "constraint_type": "MANDATORY_FINISH", "constraint_date": "2026-10-21", "expected_revision": 2}).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["code"] == "REVISION_CONFLICT"
+
+    locked = constraint_routes(checkout_holder="someone-else")
+    status, _, raw = locked.handle(
+        "POST", "/api/projects/p1/p6/constraints", cookies={"cp_session": "s1"},
+        body=json.dumps({"constraint_id": "c-2", "activity_id": "A-1", "constraint_type": "MANDATORY_START", "constraint_date": "2026-10-20"}).encode(),
+    )
+    assert status == 409
 
 
 def resource_assignment_routes():

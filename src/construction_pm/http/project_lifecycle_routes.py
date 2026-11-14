@@ -168,6 +168,7 @@ from ..p6_obs_repository import P6OBSNode
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
+from ..p6_constraint_api import P6ConstraintAPI, P6_CONSTRAINT_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
 from ..p6_activity_progress_api import P6ActivityProgressAPI
 from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
@@ -199,6 +200,7 @@ from ..scheduling.calendar_context import CalendarReference
 from ..scheduling.schedule_options import ScheduleOptions
 from ..scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from ..relationship_master_repository import RelationshipPersistenceError
+from ..constraint_master_repository import ConstraintPersistenceError
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
 from ..p6_role_details_api import P6RoleDetailsAPI
 from ..p6_resource_master_api import P6ResourceAPI, P6_RESOURCE_API_VERSION
@@ -352,6 +354,7 @@ class ProjectLifecycleHttpRoutes:
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
         p6_schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
+        p6_constraint_api: P6ConstraintAPI | None = None,
         p6_role_api: P6RoleAPI | None = None,
         p6_role_details_api: P6RoleDetailsAPI | None = None,
         p6_resource_api: P6ResourceAPI | None = None,
@@ -414,6 +417,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_wbs_master_api = p6_wbs_master_api
         self._p6_schedule_snapshot_api = p6_schedule_snapshot_api
         self._p6_relationship_api = p6_relationship_api
+        self._p6_constraint_api = p6_constraint_api
         self._p6_role_api = p6_role_api
         self._p6_role_details_api = p6_role_details_api
         self._p6_resource_api = p6_resource_api
@@ -2453,6 +2457,82 @@ class ProjectLifecycleHttpRoutes:
                     )
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/constraints" in path and self._p6_constraint_api is not None:
+                prefix = "/p6/constraints"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_CONSTRAINT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET" and not parts:
+                        result = self._p6_constraint_api.list(scope, auth_context=auth)
+                        return self._json(200, {"contract_version": P6_CONSTRAINT_API_VERSION, "constraints": list(result)})
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_constraint_api.get(scope, parts[0], auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_CONSTRAINT_NOT_FOUND", "error.p6.constraint.not_found")
+                        return self._json(200, result)
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        result = self._p6_constraint_api.delete(scope, parts[0], expected_revision=expected_revision, auth_context=auth)
+                        return self._json(200, result)
+                    if method == "POST" and not parts:
+                        from ..constraint_master_repository import ConstraintMaster
+                        from ..scheduling.constraints import ConstraintType
+                        constraint = ConstraintMaster(
+                            scope=scope,
+                            constraint_id=payload.get("constraint_id", ""),
+                            activity_id=payload.get("activity_id", ""),
+                            constraint_type=ConstraintType(payload.get("constraint_type", "")),
+                            constraint_date=date.fromisoformat(str(payload.get("constraint_date", ""))),
+                        )
+                        expected_revision = payload.get("expected_revision")
+                        if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
+                            raise ValueError("invalid expected_revision")
+                        return self._json(200, self._p6_constraint_api.create(constraint, expected_revision=expected_revision, auth_context=auth))
+                    if method == "PATCH" and len(parts) == 1 and parts[0]:
+                        from ..constraint_master_repository import ConstraintMaster
+                        from ..scheduling.constraints import ConstraintType
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        constraint = ConstraintMaster(
+                            scope=scope,
+                            constraint_id=parts[0],
+                            activity_id=payload.get("activity_id", ""),
+                            constraint_type=ConstraintType(payload.get("constraint_type", "")),
+                            constraint_date=date.fromisoformat(str(payload.get("constraint_date", ""))),
+                            record_revision=expected_revision,
+                        )
+                        return self._json(200, self._p6_constraint_api.update(constraint, expected_revision=expected_revision, auth_context=auth))
+                    return self._error(405, "P6_CONSTRAINT_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except ConstraintPersistenceError as exc:
+                    if str(exc) == "CONSTRAINT_NOT_FOUND":
+                        return self._error(404, _stable_error_code(exc, "P6_CONSTRAINT_NOT_FOUND"), "error.p6.constraint.not_found")
+                    if str(exc) == "REVISION_CONFLICT":
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    return self._error(400, "P6_CONSTRAINT_REQUEST_INVALID", "error.request.invalid")
+                except ProjectCheckoutConflict as exc:
+                    return self._error(409, exc.code, "error.project.checkout_conflict")
+                except (TypeError, ValueError, ArithmeticError):
+                    return self._error(400, "P6_CONSTRAINT_REQUEST_INVALID", "error.request.invalid")
             if self._tracking_read_api is not None:
                 split = urlsplit(path)
                 if split.path.startswith("/api/projects/") and split.path.endswith(

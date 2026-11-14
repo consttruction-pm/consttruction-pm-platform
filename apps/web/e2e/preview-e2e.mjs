@@ -4698,8 +4698,116 @@ async function main() {
     });
     await page.click('[data-detail-tab="general"]');
 
-    // Home is a workspace navigation action, not a logout. It must ask before
-    // discarding an entered value and must keep the authenticated session.
+    // A constraint is a scheduling input. The Activity Details Status tab
+    // persists it through the constraint API and the next published schedule
+    // must move the constrained activity without any browser date math.
+    await page.click('#cp-activity-grid tbody tr[data-activity-id="A140"]');
+    await page.waitFor(
+      `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A140"`,
+      "A140 selected for the constraint editor",
+    );
+    await page.click('[data-detail-tab="status"]');
+    await page.waitFor(
+      `Boolean(document.querySelector('[data-details-form="constraints"]'))`,
+      "constraint editor loads for A140",
+    );
+    const constraintsBefore = await page.evaluate(`(() => ({
+      rows: Array.from(document.querySelectorAll("[data-constraint-row]")).map((row) => row.textContent.trim()),
+      options: Array.from(document.querySelectorAll('#detail-form-constraints-type option')).map((option) => [option.value, option.textContent.trim()]),
+    }))()`);
+    assert(
+      constraintsBefore.rows.length === 0 && constraintsBefore.options.length === 6,
+      "A140 must start without a stored constraint and the editor must offer all six typed values: " + JSON.stringify(constraintsBefore),
+    );
+    await page.setSelect('#detail-form-constraints-type', "START_NO_EARLIER_THAN");
+    await page.setInput('#detail-form-constraints-date', "2026-10-20");
+    await page.click('[data-details-form="constraints"] button[type="submit"]');
+    await page.waitFor(
+      `(() => {
+        const row = document.querySelector("[data-constraint-row]");
+        const message = document.querySelector('[data-details-form="constraints"] [data-details-form-message]');
+        return Boolean(row) && row.textContent.includes("2026-10-20") && /Saved/.test(message?.textContent ?? "");
+      })()`,
+      "constraint saved and reloaded from the constraint API",
+    );
+    const readConstraints = async () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/constraints", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        const body = await response.json().catch(() => null);
+        return { status: response.status, constraints: body?.constraints ?? [] };
+      })()`,
+      { awaitPromise: true },
+    );
+    const storedConstraints = await readConstraints();
+    const storedConstraint = storedConstraints.constraints.find((item) => item.constraint?.activity_id === "A140");
+    assert(
+      storedConstraints.status === 200 &&
+        storedConstraint?.constraint?.constraint_type === "START_NO_EARLIER_THAN" &&
+        storedConstraint?.constraint?.constraint_date === "2026-10-20" &&
+        storedConstraint?.constraint?.record_revision === 1,
+      "the constraint API must return the exact stored semantic and date: " + JSON.stringify(storedConstraints),
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `(() => {
+        const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr")).map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+        const a140 = rows.find((row) => row[0] === "A140");
+        return rows.length === 14 && Boolean(a140) && a140[1] >= "2026-10-20";
+      })()`,
+      "constrained authoritative schedule start",
+      60000,
+    );
+    const constrainedRun = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr")).map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+      const a140 = rows.find((row) => row[0] === "A140") ?? null;
+      return { rows: rows.length, a140 };
+    })()`);
+    await page.scrollTo('[data-details-form="constraints"]');
+    await page.screenshot("07h-constraint-editor.png");
+    assert(
+      constrainedRun.rows === 14 && constrainedRun.a140?.[1] >= "2026-10-20",
+      "the published schedule must honor START_NO_EARLIER_THAN in the shared core: " + JSON.stringify(constrainedRun),
+    );
+    await page.click("[data-constraint-delete]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-constraint-row]").length === 0`,
+      "constraint removed through the constraint API",
+    );
+    const afterDelete = await readConstraints();
+    assert(
+      afterDelete.status === 200 &&
+        afterDelete.constraints.every((item) => item.constraint?.activity_id !== "A140"),
+      "the removed constraint must no longer be stored: " + JSON.stringify(afterDelete),
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `(() => {
+        const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr")).map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+        const a140 = rows.find((row) => row[0] === "A140");
+        return rows.length === 14 && Boolean(a140) && a140[1] < "2026-10-20";
+      })()`,
+      "schedule reverts after constraint removal",
+      60000,
+    );
+    EVIDENCE.constraints = {
+      editor_options: constraintsBefore.options,
+      stored: storedConstraint?.constraint ?? null,
+      constrained_a140: constrainedRun.a140,
+      after_delete: afterDelete.constraints,
+      source: "Activity Details Status tab -> /p6/constraints -> snapshot publication -> Shared Core schedule query",
+    };
+    record("activity constraints persist and move the authoritative schedule", {
+      stored_type: storedConstraint?.constraint?.constraint_type,
+      stored_date: storedConstraint?.constraint?.constraint_date,
+      constrained_a140_start: constrainedRun.a140?.[1],
+    });
+    await page.click('[data-detail-tab="general"]');
     await page.evaluate("window.scrollTo(0, 0)");
     const homeGuardArmed = await page.evaluate(`(() => {
       const input = document.querySelector("[data-wbs-create-form] input");

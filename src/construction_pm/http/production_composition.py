@@ -44,6 +44,8 @@ from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_constraint_api import P6ConstraintAPI
+from construction_pm.constraint_master_repository import ConstraintMasterRepository
 from construction_pm.p6_role_api import P6RoleAPI
 from construction_pm.p6_role_details_api import P6RoleDetailsAPI
 from construction_pm.p6_resource_master_api import P6ResourceAPI
@@ -119,6 +121,7 @@ def build_project_lifecycle_wsgi_app(
     wbs_master_repository: WBSMasterRepository | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
+    constraint_master_repository: ConstraintMasterRepository | None = None,
     checkout_lease: ProjectCheckoutLease | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
@@ -342,6 +345,16 @@ def build_project_lifecycle_wsgi_app(
             checkout_lease=checkout_lease,
         )
     )
+    constraint_api = (
+        None
+        if constraint_master_repository is None
+        else P6ConstraintAPI(
+            constraint_master_repository,
+            authorization_policy,
+            activity_master_repository,
+            checkout_lease=checkout_lease,
+        )
+    )
     if (
         workspace_read_v2_service is None
         and activity_master_repository is not None
@@ -363,6 +376,7 @@ def build_project_lifecycle_wsgi_app(
         p6_wbs_master_api=wbs_master_api,
         workspace_read_v2_service=workspace_read_v2_service,
         p6_relationship_api=relationship_api,
+        p6_constraint_api=constraint_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         p6_field_registry_api=p6_field_registry_api,
         p6_udf_value_api=p6_udf_value_api,
