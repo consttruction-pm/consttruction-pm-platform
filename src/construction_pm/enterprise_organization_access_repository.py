@@ -270,6 +270,15 @@ class PostgresEnterpriseOrganizationAccessRepository:
         ).fetchall()
         return tuple(self._team(row) for row in rows)
 
+    def list_members(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
+        rows = self._connection.execute(
+            "SELECT tenant_id,team_id,user_id,role,status,scope_project_ids,revision,created_at,revoked_at "
+            "FROM enterprise_team_memberships WHERE tenant_id=%s AND team_id=%s "
+            "ORDER BY created_at ASC,user_id ASC",
+            (tenant_id,team_id),
+        ).fetchall()
+        return tuple(self._membership(row) for row in rows)
+
     def _insert_membership(self, membership: EnterpriseTeamMembership) -> None:
         self._connection.execute(
             "INSERT INTO enterprise_team_memberships "
