@@ -470,7 +470,7 @@ This catalogue comparison is verified at:
 **Not represented as complete:** an exhaustive page-by-page content diff of every Help topic and every page of all companion guides. The web-rendered TOCs expose topic links, but this review did not fetch, hash and semantically diff every one of the 825/984 TOC lines and every linked guide page. The 60 rows are a substantial product capability comparison, not proof that every field, button, permission, validation, endpoint and import/export field has been compared.
 
 For the remaining deep technical closure, use separate child matrices:
-1. Scheduling options and calculation semantics (all schedule dialog options, defaults and constraints).
+1. **Completed:** Scheduling options and calculation semantics — 40-row V26 comparison of schedule dialogs, defaults, constraints, out-of-sequence modes, lag calendars, total-float formulas, critical-path and multiple-float-path behavior. Remaining API/runtime gaps are explicitly listed in the child matrix.
 2. Data dictionary / Extended Schema / API field-level mapping.
 3. Import/export format and field-by-field mapping.
 4. Security privileges, module access, OBS and resource access matrix.
@@ -478,6 +478,8 @@ For the remaining deep technical closure, use separate child matrices:
 6. Team Member / timesheet / status update lifecycle and role matrix.
 7. Document repository and document review lifecycle.
 8. Risk model and response-plan schema.
+
+New child matrix: [Scheduling Options & Calculation Semantics](EPPM_V26_SCHEDULING_OPTIONS_CALCULATION_SEMANTICS_MATRIX.md). It is a 40-row evidence-backed V26 comparison; its remaining API and runtime test gaps remain open.
 
 Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
 
