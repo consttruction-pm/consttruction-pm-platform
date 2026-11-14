@@ -23,7 +23,7 @@ export type EnterpriseTaskRecord = {
   completed_at: string | null;
   completed_by_user_id: string | null;
 };
-type TaskListResponse = { contract_version: string; tasks: EnterpriseTaskRecord[]; next_cursor: unknown };
+type TaskListResponse = { contract_version: string; tasks: EnterpriseTaskRecord[]; next_cursor: { before_updated_at: string | null; before_task_id: string } | null };
 type TaskMutationResponse = { task: EnterpriseTaskRecord; revision: number };
 type Locale = "en" | "fa";
 type Filter = "all" | "active" | "blocked" | "due" | "completed" | "overdue";
@@ -104,13 +104,21 @@ async function taskRequest<T>(path: string, method = "GET", body?: unknown, idem
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
-  const response = await fetch(path, {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 45_000);
+  let response: Response;
+  try {
+    response = await fetch(path, {
     method,
     credentials: "same-origin",
     headers: withCsrfHeader(method, headers),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     cache: "no-store",
-  });
+    signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
   let payload: unknown;
   try { payload = await response.json(); } catch { payload = null; }
   if (response.status === 401) {
@@ -196,7 +204,10 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   const listHeader = element("div", "ce-list-header");
   listHeader.append(element("h2", "", t.task), element("span", "ce-count", "0"));
   const list = element("div", "ce-task-list");
-  listSection.append(listHeader, list);
+  const loadMore = element("button", "ce-button ce-button-secondary ce-load-more", locale === "fa" ? "بارگذاری بیشتر" : "Load more") as HTMLButtonElement;
+  loadMore.type = "button";
+  loadMore.hidden = true;
+  listSection.append(listHeader, list, loadMore);
   const security = element("p", "ce-security-note", t.securityNote);
 
   const form = element("form", "ce-create-form") as HTMLFormElement;
@@ -246,6 +257,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   container.append(shell);
 
   let tasks: EnterpriseTaskRecord[] = [];
+  let nextCursor: TaskListResponse["next_cursor"] = null;
   let busy = false;
   const showError = (message: string): void => { error.textContent = message; error.hidden = false; notice.hidden = true; };
   const showNotice = (message: string): void => { notice.textContent = message; notice.hidden = false; error.hidden = true; };
@@ -256,7 +268,6 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
     listHeader.querySelector(".ce-count")!.textContent = String(visible.length);
     if (!visible.length) {
       list.append(element("p", "ce-empty", t.empty));
-      return;
     }
     for (const task of visible) {
       const card = element("article", "ce-task-card");
@@ -295,22 +306,36 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
     }
   };
 
-  const loadTasks = async (): Promise<void> => {
+  const loadTasks = async (append = false): Promise<void> => {
     if (busy) return;
     busy = true;
-    list.replaceChildren(element("p", "ce-empty", t.loading));
+    if (!append) {
+      tasks = [];
+      nextCursor = null;
+      list.replaceChildren(element("p", "ce-empty", t.loading));
+    }
+    loadMore.disabled = true;
     error.hidden = true;
     try {
-      const projectId = scope.value;
-      const query = projectId ? `?project_id=${encodeURIComponent(projectId)}&limit=100` : "?limit=100";
-      const result = await taskRequest<TaskListResponse>(`/api/enterprise/tasks${query}`);
-      tasks = Array.isArray(result.tasks) ? result.tasks : [];
+      const parameters = new URLSearchParams({ limit: "100" });
+      if (scope.value) parameters.set("project_id", scope.value);
+      if (append && nextCursor) {
+        parameters.set("before_task_id", nextCursor.before_task_id);
+        if (nextCursor.before_updated_at) parameters.set("before_updated_at", nextCursor.before_updated_at);
+      }
+      const result = await taskRequest<TaskListResponse>(`/api/enterprise/tasks?${parameters.toString()}`);
+      const page = Array.isArray(result.tasks) ? result.tasks : [];
+      tasks = append ? [...tasks, ...page] : page;
+      nextCursor = result.next_cursor ?? null;
       renderTasks();
+      loadMore.hidden = !nextCursor;
     } catch (reason) {
-      showError(reason instanceof Error && reason.message !== "SESSION_REQUIRED" ? `${t.error} (${reason.message})` : t.session);
+      showError(reason instanceof Error && reason.message === "SESSION_REQUIRED" ? t.session : t.error);
       list.replaceChildren(element("p", "ce-empty", t.empty));
+      loadMore.hidden = true;
     } finally {
       busy = false;
+      loadMore.disabled = false;
     }
   };
 
@@ -327,7 +352,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
       showNotice(t.updated);
       renderTasks();
     } catch (reason) {
-      showError(`${t.updateFailed} (${reason instanceof Error ? reason.message : "UNKNOWN"})`);
+      showError(t.updateFailed);
       buttons.forEach((button) => { button.disabled = false; });
     }
   };
@@ -340,6 +365,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   createButton.addEventListener("click", () => openForm(form.hidden));
   cancel.addEventListener("click", () => openForm(false));
   refresh.addEventListener("click", () => { void loadTasks(); });
+  loadMore.addEventListener("click", () => { void loadTasks(true); });
   search.addEventListener("input", renderTasks);
   scope.addEventListener("change", () => { notice.hidden = true; void loadTasks(); });
   form.addEventListener("submit", async (event) => {
@@ -367,7 +393,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
       showNotice(t.created);
       renderTasks();
     } catch (reason) {
-      showError(`${t.createFailed} (${reason instanceof Error ? reason.message : "UNKNOWN"})`);
+      showError(t.createFailed);
     } finally {
       submit.disabled = false;
     }
