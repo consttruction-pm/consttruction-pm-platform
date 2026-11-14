@@ -282,3 +282,35 @@ def test_postgres_responsibility_structure_and_project_assignment_round_trip():
         )
         connection.commit()
         assert cleared is not None and cleared.obs_id == ""
+
+
+def test_postgres_lifecycle_schema_initialization_executes_every_statement():
+    """Every Python schema statement must execute; the deployed runtime uses them.
+
+    The infra SQL file is exercised by the tests above, but production boot uses
+    ``initialize_project_lifecycle_schema`` directly, so a malformed statement
+    would only surface at deployment time.
+    """
+
+    from construction_pm.postgres_project_lifecycle import (
+        initialize_project_lifecycle_schema,
+    )
+
+    with connect() as connection:
+        initialize_project_lifecycle_schema(connection)
+        columns = {
+            row[0]
+            for row in connection.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='project_lifecycle_projects'"
+            ).fetchall()
+        }
+        connection.commit()
+
+    assert {
+        "default_duration_type",
+        "default_cost_account_id",
+        "obs_id",
+        "checkout_state",
+        "checked_out_by",
+    } <= columns
