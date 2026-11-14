@@ -3857,6 +3857,37 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   `GCH-<n>` runs with per-activity revisions, failure codes, and Agent 3 tests
   including stale-preview, rollback and a 250-activity fixture).
 
+### PRO-002 stored period performance — 2026-11-14 (`fd9d52b2`)
+
+- The Progress window now has a **Stored Period Performance** section that
+  reads the project's financial periods and the stored
+  `p6-activity-period-actual-api.v1` records. A period actual is posted with a
+  deterministic `SPP-<activity>-<period>` identity and exactly
+  `actual_units`, `actual_cost`, `unit`, `currency` and `note`; decimals are
+  validated in the page and at least one of units/cost is required.
+- Immutability is enforced by the existing service, not the page: an identical
+  replay is idempotent, a different value for the same activity and period
+  returns `409 IMMUTABLE_ACTIVITY_PERIOD_ACTUAL`, and a stale project revision
+  returns `409 REVISION_CONFLICT`. The UI shows the localized rejection and
+  never overwrites.
+- Two defects in the existing route were fixed: GET filters were read only
+  from the request body (the query string is now authoritative), and the
+  immutable/revision errors were caught as generic `ValueError` and returned
+  `400` (they now return `409` with the stable code). A POST also rejects a
+  dangling activity or financial period with `404` before writing.
+- `P6ActivityPeriodActualAPI` is now mounted by the local preview runtime and
+  accepted by `production_composition`; the preview previously created the
+  repository only for the EVM read model, so the write route was unreachable.
+- Evidence: `docs/workspace/evidence/progress-history-v26-2026-11-14/`
+  (`report.json`, 8/8 scenarios, 7 screenshots). The new `04b` scenario stores
+  a real `2026-09` period, reads `3.125 h / 20.50 USD` back through the list
+  API after reload, and proves the immutable rejection. 1147 + 14 web tests,
+  `tsc --noEmit`, production build and 4228 Python tests pass at the same code.
+- **Apply Actuals remains `MISSING`.** There is no data-date, progress
+  estimation/recalculation, activity scope or reconciliation service, so no
+  Apply Actuals window or bulk write is offered and the Progress window never
+  recalculates dates, remaining work or cost.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3873,9 +3904,10 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
-- `PRO-002` (period actuals) remains `NOT_AUDITED`; it is the next P7
-  candidate and needs its own stored contract where the current read model does
-  not expose the data.
+- `PRO-002` stored period performance is now `WIRED_WRITE` (immutable
+  `p6-activity-period-actual-api.v1`, deterministic identity and reload
+  read-back). Apply Actuals stays `MISSING`: no data date, progress estimation
+  or period reconciliation service exists; see the section above.
 - `TRK-001` tracking-layout lifecycle is `BLOCKED_EXTERNAL`: the read model and
   four views are real, but no layout store exists. See
   `docs/workspace/architecture/p6-tracking-layout-contract-request.md`.
