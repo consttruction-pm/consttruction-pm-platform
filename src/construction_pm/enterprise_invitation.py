@@ -72,6 +72,10 @@ class EnterpriseInvitationService:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._ttl = ttl
 
+    def my_public_id(self, session_id: str) -> str:
+        session = self._session(session_id)
+        return self._repository.public_id_for_user(session.tenant_id, session.user_id)
+
     def lookup(self, session_id: str, cubi_id: str) -> PublicCubiIdentity:
         session = self._session(session_id)
         normalized = self._normalize_cubi_id(cubi_id)
