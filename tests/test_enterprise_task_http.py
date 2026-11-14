@@ -18,7 +18,7 @@ NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
 
 class FakeLifecycle:
     def __init__(self):
-        self.sessions = {"alice-session": SimpleNamespace(user_id="alice", tenant_id="tenant-a", roles=frozenset({"project_manager"}))}
+        self.sessions = {"alice-session": SimpleNamespace(user_id="alice", tenant_id="tenant-a", roles=frozenset({"project_manager", "enterprise_user"}))}
         self.grants = set()
 
     def get_session(self, session_id, *, now):
