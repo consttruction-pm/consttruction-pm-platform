@@ -237,3 +237,73 @@ The prior issue #1712 must be treated as superseded for the one-environment proh
 - [ ] Engineering/Enterprise data, code, runtime and release boundaries are documented and tested.
 - [ ] No Enterprise task is a dependency or blocker for Engineering completion.
 - [ ] Existing form and PMBOK specifications/issues are reconciled without falsely marking implementation complete.
+
+
+## 11. Product delivery priority — Engineering first, Enterprise second
+
+This priority is mandatory and overrides any interpretation of Enterprise as an equal-priority delivery stream.
+
+- **Priority 1: CUBI Engineering.** Its active completion plan, staffing, delivery cadence and release path remain primary. Enterprise planning or implementation must not reduce Engineering throughput, divert its assigned implementation agent, add prerequisites, or delay its milestones.
+- **Priority 2: CUBI Enterprise.** Enterprise is a separately governed workstream that may progress only with available capacity and isolated changes. If parallel work creates a resource, review, runtime, CI, release or coordination conflict, Engineering wins and Enterprise pauses or is resequenced.
+- Enterprise is not allowed to make Engineering completion conditional on shared shell, shared route, common database, authentication redesign, visual refresh or any Enterprise module.
+- No shared change is presumed harmless: it requires an explicit impact assessment, ownership, compatibility evidence and approval from the Engineering owner where Engineering is affected.
+- Existing Enterprise documentation, prototypes, branch work or draft PRs do not change this priority.
+
+## 12. Enterprise functional roadmap — EPPM-first
+
+The first functional objective of CUBI Enterprise is to cover the organizational and project-management capabilities of **Oracle Primavera P6 EPPM** to a useful, coherent level. The roadmap is capability-oriented, not a commitment to reproduce Oracle screens or implementation details.
+
+The initial EPPM-first order is:
+
+1. Dashboards, personal landing views and configurable portlets.
+2. Portfolio management, portfolio views and executive monitoring.
+3. Project overview, project hierarchy/EPS and authorized project navigation.
+4. Resource administration, resource assignments and organizational capacity views.
+5. Team Member-style work execution, task status, timesheet/work reporting where applicable, and approval workflows.
+6. Risk and issue management, including ownership, scoring, response and follow-up.
+7. Reports, performance status, KPI views and management summaries.
+8. Enterprise administration, access governance, role/security configuration and audit visibility.
+9. Project document access and document-related controls to the extent covered by the selected P6 EPPM scope.
+
+Oracle Help topics and version-specific product documentation are the reference library for functional discovery and acceptance criteria. Each capability must have a documented CUBI mapping, source/help reference, existing-code reuse assessment, gap list and testable acceptance criteria. P6 EPPM and Primavera Unifier are distinct products: Unifier capabilities must not be represented as P6 EPPM parity. They may inform later, separately assessed Enterprise extensions.
+
+## 13. Enterprise extensions — feasibility-gated and incremental
+
+After the EPPM-first baseline, the following proposed extensions may be assessed individually. They are not approved as an unconditional build commitment and must not displace Engineering priority or the EPPM-first sequence.
+
+1. Resource & Capacity Management extensions beyond the EPPM baseline.
+2. Advanced Risk & Schedule Assurance.
+3. Scenario & What-if Analysis.
+4. Benefits & Value Realization.
+5. Enterprise Knowledge & PMO Framework.
+6. Document & Information Management beyond the baseline document capabilities.
+7. Contract & Commercial Management (informed by Primavera Unifier, not mislabeled as P6 EPPM).
+8. Field & Mobile Operations.
+
+For each extension, perform a feasibility review before implementation: business value, overlap with current CUBI capabilities, reuse candidates, authoritative data ownership, required new persistence/API/UI, security/audit implications, delivery cost, operational impact and measurable acceptance criteria. Prefer a small, independently releasable increment. Defer or reject features whose marginal value does not justify new complexity.
+
+## 14. Reuse-first and minimal-change rule
+
+The governing implementation principle is **maximum product value with minimum safe change**.
+
+- Inspect and prove the current runtime capability before proposing a replacement.
+- Reuse existing identity, organization/team, task, workflow, forms, reporting, portfolio, operations, audit and storage foundations where their contracts and runtime behavior fit.
+- Do not create parallel services, tables, permission models, job systems, reporting pipelines or calculation engines merely to make a module appear self-contained.
+- Add only the smallest missing capability at a clear ownership boundary.
+- External integrations are not an active delivery focus in this roadmap. Preserve architectural extensibility, but do not spend current Enterprise capacity on connector catalog expansion or broad third-party integration work.
+- Engineering remains the authority for engineering calculations and records. Enterprise may consume authorized, versioned and revision-aware results; it must not reproduce Engineering calculation logic.
+
+## 15. Design exploration and future CUBI design-system decision
+
+CUBI should ultimately provide a professional and coherent product experience. However, **a shared visual system, shared shell, shared tokens or shared component library are not current implementation prerequisites or acceptance blockers**. The initial design of each environment must remain free to respond to its real users, workflows, information density and technical constraints.
+
+- Design CUBI Engineering and CUBI Enterprise initially according to their own product needs. Preserve the existing Engineering shell and do not redesign it for visual consistency.
+- Treat a common CUBI identity, shared design tokens, shared components and common shell conventions as design hypotheses to explore—not mandatory constraints for initial product design or implementation.
+- Do not force early convergence of color palettes, typography, navigation, layout, controls or component behavior where doing so could reduce usability, conflict with existing architecture or cause unnecessary rework.
+- Evaluate commonality after the initial designs and representative screens exist. Compare actual user journeys, responsive behavior, RTL/Persian and LTR behavior, accessibility, visual clarity and technical compatibility.
+- Any proposed shared system must pass documented design reviews and relevant automated/manual tests, including regression and environment-specific acceptance tests. Adopt it only after the responsible product owners approve the evidence.
+- Until that approval, environment-specific design decisions are permitted. Avoid arbitrary inconsistency, but do not treat vendor-inspired patterns or a shared CUBI theme as implementation mandates.
+- Any change affecting the Engineering shell, routes, CSS, components or behavior requires a separate, narrowly scoped proposal, compatibility evidence and explicit Engineering-owner approval.
+- A design-system specification or prototype is not evidence that a shared system has been implemented or validated.
+
+The exploratory design brief and future evaluation criteria are documented in `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md`. Its contents are non-binding until a later explicit approval decision.
