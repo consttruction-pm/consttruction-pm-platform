@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
@@ -32,7 +32,7 @@ class ConstraintMaster:
             raise ConstraintPersistenceError("INVALID_ACTIVITY_ID")
         if not isinstance(self.constraint_type, ConstraintType):
             raise ConstraintPersistenceError("INVALID_CONSTRAINT_TYPE")
-        if not isinstance(self.constraint_date, date):
+        if not isinstance(self.constraint_date, date) or isinstance(self.constraint_date, datetime):
             raise ConstraintPersistenceError("INVALID_CONSTRAINT_DATE")
         if isinstance(self.record_revision, bool) or not isinstance(self.record_revision, int) or self.record_revision < 0:
             raise ConstraintPersistenceError("INVALID_RECORD_REVISION")
@@ -51,6 +51,19 @@ class ConstraintMasterRepository(Protocol):
     def save(self, constraint: ConstraintMaster, expected_revision: int | None = None) -> ConstraintMaster: ...
     def get(self, scope: BackendScope, constraint_id: str) -> ConstraintMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[ConstraintMaster, ...]: ...
+    def delete(self, scope: BackendScope, constraint_id: str, *, expected_revision: int) -> bool: ...
+
+
+def _validate_expected_record_revision(expected_revision: int) -> None:
+    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+        raise ConstraintPersistenceError("INVALID_EXPECTED_REVISION")
+    if expected_revision > MAX_SAFE_REVISION:
+        raise ConstraintPersistenceError("INVALID_EXPECTED_REVISION")
+
+
+def _validate_constraint_id(constraint_id: str) -> None:
+    if not isinstance(constraint_id, str) or not constraint_id.strip():
+        raise ConstraintPersistenceError("INVALID_CONSTRAINT_ID")
 
 
 def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ConstraintMaster:
@@ -186,6 +199,30 @@ class SQLiteConstraintMasterRepository:
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
+    def delete(self, scope: BackendScope, constraint_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        _validate_constraint_id(constraint_id)
+        _validate_expected_record_revision(expected_revision)
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM constraint_master "
+            "WHERE tenant_id=? AND project_id=? AND constraint_id=?",
+            (scope.tenant_id, scope.project_id, constraint_id),
+        ).fetchone()
+        if row is None:
+            raise ConstraintPersistenceError("CONSTRAINT_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ConstraintPersistenceError("REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "DELETE FROM constraint_master WHERE tenant_id=? AND project_id=? "
+            "AND project_revision=? AND constraint_id=? AND record_revision=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, constraint_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            self.connection.rollback()
+            raise ConstraintPersistenceError("REVISION_CONFLICT")
+        self.connection.commit()
+        return True
+
 
 class PostgresConstraintMasterRepository:
     def __init__(self, connection: object) -> None:
@@ -274,3 +311,23 @@ class PostgresConstraintMasterRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
+
+    def delete(self, scope: BackendScope, constraint_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        _validate_constraint_id(constraint_id)
+        _validate_expected_record_revision(expected_revision)
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM constraint_master "
+            "WHERE tenant_id=%s AND project_id=%s AND constraint_id=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, constraint_id),
+        ).fetchone()
+        if row is None:
+            raise ConstraintPersistenceError("CONSTRAINT_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ConstraintPersistenceError("REVISION_CONFLICT")
+        self.connection.execute(
+            "DELETE FROM constraint_master WHERE tenant_id=%s AND project_id=%s "
+            "AND project_revision=%s AND constraint_id=%s AND record_revision=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, constraint_id, expected_revision),
+        )
+        return True

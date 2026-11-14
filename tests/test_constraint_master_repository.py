@@ -68,3 +68,28 @@ def test_constraint_master_lists_deterministically_and_is_revision_scoped():
 def test_constraint_master_rejects_invalid_type():
     with pytest.raises(ConstraintPersistenceError, match="INVALID_CONSTRAINT_TYPE"):
         ConstraintMaster(scope(), "C-1", "A-1", "BAD", date(2026, 9, 21)).validate()
+
+
+def test_constraint_master_rejects_datetime_precision():
+    from datetime import datetime
+
+    with pytest.raises(ConstraintPersistenceError, match="INVALID_CONSTRAINT_DATE"):
+        ConstraintMaster(scope(), "C-1", "A-1", ConstraintType.MANDATORY_START, datetime(2026, 9, 21, 8)).validate()
+
+
+def test_constraint_master_deletes_with_optimistic_revision():
+    repo = SQLiteConstraintMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(constraint())
+    assert repo.delete(scope(), "C-1", expected_revision=1) is True
+    assert repo.list(scope()) == ()
+    with pytest.raises(ConstraintPersistenceError, match="CONSTRAINT_NOT_FOUND"):
+        repo.delete(scope(), "C-1", expected_revision=1)
+
+
+def test_constraint_master_rejects_stale_or_cross_revision_delete():
+    repo = SQLiteConstraintMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(constraint())
+    with pytest.raises(ConstraintPersistenceError, match="REVISION_CONFLICT"):
+        repo.delete(scope(), "C-1", expected_revision=2)
+    with pytest.raises(ConstraintPersistenceError, match="REVISION_CONFLICT"):
+        repo.delete(scope(8), "C-1", expected_revision=1)

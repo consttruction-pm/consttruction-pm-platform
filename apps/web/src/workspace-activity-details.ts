@@ -17,6 +17,15 @@ import { loadAssignments, saveAssignment, type AssignmentRecord } from "./worksp
 import { EXPENSE_CATEGORIES, loadExpenses, saveExpense, type ExpenseRecord } from "./workspace-expenses.js";
 import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, loadIssues, saveIssue, type IssueRecord } from "./workspace-issues.js";
 import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity-steps.js";
+import {
+  CONSTRAINT_TYPES,
+  CONSTRAINT_TYPE_LABELS,
+  deleteConstraint,
+  loadConstraints,
+  saveConstraint,
+  type ConstraintRecord,
+  type ConstraintTypeValue,
+} from "./workspace-constraints.js";
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
 import { loadDocuments, type DocumentRecord } from "./workspace-documents.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
@@ -201,6 +210,8 @@ export type ActivityDetailsData = {
   udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   udfValues?: ActivityDetailsLoadState<P6ActivityUdfValue>;
   history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
+  /** Persisted scheduling constraints, filtered to this activity. */
+  constraints?: ActivityDetailsLoadState<ConstraintRecord>;
   /** Project document register, filtered to this activity's links. */
   documents?: ActivityDetailsLoadState<DocumentRecord>;
 };
@@ -593,6 +604,39 @@ function activityWbsLabel(input: ActivityDetailsInput, activity: WorkspaceActivi
   return cell(activity, "wbs") || activity.wbsId;
 }
 
+function constraintTypeLabel(locale: string, value: string): string {
+  const label = CONSTRAINT_TYPE_LABELS[value as keyof typeof CONSTRAINT_TYPE_LABELS];
+  return label ? t(locale, label.en, label.fa) : value;
+}
+
+function storedConstraintsMarkup(
+  locale: string,
+  constraints: readonly ConstraintRecord[],
+  canWrite: boolean,
+): string {
+  const rows = constraints.length
+    ? `<div class="cp-detail-grid">${constraints.map((item) => `<div class="cp-detail-field" data-constraint-row data-constraint-id="${esc(item.constraintId)}" data-constraint-revision="${item.recordRevision}">
+        <span class="cp-detail-label">${esc(constraintTypeLabel(locale, item.constraintType))}</span>
+        <span class="cp-detail-value">${esc(item.constraintDate)} · r${item.recordRevision}${canWrite ? ` <button type="button" class="cp-detail-action" data-constraint-delete="${esc(item.constraintId)}" data-constraint-record-revision="${item.recordRevision}">${esc(t(locale, "Remove", "حذف"))}</button>` : ""}</span>
+      </div>`).join("")}</div>`
+    : empty(locale, t(locale, "No constraint is stored for this activity.", "هیچ محدودیتی برای این فعالیت ذخیره نشده است."));
+  if (!canWrite) return rows;
+  const options = CONSTRAINT_TYPES
+    .map((value) => `<option value="${esc(value)}">${esc(constraintTypeLabel(locale, value))}</option>`)
+    .join("");
+  return `${rows}
+    <form class="cp-detail-form" data-details-form="constraints" novalidate>
+      <div class="cp-detail-form-grid">
+        <label class="cp-detail-form-field" for="detail-form-constraints-type"><span>${esc(t(locale, "Constraint type", "نوع محدودیت"))}</span><select id="detail-form-constraints-type" name="constraintType" required>${options}</select></label>
+        <label class="cp-detail-form-field" for="detail-form-constraints-date"><span>${esc(t(locale, "Constraint date", "تاریخ محدودیت"))}</span><input id="detail-form-constraints-date" name="constraintDate" type="date" required></label>
+      </div>
+      <div class="cp-detail-form-actions">
+        <button type="submit" class="cp-detail-action">${esc(t(locale, "Add constraint", "افزودن محدودیت"))}</button>
+        <span class="cp-detail-form-message" data-details-form-message role="status"></span>
+      </div>
+    </form>`;
+}
+
 function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput): string {
   const { locale, selectedActivityId, activities, relationships, projectName, dataDate, state } = input;
   const activity = activities.find((row) => row.id === selectedActivityId) ?? null;
@@ -628,6 +672,15 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     case "status": {
       const started = item("started") || (item("actual_start") ? t(locale, "Yes", "بله") : "");
       const finished = item("finished") || (item("actual_finish") ? t(locale, "Yes", "بله") : "");
+      const constraintsState = loadStateOf(input.data?.constraints);
+      const storedConstraints = constraintsState.records
+        .filter((constraint) => constraint.activityId === activity?.id)
+        .sort((left, right) => left.constraintType.localeCompare(right.constraintType));
+      const constraintsNotice = loadNotice(
+        locale,
+        constraintsState,
+        t(locale, "Constraints have not been read for this activity yet.", "محدودیت‌ها هنوز برای این فعالیت خوانده نشده‌اند."),
+      );
       return `${section(t(locale, "Duration", "مدت"), `<div class="cp-detail-grid">
           ${field(locale, t(locale, "Original or Planned", "اصلی یا برنامه‌ای"), item("planned_duration", "original_duration"))}
           ${field(locale, t(locale, "Actual", "واقعی"), item("actual_duration"))}
@@ -648,21 +701,14 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           ${field(locale, t(locale, "Suspend", "توقف"), item("suspend_date", "suspend"))}
           ${field(locale, t(locale, "Resume", "ازسرگیری"), item("resume_date", "resume"))}
         </div>`)}
-        ${section(t(locale, "Primary Constraint", "محدودیت اصلی"), `<div class="cp-detail-grid">
-          ${field(locale, t(locale, "Primary", "اصلی"), item("primary_constraint"))}
-          ${field(locale, t(locale, "Date", "تاریخ"), item("primary_constraint_date"))}
-        </div>`)}
-        ${section(t(locale, "Secondary Constraint", "محدودیت ثانویه"), `<div class="cp-detail-grid">
-          ${field(locale, t(locale, "Secondary", "ثانویه"), item("secondary_constraint"))}
-          ${field(locale, t(locale, "Date", "تاریخ"), item("secondary_constraint_date"))}
-        </div>`)}
+        ${section(t(locale, "Constraints", "محدودیت‌ها"), `${constraintsNotice ?? storedConstraintsMarkup(locale, storedConstraints, input.canWrite === true && activity !== null)}`)}
         ${section(t(locale, "Units and Costs", "واحدها و هزینه‌ها"), `<div class="cp-detail-grid">
           ${field(locale, t(locale, "Budgeted or Planned", "بودجه‌ای یا برنامه‌ای"), item("budgeted_units", "planned_units", "budgeted_labor_units"))}
           ${field(locale, t(locale, "Actual", "واقعی"), item("actual_units", "actual_labor_units"))}
           ${field(locale, t(locale, "Remaining", "باقی‌مانده"), item("remaining_units", "remaining_labor_units"))}
           ${field(locale, t(locale, "At Complete", "در پایان"), item("at_complete_units", "at_completion_units"))}
         </div>`)}
-        <p class="cp-detail-hint">${esc(t(locale, "Duration, float, constraint and cost values come from the scheduling core; this pane only displays them.", "مقادیر مدت، شناوری، محدودیت و هزینه توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
+        <p class="cp-detail-hint">${esc(t(locale, "A constraint is a scheduling input persisted through the constraint API. Early/late dates, float, criticality and diagnostics are calculated by the scheduling core and are never derived in this pane. Saving a constraint does not change stored dates until the schedule is published and run again.", "محدودیت یک ورودی زمان‌بندی است که از طریق API محدودیت ذخیره می‌شود. تاریخ‌های زودترین/دیرترین، شناوری، بحرانی‌بودن و تشخیص‌ها توسط هستهٔ زمان‌بندی محاسبه می‌شوند و هرگز در این پنل استنتاج نمی‌شوند. ذخیرهٔ محدودیت تا انتشار و اجرای دوبارهٔ زمان‌بندی، تاریخ‌های ذخیره‌شده را تغییر نمی‌دهد."))}</p>`;
     }
     case "resources": {
       const data = loadStateOf(input.data?.assignments);
@@ -1620,7 +1666,7 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
   const context = input.state?.context;
   if (!transport || !context) return {};
   const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
-  const [assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents] = await Promise.all([
+  const [assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents, constraints] = await Promise.all([
     loadAssignments(transport, context).then(resultState),
     loadExpenses(transport, context, { activityId }).then(resultState),
     loadIssues(transport, context).then(resultState),
@@ -1636,8 +1682,9 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
         failedDetailsState(error instanceof Error ? error.message : "P6_UDF_VALUE_UNAVAILABLE")),
     readProgressHistory(transport, context, activityId),
     loadDocuments(transport, context).then(resultState),
+    loadConstraints(transport, context).then(resultState),
   ]);
-  return { assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents };
+  return { assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents, constraints };
 }
 
 function detailsDataKey(input: ActivityDetailsInput): string | null {
@@ -1683,6 +1730,7 @@ async function loadDetailsInto(host: HTMLElement, key: string, activityId: strin
         udfValues: loadingDetailsState(),
         history: loadingDetailsState(),
         documents: loadingDetailsState(),
+        constraints: loadingDetailsState(),
       },
     },
   });
@@ -1868,6 +1916,16 @@ export function enhanceActivityDetails(
         await finish(failure);
         return;
       }
+      if (kind === "constraints") {
+        const saved = await saveConstraint(transport, context, {
+          constraintId: crypto.randomUUID(),
+          activityId,
+          constraintType: value("constraintType") as ConstraintTypeValue,
+          constraintDate: value("constraintDate"),
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
       if (kind === "resources") {
         const saved = await saveAssignment(transport, context, {
           assignmentId: crypto.randomUUID(),
@@ -1943,6 +2001,34 @@ export function enhanceActivityDetails(
         detailsLoadedKey.set(host, key);
         void loadDetailsInto(host, key, activityId, true);
       }
+      return;
+    }
+
+    const removeConstraint = target.closest<HTMLButtonElement>("[data-constraint-delete]");
+    if (removeConstraint?.dataset.constraintDelete) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      const key = detailsDataKey(input);
+      if (!transport || !context || !activityId || !key) return;
+      const recordRevision = Number(removeConstraint.dataset.constraintRecordRevision);
+      if (!Number.isSafeInteger(recordRevision) || recordRevision < 1) return;
+      removeConstraint.disabled = true;
+      void (async () => {
+        const result = await deleteConstraint(
+          transport,
+          context,
+          removeConstraint.dataset.constraintDelete ?? "",
+          recordRevision,
+        );
+        if (!result.ok) {
+          removeConstraint.disabled = false;
+          removeConstraint.textContent = result.error.code;
+          return;
+        }
+        detailsDataCache.delete(key);
+        await loadDetailsInto(host, key, activityId, true);
+      })();
       return;
     }
 
