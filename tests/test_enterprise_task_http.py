@@ -119,6 +119,20 @@ def test_task_http_requires_session_and_serves_create_list_and_read():
     assert status.startswith("200")
     assert payload["task"]["title"] == "Create task"
 
+    status, payload = _request(
+        app,
+        "PATCH",
+        f"/api/enterprise/tasks/{task_id}",
+        body={
+            "contract_version": "cubi-enterprise-task.v1",
+            "expected_revision": 1,
+            "status": "completed",
+        },
+    )
+    assert status.startswith("200")
+    assert payload["task"]["completed_by_user_id"] == "alice"
+    assert payload["revision"] == 2
+
 
 def test_task_http_rejects_missing_idempotency_key_and_contract_version():
     lifecycle = FakeLifecycle()
