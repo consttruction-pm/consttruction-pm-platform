@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..activity_master_repository import PostgresActivityMasterRepository
+from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..identity_session import PostgresIdentityStore
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
@@ -30,6 +31,7 @@ from ..wbs_master_repository import PostgresWBSMasterRepository
 def initialize_production_schema(connection: Any) -> None:
     """Create every table the deployed surface reads or writes."""
     PostgresIdentityStore(connection).initialize()
+    PostgresEnterpriseTaskRepository(connection).initialize()
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
     PostgresWBSMasterRepository(connection).initialize()
