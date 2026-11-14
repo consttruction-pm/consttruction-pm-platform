@@ -41,6 +41,8 @@ from ..identity_session import (
     load_identity_settings,
 )
 from ..p6_cost_account_api import P6CostAccountAPI
+from ..p6_obs_api import P6OBSNodeAPI
+from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -262,12 +264,15 @@ class ProductionRuntime:
         connection = self.connection
         policy = RoleBasedAuthorizationPolicy(default_role_permissions())
         cost_account_repository = PostgresP6CostAccountRepository(connection)
+        obs_node_repository = PostgresP6OBSRepository(connection)
+        obs_node_service = P6OBSApplicationService(obs_node_repository)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
                 PostgresProjectRepository(connection),
                 policy,
                 cost_accounts=cost_account_repository,
+                obs_nodes=obs_node_repository,
             )
         )
         activity_repository = PostgresActivityMasterRepository(connection)
@@ -320,6 +325,7 @@ class ProductionRuntime:
                 ),
                 policy,
             ),
+            p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,

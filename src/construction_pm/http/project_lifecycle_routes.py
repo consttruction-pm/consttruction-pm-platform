@@ -163,6 +163,8 @@ from ..budget_persistence import (
 )
 from ..p6_issue_repository import P6Issue, P6IssuePersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
+from ..p6_obs_api import P6OBSNodeAPI, P6_OBS_NODE_API_VERSION
+from ..p6_obs_repository import P6OBSNode
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
@@ -330,6 +332,7 @@ class ProjectLifecycleHttpRoutes:
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
+        p6_obs_node_api: P6OBSNodeAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         p6_activity_step_api: P6ActivityStepReadAPI | None = None,
         document_api: DocumentAPI | None = None,
@@ -391,6 +394,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
+        self._p6_obs_node_api = p6_obs_node_api
         self._p6_issue_api = p6_issue_api
         self._p6_activity_step_api = p6_activity_step_api
         self._document_api = document_api
@@ -1482,6 +1486,67 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
                 except ValueError:
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/obs-nodes" in path and self._p6_obs_node_api is not None:
+                prefix = "/p6/obs-nodes"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_OBS_NODE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET" and not parts:
+                        return self._json(
+                            200, self._p6_obs_node_api.list(scope, auth_context=auth)
+                        )
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_obs_node_api.get(
+                            scope, parts[0], auth_context=auth
+                        )
+                        if result is None:
+                            return self._error(
+                                404,
+                                "P6_OBS_NODE_NOT_FOUND",
+                                "error.resource.not_found",
+                            )
+                        return self._json(200, result)
+                    if method == "POST" and not parts:
+                        node = P6OBSNode(
+                            tenant_id=auth.tenant_id,
+                            obs_id=payload.get("obs_id", ""),
+                            parent_obs_id=payload.get("parent_obs_id"),
+                            code=payload.get("code", ""),
+                            name=payload.get("name", ""),
+                            manager_user_id=payload.get("manager_user_id", ""),
+                            sequence_number=payload.get("sequence_number", 0),
+                        )
+                        return self._json(
+                            200, self._p6_obs_node_api.save(node, auth_context=auth)
+                        )
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code in {
+                        "OBS_PARENT_NOT_FOUND",
+                        "OBS_PARENT_CYCLE",
+                        "OBS_SELF_PARENT",
+                    }:
+                        return self._error(400, code, "error.request.invalid")
+                    return self._error(400, "P6_OBS_NODE_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/schedule/settings" in path and self._p6_schedule_snapshot_api is not None:
                 prefix = "/p6/schedule/settings"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
@@ -6671,6 +6736,7 @@ class ProjectLifecycleHttpRoutes:
                         "default_duration_type", "Fixed Duration & Units"
                     ),
                     default_cost_account_id=payload.get("default_cost_account_id", ""),
+                    obs_id=payload.get("obs_id", ""),
                     activity_id_prefix=payload.get("activity_id_prefix", ""),
                     activity_id_suffix=payload.get("activity_id_suffix", ""),
                     activity_id_increment=payload.get("activity_id_increment", 10),
@@ -6725,6 +6791,9 @@ class ProjectLifecycleHttpRoutes:
                         payload["default_cost_account_id"]
                         if "default_cost_account_id" in payload
                         else None
+                    ),
+                    obs_id=(
+                        payload["obs_id"] if "obs_id" in payload else None
                     ),
                     activity_id_prefix=(
                         payload["activity_id_prefix"]

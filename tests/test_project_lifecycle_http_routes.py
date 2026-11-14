@@ -96,6 +96,7 @@ class Projects:
                 default_percent_complete_type=p.default_percent_complete_type,
                 default_duration_type=p.default_duration_type,
                 default_cost_account_id=p.default_cost_account_id,
+                obs_id=p.obs_id,
                 activity_id_prefix=p.activity_id_prefix,
                 activity_id_suffix=p.activity_id_suffix,
                 activity_id_increment=p.activity_id_increment,
@@ -123,6 +124,7 @@ class Projects:
             default_percent_complete_type=project.default_percent_complete_type,
             default_duration_type=project.default_duration_type,
             default_cost_account_id=project.default_cost_account_id,
+            obs_id=project.obs_id,
             activity_id_prefix=project.activity_id_prefix,
             activity_id_suffix=project.activity_id_suffix,
             activity_id_increment=project.activity_id_increment,
@@ -141,6 +143,7 @@ class Projects:
         default_percent_complete_type="DURATION",
         default_duration_type="Fixed Duration & Units",
         default_cost_account_id="",
+        obs_id="",
         activity_id_prefix="", activity_id_suffix="",
         activity_id_increment=10, increment_activity_id=False,
     ):
@@ -155,6 +158,7 @@ class Projects:
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
             default_cost_account_id=default_cost_account_id,
+            obs_id=obs_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -171,6 +175,7 @@ class Projects:
         default_activity_type=None, default_percent_complete_type=None,
         default_duration_type=None,
         default_cost_account_id=None,
+        obs_id=None,
         activity_id_prefix=None, activity_id_suffix=None,
         activity_id_increment=None, increment_activity_id=None,
     ):
@@ -211,6 +216,9 @@ class Projects:
                 default_cost_account_id
                 if default_cost_account_id is not None
                 else project.default_cost_account_id
+            ),
+            obs_id=(
+                obs_id if obs_id is not None else project.obs_id
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -262,6 +270,7 @@ class Projects:
             status=project.status, business_domain=project.business_domain,
             obs_responsible_manager=project.obs_responsible_manager,
             website_url=project.website_url,
+            obs_id=project.obs_id,
             checkout_state="checked_out" if checked_out else "checked_in",
             checked_out_by=actor_user_id if checked_out else "",
             checked_out_at=changed_at.isoformat() if checked_out else None,

@@ -92,6 +92,10 @@ class ProjectSummary:
     # created activities. It must exist in this project's real cost-account
     # hierarchy; the empty string means no default.
     default_cost_account_id: str = ""
+    # V26 General tab: the Responsibility Structure (OBS) node this project
+    # belongs to. It points into the tenant-wide hierarchy; the empty string
+    # means unassigned.
+    obs_id: str = ""
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
@@ -295,6 +299,19 @@ def normalize_default_cost_account_id(value: object) -> str:
     return account_id
 
 
+def normalize_obs_id(value: object) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_OBS_ID_INVALID")
+    obs_id = value.strip()
+    if not obs_id:
+        return ""
+    if len(obs_id) > 120 or any(ord(character) < 32 for character in obs_id):
+        raise ProjectLifecycleError("PROJECT_OBS_ID_INVALID")
+    return obs_id
+
+
 def normalize_activity_id_affix(value: object, code: str) -> str:
     if value is None:
         return ""
@@ -464,6 +481,12 @@ class ProjectCostAccountLookup(Protocol):
     ) -> bool: ...
 
 
+class ProjectOBSLookup(Protocol):
+    """Read-only check that a Responsibility Structure node exists for the tenant."""
+
+    def obs_node_exists(self, tenant_id: str, obs_id: str) -> bool: ...
+
+
 class ProjectRepository(Protocol):
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]: ...
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None: ...
@@ -485,6 +508,7 @@ class ProjectRepository(Protocol):
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
         default_cost_account_id: str = "",
+        obs_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -509,6 +533,7 @@ class ProjectRepository(Protocol):
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
         default_cost_account_id: str | None = None,
+        obs_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -576,11 +601,13 @@ class ProjectLifecycleService:
         projects: ProjectRepository,
         policy: RoleBasedAuthorizationPolicy,
         cost_accounts: ProjectCostAccountLookup | None = None,
+        obs_nodes: ProjectOBSLookup | None = None,
     ) -> None:
         self._sessions = sessions
         self._projects = projects
         self._policy = policy
         self._cost_accounts = cost_accounts
+        self._obs_nodes = obs_nodes
 
     def session(self, session_id: str, *, now: datetime) -> AuthenticatedSession:
         session = self._sessions.get(session_id)
@@ -668,6 +695,7 @@ class ProjectLifecycleService:
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
         default_cost_account_id: str = "",
+        obs_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -705,6 +733,12 @@ class ProjectLifecycleService:
         # hierarchy, so a non-empty reference cannot be verified.
         if normalized_default_cost_account_id:
             raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND")
+        normalized_obs_id = normalize_obs_id(obs_id)
+        if normalized_obs_id:
+            if self._obs_nodes is None:
+                raise ProjectLifecycleError("PROJECT_OBS_NODE_UNAVAILABLE")
+            if not self._obs_nodes.obs_node_exists(session.tenant_id, normalized_obs_id):
+                raise ProjectLifecycleError("PROJECT_OBS_NODE_NOT_FOUND")
         project = self._projects.create_for_user(
             session.tenant_id,
             session.user_id,
@@ -727,6 +761,7 @@ class ProjectLifecycleService:
                 default_duration_type
             ),
             default_cost_account_id=normalized_default_cost_account_id,
+            obs_id=normalized_obs_id,
             activity_id_prefix=normalize_activity_id_affix(
                 activity_id_prefix, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"
             ),
@@ -784,6 +819,7 @@ class ProjectLifecycleService:
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
         default_cost_account_id: str | None = None,
+        obs_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -881,6 +917,14 @@ class ProjectLifecycleService:
                 normalized_default_cost_account_id,
             ):
                 raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND")
+        normalized_obs_id = None if obs_id is None else normalize_obs_id(obs_id)
+        if normalized_obs_id:
+            if self._obs_nodes is None:
+                raise ProjectLifecycleError("PROJECT_OBS_NODE_UNAVAILABLE")
+            if not self._obs_nodes.obs_node_exists(
+                existing.tenant_id, normalized_obs_id
+            ):
+                raise ProjectLifecycleError("PROJECT_OBS_NODE_NOT_FOUND")
         normalized_activity_id_prefix = (
             None
             if activity_id_prefix is None
@@ -922,6 +966,7 @@ class ProjectLifecycleService:
             default_percent_complete_type=normalized_default_percent_complete_type,
             default_duration_type=normalized_default_duration_type,
             default_cost_account_id=normalized_default_cost_account_id,
+            obs_id=normalized_obs_id,
             activity_id_prefix=normalized_activity_id_prefix,
             activity_id_suffix=normalized_activity_id_suffix,
             activity_id_increment=normalized_activity_id_increment,

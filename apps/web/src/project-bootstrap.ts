@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { CostAccountList, ProjectContext as SessionProjectContext, ProjectDefaultsApplicationEvent, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
+import type { CostAccountList, OBSNodeList, ProjectContext as SessionProjectContext, ProjectDefaultsApplicationEvent, ProjectMetadataInput, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
@@ -169,31 +169,7 @@ export class ProjectBootstrap {
   /** Save metadata under the revision the editor loaded; a 409 means reload. */
   async saveProjectMetadata(
     projectId: string,
-    metadata: {
-      name: string;
-      description: string;
-      start_date: string | null;
-      date_system: "gregorian" | "jalali";
-      primary_calendar_id?: string | null;
-      business_domain?:
-        | "construction"
-        | "oil_gas"
-        | "infrastructure"
-        | "industrial"
-        | "energy"
-        | "other"
-        | "";
-      obs_responsible_manager?: string;
-      website_url?: string;
-      default_activity_type?: string;
-      default_percent_complete_type?: string;
-      default_duration_type?: string;
-      default_cost_account_id?: string;
-      activity_id_prefix?: string;
-      activity_id_suffix?: string;
-      activity_id_increment?: number;
-      increment_activity_id?: boolean;
-    },
+    metadata: ProjectMetadataInput,
     expectedRevision: number,
   ): Promise<ApiResult<{ project: ProjectSummary }>> {
     if (!this.dependencies.sessionApi.updateProject) {
@@ -273,6 +249,17 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.listCostAccounts(projectId);
+  }
+
+  /** Tenant-wide Responsibility Structure (enterprise OBS) nodes. */
+  async loadOBSNodes(projectId: string): Promise<ApiResult<OBSNodeList>> {
+    if (!this.dependencies.sessionApi.listOBSNodes) {
+      return {
+        ok: false,
+        error: localError("OBS_NODES_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.listOBSNodes(projectId);
   }
 
   /** Immutable status history for the settings panel. */
