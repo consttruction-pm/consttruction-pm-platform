@@ -214,6 +214,18 @@ class PostgresProjectRepository(ProjectRepository):
             self._obs_access_enabled = bool(row and row[0])
         return self._obs_access_enabled
 
+    def _project_access_guard(self, permission: str, alias: str = "") -> str:
+        if self._has_obs_access_function():
+            return (
+                f"AND cubi_user_has_project_access({alias}tenant_id,%s::text,"
+                f"{alias}project_id,%s::text) "
+            )
+        return (
+            f"AND EXISTS (SELECT 1 FROM project_lifecycle_memberships m "
+            f"WHERE m.tenant_id={alias}tenant_id AND m.project_id={alias}project_id "
+            "AND m.user_id=%s) "
+        )
+
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
         if self._has_obs_access_function():
             query = self._SELECT + (
@@ -367,7 +379,7 @@ class PostgresProjectRepository(ProjectRepository):
             "increment_activity_id=COALESCE(%s, increment_activity_id), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
-            "AND cubi_user_has_project_access(tenant_id,%s,project_id,'project.admin') "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -418,8 +430,9 @@ class PostgresProjectRepository(ProjectRepository):
         current = self._connection.execute(
             "SELECT p.status, p.settings_revision FROM project_lifecycle_projects p "
             "WHERE p.tenant_id=%s AND p.project_id=%s "
-            "AND cubi_user_has_project_access(p.tenant_id,%s,p.project_id,'project.admin')",
-            (tenant_id, project_id, user_id),
+            + self._project_access_guard("project.admin", "p."),
+            (tenant_id, project_id, user_id, "project.admin") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchone()
         if current is None:
             return None
@@ -433,7 +446,7 @@ class PostgresProjectRepository(ProjectRepository):
             "UPDATE project_lifecycle_projects SET status=%s, "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
-            "AND cubi_user_has_project_access(tenant_id,%s,project_id,'project.admin') "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -498,7 +511,7 @@ class PostgresProjectRepository(ProjectRepository):
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
             "AND " + lease_condition + " "
-            "AND cubi_user_has_project_access(tenant_id,%s,project_id,'project.admin') "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -527,9 +540,10 @@ class PostgresProjectRepository(ProjectRepository):
             "e.recorded_at, e.settings_revision "
             "FROM project_lifecycle_status_event e "
             "WHERE e.tenant_id=%s AND e.project_id=%s "
-            "AND cubi_user_has_project_access(e.tenant_id,%s,e.project_id,'project.read') "
-            "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
-            (tenant_id, project_id, user_id),
+            + self._project_access_guard("project.read", "e.")
+            + "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id, "project.read") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchall()
         return tuple(
             ProjectStatusEvent(
@@ -614,9 +628,10 @@ class PostgresProjectRepository(ProjectRepository):
             "e.applied_cost_account_id, e.actor_user_id, e.recorded_at "
             "FROM project_lifecycle_defaults_event e "
             "WHERE e.tenant_id=%s AND e.project_id=%s "
-            "AND cubi_user_has_project_access(e.tenant_id,%s,e.project_id,'project.read') "
-            "ORDER BY e.recorded_at ASC, e.event_id ASC",
-            (tenant_id, project_id, user_id),
+            + self._project_access_guard("project.read", "e.")
+            + "ORDER BY e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id, "project.read") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchall()
         return tuple(
             ProjectDefaultsApplicationEvent(
