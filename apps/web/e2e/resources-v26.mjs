@@ -115,6 +115,11 @@ const resourcesState = `(() => {
     value: label.querySelector("input")?.value ?? null,
   }));
   const table = (panel) => [...document.querySelectorAll('[data-resource-panel="' + panel + '"] tbody tr')].map((row) => [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim()));
+  const usageRows = [...document.querySelectorAll("[data-resource-usage-row]")].map((row) => ({
+    period: row.dataset.periodStart,
+    status: row.dataset.status,
+    cells: [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim()),
+  }));
   const form = document.querySelector("[data-resource-create-form], [data-resource-edit-form]");
   return {
     activeMenu: document.querySelector(".cp-workspace")?.dataset.activeMenu ?? null,
@@ -126,6 +131,11 @@ const resourcesState = `(() => {
     fields,
     hint: page?.querySelector(".cp-calendar-hint")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
     panels: { assignments: table("assignments"), capacity: table("capacity"), rates: table("rates") },
+    usageRows,
+    usageTabLabel: page?.querySelector('[data-resource-tab="usage"]')?.textContent?.trim() ?? null,
+    direction: page ? getComputedStyle(page).direction : null,
+    usageSummary: page?.querySelector("[data-resource-usage-summary]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+    usageHint: page?.querySelector("[data-resource-usage-hint]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
     empty: page?.querySelector(".cp-calendar-empty")?.textContent?.trim() ?? null,
     filter: page?.querySelector("[data-resource-filter]")?.value ?? null,
     refreshDisabled: Boolean(page?.querySelector("[data-resource-action=reload]")?.disabled),
@@ -270,6 +280,23 @@ async function patchResource(page, resourceId, payload) {
       body: JSON.stringify(${JSON.stringify(payload)}),
     });
     return { status: response.status, body: await response.json() };
+  })()`, { awaitPromise: true });
+}
+
+async function postResourceFact(page, suffix, payload) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT}/p6/" + ${JSON.stringify(suffix)}, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": "cubi-preview-tenant",
+        "X-Project-Id": ${JSON.stringify(PROJECT)},
+        "X-Project-Revision": "7",
+      },
+      body: JSON.stringify(${JSON.stringify(payload)}),
+    });
+    const text = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null };
   })()`, { awaitPromise: true });
 }
 
@@ -460,6 +487,94 @@ async function main() {
       assert(!state.refreshDisabled, "the Refresh button stayed disabled after the read finished");
       await capture(page, "05-resource-assignments-refreshed");
       return { assignments: state.panels.assignments.length, rowsAfterRefresh: state.rows.length };
+    });
+
+    await scenario("05b", "تب Usage تقاضای ذخیره‌شده را با ظرفیت حل‌شدهٔ سرویس برای هر تاریخ مقایسه می‌کند", async () => {
+      const seed = [
+        ["resource-assignments", {
+          contract_version: "p6-resource-write-api.v1",
+          assignment_id: "RES-USAGE-E2E-1",
+          activity_id: "A100",
+          resource_id: "RPS-CIVIL-CREW",
+          units: "12",
+          unit: "crew-day",
+          currency: "USD",
+          units_per_time: "12",
+          units_per_time_period: "day",
+          hours_per_units_time_period: "8",
+        }],
+        ["resource-assignment-periods", {
+          assignment_id: "RES-USAGE-E2E-1",
+          activity_id: "A100",
+          resource_id: "RPS-CIVIL-CREW",
+          period_start: "2026-09-30",
+          units: "12",
+          cost: "960",
+        }],
+        ["resource-assignments", {
+          contract_version: "p6-resource-write-api.v1",
+          assignment_id: "RES-USAGE-E2E-2",
+          activity_id: "A110",
+          resource_id: "RPS-CIVIL-CREW",
+          units: "4",
+          unit: "crew-day",
+          currency: "USD",
+          units_per_time: "4",
+          units_per_time_period: "day",
+          hours_per_units_time_period: "8",
+        }],
+        ["resource-assignment-periods", {
+          assignment_id: "RES-USAGE-E2E-2",
+          activity_id: "A110",
+          resource_id: "RPS-CIVIL-CREW",
+          period_start: "2026-09-30",
+          units: "4",
+          cost: "320",
+        }],
+        ["resource-assignment-periods", {
+          assignment_id: "RES-USAGE-E2E-2",
+          activity_id: "A110",
+          resource_id: "RPS-CIVIL-CREW",
+          period_start: "2026-10-16",
+          units: "4",
+          cost: "320",
+        }],
+      ];
+      for (const [suffix, payload] of seed) {
+        const result = await postResourceFact(page, suffix, payload);
+        assert(result.status === 200, `seed ${suffix} ${payload.assignment_id} returned ${result.status}: ${JSON.stringify(result.body)}`);
+      }
+      const resolved = await page.evaluate(`(async () => {
+        const response = await fetch("/api/projects/${PROJECT}/p6/resource-capacities/RPS-CIVIL-CREW/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Tenant-Id": "cubi-preview-tenant", "X-Project-Id": ${JSON.stringify(PROJECT)}, "X-Project-Revision": "7" },
+          body: JSON.stringify({ contract_version: "p6-resource-capacity-read-api.v1", period: "2026-09-30", basis: "day", hours_per_time_period: "8" }),
+        });
+        return { status: response.status, body: await response.json() };
+      })()`, { awaitPromise: true });
+      assert(resolved.status === 200, `capacity resolve ${resolved.status}`);
+      assert(resolved.body.kind === "resource_capacity_value", `capacity kind ${resolved.body.kind}`);
+      assert(resolved.body.capacity === "8", `resolved capacity ${resolved.body.capacity}`);
+
+      await page.click("[data-resource-action=reload]");
+      await page.waitForSelector('[data-resources-page] [data-resource-row]', "register after usage seed", 20000);
+      await sleep(600);
+      await page.click('[data-resource-row][data-resource-id="RPS-CIVIL-CREW"]');
+      await sleep(200);
+      await page.click('[data-resource-tab="usage"]');
+      await page.waitForSelector("[data-resource-usage-row]", "usage rows", 20000);
+      await sleep(400);
+      const state = await page.evaluate(resourcesState);
+      assert(state.activeTab === "usage", `active tab is ${state.activeTab}`);
+      assert(state.usageRows.length === 2, `usage rows ${state.usageRows.length}`);
+      assert(JSON.stringify(state.usageRows[0].cells) === JSON.stringify(["2026-09-30", "16", "1280", "2", "16", "day", "8", "8", "Overallocated"]), `first usage row ${JSON.stringify(state.usageRows[0].cells)}`);
+      assert(state.usageRows[0].status === "overallocated", `first usage status ${state.usageRows[0].status}`);
+      assert(JSON.stringify(state.usageRows[1].cells) === JSON.stringify(["2026-10-16", "4", "320", "1", "4", "day", "12", "—", "Within capacity"]), `second usage row ${JSON.stringify(state.usageRows[1].cells)}`);
+      assert(state.usageRows[1].status === "within", `second usage status ${state.usageRows[1].status}`);
+      assert(state.usageSummary === "2 stored period(s) · 2 compared · 1 overallocated.", `usage summary ${state.usageSummary}`);
+      assert(/no scheduler or leveling pass runs here/.test(state.usageHint ?? ""), `usage hint ${state.usageHint}`);
+      await capture(page, "05b-resource-usage");
+      return { rows: state.usageRows.map((row) => [row.period, row.status]), summary: state.usageSummary };
     });
 
     await openMenu(page, "calendars", "[data-calendar-row]", "calendar register");
@@ -702,6 +817,35 @@ async function main() {
       assert(layout.toolbar.x >= 0 && layout.toolbar.x + layout.toolbar.width <= layout.innerWidth + 1, `toolbar overflows: ${JSON.stringify(layout.toolbar)}`);
       await capture(page, "12-resource-1280x720");
       return layout;
+    });
+
+    await scenario("12", "تب Usage در فارسی RTL همان حقایق ذخیره‌شده را نشان می‌دهد و از کادر 1280×720 بیرون نمی‌زند", async () => {
+      await setLanguage(page, "fa");
+      await openMenu(page, "resources", "[data-resources-page] [data-resource-row]", "resource register in Persian");
+      await page.click('[data-resource-row][data-resource-id="RPS-CIVIL-CREW"]');
+      await sleep(200);
+      await page.click('[data-resource-tab="usage"]');
+      await page.waitForSelector("[data-resource-usage-row]", "Persian usage rows", 20000);
+      await sleep(400);
+      const state = await page.evaluate(resourcesState);
+      assert(state.direction === "rtl", `resources page direction ${state.direction}`);
+      assert(state.usageTabLabel === "استفاده", `Persian usage tab label ${state.usageTabLabel}`);
+      assert(state.usageRows.length === 2, `Persian usage rows ${state.usageRows.length}`);
+      assert(state.usageRows[0].status === "overallocated", `Persian first usage status ${state.usageRows[0].status}`);
+      assert(state.usageRows[1].status === "within", `Persian second usage status ${state.usageRows[1].status}`);
+      assert(/2 دورهٔ ذخیره‌شده · 2 مقایسه‌شده · 1 اضافه‌تخصیص\./.test(state.usageSummary ?? ""), `Persian usage summary ${state.usageSummary}`);
+      assert(/هیچ اجرای زمان‌بندی یا تراز منابعی در اینجا انجام نمی‌شود/.test(state.usageHint ?? ""), `Persian usage hint ${state.usageHint}`);
+      const bounds = await page.evaluate(`(() => {
+        const panel = document.querySelector('[data-resource-panel="usage"]');
+        if (!panel) return null;
+        const rect = panel.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: innerWidth, height: innerHeight };
+      })()`);
+      assert(bounds, "the usage panel has no layout box in Persian");
+      assert(bounds.left >= -1 && bounds.right <= bounds.width + 1, `usage panel overflows horizontally: ${JSON.stringify(bounds)}`);
+      assert(bounds.bottom <= bounds.height + 1, `usage panel overflows vertically: ${JSON.stringify(bounds)}`);
+      await capture(page, "13-resource-usage-fa");
+      return { direction: state.direction, summary: state.usageSummary };
     });
 
     assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);

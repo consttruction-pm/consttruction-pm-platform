@@ -198,7 +198,14 @@ function assignmentDto(assignmentValue: Record<string, unknown> = ASSIGNMENT_DTO
   };
 }
 
-function transportWith(routes: Record<string, ApiResult<unknown>>, gets: string[] = []): ApiTransport {
+type PostCall = { path: string; request: unknown };
+
+function transportWith(
+  routes: Record<string, ApiResult<unknown>>,
+  gets: string[] = [],
+  postRoutes: Record<string, (request: unknown) => ApiResult<unknown>> = {},
+  posts: PostCall[] = [],
+): ApiTransport {
   return {
     async get<T>(path: string): Promise<ApiResult<T>> {
       gets.push(path);
@@ -206,8 +213,11 @@ function transportWith(routes: Record<string, ApiResult<unknown>>, gets: string[
       if (!result) throw new Error(`unexpected GET ${path}`);
       return result as ApiResult<T>;
     },
-    async post<TRequest, TResponse>(): Promise<ApiResult<TResponse>> {
-      throw new Error("resource workspace must not write");
+    async post<TRequest, TResponse>(path: string, request: TRequest): Promise<ApiResult<TResponse>> {
+      posts.push({ path, request });
+      const handler = postRoutes[path];
+      if (!handler) throw new Error(`unexpected POST ${path}`);
+      return handler(request) as ApiResult<TResponse>;
     },
   };
 }
@@ -545,14 +555,25 @@ function mountHost() {
     querySelector: () => null,
     contains: () => true,
   };
-  const click = (action: string): void => {
+  const fire = (dataset: Record<string, string>, kind: "row" | "tab" | "action"): void => {
     const target = {
-      dataset: { resourceAction: action },
-      closest: (selector: string) => (selector === "[data-resource-action]" ? target : null),
+      dataset,
+      closest: (selector: string) => {
+        if (selector === "[data-resource-toggle]") return null;
+        if (selector === "[data-resource-row]" && kind === "row") return target;
+        if (selector === "[data-resource-tab]" && kind === "tab") return target;
+        if (selector === "[data-resource-action]" && kind === "action") return target;
+        return null;
+      },
     };
     listeners.get("click")?.({ target } as unknown as Event);
   };
-  return { host, click };
+  return {
+    host,
+    click: (action: string) => fire({ resourceAction: action }, "action"),
+    clickRow: (resourceId: string) => fire({ resourceId }, "row"),
+    clickTab: (tab: string) => fire({ resourceTab: tab }, "tab"),
+  };
 }
 
 function resourceWorkspaceTransport(calendars: unknown) {
@@ -615,4 +636,100 @@ test("resource save errors keep the calendar domain code visible", () => {
     "The selected calendar is not stored in this project. Choose a stored calendar or the project default. (RESOURCE_CALENDAR_NOT_FOUND)",
   );
   assert.match(resourceSaveErrorNotice("REVISION_CONFLICT", false, "fa"), /ذخیره ناموفق بود \(REVISION_CONFLICT\)/);
+});
+
+test("the Usage tab compares stored assignment Units/Time with the service-resolved capacity", async () => {
+  const { host, clickRow, clickTab } = mountHost();
+  const posts: PostCall[] = [];
+  const transport = transportWith(
+    {
+      "/api/projects/project-1/p6/resource-assignments": {
+        ok: true,
+        data: {
+          contract_version: "p6-resource-read-api.v1",
+          assignments: [assignmentDto({
+            ...ASSIGNMENT_DTO,
+            units_per_time: "12",
+            units_per_time_period: "day",
+            hours_per_units_time_period: "8",
+          })],
+        },
+      },
+      "/api/projects/project-1/p6/resource-capacities": {
+        ok: true,
+        data: { contract_version: "p6-resource-capacity-read-api.v1", capacities: [] },
+      },
+      "/api/projects/project-1/p6/resource-rates": {
+        ok: true,
+        data: { contract_version: "p6-resource-rate-read-api.v1", rates: [] },
+      },
+      [RESOURCES_PATH]: { ok: true, data: resourceList(master()) },
+      "/api/projects/project-1/p6/calendars": { ok: true, data: calendarCatalogue() },
+      "/api/projects/project-1/p6/resource-assignment-periods": {
+        ok: true,
+        data: {
+          contract_version: "p6-resource-read-api.v1",
+          periods: [{
+            contract_version: "p6-resource-read-api.v1",
+            kind: "resource_assignment_period",
+            scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+            period: {
+              assignment_id: "AS-1",
+              activity_id: "A100",
+              resource_id: "RPS-CIVIL-CREW",
+              period_start: "2026-09-30",
+              units: "12",
+              cost: "960",
+            },
+          }],
+        },
+      },
+    },
+    [],
+    {
+      "/api/projects/project-1/p6/resource-capacities/RPS-CIVIL-CREW/resolve": () => ({
+        ok: true,
+        data: {
+          contract_version: "p6-resource-capacity-read-api.v1",
+          kind: "resource_capacity_value",
+          period: "2026-09-30",
+          capacity: "8",
+          basis: "day",
+          identity: "segment-1",
+          source: "preview-fixture:RPS-rev7-capacity-1",
+          status: "RESOLVED",
+        },
+      }),
+    },
+    posts,
+  );
+  mountWorkspaceResourcesPage(host as unknown as HTMLElement, {
+    transport,
+    context: CONTEXT,
+    locale: "en",
+  });
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  await flush();
+  assert.match(host.innerHTML, /Riverside Civil Crew/);
+
+  clickRow("RPS-CIVIL-CREW");
+  clickTab("usage");
+  await flush();
+  await flush();
+  await flush();
+
+  assert.match(host.innerHTML, /data-resource-panel="usage"/);
+  assert.match(host.innerHTML, /data-period-start="2026-09-30" data-status="overallocated"/);
+  assert.match(host.innerHTML, /Overallocated/);
+  assert.match(host.innerHTML, />8</);
+  assert.match(host.innerHTML, /1 stored period\(s\) · 1 compared · 1 overallocated\./);
+  assert.match(host.innerHTML, /no scheduler or leveling pass runs here/);
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].path, "/api/projects/project-1/p6/resource-capacities/RPS-CIVIL-CREW/resolve");
+  assert.deepEqual(posts[0].request, {
+    contract_version: "p6-resource-capacity-read-api.v1",
+    period: "2026-09-30",
+    basis: "day",
+    hours_per_time_period: "8",
+  });
 });

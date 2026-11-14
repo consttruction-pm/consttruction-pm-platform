@@ -3756,8 +3756,12 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
-- `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
-  shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
-  export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are
-  the next P7 candidates and need their own stored contracts where the current
-  read models do not expose the data.
+- `RES-005` (curves, shifts, multiple prices), `TRK-001` (tracking layout
+  save/open/share/import/export/delete) and `PRO-002` (period actuals) remain
+  `NOT_AUDITED`; they are the next P7 candidates and need their own stored
+  contracts where the current read models do not expose the data.
+- `RES-004` availability/overallocation is now `WIRED_READ` through the
+  Resources window Usage tab (stored assignment periods + each assignment's
+  stored Units/Time against the service-resolved Max Units per period start).
+  Overtime, a timescale/bucket editor, a usage profile chart, actual/remaining/
+  forecast spread types and a leveling run/apply remain open.
