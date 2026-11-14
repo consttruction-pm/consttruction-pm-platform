@@ -114,11 +114,23 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
         obs_responsible_manager=str(row[11]) if len(row) > 11 and row[11] else "",
         website_url=str(row[12]) if len(row) > 12 and row[12] else "",
-        checkout_state=(
-            str(row[13]) if len(row) > 13 and row[13] else "checked_in"
+        default_activity_type=(
+            str(row[13]) if len(row) > 13 and row[13] else "Task Dependent"
         ),
-        checked_out_by=str(row[14]) if len(row) > 14 and row[14] else "",
-        checked_out_at=None if len(row) <= 15 or row[15] is None else str(row[15]),
+        default_percent_complete_type=(
+            str(row[14]) if len(row) > 14 and row[14] else "DURATION"
+        ),
+        activity_id_prefix=str(row[15]) if len(row) > 15 and row[15] else "",
+        activity_id_suffix=str(row[16]) if len(row) > 16 and row[16] else "",
+        activity_id_increment=(
+            int(row[17]) if len(row) > 17 and row[17] is not None else 10
+        ),
+        increment_activity_id=bool(row[18]) if len(row) > 18 else False,
+        checkout_state=(
+            str(row[19]) if len(row) > 19 and row[19] else "checked_in"
+        ),
+        checked_out_by=str(row[20]) if len(row) > 20 and row[20] else "",
+        checked_out_at=None if len(row) <= 21 or row[21] is None else str(row[21]),
     )
 
 
@@ -378,6 +390,12 @@ class PreviewStore:
                 business_domain TEXT NOT NULL DEFAULT '',
                 obs_responsible_manager TEXT NOT NULL DEFAULT '',
                 website_url TEXT NOT NULL DEFAULT '',
+                default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+                default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+                activity_id_prefix TEXT NOT NULL DEFAULT '',
+                activity_id_suffix TEXT NOT NULL DEFAULT '',
+                activity_id_increment INTEGER NOT NULL DEFAULT 10,
+                increment_activity_id INTEGER NOT NULL DEFAULT 0,
                 checkout_state TEXT NOT NULL DEFAULT 'checked_in',
                 checked_out_by TEXT NOT NULL DEFAULT '',
                 checked_out_at TEXT,
@@ -451,6 +469,30 @@ class PreviewStore:
                 "ALTER TABLE preview_project ADD COLUMN website_url TEXT NOT NULL DEFAULT ''",
             ),
             (
+                "default_activity_type",
+                "ALTER TABLE preview_project ADD COLUMN default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent'",
+            ),
+            (
+                "default_percent_complete_type",
+                "ALTER TABLE preview_project ADD COLUMN default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'",
+            ),
+            (
+                "activity_id_prefix",
+                "ALTER TABLE preview_project ADD COLUMN activity_id_prefix TEXT NOT NULL DEFAULT ''",
+            ),
+            (
+                "activity_id_suffix",
+                "ALTER TABLE preview_project ADD COLUMN activity_id_suffix TEXT NOT NULL DEFAULT ''",
+            ),
+            (
+                "activity_id_increment",
+                "ALTER TABLE preview_project ADD COLUMN activity_id_increment INTEGER NOT NULL DEFAULT 10",
+            ),
+            (
+                "increment_activity_id",
+                "ALTER TABLE preview_project ADD COLUMN increment_activity_id INTEGER NOT NULL DEFAULT 0",
+            ),
+            (
                 "checkout_state",
                 "ALTER TABLE preview_project ADD COLUMN checkout_state TEXT NOT NULL DEFAULT 'checked_in'",
             ),
@@ -491,6 +533,12 @@ class PreviewStore:
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
         commit: bool = True,
     ) -> None:
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
@@ -509,8 +557,11 @@ class PreviewStore:
             "INSERT INTO preview_project "
             "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at, "
             "description, start_date, date_system, primary_calendar_id, settings_revision, "
-            "business_domain, obs_responsible_manager, website_url) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "business_domain, obs_responsible_manager, website_url, "
+            "default_activity_type, default_percent_complete_type, "
+            "activity_id_prefix, activity_id_suffix, activity_id_increment, "
+            "increment_activity_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -527,6 +578,12 @@ class PreviewStore:
                 business_domain,
                 obs_responsible_manager,
                 website_url,
+                default_activity_type,
+                default_percent_complete_type,
+                activity_id_prefix,
+                activity_id_suffix,
+                activity_id_increment,
+                1 if increment_activity_id else 0,
             ),
         )
         if owns_transaction:
@@ -567,7 +624,10 @@ class PreviewStore:
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
             "p.settings_revision, p.status, p.business_domain, "
-            "p.obs_responsible_manager, p.website_url, p.checkout_state, "
+            "p.obs_responsible_manager, p.website_url, "
+            "p.default_activity_type, p.default_percent_complete_type, "
+            "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
+            "p.increment_activity_id, p.checkout_state, "
             "p.checked_out_by, p.checked_out_at "
             "FROM preview_project p "
             "JOIN preview_project_member m "
@@ -585,7 +645,10 @@ class PreviewStore:
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
             "p.settings_revision, p.status, p.business_domain, "
-            "p.obs_responsible_manager, p.website_url, p.checkout_state, "
+            "p.obs_responsible_manager, p.website_url, "
+            "p.default_activity_type, p.default_percent_complete_type, "
+            "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
+            "p.increment_activity_id, p.checkout_state, "
             "p.checked_out_by, p.checked_out_at "
             "FROM preview_project p "
             "JOIN preview_project_member m "
@@ -612,6 +675,12 @@ class PreviewStore:
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
     ) -> bool:
         """Apply a configuration-revision-guarded metadata update.
 
@@ -639,6 +708,12 @@ class PreviewStore:
             "business_domain=COALESCE(?, business_domain), "
             "obs_responsible_manager=COALESCE(?, obs_responsible_manager), "
             "website_url=COALESCE(?, website_url), "
+            "default_activity_type=COALESCE(?, default_activity_type), "
+            "default_percent_complete_type=COALESCE(?, default_percent_complete_type), "
+            "activity_id_prefix=COALESCE(?, activity_id_prefix), "
+            "activity_id_suffix=COALESCE(?, activity_id_suffix), "
+            "activity_id_increment=COALESCE(?, activity_id_increment), "
+            "increment_activity_id=COALESCE(?, increment_activity_id), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
             "SELECT 1 FROM preview_project_member m "
@@ -653,6 +728,12 @@ class PreviewStore:
                 business_domain,
                 obs_responsible_manager,
                 website_url,
+                default_activity_type,
+                default_percent_complete_type,
+                activity_id_prefix,
+                activity_id_suffix,
+                activity_id_increment,
+                None if increment_activity_id is None else (1 if increment_activity_id else 0),
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -971,6 +1052,12 @@ class PreviewProjectRepository:
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
     ) -> ProjectSummary:
         if self.store.project_exists(tenant_id, project_id):
             raise ValueError("PROJECT_ALREADY_EXISTS")
@@ -1001,6 +1088,12 @@ class PreviewProjectRepository:
                 business_domain=business_domain,
                 obs_responsible_manager=obs_responsible_manager,
                 website_url=website_url,
+                default_activity_type=default_activity_type,
+                default_percent_complete_type=default_percent_complete_type,
+                activity_id_prefix=activity_id_prefix,
+                activity_id_suffix=activity_id_suffix,
+                activity_id_increment=activity_id_increment,
+                increment_activity_id=increment_activity_id,
                 commit=False,
             )
             self.store.add_members(
@@ -1027,6 +1120,12 @@ class PreviewProjectRepository:
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
         )
 
     def update_for_user(
@@ -1044,6 +1143,12 @@ class PreviewProjectRepository:
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
     ) -> ProjectSummary | None:
         updated = self.store.update_project(
             tenant_id,
@@ -1058,6 +1163,12 @@ class PreviewProjectRepository:
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
         )
         if not updated:
             return None

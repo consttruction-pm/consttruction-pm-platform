@@ -85,6 +85,12 @@ class ProjectLifecycleAPI:
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
         now: datetime,
     ) -> ProjectContextResponse:
         return ProjectContextResponse(
@@ -99,6 +105,12 @@ class ProjectLifecycleAPI:
                 business_domain=business_domain,
                 obs_responsible_manager=obs_responsible_manager,
                 website_url=website_url,
+                default_activity_type=default_activity_type,
+                default_percent_complete_type=default_percent_complete_type,
+                activity_id_prefix=activity_id_prefix,
+                activity_id_suffix=activity_id_suffix,
+                activity_id_increment=activity_id_increment,
+                increment_activity_id=increment_activity_id,
                 now=now,
             )
         )
@@ -121,6 +133,12 @@ class ProjectLifecycleAPI:
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -135,6 +153,12 @@ class ProjectLifecycleAPI:
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
             expected_revision=expected_revision,
             now=now,
         )

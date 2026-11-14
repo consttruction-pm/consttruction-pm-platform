@@ -52,6 +52,12 @@ class Projects:
         business_domain="",
         obs_responsible_manager="",
         website_url="",
+        default_activity_type="Task Dependent",
+        default_percent_complete_type="DURATION",
+        activity_id_prefix="",
+        activity_id_suffix="",
+        activity_id_increment=10,
+        increment_activity_id=False,
     ):
         project = ProjectSummary(
             project_id,
@@ -65,6 +71,12 @@ class Projects:
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
         )
         self.items[(tenant_id, user_id, project_id)] = project
         return project
@@ -84,6 +96,12 @@ class Projects:
         business_domain=None,
         obs_responsible_manager=None,
         website_url=None,
+        default_activity_type=None,
+        default_percent_complete_type=None,
+        activity_id_prefix=None,
+        activity_id_suffix=None,
+        activity_id_increment=None,
+        increment_activity_id=None,
     ):
         current = self.items.get((tenant_id, user_id, project_id))
         if current is None or current.settings_revision != expected_revision:
@@ -108,6 +126,36 @@ class Projects:
             ),
             website_url=(
                 website_url if website_url is not None else current.website_url
+            ),
+            default_activity_type=(
+                default_activity_type
+                if default_activity_type is not None
+                else current.default_activity_type
+            ),
+            default_percent_complete_type=(
+                default_percent_complete_type
+                if default_percent_complete_type is not None
+                else current.default_percent_complete_type
+            ),
+            activity_id_prefix=(
+                activity_id_prefix
+                if activity_id_prefix is not None
+                else current.activity_id_prefix
+            ),
+            activity_id_suffix=(
+                activity_id_suffix
+                if activity_id_suffix is not None
+                else current.activity_id_suffix
+            ),
+            activity_id_increment=(
+                activity_id_increment
+                if activity_id_increment is not None
+                else current.activity_id_increment
+            ),
+            increment_activity_id=(
+                increment_activity_id
+                if increment_activity_id is not None
+                else current.increment_activity_id
             ),
             checkout_state=current.checkout_state,
             checked_out_by=current.checked_out_by,
@@ -476,6 +524,82 @@ def test_project_admin_can_store_obs_manager_and_website():
     assert updated.obs_responsible_manager == ""
     assert updated.website_url == "http://example.org/b"
     assert updated.settings_revision == 1
+
+
+def test_project_admin_can_store_activity_defaults():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    created = service.create_project(
+        "session-a",
+        "project-c",
+        "Project C",
+        default_activity_type="Resource Dependent",
+        default_percent_complete_type="units",
+        activity_id_prefix=" AH- ",
+        activity_id_suffix=" -X",
+        activity_id_increment="25",
+        increment_activity_id=True,
+        now=now,
+    )
+    project = service.get_project("session-a", created.project_id, now=now)
+    assert project.default_activity_type == "Resource Dependent"
+    assert project.default_percent_complete_type == "UNITS"
+    assert project.activity_id_prefix == "AH-"
+    assert project.activity_id_suffix == "-X"
+    assert project.activity_id_increment == 25
+    assert project.increment_activity_id is True
+
+    # Omitted fields keep their stored value; explicit values replace it.
+    updated = service.update_project(
+        "session-a",
+        "project-c",
+        name="Project C",
+        activity_id_increment=5,
+        expected_revision=0,
+        now=now,
+    )
+    assert updated.activity_id_increment == 5
+    assert updated.default_activity_type == "Resource Dependent"
+    assert updated.activity_id_prefix == "AH-"
+
+    cleared = service.update_project(
+        "session-a",
+        "project-c",
+        name="Project C",
+        activity_id_prefix="",
+        increment_activity_id=False,
+        expected_revision=1,
+        now=now,
+    )
+    assert cleared.activity_id_prefix == ""
+    assert cleared.increment_activity_id is False
+
+
+def test_project_activity_defaults_reject_invalid_values():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    cases = (
+        ({"default_activity_type": "Summary"}, "PROJECT_DEFAULT_ACTIVITY_TYPE_INVALID"),
+        (
+            {"default_percent_complete_type": "WEIGHTED"},
+            "PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID",
+        ),
+        ({"activity_id_prefix": "A B"}, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"),
+        ({"activity_id_suffix": "X" * 21}, "PROJECT_ACTIVITY_ID_SUFFIX_INVALID"),
+        ({"activity_id_increment": 0}, "PROJECT_ACTIVITY_ID_INCREMENT_INVALID"),
+        ({"activity_id_increment": True}, "PROJECT_ACTIVITY_ID_INCREMENT_INVALID"),
+        ({"increment_activity_id": "yes"}, "PROJECT_INCREMENT_ACTIVITY_ID_INVALID"),
+    )
+    for fields, code in cases:
+        with pytest.raises(ProjectLifecycleError, match=code):
+            service.update_project(
+                "session-a",
+                "project-a",
+                name="Project A",
+                expected_revision=0,
+                now=now,
+                **fields,
+            )
 
 
 def test_project_website_rejects_non_http_and_userinfo():

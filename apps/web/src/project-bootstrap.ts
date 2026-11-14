@@ -185,6 +185,12 @@ export class ProjectBootstrap {
         | "";
       obs_responsible_manager?: string;
       website_url?: string;
+      default_activity_type?: string;
+      default_percent_complete_type?: string;
+      activity_id_prefix?: string;
+      activity_id_suffix?: string;
+      activity_id_increment?: number;
+      increment_activity_id?: boolean;
     },
     expectedRevision: number,
   ): Promise<ApiResult<{ project: ProjectSummary }>> {

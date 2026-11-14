@@ -1,18 +1,18 @@
 {
   "contract": "cubi-prj-001-project-register.v1",
-  "testedCodeSha": "f5dcafef7c5d6ebdd3afe1fb979e41975dccd832",
-  "gitHead": "f5dcafef7c5d6ebdd3afe1fb979e41975dccd832",
+  "testedCodeSha": "95dead662363a2b63acf3b947d69ea4584b2af2d",
+  "gitHead": "95dead662363a2b63acf3b947d69ea4584b2af2d",
   "evidenceCommitSha": null,
-  "baseUrl": "http://127.0.0.1:4282",
-  "fixtureId": "E2E-PRJ-MWGAAEXZ",
-  "startedAt": "2026-11-14T10:49:46.011Z",
+  "baseUrl": "http://127.0.0.1:4243",
+  "fixtureId": "E2E-PRJ-MWGBJIWP",
+  "startedAt": "2026-11-14T11:24:50.676Z",
   "scenarios": [
     {
       "id": "01",
       "name": "The register shows exactly the session-authorized projects with their persisted Business Domain",
       "status": "pass",
-      "at": "2026-11-14T10:49:49.029Z",
-      "durationMs": 75,
+      "at": "2026-11-14T11:24:53.712Z",
+      "durationMs": 83,
       "details": {
         "count": "2 of 2 projects",
         "groups": [
@@ -31,7 +31,7 @@
       "id": "02",
       "name": "Search narrows the tree and the table to matching persisted rows",
       "status": "pass",
-      "at": "2026-11-14T10:49:50.253Z",
+      "at": "2026-11-14T11:24:54.935Z",
       "durationMs": 1223,
       "details": {
         "filtered": "1 of 2"
@@ -41,8 +41,8 @@
       "id": "03",
       "name": "Business Domain filter and sort reorder only the visible view",
       "status": "pass",
-      "at": "2026-11-14T10:49:51.719Z",
-      "durationMs": 1466,
+      "at": "2026-11-14T11:24:56.402Z",
+      "durationMs": 1467,
       "details": {
         "expected": [
           "preview-rps-01",
@@ -54,8 +54,8 @@
       "id": "04",
       "name": "Selecting a project previews its record without opening it",
       "status": "pass",
-      "at": "2026-11-14T10:49:54.928Z",
-      "durationMs": 3209,
+      "at": "2026-11-14T11:24:59.607Z",
+      "durationMs": 3205,
       "details": {
         "opened": "preview-nse-02"
       }
@@ -64,8 +64,8 @@
       "id": "05",
       "name": "The tree collapses and keyboard selection works on the register",
       "status": "pass",
-      "at": "2026-11-14T10:49:56.134Z",
-      "durationMs": 1206,
+      "at": "2026-11-14T11:25:00.799Z",
+      "durationMs": 1192,
       "details": {
         "keyboard": "Enter",
         "collapsed": true
@@ -75,10 +75,10 @@
       "id": "06",
       "name": "Business Domain edits are persisted, revision-guarded and validated",
       "status": "pass",
-      "at": "2026-11-14T10:49:58.867Z",
-      "durationMs": 2733,
+      "at": "2026-11-14T11:25:03.518Z",
+      "durationMs": 2719,
       "details": {
-        "fixtureId": "E2E-PRJ-MWGAAEXZ",
+        "fixtureId": "E2E-PRJ-MWGBJIWP",
         "domain": "energy",
         "settingsRevision": 1
       }
@@ -87,8 +87,8 @@
       "id": "06b",
       "name": "Project status filter narrows the register to the stored status",
       "status": "pass",
-      "at": "2026-11-14T10:50:04.151Z",
-      "durationMs": 5284,
+      "at": "2026-11-14T11:25:08.850Z",
+      "durationMs": 5332,
       "details": {
         "plannedCount": 1,
         "activeCount": 2
@@ -98,7 +98,7 @@
       "id": "07",
       "name": "Persian renders the register right-to-left at 1280x720",
       "status": "pass",
-      "at": "2026-11-14T10:50:05.843Z",
+      "at": "2026-11-14T11:25:10.543Z",
       "durationMs": 1692,
       "details": {
         "dir": "rtl",
@@ -109,8 +109,8 @@
       "id": "08",
       "name": "A Viewer sees the authorized register but cannot change a Business Domain",
       "status": "pass",
-      "at": "2026-11-14T10:50:07.980Z",
-      "durationMs": 2137,
+      "at": "2026-11-14T11:25:12.715Z",
+      "durationMs": 2172,
       "details": {
         "status": 403
       }
@@ -529,7 +529,7 @@
         "body": {
           "context": {
             "tenant_id": "cubi-preview-tenant",
-            "project_id": "E2E-PRJ-MWGAAEXZ",
+            "project_id": "E2E-PRJ-MWGBJIWP",
             "revision": 0,
             "user_id": "preview-admin"
           }
@@ -542,9 +542,9 @@
       "ok": true,
       "detail": {
         "stored": {
-          "project_id": "E2E-PRJ-MWGAAEXZ",
+          "project_id": "E2E-PRJ-MWGBJIWP",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWGAAEXZ",
+          "name": "E2E Domain Project MWGBJIWP",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -555,6 +555,12 @@
           "business_domain": "construction",
           "obs_responsible_manager": "",
           "website_url": "",
+          "default_activity_type": "Task Dependent",
+          "default_percent_complete_type": "DURATION",
+          "activity_id_prefix": "",
+          "activity_id_suffix": "",
+          "activity_id_increment": 10,
+          "increment_activity_id": false,
           "checkout_state": "checked_in",
           "checked_out_by": "",
           "checked_out_at": null
@@ -570,7 +576,7 @@
           {
             "key": "construction",
             "projects": [
-              "E2E-PRJ-MWGAAEXZ"
+              "E2E-PRJ-MWGBJIWP"
             ]
           },
           {
@@ -595,9 +601,9 @@
       "detail": {
         "status": 200,
         "project": {
-          "project_id": "E2E-PRJ-MWGAAEXZ",
+          "project_id": "E2E-PRJ-MWGBJIWP",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWGAAEXZ",
+          "name": "E2E Domain Project MWGBJIWP",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -608,6 +614,12 @@
           "business_domain": "energy",
           "obs_responsible_manager": "",
           "website_url": "",
+          "default_activity_type": "Task Dependent",
+          "default_percent_complete_type": "DURATION",
+          "activity_id_prefix": "",
+          "activity_id_suffix": "",
+          "activity_id_increment": 10,
+          "increment_activity_id": false,
           "checkout_state": "checked_in",
           "checked_out_by": "",
           "checked_out_at": null
@@ -648,9 +660,9 @@
       "ok": true,
       "detail": {
         "project": {
-          "project_id": "E2E-PRJ-MWGAAEXZ",
+          "project_id": "E2E-PRJ-MWGBJIWP",
           "tenant_id": "cubi-preview-tenant",
-          "name": "E2E Domain Project MWGAAEXZ",
+          "name": "E2E Domain Project MWGBJIWP",
           "revision": 0,
           "description": "Created by the PRJ-001 browser acceptance suite.",
           "start_date": "2026-11-20",
@@ -661,6 +673,12 @@
           "business_domain": "energy",
           "obs_responsible_manager": "",
           "website_url": "",
+          "default_activity_type": "Task Dependent",
+          "default_percent_complete_type": "DURATION",
+          "activity_id_prefix": "",
+          "activity_id_suffix": "",
+          "activity_id_increment": 10,
+          "increment_activity_id": false,
           "checkout_state": "checked_in",
           "checked_out_by": "",
           "checked_out_at": null
@@ -709,6 +727,12 @@
             "business_domain": "industrial",
             "obs_responsible_manager": "",
             "website_url": "",
+            "default_activity_type": "Task Dependent",
+            "default_percent_complete_type": "DURATION",
+            "activity_id_prefix": "",
+            "activity_id_suffix": "",
+            "activity_id_increment": 10,
+            "increment_activity_id": false,
             "checkout_state": "checked_in",
             "checked_out_by": "",
             "checked_out_at": null
@@ -816,7 +840,7 @@
       "ok": true,
       "detail": {
         "rows": [
-          "E2E-PRJ-MWGAAEXZ",
+          "E2E-PRJ-MWGBJIWP",
           "preview-rps-01"
         ]
       }
@@ -889,12 +913,12 @@
       "ok": true,
       "detail": {
         "rows": [
-          "E2E-PRJ-MWGAAEXZ",
+          "E2E-PRJ-MWGBJIWP",
           "preview-rps-01",
           "preview-nse-02"
         ],
         "api": [
-          "E2E-PRJ-MWGAAEXZ",
+          "E2E-PRJ-MWGBJIWP",
           "preview-rps-01",
           "preview-nse-02"
         ]
@@ -960,15 +984,15 @@
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
+      "url": "/api/projects/E2E-PRJ-MWGBJIWP"
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
+      "url": "/api/projects/E2E-PRJ-MWGBJIWP"
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
+      "url": "/api/projects/E2E-PRJ-MWGBJIWP"
     },
     {
       "method": "POST",
@@ -996,11 +1020,11 @@
     },
     {
       "method": "PATCH",
-      "url": "/api/projects/E2E-PRJ-MWGAAEXZ"
+      "url": "/api/projects/E2E-PRJ-MWGBJIWP"
     }
   ],
   "passed": 48,
   "failed": 0,
-  "finishedAt": "2026-11-14T10:50:07.981Z",
+  "finishedAt": "2026-11-14T11:25:12.715Z",
   "status": "passed"
 }

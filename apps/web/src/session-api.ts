@@ -35,6 +35,13 @@ export type ProjectSummary = {
   checkout_state?: "checked_in" | "checked_out";
   checked_out_by?: string;
   checked_out_at?: string | null;
+  /** V26 Defaults tab: applied to newly created activities only. */
+  default_activity_type?: string;
+  default_percent_complete_type?: string;
+  activity_id_prefix?: string;
+  activity_id_suffix?: string;
+  activity_id_increment?: number;
+  increment_activity_id?: boolean;
 };
 
 export type BusinessDomain =
@@ -69,6 +76,12 @@ export type ProjectMetadataInput = {
   obs_responsible_manager?: string;
   /** Optional absolute http(s) project web-site address. */
   website_url?: string;
+  default_activity_type?: string;
+  default_percent_complete_type?: string;
+  activity_id_prefix?: string;
+  activity_id_suffix?: string;
+  activity_id_increment?: number;
+  increment_activity_id?: boolean;
 };
 
 export type ProjectScheduleSettings = {
@@ -109,6 +122,12 @@ export type ProjectCreateMetadata = {
   business_domain?: BusinessDomain | "";
   obs_responsible_manager?: string;
   website_url?: string;
+  default_activity_type?: string;
+  default_percent_complete_type?: string;
+  activity_id_prefix?: string;
+  activity_id_suffix?: string;
+  activity_id_increment?: number;
+  increment_activity_id?: boolean;
 };
 
 export type ProjectContext = {

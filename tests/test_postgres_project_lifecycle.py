@@ -67,7 +67,8 @@ def test_project_creation_persists_metadata_columns():
     assert p.date_system == "jalali"
     insert_params = c.calls[0][1]
     assert insert_params == (
-        "t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "", "", ""
+        "t1", "p2", "Project 2", "Scope", "2026-11-02", "jalali", "CAL-1", "", "", "",
+        "Task Dependent", "DURATION", "", "", 10, False,
     )
 
 
@@ -90,7 +91,7 @@ def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
         "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2", None,
-        None, None, "t1", "p2", 2, "u1",
+        None, None, None, None, None, None, None, None, "t1", "p2", 2, "u1",
     )
 
 
@@ -107,7 +108,7 @@ def test_project_creation_and_update_persist_the_business_domain():
         "t1", "u1", "p2", "Project 2", business_domain="infrastructure"
     )
     assert p.business_domain == "infrastructure"
-    assert c.calls[0][1][-3] == "infrastructure"
+    assert c.calls[0][1][7] == "infrastructure"
     assert "business_domain" in c.calls[0][0]
 
     c.next_rows = [
@@ -150,14 +151,16 @@ def test_project_creation_persists_obs_manager_and_website():
     assert p.obs_responsible_manager == "Dana Whitfield"
     assert p.website_url == "https://example.com/p2"
     params = c.calls[0][1]
-    assert params[-2:] == ("Dana Whitfield", "https://example.com/p2")
+    assert params[8:10] == ("Dana Whitfield", "https://example.com/p2")
 
 
 def test_project_summary_carries_checkout_lease():
     c = FakeConnection()
     c.next_rows = [(
         "p1", "t1", "Project 1", 4, "Scope", None, "gregorian", None, 2,
-        "active", "", "Manager", "https://example.com", "checked_out", "u2",
+        "active", "", "Manager", "https://example.com",
+        "Task Dependent", "DURATION", "", "", 10, False,
+        "checked_out", "u2",
         datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc),
     )]
     p = PostgresProjectRepository(c).get_for_user("t1", "p1", "u1")
@@ -171,7 +174,9 @@ def test_checkout_is_a_conditional_revision_guarded_update():
     c = FakeConnection()
     c.next_rows = [(
         "p1", "t1", "Project 1", 4, "", None, "gregorian", None, 3,
-        "active", "", "", "", "checked_out", "u1",
+        "active", "", "", "",
+        "Task Dependent", "DURATION", "", "", 10, False,
+        "checked_out", "u1",
         datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc),
     )]
     changed_at = datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc)
@@ -187,3 +192,44 @@ def test_checkout_is_a_conditional_revision_guarded_update():
     assert "checkout_state='checked_in'" in sql
     assert "settings_revision=settings_revision+1" in sql
     assert params == ("checked_out", "u1", changed_at, "t1", "p1", 2, "u1")
+
+
+def test_project_creation_and_update_persist_activity_defaults():
+    c = FakeConnection()
+    p = PostgresProjectRepository(c).create_for_user(
+        "t1", "u1", "p2", "Project 2",
+        default_activity_type="Resource Dependent",
+        default_percent_complete_type="UNITS",
+        activity_id_prefix="AH-",
+        activity_id_suffix="-X",
+        activity_id_increment=25,
+        increment_activity_id=True,
+    )
+    assert p.default_activity_type == "Resource Dependent"
+    assert p.default_percent_complete_type == "UNITS"
+    assert p.activity_id_prefix == "AH-"
+    assert p.activity_id_suffix == "-X"
+    assert p.activity_id_increment == 25
+    assert p.increment_activity_id is True
+    params = c.calls[0][1]
+    assert params[10:] == (
+        "Resource Dependent", "UNITS", "AH-", "-X", 25, True,
+    )
+
+    c.next_rows = [(
+        "p2", "t1", "Project 2", 0, "", None, "gregorian", None, 1,
+        "active", "", "", "",
+        "Resource Dependent", "UNITS", "AH-", "-X", 5, True,
+        "checked_in", "", None,
+    )]
+    updated = PostgresProjectRepository(c).update_for_user(
+        "t1", "u1", "p2",
+        expected_revision=0,
+        name="Project 2",
+        activity_id_increment=5,
+    )
+    assert updated is not None and updated.activity_id_increment == 5
+    sql, params = c.calls[2]
+    assert "default_activity_type=COALESCE(%s, default_activity_type)" in sql
+    assert "increment_activity_id=COALESCE(%s, increment_activity_id)" in sql
+    assert params[8:13] == (None, None, None, None, 5)

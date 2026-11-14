@@ -1,4 +1,5 @@
 import type { WorkspaceActivityGroupLevel, WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState, WorkspaceWbsMilestone } from "./workspace-model.js";
+import { computeNextActivityId } from "./activity-id.js";
 import { selectedActivityIdList } from "./workspace-model.js";
 import type { ProjectSummary } from "./session-api.js";
 import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
@@ -170,10 +171,15 @@ function getActivityCreateFieldLabel(locale: string, field: ActivityCreateChoice
   return translateWorkspaceUiText(locale, label.en, label.fa);
 }
 
-function renderActivityCreateOptions(locale: string, field: ActivityCreateChoiceField): string {
+function renderActivityCreateOptions(
+  locale: string,
+  field: ActivityCreateChoiceField,
+  selectedValue?: string,
+): string {
   const config = ACTIVITY_CREATE_FIELDS[field];
+  const selected = selectedValue || config.defaultValue;
   return config.options.map((option) =>
-    `<option value="${escapeAttribute(option.value)}" ${option.value === config.defaultValue ? "selected" : ""}>${escapeHtml(translateWorkspaceUiText(locale, option.en, option.fa))}</option>`
+    `<option value="${escapeAttribute(option.value)}" ${option.value === selected ? "selected" : ""}>${escapeHtml(translateWorkspaceUiText(locale, option.en, option.fa))}</option>`
   ).join("");
 }
 
@@ -2826,6 +2832,35 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     return;
   }
   const t = getWorkspaceLabels(state.locale);
+  // V26 Defaults: the create form starts from the stored project values. The
+  // ID is only a suggestion the user can edit; the server stores what is sent.
+  const projectSummary = options.projectSummary;
+  const projectDefaults = projectSummary && projectSummary.project_id === state.context.project_id
+    ? {
+        prefix: projectSummary.activity_id_prefix ?? "",
+        suffix: projectSummary.activity_id_suffix ?? "",
+        increment: projectSummary.activity_id_increment ?? 10,
+        incrementActivityId: projectSummary.increment_activity_id === true,
+      }
+    : { prefix: "", suffix: "", increment: 10, incrementActivityId: false };
+  const activityTypeValues = new Set(ACTIVITY_CREATE_FIELDS.activity_type.options.map((option) => option.value as string));
+  const percentTypeValues = new Set(ACTIVITY_CREATE_FIELDS.percent_complete_type.options.map((option) => option.value as string));
+  const storedActivityType = projectSummary?.default_activity_type ?? "";
+  const storedPercentType = projectSummary?.default_percent_complete_type ?? "";
+  const activityDefaults = {
+    activityType: activityTypeValues.has(storedActivityType) ? storedActivityType : undefined,
+    percentCompleteType: percentTypeValues.has(storedPercentType.toUpperCase()) ? storedPercentType.toUpperCase() : undefined,
+  };
+  const activityIdSuggestion = computeNextActivityId(
+    state.activities.map((activity) => activity.id),
+    projectDefaults,
+    state.selectedActivityId,
+  );
+  const activityIdSuggestionHint = uiText(
+    state.locale,
+    "Suggested from the project defaults; edit it before saving.",
+    "بر پایهٔ پیش‌فرض‌های پروژه پیشنهاد شده است؛ پیش از ذخیره می‌توانید آن را ویرایش کنید.",
+  );
   const presentation = options.presentation ?? DEFAULT_PRESENTATION;
   const tablePresentation = presentation.table;
   const lineNumbers = tablePresentation.lineNumbers;
@@ -3131,15 +3166,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <h2>${escapeHtml(t.activityCreate)}</h2>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
-              <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
+              <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off" value="${escapeAttribute(activityIdSuggestion)}"><small class="cp-form-hint" data-activity-id-suggestion>${escapeHtml(activityIdSuggestionHint)}</small></label>
               <label>${escapeHtml(t.activityName)} <input name="name" required maxlength="180" autocomplete="off"></label>
               <label>${escapeHtml(t.activityDuration)} <input name="duration_value" type="number" min="0" step="any" value="1" required></label>
               <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">${escapeHtml(t.workingDay)}</option><option value="working-hour">${escapeHtml(t.workingHour)}</option></select></label>
               <label>${escapeHtml(t.activityWbs)} <select name="wbs_id" required ${state.wbsNodes.length ? "" : "disabled"}>${state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === state.selectedWbsId ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("")}</select></label>
-              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "activity_type"))} <select name="activity_type">${renderActivityCreateOptions(state.locale, "activity_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "activity_type"))} <select name="activity_type">${renderActivityCreateOptions(state.locale, "activity_type", activityDefaults.activityType)}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status"))} <select name="status">${renderActivityCreateOptions(state.locale, "status")}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status_code"))} <select name="status_code">${renderActivityCreateOptions(state.locale, "status_code")}</select></label>
-              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type", activityDefaults.percentCompleteType)}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "leveling_priority"))} <select name="leveling_priority">${renderActivityCreateOptions(state.locale, "leveling_priority")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}

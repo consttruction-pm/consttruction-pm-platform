@@ -1893,6 +1893,24 @@ class ProjectLifecycleHttpRoutes:
                         activity_id = payload.get("activity_id")
                         if not isinstance(activity_id, str) or not activity_id.strip():
                             raise ValueError("INVALID_ACTIVITY_ID")
+                        # V26 Defaults tab: a new activity inherits the project's
+                        # stored defaults when the client omits these two fields.
+                        # An explicit value in the request always wins, and only
+                        # creation consults the defaults (never a later edit).
+                        if (
+                            "activity_type" not in payload
+                            or "percent_complete_type" not in payload
+                        ):
+                            defaults = self._api.get_project(
+                                session_id, project_id, now=now
+                            )
+                            payload.setdefault(
+                                "activity_type", defaults.default_activity_type
+                            )
+                            payload.setdefault(
+                                "percent_complete_type",
+                                defaults.default_percent_complete_type,
+                            )
                         result = self._p6_activity_master_api.create(
                             build_activity(activity_id), auth_context=auth
                         )
@@ -6491,6 +6509,16 @@ class ProjectLifecycleHttpRoutes:
                     business_domain=payload.get("business_domain", ""),
                     obs_responsible_manager=payload.get("obs_responsible_manager", ""),
                     website_url=payload.get("website_url", ""),
+                    default_activity_type=payload.get(
+                        "default_activity_type", "Task Dependent"
+                    ),
+                    default_percent_complete_type=payload.get(
+                        "default_percent_complete_type", "DURATION"
+                    ),
+                    activity_id_prefix=payload.get("activity_id_prefix", ""),
+                    activity_id_suffix=payload.get("activity_id_suffix", ""),
+                    activity_id_increment=payload.get("activity_id_increment", 10),
+                    increment_activity_id=payload.get("increment_activity_id", False),
                     now=now,
                 )
                 return self._json(201, {"context": asdict(response.context)})
@@ -6521,6 +6549,36 @@ class ProjectLifecycleHttpRoutes:
                     ),
                     website_url=(
                         payload["website_url"] if "website_url" in payload else None
+                    ),
+                    default_activity_type=(
+                        payload["default_activity_type"]
+                        if "default_activity_type" in payload
+                        else None
+                    ),
+                    default_percent_complete_type=(
+                        payload["default_percent_complete_type"]
+                        if "default_percent_complete_type" in payload
+                        else None
+                    ),
+                    activity_id_prefix=(
+                        payload["activity_id_prefix"]
+                        if "activity_id_prefix" in payload
+                        else None
+                    ),
+                    activity_id_suffix=(
+                        payload["activity_id_suffix"]
+                        if "activity_id_suffix" in payload
+                        else None
+                    ),
+                    activity_id_increment=(
+                        payload["activity_id_increment"]
+                        if "activity_id_increment" in payload
+                        else None
+                    ),
+                    increment_activity_id=(
+                        payload["increment_activity_id"]
+                        if "increment_activity_id" in payload
+                        else None
                     ),
                     expected_revision=payload.get("expected_revision"),
                     now=now,

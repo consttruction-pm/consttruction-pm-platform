@@ -796,6 +796,103 @@ function openProjectSettings(
   levelingRow.append(levelingInput, levelingSave, levelingStatus);
   levelingSection.append(levelingHeading, levelingHint, levelingRow);
 
+  const activityTypeLabel = (value: string): string => {
+    if (value === "Resource Dependent") return labels.activityTypeResourceDependent;
+    if (value === "Level of Effort") return labels.activityTypeLevelOfEffort;
+    if (value === "Start Milestone") return labels.activityTypeStartMilestone;
+    if (value === "Finish Milestone") return labels.activityTypeFinishMilestone;
+    if (value === "WBS Summary") return labels.activityTypeWbsSummary;
+    return labels.activityTypeTaskDependent;
+  };
+  const percentTypeLabel = (value: string): string => {
+    if (value === "UNITS") return labels.percentTypeUnits;
+    if (value === "PHYSICAL") return labels.percentTypePhysical;
+    if (value === "SCOPE") return labels.percentTypeScope;
+    return labels.percentTypeDuration;
+  };
+
+  const defaultsSection = document.createElement("section");
+  defaultsSection.className = "cp-project-settings-section";
+  defaultsSection.dataset.projectDefaults = "true";
+  const defaultsHeading = document.createElement("h3");
+  defaultsHeading.textContent = labels.projectDefaults;
+  const defaultsHint = document.createElement("p");
+  defaultsHint.className = "cp-form-hint";
+  defaultsHint.textContent = labels.projectDefaultsHint;
+
+  const defaultActivityTypeSelect = document.createElement("select");
+  defaultActivityTypeSelect.name = "default_activity_type";
+  defaultActivityTypeSelect.dataset.projectDefaultActivityType = "true";
+  for (const value of [
+    "Task Dependent",
+    "Resource Dependent",
+    "Level of Effort",
+    "Start Milestone",
+    "Finish Milestone",
+    "WBS Summary",
+  ]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = activityTypeLabel(value);
+    defaultActivityTypeSelect.append(option);
+  }
+
+  const defaultPercentCompleteSelect = document.createElement("select");
+  defaultPercentCompleteSelect.name = "default_percent_complete_type";
+  defaultPercentCompleteSelect.dataset.projectDefaultPercentComplete = "true";
+  for (const value of ["DURATION", "UNITS", "PHYSICAL", "SCOPE"]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = percentTypeLabel(value);
+    defaultPercentCompleteSelect.append(option);
+  }
+
+  const activityIdPrefixInput = document.createElement("input");
+  activityIdPrefixInput.name = "activity_id_prefix";
+  activityIdPrefixInput.maxLength = 20;
+  activityIdPrefixInput.autocomplete = "off";
+  activityIdPrefixInput.dataset.projectActivityIdPrefix = "true";
+
+  const activityIdSuffixInput = document.createElement("input");
+  activityIdSuffixInput.name = "activity_id_suffix";
+  activityIdSuffixInput.maxLength = 20;
+  activityIdSuffixInput.autocomplete = "off";
+  activityIdSuffixInput.dataset.projectActivityIdSuffix = "true";
+
+  const activityIdIncrementInput = document.createElement("input");
+  activityIdIncrementInput.type = "number";
+  activityIdIncrementInput.min = "1";
+  activityIdIncrementInput.max = "10000";
+  activityIdIncrementInput.step = "1";
+  activityIdIncrementInput.name = "activity_id_increment";
+  activityIdIncrementInput.dataset.projectActivityIdIncrement = "true";
+
+  const incrementActivityIdInput = document.createElement("input");
+  incrementActivityIdInput.type = "checkbox";
+  incrementActivityIdInput.name = "increment_activity_id";
+  incrementActivityIdInput.dataset.projectIncrementActivityId = "true";
+
+  const defaultsInline = document.createElement("div");
+  defaultsInline.className = "cp-project-settings-inline";
+  defaultsInline.append(
+    labelled(labels.projectActivityIdPrefix, activityIdPrefixInput),
+    labelled(labels.projectActivityIdSuffix, activityIdSuffixInput),
+  );
+  const incrementRow = document.createElement("div");
+  incrementRow.className = "cp-project-settings-inline";
+  incrementRow.append(
+    labelled(labels.projectActivityIdIncrement, activityIdIncrementInput),
+    labelled(labels.projectIncrementActivityId, incrementActivityIdInput),
+  );
+  defaultsSection.append(
+    defaultsHeading,
+    defaultsHint,
+    labelled(labels.projectDefaultActivityType, defaultActivityTypeSelect),
+    labelled(labels.projectDefaultPercentCompleteType, defaultPercentCompleteSelect),
+    defaultsInline,
+    incrementRow,
+  );
+
   const historyPanel = document.createElement("div");
   historyPanel.className = "cp-project-settings-history";
   historyPanel.dataset.projectStatusHistory = "true";
@@ -859,6 +956,7 @@ function openProjectSettings(
     status,
     form,
     checkoutSection,
+    defaultsSection,
     levelingSection,
     historyPanel,
     actions,
@@ -890,6 +988,12 @@ function openProjectSettings(
     businessDomainSelect.value = project.business_domain ?? "";
     obsManagerInput.value = project.obs_responsible_manager ?? "";
     websiteInput.value = project.website_url ?? "";
+    defaultActivityTypeSelect.value = project.default_activity_type ?? "Task Dependent";
+    defaultPercentCompleteSelect.value = (project.default_percent_complete_type ?? "DURATION").toUpperCase();
+    activityIdPrefixInput.value = project.activity_id_prefix ?? "";
+    activityIdSuffixInput.value = project.activity_id_suffix ?? "";
+    activityIdIncrementInput.value = String(project.activity_id_increment ?? 10);
+    incrementActivityIdInput.checked = project.increment_activity_id === true;
     calendarInput.value = project.primary_calendar_id ?? "";
     loadedStatus = (project.status ?? "active") as ProjectStatus;
     projectStatusSelect.value = loadedStatus;
@@ -1108,6 +1212,22 @@ function openProjectSettings(
       startDateInput.focus();
       return;
     }
+    const activityIdPrefix = activityIdPrefixInput.value.trim();
+    const activityIdSuffix = activityIdSuffixInput.value.trim();
+    if (activityIdPrefix.length > 20 || /\s/.test(activityIdPrefix) ||
+        activityIdSuffix.length > 20 || /\s/.test(activityIdSuffix)) {
+      setStatus(labels.projectDefaultsHint, "error");
+      (activityIdPrefix.length > 20 || /\s/.test(activityIdPrefix)
+        ? activityIdPrefixInput
+        : activityIdSuffixInput).focus();
+      return;
+    }
+    const activityIdIncrement = Number(activityIdIncrementInput.value);
+    if (!Number.isInteger(activityIdIncrement) || activityIdIncrement < 1 || activityIdIncrement > 10000) {
+      setStatus(labels.projectActivityIdIncrementHint, "error");
+      activityIdIncrementInput.focus();
+      return;
+    }
     const website = websiteInput.value.trim();
     if (website) {
       let validWebsite = false;
@@ -1148,6 +1268,12 @@ function openProjectSettings(
           | "",
         obs_responsible_manager: obsManagerInput.value.trim(),
         website_url: website,
+        default_activity_type: defaultActivityTypeSelect.value,
+        default_percent_complete_type: defaultPercentCompleteSelect.value,
+        activity_id_prefix: activityIdPrefix,
+        activity_id_suffix: activityIdSuffix,
+        activity_id_increment: activityIdIncrement,
+        increment_activity_id: incrementActivityIdInput.checked,
       },
       loadedRevision,
     );

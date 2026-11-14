@@ -1,17 +1,17 @@
 {
   "contract": "cubi-prj-003-project-tabs.v1",
-  "testedCodeSha": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
-  "gitHead": "f1ecba6eeea4310dc05e231b21a83d6e1d6073c8",
+  "testedCodeSha": "95dead662363a2b63acf3b947d69ea4584b2af2d",
+  "gitHead": "95dead662363a2b63acf3b947d69ea4584b2af2d",
   "evidenceCommitSha": null,
-  "baseUrl": "http://127.0.0.1:4261",
-  "startedAt": "2026-11-14T10:24:44.255Z",
+  "baseUrl": "http://127.0.0.1:4243",
+  "startedAt": "2026-11-14T11:18:42.199Z",
   "scenarios": [
     {
       "id": "01",
       "name": "The open project has one tab and no close control",
       "status": "pass",
-      "at": "2026-11-14T10:24:46.468Z",
-      "durationMs": 88,
+      "at": "2026-11-14T11:18:44.389Z",
+      "durationMs": 95,
       "details": {
         "tab": {
           "id": "preview-rps-01",
@@ -25,8 +25,8 @@
       "id": "02",
       "name": "Opening a second project adds an active tab",
       "status": "pass",
-      "at": "2026-11-14T10:24:48.422Z",
-      "durationMs": 1954,
+      "at": "2026-11-14T11:18:46.310Z",
+      "durationMs": 1921,
       "details": {
         "tabs": [
           {
@@ -47,8 +47,8 @@
       "id": "03",
       "name": "Each project tab restores its own desktop window set",
       "status": "pass",
-      "at": "2026-11-14T10:24:53.001Z",
-      "durationMs": 4579,
+      "at": "2026-11-14T11:18:50.676Z",
+      "durationMs": 4366,
       "details": {
         "firstWindows": [
           "schedule"
@@ -66,8 +66,8 @@
       "id": "04",
       "name": "Unsaved project work asks before a switch and survives cancel",
       "status": "pass",
-      "at": "2026-11-14T10:24:57.137Z",
-      "durationMs": 4136,
+      "at": "2026-11-14T11:18:54.825Z",
+      "durationMs": 4149,
       "details": {
         "cancelled": [
           {
@@ -99,8 +99,8 @@
       "id": "05",
       "name": "Closing an inactive tab keeps context; closing the active tab switches",
       "status": "pass",
-      "at": "2026-11-14T10:25:00.787Z",
-      "durationMs": 3649,
+      "at": "2026-11-14T11:18:58.492Z",
+      "durationMs": 3667,
       "details": {
         "afterInactive": {
           "count": 1,
@@ -146,8 +146,8 @@
       "id": "06",
       "name": "A reload restores the open tabs and the active project",
       "status": "pass",
-      "at": "2026-11-14T10:25:04.222Z",
-      "durationMs": 3435,
+      "at": "2026-11-14T11:19:01.860Z",
+      "durationMs": 3368,
       "details": {
         "tabs": [
           {
@@ -168,11 +168,11 @@
       "id": "07",
       "name": "Switching re-reads the project record and rejects a stale revision",
       "status": "pass",
-      "at": "2026-11-14T10:25:07.472Z",
-      "durationMs": 3250,
+      "at": "2026-11-14T11:19:05.077Z",
+      "durationMs": 3217,
       "details": {
         "revision": 0,
-        "renamed": "Riverside Pump Station Upgrade — switched MWG9E86Y",
+        "renamed": "Riverside Pump Station Upgrade — switched MWGBBML4",
         "stale": 409
       }
     },
@@ -180,8 +180,8 @@
       "id": "08",
       "name": "Persian renders the project tabs right-to-left at 1280x720",
       "status": "pass",
-      "at": "2026-11-14T10:25:09.110Z",
-      "durationMs": 1638,
+      "at": "2026-11-14T11:19:06.807Z",
+      "durationMs": 1730,
       "details": {
         "dir": "rtl",
         "aria": "پروژه‌های باز",
@@ -192,14 +192,14 @@
       "id": "09",
       "name": "A Viewer can only switch among the session's projects",
       "status": "pass",
-      "at": "2026-11-14T10:25:10.506Z",
-      "durationMs": 1396,
+      "at": "2026-11-14T11:19:08.110Z",
+      "durationMs": 1303,
       "details": {
         "tabs": [
           {
             "id": "preview-rps-01",
             "active": true,
-            "name": "Riverside Pump Station Upgrade — switched MWG9E86Y"
+            "name": "Riverside Pump Station Upgrade — switched MWGBBML4"
           }
         ],
         "authorized": [
@@ -593,11 +593,12 @@
       "detail": {
         "cells": [
           "preview-rps-01",
-          "Riverside Pump Station Upgrade — switched MWG9E86Y",
+          "Riverside Pump Station Upgrade — switched MWGBBML4",
           "Infrastructure",
           "2026-09-21",
           "Gregorian",
           "—",
+          "Active",
           "Open"
         ],
         "revision": "R1"
@@ -610,11 +611,12 @@
       "detail": {
         "cells": [
           "preview-rps-01",
-          "Riverside Pump Station Upgrade — switched MWG9E86Y",
+          "Riverside Pump Station Upgrade — switched MWGBBML4",
           "Infrastructure",
           "2026-09-21",
           "Gregorian",
           "—",
+          "Active",
           "Open"
         ],
         "revision": "R1"
@@ -649,11 +651,11 @@
           {
             "id": "preview-rps-01",
             "active": true,
-            "name": "Riverside Pump Station Upgrade — switched MWG9E86Y"
+            "name": "Riverside Pump Station Upgrade — switched MWGBBML4"
           }
         ],
         "closeButtons": 2,
-        "title": "Riverside Pump Station Upgrade — switched MWG9E86Y",
+        "title": "Riverside Pump Station Upgrade — switched MWGBBML4",
         "windows": [
           "project",
           "schedule"
@@ -676,7 +678,7 @@
         {
           "id": "preview-rps-01",
           "active": true,
-          "name": "Riverside Pump Station Upgrade — switched MWG9E86Y"
+          "name": "Riverside Pump Station Upgrade — switched MWGBBML4"
         }
       ]
     },
@@ -701,7 +703,7 @@
           {
             "id": "preview-rps-01",
             "active": true,
-            "name": "Riverside Pump Station Upgrade — switched MWG9E86Y"
+            "name": "Riverside Pump Station Upgrade — switched MWGBBML4"
           }
         ],
         "authorized": [
@@ -808,5 +810,5 @@
   "passed": 30,
   "failed": 0,
   "status": "passed",
-  "finishedAt": "2026-11-14T10:25:10.506Z"
+  "finishedAt": "2026-11-14T11:19:08.110Z"
 }

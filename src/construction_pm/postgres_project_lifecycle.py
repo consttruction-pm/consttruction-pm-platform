@@ -34,6 +34,12 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         business_domain TEXT NOT NULL DEFAULT '',
         obs_responsible_manager TEXT NOT NULL DEFAULT '',
         website_url TEXT NOT NULL DEFAULT '',
+        default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+        default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+        activity_id_prefix TEXT NOT NULL DEFAULT '',
+        activity_id_suffix TEXT NOT NULL DEFAULT '',
+        activity_id_increment INTEGER NOT NULL DEFAULT 10,
+        increment_activity_id BOOLEAN NOT NULL DEFAULT FALSE,
         checkout_state TEXT NOT NULL DEFAULT 'checked_in',
         checked_out_by TEXT NOT NULL DEFAULT '',
         checked_out_at TIMESTAMPTZ,
@@ -47,6 +53,30 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
     """
     ALTER TABLE project_lifecycle_projects
         ADD COLUMN IF NOT EXISTS website_url TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent'
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS activity_id_prefix TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS activity_id_suffix TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS activity_id_increment INTEGER NOT NULL DEFAULT 10
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS increment_activity_id BOOLEAN NOT NULL DEFAULT FALSE
     """,
     """
     ALTER TABLE project_lifecycle_projects
@@ -130,7 +160,9 @@ class PostgresProjectRepository(ProjectRepository):
         "SELECT p.project_id, p.tenant_id, p.name, p.revision, p.description, "
         "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision, "
         "p.status, p.business_domain, p.obs_responsible_manager, p.website_url, "
-        "p.checkout_state, p.checked_out_by, p.checked_out_at "
+        "p.default_activity_type, p.default_percent_complete_type, "
+        "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
+        "p.increment_activity_id, p.checkout_state, p.checked_out_by, p.checked_out_at "
         "FROM project_lifecycle_projects p "
     )
 
@@ -169,13 +201,21 @@ class PostgresProjectRepository(ProjectRepository):
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
     ) -> ProjectSummary:
         self._connection.execute(
             "INSERT INTO project_lifecycle_projects "
             "(tenant_id, project_id, name, revision, description, start_date, date_system, "
             "primary_calendar_id, settings_revision, business_domain, "
-            "obs_responsible_manager, website_url) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s)",
+            "obs_responsible_manager, website_url, default_activity_type, "
+            "default_percent_complete_type, activity_id_prefix, activity_id_suffix, "
+            "activity_id_increment, increment_activity_id) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 tenant_id,
                 project_id,
@@ -187,6 +227,12 @@ class PostgresProjectRepository(ProjectRepository):
                 business_domain,
                 obs_responsible_manager,
                 website_url,
+                default_activity_type,
+                default_percent_complete_type,
+                activity_id_prefix,
+                activity_id_suffix,
+                activity_id_increment,
+                increment_activity_id,
             ),
         )
         self._connection.execute(
@@ -206,6 +252,12 @@ class PostgresProjectRepository(ProjectRepository):
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
         )
 
     def update_for_user(
@@ -223,6 +275,12 @@ class PostgresProjectRepository(ProjectRepository):
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
     ) -> ProjectSummary | None:
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET name=%s, description=%s, "
@@ -230,6 +288,12 @@ class PostgresProjectRepository(ProjectRepository):
             "business_domain=COALESCE(%s, business_domain), "
             "obs_responsible_manager=COALESCE(%s, obs_responsible_manager), "
             "website_url=COALESCE(%s, website_url), "
+            "default_activity_type=COALESCE(%s, default_activity_type), "
+            "default_percent_complete_type=COALESCE(%s, default_percent_complete_type), "
+            "activity_id_prefix=COALESCE(%s, activity_id_prefix), "
+            "activity_id_suffix=COALESCE(%s, activity_id_suffix), "
+            "activity_id_increment=COALESCE(%s, activity_id_increment), "
+            "increment_activity_id=COALESCE(%s, increment_activity_id), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
             "SELECT 1 FROM project_lifecycle_memberships m "
@@ -237,8 +301,10 @@ class PostgresProjectRepository(ProjectRepository):
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
-            "business_domain, obs_responsible_manager, website_url, checkout_state, "
-            "checked_out_by, checked_out_at",
+            "business_domain, obs_responsible_manager, website_url, "
+            "default_activity_type, default_percent_complete_type, activity_id_prefix, "
+            "activity_id_suffix, activity_id_increment, increment_activity_id, "
+            "checkout_state, checked_out_by, checked_out_at",
             (
                 name,
                 description,
@@ -248,6 +314,12 @@ class PostgresProjectRepository(ProjectRepository):
                 business_domain,
                 obs_responsible_manager,
                 website_url,
+                default_activity_type,
+                default_percent_complete_type,
+                activity_id_prefix,
+                activity_id_suffix,
+                activity_id_increment,
+                increment_activity_id,
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -421,14 +493,26 @@ def _summary(row: Any) -> ProjectSummary:
         business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
         obs_responsible_manager=str(row[11]) if len(row) > 11 and row[11] else "",
         website_url=str(row[12]) if len(row) > 12 and row[12] else "",
-        checkout_state=(
-            str(row[13]) if len(row) > 13 and row[13] else "checked_in"
+        default_activity_type=(
+            str(row[13]) if len(row) > 13 and row[13] else "Task Dependent"
         ),
-        checked_out_by=str(row[14]) if len(row) > 14 and row[14] else "",
+        default_percent_complete_type=(
+            str(row[14]) if len(row) > 14 and row[14] else "DURATION"
+        ),
+        activity_id_prefix=str(row[15]) if len(row) > 15 and row[15] else "",
+        activity_id_suffix=str(row[16]) if len(row) > 16 and row[16] else "",
+        activity_id_increment=(
+            int(row[17]) if len(row) > 17 and row[17] is not None else 10
+        ),
+        increment_activity_id=bool(row[18]) if len(row) > 18 else False,
+        checkout_state=(
+            str(row[19]) if len(row) > 19 and row[19] else "checked_in"
+        ),
+        checked_out_by=str(row[20]) if len(row) > 20 and row[20] else "",
         checked_out_at=(
             None
-            if len(row) <= 15 or row[15] is None
-            else _as_datetime(row[15]).isoformat()
+            if len(row) <= 21 or row[21] is None
+            else _as_datetime(row[21]).isoformat()
         ),
     )
 

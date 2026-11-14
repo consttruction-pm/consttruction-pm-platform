@@ -30,10 +30,19 @@ class Sessions:
 class Projects:
     def __init__(self) -> None:
         self.items = {"p1": ("p1", "Project One", 2)}
+        self.default_activity_type = "Task Dependent"
+        self.default_percent_complete_type = "DURATION"
 
     def list_for_user(self, tenant_id: str, user_id: str):
         return tuple(
-            ProjectSummary(project_id, tenant_id, name, revision)
+            ProjectSummary(
+                project_id,
+                tenant_id,
+                name,
+                revision,
+                default_activity_type=self.default_activity_type,
+                default_percent_complete_type=self.default_percent_complete_type,
+            )
             for project_id, (project_id, name, revision) in self.items.items()
         )
 
@@ -41,21 +50,37 @@ class Projects:
         item = self.items.get(project_id)
         if item is None:
             return None
-        return ProjectSummary(item[0], tenant_id, item[1], item[2])
+        return ProjectSummary(
+            item[0],
+            tenant_id,
+            item[1],
+            item[2],
+            default_activity_type=self.default_activity_type,
+            default_percent_complete_type=self.default_percent_complete_type,
+        )
 
     def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str, **_):
         self.items[project_id] = (project_id, name, 0)
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 
-def _app(*, role: str = "project_admin", db_path: str = ":memory:"):
+def _app(
+    *,
+    role: str = "project_admin",
+    db_path: str = ":memory:",
+    default_activity_type: str = "Task Dependent",
+    default_percent_complete_type: str = "DURATION",
+):
     now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
         "s1", "u1", "t1", frozenset({role}), now + timedelta(hours=1)
     )
     policy = default_project_policy()
+    projects = Projects()
+    projects.default_activity_type = default_activity_type
+    projects.default_percent_complete_type = default_percent_complete_type
     lifecycle = ProjectLifecycleAPI(
-        ProjectLifecycleService(Sessions(session), Projects(), policy)
+        ProjectLifecycleService(Sessions(session), projects, policy)
     )
     connection = sqlite3.connect(db_path)
     repository = SQLiteActivityMasterRepository(connection)
@@ -704,3 +729,54 @@ def test_wbs_copy_route_requires_project_write_permission(tmp_path):
     assert len(after["wbs_nodes"]) == 4
     connection.close()
     admin_connection.close()
+
+
+def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_path):
+    db_path = str(tmp_path / "cubi-activity-defaults.sqlite")
+    app, _repository, connection = _app(
+        db_path=db_path,
+        default_activity_type="Level of Effort",
+        default_percent_complete_type="PHYSICAL",
+    )
+    try:
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/wbs",
+            {
+                "contract_version": P6_WBS_MASTER_API_VERSION,
+                "wbs_id": "W-ROOT",
+                "parent_kind": "project",
+                "parent_wbs_id": None,
+                "code": "1",
+                "name": "Project Root",
+                "sequence_number": 0,
+            },
+        )
+        assert status == "201 Created"
+        path = "/api/projects/p1/p6/activities"
+        inherited = {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-DEFAULT",
+            "name": "Inherits defaults",
+            "duration_value": "5",
+            "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
+        }
+        status, created = _request(app, "POST", path, inherited)
+        assert status == "201 Created"
+        assert created["activity"]["activity_type"] == "Level of Effort"
+        assert created["activity"]["percent_complete_type"] == "PHYSICAL"
+
+        explicit = {
+            **inherited,
+            "activity_id": "A-EXPLICIT",
+            "activity_type": "Start Milestone",
+            "percent_complete_type": "SCOPE",
+        }
+        status, created = _request(app, "POST", path, explicit)
+        assert status == "201 Created"
+        assert created["activity"]["activity_type"] == "Start Milestone"
+        assert created["activity"]["percent_complete_type"] == "SCOPE"
+    finally:
+        connection.close()

@@ -92,6 +92,12 @@ class Projects:
                 business_domain=p.business_domain,
                 obs_responsible_manager=p.obs_responsible_manager,
                 website_url=p.website_url,
+                default_activity_type=p.default_activity_type,
+                default_percent_complete_type=p.default_percent_complete_type,
+                activity_id_prefix=p.activity_id_prefix,
+                activity_id_suffix=p.activity_id_suffix,
+                activity_id_increment=p.activity_id_increment,
+                increment_activity_id=p.increment_activity_id,
                 checkout_state=p.checkout_state,
                 checked_out_by=p.checked_out_by,
                 checked_out_at=p.checked_out_at,
@@ -111,6 +117,12 @@ class Projects:
             business_domain=project.business_domain,
             obs_responsible_manager=project.obs_responsible_manager,
             website_url=project.website_url,
+            default_activity_type=project.default_activity_type,
+            default_percent_complete_type=project.default_percent_complete_type,
+            activity_id_prefix=project.activity_id_prefix,
+            activity_id_suffix=project.activity_id_suffix,
+            activity_id_increment=project.activity_id_increment,
+            increment_activity_id=project.increment_activity_id,
             checkout_state=project.checkout_state,
             checked_out_by=project.checked_out_by,
             checked_out_at=project.checked_out_at,
@@ -121,6 +133,10 @@ class Projects:
         description="", start_date=None, date_system="gregorian",
         primary_calendar_id=None, business_domain="",
         obs_responsible_manager="", website_url="",
+        default_activity_type="Task Dependent",
+        default_percent_complete_type="DURATION",
+        activity_id_prefix="", activity_id_suffix="",
+        activity_id_increment=10, increment_activity_id=False,
     ):
         project = ProjectSummary(
             project_id, tenant_id, name, 0,
@@ -129,6 +145,12 @@ class Projects:
             business_domain=business_domain,
             obs_responsible_manager=obs_responsible_manager,
             website_url=website_url,
+            default_activity_type=default_activity_type,
+            default_percent_complete_type=default_percent_complete_type,
+            activity_id_prefix=activity_id_prefix,
+            activity_id_suffix=activity_id_suffix,
+            activity_id_increment=activity_id_increment,
+            increment_activity_id=increment_activity_id,
         )
         self.items[project_id] = project
         return project
@@ -138,6 +160,9 @@ class Projects:
         description="", start_date=None, date_system="gregorian",
         primary_calendar_id=None, business_domain=None,
         obs_responsible_manager=None, website_url=None,
+        default_activity_type=None, default_percent_complete_type=None,
+        activity_id_prefix=None, activity_id_suffix=None,
+        activity_id_increment=None, increment_activity_id=None,
     ):
         project = self.items.get(project_id)
         if project is None or project.settings_revision != expected_revision: return None
@@ -156,6 +181,36 @@ class Projects:
             ),
             website_url=(
                 website_url if website_url is not None else project.website_url
+            ),
+            default_activity_type=(
+                default_activity_type
+                if default_activity_type is not None
+                else project.default_activity_type
+            ),
+            default_percent_complete_type=(
+                default_percent_complete_type
+                if default_percent_complete_type is not None
+                else project.default_percent_complete_type
+            ),
+            activity_id_prefix=(
+                activity_id_prefix
+                if activity_id_prefix is not None
+                else project.activity_id_prefix
+            ),
+            activity_id_suffix=(
+                activity_id_suffix
+                if activity_id_suffix is not None
+                else project.activity_id_suffix
+            ),
+            activity_id_increment=(
+                activity_id_increment
+                if activity_id_increment is not None
+                else project.activity_id_increment
+            ),
+            increment_activity_id=(
+                increment_activity_id
+                if increment_activity_id is not None
+                else project.increment_activity_id
             ),
             checkout_state=project.checkout_state,
             checked_out_by=project.checked_out_by,
@@ -3072,6 +3127,59 @@ def test_project_http_persists_obs_manager_and_website():
     )
     assert status == 400
     assert json.loads(body)["code"] == "PROJECT_WEBSITE_URL_INVALID"
+
+
+def test_project_http_persists_activity_defaults_and_preserves_them_when_omitted():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "default_activity_type": "Level of Effort",
+            "default_percent_complete_type": "physical",
+            "activity_id_prefix": "AH-",
+            "activity_id_suffix": "-B",
+            "activity_id_increment": 20,
+            "increment_activity_id": True,
+            "expected_revision": 0,
+        }).encode(),
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["default_activity_type"] == "Level of Effort"
+    assert project["default_percent_complete_type"] == "PHYSICAL"
+    assert project["activity_id_prefix"] == "AH-"
+    assert project["activity_id_suffix"] == "-B"
+    assert project["activity_id_increment"] == 20
+    assert project["increment_activity_id"] is True
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "activity_id_increment": 2,
+            "expected_revision": 1,
+        }).encode(),
+    )
+    assert status == 200
+    stored = json.loads(body)["project"]
+    assert stored["activity_id_increment"] == 2
+    assert stored["default_activity_type"] == "Level of Effort"
+    assert stored["activity_id_prefix"] == "AH-"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "default_percent_complete_type": "EFFORT",
+            "expected_revision": 2,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID"
 
 
 def test_project_http_checkout_and_checkin_round_trip():
