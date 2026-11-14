@@ -67,3 +67,17 @@ test("Task Center search is case-insensitive across title and description", () =
     ["description", "title"],
   );
 });
+
+test("Task Center due-today filter includes only unfinished tasks due on the current local day", () => {
+  const now = Date.parse("2026-11-15T12:00:00Z");
+  const rows = [
+    task({ task_id: "due-today", due_at: "2026-11-15T18:00:00Z" }),
+    task({ task_id: "overdue", due_at: "2026-11-14T18:00:00Z" }),
+    task({ task_id: "future", due_at: "2026-11-16T18:00:00Z" }),
+    task({ task_id: "done", status: "completed", due_at: "2026-11-15T18:00:00Z" }),
+  ];
+  assert.deepEqual(
+    filterEnterpriseTasks(rows, "due", "", now).map((item) => item.task_id),
+    ["due-today"],
+  );
+});
