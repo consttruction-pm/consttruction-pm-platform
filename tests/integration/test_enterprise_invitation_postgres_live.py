@@ -56,6 +56,10 @@ def test_postgres_cubi_id_invitation_is_tenant_bound_one_time_and_audited():
             status="pending", expires_at=NOW + timedelta(days=7), created_at=NOW, token=token,
         )
         invitations.create_invitation(item, hashlib.sha256(token.encode()).hexdigest())
+        inbox = invitations.list_received_invitations(tenant, member_id)
+        assert [entry.invitation_id for entry in inbox] == [item.invitation_id]
+        assert inbox[0].token is None
+        assert invitations.list_received_invitations(tenant, owner_id) == ()
         connection.commit()
 
     with psycopg.connect(DSN) as connection:
@@ -79,6 +83,7 @@ def test_postgres_cubi_id_invitation_is_tenant_bound_one_time_and_audited():
         invitations = PostgresEnterpriseInvitationRepository(connection)
         access = PostgresEnterpriseOrganizationAccessRepository(connection)
         assert invitations.get_invitation(tenant, item.invitation_id).status == "accepted"
+        assert invitations.list_received_invitations(tenant, member_id) == ()
         assert access.get_membership(tenant, team.team_id, member_id).status == "active"
         with pytest.raises(Exception, match="INVITATION_NOT_PENDING"):
             invitations.accept_invitation(
