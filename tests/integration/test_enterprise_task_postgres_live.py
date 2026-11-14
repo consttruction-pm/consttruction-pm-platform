@@ -6,8 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timezone
 from threading import Barrier
+from types import SimpleNamespace
 
 import pytest
+
+from construction_pm.application.authorization import Permission
+from construction_pm.enterprise_task_application import EnterpriseTaskApplicationService
 
 from construction_pm.enterprise_task import (
     EnterpriseTask,
@@ -251,3 +255,49 @@ def test_postgres_task_listing_filters_project_and_personal_scopes() -> None:
         personal_items = repository.list_for_tenant(tenant, personal_user_id="integration-user")
     assert [item.task.task_id for item in project_items] == ["project-a"]
     assert [item.task.task_id for item in personal_items] == ["personal-a"]
+
+
+def test_postgres_authenticated_task_application_personal_and_project_vertical_slice() -> None:
+    psycopg = pytest.importorskip("psycopg")
+    tenant = _new_scope()
+    now = datetime(2026, 11, 15, 15, 0, tzinfo=timezone.utc)
+
+    class Lifecycle:
+        def get_session(self, session_id, *, now):
+            assert session_id == "session-a"
+            return SimpleNamespace(user_id="integration-user", tenant_id=tenant, roles=frozenset({"project_manager"}))
+
+        def authorize_project(self, session_id, project_id, permission, *, now):
+            assert session_id == "session-a"
+            assert permission in {Permission.PROJECT_READ, Permission.PROJECT_WRITE}
+            return SimpleNamespace(context=SimpleNamespace(tenant_id=tenant, project_id=project_id))
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        repository.initialize()
+        service = EnterpriseTaskApplicationService(repository, Lifecycle(), clock=lambda: now)
+        personal = service.create_task(
+            "session-a",
+            {"title": "Personal follow-up"},
+            idempotency_key="personal-vertical-slice",
+        )
+        project = service.create_task(
+            "session-a",
+            {"title": "Project action", "project_id": "project-v1"},
+            idempotency_key="project-vertical-slice",
+        )
+        assert [item.task.task_id for item in service.list_tasks("session-a")] == [personal.task.task_id]
+        assert [item.task.task_id for item in service.list_tasks("session-a", project_id="project-v1")] == [project.task.task_id]
+        updated = service.update_task(
+            "session-a",
+            personal.task.task_id,
+            {"expected_revision": 1, "status": "completed"},
+        )
+        assert updated.task.completed_by_user_id == "integration-user"
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        persisted = repository.get(tenant, personal.task.task_id)
+        assert persisted.revision == 2
+        assert persisted.task.status is EnterpriseTaskStatus.COMPLETED
