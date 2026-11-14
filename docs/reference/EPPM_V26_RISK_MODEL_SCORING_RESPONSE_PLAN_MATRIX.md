@@ -150,7 +150,7 @@ These metrics answer different questions and must not be substituted in reports 
 
 ### P6 EPPM V26
 1. EPPM V26 Help TOC (Risks and Risk Enterprise Data): https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
-2. Working with Risks Enterprise Data: https://docs.oracle.com/cd/G48897_01/p6help/es/43249_1.htm
+2. Working with Risks Enterprise Data: https://docs.oracle.com/cd/G48897_01/p6help/en/43249_1.htm
 3. Risk Scoring Matrices Page: https://docs.oracle.com/cd/G48897_01/p6help/en/17928.htm
 4. Creating Risk Scoring Matrices (V26): https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/32334.htm
 5. Risk Scoring Method Description: https://docs.oracle.com/cd/G48897_01/p6help/en/44763.htm
