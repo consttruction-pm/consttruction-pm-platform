@@ -171,14 +171,20 @@ function renderScheduleRunResult(
   }
   const entries = Object.entries(facts.activities).sort(([left], [right]) => left.localeCompare(right));
   const showsFloat = entries.some(([, fact]) => fact.total_float !== undefined && fact.total_float !== null);
+  const showsFloatPaths = entries.some(([, fact]) => fact.float_path !== undefined && fact.float_path !== null);
   const rows = entries.map(([id, fact]) => {
     const critical = fact.critical ? labels.yes : labels.no;
+    const number = (value: number | null | undefined): string =>
+      value === undefined || value === null ? safe(labels.empty) : safe(value);
     const cells = [
       `<td>${safe(id)}</td>`,
       `<td>${safe(fact.start)}</td>`,
       `<td>${safe(fact.finish)}</td>`,
       `<td>${fact.duration === undefined ? safe(labels.empty) : safe(fact.duration)}</td>`,
-      ...(showsFloat ? [`<td>${fact.total_float === undefined || fact.total_float === null ? safe(labels.empty) : safe(fact.total_float)}</td>`] : []),
+      ...(showsFloat ? [`<td>${number(fact.total_float)}</td>`] : []),
+      ...(showsFloatPaths
+        ? [`<td data-float-path>${number(fact.float_path)}</td>`, `<td data-float-path-order>${number(fact.float_path_order)}</td>`]
+        : []),
       `<td>${safe(critical)}</td>`,
     ];
     return `<tr>${cells.join("")}</tr>`;
@@ -197,9 +203,10 @@ function renderScheduleRunResult(
     '<th scope="col">' + safe(labels.columnFinish) + '</th>' +
     '<th scope="col">' + safe(labels.columnDuration) + '</th>' +
     (showsFloat ? '<th scope="col">' + safe(labels.columnTotalFloat) + '</th>' : '') +
+    (showsFloatPaths ? '<th scope="col">' + safe(labels.columnFloatPath) + '</th><th scope="col">' + safe(labels.columnFloatPathOrder) + '</th>' : '') +
     '<th scope="col">' + safe(labels.columnCritical) + '</th>' +
     '</tr></thead><tbody>' +
-    (rows || `<tr><td colspan="${showsFloat ? 6 : 5}">${safe(labels.empty)}</td></tr>`) +
+    (rows || `<tr><td colspan="${(showsFloat ? 6 : 5) + (showsFloatPaths ? 2 : 0)}">${safe(labels.empty)}</td></tr>`) +
     '</tbody></table>';
 }
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
@@ -252,7 +259,7 @@ const LABELS = {
     holidayModeNonwork: "Non-working day", holidayModeTotalHours: "Total work hours", holidayModeDetailedHours: "Detailed work hours", holidayModeResetStandard: "Reset to standard",
     holidayCanonicalDate: "Stored date", holidayRerunHint: "The calendar changed. Run the schedule again to refresh authoritative dates.",
     results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
-    columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
+    columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnFloatPath: "Float path", columnFloatPathOrder: "Float path order", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
   },
   fa: {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
@@ -279,7 +286,7 @@ const LABELS = {
     holidayModeNonwork: "روز غیرکاری", holidayModeTotalHours: "مجموع ساعت کاری", holidayModeDetailedHours: "ساعت کاری تفصیلی", holidayModeResetStandard: "بازگشت به استاندارد",
     holidayCanonicalDate: "تاریخ ذخیره‌شده", holidayRerunHint: "تقویم تغییر کرد. برای دریافت تاریخ‌های معتبر، زمان‌بندی را دوباره اجرا کنید.",
     results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
-    columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
+    columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnFloatPath: "مسیر شناوری", columnFloatPathOrder: "ترتیب مسیر شناوری", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
   },
 } as const;
 
