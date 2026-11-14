@@ -4142,3 +4142,29 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   enter the snapshot hash but their calculation behavior needs capabilities
   that do not exist yet (SCH-005 leveling run, multi-project float). The
   settings surface is a Schedule window panel, not the V26 modal dialog.
+
+### SCH-002 CPM, float, critical path and multiple float paths — 2026-11-14 (`5d923063`)
+
+- CPM stays in the shared calculation core: the forward pass
+  (`scheduling/forward_pass.py`) and backward pass/float/criticality/multiple
+  paths (`scheduling/schedule.py`) run server-side, and the authoritative
+  schedule query returns `float_path` / `float_path_order` alongside
+  total/free float and `is_critical`. The workspace model only maps those
+  facts into registered cells.
+- **Acceptance.** The Run Schedule table now renders **Float path** and
+  **Float path order** from the authoritative response whenever any row
+  carries a path (`data-float-path` / `data-float-path-order`, en/fa labels),
+  without adding any browser-side schedule math. The full-stack suite enables
+  `multiple_float_paths_enabled` with `maximum_multiple_float_paths=2`,
+  publishes, queries the schedule and asserts the headers plus a positive
+  integer path/order on every carrying row: `A100 p1 o1`, `A110 p1 o2`,
+  `A120 p1 o3`, `A130 p1 o4`, `A145 p2 o1`; it then restores the defaults.
+  99/99 checks at `5d923063`, 53 screenshots, zero exceptions/API 5xx.
+  Evidence: `docs/workspace/evidence/sch-002-float-paths-2026-11-14/`.
+- **Tests at the same code.** Python `4290 passed, 194 skipped` (forward pass,
+  schedule, multi-project float, out-of-sequence, authoritative schedule and
+  batch), Web `1151 + 14`, `tsc` and esbuild clean.
+- **Remaining gaps.** External Version 26 schedule-export fixture comparison is
+  `BLOCKED_EXTERNAL`; the run-results table shows only start/finish/duration/
+  total float/float path/critical, while early/late dates, free float and
+  diagnostics stay in the register query and grid columns.
