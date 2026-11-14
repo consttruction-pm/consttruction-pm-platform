@@ -480,9 +480,10 @@ The following documentary slices are now present on this branch and linked from 
 | Import/Export XER/XML/XLSX | 61 | Evidence-backed mapping comparison; exhaustive parsing of all format maps and round-trip tests remain open |
 | Document Repository / Review Lifecycle | 50 | Evidence-backed optional-repository and review lifecycle comparison; repository connector/API gaps remain open |
 | Risk Model / Scoring / Response Plans | 53 |
-| Portfolio / Capacity Planning / What-if | 42 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
+| Portfolio / Capacity Planning / What-if | 42 |
+| Resource/Role Planning / Teams / Assignments | 40 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
 
-**Total technical child-matrix entries: 384 rows across nine topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
+**Total technical child-matrix entries: 424 rows across ten topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
 
 ### Source inventory status — do not confuse line counts with topic counts
 
