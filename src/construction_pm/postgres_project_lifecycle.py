@@ -457,7 +457,7 @@ class PostgresProjectRepository(ProjectRepository):
             "default_duration_type, default_cost_account_id, obs_id",
             (
                 status, tenant_id, project_id, expected_revision, user_id,
-                *("project.admin",) if self._has_obs_access_function() else (),
+                *(("project.admin",) if self._has_obs_access_function() else ()),
             ),
         ).fetchone()
         if row is None:
@@ -532,7 +532,7 @@ class PostgresProjectRepository(ProjectRepository):
                 expected_revision,
                 *lease_values,
                 user_id,
-                *("project.admin",) if self._has_obs_access_function() else (),
+                *(("project.admin",) if self._has_obs_access_function() else ()),
             ),
         ).fetchone()
         return None if row is None else _summary(row)
