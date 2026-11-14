@@ -3778,6 +3778,41 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   run/apply; a resource with stored capacity segments but no assignment rate
   still reports demand as missing rather than inferring one.
 
+### RES-005 effective-dated rate changes — 2026-11-14 (`fe1a306e`)
+
+- The Resources **Rates** tab no longer only lists stored facts: it appends a
+  rate change through the existing `p6-resource-rate-write-api.v1` contract
+  (`POST /p6/resource-rates`) with rate, basis, currency, unit, effective
+  interval, `expected_revision` and `close_open_segment`.
+- The service stays authoritative. Closing the open-ended interval ends it the
+  day before the new start and records supersession; a repeated authenticated
+  change is idempotent; an overlapping interval returns
+  `RATE_INTERVALS_OVERLAP`; a stale project revision returns
+  `REVISION_CONFLICT`; readers get a localized permission message. The page
+  reloads the read model after a successful write instead of patching the row.
+- **Acceptance.** `apps/web/e2e/resources-v26.mjs` **14/14** at
+  `fe1a306e2de5ee3434ec880173aede52d67a2166` (16 screenshots, zero
+  exceptions/console errors/5xx). Scenario `04b` stores `610` effective
+  `2026-11-01` and verifies the API list becomes `480` (ends 10-14), `525`
+  (ends 10-31), `610` (open-ended); it then attempts `700` without closing and
+  asserts the overlap rejection stored nothing. Scenario `12` checks the Persian
+  RTL form label and hint. Evidence:
+  `docs/workspace/evidence/resources-v26-2026-11-14/`.
+- **Tests at the same code.** Web `1138 tsx` + `14 node --test`, `tsc
+  --noEmit` and esbuild pass; Python `4225 passed, 190 skipped`. Five new unit
+  tests cover the payload/revision, exact POST and supersession parsing, the
+  missing-field short-circuit, the rejection notices in en/fa and the form
+  markup.
+- **Curves and shifts remain `BLOCKED_EXTERNAL`.** There is no stored curve
+  library, assignment curve selection or bucket width, and no resource shift
+  master or shift-aware leveling input. The requested contracts and failure
+  codes are in
+  `docs/workspace/architecture/p6-resource-curve-shift-contract-request.md`.
+- **Remaining rate gaps.** No rate-type dimension beyond `CostBasis`, no
+  recalculation of stored assignment costs after a change, and the rate write
+  does not advance the project revision (the interval identity and overlap
+  checks are the concurrency guard).
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3794,10 +3829,17 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
-- `RES-005` (curves, shifts, multiple prices), `TRK-001` (tracking layout
-  save/open/share/import/export/delete) and `PRO-002` (period actuals) remain
-  `NOT_AUDITED`; they are the next P7 candidates and need their own stored
-  contracts where the current read models do not expose the data.
+- `TRK-001` (tracking layout save/open/share/import/export/delete) and
+  `PRO-002` (period actuals) remain `NOT_AUDITED`; they are the next P7
+  candidates and need their own stored contracts where the current read models
+  do not expose the data.
+- `RES-005` effective-dated rate changes are now `WIRED_WRITE` in the Resources
+  Rates tab through the existing `p6-resource-rate-write-api.v1` contract
+  (append-only interval change, close-open-segment supersession, revision and
+  overlap rejection). Resource curves and resource shifts remain
+  `BLOCKED_EXTERNAL`: no stored curve library/assignment curve selection and no
+  resource shift master or shift-aware leveling input exist; see
+  `docs/workspace/architecture/p6-resource-curve-shift-contract-request.md`.
 - `RES-004` availability/overallocation is now `WIRED_READ` through the
   Resources window Usage tab (stored assignment periods + each assignment's
   stored Units/Time against the service-resolved Max Units per period start).

@@ -5,6 +5,8 @@ import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import type { AssignmentRecord } from "./workspace-assignments.js";
 import {
   RESOURCE_API_VERSION,
+  RESOURCE_RATE_WRITE_API_VERSION,
+  buildResourceRatePayload,
   buildResourceRows,
   createResource,
   loadResourceWorkspace,
@@ -12,13 +14,16 @@ import {
   parseRateFact,
   mountWorkspaceResourcesPage,
   parseResourceMaster,
+  resourceRateErrorNotice,
   resourceSaveErrorNotice,
+  saveResourceRate,
   sumDecimal,
   updateResource,
   type ResourceCapacitySegment,
   type ResourceInput,
   type ResourceMasterRecord,
   type ResourceRateFact,
+  type ResourceRateInput,
 } from "./workspace-resources.js";
 
 const CONTEXT: ProjectContext = { tenant_id: "t1", project_id: "project-1", revision: 4 };
@@ -732,4 +737,141 @@ test("the Usage tab compares stored assignment Units/Time with the service-resol
     basis: "day",
     hours_per_time_period: "8",
   });
+});
+
+const RATE_INPUT: ResourceRateInput = {
+  rate: "610.00",
+  basis: "per_day",
+  currency: "USD",
+  unit: "crew-day",
+  effectiveFrom: "2026-11-01",
+  effectiveTo: null,
+  closeOpenSegment: true,
+};
+
+test("resource rate payload uses the write contract, project revision and authenticated provenance", () => {
+  assert.deepEqual(buildResourceRatePayload("RPS-CIVIL-CREW", RATE_INPUT, 7), {
+    contract_version: RESOURCE_RATE_WRITE_API_VERSION,
+    resource_id: "RPS-CIVIL-CREW",
+    rate: "610.00",
+    basis: "per_day",
+    currency: "USD",
+    unit: "crew-day",
+    effective_from: "2026-11-01",
+    effective_to: null,
+    expected_revision: 7,
+    close_open_segment: true,
+  });
+  assert.equal(buildResourceRatePayload("RPS-CIVIL-CREW", { ...RATE_INPUT, rate: "-1" }, 7), null);
+  assert.equal(buildResourceRatePayload("RPS-CIVIL-CREW", { ...RATE_INPUT, rate: "free" }, 7), null);
+  assert.equal(buildResourceRatePayload("RPS-CIVIL-CREW", { ...RATE_INPUT, currency: " " }, 7), null);
+  assert.equal(buildResourceRatePayload("RPS-CIVIL-CREW", { ...RATE_INPUT, effectiveFrom: "" }, 7), null);
+});
+
+test("saveResourceRate posts the effective change and parses the superseded interval", async () => {
+  const posts: PostCall[] = [];
+  const stored = rate({ identity: "rate-610", rate: "610.00", effectiveFrom: "2026-11-01", effectiveTo: null });
+  const transport = transportWith(
+    {},
+    [],
+    {
+      "/api/projects/project-1/p6/resource-rates": (request) => {
+        assert.deepEqual(request, {
+          contract_version: RESOURCE_RATE_WRITE_API_VERSION,
+          resource_id: "RPS-CIVIL-CREW",
+          rate: "610.00",
+          basis: "per_day",
+          currency: "USD",
+          unit: "crew-day",
+          effective_from: "2026-11-01",
+          effective_to: null,
+          expected_revision: 4,
+          close_open_segment: true,
+        });
+        return {
+          ok: true,
+          data: {
+            contract_version: RESOURCE_RATE_WRITE_API_VERSION,
+            kind: "resource_rate_write",
+            scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+            rate: rateDto(stored),
+            superseded: {
+              identity: "rate-525-open",
+              replacement_identity: "rate-525-closed",
+              effective_to: "2026-10-31",
+            },
+            status: "REGISTERED",
+          },
+        };
+      },
+    },
+    posts,
+  );
+
+  const result = await saveResourceRate(transport, CONTEXT, "RPS-CIVIL-CREW", RATE_INPUT);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.data.rate, stored);
+  assert.deepEqual(result.data.superseded, {
+    identity: "rate-525-open",
+    replacementIdentity: "rate-525-closed",
+    effectiveTo: "2026-10-31",
+  });
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].path, "/api/projects/project-1/p6/resource-rates");
+});
+
+test("saveResourceRate does not call the service when required fields are missing", async () => {
+  const posts: PostCall[] = [];
+  const transport = transportWith({}, [], {}, posts);
+  const result = await saveResourceRate(transport, CONTEXT, "RPS-CIVIL-CREW", { ...RATE_INPUT, unit: "" });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error.code, "RESOURCE_RATE_FIELDS_REQUIRED");
+  assert.equal(posts.length, 0);
+});
+
+test("rate rejection notices explain overlap, revision and permission codes in both locales", () => {
+  assert.match(resourceRateErrorNotice("RATE_INTERVALS_OVERLAP", "en"), /overlaps a stored rate.*RATE_INTERVALS_OVERLAP/);
+  assert.match(resourceRateErrorNotice("REVISION_CONFLICT", "en"), /Refresh and enter the rate again.*REVISION_CONFLICT/);
+  assert.match(resourceRateErrorNotice("AUTHORIZATION_PERMISSION_DENIED", "en"), /role cannot change resource rates/);
+  assert.match(resourceRateErrorNotice("RATE_INTERVALS_OVERLAP", "fa"), /هم‌پوشانی دارد.*RATE_INTERVALS_OVERLAP/);
+  assert.match(resourceRateErrorNotice("AUTHORIZATION_PERMISSION_DENIED", "fa"), /اجازهٔ تغییر نرخ منابع را ندارد/);
+  assert.match(resourceRateErrorNotice("SOMETHING_ELSE", "en"), /Rate was not stored \(SOMETHING_ELSE\)/);
+});
+
+test("the Rates tab renders an effective-dated change form next to the stored facts", async () => {
+  const { host, clickRow, clickTab } = mountHost();
+  mountWorkspaceResourcesPage(host as unknown as HTMLElement, {
+    transport: transportWith({
+      "/api/projects/project-1/p6/resource-assignments": {
+        ok: true,
+        data: { contract_version: "p6-resource-read-api.v1", assignments: [assignmentDto()] },
+      },
+      "/api/projects/project-1/p6/resource-capacities": {
+        ok: true,
+        data: { contract_version: "p6-resource-capacity-read-api.v1", capacities: [capacityDto(segment())] },
+      },
+      "/api/projects/project-1/p6/resource-rates": {
+        ok: true,
+        data: { contract_version: "p6-resource-rate-read-api.v1", rates: [rateDto(rate())] },
+      },
+      [RESOURCES_PATH]: { ok: true, data: resourceList(master()) },
+      "/api/projects/project-1/p6/calendars": { ok: true, data: calendarCatalogue() },
+    }),
+    context: CONTEXT,
+    locale: "en",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  clickRow("RPS-CIVIL-CREW");
+  clickTab("rates");
+
+  assert.match(host.innerHTML, /data-resource-rate-form/);
+  assert.match(host.innerHTML, /name="rate-value"/);
+  assert.match(host.innerHTML, /name="rate-basis"/);
+  assert.match(host.innerHTML, /name="rate-close" checked/);
+  assert.match(host.innerHTML, /Add rate change/);
+  assert.match(host.innerHTML, /Effective From/);
+  assert.match(host.innerHTML, /480\.00/);
+  assert.match(host.innerHTML, /Stored assignment costs and schedule facts are not recalculated here/);
 });

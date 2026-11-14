@@ -20,6 +20,10 @@ import {
 export const RESOURCE_API_VERSION = "p6-resource-api.v1";
 export const RESOURCE_CAPACITY_READ_API_VERSION = "p6-resource-capacity-read-api.v1";
 export const RESOURCE_RATE_READ_API_VERSION = "p6-resource-rate-read-api.v1";
+export const RESOURCE_RATE_WRITE_API_VERSION = "p6-resource-rate-write-api.v1";
+
+export const RESOURCE_RATE_BASES = ["per_unit", "per_hour", "per_day", "lump_sum"] as const;
+export type ResourceRateBasis = (typeof RESOURCE_RATE_BASES)[number];
 
 export type ResourceType = "labor" | "nonlabor" | "material";
 
@@ -129,6 +133,140 @@ export function resourceSaveErrorNotice(code: string, creating: boolean, locale:
     ? text(locale, "Resource was not created", "منبع ایجاد نشد")
     : text(locale, "Save failed", "ذخیره ناموفق بود");
   return `${prefix} (${code})`;
+}
+
+export type ResourceRateInput = {
+  rate: string;
+  basis: ResourceRateBasis;
+  currency: string;
+  unit: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  /** Close the stored open-ended interval on the day before the new start. */
+  closeOpenSegment: boolean;
+};
+
+export type ResourceRateWriteResult = {
+  rate: ResourceRateFact;
+  superseded: { identity: string; replacementIdentity: string; effectiveTo: string | null } | null;
+};
+
+/**
+ * Stable editor message for a rejected effective-dated rate change. The
+ * service remains authoritative for interval overlap, revision and permission
+ * decisions, so the domain code is always shown next to the explanation.
+ */
+export function resourceRateErrorNotice(code: string, locale: string): string {
+  if (code === "RESOURCE_RATE_FIELDS_REQUIRED") {
+    return text(
+      locale,
+      "Enter a non-negative rate, currency, unit and effective-from date.",
+      "نرخ غیرمنفی، ارز، واحد و تاریخ شروع اعتبار را وارد کنید.",
+    ) + ` (${code})`;
+  }
+  if (code === "RATE_INTERVALS_OVERLAP") {
+    return text(
+      locale,
+      "This interval overlaps a stored rate. Close the open-ended rate or choose a later start date.",
+      "این بازه با نرخ ذخیره‌شده هم‌پوشانی دارد. نرخ بدون پایان را ببندید یا تاریخ شروع دیرتری انتخاب کنید.",
+    ) + ` (${code})`;
+  }
+  if (code === "REVISION_CONFLICT") {
+    return text(
+      locale,
+      "The project changed since this window loaded. Refresh and enter the rate again.",
+      "پروژه از زمان بارگذاری این پنجره تغییر کرده است. به‌روزرسانی کنید و نرخ را دوباره وارد کنید.",
+    ) + ` (${code})`;
+  }
+  if (code === "AUTHORIZATION_PERMISSION_DENIED" || code === "AUTHORIZATION_DENIED" || code === "RESOURCE_RATE_WRITE_NOT_AUTHORIZED") {
+    return text(
+      locale,
+      "Your role cannot change resource rates.",
+      "نقش شما اجازهٔ تغییر نرخ منابع را ندارد.",
+    ) + ` (${code})`;
+  }
+  if (code === "IMMUTABLE_RESOURCE_RATE_FACT" || code === "RESOURCE_RATE_INSERT_CONFLICT") {
+    return text(
+      locale,
+      "A conflicting rate fact is already stored for this interval.",
+      "یک نرخ متعارض برای این بازه از قبل ذخیره شده است.",
+    ) + ` (${code})`;
+  }
+  if (code === "RESOURCE_RATE_WRITE_SERVICE_NOT_CONFIGURED") {
+    return text(
+      locale,
+      "Rate changes are not available in this deployment.",
+      "تغییر نرخ در این استقرار در دسترس نیست.",
+    ) + ` (${code})`;
+  }
+  return `${text(locale, "Rate was not stored", "نرخ ذخیره نشد")} (${code})`;
+}
+
+function isResourceRateBasis(value: string): value is ResourceRateBasis {
+  return (RESOURCE_RATE_BASES as readonly string[]).includes(value);
+}
+
+export function buildResourceRatePayload(
+  resourceId: string,
+  input: ResourceRateInput,
+  expectedRevision: number,
+): Record<string, unknown> | null {
+  if (!resourceId.trim()) return null;
+  if (!/^[0-9]+(\.[0-9]+)?$/.test(input.rate)) return null;
+  if (!isResourceRateBasis(input.basis)) return null;
+  if (!input.currency.trim() || !input.unit.trim() || !input.effectiveFrom) return null;
+  return {
+    contract_version: RESOURCE_RATE_WRITE_API_VERSION,
+    resource_id: resourceId,
+    rate: input.rate,
+    basis: input.basis,
+    currency: input.currency.trim(),
+    unit: input.unit.trim(),
+    effective_from: input.effectiveFrom,
+    effective_to: input.effectiveTo,
+    expected_revision: expectedRevision,
+    close_open_segment: input.closeOpenSegment,
+  };
+}
+
+function parseRateWriteResult(payload: unknown): ResourceRateWriteResult {
+  if (
+    !isRecord(payload) ||
+    payload.contract_version !== RESOURCE_RATE_WRITE_API_VERSION ||
+    payload.kind !== "resource_rate_write"
+  ) {
+    throw new Error("INVALID_RESOURCE_RATE_WRITE");
+  }
+  const superseded = isRecord(payload.superseded)
+    ? {
+        identity: requiredText(payload.superseded.identity, "INVALID_RESOURCE_RATE_WRITE"),
+        replacementIdentity: requiredText(payload.superseded.replacement_identity, "INVALID_RESOURCE_RATE_WRITE"),
+        effectiveTo: optionalString(payload.superseded.effective_to, "INVALID_RESOURCE_RATE_WRITE"),
+      }
+    : null;
+  return { rate: parseRateFact(payload.rate), superseded };
+}
+
+export async function saveResourceRate(
+  transport: ApiTransport,
+  context: ProjectContext,
+  resourceId: string,
+  input: ResourceRateInput,
+): Promise<ApiResult<ResourceRateWriteResult>> {
+  const payload = buildResourceRatePayload(resourceId, input, context.revision);
+  if (!payload) return localError("RESOURCE_RATE_FIELDS_REQUIRED");
+  const result = await transport.post<Record<string, unknown>, unknown>(
+    resourcePath(context, "resource-rates"),
+    payload,
+    context,
+    crypto.randomUUID(),
+  );
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseRateWriteResult(result.data) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_RESOURCE_RATE_WRITE");
+  }
 }
 
 function escapeHtml(value: string): string {
@@ -452,6 +590,27 @@ export async function updateResource(
 
 type ResourceTab = "general" | "assignments" | "capacity" | "rates" | "usage";
 type ResourceFilter = "all" | ResourceType;
+type RateDraft = {
+  rate: string;
+  basis: ResourceRateBasis;
+  currency: string;
+  unit: string;
+  effectiveFrom: string;
+  effectiveTo: string;
+  closeOpenSegment: boolean;
+};
+
+function emptyRateDraft(): RateDraft {
+  return {
+    rate: "",
+    basis: "per_day",
+    currency: "USD",
+    unit: "",
+    effectiveFrom: "",
+    effectiveTo: "",
+    closeOpenSegment: true,
+  };
+}
 
 type PageState = {
   status: "loading" | "loaded" | "error";
@@ -465,6 +624,7 @@ type PageState = {
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
   draft: ResourceInput;
+  rateDraft: RateDraft;
   /** Stored calendars in this project scope; the resource editor assigns by id. */
   calendars: readonly WorkspaceCalendarRecord[];
   calendarError: string | null;
@@ -521,6 +681,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     busy: false,
     notice: null,
     draft: emptyDraft(),
+    rateDraft: emptyRateDraft(),
     calendars: [],
     calendarError: null,
     usageResourceId: null,
@@ -726,12 +887,37 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     return `<section class="cp-calendar-editor-panel" data-resource-panel="capacity"><div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Max Units", "حداکثر واحد"))}</th><th>${escapeHtml(say("Unit Basis", "مبنای واحد"))}</th><th>${escapeHtml(say("Hours per Time Period", "ساعت در دوره"))}</th><th>${escapeHtml(say("Units per Hour", "واحد در ساعت"))}</th><th>${escapeHtml(say("Effective From", "اعتبار از"))}</th><th>${escapeHtml(say("Effective To", "اعتبار تا"))}</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
 
-  function renderRates(row: ResourceRow): string {
-    if (!row.rates.length) {
-      return `<section class="cp-calendar-editor-panel" data-resource-panel="rates"><div class="cp-calendar-empty">${escapeHtml(say("No rate fact is stored for this resource.", "هیچ نرخ ذخیره‌شده‌ای برای این منبع وجود ندارد."))}</div></section>`;
+  function rateBasisLabel(basis: ResourceRateBasis): string {
+    switch (basis) {
+      case "per_unit": return say("Per unit", "به ازای واحد");
+      case "per_hour": return say("Per hour", "به ازای ساعت");
+      case "per_day": return say("Per day", "به ازای روز");
+      default: return say("Lump sum", "مبلغ یکجا");
     }
-    const rows = row.rates.map((rate) => `<tr><td>${escapeHtml(rate.rate)}</td><td>${escapeHtml(rate.basis)}</td><td>${escapeHtml(rate.currency)}</td><td>${escapeHtml(rate.unit)}</td><td>${escapeHtml(rate.effectiveFrom)}</td><td>${escapeHtml(rate.effectiveTo ?? say("Open-ended", "بدون پایان"))}</td></tr>`).join("");
-    return `<section class="cp-calendar-editor-panel" data-resource-panel="rates"><div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Rate", "نرخ"))}</th><th>${escapeHtml(say("Basis", "مبنا"))}</th><th>${escapeHtml(say("Currency", "ارز"))}</th><th>${escapeHtml(say("Unit", "واحد"))}</th><th>${escapeHtml(say("Effective From", "اعتبار از"))}</th><th>${escapeHtml(say("Effective To", "اعتبار تا"))}</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  }
+
+  function renderRates(row: ResourceRow): string {
+    const draft = state.rateDraft;
+    const table = row.rates.length
+      ? `<div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Rate", "نرخ"))}</th><th>${escapeHtml(say("Basis", "مبنا"))}</th><th>${escapeHtml(say("Currency", "ارز"))}</th><th>${escapeHtml(say("Unit", "واحد"))}</th><th>${escapeHtml(say("Effective From", "اعتبار از"))}</th><th>${escapeHtml(say("Effective To", "اعتبار تا"))}</th></tr></thead><tbody>${row.rates.map((rate) => `<tr><td>${escapeHtml(rate.rate)}</td><td>${escapeHtml(rate.basis)}</td><td>${escapeHtml(rate.currency)}</td><td>${escapeHtml(rate.unit)}</td><td>${escapeHtml(rate.effectiveFrom)}</td><td>${escapeHtml(rate.effectiveTo ?? say("Open-ended", "بدون پایان"))}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="cp-calendar-empty">${escapeHtml(say("No rate fact is stored for this resource.", "هیچ نرخ ذخیره‌شده‌ای برای این منبع وجود ندارد."))}</div>`;
+    const basisOptions = RESOURCE_RATE_BASES.map((basis) => `<option value="${basis}" ${draft.basis === basis ? "selected" : ""}>${escapeHtml(rateBasisLabel(basis))}</option>`).join("");
+    const form = `<form data-resource-rate-form class="cp-calendar-fields cp-resource-rate-form">
+      <label>${escapeHtml(say("Rate", "نرخ"))}<input name="rate-value" value="${escapeHtml(draft.rate)}" inputmode="decimal" required></label>
+      <label>${escapeHtml(say("Basis", "مبنا"))}<select name="rate-basis">${basisOptions}</select></label>
+      <label>${escapeHtml(say("Currency", "ارز"))}<input name="rate-currency" value="${escapeHtml(draft.currency)}" required></label>
+      <label>${escapeHtml(say("Unit", "واحد"))}<input name="rate-unit" value="${escapeHtml(draft.unit)}" required></label>
+      <label>${escapeHtml(say("Effective From", "اعتبار از"))}<input type="date" name="rate-from" value="${escapeHtml(draft.effectiveFrom)}" required></label>
+      <label>${escapeHtml(say("Effective To", "اعتبار تا"))}<input type="date" name="rate-to" value="${escapeHtml(draft.effectiveTo)}"></label>
+      <label class="cp-resource-active"><input type="checkbox" name="rate-close" ${draft.closeOpenSegment ? "checked" : ""}> ${escapeHtml(say("Close the open-ended rate the day before", "بستن نرخ بدون پایان در روز قبل"))}</label>
+      <div class="cp-calendar-panel-actions"><button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Add rate change", "افزودن تغییر نرخ"))}</button></div>
+    </form>`;
+    return `<section class="cp-calendar-editor-panel" data-resource-panel="rates">${table}${form}
+      <p class="cp-calendar-hint" data-resource-rate-hint>${escapeHtml(say(
+        "Each change appends an effective-dated rate fact; the previous open-ended rate ends the day before the new start when closing is selected. Stored assignment costs and schedule facts are not recalculated here.",
+        "هر تغییر یک نرخ مؤثر-تاریخ‌دار جدید ثبت می‌کند؛ در صورت انتخاب بستن، نرخ بدون پایان قبلی در روز قبل از شروع جدید پایان می‌یابد. هزینه‌های ذخیره‌شدهٔ تخصیص و حقایق زمان‌بندی در اینجا بازمحاسبه نمی‌شوند.",
+      ))}</p>
+    </section>`;
   }
 
   function assignmentsById(): Map<string, AssignmentRecord> {
@@ -996,6 +1182,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
       state.tab = "general";
       state.mode = "browse";
       state.notice = null;
+      state.rateDraft = emptyRateDraft();
       render();
       return;
     }
@@ -1088,6 +1275,54 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
 
   host.addEventListener("submit", (event) => {
     const form = event.target as HTMLFormElement;
+    if (form.matches("[data-resource-rate-form]")) {
+      event.preventDefault();
+      if (state.busy) return;
+      const current = selected();
+      if (!current) return;
+      const data = new FormData(form);
+      const basisText = String(data.get("rate-basis") ?? "");
+      const input: ResourceRateInput = {
+        rate: String(data.get("rate-value") ?? "").trim(),
+        basis: isResourceRateBasis(basisText) ? basisText : "per_day",
+        currency: String(data.get("rate-currency") ?? "").trim(),
+        unit: String(data.get("rate-unit") ?? "").trim(),
+        effectiveFrom: String(data.get("rate-from") ?? ""),
+        effectiveTo: String(data.get("rate-to") ?? "") || null,
+        closeOpenSegment: data.get("rate-close") === "on",
+      };
+      state.rateDraft = {
+        ...input,
+        effectiveTo: input.effectiveTo ?? "",
+      };
+      void (async () => {
+        state.busy = true;
+        render();
+        const result = await saveResourceRate(transport, context, current.resourceId, input);
+        state.busy = false;
+        if (!result.ok) {
+          state.notice = { kind: "error", message: resourceRateErrorNotice(result.error.code, locale) };
+          render();
+          return;
+        }
+        const superseded = result.data.superseded?.effectiveTo
+          ? say(
+              ` The previous open-ended rate now ends ${result.data.superseded.effectiveTo}.`,
+              ` نرخ بدون پایان قبلی اکنون در ${result.data.superseded.effectiveTo} پایان می‌یابد.`,
+            )
+          : "";
+        state.notice = {
+          kind: "ok",
+          message: say(
+            `Rate ${result.data.rate.rate} stored effective ${result.data.rate.effectiveFrom}.`,
+            `نرخ ${result.data.rate.rate} با اعتبار از ${result.data.rate.effectiveFrom} ذخیره شد.`,
+          ) + superseded,
+        };
+        state.rateDraft = emptyRateDraft();
+        await reload(current.resourceId);
+      })();
+      return;
+    }
     const creating = form.matches("[data-resource-create-form]");
     const editing = form.matches("[data-resource-edit-form]");
     if (!creating && !editing) return;
