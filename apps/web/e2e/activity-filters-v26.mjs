@@ -5,8 +5,9 @@
  * Proves in the real preview that the Filters dialog is a manager plus an
  * editor with the documented Version 26 behaviour:
  *   - the list has Default/Global/Layout/User categories, All Activities,
- *     All/Any combination, Replace/Highlight and the New/Delete/Copy/Paste/
- *     Modify/Make Global/Copy as Layout actions;
+ *     All/Any combination, Replace/Highlight and the New/Delete/Cut/Copy/
+ *     Paste/Duplicate/Modify/Make Global/Copy as Layout actions, with Clear
+ *     in the definition editor;
  *   - the editor writes named filters with typed rows, Add/Delete/Move, the
  *     High value column for "is within range of", relative date tokens
  *     (CD/CS/CF ± n d/w/m/y) and inline validation;
@@ -193,7 +194,7 @@ async function main() {
   });
 
   const report = {
-    contract: "cubi-activity-filters-v26.v2",
+    contract: "cubi-activity-filters-v26.v3",
     baseUrl,
     gitHead: gitHead(),
     testedCodeSha,
@@ -241,7 +242,8 @@ async function main() {
     await scenario("01", "the manager and editor expose the version 26 surfaces", async () => {
       const initial = await gridState(page);
       totalRows = initial.rows;
-      assert(totalRows === 14, `expected the 14-activity fixture, got ${totalRows}`);
+      // The preview fixture grew past the original 14 activities; never fewer.
+      assert(totalRows >= 14, `expected at least the 14-activity fixture, got ${totalRows}`);
       await openFilters(page);
       const state = await page.evaluate(`(() => {
         const dialog = document.querySelector("${dialogSelector}");
@@ -251,6 +253,7 @@ async function main() {
           actions: [...dialog.querySelectorAll("[name=\\"filterAction\\"]")].map((button) => button.value),
           add: Boolean(dialog.querySelector("[data-filter-row-add]")),
           optimize: Boolean(dialog.querySelector("[data-filter-optimize]")),
+          clear: Boolean(dialog.querySelector("[data-filter-clear]")),
           remove: dialog.querySelectorAll("[data-filter-row-remove]").length,
           moves: dialog.querySelectorAll("[data-filter-row-move]").length,
           high: dialog.querySelectorAll("[data-filter-high]").length,
@@ -261,10 +264,11 @@ async function main() {
       })()`);
       assert(state.rows === 2, `expected two starter rows, got ${state.rows}`);
       assert(state.groups.join(",") === "default,global,layout,user", `filter categories ${state.groups}`);
-      for (const action of ["apply", "delete", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
+      for (const action of ["apply", "delete", "cut", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
         assert(state.actions.includes(action), `action ${action} is missing`);
       }
       assert(state.add && state.optimize && state.remove === 2 && state.moves === 4, "row Add/Optimize/Delete/Move controls are incomplete");
+      assert(state.clear, "the Clear control is missing");
       assert(state.high === 2, "the High value inputs are missing");
       assert(state.heads === 6, `expected six editor columns (Where/Field/Is/Value/High/actions), got ${state.heads}`);
       assert(/Preview/.test(state.preview), `preview line is missing: ${state.preview}`);
@@ -472,6 +476,16 @@ async function main() {
       await setLanguage(page, "en");
       await setViewport(page, 1366, 768);
       await openFilters(page);
+      // Scenario 06 left All Activities checked; a specific filter is only
+      // applied when that box is clear, so reset it before picking a status.
+      await page.evaluate(`(() => {
+        const all = document.querySelector('${dialogSelector} input[name="filterAllActivities"]');
+        if (!all || !all.checked) return false;
+        all.checked = false;
+        all.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      })()`);
+      await sleep(150);
       await setSelect(page, 0, "field", "activity_status");
       const picker = await page.evaluate(`(() => {
         const row = document.querySelector('${dialogSelector} .cp-filter-row[data-filter-row="0"]');
@@ -624,6 +638,103 @@ async function main() {
       await clickInDialog(page, "[data-dialog-cancel]");
       await sleep(300);
       return { before: before.length, after: after.saved.length, checked };
+    });
+
+    await scenario("13", "Cut moves a saved filter to the clipboard and Paste restores it", async () => {
+      await setLanguage(page, "en");
+      await setViewport(page, 1366, 768);
+      await openFilters(page);
+
+      const selectRow = async (name) => page.evaluate(`(() => {
+        const row = [...document.querySelectorAll('${dialogSelector} tr[data-filter-id]')]
+          .find((item) => item.getAttribute("data-filter-name") === ${JSON.stringify(name)});
+        if (!row) return null;
+        row.querySelector("[data-filter-row-select]")?.click();
+        return {
+          cut: document.querySelector('${dialogSelector} [data-filter-cut]')?.disabled,
+          del: document.querySelector('${dialogSelector} [name="filterAction"][value="delete"]')?.disabled,
+          modify: document.querySelector('${dialogSelector} [data-filter-modify]')?.disabled,
+          title: document.querySelector('${dialogSelector} [data-filter-cut]')?.title ?? "",
+        };
+      })()`);
+
+      const defaultRow = await selectRow("critical");
+      assert(defaultRow, "the Critical default filter row is missing");
+      assert(defaultRow.cut === true, "Cut is enabled for a read-only default filter");
+      assert(defaultRow.del === true && defaultRow.modify === true, "Default filter Delete/Modify must stay disabled");
+      assert(/read-only/i.test(defaultRow.title), `the disabled reason is "${defaultRow.title}"`);
+
+      const savedRow = await selectRow("six-week lookahead");
+      assert(savedRow, "the saved lookahead filter row is missing");
+      assert(savedRow.cut === false, "Cut is disabled for a saved filter");
+      assert(savedRow.del === false && savedRow.modify === false, "Delete/Modify stayed disabled for a saved filter");
+
+      const before = (await gridState(page)).saved;
+      assert(before.includes("six-week lookahead"), `the saved filter is missing before Cut: ${before.join(", ")}`);
+      await clickInDialog(page, "[data-filter-cut]");
+      await page.waitForSelector(`${dialogSelector}[open]`, "filters dialog after Cut", 8000);
+      await sleep(600);
+      const cut = (await gridState(page)).saved;
+      assert(!cut.includes("six-week lookahead"), `Cut left the filter in place: ${cut.join(", ")}`);
+      assert(cut.length === before.length - 1, `Cut changed the count ${before.length} -> ${cut.length}`);
+
+      await clickInDialog(page, '[name="filterAction"][value="paste"]');
+      await page.waitForSelector(`${dialogSelector}[open]`, "filters dialog after Paste", 8000);
+      await sleep(600);
+      const pasted = (await gridState(page)).saved;
+      assert(pasted.includes("six-week lookahead"), `Paste did not restore the cut filter: ${pasted.join(", ")}`);
+      assert(pasted.length === before.length, `Paste restored ${pasted.length - cut.length} entries, expected 1`);
+      await capture(page, "12-filter-cut-paste-en-1366");
+
+      await clickInDialog(page, '[name="filterAction"][value="apply"]');
+      await page.waitForSelector(`${dialogSelector}[open]`, "filters dialog after Apply", 8000);
+      await sleep(600);
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload after Cut/Paste");
+      await sleep(900);
+      await openFilters(page);
+      const reloaded = (await gridState(page)).saved;
+      assert(reloaded.includes("six-week lookahead"), "the pasted filter disappeared after reload");
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      return { before: before.length, cut: cut.length, pasted: pasted.length, reloaded: reloaded.length };
+    });
+
+    await scenario("14", "Clear empties the filter definition without touching the applied filter", async () => {
+      await setLanguage(page, "fa");
+      await setViewport(page, 1280, 720);
+      await openFilters(page);
+      const gridBefore = await gridState(page);
+      await clickInDialog(page, "[data-filter-new]");
+      await setText(page, "filterName", "پاک‌شدنی");
+      await setText(page, "filter.value.0", "بازرسی");
+      const filled = await preview(page);
+      assert(filled.rows === 1, `the editor has ${filled.rows} rows before Clear`);
+      await clickInDialog(page, "[data-filter-clear]");
+      const cleared = await page.evaluate(`(() => ({
+        name: document.querySelector('${dialogSelector} input[name="filterName"]')?.value ?? "",
+        value: document.querySelector('${dialogSelector} input[name="filter.value.0"]')?.value ?? "",
+        editing: document.querySelector('${dialogSelector} input[name="filterEditingId"]')?.value ?? "",
+        rows: document.querySelectorAll('${dialogSelector} [data-filter-rows] .cp-filter-row').length,
+        open: document.querySelector('${dialogSelector}')?.open ?? false,
+        label: document.querySelector('${dialogSelector} [data-filter-clear]')?.textContent?.trim() ?? "",
+      }))()`);
+      assert(cleared.open === true, "Clear closed the dialog");
+      assert(cleared.name === "", `Clear kept the name "${cleared.name}"`);
+      assert(cleared.value === "" && cleared.editing === "", "Clear kept a value or editing id");
+      assert(cleared.rows === 1, `Clear left ${cleared.rows} criterion rows`);
+      assert(cleared.label === "پاک‌کردن", `Clear label is "${cleared.label}"`);
+      const previewAfter = await preview(page);
+      assert(/پیش‌نمایش/.test(previewAfter.text), `Clear left a stale preview: ${previewAfter.text}`);
+      const overflow = await page.evaluate(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
+      assert(overflow <= 1, `the Persian Clear state overflows by ${overflow}px`);
+      await capture(page, "13-filter-clear-fa-rtl-1280");
+      await clickInDialog(page, "[data-dialog-cancel]");
+      await sleep(300);
+      const gridAfter = await gridState(page);
+      assert(gridAfter.rows === gridBefore.rows, `Clear changed the grid ${gridBefore.rows} -> ${gridAfter.rows}`);
+      return { overflow, rows: gridAfter.rows };
     });
 
     writeReport();

@@ -414,9 +414,11 @@ test("Filters dialog exposes the version 26 list, scope categories and actions",
   assert.match(html, /data-filter-group="user"/);
   assert.match(html, /data-filter-new/);
   assert.match(html, /data-filter-modify/);
-  for (const action of ["apply", "delete", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
+  for (const action of ["apply", "delete", "cut", "copy", "duplicate", "paste", "make-global", "copy-as-layout"]) {
     assert.match(html, new RegExp(`name="filterAction" value="${action}"`));
   }
+  assert.match(html, /data-filter-cut/);
+  assert.match(html, /data-filter-clear/);
   assert.match(html, /name="filterName"/);
   assert.match(html, /name="filterScope"/);
   assert.match(html, /name="filterMatch"/);
@@ -696,6 +698,88 @@ test("Copy and Paste move a filter into the chosen category", () => {  const pre
   assert.equal(filters?.saved[0].scope, "global");
   assert.equal(filters?.saved[0].name, "Civil open");
   assert.deepEqual(filters?.selectedIds, [filters?.saved[0].id]);
+});
+
+test("Cut removes a saved filter and Paste restores it from the session clipboard", () => {
+  const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:cut-reorder",
+        name: "Cut reorder",
+        match: "all" as const,
+        scope: "global" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:cut-reorder",
+      selectedIds: ["custom:cut-reorder"],
+    },
+  };
+  const cut = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:cut-reorder",
+    filterAction: "cut",
+  }), previous);
+  assert.equal(cut.presentation?.filters.saved.length, 0);
+  assert.equal(cut.presentation?.filters.activeId, null);
+  const pasted = readLayoutPatch(form({
+    filterList: "v26",
+    filterAction: "paste",
+    filterScope: "layout",
+  }), cut.presentation ?? previous);
+  const filters = pasted.presentation?.filters;
+  assert.equal(filters?.saved.length, 1);
+  assert.equal(filters?.saved[0].name, "Cut reorder");
+  assert.equal(filters?.saved[0].scope, "layout");
+  assert.deepEqual(filters?.saved[0].criteria, previous.filters.saved[0].criteria);
+});
+
+test("Cut refuses a default filter", () => {
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "builtin:critical",
+    filterAction: "cut",
+  }), DEFAULT_PRESENTATION);
+  // The default filter stays selected and the saved list is untouched.
+  assert.equal(patch.presentation?.filters.selectedIds?.[0], "builtin:critical");
+  assert.equal(patch.presentation?.filters.saved.length, 0);
+});
+
+test("Cut, Delete and Modify stay disabled for a default filter and enable for a saved filter", () => {
+  const builtin = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [],
+      activeId: "builtin:critical",
+      selectedIds: ["builtin:critical"],
+    },
+  };
+  const builtinHtml = renderLayoutDialogs(dialogOptions({ presentation: builtin }));
+  const builtinCut = /<button[^>]*data-filter-cut[^>]*>/u.exec(builtinHtml)?.[0] ?? "";
+  const builtinDelete = /<button[^>]*name="filterAction" value="delete"[^>]*>/u.exec(builtinHtml)?.[0] ?? "";
+  const builtinModify = /<button[^>]*data-filter-modify[^>]*>/u.exec(builtinHtml)?.[0] ?? "";
+  for (const [name, markup] of [["cut", builtinCut], ["delete", builtinDelete], ["modify", builtinModify]] as const) {
+    assert.match(markup, /disabled/u, `${name} must be disabled for a default filter`);
+    assert.match(markup, /title="Default filters are read-only/u, `${name} must explain why it is disabled`);
+  }
+
+  const saved = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:manage-me",
+        name: "Manage me",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "is_critical" as const, operator: "equals" as const, value: "true" }],
+      }],
+      activeId: "custom:manage-me",
+      selectedIds: ["custom:manage-me"],
+    },
+  };
+  const savedHtml = renderLayoutDialogs(dialogOptions({ presentation: saved }));
+  const savedCut = /<button[^>]*data-filter-cut[^>]*>/u.exec(savedHtml)?.[0] ?? "";
+  assert.doesNotMatch(savedCut, /disabled/u);
 });
 
 test("a filter draft reads dynamic criterion rows, their order and the high value", () => {

@@ -48,6 +48,7 @@ import {
   activityFilterFieldType,
   activityFilterOperatorLabel,
   activityFilterOperatorsFor,
+  canDeleteActivityFilter,
   copyActivityFilterAsLayout,
   deleteActivityFilter,
   duplicateActivityFilter,
@@ -455,6 +456,7 @@ function filterBuilder(locale: string): string {
         <datalist id="cp-filter-date-tokens">${FILTER_DATE_TOKENS.map((token) => `<option value="${token}"></option>`).join("")}</datalist>
         <div class="cp-filter-optimize">
           <button type="button" data-filter-optimize>${esc(t(locale, "Optimize", "بهینه‌سازی"))}</button>
+          <button type="button" data-filter-clear title="${esc(t(locale, "Clear the filter definition being edited", "تعریف فیلتر در حال ویرایش را پاک کن"))}" aria-label="${esc(t(locale, "Clear filter definition", "پاک‌کردن تعریف فیلتر"))}">${esc(t(locale, "Clear", "پاک‌کردن"))}</button>
           <span data-filter-optimize-status role="status" aria-live="polite"></span>
         </div>
         <button type="button" class="cp-filter-add" data-filter-row-add>${esc(t(locale, "Add criterion", "افزودن معیار"))}</button>
@@ -463,16 +465,29 @@ function filterBuilder(locale: string): string {
     </fieldset>`;
 }
 
-function filterFooter(locale: string): string {
+function filterFooter(locale: string, filters: ActivityFilterState): string {
   const button = (en: string, fa: string, attrs: string): string => `<button ${attrs}>${esc(t(locale, en, fa))}</button>`;
+  // Cut removes the filter from its category after placing it on the session
+  // clipboard, so it is available only where Delete is: saved global, layout
+  // and user filters. A default filter stays read-only.
+  const targetId = filters.selectedIds?.[0] ?? filters.activeId ?? null;
+  const target = findActivityFilter(filters, targetId);
+  const canCut = Boolean(target && canDeleteActivityFilter(target));
+  const canManage = Boolean(target && !target.builtin);
+  const readOnlyTitle = t(locale, "Default filters are read-only; select a saved filter first", "فیلترهای پیش‌فرض فقط‌خواندنی‌اند؛ ابتدا یک فیلتر ذخیره‌شده انتخاب کنید");
+  const cutTitle = canCut
+    ? t(locale, "Cut the selected filter", "فیلتر انتخاب‌شده را برش بده")
+    : readOnlyTitle;
+  const manageAttrs = canManage ? "" : ` disabled title="${esc(readOnlyTitle)}"`;
   return `<div class="cp-dialog-buttons cp-filter-buttons">
     ${button("Apply", "اعمال", 'type="submit" data-dialog-apply name="filterAction" value="apply"')}
     ${button("New", "جدید", 'type="button" data-filter-new')}
-    ${button("Delete", "حذف", 'type="submit" data-dialog-apply name="filterAction" value="delete"')}
+    ${button("Delete", "حذف", `type="submit" data-dialog-apply name="filterAction" value="delete"${manageAttrs}`)}
+    ${button("Cut", "برش", `type="submit" data-dialog-apply data-filter-cut name="filterAction" value="cut"${canCut ? "" : ` disabled title="${esc(cutTitle)}"`}`)}
     ${button("Copy", "کپی", 'type="submit" data-dialog-apply name="filterAction" value="copy"')}
     ${button("Duplicate", "تکثیر", 'type="submit" data-dialog-apply name="filterAction" value="duplicate"')}
     ${button("Paste", "جای‌گذاری", 'type="submit" data-dialog-apply name="filterAction" value="paste"')}
-    ${button("Modify", "ویرایش", 'type="button" data-filter-modify')}
+    ${button("Modify", "ویرایش", `type="button" data-filter-modify${manageAttrs}`)}
     ${button("Make Global", "سراسری کن", 'type="submit" data-dialog-apply name="filterAction" value="make-global"')}
     ${button("Copy as Layout", "کپی به چیدمان", 'type="submit" data-dialog-apply name="filterAction" value="copy-as-layout"')}
     <span class="cp-dialog-buttons-spacer" aria-hidden="true"></span>
@@ -941,7 +956,7 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
     </fieldset>`;
 
   return [
-    shell(locale, "filters", t(locale, "Filters", "فیلترها"), filterEditor(optionsInput), true, filterFooter(locale)),
+    shell(locale, "filters", t(locale, "Filters", "فیلترها"), filterEditor(optionsInput), true, filterFooter(locale, optionsInput.presentation.filters)),
     shell(locale, "group-sort", t(locale, "Group and Sort", "گروه‌بندی و ترتیب"), groupSort, true),
     shell(locale, "timescale", t(locale, "Timescale", "مقیاس زمانی"), timescale),
     shell(locale, "bars", t(locale, "Bar Styles", "سبک میله‌ها"), bars),
@@ -1264,6 +1279,14 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
       }
     } else if (action === "delete") {
       filters = deleteActivityFilter(filters, targetId);
+    } else if (action === "cut") {
+      // Cut is Copy plus Delete: a default filter is read-only, so it is never
+      // placed on the clipboard as if it had been removed.
+      const source = findActivityFilter(filters, targetId);
+      if (source && canDeleteActivityFilter(source)) {
+        filterClipboard = source;
+        filters = deleteActivityFilter(filters, targetId);
+      }
     } else if (action === "copy") {
       const source = findActivityFilter(filters, targetId);
       if (source) filterClipboard = source;
