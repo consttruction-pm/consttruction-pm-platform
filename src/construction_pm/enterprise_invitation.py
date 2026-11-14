@@ -48,7 +48,7 @@ class EnterpriseInvitationRepository(Protocol):
     def find_public_identity(self, tenant_id: str, cubi_id: str) -> PublicCubiIdentity | None: ...
     def create_invitation(self, invitation: TeamInvitation, token_hash: str) -> TeamInvitation: ...
     def accept_invitation(self, tenant_id: str, invitation_id: str, token_hash: str, user_id: str,
-                          *, now: datetime) -> tuple[TeamInvitation, EnterpriseTeamMembership]: ...
+                          *, now: datetime) -> tuple[TeamInvitation, EnterpriseTeamMembership | None]: ...
     def decline_invitation(self, tenant_id: str, invitation_id: str, token_hash: str, user_id: str,
                            *, now: datetime) -> TeamInvitation: ...
     def revoke_invitation(self, tenant_id: str, invitation_id: str, actor_id: str,
@@ -116,7 +116,7 @@ class EnterpriseInvitationService:
             invitation, hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         )
 
-    def accept(self, session_id: str, invitation_id: str, token: str) -> tuple[TeamInvitation, EnterpriseTeamMembership]:
+    def accept(self, session_id: str, invitation_id: str, token: str) -> tuple[TeamInvitation, EnterpriseTeamMembership | None]:
         session = self._session(session_id)
         return self._repository.accept_invitation(
             session.tenant_id, invitation_id, self._token_hash(token), session.user_id, now=self._now()

@@ -24,7 +24,7 @@ class EnterpriseInvitationHttpMiddleware:
             status, payload = self._handle(str(environ.get("REQUEST_METHOD","GET")).upper(), path, environ)
         except InvitationDenied as exc:
             code = str(exc)
-            status = 404 if code in {"CUBI_ID_NOT_FOUND","TEAM_NOT_FOUND_OR_INACTIVE","INVITATION_NOT_FOUND"} else 403
+            status = 404 if code in {"CUBI_ID_NOT_FOUND","TEAM_NOT_FOUND_OR_INACTIVE","INVITATION_NOT_FOUND"} else (409 if code in {"INVITATION_NOT_PENDING","INVITATION_EXPIRED"} else 403)
             payload = {"code":code}
         except (InvitationError, ValueError, TypeError) as exc:
             status, payload = 400, {"code":str(exc) or "INVITATION_REQUEST_INVALID"}
@@ -65,6 +65,8 @@ class EnterpriseInvitationHttpMiddleware:
             body=self._body(environ); token=str(body.get("token",""))
             if parts[4]=="accept":
                 item,membership=self._service.accept(session_id,parts[3],token)
+                if membership is None:
+                    return 409,{"code":"INVITATION_EXPIRED","invitation":self._serialize(item,False)}
                 return 200,{"invitation":self._serialize(item,False),"membership":{"team_id":membership.team_id,"user_id":membership.user_id,"role":membership.role,"status":membership.status}}
             if parts[4]=="decline":
                 return 200,{"invitation":self._serialize(self._service.decline(session_id,parts[3],token),False)}

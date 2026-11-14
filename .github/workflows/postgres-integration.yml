@@ -103,6 +103,9 @@ on:
       - "src/construction_pm/enterprise_invitation_http.py"
       - "tests/test_enterprise_invitation_http.py"
       - "tests/integration/test_enterprise_invitation_postgres_live.py"
+      - "src/construction_pm/enterprise_invitation_http.py"
+      - "tests/test_enterprise_invitation_http.py"
+      - "tests/integration/test_enterprise_invitation_postgres_live.py"
 
   pull_request:
     paths:
