@@ -1,9 +1,9 @@
 {
   "contract": "cubi-project-details-v26.v1",
   "baseUrl": "http://127.0.0.1:4243",
-  "gitHead": "95dead662363a2b63acf3b947d69ea4584b2af2d",
-  "testedCodeSha": "95dead662363a2b63acf3b947d69ea4584b2af2d",
-  "capturedAt": "2026-11-14T11:10:30.726Z",
+  "gitHead": "6ecc8472ced6c61c1ae94a7aacb81f132f655752",
+  "testedCodeSha": "6ecc8472ced6c61c1ae94a7aacb81f132f655752",
+  "capturedAt": "2026-11-14T11:33:14.961Z",
   "cells": [
     {
       "viewport": "1366x768",
@@ -32,14 +32,14 @@
       "id": "01",
       "name": "Project Details reads the stored OBS, web-site, checkout and leveling values",
       "status": "pass",
-      "at": "2026-11-14T11:10:35.124Z"
+      "at": "2026-11-14T11:33:19.285Z"
     },
     {
       "revision": 1,
       "id": "02",
       "name": "OBS responsible manager and web-site persist through the lifecycle API",
       "status": "pass",
-      "at": "2026-11-14T11:10:39.172Z"
+      "at": "2026-11-14T11:33:23.335Z"
     },
     {
       "activityId": "AH-A230-B",
@@ -48,7 +48,7 @@
       "id": "02b",
       "name": "Defaults tab values persist and prefill a new activity",
       "status": "pass",
-      "at": "2026-11-14T11:10:43.757Z"
+      "at": "2026-11-14T11:33:27.931Z"
     },
     {
       "recordRevision": 2,
@@ -56,7 +56,7 @@
       "id": "03",
       "name": "leveling priority saves through the canonical schedule-settings contract",
       "status": "pass",
-      "at": "2026-11-14T11:10:47.690Z"
+      "at": "2026-11-14T11:33:31.852Z"
     },
     {
       "owner": "preview-admin",
@@ -64,7 +64,7 @@
       "id": "04",
       "name": "project checkout is an exclusive stored lease with check-in",
       "status": "pass",
-      "at": "2026-11-14T11:10:48.658Z"
+      "at": "2026-11-14T11:33:32.818Z"
     },
     {
       "staleWebsite": "https://example.com/stale-write",
@@ -72,7 +72,7 @@
       "id": "05",
       "name": "a stale Project Details save is rejected and reloads the latest values",
       "status": "pass",
-      "at": "2026-11-14T11:10:48.956Z"
+      "at": "2026-11-14T11:33:33.118Z"
     },
     {
       "directPatch": 403,
@@ -81,7 +81,7 @@
       "id": "06",
       "name": "a viewer reads Project Details but the server rejects every write",
       "status": "pass",
-      "at": "2026-11-14T11:10:54.123Z"
+      "at": "2026-11-14T11:33:38.284Z"
     },
     {
       "locale": "fa",
@@ -90,7 +90,7 @@
       "id": "07",
       "name": "the new fields fit the Persian 1280x720 layout in RTL",
       "status": "pass",
-      "at": "2026-11-14T11:10:59.066Z"
+      "at": "2026-11-14T11:33:43.261Z"
     }
   ],
   "screenshots": [

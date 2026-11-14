@@ -3723,6 +3723,23 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   `1124 tsx` tests (including the new `activity-id` suite), `tsc --noEmit`
   and esbuild pass.
 
+### PRJ-002 Defaults tab display — 2026-11-14 (`6ecc8472`)
+
+- The Project Details **Defaults** tab now renders the six stored values
+  (`default_activity_type`, `default_percent_complete_type`,
+  `activity_id_prefix`, `activity_id_suffix`, `activity_id_increment`,
+  `increment_activity_id`) in en/fa, with the note that they apply only to
+  newly created activities. It previously showed the generic "no
+  authoritative fields" message despite the values being stored.
+- The **Settings** tab no longer states that Activity ID numbering is
+  unstored; it points to the Defaults tab. Fiscal-year start and default price
+  per unit genuinely remain absent.
+- `workspace-view.test.ts` (112 pass) asserts the values in en and fa and the
+  removed stale claim. `project-details-v26.mjs` **8/8** at
+  `6ecc8472ced6c61c1ae94a7aacb81f132f655752`; scenario `02b` reads the
+  Defaults tab text after reload and asserts the stored enums, affixes and
+  increment. Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
