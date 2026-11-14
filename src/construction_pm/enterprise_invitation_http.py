@@ -50,6 +50,13 @@ class EnterpriseInvitationHttpMiddleware:
             if method != "GET": return 405, {"code":"METHOD_NOT_ALLOWED"}
             item = self._service.lookup(session_id,(query.get("value") or [""])[0])
             return 200, {"contract_version":"cubi-public-identity.v1","identity":{"cubi_id":item.cubi_id,"display_name":item.display_name}}
+        if parts == ["api","enterprise","invitations","inbox"]:
+            if method != "GET": return 405, {"code":"METHOD_NOT_ALLOWED"}
+            items = self._service.list_received(session_id)
+            return 200, {
+                "contract_version":"cubi-team-invitation-inbox.v1",
+                "invitations":[self._serialize(item,False) for item in items],
+            }
         if len(parts)==5 and parts[:3]==["api","enterprise","teams"] and parts[4]=="invitations":
             if method=="GET":
                 items=self._service.list_for_team(session_id,parts[3])
