@@ -11,11 +11,11 @@ import pytest
 
 from construction_pm.enterprise_task import (
     EnterpriseTask,
-    EnterpriseTaskDependencyError,
     EnterpriseTaskPriority,
     EnterpriseTaskStatus,
 )
 from construction_pm.enterprise_task_repository import (
+    EnterpriseTaskDependencyError,
     EnterpriseTaskNotFound,
     PostgresEnterpriseTaskRepository,
 )
