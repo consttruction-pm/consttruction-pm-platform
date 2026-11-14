@@ -6,6 +6,7 @@ import {
   ACTIVITY_DETAILS_STORAGE_KEY,
   ACTIVITY_DETAILS_TABS,
   ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY,
+  isUnauthorizedDetailsCode,
   parseActivityProgressHistory,
   parseUdfFormValue,
   readActivityDetailsVisibleTabs,
@@ -444,6 +445,32 @@ test("detail tabs distinguish a pending read from a loaded but empty collection"
     data: { expenses: { status: "error", records: [], errorCode: "COST_READ_FAILED" } },
   });
   assert.match(failed, /COST_READ_FAILED/);
+});
+
+test("a denied read renders a localized unauthorized state, not a transport error", () => {
+  const denied = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["expenses"],
+    data: { expenses: { status: "unauthorized", records: [], errorCode: "AUTHORIZATION_DENIED" } },
+  });
+  assert.match(denied, /data-details-unauthorized/);
+  assert.match(denied, /do not have permission to view these records/);
+  assert.doesNotMatch(denied, /AUTHORIZATION_DENIED/);
+
+  const deniedFa = renderActivityDetailsPanel({
+    locale: "fa", activities: ACTIVITIES, selectedActivityId: "act-1",
+    relationships: [], projectName: "project-1", dataDate: "2026-10-07",
+    calendarMode: "gregorian", visibleTabs: ["expenses"],
+    data: { expenses: { status: "unauthorized", records: [], errorCode: "AUTHORIZATION_DENIED" } },
+  });
+  assert.match(deniedFa, /اجازهٔ مشاهدهٔ این سوابق/);
+
+  assert.equal(isUnauthorizedDetailsCode("AUTHORIZATION_DENIED"), true);
+  assert.equal(isUnauthorizedDetailsCode("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"), true);
+  assert.equal(isUnauthorizedDetailsCode("SESSION_EXPIRED"), true);
+  assert.equal(isUnauthorizedDetailsCode("COST_READ_FAILED"), false);
+  assert.equal(isUnauthorizedDetailsCode(null), false);
 });
 
 test("progress history parsing rejects malformed payloads instead of inventing events", () => {

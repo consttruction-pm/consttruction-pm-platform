@@ -168,7 +168,7 @@ const SETTINGS_DETAILS_TABS: readonly TabLabel[] = [
   { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
 ];
 
-export type ActivityDetailsLoadStatus = "idle" | "loading" | "loaded" | "error";
+export type ActivityDetailsLoadStatus = "idle" | "loading" | "loaded" | "error" | "unauthorized";
 
 /**
  * One authoritative detail collection. A tab must distinguish "not read yet",
@@ -299,6 +299,9 @@ function loadNotice(locale: string, state: ActivityDetailsLoadState<unknown>, id
   if (state.status === "idle") return `<p class="cp-detail-hint">${esc(idleText)}</p>`;
   if (state.status === "loading") {
     return `<p class="cp-detail-hint" role="status" data-details-loading>${esc(t(locale, "Loading authoritative records from the project service…", "در حال بارگذاری سوابق مرجع از سرویس پروژه…"))}</p>`;
+  }
+  if (state.status === "unauthorized") {
+    return `<p class="cp-detail-error" role="alert" data-details-unauthorized>${esc(t(locale, "You do not have permission to view these records in this project.", "شما اجازهٔ مشاهدهٔ این سوابق را در این پروژه ندارید."))}</p>`;
   }
   if (state.status === "error") {
     return `<p class="cp-detail-error" role="alert">${esc(t(locale, "The project service could not return these records: ", "سرویس پروژه این سوابق را برنگرداند: "))}${esc(state.errorCode ?? "UNKNOWN")}</p>`;
@@ -1022,7 +1025,9 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         : loadNotice(locale, data, t(locale, "User-defined field metadata has not been read yet.", "فرادادهٔ فیلدهای سفارشی هنوز خوانده نشده است."));
       const valueNotice = values.status === "error"
         ? `<p class="cp-detail-error" role="alert">${esc(t(locale, "Stored UDF values could not be read: ", "مقادیر ذخیره‌شدهٔ فیلدهای سفارشی خوانده نشد: "))}${esc(values.errorCode ?? "UNKNOWN")}</p>`
-        : "";
+        : values.status === "unauthorized"
+          ? `<p class="cp-detail-error" role="alert" data-details-unauthorized>${esc(t(locale, "You do not have permission to view the stored UDF values in this project.", "شما اجازهٔ مشاهدهٔ مقادیر ذخیره‌شدهٔ فیلدهای سفارشی را در این پروژه ندارید."))}</p>`
+          : "";
       return `${table}
         ${valueNotice}
         ${controlBar(locale, [
@@ -1502,6 +1507,7 @@ const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
 const detailsLoadToken = new WeakMap<HTMLElement, number>();
 const detailsLoadedKey = new WeakMap<HTMLElement, string>();
+const detailsSelectionKey = new WeakMap<HTMLElement, string | null>();
 const detailsDataCache = new Map<string, ActivityDetailsData>();
 const customizeRuntime = new WeakMap<HTMLElement, CustomizeState>();
 
@@ -1512,7 +1518,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function resultState<T>(result: ApiResult<readonly T[]>): ActivityDetailsLoadState<T> {
   return result.ok
     ? { status: "loaded", records: result.data, errorCode: null }
-    : { status: "error", records: [], errorCode: result.error.code };
+    : failedDetailsState(result.error.code);
+}
+
+/**
+ * A permission failure is not a transient read error: retrying the same request
+ * will not help, so the tab must say the records are not available to this user
+ * instead of printing a transport code as if the service were broken.
+ */
+export function isUnauthorizedDetailsCode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  return code === "AUTHORIZATION_DENIED"
+    || code === "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    || code === "UNAUTHORIZED"
+    || code === "FORBIDDEN"
+    || code === "SESSION_EXPIRED"
+    || code === "SESSION_INVALID"
+    || code === "SESSION_REVOKED"
+    || code.startsWith("AUTH_")
+    || code.includes("NOT_AUTHORIZED");
+}
+
+function failedDetailsState<T>(errorCode: string | null): ActivityDetailsLoadState<T> {
+  return {
+    status: isUnauthorizedDetailsCode(errorCode) ? "unauthorized" : "error",
+    records: [],
+    errorCode,
+  };
 }
 
 function loadingDetailsState<T>(): ActivityDetailsLoadState<T> {
@@ -1573,12 +1605,12 @@ async function readProgressHistory(
     if (result.error.code === "P6_ACTIVITY_PROGRESS_HISTORY_NOT_FOUND") {
       return { status: "loaded", records: [], errorCode: null };
     }
-    return { status: "error", records: [], errorCode: result.error.code };
+    return failedDetailsState(result.error.code);
   }
   try {
     return { status: "loaded", records: parseActivityProgressHistory(result.data), errorCode: null };
   } catch (error) {
-    return { status: "error", records: [], errorCode: error instanceof Error ? error.message : "INVALID_ACTIVITY_PROGRESS_HISTORY" };
+    return failedDetailsState(error instanceof Error ? error.message : "INVALID_ACTIVITY_PROGRESS_HISTORY");
   }
 }
 
@@ -1595,18 +1627,12 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
     loadActivitySteps(transport, context, activityId).then(resultState),
     fetchP6ActivityUdfs(context.project_id, registry)
       .then((response): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({ status: "loaded", records: response.udfs, errorCode: null }))
-      .catch((error: unknown): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({
-        status: "error",
-        records: [],
-        errorCode: error instanceof Error ? error.message : "P6_UDF_UNAVAILABLE",
-      })),
+      .catch((error: unknown): ActivityDetailsLoadState<P6UdfEditorMetadata> =>
+        failedDetailsState(error instanceof Error ? error.message : "P6_UDF_UNAVAILABLE")),
     fetchP6ActivityUdfValues(context.project_id, registry, "activity", activityId)
       .then((response): ActivityDetailsLoadState<P6ActivityUdfValue> => ({ status: "loaded", records: response.values, errorCode: null }))
-      .catch((error: unknown): ActivityDetailsLoadState<P6ActivityUdfValue> => ({
-        status: "error",
-        records: [],
-        errorCode: error instanceof Error ? error.message : "P6_UDF_VALUE_UNAVAILABLE",
-      })),
+      .catch((error: unknown): ActivityDetailsLoadState<P6ActivityUdfValue> =>
+        failedDetailsState(error instanceof Error ? error.message : "P6_UDF_VALUE_UNAVAILABLE")),
     readProgressHistory(transport, context, activityId),
     loadDocuments(transport, context).then(resultState),
   ]);
@@ -1681,6 +1707,13 @@ export function enhanceActivityDetails(
   detailsRuntime.set(host, { input: effective, onSelect: onSelectActivity });
   host.innerHTML = renderActivityDetailsPanel(effective);
   const key = detailsDataKey(effective);
+  // A selection change invalidates an in-flight read immediately, including the
+  // cached path where no new request starts. Otherwise a late response for the
+  // previous activity would pass the token check and paint its rows here.
+  if (detailsSelectionKey.get(host) !== key) {
+    detailsSelectionKey.set(host, key);
+    detailsLoadToken.set(host, (detailsLoadToken.get(host) ?? 0) + 1);
+  }
   if (key && effective.selectedActivityId && effective.transport && effective.state) {
     if (effective.data) {
       detailsLoadedKey.set(host, key);
