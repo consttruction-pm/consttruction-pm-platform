@@ -133,7 +133,7 @@ class EnterpriseTaskApplicationService:
         session = self._session(session_id)
         if not isinstance(payload, Mapping):
             raise EnterpriseTaskError("ENTERPRISE_TASK_REQUEST_INVALID")
-        allowed = {"expected_revision", "title", "description", "priority", "status", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "task_id", "tenant_id", "created_by_user_id", "created_at", "project_id"}
+        allowed = {"contract_version", "expected_revision", "title", "description", "priority", "status", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "task_id", "tenant_id", "created_by_user_id", "created_at", "project_id"}
         if set(payload) - allowed:
             raise EnterpriseTaskError("ENTERPRISE_TASK_FIELDS_UNSUPPORTED")
         current = self._repository.get(session.tenant_id, task_id)
