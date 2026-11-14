@@ -409,7 +409,7 @@ class PostgresProjectRepository(ProjectRepository):
                 project_id,
                 expected_revision,
                 user_id,
-                *("project.admin",) if self._has_obs_access_function() else (),
+                *(("project.admin",) if self._has_obs_access_function() else ()),
             ),
         ).fetchone()
         return None if row is None else _summary(row)
