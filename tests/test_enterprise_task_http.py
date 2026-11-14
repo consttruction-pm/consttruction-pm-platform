@@ -10,7 +10,6 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from construction_pm.application.authorization import Permission
 from construction_pm.application.project_lifecycle import ProjectLifecycleError, SessionError
 from construction_pm.enterprise_task_repository import EnterpriseTaskNotFound, StoredEnterpriseTask
 
