@@ -189,6 +189,14 @@ const panelState = `(() => {
     viewport: { width: innerWidth, height: innerHeight },
     levelingLabel: panel.querySelector("[data-project-leveling-priority] h3")?.textContent?.trim() ?? null,
     checkoutLabel: checkout?.querySelector("h3")?.textContent?.trim() ?? null,
+    defaultActivityType: panel.querySelector("[data-project-default-activity-type]")?.value ?? null,
+    defaultPercentComplete: panel.querySelector("[data-project-default-percent-complete]")?.value ?? null,
+    activityIdPrefix: panel.querySelector("[data-project-activity-id-prefix]")?.value ?? null,
+    activityIdSuffix: panel.querySelector("[data-project-activity-id-suffix]")?.value ?? null,
+    activityIdIncrement: panel.querySelector("[data-project-activity-id-increment]")?.value ?? null,
+    incrementActivityId: Boolean(panel.querySelector("[data-project-increment-activity-id]")?.checked),
+    defaultsLabel: panel.querySelector("[data-project-defaults] h3")?.textContent?.trim() ?? null,
+    defaultsVisible: Boolean(panel.querySelector("[data-project-defaults]")?.getClientRects().length),
   };
 })()`;
 
@@ -341,6 +349,89 @@ async function main() {
       assert(state.website === "https://example.com/riverside", `reloaded website ${state.website}`);
       await capture(page, "02-project-details-persisted");
       return { revision: api.settings_revision };
+    });
+
+    await scenario("02b", "Defaults tab values persist and prefill a new activity", async () => {
+      await page.setSelect('[data-project-default-activity-type]', "Level of Effort");
+      await page.setSelect('[data-project-default-percent-complete]', "PHYSICAL");
+      await page.setInput('[data-project-activity-id-prefix]', "AH-");
+      await page.setInput('[data-project-activity-id-suffix]', "-B");
+      await page.setInput('[data-project-activity-id-increment]', "20");
+      await page.evaluate(`(() => {
+        const input = document.querySelector("[data-project-increment-activity-id]");
+        if (input && !input.checked) input.click();
+      })()`);
+      await saveMetadata(page);
+      const api = await readProject(page);
+      assert(api.default_activity_type === "Level of Effort", `API activity type ${api.default_activity_type}`);
+      assert(api.default_percent_complete_type === "PHYSICAL", `API percent type ${api.default_percent_complete_type}`);
+      assert(api.activity_id_prefix === "AH-", `API prefix ${api.activity_id_prefix}`);
+      assert(api.activity_id_suffix === "-B", `API suffix ${api.activity_id_suffix}`);
+      assert(api.activity_id_increment === 20, `API increment ${api.activity_id_increment}`);
+      assert(api.increment_activity_id === true, `API increment flag ${api.increment_activity_id}`);
+
+      await page.navigate(`${baseUrl}/app?view=live`, "form", "workspace reload for defaults");
+      await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "activity rows after defaults reload");
+      await sleep(1200);
+      await setLanguage(page, "en");
+      await openProjectSettings(page);
+      await waitLevelingLoaded(page);
+      const state = await readPanel(page);
+      assert(state.defaultActivityType === "Level of Effort", `reloaded activity type ${state.defaultActivityType}`);
+      assert(state.defaultPercentComplete === "PHYSICAL", `reloaded percent type ${state.defaultPercentComplete}`);
+      assert(state.activityIdPrefix === "AH-", `reloaded prefix ${state.activityIdPrefix}`);
+      assert(state.activityIdSuffix === "-B", `reloaded suffix ${state.activityIdSuffix}`);
+      assert(state.activityIdIncrement === "20", `reloaded increment ${state.activityIdIncrement}`);
+      assert(state.incrementActivityId, "reloaded increment flag is off");
+      await reveal(page, "[data-project-defaults]");
+      await capture(page, "02b-project-defaults-persisted");
+
+      // The real create form is the consumer of these defaults, not a copy.
+      await page.evaluate(`(() => {
+        const drawer = document.querySelector("[data-tools-drawer]");
+        if (drawer && drawer.hidden) document.querySelector('[data-rail-action="tools"]')?.click();
+      })()`);
+      await page.waitFor(`!document.querySelector("[data-tools-drawer]")?.hidden`, "tools drawer opens");
+      const form = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-tools-drawer] [data-activity-create-form]");
+        if (!form) return null;
+        return {
+          activityId: form.querySelector('[name="activity_id"]')?.value ?? "",
+          activityType: form.querySelector('[name="activity_type"]')?.value ?? "",
+          percentCompleteType: form.querySelector('[name="percent_complete_type"]')?.value ?? "",
+          hint: form.querySelector("[data-activity-id-suggestion]")?.textContent?.trim() ?? "",
+          wbsId: form.querySelector('[name="wbs_id"]')?.value ?? "",
+        };
+      })()`);
+      assert(form, "activity create form is missing");
+      assert(form.activityType === "Level of Effort", `form activity type ${form.activityType}`);
+      assert(form.percentCompleteType === "PHYSICAL", `form percent type ${form.percentCompleteType}`);
+      assert(/^AH-.+-B$/.test(form.activityId), `suggested activity ID ${form.activityId}`);
+      assert(form.hint.length > 0, "activity ID suggestion hint is missing");
+
+      await page.setInput('[data-tools-drawer] [data-activity-create-form] [name="name"]', "Defaults applied activity");
+      await page.click('[data-tools-drawer] [data-activity-create-form] button[type="submit"]');
+      await page.waitFor(
+        `document.querySelector('[data-tools-drawer] [data-activity-create-form] [name="name"]')?.value === ""`,
+        "activity create form reset",
+        20000,
+      );
+      // The authoritative check is the stored row, read back through the list.
+      const activities = await page.evaluate(
+        `fetch("/api/projects/${PROJECT}/p6/activities").then((response) => response.json()).then((body) => body.activities)`,
+        { awaitPromise: true },
+      );
+      const stored = activities.find((item) => item.activity.activity_id === form.activityId);
+      assert(stored, `created activity ${form.activityId} is missing`);
+      assert(stored.activity.activity_type === "Level of Effort", `stored activity type ${stored.activity.activity_type}`);
+      assert(stored.activity.percent_complete_type === "PHYSICAL", `stored percent type ${stored.activity.percent_complete_type}`);
+      await page.evaluate(`document.querySelector("[data-tools-close]")?.click()`);
+      await capture(page, "02b-activity-created-from-defaults");
+      return {
+        activityId: form.activityId,
+        activityType: stored.activity.activity_type,
+        percentCompleteType: stored.activity.percent_complete_type,
+      };
     });
 
     await scenario("03", "leveling priority saves through the canonical schedule-settings contract", async () => {
@@ -510,6 +601,9 @@ async function main() {
       assert(state.obs === "Dana Whitfield", `fa OBS ${state.obs}`);
       assert(state.website === "https://example.com/direct-write", `fa website ${state.website}`);
       assert(state.leveling === "42", `fa leveling ${state.leveling}`);
+      assert(state.defaultsLabel === "پیش‌فرض‌ها", `fa defaults label ${state.defaultsLabel}`);
+      assert(state.defaultActivityType === "Level of Effort", `fa default activity type ${state.defaultActivityType}`);
+      assert(state.defaultsVisible, "defaults section is not visible in the Persian layout");
       assert(state.checkoutLabel === "قفل ویرایش پروژه", `fa checkout label ${state.checkoutLabel}`);
       assert(state.levelingLabel === "اولویت تسطیح", `fa leveling label ${state.levelingLabel}`);
       assert(state.levelingVisible && state.checkoutVisible, "new controls are not visible in the Persian layout");

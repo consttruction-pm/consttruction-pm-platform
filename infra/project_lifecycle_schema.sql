@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
                                    'industrial', 'energy', 'other')),
     obs_responsible_manager TEXT NOT NULL DEFAULT '',
     website_url TEXT NOT NULL DEFAULT '',
+    default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+    default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+    activity_id_prefix TEXT NOT NULL DEFAULT '',
+    activity_id_suffix TEXT NOT NULL DEFAULT '',
+    activity_id_increment INTEGER NOT NULL DEFAULT 10
+        CHECK (activity_id_increment BETWEEN 1 AND 10000),
+    increment_activity_id BOOLEAN NOT NULL DEFAULT FALSE,
     checkout_state TEXT NOT NULL DEFAULT 'checked_in'
         CHECK (checkout_state IN ('checked_in', 'checked_out')),
     checked_out_by TEXT NOT NULL DEFAULT '',
@@ -52,6 +59,18 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS obs_responsible_manager TEXT NOT NULL DEFAULT '';
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS website_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS activity_id_prefix TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS activity_id_suffix TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS activity_id_increment INTEGER NOT NULL DEFAULT 10;
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS increment_activity_id BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS checkout_state TEXT NOT NULL DEFAULT 'checked_in';
 ALTER TABLE project_lifecycle_projects

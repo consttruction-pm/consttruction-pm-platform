@@ -93,3 +93,67 @@ def test_postgres_status_change_is_audited_and_idempotent():
             is None
         )
         assert repo.status_history_for_user("tenant-other", project, user) == ()
+
+
+def test_postgres_activity_defaults_round_trip_and_partial_update():
+    tenant, user, project = "tenant-defaults-live", "user-defaults-live", "project-defaults-live"
+    with connect() as connection:
+        _prepare(connection, tenant)
+        repo = PostgresProjectRepository(connection)
+        created = repo.create_for_user(
+            tenant,
+            user,
+            project,
+            "Defaults Live",
+            default_activity_type="Resource Dependent",
+            default_percent_complete_type="PHYSICAL",
+            activity_id_prefix="AH-",
+            activity_id_suffix="-B",
+            activity_id_increment=25,
+            increment_activity_id=True,
+        )
+        connection.commit()
+        assert created.default_activity_type == "Resource Dependent"
+        assert created.default_percent_complete_type == "PHYSICAL"
+        assert created.activity_id_prefix == "AH-"
+        assert created.activity_id_suffix == "-B"
+        assert created.activity_id_increment == 25
+        assert created.increment_activity_id is True
+
+        read_back = repo.get_for_user(tenant, project, user)
+        assert read_back is not None
+        assert read_back.default_activity_type == "Resource Dependent"
+        assert read_back.default_percent_complete_type == "PHYSICAL"
+        assert read_back.activity_id_prefix == "AH-"
+        assert read_back.activity_id_suffix == "-B"
+        assert read_back.activity_id_increment == 25
+        assert read_back.increment_activity_id is True
+
+        updated = repo.update_for_user(
+            tenant,
+            user,
+            project,
+            expected_revision=0,
+            name="Defaults Live",
+            activity_id_increment=5,
+        )
+        connection.commit()
+        assert updated is not None
+        assert updated.activity_id_increment == 5
+        assert updated.default_activity_type == "Resource Dependent"
+        assert updated.increment_activity_id is True
+
+        cleared = repo.update_for_user(
+            tenant,
+            user,
+            project,
+            expected_revision=1,
+            name="Defaults Live",
+            activity_id_prefix="",
+            increment_activity_id=False,
+        )
+        connection.commit()
+        assert cleared is not None
+        assert cleared.activity_id_prefix == ""
+        assert cleared.increment_activity_id is False
+        assert cleared.default_percent_complete_type == "PHYSICAL"

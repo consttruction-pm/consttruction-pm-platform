@@ -137,3 +137,53 @@ def test_preview_store_update_is_scoped_to_revision_membership_and_tenant():
         assert updated.primary_calendar_id == "CAL-9"
     finally:
         connection.close()
+
+
+def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults():
+    connection = _legacy_connection()
+    try:
+        store = PreviewStore(connection)
+        legacy = store.get_for_user("t1", "p1", "u1")
+        assert legacy.default_activity_type == "Task Dependent"
+        assert legacy.default_percent_complete_type == "DURATION"
+        assert legacy.activity_id_prefix == ""
+        assert legacy.activity_id_suffix == ""
+        assert legacy.activity_id_increment == 10
+        assert legacy.increment_activity_id is False
+
+        store.insert_project(
+            tenant_id="t1",
+            project_id="p2",
+            name="Configured",
+            revision=0,
+            wbs_by_activity={},
+            demo=False,
+            created_at=datetime(2026, 11, 14, tzinfo=timezone.utc),
+            default_activity_type="Resource Dependent",
+            default_percent_complete_type="UNITS",
+            activity_id_prefix="AH-",
+            activity_id_suffix="-X",
+            activity_id_increment=25,
+            increment_activity_id=True,
+        )
+        store.add_members("t1", "p2", ("u1",))
+        project = store.get_for_user("t1", "p2", "u1")
+        assert project.default_activity_type == "Resource Dependent"
+        assert project.default_percent_complete_type == "UNITS"
+        assert project.activity_id_prefix == "AH-"
+        assert project.activity_id_suffix == "-X"
+        assert project.activity_id_increment == 25
+        assert project.increment_activity_id is True
+
+        assert store.update_project(
+            "t1", "p2", "u1", expected_revision=0,
+            name="Configured renamed", description="", start_date=None,
+            date_system="gregorian", primary_calendar_id=None,
+            activity_id_increment=5,
+        )
+        updated = store.get_for_user("t1", "p2", "u1")
+        assert updated.activity_id_increment == 5
+        assert updated.default_activity_type == "Resource Dependent"
+        assert updated.increment_activity_id is True
+    finally:
+        connection.close()

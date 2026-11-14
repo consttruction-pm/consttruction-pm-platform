@@ -40,6 +40,25 @@ export type BootstrapLabels = {
   projectCheckoutCheckOut: string;
   projectCheckoutCheckIn: string;
   projectCheckoutConflict: string;
+  projectDefaults: string;
+  projectDefaultsHint: string;
+  projectDefaultActivityType: string;
+  projectDefaultPercentCompleteType: string;
+  projectActivityIdPrefix: string;
+  projectActivityIdSuffix: string;
+  projectActivityIdIncrement: string;
+  projectActivityIdIncrementHint: string;
+  projectIncrementActivityId: string;
+  activityTypeTaskDependent: string;
+  activityTypeResourceDependent: string;
+  activityTypeLevelOfEffort: string;
+  activityTypeStartMilestone: string;
+  activityTypeFinishMilestone: string;
+  activityTypeWbsSummary: string;
+  percentTypeDuration: string;
+  percentTypeUnits: string;
+  percentTypePhysical: string;
+  percentTypeScope: string;
   businessDomainNotClassified: string;
   businessDomainConstruction: string;
   businessDomainOilGas: string;
@@ -133,6 +152,25 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectCheckoutCheckOut: "Check out",
     projectCheckoutCheckIn: "Check in",
     projectCheckoutConflict: "This project is checked out by another user. Check it in there before editing.",
+    projectDefaults: "Defaults",
+    projectDefaultsHint: "Applied when a new activity is created. Existing activities keep their values.",
+    projectDefaultActivityType: "Default activity type",
+    projectDefaultPercentCompleteType: "Percent complete type",
+    projectActivityIdPrefix: "Activity ID prefix",
+    projectActivityIdSuffix: "Activity ID suffix",
+    projectActivityIdIncrement: "Increment",
+    projectActivityIdIncrementHint: "1 to 10000. Used to propose the next Activity ID.",
+    projectIncrementActivityId: "Increment Activity ID based on selected activity",
+    activityTypeTaskDependent: "Task Dependent",
+    activityTypeResourceDependent: "Resource Dependent",
+    activityTypeLevelOfEffort: "Level of Effort",
+    activityTypeStartMilestone: "Start Milestone",
+    activityTypeFinishMilestone: "Finish Milestone",
+    activityTypeWbsSummary: "WBS Summary",
+    percentTypeDuration: "Duration",
+    percentTypeUnits: "Units",
+    percentTypePhysical: "Physical",
+    percentTypeScope: "Scope",
     businessDomainNotClassified: "Not classified",
     businessDomainConstruction: "Construction",
     businessDomainOilGas: "Oil & Gas",
@@ -224,6 +262,25 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectCheckoutCheckOut: "قفل کردن",
     projectCheckoutCheckIn: "باز کردن قفل",
     projectCheckoutConflict: "این پروژه توسط کاربر دیگری قفل شده است. پیش از ویرایش، قفل آن را باز کنید.",
+    projectDefaults: "پیش‌فرض‌ها",
+    projectDefaultsHint: "هنگام ساخت فعالیت جدید اعمال می‌شود. فعالیت‌های موجود مقادیر خود را نگه می‌دارند.",
+    projectDefaultActivityType: "نوع پیش‌فرض فعالیت",
+    projectDefaultPercentCompleteType: "نوع درصد تکمیل",
+    projectActivityIdPrefix: "پیشوند شناسهٔ فعالیت",
+    projectActivityIdSuffix: "پسوند شناسهٔ فعالیت",
+    projectActivityIdIncrement: "گام افزایش",
+    projectActivityIdIncrementHint: "۱ تا ۱۰۰۰۰. برای پیشنهاد شناسهٔ بعدی به کار می‌رود.",
+    projectIncrementActivityId: "افزایش شناسهٔ فعالیت بر پایهٔ فعالیت انتخاب‌شده",
+    activityTypeTaskDependent: "وابسته به وظیفه",
+    activityTypeResourceDependent: "وابسته به منبع",
+    activityTypeLevelOfEffort: "تلاش مستمر",
+    activityTypeStartMilestone: "نقطه عطف آغاز",
+    activityTypeFinishMilestone: "نقطه عطف پایان",
+    activityTypeWbsSummary: "خلاصهٔ WBS",
+    percentTypeDuration: "مدت",
+    percentTypeUnits: "واحدها",
+    percentTypePhysical: "فیزیکی",
+    percentTypeScope: "دامنه",
     businessDomainNotClassified: "طبقه‌بندی‌نشده",
     businessDomainConstruction: "ساخت‌وساز",
     businessDomainOilGas: "نفت و گاز",

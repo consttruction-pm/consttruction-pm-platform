@@ -72,6 +72,15 @@ class ProjectSummary:
     # exposes a hierarchy reference; it is never a display-only decoration.
     obs_responsible_manager: str = ""
     website_url: str = ""
+    # V26 Project Details Defaults tab: values applied to newly added
+    # activities. They are copied at creation only; changing a default never
+    # rewrites existing activities.
+    default_activity_type: str = "Task Dependent"
+    default_percent_complete_type: str = "DURATION"
+    activity_id_prefix: str = ""
+    activity_id_suffix: str = ""
+    activity_id_increment: int = 10
+    increment_activity_id: bool = False
     # P6 project checkout: while a project is checked out by one user, other
     # sessions may read it but metadata/status edits are rejected until that
     # user (or the checkout owner) checks it in.
@@ -92,6 +101,22 @@ MAX_PROJECT_CALENDAR_ID = 200
 MAX_PROJECT_OBS_MANAGER = 160
 MAX_PROJECT_WEBSITE_URL = 2048
 CHECKOUT_STATES = frozenset({"checked_in", "checked_out"})
+# V26 Defaults tab enumerations. The stored strings are the same values the
+# Activity Master API accepts, so the default can be copied verbatim.
+DEFAULT_ACTIVITY_TYPES = frozenset(
+    {
+        "Task Dependent",
+        "Resource Dependent",
+        "Level of Effort",
+        "Start Milestone",
+        "Finish Milestone",
+        "WBS Summary",
+    }
+)
+DEFAULT_PERCENT_COMPLETE_TYPES = frozenset({"DURATION", "UNITS", "PHYSICAL", "SCOPE"})
+MAX_ACTIVITY_ID_AFFIX = 20
+MAX_ACTIVITY_ID_INCREMENT = 10000
+DEFAULT_ACTIVITY_ID_INCREMENT = 10
 
 
 def normalize_project_description(value: object) -> str:
@@ -209,6 +234,62 @@ def normalize_project_website_url(value: object) -> str:
     return url
 
 
+def normalize_default_activity_type(value: object) -> str:
+    if value is None or value == "":
+        return "Task Dependent"
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_DEFAULT_ACTIVITY_TYPE_INVALID")
+    activity_type = value.strip()
+    if activity_type not in DEFAULT_ACTIVITY_TYPES:
+        raise ProjectLifecycleError("PROJECT_DEFAULT_ACTIVITY_TYPE_INVALID")
+    return activity_type
+
+
+def normalize_default_percent_complete_type(value: object) -> str:
+    if value is None or value == "":
+        return "DURATION"
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID")
+    percent_type = value.strip().upper()
+    if percent_type not in DEFAULT_PERCENT_COMPLETE_TYPES:
+        raise ProjectLifecycleError("PROJECT_DEFAULT_PERCENT_COMPLETE_TYPE_INVALID")
+    return percent_type
+
+
+def normalize_activity_id_affix(value: object, code: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError(code)
+    affix = value.strip()
+    if len(affix) > MAX_ACTIVITY_ID_AFFIX or any(character.isspace() for character in affix):
+        raise ProjectLifecycleError(code)
+    return affix
+
+
+def normalize_activity_id_increment(value: object) -> int:
+    if value is None or value == "":
+        return DEFAULT_ACTIVITY_ID_INCREMENT
+    if isinstance(value, bool):
+        raise ProjectLifecycleError("PROJECT_ACTIVITY_ID_INCREMENT_INVALID")
+    if isinstance(value, str):
+        try:
+            value = int(value.strip())
+        except ValueError as exc:
+            raise ProjectLifecycleError("PROJECT_ACTIVITY_ID_INCREMENT_INVALID") from exc
+    if not isinstance(value, int) or not 1 <= value <= MAX_ACTIVITY_ID_INCREMENT:
+        raise ProjectLifecycleError("PROJECT_ACTIVITY_ID_INCREMENT_INVALID")
+    return value
+
+
+def normalize_increment_activity_id(value: object) -> bool:
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ProjectLifecycleError("PROJECT_INCREMENT_ACTIVITY_ID_INVALID")
+    return value
+
+
 def normalize_project_status(value: object) -> str:
     """Normalise a V26 project status to its stored form.
 
@@ -300,6 +381,12 @@ class ProjectRepository(Protocol):
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
     ) -> ProjectSummary: ...
     def update_for_user(
         self,
@@ -316,6 +403,12 @@ class ProjectRepository(Protocol):
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
     ) -> ProjectSummary | None: ...
     def set_checkout_for_user(
         self,
@@ -448,6 +541,12 @@ class ProjectLifecycleService:
         business_domain: str = "",
         obs_responsible_manager: str = "",
         website_url: str = "",
+        default_activity_type: str = "Task Dependent",
+        default_percent_complete_type: str = "DURATION",
+        activity_id_prefix: str = "",
+        activity_id_suffix: str = "",
+        activity_id_increment: int = 10,
+        increment_activity_id: bool = False,
         now: datetime,
     ) -> ProjectContext:
         session = self.session(session_id, now=now)
@@ -486,6 +585,24 @@ class ProjectLifecycleService:
             business_domain=normalized_business_domain,
             obs_responsible_manager=normalized_obs_manager,
             website_url=normalized_website_url,
+            default_activity_type=normalize_default_activity_type(
+                default_activity_type
+            ),
+            default_percent_complete_type=normalize_default_percent_complete_type(
+                default_percent_complete_type
+            ),
+            activity_id_prefix=normalize_activity_id_affix(
+                activity_id_prefix, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"
+            ),
+            activity_id_suffix=normalize_activity_id_affix(
+                activity_id_suffix, "PROJECT_ACTIVITY_ID_SUFFIX_INVALID"
+            ),
+            activity_id_increment=normalize_activity_id_increment(
+                activity_id_increment
+            ),
+            increment_activity_id=normalize_increment_activity_id(
+                increment_activity_id
+            ),
         )
         return ProjectContext(
             tenant_id=project.tenant_id,
@@ -527,6 +644,12 @@ class ProjectLifecycleService:
         business_domain: str | None = None,
         obs_responsible_manager: str | None = None,
         website_url: str | None = None,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        activity_id_prefix: str | None = None,
+        activity_id_suffix: str | None = None,
+        activity_id_increment: int | None = None,
+        increment_activity_id: bool | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -587,6 +710,43 @@ class ProjectLifecycleService:
             if website_url is None
             else normalize_project_website_url(website_url)
         )
+        # A ``None`` value keeps the stored default (used by metadata-only
+        # clients); an explicit value replaces it. Changing a default never
+        # rewrites existing activities.
+        normalized_default_activity_type = (
+            None
+            if default_activity_type is None
+            else normalize_default_activity_type(default_activity_type)
+        )
+        normalized_default_percent_complete_type = (
+            None
+            if default_percent_complete_type is None
+            else normalize_default_percent_complete_type(default_percent_complete_type)
+        )
+        normalized_activity_id_prefix = (
+            None
+            if activity_id_prefix is None
+            else normalize_activity_id_affix(
+                activity_id_prefix, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"
+            )
+        )
+        normalized_activity_id_suffix = (
+            None
+            if activity_id_suffix is None
+            else normalize_activity_id_affix(
+                activity_id_suffix, "PROJECT_ACTIVITY_ID_SUFFIX_INVALID"
+            )
+        )
+        normalized_activity_id_increment = (
+            None
+            if activity_id_increment is None
+            else normalize_activity_id_increment(activity_id_increment)
+        )
+        normalized_increment_activity_id = (
+            None
+            if increment_activity_id is None
+            else normalize_increment_activity_id(increment_activity_id)
+        )
         updated = self._projects.update_for_user(
             session.tenant_id,
             session.user_id,
@@ -600,6 +760,12 @@ class ProjectLifecycleService:
             business_domain=normalized_business_domain,
             obs_responsible_manager=normalized_obs_manager,
             website_url=normalized_website_url,
+            default_activity_type=normalized_default_activity_type,
+            default_percent_complete_type=normalized_default_percent_complete_type,
+            activity_id_prefix=normalized_activity_id_prefix,
+            activity_id_suffix=normalized_activity_id_suffix,
+            activity_id_increment=normalized_activity_id_increment,
+            increment_activity_id=normalized_increment_activity_id,
         )
         if updated is None:
             if self._projects.get_for_user(
