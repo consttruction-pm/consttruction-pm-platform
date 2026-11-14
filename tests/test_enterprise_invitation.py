@@ -71,6 +71,26 @@ class Repository:
         self.invites[invitation_id] = (accepted, expected)
         return accepted, SimpleNamespace(user_id=user_id, role=item.role, status="active")
 
+    def accept_invitation_from_recipient(self, tenant_id, invitation_id, user_id, *, now):
+        item, expected = self.invites[invitation_id]
+        if item.target_user_id != user_id:
+            raise InvitationDenied("INVITATION_ACCOUNT_MISMATCH")
+        if item.status != "pending":
+            raise InvitationDenied("INVITATION_NOT_PENDING")
+        accepted = TeamInvitation(**{**item.__dict__, "status":"accepted", "responded_at":now, "token":None})
+        self.invites[invitation_id] = (accepted, expected)
+        return accepted, SimpleNamespace(user_id=user_id, role=item.role, status="active")
+
+    def decline_invitation_from_recipient(self, tenant_id, invitation_id, user_id, *, now):
+        item, expected = self.invites[invitation_id]
+        if item.target_user_id != user_id:
+            raise InvitationDenied("INVITATION_ACCOUNT_MISMATCH")
+        if item.status != "pending":
+            raise InvitationDenied("INVITATION_NOT_PENDING")
+        declined = TeamInvitation(**{**item.__dict__, "status":"declined", "responded_at":now, "token":None})
+        self.invites[invitation_id] = (declined, expected)
+        return declined
+
     def decline_invitation(self, tenant_id, invitation_id, token_hash, user_id, *, now):
         item, expected = self.invites[invitation_id]
         if token_hash != expected or item.target_user_id != user_id:
@@ -153,3 +173,19 @@ def test_recipient_can_list_only_their_own_pending_invitations():
     inbox = service.list_received("member")
     assert [item.invitation_id for item in inbox] == [created.invitation_id]
     assert inbox[0].token is None
+
+
+def test_authenticated_recipient_can_accept_or_decline_from_inbox_without_token():
+    service, repository = build()
+    accepted = service.invite("owner", "team-a", "CUBI-2345-6789-ABCD", "field_worker")
+    result, membership = service.accept_from_inbox("member", accepted.invitation_id)
+    assert result.status == "accepted"
+    assert membership.user_id == "member"
+
+    service2, _ = build()
+    declined = service2.invite("owner", "team-a", "CUBI-2345-6789-ABCD", "field_worker")
+    result2 = service2.decline_from_inbox("member", declined.invitation_id)
+    assert result2.status == "declined"
+
+    with pytest.raises(InvitationDenied, match="INVITATION_ACCOUNT_MISMATCH"):
+        service2.accept_from_inbox("other", declined.invitation_id)
