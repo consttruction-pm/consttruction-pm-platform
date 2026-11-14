@@ -483,6 +483,8 @@ New child matrix: [Scheduling Options & Calculation Semantics](EPPM_V26_SCHEDULI
 
 New child matrix: [Data Dictionary, Extended Schema & API Field Surface](EPPM_V26_DATA_DICTIONARY_EXTENDED_SCHEMA_API_FIELD_SURFACE_MATRIX.md) — 44 comparison rows covering field glossary vs physical schema, Extended Schema views/publication, PDS, REST/Java API surfaces, representative Activity field crosswalk, UDF types/subject areas and explicit V26 Professional API gaps.
 
+New child matrix: [Import/Export XER/XML/XLSX Field Mapping](EPPM_V26_IMPORT_EXPORT_XER_XML_XLSX_FIELD_MAPPING_MATRIX.md) — 61 rows comparing shared V26 field maps and explicit Pro-only/EPPM-only XER structures, XLSX field names, import-option/security differences, secure codes, risks, location scope and role-rate handling.
+
 Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
 
 ## H. CUBI project boundary
