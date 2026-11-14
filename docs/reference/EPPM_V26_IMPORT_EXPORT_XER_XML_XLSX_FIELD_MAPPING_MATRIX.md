@@ -38,48 +38,48 @@
 | 17 | Risk-type lookup table | EPPM V26 XER map does not label RISKTYPE as an EPPM table | RISKTYPE table is explicitly Professional-only | Product-specific XER table. CONFIRMED |
 | 18 | Estimate history | Not identified as the matching EPPM table in the V26 map | PROJEST (Estimate History) is explicitly Professional-only | Product-specific XER table. CONFIRMED |
 | 19 | Project risk-level field | EPPM risk model uses its own risk objects/matrices | XER map marks project `risk_level` as Professional-only | Field-level difference; do not infer all risk functionality is Pro-only. CONFIRMED |
-| 19 | Project publication priority | EPPM project field Publication Priority | XER map labels `px_priority` as EPPM-only | EPPM-specific publication field. CONFIRMED |
-| 20 | Last Publish Project date | EPPM has publication-service timestamps/controls | XER map labels `px_last_update_date` as Professional-only, “Last time Publish Project was run on this project” | The field is a Professional-only XER field despite its publication wording; do not map it to EPPM Publication Priority. CONFIRMED |
-| 21 | Last scheduled date | EPPM XER map labels Last Scheduled Date as EPPM-only | No same field label is marked Professional-only in the cited map | EPPM-specific field. CONFIRMED |
-| 22 | Project summarization fields | EPPM publication/summarization is server-managed and uses its own service model | XER map marks Summarized Data Date and Contains Summarized Data Only as Professional-only | Distinct project data flags. CONFIRMED |
-| 23 | Project MS Project-managed flag | Not marked as the corresponding EPPM-only field | XER map marks `msp_managed_flag` as Professional-only | Product-specific exchange metadata. CONFIRMED |
-| 24 | Activity ID mapping | `task_code` | `task_code` | Same XER/XLSX field; do not confuse with unique task_id/ObjectId. CONFIRMED |
-| 25 | Activity unique identifier | `task_id` maps to Unique ID | Same shared mapping | Distinct from Activity ID. CONFIRMED |
-| 26 | Activity Name | `task_name` | `task_name` | Same field mapping. CONFIRMED |
-| 27 | Activity Status | `status_code` | `status_code` | Same mapping; when status appears in expense/assignment/relationship sheets it may be reference-only and ignored on import. CONFIRMED |
-| 28 | Activity % Complete | `complete_pct` | `complete_pct` | Same XLSX mapping. CONFIRMED |
-| 29 | Planned Duration terminology | Planned Duration | Original Duration or Planned Duration | Both map to `target_drtn_hr_cnt`; one exchange field. CONFIRMED |
-| 30 | Planned Start/Finish | Activity planned date fields map through common exchange fields | Same mapping | Shared exchange concept; check date semantics and scheduling recalculation. CONFIRMED |
-| 31 | Actual Start/Finish | `act_start_date`, `act_end_date` | Same mapping | Shared exchange fields. CONFIRMED |
-| 32 | Remaining Duration | `remain_drtn_hr_cnt` | Same mapping | Shared exchange field. CONFIRMED |
-| 33 | Primary/Secondary Constraints | `cstr_type`, `cstr_date`, `cstr_type2`, `cstr_date2` | Same mapping | Shared constraint fields. CONFIRMED |
-| 34 | Calendar | `clndr_id` | Same mapping | Shared exchange field; target database calendar resolution still matters. CONFIRMED |
-| 35 | WBS Code | `wbs_id` | Same mapping | Shared mapping. CONFIRMED |
-| 36 | Activity Codes | `actv_code_XXXX_id` | Same mapping | Shared mapping; global dictionaries must already exist where required. CONFIRMED |
-| 37 | Project Codes | `proj_catg_XXXXX_id` | Same mapping | Shared field mapping; XLSX map states project codes cannot be imported/updated through that route. CONFIRMED |
-| 38 | UDFs | `user_field_XXXX` | Same mapping | Shared exchange family; exact UDF definition/type must be compatible in target. CONFIRMED |
-| 39 | Expense Planned Cost | Planned Cost | Budgeted Cost or Planned Cost | Both map to `target_cost`. CONFIRMED |
-| 40 | Expense Planned Units | Planned Units | Budgeted Units or Planned Units | Both map to `target_qty`. CONFIRMED |
-| 41 | Resource Assignment Planned Cost/Units | Planned Cost/Units | Budgeted or Planned Cost/Units | Same exchange fields `target_cost`, `target_qty`. CONFIRMED |
-| 42 | Relationship fields | Lag `lag_hr_cnt`, predecessor `pred_task_id`, relationship type `pred_type`, successor `task_id` | Same mapping | Shared relationship field mapping. CONFIRMED |
-| 43 | Resource ID/Name | `rsrc_short_name`, `rsrc_name` | Same mapping | Shared mapping. CONFIRMED |
-| 44 | Resource assignment role and resource IDs | `rsrc_id`, `role_id` | Same mapping | Shared mapping; assignments may have distinct resource/role identities. CONFIRMED |
-| 45 | Project code weighting | EPPM field map does not label project code type/value weights as Pro-only | `max_proj_catg_wt`, `proj_catg_type_wt`, and `proj_catg_wt` are marked Professional-only | Pro-specific code-weight fields. CONFIRMED |
-| 46 | PHASE / Current Phase / WBS Category | PHASE data is visible as Current Phase project code | The same PHASE data is visible as WBS Category column | One underlying exchange table serves different product UI concepts. CONFIRMED |
-| 47 | Location export scope | Exports only Locations assigned to the projects being exported, their activities and resources | Exports all Locations defined in Enterprise Data regardless of project use | Different export scope; can create additional reference data in Professional exports. CONFIRMED |
-| 48 | Role price labels | Standard Rate, Internal Rate, External Rate | Price/Unit1, Price/Unit2, Price/Unit3 | Same mapped role rate fields with different UI labels. CONFIRMED |
-| 49 | Resource rate import behavior | Updates resource rates when effective date matches; creates new rates when effective date does not match | Overwrites resource rates and their respective effective dates during import | Significant data overwrite behavior difference. CONFIRMED |
-| 50 | XLSX calculated fields | Columns marked with asterisk are calculated/non-importable and ignored on import | Same shared guide applies to Professional | Do not treat all exported columns as writable. CONFIRMED |
-| 51 | XLSX field-name integrity | If a field name is modified, column is ignored during import | Same shared rule | Preserve exact field names; captions can differ only where guide allows. CONFIRMED |
-| 52 | XLSX global data | Cannot import global data that does not already exist in EPPM database | Shared mapping guide says same for P6 family; Pro-specific dictionary behavior needs target-context verification | Shared constraint in the V26 map. CONFIRMED |
-| 53 | XLSX project codes | Project codes cannot be updated or imported through the XLSX data-map process | Same shared map | Do not treat project-code columns as writable XLSX data. CONFIRMED |
-| 54 | XLSX cost account hierarchy | Hierarchical information is not exported; Cost Account IDs must be unique across the entire dictionary | Same shared XLSX map | Non-unique cost account IDs can cause overwrite/collision on import. CONFIRMED |
-| 55 | XLSX activity status in non-Activity sheets | Status shown in Expenses, Resource Assignments and Relationships is reference-only and ignored during import | Same shared map | Update status through Activities subject area only. CONFIRMED |
-| 56 | XLSX required columns | Italicized fields are required and cannot be removed from export template/import file | Same shared map | Preserve required columns. CONFIRMED |
-| 57 | Enterprise data XLSX import | Export each selected enterprise data page to separate tab; preserve rows 1-2; cannot delete enterprise data by importing XLSX | Professional SDK macro-enabled enterprise import/export was retired after 18.8; EPPM administration has dedicated XLSX enterprise-data workflow | EPPM enterprise-data workflow is not the old Professional SDK macro workflow. CONFIRMED |
-| 58 | Enterprise-data delete semantics | Importing an XLSX enterprise-data file cannot delete data | No equivalent deletion-by-import behavior documented for Pro V26 | Do not use enterprise-data import as a delete mechanism. CONFIRMED |
-| 59 | Import target dictionary | Importing Activity Owner data requires target user to exist | Same user identity resolution applies to imported owner references in the shared XER file | Reference objects must resolve in target database. CONFIRMED |
-| 60 | Round-trip equivalence | Oracle warns that external tools may recalculate dates/durations and other values after export | Same warning applies to exchanges with other project-management tools | Export/import does not guarantee schedule-value identity after external recalculation. CONFIRMED |
+| 20 | Project publication priority | EPPM project field Publication Priority | XER map labels `px_priority` as EPPM-only | EPPM-specific publication field. CONFIRMED |
+| 21 | Last Publish Project date | EPPM has publication-service timestamps/controls | XER map labels `px_last_update_date` as Professional-only, “Last time Publish Project was run on this project” | The field is a Professional-only XER field despite its publication wording; do not map it to EPPM Publication Priority. CONFIRMED |
+| 22 | Last scheduled date | EPPM XER map labels Last Scheduled Date as EPPM-only | No same field label is marked Professional-only in the cited map | EPPM-specific field. CONFIRMED |
+| 23 | Project summarization fields | EPPM publication/summarization is server-managed and uses its own service model | XER map marks Summarized Data Date and Contains Summarized Data Only as Professional-only | Distinct project data flags. CONFIRMED |
+| 24 | Project MS Project-managed flag | Not marked as the corresponding EPPM-only field | XER map marks `msp_managed_flag` as Professional-only | Product-specific exchange metadata. CONFIRMED |
+| 25 | Activity ID mapping | `task_code` | `task_code` | Same XER/XLSX field; do not confuse with unique task_id/ObjectId. CONFIRMED |
+| 26 | Activity unique identifier | `task_id` maps to Unique ID | Same shared mapping | Distinct from Activity ID. CONFIRMED |
+| 27 | Activity Name | `task_name` | `task_name` | Same field mapping. CONFIRMED |
+| 28 | Activity Status | `status_code` | `status_code` | Same mapping; when status appears in expense/assignment/relationship sheets it may be reference-only and ignored on import. CONFIRMED |
+| 29 | Activity % Complete | `complete_pct` | `complete_pct` | Same XLSX mapping. CONFIRMED |
+| 30 | Planned Duration terminology | Planned Duration | Original Duration or Planned Duration | Both map to `target_drtn_hr_cnt`; one exchange field. CONFIRMED |
+| 31 | Planned Start/Finish | Activity planned date fields map through common exchange fields | Same mapping | Shared exchange concept; check date semantics and scheduling recalculation. CONFIRMED |
+| 32 | Actual Start/Finish | `act_start_date`, `act_end_date` | Same mapping | Shared exchange fields. CONFIRMED |
+| 33 | Remaining Duration | `remain_drtn_hr_cnt` | Same mapping | Shared exchange field. CONFIRMED |
+| 34 | Primary/Secondary Constraints | `cstr_type`, `cstr_date`, `cstr_type2`, `cstr_date2` | Same mapping | Shared constraint fields. CONFIRMED |
+| 35 | Calendar | `clndr_id` | Same mapping | Shared exchange field; target database calendar resolution still matters. CONFIRMED |
+| 36 | WBS Code | `wbs_id` | Same mapping | Shared mapping. CONFIRMED |
+| 37 | Activity Codes | `actv_code_XXXX_id` | Same mapping | Shared mapping; global dictionaries must already exist where required. CONFIRMED |
+| 38 | Project Codes | `proj_catg_XXXXX_id` | Same mapping | Shared field mapping; XLSX map states project codes cannot be imported/updated through that route. CONFIRMED |
+| 39 | UDFs | `user_field_XXXX` | Same mapping | Shared exchange family; exact UDF definition/type must be compatible in target. CONFIRMED |
+| 40 | Expense Planned Cost | Planned Cost | Budgeted Cost or Planned Cost | Both map to `target_cost`. CONFIRMED |
+| 41 | Expense Planned Units | Planned Units | Budgeted Units or Planned Units | Both map to `target_qty`. CONFIRMED |
+| 42 | Resource Assignment Planned Cost/Units | Planned Cost/Units | Budgeted or Planned Cost/Units | Same exchange fields `target_cost`, `target_qty`. CONFIRMED |
+| 43 | Relationship fields | Lag `lag_hr_cnt`, predecessor `pred_task_id`, relationship type `pred_type`, successor `task_id` | Same mapping | Shared relationship field mapping. CONFIRMED |
+| 44 | Resource ID/Name | `rsrc_short_name`, `rsrc_name` | Same mapping | Shared mapping. CONFIRMED |
+| 45 | Resource assignment role and resource IDs | `rsrc_id`, `role_id` | Same mapping | Shared mapping; assignments may have distinct resource/role identities. CONFIRMED |
+| 46 | Project code weighting | EPPM field map does not label project code type/value weights as Pro-only | `max_proj_catg_wt`, `proj_catg_type_wt`, and `proj_catg_wt` are marked Professional-only | Pro-specific code-weight fields. CONFIRMED |
+| 47 | PHASE / Current Phase / WBS Category | PHASE data is visible as Current Phase project code | The same PHASE data is visible as WBS Category column | One underlying exchange table serves different product UI concepts. CONFIRMED |
+| 48 | Location export scope | Exports only Locations assigned to the projects being exported, their activities and resources | Exports all Locations defined in Enterprise Data regardless of project use | Different export scope; can create additional reference data in Professional exports. CONFIRMED |
+| 49 | Role price labels | Standard Rate, Internal Rate, External Rate | Price/Unit1, Price/Unit2, Price/Unit3 | Same mapped role rate fields with different UI labels. CONFIRMED |
+| 50 | Resource rate import behavior | Updates resource rates when effective date matches; creates new rates when effective date does not match | Overwrites resource rates and their respective effective dates during import | Significant data overwrite behavior difference. CONFIRMED |
+| 51 | XLSX calculated fields | Columns marked with asterisk are calculated/non-importable and ignored on import | Same shared guide applies to Professional | Do not treat all exported columns as writable. CONFIRMED |
+| 52 | XLSX field-name integrity | If a field name is modified, column is ignored during import | Same shared rule | Preserve exact field names; captions can differ only where guide allows. CONFIRMED |
+| 53 | XLSX global data | Cannot import global data that does not already exist in EPPM database | Shared mapping guide says same for P6 family; Pro-specific dictionary behavior needs target-context verification | Shared constraint in the V26 map. CONFIRMED |
+| 54 | XLSX project codes | Project codes cannot be updated or imported through the XLSX data-map process | Same shared map | Do not treat project-code columns as writable XLSX data. CONFIRMED |
+| 55 | XLSX cost account hierarchy | Hierarchical information is not exported; Cost Account IDs must be unique across the entire dictionary | Same shared XLSX map | Non-unique cost account IDs can cause overwrite/collision on import. CONFIRMED |
+| 56 | XLSX activity status in non-Activity sheets | Status shown in Expenses, Resource Assignments and Relationships is reference-only and ignored during import | Same shared map | Update status through Activities subject area only. CONFIRMED |
+| 57 | XLSX required columns | Italicized fields are required and cannot be removed from export template/import file | Same shared map | Preserve required columns. CONFIRMED |
+| 58 | Enterprise data XLSX import | Export each selected enterprise data page to separate tab; preserve rows 1-2; cannot delete enterprise data by importing XLSX | Professional SDK macro-enabled enterprise import/export was retired after 18.8; EPPM administration has dedicated XLSX enterprise-data workflow | EPPM enterprise-data workflow is not the old Professional SDK macro workflow. CONFIRMED |
+| 59 | Enterprise-data delete semantics | Importing an XLSX enterprise-data file cannot delete data | No equivalent deletion-by-import behavior documented for Pro V26 | Do not use enterprise-data import as a delete mechanism. CONFIRMED |
+| 60 | Import target dictionary | Importing Activity Owner data requires target user to exist | Same user identity resolution applies to imported owner references in the shared XER file | Reference objects must resolve in target database. CONFIRMED |
+| 61 | Round-trip equivalence | Oracle warns that external tools may recalculate dates/durations and other values after export | Same warning applies to exchanges with other project-management tools | Export/import does not guarantee schedule-value identity after external recalculation. CONFIRMED |
 
 ## 3. Key XER field differences directly marked by Oracle
 
