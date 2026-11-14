@@ -91,7 +91,8 @@ on:
       - "src/construction_pm/deployment/schema.py"
       - "shared/contracts/enterprise-task.v1.schema.json"
       - "tests/contracts/test_enterprise_task.py"
-      - "tests/integration/test_enterprise_task_postgres_live.py"
+      - "tests/integration/test_enterprise_task_postgres_live.py tests/integration/test_production_login_postgres_live.py"
+      - "tests/integration/test_production_login_postgres_live.py"
 
   pull_request:
     paths:
