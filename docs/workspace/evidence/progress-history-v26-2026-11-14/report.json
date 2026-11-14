@@ -1,0 +1,116 @@
+{
+  "contract": "cubi-progress-history-v26.v2",
+  "baseUrl": "http://127.0.0.1:4321",
+  "gitHead": "fd9d52b2664402c3a57a3c09e49917d7642f59a7",
+  "testedCodeSha": "fd9d52b2",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-14T12:15:55.216Z",
+  "project": "preview-rps-01",
+  "activityId": "A140",
+  "predecessorId": "A130",
+  "cells": [
+    {
+      "viewport": "1920x1080",
+      "locale": "en",
+      "result": "history and trend redrawn"
+    },
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "result": "viewer read-only history; PATCH 403"
+    },
+    {
+      "viewport": "1280x720",
+      "locale": "fa",
+      "result": "RTL history and review visible"
+    },
+    {
+      "viewport": "1366x768",
+      "locale": "en",
+      "result": "register, history, trend and review"
+    }
+  ],
+  "scenarios": [
+    {
+      "rows": 14,
+      "events": 0,
+      "id": "01",
+      "name": "the Progress register and an empty update history are read from the activity service",
+      "status": "pass",
+      "at": "2026-11-14T12:15:58.806Z"
+    },
+    {
+      "event": "A140@2",
+      "findings": [
+        "FS_PREDECESSOR_NOT_FINISHED (A130)"
+      ],
+      "id": "02",
+      "name": "a UI progress update is stored and recorded as an out-of-sequence event",
+      "status": "pass",
+      "at": "2026-11-14T12:15:59.119Z"
+    },
+    {
+      "events": [
+        "A140@2",
+        "A140@3"
+      ],
+      "trend": "r2: 20% · r3: 55%",
+      "id": "03",
+      "name": "a second update appends an event and extends the persisted percent trend",
+      "status": "pass",
+      "at": "2026-11-14T12:15:59.433Z"
+    },
+    {
+      "events": 2,
+      "actor": "preview-planner",
+      "id": "04",
+      "name": "the history API reports the same actor, changes and findings",
+      "status": "pass",
+      "at": "2026-11-14T12:15:59.442Z"
+    },
+    {
+      "actualId": "SPP-A140-2026-09",
+      "period": "2026-09",
+      "immutableStatus": "rejected",
+      "id": "04b",
+      "name": "stored period performance is immutable and read back from the service",
+      "status": "pass",
+      "at": "2026-11-14T12:16:00.191Z"
+    },
+    {
+      "events": 2,
+      "id": "05",
+      "name": "the stored history survives a reload and redraws at 1920x1080",
+      "status": "pass",
+      "at": "2026-11-14T12:16:01.495Z"
+    },
+    {
+      "events": 2,
+      "writeStatus": 403,
+      "id": "06",
+      "name": "a viewer can read the history but the server rejects a progress write",
+      "status": "pass",
+      "at": "2026-11-14T12:16:04.941Z"
+    },
+    {
+      "events": 2,
+      "rtl": true,
+      "id": "07",
+      "name": "the history and out-of-sequence review fit the Persian 1280x720 layout",
+      "status": "pass",
+      "at": "2026-11-14T12:16:09.269Z"
+    }
+  ],
+  "screenshots": [
+    "01-progress-empty-history.png",
+    "02-progress-first-update.png",
+    "03-progress-two-events.png",
+    "04b-progress-period-actual.png",
+    "05-progress-1920.png",
+    "06-progress-viewer-1366.png",
+    "07-progress-fa-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

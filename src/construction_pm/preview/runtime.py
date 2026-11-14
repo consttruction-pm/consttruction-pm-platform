@@ -97,7 +97,9 @@ from construction_pm.p6_earned_value_read_model import (
     P6EarnedValueReadModelService,
 )
 from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from construction_pm.p6_activity_period_actual_api import P6ActivityPeriodActualAPI
 from construction_pm.p6_activity_period_actual_repository import (
+    P6ActivityPeriodActualApplicationService,
     SQLiteP6ActivityPeriodActualRepository,
 )
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
@@ -1895,6 +1897,13 @@ def open_preview_runtime(
         p6_baseline_conversion_api=baseline_conversion_api,
         p6_baseline_capture_api=baseline_capture_api,
         p6_earned_value_read_api=earned_value_read_api,
+        p6_activity_period_actual_api=P6ActivityPeriodActualAPI(
+            P6ActivityPeriodActualApplicationService(
+                SQLiteP6ActivityPeriodActualRepository(connection),
+                repositories.transaction_manager,
+            ),
+            policy,
+        ),
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,

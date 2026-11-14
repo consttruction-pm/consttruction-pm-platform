@@ -12,8 +12,9 @@
  *
  * Scenarios cover the empty history, two progress updates from the UI, the
  * persisted percent trend, the FS out-of-sequence finding for A140 against its
- * stored predecessor A130, an API cross-check, a viewer read-only session, a
- * 1920x1080 redraw and the 1280x720 Persian right-to-left layout.
+ * stored predecessor A130, an API cross-check, stored period performance with
+ * its immutable-identity rejection, a viewer read-only session, a 1920x1080
+ * redraw and the 1280x720 Persian right-to-left layout.
  *
  * Usage:
  *   CUBI_PREVIEW_URL=http://127.0.0.1:4193 \
@@ -128,6 +129,8 @@ const progressState = `(() => {
   const rows = [...(page?.querySelectorAll("[data-progress-row]") ?? [])];
   const historyRows = [...(page?.querySelectorAll("[data-progress-history-row]") ?? [])];
   const history = page?.querySelector("[data-progress-history]");
+  const periodSection = page?.querySelector("[data-progress-period-actuals]");
+  const periodRows = [...(periodSection?.querySelectorAll("[data-period-actual-row]") ?? [])];
   return {
     mounted: Boolean(page),
     rowIds: rows.map((row) => row.dataset.activityId),
@@ -142,6 +145,14 @@ const progressState = `(() => {
       .map((node) => node.getAttribute("title")),
     review: page?.querySelector("[data-progress-sequence-review]")?.textContent?.trim() ?? null,
     notice: page?.querySelector("[data-progress-notice]")?.textContent?.trim() ?? null,
+    periodMounted: Boolean(periodSection),
+    periodText: periodSection?.textContent ?? "",
+    periodIds: periodRows.map((row) => row.dataset.actualId),
+    periodOptions: [...(periodSection?.querySelectorAll('select[name="period-id"] option') ?? [])]
+      .map((option) => ({ value: option.value, text: option.textContent ?? "" })),
+    periodSubmitDisabled: periodSection?.querySelector('button[type="submit"]')?.disabled ?? null,
+    periodNotice: page?.querySelector("[data-period-actual-notice]")?.textContent?.trim() ?? null,
+    periodNoticeState: page?.querySelector("[data-period-actual-notice]")?.dataset.state ?? null,
   };
 })()`;
 
@@ -233,6 +244,16 @@ async function submitProgress(page, { percent, actualStart, remaining }, expecte
   assert(!failed, `progress save failed: ${failed}`);
 }
 
+async function fillPeriodActual(page, { period, units, cost, unit, currency, note }) {
+  await page.setSelect('[data-period-actual-form] [name="period-id"]', period);
+  await page.setInput('[data-period-actual-form] [name="period-units"]', units);
+  await page.setInput('[data-period-actual-form] [name="period-cost"]', cost);
+  await page.setInput('[data-period-actual-form] [name="period-unit"]', unit);
+  await page.setInput('[data-period-actual-form] [name="period-currency"]', currency);
+  await page.setInput('[data-period-actual-form] [name="period-note"]', note);
+  await page.click('[data-period-actual-form] button[type="submit"]');
+}
+
 async function main() {
   const health = await waitForHttp(`${baseUrl}/preview/health`, 30000);
   if (!(health.status === "ok" || health.status === 200)) throw new Error(`preview health ${health.status}`);
@@ -253,7 +274,7 @@ async function main() {
   });
 
   const report = {
-    contract: "cubi-progress-history-v26.v1",
+    contract: "cubi-progress-history-v26.v2",
     baseUrl,
     gitHead: gitHead(),
     testedCodeSha,
@@ -336,6 +357,76 @@ async function main() {
       return { events: stored.body.events.length, actor: latest.actor_user_id };
     });
 
+    await scenario("04b", "stored period performance is immutable and read back from the service", async () => {
+      const period = await api(page, "POST", `/api/projects/${PROJECT}/p6/financial-periods`, {
+        contract_version: "p6-financial-period-api.v1",
+        period_id: "2026-09",
+        name: "Sep 2026",
+        start_date: "2026-09-01",
+        end_date: "2026-09-30",
+        status: "OPEN",
+      });
+      assert(period.status === 200, `financial period status ${period.status}: ${JSON.stringify(period.body)}`);
+      await page.click('[data-progress-action="reload-periods"]');
+      await page.waitFor(
+        `(() => {
+          const section = document.querySelector("[data-progress-period-actuals]");
+          return Boolean(section && section.textContent.includes("Sep 2026"));
+        })()`,
+        "financial period option",
+      );
+      await selectActivity(page);
+      let state = await readProgress(page);
+      assert(state.periodMounted, "the stored period performance section is missing");
+      assert(state.periodOptions.some((option) => option.value === "2026-09"), `period options ${JSON.stringify(state.periodOptions)}`);
+      assert(state.periodSubmitDisabled === false, "the period actual form is disabled with a stored open period");
+      await fillPeriodActual(page, {
+        period: "2026-09",
+        units: "3.125",
+        cost: "20.50",
+        unit: "h",
+        currency: "USD",
+        note: "period actual",
+      });
+      await page.waitFor(
+        `document.querySelectorAll("[data-period-actual-row]").length === 1`,
+        "stored period actual row",
+      );
+      state = await readProgress(page);
+      assert(state.periodIds[0] === "SPP-A140-2026-09", `actual identity ${state.periodIds[0]}`);
+      assert(state.periodText.includes("3.125") && state.periodText.includes("20.50"), "stored units/cost are not rendered");
+      assert(state.periodNoticeState === "ok", `period notice ${JSON.stringify(state.periodNotice)}`);
+
+      const readPath = `/api/projects/${PROJECT}/p6/activity-period-actuals?activity_id=${ACTIVITY}&period_id=2026-09`;
+      const stored = await api(page, "GET", readPath);
+      assert(stored.status === 200, `period actual read status ${stored.status}: ${JSON.stringify(stored.body)}`);
+      assert(stored.body.contract_version === "p6-activity-period-actual-api.v1", "period actual contract version");
+      assert(stored.body.activity_period_actuals.length === 1, `stored rows ${stored.body.activity_period_actuals.length}`);
+      const actual = stored.body.activity_period_actuals[0].activity_period_actual;
+      assert(actual.activity_id === ACTIVITY && actual.period_id === "2026-09", "stored activity/period");
+      assert(actual.actual_units === "3.125" && actual.actual_cost === "20.50", `stored values ${JSON.stringify(actual)}`);
+
+      await fillPeriodActual(page, {
+        period: "2026-09",
+        units: "4",
+        cost: "20.50",
+        unit: "h",
+        currency: "USD",
+        note: "corrected",
+      });
+      await page.waitFor(
+        `document.querySelector('[data-period-actual-notice][data-state="error"]')?.textContent`,
+        "immutable period actual rejection",
+      );
+      state = await readProgress(page);
+      assert((state.periodNotice ?? "").toLowerCase().includes("immutable"), `immutable notice ${state.periodNotice}`);
+      assert(state.periodIds.length === 1, `an overwrite added a row: ${state.periodIds.join(",")}`);
+      const reread = await api(page, "GET", readPath);
+      assert(reread.body.activity_period_actuals[0].activity_period_actual.actual_units === "3.125", "the stored value was overwritten");
+      await capture(page, "04b-progress-period-actual");
+      return { actualId: state.periodIds[0], period: "2026-09", immutableStatus: "rejected" };
+    });
+
     await scenario("05", "the stored history survives a reload and redraws at 1920x1080", async () => {
       await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
       await page.navigate(`${baseUrl}/app?view=progress`, "[data-progress-page] .cp-register-toolbar", "progress after reload");
@@ -344,6 +435,7 @@ async function main() {
       const state = await readProgress(page);
       assert(state.historyCount === 2, `history after reload ${state.historyCount}`);
       assert(state.trendText.includes("r3: 55%"), `trend after reload ${state.trendText}`);
+      assert(state.periodIds.includes("SPP-A140-2026-09"), `stored period actual after reload ${state.periodIds.join(",")}`);
       await capture(page, "05-progress-1920");
       cells.push({ viewport: "1920x1080", locale: "en", result: "history and trend redrawn" });
       return { events: state.historyCount };
@@ -379,6 +471,9 @@ async function main() {
       assert(state.historyCount === 2, `fa history ${state.historyCount}`);
       assert(state.sequenceFlags.length === 2, `fa review flags ${state.sequenceFlags.length}`);
       assert(state.review?.includes("خارج از توالی"), `fa review ${state.review}`);
+      assert(state.periodMounted, "the Persian period performance section is missing");
+      assert(state.periodText.includes("ذخیرهٔ واقعی دوره"), "the Persian period actual action is missing");
+      assert(state.periodIds.includes("SPP-A140-2026-09"), `fa stored period actual ${state.periodIds.join(",")}`);
       const rtl = await page.evaluate(`document.documentElement.dir === "rtl" || document.body.dir === "rtl"`);
       assert(rtl, "the workspace is not right-to-left");
       const fits = await page.evaluate(`(() => {
