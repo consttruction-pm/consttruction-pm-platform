@@ -26,6 +26,8 @@ from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_application import EnterpriseTaskApplicationService
+from ..enterprise_project_access import EnterpriseProjectAccessService
+from ..enterprise_project_access_http import EnterpriseProjectAccessHttpMiddleware
 from ..enterprise_project_access import EnterpriseProjectAuthorizationPolicy, PostgresProjectAccessRepository
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
@@ -369,6 +371,12 @@ class ProductionRuntime:
             EnterpriseTaskApplicationService(
                 PostgresEnterpriseTaskRepository(connection),
                 lifecycle_api,
+            ),
+        )
+        self.api_app = EnterpriseProjectAccessHttpMiddleware(
+            self.api_app,
+            EnterpriseProjectAccessService(
+                project_access_repository, lifecycle_api, obs_node_service
             ),
         )
         self.web_app = ProductionWebApp(
