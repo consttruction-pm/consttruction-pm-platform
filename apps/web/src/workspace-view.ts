@@ -50,6 +50,8 @@ import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
 import { WORKSPACE_WINDOW_ICONS } from "./workspace-command-icons.js";
 import { contextAddCommands, type ContextAddItem } from "./workspace-context-add.js";
 import type { DesktopCommand } from "./workspace-desktop-shell.js";
+import { defaultToolbarConfig, type ToolbarWorkspaceConfig } from "./workspace-toolbar-config.js";
+import { renderToolbarRails, closeToolbarSurfaces, type ToolbarRailSession } from "./workspace-toolbar-view.js";
 import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
 import { weightedPercentComplete, wbsStatusLabel, wbsTechniqueLabel } from "./workspace-wbs-milestones.js";
 import {
@@ -1678,6 +1680,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     rerenderWorkspaceRows(container);
   });
   container.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeToolbarSurfaces();
     const keyTarget = event.target as HTMLElement | null;
     const addMenu = keyTarget?.closest?.<HTMLElement>("[data-context-add]") ?? null;
     if (addMenu && typeof addMenu.querySelector === "function") {
@@ -2797,6 +2800,12 @@ export type WorkspaceRendererOptions = {
   presentation?: WorkspacePresentation;
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
+  /** Persisted dual-rail toolbar configuration for the signed-in user. */
+  toolbarConfig?: ToolbarWorkspaceConfig;
+  /** Persists a toolbar customization and repaints the workspace. */
+  onToolbarConfigChange?: (next: ToolbarWorkspaceConfig) => void;
+  /** True only when the signed-in session can use administrator commands. */
+  canAdminister?: boolean;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -2962,6 +2971,37 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
   const headerProjectLabel = headerProject?.name || state.context.project_id;
   const addCommands = contextAddCommands(contextAddState(state, options));
+  // Both rails are driven by one command registry and one persisted
+  // configuration. The old hard-coded icon map is gone: every destination and
+  // action below arrives through the registry, so customization can move,
+  // hide, reorder and dock any of them.
+  const toolbarSession: ToolbarRailSession = {
+    config: options.toolbarConfig ?? defaultToolbarConfig(),
+    context: {
+      activeWindow: state.activeMenu,
+      locale: state.locale,
+      capabilities: {
+        hasWbs: state.wbsNodes.length > 0,
+        hasSelectedActivity: Boolean(state.selectedActivityId),
+        hasMultiSelection: selectedActivityIdList(state).length > 1,
+        hasActivities: state.activities.length > 0,
+        hasRelationships: state.relationships.length > 0,
+        hasLayout: Boolean(state.p6Layout),
+        canUndoLayout: Boolean(options.layoutHistory?.canUndo),
+        canRedoLayout: Boolean(options.layoutHistory?.canRedo),
+        groupByWbs: state.activityGroupBy === "wbs",
+        canAdminister: options.canAdminister === true,
+        canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
+      },
+      detailsVisible,
+      ganttVisible: state.visiblePanels.gantt,
+      lineNumbers,
+    },
+    translate: (english, persian) => uiText(state.locale, english, persian),
+    onChange: options.onToolbarConfigChange ?? (() => undefined),
+    direction: state.direction,
+  };
+  const toolbarRails = renderToolbarRails(container, toolbarSession);
 
 
   container.innerHTML = `
@@ -2972,47 +3012,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
-      <div class="cp-p6-shell">
-        <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
-          <button type="button" class="cp-nav-tree-title" data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true" title="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></button>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
-            ${menuButton("project", t.project, state, railMenuIcons.project)}
-            ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, railMenuIcons.wbs)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
-            ${menuButton("schedule", t.schedule, state, railMenuIcons.schedule)}
-            ${menuButton("progress", t.progress, state, railMenuIcons.progress)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
-            ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
-            ${menuButton("assignments", uiText(state.locale, "Assignments", "تخصیص‌ها"), state, railMenuIcons.assignments)}
-            ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, railMenuIcons.calendars)}
-            ${menuButton("roles", uiText(state.locale, "Roles", "نقش‌ها"), state, railMenuIcons.roles)}
-            ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
-            ${menuButton("expenses", uiText(state.locale, "Expenses", "هزینه‌ها"), state, railMenuIcons.expenses)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
-            ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
-            ${menuButton("reports", t.reports, state, railMenuIcons.reports)}
-            ${menuButton("tracking", uiText(state.locale, "Tracking", "رهگیری"), state, railMenuIcons.tracking)}
-            ${menuButton("control", t.control, state, railMenuIcons.control)}
-            ${menuButton("thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها"), state, railMenuIcons.thresholds)}
-            ${menuButton("risks", uiText(state.locale, "Risks", "ریسک‌ها"), state, railMenuIcons.risks)}
-            ${menuButton("issues", uiText(state.locale, "Issues", "مسائل"), state, railMenuIcons.issues)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
-            ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
-            ${menuButton("settings", t.settings, state, railMenuIcons.settings)}
-            ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, railMenuIcons.administration)}
-            ${menuButton("exchange", uiText(state.locale, "Import / Export", "ورود / خروجی"), state, railMenuIcons.exchange)}
-            ${menuButton("backup", uiText(state.locale, "Backup / Recovery", "پشتیبان‌گیری / بازیابی"), state, railMenuIcons.backup)}
-            ${railActionButton("tools", rail.tools, "tools")}
-          </div>
+      <div class="cp-p6-shell" data-left-tools="${toolbarRails.leftWide ? "wide" : "icon"}" data-right-tools="${toolbarRails.rightWide ? "wide" : "icon"}">
+        <nav class="cp-menu cp-p6-rail cp-navigation-tree cp-tool-rail" data-tool-rail="left" aria-label="${escapeAttribute(uiText(state.locale, "Left tool rail", "ریل ابزار چپ"))}">
+          ${toolbarRails.left}
         </nav>
         <div class="cp-p6-body">
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t, options) : ""}
           <main class="cp-main" data-details-split data-bottom-layout="${bottomLayout}" data-details-collapsed="${detailsVisible ? "false" : "true"}" style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
+              ${toolbarRails.floating}
               <div class="cp-layout-selector-host" data-layout-selector-host data-workspace-menu="schedule" role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activities layout", "چیدمان فعالیت‌ها"))}"></div>
               <section class="cp-p6-split" data-panel-split data-top-layout="${topLayout}" data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule" tabindex="-1">
@@ -3102,14 +3110,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </aside>
           </div>
         </div>
-        <aside class="cp-comments-dock-rail cp-context-command-rail" aria-label="${escapeAttribute(uiText(state.locale, "Contextual commands", "فرمان‌های زمینه‌ای"))}">
+        <aside class="cp-comments-dock-rail cp-context-command-rail cp-tool-rail" data-tool-rail="right" aria-label="${escapeAttribute(uiText(state.locale, "Right tool rail", "ریل ابزار راست"))}">
           ${renderContextAddMenu(addCommands, state)}
-          <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="details" title="${escapeAttribute(uiText(state.locale, "Record details", "جزئیات رکورد"))}" aria-label="${escapeAttribute(uiText(state.locale, "Record details", "جزئیات رکورد"))}">${workspaceIcon("details")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Details", "جزئیات"))}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="proposals" aria-expanded="false" title="${escapeAttribute(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}" aria-label="${escapeAttribute(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}">${workspaceIcon("proposal")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Suggested actions", "اقدامات پیشنهادی"))}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="assistant" aria-expanded="false" title="${escapeAttribute(uiText(state.locale, "CUBI assistant", "دستیار CUBI"))}" aria-label="${escapeAttribute(uiText(state.locale, "CUBI assistant", "دستیار CUBI"))}">${workspaceIcon("assistant")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Assistant", "دستیار"))}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="help" title="${escapeAttribute(uiText(state.locale, "Help and keyboard shortcuts", "راهنما و کلیدهای میانبر"))}" aria-label="${escapeAttribute(uiText(state.locale, "Help and keyboard shortcuts", "راهنما و کلیدهای میانبر"))}">${workspaceIcon("help")}<span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</span></button>
+          ${toolbarRails.right}
         </aside>
       </div>
       <div class="cp-p6-flyout" data-nav-flyout hidden>${renderFullNavigationMenu(state, railMenuIcons)}${renderNavigationSurface(state)}</div>

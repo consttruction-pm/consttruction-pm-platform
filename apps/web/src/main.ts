@@ -153,6 +153,13 @@ import {
   toggleToolbarGroup,
 } from "./workspace-toolbars.js";
 import {
+  defaultToolbarConfig,
+  readToolbarConfig,
+  toolbarWorkspaceKey,
+  writeToolbarConfig,
+  type ToolbarWorkspaceConfig,
+} from "./workspace-toolbar-config.js";
+import {
   readWorkspaceDetailsVisible,
   rememberWorkspaceDetailsVisible,
 } from "./workspace-details-preference.js";
@@ -2495,10 +2502,25 @@ function renderApp(
     }
   };
 
+  const toolbarWorkspace = activeWorkspaceUserId
+    ? readToolbarConfig(activeWorkspaceUserId, toolbarWorkspaceKey(state.context.project_id))
+    : defaultToolbarConfig();
+  const saveToolbarConfig = (next: ToolbarWorkspaceConfig): void => {
+    // Toolbar preferences are user- and project-scoped browser preferences;
+    // they never touch the saved Activity Layout or project records.
+    if (activeWorkspaceUserId) {
+      writeToolbarConfig(activeWorkspaceUserId, toolbarWorkspaceKey(state.context.project_id), next);
+    }
+    renderAppPreservingDrafts(container, state, persistence);
+  };
+
   renderMainWorkspace(workspace, state, {
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     dataDate: projectDataDate,
+    toolbarConfig: toolbarWorkspace,
+    onToolbarConfigChange: saveToolbarConfig,
+    canAdminister: activeWorkspaceRoles.includes("project_admin"),
     // The contextual rail derives its Add commands from the same session roles
     // and dispatches the same desktop commands as the toolbar and menus.
     canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),

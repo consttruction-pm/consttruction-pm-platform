@@ -9584,3 +9584,635 @@ html[data-cubi-theme-surface="layered"] :focus-visible { outline-color:var(--ski
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   CUBI dual tool-rail customization system
+   Left and right rails, docked toolbars, add/remove menus, customize dialog,
+   pointer drag/drop. One registry drives every surface.
+   ========================================================================== */
+
+.cp-p6 .cp-p6-shell {
+  --cp-tool-rail-left: 48px;
+  --cp-tool-rail-right: 40px;
+  grid-template-columns: var(--cp-tool-rail-left) minmax(0, 1fr) var(--cp-tool-rail-right);
+}
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] { --cp-tool-rail-left: 150px; }
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] { --cp-tool-rail-right: 150px; }
+
+.cp-p6 .cp-p6-shell .cp-tool-rail {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 2px;
+  gap: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree.cp-tool-rail {
+  align-items: stretch;
+  overflow: hidden;
+}
+.cp-p6 .cp-comments-dock-rail.cp-context-command-rail.cp-tool-rail {
+  align-items: stretch;
+  overflow: hidden;
+  padding: 4px 2px;
+}
+.cp-p6 .cp-tool-rail .cp-context-add-menu {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-bottom: 3px;
+}
+
+.cp-p6 .cp-tool-rail-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b3c1d1 transparent;
+}
+.cp-p6 .cp-tool-rail-scroll::-webkit-scrollbar { width: 5px; }
+.cp-p6 .cp-tool-rail-scroll::-webkit-scrollbar-thumb { background: #bcc9d7; border-radius: 3px; }
+
+/* ---- Toolbar family ------------------------------------------------------ */
+
+.cp-p6 .cp-tool-family {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  padding: 0 0 1px;
+  border-bottom: 1px solid #d8dfe8;
+}
+.cp-p6 .cp-tool-family.is-custom {
+  background: #fbf4ec;
+  box-shadow: inset 2px 0 0 #c66a36;
+}
+[dir="rtl"] .cp-p6 .cp-tool-family.is-custom { box-shadow: inset -2px 0 0 #c66a36; }
+.cp-p6 .cp-tool-family-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 9px;
+}
+.cp-p6 .cp-tool-family-handle {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 10px;
+  min-height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #8697aa;
+  opacity: .6;
+  cursor: grab;
+}
+.cp-p6 .cp-tool-family-handle .cp-icon { width: 12px; height: 12px; }
+.cp-p6 .cp-tool-family-handle:hover,
+.cp-p6 .cp-tool-family-handle:focus-visible { opacity: 1; background: #dbe7f5; color: #1c5f9e; }
+.cp-p6 .cp-tool-family-handle:focus-visible { outline: 1px solid #1c66ad; outline-offset: -1px; }
+.cp-p6 .cp-tool-family-name {
+  display: none;
+  overflow: hidden;
+  color: #566a80;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-p6 .cp-tool-family-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+}
+.cp-p6 .cp-tool-family-empty {
+  padding: 3px 0;
+  color: #8a98a8;
+  font-size: 8px;
+  line-height: 1.2;
+  text-align: center;
+}
+.cp-p6 .cp-tool-separator {
+  display: block;
+  width: 22px;
+  height: 1px;
+  margin: 2px 0;
+  background: #c3cdd9;
+}
+
+/* ---- Rail buttons -------------------------------------------------------- */
+
+.cp-p6 .cp-tool-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+}
+.cp-p6 .cp-tool-btn .cp-tool-grip {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 7px;
+  height: 100%;
+  transform: translateY(-50%);
+  color: #7b8ca0;
+  opacity: .3;
+  pointer-events: none;
+}
+.cp-p6 .cp-tool-btn .cp-tool-grip .cp-icon { width: 9px; height: 9px; }
+.cp-p6 .cp-tool-btn:hover .cp-tool-grip,
+.cp-p6 .cp-tool-btn:focus-visible .cp-tool-grip { opacity: .75; }
+.cp-p6 .cp-tool-btn[aria-disabled="true"] {
+  opacity: .46;
+  cursor: not-allowed;
+  background: transparent;
+}
+.cp-p6 .cp-tool-btn[aria-disabled="true"]:hover { background: transparent; }
+.cp-p6 .cp-tool-btn.is-active { background: #cfe0f2; color: #0f4f92; }
+.cp-p6 .cp-tool-btn .cp-tool-reason { display: none; }
+.cp-p6 .cp-tool-btn.has-text {
+  grid-template-columns: 16px minmax(0, 1fr);
+  justify-items: start;
+  place-items: center start;
+  gap: 5px;
+  padding: 0 6px 0 9px;
+  text-align: start;
+}
+.cp-p6 .cp-tool-btn.has-text[data-tool-style="text"] { grid-template-columns: minmax(0, 1fr); }
+.cp-p6 .cp-tool-btn .cp-tool-label {
+  display: none;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-p6 .cp-tool-btn.has-text .cp-tool-label { display: block; }
+
+/* Wide rails show labels and let families stretch. */
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] .cp-tool-rail .cp-tool-btn,
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] .cp-tool-rail .cp-tool-btn {
+  width: 100%;
+  min-width: 0;
+  height: 27px;
+  min-height: 27px;
+  flex-basis: auto;
+  border-radius: 3px;
+}
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] .cp-tool-family-name,
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] .cp-tool-family-name { display: block; }
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] .cp-tool-family-head,
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] .cp-tool-family-head {
+  justify-content: flex-start;
+  padding-inline-start: 4px;
+}
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] .cp-tool-family-handle,
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] .cp-tool-family-handle { width: 14px; flex: 0 0 14px; }
+.cp-p6 .cp-p6-shell[data-left-tools="wide"] .cp-tool-separator,
+.cp-p6 .cp-p6-shell[data-right-tools="wide"] .cp-tool-separator { width: 100%; }
+
+/* ---- Add or Remove control at the end of every family -------------------- */
+
+.cp-p6 .cp-tool-add-remove {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 100%;
+  height: 14px;
+  min-height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #7d8ea3;
+  cursor: pointer;
+}
+.cp-p6 .cp-tool-add-remove .cp-icon { width: 11px; height: 11px; }
+.cp-p6 .cp-tool-add-remove:hover,
+.cp-p6 .cp-tool-add-remove:focus-visible,
+.cp-p6 .cp-tool-add-remove[aria-expanded="true"] {
+  background: #dbe7f5;
+  color: #164d82;
+  outline: 0;
+}
+.cp-p6 .cp-tool-add-remove[aria-expanded="true"] { box-shadow: inset 0 0 0 1px #7da4cc; }
+
+.cp-p6 .cp-tool-rail-menu {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  min-height: 30px;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #5d7188;
+  cursor: pointer;
+}
+.cp-p6 .cp-tool-rail-menu .cp-icon { width: 16px; height: 16px; }
+.cp-p6 .cp-tool-rail-menu:hover,
+.cp-p6 .cp-tool-rail-menu:focus-visible { background: #dbe7f5; color: #164d82; outline: 0; }
+.cp-p6 .cp-tool-rail-menu[aria-expanded="true"] { background: #cfe0f2; }
+
+/* ---- Horizontal toolbars docked above the workspace ---------------------- */
+
+.cp-p6 .cp-toolbar-dock {
+  display: none;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 0 4px;
+  border-bottom: 1px solid #c3ccd8;
+  background: linear-gradient(#f4f8fc, #eaf1f8);
+}
+.cp-p6 .cp-toolbar-dock:has(.cp-tool-family) { display: flex; }
+body.cp-toolbar-dragging .cp-p6 .cp-toolbar-dock {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  border: 1px dashed #8aa4c0;
+  border-radius: 3px;
+  margin: 3px;
+  background: #f0f6fc;
+}
+body.cp-toolbar-dragging .cp-p6 .cp-toolbar-dock [data-toolbar-dock-hint] {
+  display: block;
+  padding: 0 10px;
+  color: #4d6c8c;
+  font-size: 10px;
+  pointer-events: none;
+}
+.cp-p6 .cp-toolbar-dock [data-toolbar-dock-hint] { display: none; }
+
+.cp-p6 .cp-tool-family.is-horizontal {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: stretch;
+  width: auto;
+  max-width: 100%;
+  gap: 2px;
+  padding: 0 4px;
+  border-bottom: 0;
+  border-inline-end: 1px solid #ccd7e3;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-family-head {
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  width: 14px;
+  min-width: 14px;
+  padding: 0;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-family-handle { width: 12px; height: 100%; }
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-family-name {
+  display: block;
+  max-width: 96px;
+  padding: 0 4px;
+  align-self: center;
+  font-size: 8px;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-family-buttons {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1px;
+  width: auto;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-btn {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 3px;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-btn.has-text {
+  width: auto;
+  min-width: 0;
+  padding: 0 7px 0 9px;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+}
+.cp-p6 .cp-tool-family.is-horizontal .cp-tool-add-remove {
+  width: 14px;
+  min-width: 14px;
+  height: 100%;
+  min-height: 30px;
+}
+
+/* ---- Body-level toolbar menus ------------------------------------------- */
+
+.cp-tool-menu {
+  position: fixed;
+  z-index: 4200;
+  min-width: 230px;
+  max-width: 340px;
+  max-height: calc(100vh - 16px);
+  border: 1px solid #9fb2c8;
+  border-radius: 4px;
+  background: #fff;
+  color: #24384f;
+  box-shadow: 0 12px 34px #14253b3d;
+  font-size: 11px;
+}
+.cp-tool-menu-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 18px);
+  overflow: hidden;
+}
+.cp-tool-menu-heading {
+  padding: 6px 10px 3px;
+  color: #173d68;
+  font-size: 10px;
+  font-weight: 700;
+}
+.cp-tool-menu-heading + .cp-tool-menu-heading { padding-top: 2px; color: #5b6f85; font-weight: 600; }
+.cp-tool-menu-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.cp-tool-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  text-align: start;
+  cursor: pointer;
+}
+.cp-tool-menu-item:hover:not(:disabled),
+.cp-tool-menu-item:focus-visible {
+  background: #e8f2fc;
+  outline: 2px solid #1e5fa8;
+  outline-offset: -2px;
+}
+.cp-tool-menu-item[aria-checked="true"] { color: #123a6b; font-weight: 600; }
+.cp-tool-menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.cp-tool-menu-check {
+  display: inline-grid;
+  flex: 0 0 14px;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #b3c1d1;
+  border-radius: 2px;
+  color: #123a6b;
+  font-size: 10px;
+  line-height: 1;
+}
+.cp-tool-menu-item[aria-checked="true"] .cp-tool-menu-check { background: #dce9f7; border-color: #7da4cc; }
+.cp-tool-menu-label { flex: 1 1 auto; min-width: 0; }
+.cp-tool-menu-hint { flex: 0 0 auto; color: #6b7c90; font-size: 9px; }
+.cp-tool-menu-separator { flex: 0 0 auto; height: 1px; margin: 4px 6px; background: #e0e6ed; }
+.cp-tool-menu-form { display: grid; gap: 4px; padding: 4px 10px 8px; }
+.cp-tool-menu-form-label { color: #5b6f85; font-size: 9px; font-weight: 700; }
+.cp-tool-menu-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid #b3c1d1;
+  border-radius: 3px;
+  background: #fff;
+  color: #172b43;
+  font: inherit;
+  font-size: 11px;
+}
+.cp-tool-menu-form-actions { display: flex; gap: 4px; }
+.cp-tool-menu-form-actions button {
+  padding: 3px 10px;
+  border: 1px solid #b9c9db;
+  border-radius: 3px;
+  background: #f6f9fc;
+  color: #123a6b;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cp-tool-menu-primary { background: #123a6b !important; border-color: #123a6b !important; color: #fff !important; }
+.cp-tool-menu-form-actions button:hover { background: #e1edf9; }
+.cp-tool-menu-form-actions .cp-tool-menu-primary:hover { background: #1c5f9e !important; }
+
+/* ---- Customize dialog ---------------------------------------------------- */
+
+.cp-tool-customize {
+  width: min(780px, calc(100vw - 32px));
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 1px solid #93a8c0;
+  border-radius: 6px;
+  background: #fff;
+  color: #24384f;
+  box-shadow: 0 26px 64px #0b1a2e52;
+  font-size: 11px;
+}
+.cp-tool-customize::backdrop { background: #0b1a2e66; }
+.cp-tool-customize-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #c3ccd8;
+  background: linear-gradient(#f4f8fc, #e7eef6);
+}
+.cp-tool-customize-head h2 { margin: 0; color: #123a6b; font-size: 13px; }
+.cp-tool-customize-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #4a5f77;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cp-tool-customize-close:hover { background: #dbe7f5; border-color: #b3c1d1; }
+.cp-tool-customize-body {
+  display: grid;
+  gap: 10px;
+  max-height: calc(min(86vh, 760px) - 44px);
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+}
+.cp-tool-customize-group { display: grid; gap: 3px; }
+.cp-tool-customize-group h3 {
+  margin: 0 0 2px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #dbe2ea;
+  color: #173d68;
+  font-size: 10px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.cp-tool-customize-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.cp-tool-customize-row:hover { background: #f2f7fc; }
+.cp-tool-customize-check {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #b3c1d1;
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+}
+.cp-tool-customize-check.is-checked { background: #dce9f7; border-color: #7da4cc; }
+.cp-tool-customize-check:focus-visible { outline: 2px solid #1e5fa8; outline-offset: 1px; }
+.cp-tool-customize-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-tool-customize-name em { color: #b05f2f; font-size: 9px; font-style: normal; }
+.cp-tool-customize-actions { display: flex; gap: 2px; }
+.cp-tool-customize-actions button {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid #c5cfdb;
+  border-radius: 3px;
+  background: #f6f9fc;
+  color: #3c5169;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.cp-tool-customize-actions button:hover:not(:disabled) { background: #e1edf9; border-color: #8ba9c9; color: #123a6b; }
+.cp-tool-customize-actions button:disabled { opacity: .4; cursor: default; }
+.cp-tool-customize-empty { margin: 2px 0; color: #7b8ca0; font-size: 10px; }
+.cp-tool-customize-create { display: grid; gap: 6px; padding-top: 6px; border-top: 1px solid #c3ccd8; }
+.cp-tool-customize-create h3 { margin: 0; color: #173d68; font-size: 10px; text-transform: uppercase; }
+.cp-tool-customize-create form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cp-tool-customize-create label { color: #5b6f85; font-size: 10px; }
+.cp-tool-customize-create input {
+  flex: 1 1 200px;
+  min-width: 120px;
+  padding: 4px 7px;
+  border: 1px solid #b3c1d1;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 11px;
+}
+.cp-tool-customize-create form button,
+.cp-tool-customize-footer button {
+  padding: 4px 12px;
+  border: 1px solid #b9c9db;
+  border-radius: 3px;
+  background: #f6f9fc;
+  color: #123a6b;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cp-tool-customize-create form button { background: #123a6b; border-color: #123a6b; color: #fff; }
+.cp-tool-customize-create form button:hover { background: #1c5f9e; }
+.cp-tool-customize-footer { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.cp-tool-customize-footer button:hover { background: #e1edf9; }
+.cp-tool-customize-footer button:last-child { margin-inline-start: auto; }
+
+/* ---- Drag feedback ------------------------------------------------------- */
+
+body.cp-toolbar-dragging { user-select: none; cursor: grabbing; }
+body.cp-toolbar-dragging .cp-tool-family-handle,
+body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
+.cp-tool-drag-ghost {
+  position: fixed;
+  z-index: 5200;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 9px;
+  border-radius: 3px;
+  background: #123a6b;
+  color: #fff;
+  box-shadow: 0 8px 20px #0b1a2e52;
+  font-size: 11px;
+  pointer-events: none;
+}
+.cp-tool-drag-ghost .cp-icon { width: 14px; height: 14px; color: #fff; }
+.cp-tool-drag-ghost span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-tool-drop-line {
+  position: fixed;
+  z-index: 5200;
+  border-radius: 1px;
+  background: #c66a36;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+/* ---- Narrow viewports ---------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .cp-p6 .cp-p6-shell[data-left-tools="wide"] { --cp-tool-rail-left: 124px; }
+  .cp-p6 .cp-p6-shell[data-right-tools="wide"] { --cp-tool-rail-right: 124px; }
+  .cp-tool-menu { min-width: 210px; max-width: 300px; }
+}
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-shell {
+    --cp-tool-rail-left: 42px;
+    --cp-tool-rail-right: 32px;
+    grid-template-columns: var(--cp-tool-rail-left) minmax(0, 1fr) var(--cp-tool-rail-right);
+  }
+  .cp-p6 .cp-p6-shell[data-left-tools="wide"] { --cp-tool-rail-left: 112px; }
+  .cp-p6 .cp-p6-shell[data-right-tools="wide"] { --cp-tool-rail-right: 112px; }
+  .cp-p6 .cp-tool-family.is-horizontal .cp-tool-family-name { display: none; }
+}
+@media (max-width: 640px) {
+  .cp-p6 .cp-p6-shell {
+    --cp-tool-rail-left: 36px;
+    --cp-tool-rail-right: 30px;
+    grid-template-columns: var(--cp-tool-rail-left) minmax(0, 1fr) var(--cp-tool-rail-right);
+  }
+  .cp-p6 .cp-p6-shell[data-left-tools="wide"],
+  .cp-p6 .cp-p6-shell[data-right-tools="wide"] { --cp-tool-rail-left: 96px; --cp-tool-rail-right: 96px; }
+  .cp-tool-menu { min-width: 186px; max-width: 260px; }
+  .cp-tool-customize { width: calc(100vw - 16px); }
+}

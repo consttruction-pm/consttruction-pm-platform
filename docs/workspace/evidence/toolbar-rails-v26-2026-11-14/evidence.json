@@ -1,0 +1,280 @@
+{
+  "test": "toolbar-rails-v26",
+  "base_url": "http://127.0.0.1:4202",
+  "tested_code_sha": "79cf025aa64257555666ccec95dc8b2a1df5b79e",
+  "evidence_date": "2026-11-14",
+  "started_at": "2026-11-14T02:45:25.234Z",
+  "checks": [
+    {
+      "name": "both independent rails render with the eighteen right families and an Add or Remove control per family",
+      "detail": {
+        "rect": {
+          "left": 1326,
+          "top": 139,
+          "right": 1366,
+          "bottom": 708,
+          "width": 40,
+          "height": 569
+        },
+        "families": [
+          "project-tools",
+          "assign",
+          "edit",
+          "layout",
+          "enterprise",
+          "print",
+          "action",
+          "administrator",
+          "bottom-layout",
+          "display",
+          "find",
+          "dictionaries",
+          "publish",
+          "standard-reports",
+          "tools",
+          "activity",
+          "critical-check",
+          "schedule"
+        ],
+        "addRemove": 18
+      },
+      "at": "2026-11-14T02:45:29.065Z"
+    },
+    {
+      "name": "every left and right family hides and restores independently without closing the Customize dialog",
+      "detail": {
+        "families": 24
+      },
+      "at": "2026-11-14T02:45:57.948Z"
+    },
+    {
+      "name": "Add or Remove toggles multiple buttons in one open menu with immediate updates",
+      "detail": {
+        "first": "tools.schedule",
+        "second": "tools.options"
+      },
+      "at": "2026-11-14T02:45:59.480Z"
+    },
+    {
+      "name": "Reset Toolbar restores one family without touching the others",
+      "detail": {
+        "family": "schedule"
+      },
+      "at": "2026-11-14T02:46:00.014Z"
+    },
+    {
+      "name": "an empty toolbar stays restorable and its first button can be added from the same menu",
+      "detail": {
+        "family": "print"
+      },
+      "at": "2026-11-14T02:46:02.539Z"
+    },
+    {
+      "name": "right-clicking a toolbar and an icon opens distinct real customization menus",
+      "detail": {
+        "kind": "button",
+        "actions": [
+          "move-button",
+          "move-button",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "move-to-family",
+          "hide-button",
+          "reset-rename",
+          "style-family",
+          "style-family",
+          "style-family",
+          "toggle-separator",
+          "reset-family"
+        ]
+      },
+      "at": "2026-11-14T02:46:04.053Z"
+    },
+    {
+      "name": "pointer drag reorders icons inside a family",
+      "detail": {
+        "before": [
+          "layout.open",
+          "layout.save",
+          "layout.save-as"
+        ],
+        "after": [
+          "layout.save",
+          "layout.save-as",
+          "layout.bars"
+        ]
+      },
+      "at": "2026-11-14T02:46:05.708Z"
+    },
+    {
+      "name": "pointer drag moves a button between two toolbar families without duplication",
+      "detail": {},
+      "at": "2026-11-14T02:46:07.301Z"
+    },
+    {
+      "name": "pointer drag moves a command between the left and right rails",
+      "detail": {},
+      "at": "2026-11-14T02:46:08.807Z"
+    },
+    {
+      "name": "a complete toolbar can be dragged out of the rail and docked above the workspace",
+      "detail": {},
+      "at": "2026-11-14T02:46:10.268Z"
+    },
+    {
+      "name": "a docked toolbar re-docks to a rail and the dock stays recoverable",
+      "detail": {},
+      "at": "2026-11-14T02:46:11.544Z"
+    },
+    {
+      "name": "keyboard Alt+Arrow reorders the focused toolbar button",
+      "detail": {},
+      "at": "2026-11-14T02:46:12.706Z"
+    },
+    {
+      "name": "Reset All Toolbars restores every predefined family and layout",
+      "detail": {},
+      "at": "2026-11-14T02:46:15.130Z"
+    },
+    {
+      "name": "a custom toolbar is created by name and accepts commands from the shared registry",
+      "detail": {
+        "customId": "custom:mwft0mws-1",
+        "commands": 111
+      },
+      "at": "2026-11-14T02:46:17.860Z"
+    },
+    {
+      "name": "a custom toolbar can be renamed",
+      "detail": {
+        "name": "Renamed checks"
+      },
+      "at": "2026-11-14T02:46:19.196Z"
+    },
+    {
+      "name": "every toolbar customization survives a full reload",
+      "detail": {
+        "expected": {
+          "customId": "custom:mwft0mws-1",
+          "customName": "Renamed checks",
+          "customButtons": [
+            "layout.open",
+            "print.print"
+          ],
+          "leftFamilies": [
+            "navigation",
+            "project",
+            "planning",
+            "resources-cost",
+            "information",
+            "administration"
+          ],
+          "rightCount": 18,
+          "navWidth": 48
+        },
+        "afterReload": {
+          "customId": "custom:mwft0mws-1",
+          "customName": "Renamed checks",
+          "customButtons": [
+            "layout.open",
+            "print.print"
+          ],
+          "leftFamilies": [
+            "navigation",
+            "project",
+            "planning",
+            "resources-cost",
+            "information",
+            "administration"
+          ],
+          "rightCount": 18
+        }
+      },
+      "at": "2026-11-14T02:46:20.744Z"
+    },
+    {
+      "name": "toolbar configuration is isolated per user",
+      "detail": {
+        "customInDock": false,
+        "rightCount": 18,
+        "printVisible": true
+      },
+      "at": "2026-11-14T02:46:24.131Z"
+    },
+    {
+      "name": "permissions disable administrator commands in the menu and on the rail",
+      "detail": {
+        "viewerAdmin": {
+          "disabled": true,
+          "aria": "true"
+        },
+        "viewerButton": {
+          "ariaDisabled": "true",
+          "hasTarget": false
+        }
+      },
+      "at": "2026-11-14T02:46:28.392Z"
+    },
+    {
+      "name": "Persian RTL mirrors the rail controls and keeps every menu inside the viewport",
+      "detail": {},
+      "at": "2026-11-14T02:46:32.431Z"
+    },
+    {
+      "name": "both rails keep all families with no page overflow at 1280x720, 1366x768 and 1920x1080",
+      "detail": {},
+      "at": "2026-11-14T02:46:33.955Z"
+    },
+    {
+      "name": "no uncaught browser exceptions or API 5xx responses",
+      "detail": {
+        "consoleErrorCount": 0
+      },
+      "at": "2026-11-14T02:46:35.743Z"
+    }
+  ],
+  "screenshots": [
+    "rails-both-1366x768-en.png",
+    "customize-dialog-1366x768-en.png",
+    "add-remove-menu-1366x768-en.png",
+    "empty-family-restored-1366x768-en.png",
+    "right-click-toolbar-1366x768-en.png",
+    "right-click-icon-1366x768-en.png",
+    "moved-between-families-1366x768-en.png",
+    "drag-out-1366x768-en.png",
+    "docked-1366x768-en.png",
+    "custom-toolbar-1366x768-en.png",
+    "after-reload-1366x768-en.png",
+    "rails-1366x768-fa.png",
+    "rails-1280x720-fa.png",
+    "rails-1366x768-fa.png",
+    "rails-1920x1080-fa.png",
+    "final-rails-1366x768-en.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finished_at": "2026-11-14T02:46:35.849Z",
+  "status": "passed",
+  "failure": null
+}

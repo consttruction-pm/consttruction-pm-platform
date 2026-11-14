@@ -1735,7 +1735,8 @@ function bindHost(host: HTMLElement): void {
     // A control that already consumed the chord (grid navigation, splitter,
     // context menu) keeps precedence over the shell binding.
     if (event.defaultPrevented) return;
-    const target = event.target as HTMLElement | null;
+    const candidate = event.target as HTMLElement | null;
+    const target = candidate && typeof candidate.closest === "function" ? candidate : null;
     const typing = Boolean(target?.closest("input, textarea, select, [contenteditable=true]"));
 
     // Keyboard tab reordering: Ctrl+Shift+Left/Right while a window tab has focus.

@@ -554,7 +554,10 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
+  assert.deepEqual(registrations, [
+    "click", "click", "contextmenu", "pointerdown", "keydown",
+    "scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
+  ]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -2151,11 +2154,15 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 test("desktop workbench renders one compact navigation rail, a full menu flyout and no artificial command strip", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
-  const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
+  const navigationStart = html.indexOf('data-tool-rail="left"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
-  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 21);
-  assert.match(html, /data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true"/);
+  // The left rail is a registry-driven tool rail with its own families, not a
+  // second copy of the 21-destination navigation tree.
+  assert.equal((navigationMarkup.match(/data-tool-family="/g) ?? []).length, 6);
+  assert.match(navigationMarkup, /data-tool-family="navigation"/);
+  assert.match(navigationMarkup, /data-tool-add-remove/);
+  assert.match(navigationMarkup, /data-nav-flyout-toggle/);
   const flyoutStart = html.indexOf('<div class="cp-p6-flyout" data-nav-flyout hidden>');
   assert.ok(flyoutStart > -1, "the full navigation flyout must be rendered");
   const flyoutEnd = html.indexOf('<div class="cp-p6-drawer', flyoutStart);
@@ -2182,7 +2189,7 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
 
 test("the right rail leads with one Add command menu and never repeats left navigation", () => {
   const html = render("en", "schedule");
-  const railStart = html.indexOf('<aside class="cp-comments-dock-rail cp-context-command-rail"');
+  const railStart = html.indexOf('<aside class="cp-comments-dock-rail cp-context-command-rail cp-tool-rail"');
   assert.ok(railStart > -1, "the context command rail must be rendered");
   const railEnd = html.indexOf("</aside>", railStart);
   const rail = html.slice(railStart, railEnd);
@@ -2199,7 +2206,11 @@ test("the right rail leads with one Add command menu and never repeats left navi
   assert.match(rail, /data-rail-action="assistant"/);
   assert.match(rail, /data-rail-action="details"/);
   assert.match(rail, /data-rail-action="notebook"/);
-  assert.match(rail, /data-comments-toggle/);
+  assert.match(rail, /data-rail-action="comments"/);
+  // All eighteen Version 26 families are registered on the right rail.
+  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 18);
+  assert.match(rail, /data-tool-family="project-tools"/);
+  assert.match(rail, /data-tool-family="schedule"/);
   // No write capability means every command stays visible but disabled with a
   // reason the user can read; nothing pretends the action succeeded.
   assert.match(rail, /data-desktop-command="project.add-activity" disabled aria-disabled="true"/);
@@ -2235,7 +2246,9 @@ test("contextual Add commands follow the active window, selection and stored dat
 
   const reports = renderWith("reports", { canWrite: true });
   assert.match(reports, /This window has no create action\./);
-  assert.doesNotMatch(reports, /data-desktop-command=/);
+  const reportsAdd = reports.match(/<div class="cp-context-add-popup"[\s\S]*?<\/div>/);
+  assert.ok(reportsAdd, "the contextual Add popup must be rendered");
+  assert.doesNotMatch(reportsAdd[0], /data-desktop-command=/);
 
   // A viewer sees the same commands disabled instead of write controls vanishing
   // behind an ambiguous empty rail.
