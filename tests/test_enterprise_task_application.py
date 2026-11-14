@@ -127,6 +127,8 @@ def test_project_task_requires_project_write_and_updates_completion_actor(servic
         {"title": "Review submittal", "project_id": "project-1"},
         idempotency_key="project-create-1",
     )
+    with pytest.raises(EnterpriseTaskNotFound):
+        service.get_task("bob-session", created.task.task_id)
     updated = service.update_task(
         "alice-session",
         created.task.task_id,
