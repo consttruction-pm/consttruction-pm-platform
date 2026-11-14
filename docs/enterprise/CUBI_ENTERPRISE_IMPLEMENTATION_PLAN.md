@@ -135,3 +135,12 @@ A coherent CUBI experience is a long-term design objective, **not a mandatory sh
 - Do not spend Enterprise capacity on premature visual harmonization, and do not let design-system work delay the P6 EPPM functional baseline or the higher-priority Engineering workstream.
 
 Reference: `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md` (exploratory; non-binding pending validation and approval).
+
+
+## Mandatory Oracle P6 EPPM Help V26 HTML parity baseline
+
+The product owner has made Oracle Primavera P6 EPPM Help Version 26 English HTML the mandatory reference for all CUBI Enterprise design, implementation and acceptance. The separate P6 Team Member Help Version 26 HTML set is mandatory for contributor workflows. See `docs/enterprise/CUBI_ENTERPRISE_PRIMAVERA_P6_EPPM_HELP_PARITY_V26.md` for canonical source URLs, feature-family traceability, Task Center scope, explicit non-parity boundaries and QA workflow.
+
+This is a behavioral/workflow parity requirement expressed in CUBI-native product language and design, not a pixel-copy or Oracle branding requirement. Every Enterprise feature PR must cite the relevant V26 HTML topic and map documented user goals, screen elements, navigation, prerequisites, role/privilege rules and error/approval behavior to CUBI contracts and tests. No full-parity claim is allowed without evidence for every relevant row. P6 EPPM, P6 Professional, Primavera Cloud and Primavera Unifier documentation are distinct and must not be interchanged.
+
+The current Task Center is a generic personal/project task-management slice. It is not the P6 schedule Activity / Team Member / Timesheet feature set. Engineering remains the only authoritative source for schedule, CPM, activities, WBS, resources, cost, progress, EVM and critical path.
