@@ -3907,6 +3907,28 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
   1147 + 14 passed, typecheck and build clean at the same code.
 
+### PRJ-002 defaults application history — 2026-11-14 (`0188b51b`)
+
+- The server now keeps an append-only, immutable history of the defaults each
+  new activity adopted: `project_lifecycle_defaults_event` (PostgreSQL) and
+  `preview_project_defaults_event` (SQLite), identity
+  `{project}@{activity}`, `ON CONFLICT DO NOTHING`, no update/delete path.
+- `ProjectLifecycleService.record_defaults_application` takes actor and time
+  from the authenticated session and requires `project.write`;
+  `project_defaults_history` requires `project.read` and membership.
+- `POST …/p6/activities` compares the stored values with the project defaults
+  after creation and records only the adopted defaults, so a prefilled create
+  form is audited and a changed value is not.
+- `GET /api/projects/{id}/defaults-history` returns
+  `project-defaults-history-api.v1`; the Defaults tab lists activity,
+  applied values, actor and date in en/fa.
+- Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`
+  (`testedCodeSha`/`gitHead` `0188b51b817c08d0405973a997e6a876ea157054`, 9/9
+  scenarios, 13 screenshots, zero exceptions/console errors/API failures);
+  scenario `02b` reads the history row for the created `AH-A230-B`. Python 4250
+  passed / 191 skipped, live PostgreSQL 421 passed, web 1148 + 14 passed,
+  typecheck and build clean.
+
 ### PRJ-002 stored default cost account — 2026-11-14 (`9b25bdb5`)
 
 - `ProjectSummary.default_cost_account_id` is a validated reference into the
@@ -3967,9 +3989,10 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   project is checked out (`409 PROJECT_CHECKED_OUT_BY_OTHER`); metadata and
   status writes already did. The lease is still not consulted by activity,
   WBS or relationship writes.
-- The Defaults tab now stores activity type, percent complete type, duration
-  type, the cost account (validated against the real hierarchy) and the
-  Activity ID numbering fields. An audited defaults history is still absent.
+- The Defaults tab stores activity type, percent complete type, duration type,
+  the cost account (validated against the real hierarchy) and the Activity ID
+  numbering fields, and lists the server-written history of defaults applied to
+  new activities.
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
