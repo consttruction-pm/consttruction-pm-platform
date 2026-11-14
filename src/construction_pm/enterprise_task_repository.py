@@ -224,33 +224,44 @@ class PostgresEnterpriseTaskRepository:
             raise ValueError("INVALID_ENTERPRISE_TASK_TENANT_ID")
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
             raise ValueError("INVALID_ENTERPRISE_TASK_PAGE_SIZE")
+        if project_id is not None and personal_user_id is not None:
+            raise ValueError("ENTERPRISE_TASK_LIST_SCOPE_AMBIGUOUS")
+        where = ["tenant_id=%s"]
+        params: list[object] = [tenant_id]
+        if project_id is not None:
+            self._validate_scope(tenant_id, project_id)
+            where.append("task_json::jsonb ->> 'project_id' = %s")
+            params.append(project_id)
+        elif personal_user_id is not None:
+            self._validate_scope(tenant_id, personal_user_id)
+            where.extend([
+                "task_json::jsonb ->> 'project_id' IS NULL",
+                "(task_json::jsonb ->> 'created_by_user_id' = %s "
+                "OR task_json::jsonb ->> 'assigned_user_id' = %s)",
+            ])
+            params.extend((personal_user_id, personal_user_id))
         if before_task_id is None:
             if before_updated_at is not None:
                 raise ValueError("ENTERPRISE_TASK_PAGE_CURSOR_REQUIRES_TASK_ID")
-            rows = self.connection.execute(
-                "SELECT task_json, revision FROM enterprise_tasks "
-                "WHERE tenant_id=%s "
-                "ORDER BY updated_at DESC NULLS LAST, task_id ASC LIMIT %s",
-                (tenant_id, limit),
-            ).fetchall()
         else:
             self._validate_scope(tenant_id, before_task_id)
             if before_updated_at is None:
-                rows = self.connection.execute(
-                    "SELECT task_json, revision FROM enterprise_tasks "
-                    "WHERE tenant_id=%s AND updated_at IS NULL AND task_id > %s "
-                    "ORDER BY updated_at DESC NULLS LAST, task_id ASC LIMIT %s",
-                    (tenant_id, before_task_id, limit),
-                ).fetchall()
+                where.append("updated_at IS NULL AND task_id > %s")
+                params.append(before_task_id)
             else:
                 self._aware(before_updated_at, "PAGE_CURSOR")
-                rows = self.connection.execute(
-                    "SELECT task_json, revision FROM enterprise_tasks "
-                    "WHERE tenant_id=%s AND (updated_at < %s "
-                    "OR (updated_at = %s AND task_id > %s) OR updated_at IS NULL) "
-                    "ORDER BY updated_at DESC NULLS LAST, task_id ASC LIMIT %s",
-                    (tenant_id, before_updated_at, before_updated_at, before_task_id, limit),
-                ).fetchall()
+                where.append(
+                    "(updated_at < %s OR (updated_at = %s AND task_id > %s) "
+                    "OR updated_at IS NULL)"
+                )
+                params.extend((before_updated_at, before_updated_at, before_task_id))
+        params.append(limit)
+        rows = self.connection.execute(
+            "SELECT task_json, revision FROM enterprise_tasks WHERE "
+            + " AND ".join(where)
+            + " ORDER BY updated_at DESC NULLS LAST, task_id ASC LIMIT %s",
+            tuple(params),
+        ).fetchall()
         return tuple(self._stored(row, tenant_id) for row in rows)
 
     def update(
