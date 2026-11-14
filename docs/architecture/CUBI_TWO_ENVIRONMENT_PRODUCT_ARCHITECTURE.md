@@ -293,19 +293,17 @@ The governing implementation principle is **maximum product value with minimum s
 - External integrations are not an active delivery focus in this roadmap. Preserve architectural extensibility, but do not spend current Enterprise capacity on connector catalog expansion or broad third-party integration work.
 - Engineering remains the authority for engineering calculations and records. Enterprise may consume authorized, versioned and revision-aware results; it must not reproduce Engineering calculation logic.
 
-## 15. One CUBI product design system and coherent environment shells
+## 15. Design exploration and future CUBI design-system decision
 
-CUBI is one branded product with two purpose-specific environments. It must present as one professionally designed, coherent software product—not as a collection of screens that independently imitate the colors, conventions or visual identity of different reference products.
+CUBI should ultimately provide a professional and coherent product experience. However, **a shared visual system, shared shell, shared tokens or shared component library are not current implementation prerequisites or acceptance blockers**. The initial design of each environment must remain free to respond to its real users, workflows, information density and technical constraints.
 
-- Establish one **CUBI Product Design System** as the source of truth for brand identity, visual tokens, typography, spacing, layout rules, iconography, controls, navigation patterns, data visualization, interaction states and accessibility.
-- Engineering and Enterprise may have different information architecture, work density and environment-specific emphasis, but must share the same design language and component behavior.
-- Environment distinction must be expressed through semantic, centrally governed tokens and restrained context cues—not unrelated palettes, arbitrary per-module colors or copied vendor themes.
-- Define a complete application shell for each environment: global frame, header, navigation, workspace/content regions, contextual actions, status/notification patterns, responsive behavior and consistent keyboard/focus behavior.
-- Define shared rules for buttons, menus, tabs, dialogs, forms, tables, filters, toolbars, badges, alerts, empty/loading/error states, charts and command surfaces.
-- Theme variants (including light/dark if supported) must derive from the same semantic token system and pass contrast/accessibility checks.
-- RTL/Persian and LTR layouts must be first-class, with consistent typography, icon direction, alignment and localization behavior.
-- Do not import a reference vendor's color scheme or visual identity as a local module theme. Reference products are functional research sources; CUBI owns its own visual identity.
-- Protect the existing Engineering shell and visual workspace. Creating the design-system specification does not authorize an Engineering redesign, broad CSS replacement, route/shell migration or visual regression. Any adoption affecting Engineering requires a separately scoped, compatibility-tested and explicitly approved change.
-- Enterprise should adopt the CUBI design system from its first real shell and must not establish temporary module-specific styling that later requires a costly visual rewrite.
+- Design CUBI Engineering and CUBI Enterprise initially according to their own product needs. Preserve the existing Engineering shell and do not redesign it for visual consistency.
+- Treat a common CUBI identity, shared design tokens, shared components and common shell conventions as design hypotheses to explore—not mandatory constraints for initial product design or implementation.
+- Do not force early convergence of color palettes, typography, navigation, layout, controls or component behavior where doing so could reduce usability, conflict with existing architecture or cause unnecessary rework.
+- Evaluate commonality after the initial designs and representative screens exist. Compare actual user journeys, responsive behavior, RTL/Persian and LTR behavior, accessibility, visual clarity and technical compatibility.
+- Any proposed shared system must pass documented design reviews and relevant automated/manual tests, including regression and environment-specific acceptance tests. Adopt it only after the responsible product owners approve the evidence.
+- Until that approval, environment-specific design decisions are permitted. Avoid arbitrary inconsistency, but do not treat vendor-inspired patterns or a shared CUBI theme as implementation mandates.
+- Any change affecting the Engineering shell, routes, CSS, components or behavior requires a separate, narrowly scoped proposal, compatibility evidence and explicit Engineering-owner approval.
+- A design-system specification or prototype is not evidence that a shared system has been implemented or validated.
 
-The detailed visual system is governed by `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md`.
+The exploratory design brief and future evaluation criteria are documented in `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md`. Its contents are non-binding until a later explicit approval decision.
