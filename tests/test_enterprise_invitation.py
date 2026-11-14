@@ -88,6 +88,12 @@ class Repository:
     def list_invitations(self, tenant_id, team_id):
         return tuple(pair[0] for pair in self.invites.values() if pair[0].team_id == team_id)
 
+    def list_received_invitations(self, tenant_id, target_user_id):
+        return tuple(pair[0] for pair in self.invites.values()
+                     if pair[0].tenant_id == tenant_id
+                     and pair[0].target_user_id == target_user_id
+                     and pair[0].status == "pending")
+
 
 def build():
     repository = Repository()
@@ -139,3 +145,11 @@ def test_invitation_rejects_user_who_is_already_an_active_team_member():
     )
     with pytest.raises(ValueError, match="USER_ALREADY_TEAM_MEMBER"):
         service.invite("owner", "team-a", "CUBI-2345-6789-ABCD", "field_worker")
+
+
+def test_recipient_can_list_only_their_own_pending_invitations():
+    service, _ = build()
+    created = service.invite("owner", "team-a", "CUBI-2345-6789-ABCD", "field_worker")
+    inbox = service.list_received("member")
+    assert [item.invitation_id for item in inbox] == [created.invitation_id]
+    assert inbox[0].token is None
