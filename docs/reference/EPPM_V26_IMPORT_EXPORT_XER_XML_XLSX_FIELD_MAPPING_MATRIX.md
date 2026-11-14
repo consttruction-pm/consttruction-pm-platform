@@ -34,9 +34,10 @@
 | 13 | XER secure-code export | Secure codes are represented in map, with privilege-gated import | Professional does not export secure codes | Explicit asymmetric behavior. CONFIRMED |
 | 14 | XER secure-code import | EPPM imports secure codes only if importing user has privileges to add and delete secure codes | Pro does not export secure codes; no equivalent Pro import rule should be inferred | Product difference. CONFIRMED |
 | 15 | XER risk data | P6 EPPM supports risks, but ProjRisk XER rows imported from Professional are not visible in P6 EPPM | Professional risks are stored in ProjRisk and included in XER | XER presence does not guarantee target UI visibility; Oracle recommends XML for risk transfer. CONFIRMED |
-| 16 | Risk-type lookup table | EPPM V26 XER map does not label RISKTYPE as an EPPM table | RISKTYPE table is explicitly Professional-only | Product-specific XER table. CONFIRMED |
-| 17 | Estimate history | Not identified as the matching EPPM table in the V26 map | PROJEST (Estimate History) is explicitly Professional-only | Product-specific XER table. CONFIRMED |
-| 18 | Project risk-level field | EPPM risk model uses its own risk objects/matrices | XER map marks project `risk_level` as Professional-only | Field-level difference; do not infer all risk functionality is Pro-only. CONFIRMED |
+| 16 | Professional risk table | EPPM has its own ProjectRisk/RiskResponsePlan model; ProjRisk rows imported from Professional XER are not visible in P6 EPPM | PRORISK (Risks) table is explicitly Professional-only | The same exchange file can carry a Professional-only risk structure that EPPM does not display. CONFIRMED |
+| 17 | Risk-type lookup table | EPPM V26 XER map does not label RISKTYPE as an EPPM table | RISKTYPE table is explicitly Professional-only | Product-specific XER table. CONFIRMED |
+| 18 | Estimate history | Not identified as the matching EPPM table in the V26 map | PROJEST (Estimate History) is explicitly Professional-only | Product-specific XER table. CONFIRMED |
+| 19 | Project risk-level field | EPPM risk model uses its own risk objects/matrices | XER map marks project `risk_level` as Professional-only | Field-level difference; do not infer all risk functionality is Pro-only. CONFIRMED |
 | 19 | Project publication priority | EPPM project field Publication Priority | XER map labels `px_priority` as EPPM-only | EPPM-specific publication field. CONFIRMED |
 | 20 | Last Publish Project date | EPPM has publication-service timestamps/controls | XER map labels `px_last_update_date` as Professional-only, “Last time Publish Project was run on this project” | The field is a Professional-only XER field despite its publication wording; do not map it to EPPM Publication Priority. CONFIRMED |
 | 21 | Last scheduled date | EPPM XER map labels Last Scheduled Date as EPPM-only | No same field label is marked Professional-only in the cited map | EPPM-specific field. CONFIRMED |
@@ -86,6 +87,7 @@ The V26 Project XER Data Map explicitly labels these examples:
 
 ### Professional-only structures/fields
 - `PROJEST` — Estimate History table.
+- `PRORISK` — Risks table.
 - `RISKTYPE` — Risk Types table.
 - `risk_level` — Project Risk Level.
 - `sum_data_date` — Summarized Data Date.
@@ -99,7 +101,6 @@ The V26 Project XER Data Map explicitly labels these examples:
 - `px_priority` — Publication Priority.
 - `last_schedule_date` — Last Scheduled Date.
 - `rsrc_private` — Personal Calendar.
-- `px_enable_publication_flag` — Enable Publication (the V26 PDF rendering omits the product name in the parenthetical marker; treat the field as EPPM publication-specific only where confirmed by the field definition, not from the truncated label alone).
 
 ### Shared fields with different product labels
 - Planned Duration vs Original Duration.
