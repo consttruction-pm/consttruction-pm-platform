@@ -204,23 +204,42 @@ class PostgresProjectRepository(ProjectRepository):
 
     def __init__(self, connection: ProjectLifecyclePostgresConnection) -> None:
         self._connection = connection
+        self._obs_access_enabled: bool | None = None
+
+    def _has_obs_access_function(self) -> bool:
+        if self._obs_access_enabled is None:
+            row = self._connection.execute(
+                "SELECT to_regprocedure('cubi_user_has_project_access(text,text,text,text)') IS NOT NULL"
+            ).fetchone()
+            self._obs_access_enabled = bool(row and row[0])
+        return self._obs_access_enabled
 
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
-        rows = self._connection.execute(
-            self._SELECT
-            + "WHERE p.tenant_id=%s AND cubi_user_has_project_access("
-              "p.tenant_id,%s,p.project_id,'project.read') ORDER BY p.project_id",
-            (tenant_id, user_id),
-        ).fetchall()
+        if self._has_obs_access_function():
+            query = self._SELECT + (
+                "WHERE p.tenant_id=%s AND cubi_user_has_project_access("
+                "p.tenant_id,%s::text,p.project_id,'project.read'::text) ORDER BY p.project_id"
+            )
+        else:
+            query = self._SELECT + (
+                "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+                "WHERE p.tenant_id=%s AND m.user_id=%s ORDER BY p.project_id"
+            )
+        rows = self._connection.execute(query, (tenant_id, user_id)).fetchall()
         return tuple(_summary(r) for r in rows)
 
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None:
-        row = self._connection.execute(
-            self._SELECT
-            + "WHERE p.tenant_id=%s AND p.project_id=%s AND cubi_user_has_project_access("
-              "p.tenant_id,%s,p.project_id,'project.read')",
-            (tenant_id, project_id, user_id),
-        ).fetchone()
+        if self._has_obs_access_function():
+            query = self._SELECT + (
+                "WHERE p.tenant_id=%s AND p.project_id=%s AND cubi_user_has_project_access("
+                "p.tenant_id,%s::text,p.project_id,'project.read'::text)"
+            )
+        else:
+            query = self._SELECT + (
+                "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+                "WHERE p.tenant_id=%s AND p.project_id=%s AND m.user_id=%s"
+            )
+        row = self._connection.execute(query, (tenant_id, project_id, user_id)).fetchone()
         return None if row is None else _summary(row)
 
     def create_for_user(
