@@ -72,6 +72,7 @@
 | 50 | XER risk structures | EPPM Project Risks use EPPM risk model; Professional XER PRORISK/RISKTYPE structures imported to EPPM are not visible in EPPM risk UI | XER map marks PRORISK and RISKTYPE tables Professional-only | Separate exchange structures; XML is Oracle-recommended for risk exchange. CONFIRMED |
 | 51 | Risk UDF scoring semantics | UDFs are additional descriptive data; User Defined Impact Thresholds are the scoring inputs | Professional UDFs add fields; fixed score calculation remains Probability/Cost/Schedule | Avoid confusing metadata extension with scoring dimension. CONFIRMED |
 | 52 | Risk register download | EPPM Risks page supports Excel download of hierarchical or flat risk data | Professional view supports export/reporting through desktop workflows | Similar reporting intent; export schema parity not assessed here. PARTIALLY VERIFIED |
+| 53 | REST reference prose consistency | V26 endpoint summary prose for RiskResponseAction and RiskResponseActionImpact appears to describe the opposite business-object concepts; their actual field schemas distinguish action-item fields from threshold-impact fields | No equivalent V26 Professional REST schema to compare | Consumers must follow the concrete V26 field schemas, not rely on the swapped summary sentences. DOCUMENTATION INCONSISTENCY CONFIRMED |
 
 ## 3. Scoring model comparison
 
@@ -128,14 +129,16 @@ These metrics answer different questions and must not be substituted in reports 
 ## 5. API and field-surface notes
 
 ### EPPM V26 REST object family
+
+**API documentation note:** The summary prose on the RiskResponseAction and RiskResponseActionImpact endpoint pages appears reversed relative to their V26 request/response schemas. The concrete `RiskResponseAction` schema contains action-item fields (ActivityObjectId, ResourceObjectId, Status, dates and costs); the `RiskResponseActionImpact` schema contains RiskResponseActionObjectId plus RiskThresholdLevelObjectId. Use the field schema when mapping these objects.
 - `Risk` — probabilistic event/condition, threat or opportunity; supports UDFs.
 - `RiskCategory` — enterprise category, a risk can be associated with one category.
 - `RiskThreshold` / `RiskThresholdLevel` — named threshold and its discrete levels.
 - `RiskMatrix` / `RiskMatrixThreshold` / `RiskMatrixScore` — matrix definition, threshold association and PID scores.
 - `RiskImpact` — pre-response value for each risk/threshold pair; composite object ID.
 - `RiskResponsePlan` — alternative plan, IsActive, response type, cost/date/score fields.
-- `RiskResponseAction` — response action details and owner.
-- `RiskResponseActionImpact` — post-response qualitative values per action/threshold.
+- `RiskResponseAction` — response action item details (activity link, owner, status, dates, planned/actual/remaining cost and score).
+- `RiskResponseActionImpact` — post-response qualitative value per action/threshold (threshold-level association).
 
 ### Professional V26 documented desktop model
 - Risk fields include ID, Name, Category, Type, Owner, Status, Identified Date/By, Exposure Start/Finish, Pre-Response Exposure Cost and Post-Response Exposure Cost.
