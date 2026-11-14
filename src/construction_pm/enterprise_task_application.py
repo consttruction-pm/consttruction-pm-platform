@@ -80,6 +80,9 @@ class EnterpriseTaskApplicationService:
         session = self._session(session_id)
         if not isinstance(payload, Mapping):
             raise EnterpriseTaskError("ENTERPRISE_TASK_REQUEST_INVALID")
+        allowed = {"contract_version", "title", "description", "priority", "project_id", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "tenant_id", "created_by_user_id"}
+        if set(payload) - allowed:
+            raise EnterpriseTaskError("ENTERPRISE_TASK_FIELDS_UNSUPPORTED")
         project_id = self._optional_text(payload.get("project_id"), "PROJECT_ID")
         if project_id is not None:
             self._authorize_project(session_id, session.tenant_id, project_id, Permission.PROJECT_WRITE)
@@ -130,6 +133,9 @@ class EnterpriseTaskApplicationService:
         session = self._session(session_id)
         if not isinstance(payload, Mapping):
             raise EnterpriseTaskError("ENTERPRISE_TASK_REQUEST_INVALID")
+        allowed = {"expected_revision", "title", "description", "priority", "status", "assigned_user_id", "assigned_team_id", "due_at", "dependency_ids", "related_refs", "task_id", "tenant_id", "created_by_user_id", "created_at", "project_id"}
+        if set(payload) - allowed:
+            raise EnterpriseTaskError("ENTERPRISE_TASK_FIELDS_UNSUPPORTED")
         current = self._repository.get(session.tenant_id, task_id)
         self._authorize_task(session_id, session, current.task, write=True)
         expected_revision = payload.get("expected_revision")
