@@ -10288,6 +10288,7 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .ce-task-list { display:grid; }
 .ce-task-card { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1rem 1.2rem; border-bottom:1px solid #eef0f3; }
 .ce-task-card:last-child { border-bottom:0; }
+.ce-load-more { display:block; margin:.85rem auto 1rem; min-width:140px; }
 .ce-task-body { min-width:0; display:grid; gap:.45rem; }
 .ce-task-title { margin:0; color:#17202a; font-size:.98rem; font-weight:700; overflow-wrap:anywhere; }
 .ce-task-description { margin:0; color:#667085; font-size:.88rem; white-space:pre-wrap; overflow-wrap:anywhere; }
