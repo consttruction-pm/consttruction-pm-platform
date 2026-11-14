@@ -28,6 +28,8 @@ from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_invitation import EnterpriseInvitationService
 from ..enterprise_invitation_http import EnterpriseInvitationHttpMiddleware
 from ..enterprise_invitation_repository import PostgresEnterpriseInvitationRepository
+from ..enterprise_organization_access import EnterpriseOrganizationAccessService
+from ..enterprise_organization_access_http import EnterpriseOrganizationAccessHttpMiddleware
 from ..enterprise_organization_access_repository import PostgresEnterpriseOrganizationAccessRepository
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
@@ -372,11 +374,19 @@ class ProductionRuntime:
                 lifecycle_api,
             ),
         )
+        organization_access_repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        organization_access_service = EnterpriseOrganizationAccessService(
+            organization_access_repository, lifecycle_api
+        )
         invitation_service = EnterpriseInvitationService(
             PostgresEnterpriseInvitationRepository(connection),
-            PostgresEnterpriseOrganizationAccessRepository(connection), lifecycle_api,
+            organization_access_repository,
+            lifecycle_api,
         )
         self.api_app = EnterpriseInvitationHttpMiddleware(self.api_app, invitation_service)
+        self.api_app = EnterpriseOrganizationAccessHttpMiddleware(
+            self.api_app, organization_access_service
+        )
         self.web_app = ProductionWebApp(
             api_app=self.api_app,
             identity=self.identity,
