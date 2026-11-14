@@ -25,6 +25,9 @@ from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
+from ..enterprise_task_application import EnterpriseTaskApplicationService
+from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
+from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
@@ -310,6 +313,13 @@ class ProductionRuntime:
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,
+        )
+        self.api_app = EnterpriseTaskHttpMiddleware(
+            self.api_app,
+            EnterpriseTaskApplicationService(
+                PostgresEnterpriseTaskRepository(connection),
+                lifecycle_api,
+            ),
         )
         self.web_app = ProductionWebApp(
             api_app=self.api_app,
