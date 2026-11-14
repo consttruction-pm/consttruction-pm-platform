@@ -3781,13 +3781,82 @@ async function main() {
       optionChangedHash.length >= 16 && optionChangedHash !== baselineOptionHash,
       "a published snapshot must bind the edited schedule options into its hash",
     );
+    // Multiple float paths are a real calculation output: enable them, run,
+    // and assert the result table binds the nonzero path number and order.
+    const enabledFloatPaths = await page.evaluate(`(() => {
+      const box = document.querySelector('[data-option="multiple_float_paths_enabled"]');
+      if (!box) return false;
+      box.checked = true;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    assert(enabledFloatPaths, "the multiple float paths option control is missing");
+    await page.setInput('[data-option="maximum_multiple_float_paths"]', "2");
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${optionsSavedRevision}`,
+      "multiple float paths settings revision",
+    );
+    const floatPathSettingsRevision = await page.evaluate(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1)`,
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "snapshot rows with multiple float paths",
+      60000,
+    );
+    const floatPathTable = await page.evaluate(`(() => {
+      const table = document.querySelector("[data-run-results] .cp-schedule-result-table");
+      return {
+        headers: [...table.querySelectorAll("thead th")].map((cell) => cell.textContent.trim()),
+        rows: [...table.querySelectorAll("tbody tr")].map((row) => ({
+          id: row.children[0]?.textContent.trim() ?? null,
+          path: row.querySelector("[data-float-path]")?.textContent.trim() ?? null,
+          order: row.querySelector("[data-float-path-order]")?.textContent.trim() ?? null,
+        })),
+      };
+    })()`);
+    assert(
+      floatPathTable.headers.includes("Float path") && floatPathTable.headers.includes("Float path order"),
+      "the result table must expose float path columns when paths are calculated: " +
+        JSON.stringify(floatPathTable.headers),
+    );
+    const pathRows = floatPathTable.rows.filter((row) => row.path && row.path !== "—");
+    assert(pathRows.length > 0, "no activity row carried a calculated float path");
+    assert(
+      pathRows.every((row) => Number(row.path) >= 1 && Number(row.order) >= 1),
+      "float path and order must be positive integers: " + JSON.stringify(pathRows.slice(0, 3)),
+    );
+    await page.scrollTo("#cp-schedule-run");
+    await page.screenshot("07g-multiple-float-paths.png");
+    EVIDENCE.float_paths = {
+      settings_revision: floatPathSettingsRevision,
+      headers: floatPathTable.headers,
+      rows: pathRows.slice(0, 5),
+      source: "multiple float path options -> settings API -> published snapshot -> schedule query",
+    };
+    record("multiple float paths are calculated and rendered per activity", {
+      headers: floatPathTable.headers,
+      path_rows: pathRows.length,
+    });
     // Restore the seed defaults so later checks keep the original calculations.
+    const disabledFloatPaths = await page.evaluate(`(() => {
+      const box = document.querySelector('[data-option="multiple_float_paths_enabled"]');
+      if (!box) return false;
+      box.checked = false;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    assert(disabledFloatPaths, "the multiple float paths option control disappeared");
     await page.setInput('[data-option="maximum_multiple_float_paths"]', "0");
     await page.setInput('[data-option="min_float_to_preserve"]', "0");
     await page.setInput('[data-option="data_date"]', "");
     await page.click('[data-schedule-settings-form] button[type="submit"]');
     await page.waitFor(
-      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${optionsSavedRevision}`,
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${floatPathSettingsRevision}`,
       "restored schedule options revision",
     );
     EVIDENCE.schedule_options = {
