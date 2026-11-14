@@ -4,7 +4,7 @@
 **Product decision:** `CUBI-ARCH-ENV-001`  
 **Tracking:** GitHub issue #1928  
 **Baseline:** current `main` at `90f93cbea8f6c6d7d636483a4c288eeddd7da160`  
-**Implementation branch:** `feat/cubi-enterprise-foundation-v1-current-main`
+**Implementation branch:** `feat/cubi-enterprise-foundation-v1-final`
 
 ## Product boundary
 
