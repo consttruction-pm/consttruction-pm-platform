@@ -161,7 +161,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     }
   };
   const loadMembers=async():Promise<void>=>{
-    if(!selected){members.replaceChildren(el("p","oa-muted",t.noTeams));transferSelect.replaceChildren();return;}
+    if(!selected){members.replaceChildren(el("p","oa-muted",t.noTeams));transferSelect.replaceChildren();inviteForm.hidden=true;transferRow.hidden=true;return;}
     let result: {memberships:Membership[]};
     try {
       result=await api<{memberships:Membership[]}>(`/api/enterprise/teams/${encodeURIComponent(selected.team_id)}/members`);
