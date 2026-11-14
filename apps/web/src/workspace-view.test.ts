@@ -298,7 +298,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
   );
-  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; levelingPriority: string } | null = null;
+  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; costAccountId: string | null; levelingPriority: string } | null = null;
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onActivityCreate: (input) => { created = input; },
   });
@@ -333,6 +333,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     statusCode: "Active",
     percentCompleteType: "PHYSICAL",
     durationType: "Fixed Units",
+    costAccountId: null,
     levelingPriority: "High",
   });
 });
@@ -3043,4 +3044,47 @@ test("baseline bars stay disabled with an explicit reason when no stored window 
   const empty = render("en", "schedule");
   assert.match(empty, /data-layout-baseline checked disabled/);
   assert.match(empty, /No stored baseline window is loaded for this project/);
+});
+
+test("Activity create form offers the stored default cost account from the real hierarchy", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
+  );
+  const captured: { value?: { costAccountId: string | null } } = {};
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    projectSummary: {
+      project_id: "project-1",
+      tenant_id: "tenant-1",
+      name: "Project One",
+      revision: 3,
+      default_cost_account_id: "CA-CIVIL",
+    } as ProjectSummary,
+    costAccounts: [
+      { account_id: "CA-CIVIL", name: "Civil works" },
+      { account_id: "CA-MEP", name: "Mechanical" },
+    ],
+    onActivityCreate: (input) => { captured.value = input; },
+  });
+  assert.match(container.innerHTML, /<option value="CA-CIVIL" selected>CA-CIVIL — Civil works<\/option>/);
+  assert.match(container.innerHTML, /<option value="CA-MEP" >CA-MEP — Mechanical<\/option>/);
+  const values: Record<string, { value: string }> = {
+    '[name="activity_id"]': { value: "A-102" },
+    '[name="name"]': { value: "Civil activity" },
+    '[name="duration_value"]': { value: "1" },
+    '[name="wbs_id"]': { value: "WBS-1" },
+    '[name="cost_account_id"]': { value: "CA-CIVIL" },
+  };
+  const form = {
+    matches: (selector: string) => selector === "[data-activity-create-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  listeners.get("submit")?.({ target: form, preventDefault: () => {} } as unknown as Event);
+  assert.equal(captured.value?.costAccountId, "CA-CIVIL");
 });

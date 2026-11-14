@@ -35,3 +35,16 @@ def test_invalid_parent_and_self_reference_fail_closed():
     with pytest.raises(P6CostAccountPersistenceError, match="INVALID_PARENT_ACCOUNT_ID"): repo.upsert(invalid)
     self_ref = P6CostAccount(scope(), "01", "Account", "01")
     with pytest.raises(P6CostAccountPersistenceError, match="SELF_PARENT"): repo.upsert(self_ref)
+
+
+def test_cost_account_exists_is_scoped_to_the_project_hierarchy():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteP6CostAccountRepository(connection)
+    repo.upsert(account(revision=1, account_id="01"))
+    assert repo.cost_account_exists("tenant-1", "project-1", 1, "01") is True
+    assert repo.cost_account_exists("tenant-1", "project-1", 1, "02") is False
+    assert repo.cost_account_exists("tenant-2", "project-1", 1, "01") is False
+    assert repo.cost_account_exists("tenant-1", "project-2", 1, "01") is False
+    assert repo.cost_account_exists("tenant-1", "project-1", 2, "01") is False
+    assert repo.cost_account_exists("tenant-1", "project-1", 1, " ") is False
+    connection.close()

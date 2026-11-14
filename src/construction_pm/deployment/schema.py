@@ -10,6 +10,7 @@ from typing import Any
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..identity_session import PostgresIdentityStore
+from ..p6_cost_account_repository import PostgresP6CostAccountRepository
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
 from ..p6_user_defined_field_values_repository import (
@@ -32,6 +33,7 @@ def initialize_production_schema(connection: Any) -> None:
     PostgresIdentityStore(connection).initialize()
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
+    PostgresP6CostAccountRepository(connection).initialize()
     PostgresWBSMasterRepository(connection).initialize()
     PostgresRelationshipMasterRepository(connection).initialize()
     PostgresP6FieldRegistryRepository(connection).initialize()

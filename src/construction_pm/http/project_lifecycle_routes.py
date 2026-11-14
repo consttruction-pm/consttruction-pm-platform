@@ -1812,6 +1812,24 @@ class ProjectLifecycleHttpRoutes:
                         not isinstance(raw_short_name, str) or not raw_short_name.strip()
                     ):
                         raise ValueError("INVALID_SHORT_NAME")
+                    raw_cost_account = payload.get(
+                        "cost_account_id",
+                        existing.cost_account_id if existing is not None else None,
+                    )
+                    if raw_cost_account is not None:
+                        if not isinstance(raw_cost_account, str):
+                            raise ValueError("INVALID_COST_ACCOUNT_ID")
+                        raw_cost_account = raw_cost_account.strip() or None
+                    cost_account_id = raw_cost_account
+                    if cost_account_id is not None:
+                        if len(cost_account_id) > 120:
+                            raise ValueError("INVALID_COST_ACCOUNT_ID")
+                        if self._p6_cost_account_api is None:
+                            raise ValueError("P6_COST_ACCOUNT_UNAVAILABLE")
+                        if self._p6_cost_account_api.get(
+                            scope, cost_account_id, auth_context=auth
+                        ) is None:
+                            raise ValueError("P6_ACTIVITY_COST_ACCOUNT_NOT_FOUND")
                     return ActivityMaster(
                         scope=scope,
                         activity_id=activity_id,
@@ -1884,6 +1902,7 @@ class ProjectLifecycleHttpRoutes:
                         wbs_id=payload.get(
                             "wbs_id", existing.wbs_id if existing is not None else None
                         ),
+                        cost_account_id=cost_account_id,
                     )
 
                 try:
@@ -1911,6 +1930,7 @@ class ProjectLifecycleHttpRoutes:
                             "activity_type" not in payload
                             or "percent_complete_type" not in payload
                             or "duration_type" not in payload
+                            or "cost_account_id" not in payload
                         ):
                             defaults = self._api.get_project(
                                 session_id, project_id, now=now
@@ -1926,6 +1946,11 @@ class ProjectLifecycleHttpRoutes:
                                 "duration_type",
                                 defaults.default_duration_type,
                             )
+                            if defaults.default_cost_account_id:
+                                payload.setdefault(
+                                    "cost_account_id",
+                                    defaults.default_cost_account_id,
+                                )
                         result = self._p6_activity_master_api.create(
                             build_activity(activity_id), auth_context=auth
                         )
@@ -6567,6 +6592,7 @@ class ProjectLifecycleHttpRoutes:
                     default_duration_type=payload.get(
                         "default_duration_type", "Fixed Duration & Units"
                     ),
+                    default_cost_account_id=payload.get("default_cost_account_id", ""),
                     activity_id_prefix=payload.get("activity_id_prefix", ""),
                     activity_id_suffix=payload.get("activity_id_suffix", ""),
                     activity_id_increment=payload.get("activity_id_increment", 10),
@@ -6615,6 +6641,11 @@ class ProjectLifecycleHttpRoutes:
                     default_duration_type=(
                         payload["default_duration_type"]
                         if "default_duration_type" in payload
+                        else None
+                    ),
+                    default_cost_account_id=(
+                        payload["default_cost_account_id"]
+                        if "default_cost_account_id" in payload
                         else None
                     ),
                     activity_id_prefix=(

@@ -1534,7 +1534,12 @@ def open_preview_runtime(
         # creator. The seeded fixture projects remain shared and read-only.
         member_user_ids=() if public_demo else DEMO_PROJECT_MEMBER_USER_IDS,
     )
-    lifecycle_service = ProjectLifecycleService(sessions, project_repository, policy)
+    lifecycle_service = ProjectLifecycleService(
+        sessions,
+        project_repository,
+        policy,
+        cost_accounts=repositories.cost_accounts,
+    )
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)
 
     query_provider = AuthoritativeScheduleQueryProvider(
