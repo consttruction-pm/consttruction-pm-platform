@@ -151,6 +151,16 @@ const ACTIVITY_CREATE_FIELDS = {
       { value: "SCOPE", en: "Scope", fa: "دامنه" },
     ],
   },
+  duration_type: {
+    label: { en: "Duration type", fa: "نوع مدت" },
+    defaultValue: "Fixed Duration & Units",
+    options: [
+      { value: "Fixed Units/Time", en: "Fixed Units/Time", fa: "واحد/زمان ثابت" },
+      { value: "Fixed Duration & Units/Time", en: "Fixed Duration & Units/Time", fa: "مدت و واحد/زمان ثابت" },
+      { value: "Fixed Units", en: "Fixed Units", fa: "واحد ثابت" },
+      { value: "Fixed Duration & Units", en: "Fixed Duration & Units", fa: "مدت و واحد ثابت" },
+    ],
+  },
   leveling_priority: {
     label: { en: "Leveling priority", fa: "اولویت تسطیح منابع" },
     defaultValue: "Normal",
@@ -1079,6 +1089,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         status: selected("status", "Not Started"),
         statusCode: selected("status_code", "Planned"),
         percentCompleteType: selected("percent_complete_type", "DURATION"),
+        durationType: selected("duration_type", "Fixed Duration & Units"),
         levelingPriority: selected("leveling_priority", "Normal"),
       });
     } else if (form.matches("[data-relationship-create-form]")) {
@@ -2740,7 +2751,7 @@ export type WorkspaceRendererOptions = {
   onWbsCopy?: (wbsId: string, targetParentWbsId: string, rootCode: string) => void | Promise<void>;
   onWbsMilestonesUpdate?: (wbsId: string, milestones: readonly WorkspaceWbsMilestone[], expectedRevision: number) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
-  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
+  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
   onRelationshipCreate?: (input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
   onRelationshipUpdate?: (relationshipId: string, recordRevision: number, input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
@@ -2845,11 +2856,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     : { prefix: "", suffix: "", increment: 10, incrementActivityId: false };
   const activityTypeValues = new Set(ACTIVITY_CREATE_FIELDS.activity_type.options.map((option) => option.value as string));
   const percentTypeValues = new Set(ACTIVITY_CREATE_FIELDS.percent_complete_type.options.map((option) => option.value as string));
+  const durationTypeValues = new Set(ACTIVITY_CREATE_FIELDS.duration_type.options.map((option) => option.value as string));
   const storedActivityType = projectSummary?.default_activity_type ?? "";
   const storedPercentType = projectSummary?.default_percent_complete_type ?? "";
+  const storedDurationType = projectSummary?.default_duration_type ?? "";
   const activityDefaults = {
     activityType: activityTypeValues.has(storedActivityType) ? storedActivityType : undefined,
     percentCompleteType: percentTypeValues.has(storedPercentType.toUpperCase()) ? storedPercentType.toUpperCase() : undefined,
+    durationType: durationTypeValues.has(storedDurationType) ? storedDurationType : undefined,
   };
   const activityIdSuggestion = computeNextActivityId(
     state.activities.map((activity) => activity.id),
@@ -3175,6 +3189,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status"))} <select name="status">${renderActivityCreateOptions(state.locale, "status")}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status_code"))} <select name="status_code">${renderActivityCreateOptions(state.locale, "status_code")}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type", activityDefaults.percentCompleteType)}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "duration_type"))} <select name="duration_type">${renderActivityCreateOptions(state.locale, "duration_type", activityDefaults.durationType)}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "leveling_priority"))} <select name="leveling_priority">${renderActivityCreateOptions(state.locale, "leveling_priority")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
@@ -5840,9 +5855,16 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
           if (value === "SCOPE") return uiText(state.locale, "Scope", "دامنه");
           return uiText(state.locale, "Duration", "مدت");
         };
+        const durationTypeLabel = (value: string): string => {
+          if (value === "Fixed Units/Time") return uiText(state.locale, "Fixed Units/Time", "واحد/زمان ثابت");
+          if (value === "Fixed Duration & Units/Time") return uiText(state.locale, "Fixed Duration & Units/Time", "مدت و واحد/زمان ثابت");
+          if (value === "Fixed Units") return uiText(state.locale, "Fixed Units", "واحد ثابت");
+          return uiText(state.locale, "Fixed Duration & Units", "مدت و واحد ثابت");
+        };
         return `<div class="cp-activity-detail-fields">
           ${field(uiText(state.locale, "Default activity type", "نوع پیش‌فرض فعالیت"), activityTypeLabel(summary.default_activity_type ?? "Task Dependent"))}
           ${field(uiText(state.locale, "Percent complete type", "نوع درصد تکمیل"), percentTypeLabel((summary.default_percent_complete_type ?? "DURATION").toUpperCase()))}
+          ${field(uiText(state.locale, "Duration type", "نوع مدت"), durationTypeLabel(summary.default_duration_type ?? "Fixed Duration & Units"))}
           ${field(uiText(state.locale, "Activity ID prefix", "پیشوند شناسهٔ فعالیت"), summary.activity_id_prefix || "—")}
           ${field(uiText(state.locale, "Activity ID suffix", "پسوند شناسهٔ فعالیت"), summary.activity_id_suffix || "—")}
           ${field(uiText(state.locale, "ID increment", "گام افزایش شناسه"), String(summary.activity_id_increment ?? 10))}

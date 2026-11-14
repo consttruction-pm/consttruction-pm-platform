@@ -45,6 +45,29 @@ class ActivityType(str, Enum):
             raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
 
 
+class ActivityDurationType(str, Enum):
+    """P6 Activity.DurationType semantic values.
+
+    The stored value is the P6 label; the shared scheduling core owns any
+    duration/units/rate recalculation, so this field is never a display-only
+    label in the browser.
+    """
+
+    FIXED_UNITS_TIME = "Fixed Units/Time"
+    FIXED_DURATION_UNITS_TIME = "Fixed Duration & Units/Time"
+    FIXED_UNITS = "Fixed Units"
+    FIXED_DURATION_UNITS = "Fixed Duration & Units"
+
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityDurationType":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported P6 Activity.DurationType value: {value!r}"
+            ) from exc
+
+
 class ActivityLevelingPriority(str, Enum):
     """P6's distinct activity resource-leveling priority field."""
 

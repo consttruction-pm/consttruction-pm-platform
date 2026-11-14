@@ -16,7 +16,10 @@ from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
 from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository
-from construction_pm.scheduling.activity import ActivityLevelingPriority
+from construction_pm.scheduling.activity import (
+    ActivityDurationType,
+    ActivityLevelingPriority,
+)
 
 
 class Sessions:
@@ -32,6 +35,8 @@ class Projects:
         self.items = {"p1": ("p1", "Project One", 2)}
         self.default_activity_type = "Task Dependent"
         self.default_percent_complete_type = "DURATION"
+        self.default_duration_type = "Fixed Duration & Units"
+        self.settings_revision = 0
 
     def list_for_user(self, tenant_id: str, user_id: str):
         return tuple(
@@ -42,6 +47,7 @@ class Projects:
                 revision,
                 default_activity_type=self.default_activity_type,
                 default_percent_complete_type=self.default_percent_complete_type,
+                default_duration_type=self.default_duration_type,
             )
             for project_id, (project_id, name, revision) in self.items.items()
         )
@@ -57,11 +63,37 @@ class Projects:
             item[2],
             default_activity_type=self.default_activity_type,
             default_percent_complete_type=self.default_percent_complete_type,
+            default_duration_type=self.default_duration_type,
         )
 
     def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str, **_):
         self.items[project_id] = (project_id, name, 0)
         return ProjectSummary(project_id, tenant_id, name, 0)
+
+    def update_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        expected_revision: int,
+        name: str,
+        default_activity_type: str | None = None,
+        default_percent_complete_type: str | None = None,
+        default_duration_type: str | None = None,
+        **_,
+    ):
+        item = self.items.get(project_id)
+        if item is None or expected_revision != self.settings_revision:
+            return None
+        self.settings_revision = expected_revision + 1
+        if default_activity_type is not None:
+            self.default_activity_type = default_activity_type
+        if default_percent_complete_type is not None:
+            self.default_percent_complete_type = default_percent_complete_type
+        if default_duration_type is not None:
+            self.default_duration_type = default_duration_type
+        return self.get_for_user(tenant_id, project_id, user_id)
 
 
 def _app(
@@ -70,6 +102,7 @@ def _app(
     db_path: str = ":memory:",
     default_activity_type: str = "Task Dependent",
     default_percent_complete_type: str = "DURATION",
+    default_duration_type: str = "Fixed Duration & Units",
 ):
     now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
@@ -79,6 +112,7 @@ def _app(
     projects = Projects()
     projects.default_activity_type = default_activity_type
     projects.default_percent_complete_type = default_percent_complete_type
+    projects.default_duration_type = default_duration_type
     lifecycle = ProjectLifecycleAPI(
         ProjectLifecycleService(Sessions(session), projects, policy)
     )
@@ -144,6 +178,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "status_code": "Active",
         "duration_value": "12.50",
         "duration_unit": "working-day",
+        "duration_type": "Fixed Units",
         "actual_start": actual_start,
         "actual_finish": None,
         "remaining_duration": 8,
@@ -166,6 +201,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert created["activity"]["status"] == "In Progress"
     assert created["activity"]["status_code"] == "Active"
     assert created["activity"]["duration_value"] == "12.50"
+    assert created["activity"]["duration_type"] == "Fixed Units"
     assert created["activity"]["actual_start"] == actual_start
     assert created["activity"]["planned_finish"] == "2026-10-23"
     assert created["activity"]["leveling_priority"] == "High"
@@ -179,6 +215,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert persisted is not None
     assert persisted.actual_start == datetime.fromisoformat(actual_start)
     assert persisted.duration_value == Decimal("12.50")
+    assert persisted.duration_type is ActivityDurationType.FIXED_UNITS
     assert persisted.leveling_priority is ActivityLevelingPriority.HIGH
     assert persisted.original_duration == 15
     assert persisted.name == "Foundation Slab"
@@ -206,6 +243,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "activity_type": "Task Dependent",
         "status": "Completed",
         "status_code": "Inactive",
+        "duration_type": "Fixed Duration & Units/Time",
         "expected_revision": 1,
     }
     status, updated = _request(app, "PATCH", path + "/A-1", update_payload)
@@ -218,6 +256,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert updated["activity"]["activity_type"] == "Task Dependent"
     assert updated["activity"]["status"] == "Completed"
     assert updated["activity"]["status_code"] == "Inactive"
+    assert updated["activity"]["duration_type"] == "Fixed Duration & Units/Time"
 
     # PATCH is partial: omitted fields must be retained, not reset to defaults.
     partial_payload = {
@@ -231,6 +270,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert partial["activity"]["planned_finish"] == "2026-10-25"
     assert partial["activity"]["duration_value"] == "12.50"
     assert partial["activity"]["duration_unit"] == "working-day"
+    assert partial["activity"]["duration_type"] == "Fixed Duration & Units/Time"
     assert partial["activity"]["actual_start"] == actual_start
     assert partial["activity"]["expected_finish"] == "2026-10-21"
     assert partial["activity"]["remaining_duration"] == 8
@@ -737,6 +777,7 @@ def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_p
         db_path=db_path,
         default_activity_type="Level of Effort",
         default_percent_complete_type="PHYSICAL",
+        default_duration_type="Fixed Units",
     )
     try:
         status, _ = _request(
@@ -767,16 +808,54 @@ def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_p
         assert status == "201 Created"
         assert created["activity"]["activity_type"] == "Level of Effort"
         assert created["activity"]["percent_complete_type"] == "PHYSICAL"
+        assert created["activity"]["duration_type"] == "Fixed Units"
 
         explicit = {
             **inherited,
             "activity_id": "A-EXPLICIT",
             "activity_type": "Start Milestone",
             "percent_complete_type": "SCOPE",
+            "duration_type": "Fixed Units/Time",
         }
         status, created = _request(app, "POST", path, explicit)
         assert status == "201 Created"
         assert created["activity"]["activity_type"] == "Start Milestone"
         assert created["activity"]["percent_complete_type"] == "SCOPE"
+        assert created["activity"]["duration_type"] == "Fixed Units/Time"
+
+        # Changing a default afterwards never rewrites the stored activities:
+        # each activity keeps the independent value it was created with.
+        projects_status, project = _request(app, "GET", "/api/projects/p1")
+        assert projects_status == "200 OK"
+        assert project["project"]["default_duration_type"] == "Fixed Units"
+
+        # Changing the project default afterwards never rewrites stored
+        # activities: each keeps the value it was created with.
+        status, patched = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1",
+            {
+                "name": "Project One",
+                "default_duration_type": "Fixed Duration & Units",
+                "expected_revision": 0,
+            },
+        )
+        assert status == "200 OK"
+        assert patched["project"]["default_duration_type"] == "Fixed Duration & Units"
+        status, reloaded = _request(app, "GET", path + "/A-DEFAULT")
+        assert status == "200 OK"
+        assert reloaded["activity"]["duration_type"] == "Fixed Units"
+
+        # V26 supports exactly four Duration Type values; an unknown label is
+        # rejected instead of silently falling back to a default.
+        status, error = _request(
+            app,
+            "POST",
+            path,
+            {**inherited, "activity_id": "A-BAD", "duration_type": "Fixed Effort"},
+        )
+        assert status == "400 Bad Request"
+        assert error["code"] == "P6_ACTIVITY_MASTER_REQUEST_INVALID"
     finally:
         connection.close()

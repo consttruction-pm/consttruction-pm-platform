@@ -38,6 +38,7 @@ export type ProjectSummary = {
   /** V26 Defaults tab: applied to newly created activities only. */
   default_activity_type?: string;
   default_percent_complete_type?: string;
+  default_duration_type?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;
@@ -78,6 +79,7 @@ export type ProjectMetadataInput = {
   website_url?: string;
   default_activity_type?: string;
   default_percent_complete_type?: string;
+  default_duration_type?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;
@@ -124,6 +126,7 @@ export type ProjectCreateMetadata = {
   website_url?: string;
   default_activity_type?: string;
   default_percent_complete_type?: string;
+  default_duration_type?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;

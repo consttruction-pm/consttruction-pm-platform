@@ -49,6 +49,7 @@ from ..scheduling.evm_source import (
     EarnedValueWBSMilestone,
 )
 from ..scheduling.activity import (
+    ActivityDurationType as P6ActivityDurationType,
     ActivityLevelingPriority as P6ActivityLevelingPriority,
     ActivityStatus as P6ActivityStatus,
     ActivityStatusCode as P6ActivityStatusCode,
@@ -1838,6 +1839,13 @@ class ProjectLifecycleHttpRoutes:
                             "name", existing.name if existing is not None else ""
                         ),
                         short_name=raw_short_name,
+                        duration_type=P6ActivityDurationType.from_p6_value(
+                            payload.get(
+                                "duration_type",
+                                existing.duration_type.value if existing is not None
+                                else P6ActivityDurationType.FIXED_DURATION_UNITS.value,
+                            )
+                        ),
                         activity_type=P6ActivityType.from_p6_value(
                             payload.get(
                                 "activity_type",
@@ -1902,6 +1910,7 @@ class ProjectLifecycleHttpRoutes:
                         if (
                             "activity_type" not in payload
                             or "percent_complete_type" not in payload
+                            or "duration_type" not in payload
                         ):
                             defaults = self._api.get_project(
                                 session_id, project_id, now=now
@@ -1912,6 +1921,10 @@ class ProjectLifecycleHttpRoutes:
                             payload.setdefault(
                                 "percent_complete_type",
                                 defaults.default_percent_complete_type,
+                            )
+                            payload.setdefault(
+                                "duration_type",
+                                defaults.default_duration_type,
                             )
                         result = self._p6_activity_master_api.create(
                             build_activity(activity_id), auth_context=auth
@@ -6551,6 +6564,9 @@ class ProjectLifecycleHttpRoutes:
                     default_percent_complete_type=payload.get(
                         "default_percent_complete_type", "DURATION"
                     ),
+                    default_duration_type=payload.get(
+                        "default_duration_type", "Fixed Duration & Units"
+                    ),
                     activity_id_prefix=payload.get("activity_id_prefix", ""),
                     activity_id_suffix=payload.get("activity_id_suffix", ""),
                     activity_id_increment=payload.get("activity_id_increment", 10),
@@ -6594,6 +6610,11 @@ class ProjectLifecycleHttpRoutes:
                     default_percent_complete_type=(
                         payload["default_percent_complete_type"]
                         if "default_percent_complete_type" in payload
+                        else None
+                    ),
+                    default_duration_type=(
+                        payload["default_duration_type"]
+                        if "default_duration_type" in payload
                         else None
                     ),
                     activity_id_prefix=(

@@ -12,6 +12,7 @@ from construction_pm.activity_master_repository import (
     SQLiteActivityMasterRepository,
 )
 from construction_pm.scheduling.activity import (
+    ActivityDurationType,
     ActivityLevelingPriority,
     ActivityStatus,
     ActivityStatusCode,
@@ -400,3 +401,48 @@ def test_activity_master_rejects_missing_cross_scope_and_stale_wbs_references():
 
     assert repo.get(scope(), "A-1") is None
     connection.close()
+
+
+def test_activity_master_duration_type_round_trips_and_updates_independently():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    # The default is the P6 Fixed Duration & Units value, not an empty label.
+    stored = repo.save(activity())
+    assert stored.duration_type is ActivityDurationType.FIXED_DURATION_UNITS
+    assert repo.get(scope(), "A-1").duration_type is ActivityDurationType.FIXED_DURATION_UNITS
+
+    changed = replace(
+        activity(), duration_type=ActivityDurationType.FIXED_UNITS_TIME
+    )
+    updated = repo.save(changed, expected_revision=1)
+    assert updated.duration_type is ActivityDurationType.FIXED_UNITS_TIME
+    assert repo.get(scope(), "A-1").duration_type is ActivityDurationType.FIXED_UNITS_TIME
+
+
+def test_activity_master_migrates_an_existing_table_with_a_duration_type_default():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL, activity_id TEXT NOT NULL,
+            duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
+            actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER,
+            remaining_start TEXT, percent_complete REAL, percent_complete_type TEXT,
+            record_revision INTEGER NOT NULL DEFAULT 0, expected_finish TEXT,
+            planned_finish TEXT, leveling_priority TEXT NOT NULL DEFAULT 'Normal',
+            original_duration INTEGER, name TEXT NOT NULL DEFAULT '',
+            activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+            status TEXT NOT NULL DEFAULT 'Not Started',
+            status_code TEXT NOT NULL DEFAULT 'Planned',
+            short_name TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id))"""
+    )
+    connection.execute(
+        "INSERT INTO activity_master (tenant_id, project_id, project_revision, "
+        "activity_id, duration_value, duration_unit, percent_complete_type, "
+        "record_revision) "
+        "VALUES ('T-1', 'P-1', 7, 'A-LEGACY', '2', 'working-day', 'DURATION', 1)"
+    )
+    repo = SQLiteActivityMasterRepository(connection)
+    restored = repo.get(scope(), "A-LEGACY")
+    assert restored is not None
+    assert restored.duration_type is ActivityDurationType.FIXED_DURATION_UNITS

@@ -14,6 +14,7 @@ from .application.authorization import (
 from .activity_master_repository import ActivityMaster, ActivityMasterRepository
 from .backend_p0.models import BackendScope
 from .scheduling.activity import (
+    ActivityDurationType,
     ActivityLevelingPriority,
     ActivityStatus,
     ActivityStatusCode,
@@ -58,6 +59,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
             "status_code": item.status_code.value,
             "duration_value": str(item.duration_value),
             "duration_unit": item.duration_unit.value,
+            "duration_type": item.duration_type.value,
             "actual_start": _optional_iso(item.actual_start),
             "actual_finish": _optional_iso(item.actual_finish),
             "remaining_duration": item.remaining_duration,
