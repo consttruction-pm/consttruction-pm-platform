@@ -2774,8 +2774,12 @@ test("Projects register groups real records by persisted Business Domain and sho
   assert.match(html, /data-project-register/);
   assert.match(html, /data-project-search/);
   assert.match(html, /data-project-domain-filter/);
+  assert.match(html, /data-project-status-filter/);
   assert.match(html, /data-project-sort/);
   assert.match(html, /3 of 3 projects/);
+  assert.match(html, /All project statuses/);
+  assert.match(html, /Active \(2\)/);
+  assert.match(html, /Planned \(1\)/);
   assert.match(html, /data-project-domain-group="infrastructure"/);
   assert.match(html, /data-project-domain-group="oil_gas"/);
   assert.match(html, /data-project-domain-group="__unclassified__"/);
@@ -2787,6 +2791,55 @@ test("Projects register groups real records by persisted Business Domain and sho
   assert.match(html, /data-project-selection/);
   assert.match(html, /Business Domain<\/th>/);
   assert.match(html, /Planned/);
+  assert.match(html, /<td>Planned<\/td><td><button type="button" data-project-open="p-2">/);
+});
+
+test("Projects register filters by the stored project status and clears it with the other filters", () => {
+  const listeners = new Map<string, ((event: Event) => void)[]>();
+  const section = { outerHTML: "" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => (selector === "[data-project-register]" ? section : null),
+    addEventListener: (type: string, listener: (event: Event) => void) => {
+      listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+    },
+  };
+  const dispatch = (type: string, event: Event): void => {
+    for (const listener of listeners.get(type) ?? []) listener(event);
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const listed: ProjectSummary[] = [
+    { project_id: "p-1", tenant_id: "tenant-1", name: "Metro Line", revision: 3, business_domain: "infrastructure", status: "active" },
+    { project_id: "p-2", tenant_id: "tenant-1", name: "Refinery", revision: 1, business_domain: "oil_gas", status: "planned" },
+    { project_id: "p-3", tenant_id: "tenant-1", name: "Unassigned", revision: 0, status: "inactive" },
+  ];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { projects: listed });
+  (globalThis as { document?: unknown; HTMLInputElement?: unknown }).document = { activeElement: null };
+  (globalThis as { HTMLInputElement?: unknown }).HTMLInputElement = class {};
+
+  const select = { dataset: { projectStatusFilter: "" }, value: "planned", closest: () => select };
+  dispatch("change", { target: select } as unknown as Event);
+  assert.match(section.outerHTML, /1 of 3 projects/);
+  assert.match(section.outerHTML, /data-project-row="p-2"/);
+  assert.doesNotMatch(section.outerHTML, /data-project-row="p-1"/);
+  assert.doesNotMatch(section.outerHTML, /data-project-row="p-3"/);
+  assert.match(section.outerHTML, /data-project-filter-reset/);
+  assert.match(section.outerHTML, /<option value="planned" selected>Planned \(1\)<\/option>/);
+
+  const reset = {
+    dataset: { projectFilterReset: "" },
+    closest: () => reset,
+    matches: () => false,
+    hasAttribute: () => false,
+    getAttribute: () => null,
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+  };
+  dispatch("click", { target: reset } as unknown as Event);
+  assert.match(section.outerHTML, /3 of 3 projects/);
+  assert.match(section.outerHTML, /<option value="__all__" selected>All project statuses<\/option>/);
+  delete (globalThis as { document?: unknown }).document;
+  delete (globalThis as { HTMLInputElement?: unknown }).HTMLInputElement;
 });
 
 test("Projects register renders empty and loading states without inventing rows", () => {

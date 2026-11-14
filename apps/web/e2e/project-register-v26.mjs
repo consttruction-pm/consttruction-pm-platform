@@ -93,6 +93,10 @@ const registerState = `(() => {
     present: Boolean(register),
     loading: register?.getAttribute("aria-busy") === "true",
     count: document.querySelector("[data-project-register-count]")?.textContent?.trim() ?? null,
+    statusFilter: document.querySelector("[data-project-status-filter]") ? {
+      value: document.querySelector("[data-project-status-filter]").value,
+      options: [...document.querySelectorAll("[data-project-status-filter] option")].map((option) => ({ value: option.value, label: option.textContent.trim() })),
+    } : null,
     rows: [...document.querySelectorAll("[data-project-row]")].map((row) => ({
       id: row.dataset.projectRow,
       current: row.getAttribute("aria-current") === "true",
@@ -524,6 +528,80 @@ async function main() {
       return { fixtureId, domain: "energy", settingsRevision: 1 };
     });
 
+    await scenario("06b", "Project status filter narrows the register to the stored status", async () => {
+      const before = await api(page, "GET", "/api/projects/preview-nse-02");
+      check("prj1-status-read", "the second project is readable before the filter check",
+        before.status === 200 && Boolean(before.body?.project), { status: before.status });
+      const changed = await api(page, "POST", "/api/projects/preview-nse-02/status", {
+        status: "planned",
+        expected_revision: before.body?.project?.settings_revision ?? 0,
+      });
+      check("prj1-status-write", "the project status is stored through the lifecycle contract",
+        changed.status === 200 && changed.body?.project?.status === "planned",
+        { status: changed.status, body: changed.body });
+
+      await page.reload(".cp-workspace", "reload after the status change");
+      await ensureWorkspace(page);
+      await openProjectWindow(page);
+      const listed = await readApi(page);
+      const activeCount = listed.projects.filter((project) => (project.status ?? "active") === "active").length;
+      const plannedCount = listed.projects.filter((project) => project.status === "planned").length;
+
+      await page.evaluate(`(() => {
+        const select = document.querySelector("[data-project-status-filter]");
+        select.value = "planned";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      })()`);
+      await sleep(350);
+      let state = await page.evaluate(registerState);
+      check("prj1-status-filter-rows", "only the planned project remains in the tree and table",
+        state.rows.length === plannedCount && state.rows.every((row) => row.id === "preview-nse-02") &&
+          state.tree.length === 1 && state.tree[0].projects.every((project) => project.id === "preview-nse-02"),
+        { rows: state.rows.map((row) => row.id), tree: state.tree });
+      check("prj1-status-filter-count", "the count reports the filtered subset",
+        state.count === `${plannedCount} of ${listed.projects.length} projects`, { count: state.count });
+      check("prj1-status-filter-cell", "the surviving row shows its stored Planned status",
+        state.rows[0]?.cells[6] === "Planned", { cells: state.rows[0]?.cells });
+      check("prj1-status-filter-open", "the status column is separate from the Open action",
+        state.rows[0]?.cells[7] === "Open" && state.rows[0]?.openButton === true,
+        { cells: state.rows[0]?.cells, openButton: state.rows[0]?.openButton });
+      check("prj1-status-filter-options", "the filter lists every present status with its count",
+        state.statusFilter?.value === "planned" &&
+          state.statusFilter.options.some((option) => option.value === "planned" && option.label === `Planned (${plannedCount})`) &&
+          state.statusFilter.options.some((option) => option.value === "active" && option.label === `Active (${activeCount})`),
+        { filter: state.statusFilter, activeCount, plannedCount });
+      await capture(page, "09-status-filter-planned");
+
+      await page.evaluate(`(() => {
+        const select = document.querySelector("[data-project-status-filter]");
+        select.value = "active";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      })()`);
+      await sleep(350);
+      state = await page.evaluate(registerState);
+      check("prj1-status-filter-active", "the Active filter excludes the planned project",
+        state.rows.length === activeCount && !state.rows.some((row) => row.id === "preview-nse-02"),
+        { rows: state.rows.map((row) => row.id) });
+
+      await clickSelector(page, "[data-project-filter-reset]");
+      state = await page.evaluate(registerState);
+      check("prj1-status-filter-reset", "Clear filters restores the full status set",
+        state.rows.length === listed.projects.length && state.statusFilter?.value === "__all__" &&
+          state.count === `${listed.projects.length} of ${listed.projects.length} projects`,
+        { count: state.count, filter: state.statusFilter?.value });
+
+      const restored = await api(page, "POST", "/api/projects/preview-nse-02/status", {
+        status: "active",
+        expected_revision: changed.body?.project?.settings_revision,
+      });
+      check("prj1-status-restore", "the suite restores the fixture status",
+        restored.status === 200 && restored.body?.project?.status === "active", { status: restored.status });
+      await page.reload(".cp-workspace", "reload after restoring the status");
+      await ensureWorkspace(page);
+      await openProjectWindow(page);
+      return { plannedCount, activeCount };
+    });
+
     await scenario("07", "Persian renders the register right-to-left at 1280x720", async () => {
       await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
       await page.waitFor("document.documentElement.clientWidth === 1280", "1280 viewport");
@@ -537,10 +615,13 @@ async function main() {
       check("prj1-fa-labels", "the tree and rows use Persian domain labels",
         /زیرساخت|صنعتی|انرژی|ساخت‌وساز|نفت و گاز|سایر|طبقه‌بندی‌نشده/.test(labels) && !/Infrastructure|Industrial|Energy|Construction/.test(labels),
         { labels });
-      check("prj1-fa-controls", "search, filter and selection surfaces are present in Persian",
+      check("prj1-fa-controls", "search, domain, status and selection surfaces are present in Persian",
         (await page.evaluate('Boolean(document.querySelector("[data-project-search]"))')) &&
           (await page.evaluate('Boolean(document.querySelector("[data-project-domain-filter]"))')) &&
-          (await page.evaluate('Boolean(document.querySelector("[data-project-selection]"))')));
+          (await page.evaluate('Boolean(document.querySelector("[data-project-status-filter]"))')) &&
+          (await page.evaluate('Boolean(document.querySelector("[data-project-selection]"))')) &&
+          state.statusFilter?.options.some((option) => option.label === "همهٔ وضعیت‌های پروژه"),
+        { filter: state.statusFilter });
       check("prj1-fa-overflow", "the register does not overflow the 1280 viewport", state.overflow <= 1, { overflow: state.overflow });
       await capture(page, "09-register-fa-rtl-1280");
       await setLanguage(page, "en");
