@@ -26,6 +26,10 @@
       "destination": "/api/shell"
     },
     {
+      "source": "/enterprise/",
+      "destination": "/api/shell"
+    },
+    {
       "source": "/app.html",
       "destination": "/api/shell"
     },
@@ -114,6 +118,24 @@
     },
     {
       "source": "/app.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/enterprise",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/enterprise/",
       "headers": [
         {
           "key": "Cache-Control",
