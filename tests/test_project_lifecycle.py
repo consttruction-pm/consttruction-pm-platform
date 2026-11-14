@@ -55,6 +55,7 @@ class Projects:
         default_activity_type="Task Dependent",
         default_percent_complete_type="DURATION",
         default_duration_type="Fixed Duration & Units",
+        default_cost_account_id="",
         activity_id_prefix="",
         activity_id_suffix="",
         activity_id_increment=10,
@@ -75,6 +76,7 @@ class Projects:
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
+            default_cost_account_id=default_cost_account_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -101,6 +103,7 @@ class Projects:
         default_activity_type=None,
         default_percent_complete_type=None,
         default_duration_type=None,
+        default_cost_account_id=None,
         activity_id_prefix=None,
         activity_id_suffix=None,
         activity_id_increment=None,
@@ -144,6 +147,11 @@ class Projects:
                 default_duration_type
                 if default_duration_type is not None
                 else current.default_duration_type
+            ),
+            default_cost_account_id=(
+                default_cost_account_id
+                if default_cost_account_id is not None
+                else current.default_cost_account_id
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -219,11 +227,12 @@ def make_session(*, roles=frozenset({"planner"}), expired=False):
     )
 
 
-def make_service(session):
+def make_service(session, cost_accounts=None):
     return ProjectLifecycleService(
         Sessions(session),
         Projects(),
         default_project_policy(),
+        cost_accounts=cost_accounts,
     )
 
 
@@ -691,4 +700,108 @@ def test_edits_are_rejected_while_another_user_holds_the_checkout():
     with pytest.raises(ProjectLifecycleError, match="PROJECT_CHECKOUT_CONFLICT"):
         service.set_project_checkout(
             "session-a", "project-a", checked_out=False, expected_revision=0, now=now
+        )
+
+
+class CostAccounts:
+    def __init__(self, account_ids=("CA-CIVIL",)):
+        self.account_ids = set(account_ids)
+        self.calls = []
+
+    def cost_account_exists(self, tenant_id, project_id, project_revision, account_id):
+        self.calls.append((tenant_id, project_id, project_revision, account_id))
+        return account_id in self.account_ids
+
+
+def test_project_admin_stores_a_default_cost_account_from_the_real_hierarchy():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    accounts = CostAccounts({"CA-CIVIL", "CA-MEP"})
+    service = make_service(session, accounts)
+    service.create_project("session-a", "project-ca", "Project CA", now=now)
+
+    updated = service.update_project(
+        "session-a",
+        "project-ca",
+        name="Project CA",
+        default_cost_account_id="  CA-CIVIL ",
+        expected_revision=0,
+        now=now,
+    )
+    assert updated.default_cost_account_id == "CA-CIVIL"
+    assert accounts.calls == [("tenant-a", "project-ca", 0, "CA-CIVIL")]
+
+    # Omitted keeps it; an explicit empty string clears it.
+    preserved = service.update_project(
+        "session-a",
+        "project-ca",
+        name="Project CA",
+        expected_revision=1,
+        now=now,
+    )
+    assert preserved.default_cost_account_id == "CA-CIVIL"
+    cleared = service.update_project(
+        "session-a",
+        "project-ca",
+        name="Project CA",
+        default_cost_account_id="",
+        expected_revision=2,
+        now=now,
+    )
+    assert cleared.default_cost_account_id == ""
+
+
+def test_project_default_cost_account_must_exist_in_the_project_hierarchy():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session, CostAccounts({"CA-CIVIL"}))
+    service.create_project("session-a", "project-ca", "Project CA", now=now)
+
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND"
+    ):
+        service.update_project(
+            "session-a",
+            "project-ca",
+            name="Project CA",
+            default_cost_account_id="CA-UNKNOWN",
+            expected_revision=0,
+            now=now,
+        )
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_DEFAULT_COST_ACCOUNT_INVALID"
+    ):
+        service.update_project(
+            "session-a",
+            "project-ca",
+            name="Project CA",
+            default_cost_account_id="CA\x00BAD",
+            expected_revision=0,
+            now=now,
+        )
+
+
+def test_project_default_cost_account_requires_an_authoritative_lookup():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    service.create_project("session-a", "project-ca", "Project CA", now=now)
+
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_DEFAULT_COST_ACCOUNT_UNAVAILABLE"
+    ):
+        service.update_project(
+            "session-a",
+            "project-ca",
+            name="Project CA",
+            default_cost_account_id="CA-CIVIL",
+            expected_revision=0,
+            now=now,
+        )
+    with pytest.raises(
+        ProjectLifecycleError, match="PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND"
+    ):
+        service.create_project(
+            "session-a",
+            "project-new",
+            "Project New",
+            default_cost_account_id="CA-CIVIL",
+            now=now,
         )

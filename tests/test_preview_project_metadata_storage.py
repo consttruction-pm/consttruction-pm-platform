@@ -147,6 +147,7 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
         assert legacy.default_activity_type == "Task Dependent"
         assert legacy.default_percent_complete_type == "DURATION"
         assert legacy.default_duration_type == "Fixed Duration & Units"
+        assert legacy.default_cost_account_id == ""
         assert legacy.activity_id_prefix == ""
         assert legacy.activity_id_suffix == ""
         assert legacy.activity_id_increment == 10
@@ -163,6 +164,7 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
             default_activity_type="Resource Dependent",
             default_percent_complete_type="UNITS",
             default_duration_type="Fixed Units/Time",
+            default_cost_account_id="CA-CIVIL",
             activity_id_prefix="AH-",
             activity_id_suffix="-X",
             activity_id_increment=25,
@@ -173,6 +175,7 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
         assert project.default_activity_type == "Resource Dependent"
         assert project.default_percent_complete_type == "UNITS"
         assert project.default_duration_type == "Fixed Units/Time"
+        assert project.default_cost_account_id == "CA-CIVIL"
         assert project.activity_id_prefix == "AH-"
         assert project.activity_id_suffix == "-X"
         assert project.activity_id_increment == 25
@@ -188,6 +191,7 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
         assert updated.activity_id_increment == 5
         assert updated.default_activity_type == "Resource Dependent"
         assert updated.default_duration_type == "Fixed Units/Time"
+        assert updated.default_cost_account_id == "CA-CIVIL", "omitted keeps the reference"
         assert updated.increment_activity_id is True
 
         assert store.update_project(
@@ -195,8 +199,11 @@ def test_preview_store_round_trips_activity_defaults_and_keeps_legacy_defaults()
             name="Configured renamed", description="", start_date=None,
             date_system="gregorian", primary_calendar_id=None,
             default_duration_type="Fixed Units",
+            default_cost_account_id="",
         )
-        assert store.get_for_user("t1", "p2", "u1").default_duration_type == "Fixed Units"
+        final = store.get_for_user("t1", "p2", "u1")
+        assert final.default_duration_type == "Fixed Units"
+        assert final.default_cost_account_id == ""
     finally:
         connection.close()
 

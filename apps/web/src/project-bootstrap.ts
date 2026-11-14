@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { ProjectContext as SessionProjectContext, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
+import type { CostAccountList, ProjectContext as SessionProjectContext, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
@@ -188,6 +188,7 @@ export class ProjectBootstrap {
       default_activity_type?: string;
       default_percent_complete_type?: string;
       default_duration_type?: string;
+      default_cost_account_id?: string;
       activity_id_prefix?: string;
       activity_id_suffix?: string;
       activity_id_increment?: number;
@@ -259,6 +260,19 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.saveProjectScheduleSettings(projectId, settings);
+  }
+
+  /** Real cost-account hierarchy of the open project, newest read. */
+  async loadProjectCostAccounts(
+    projectId: string,
+  ): Promise<ApiResult<CostAccountList>> {
+    if (!this.dependencies.sessionApi.listCostAccounts) {
+      return {
+        ok: false,
+        error: localError("COST_ACCOUNTS_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.listCostAccounts(projectId);
   }
 
   /** Immutable status history for the settings panel. */

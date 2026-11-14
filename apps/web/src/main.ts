@@ -9,7 +9,7 @@ import {
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
+import { FetchSessionApi, type CostAccountOption, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -198,6 +198,10 @@ let currentBootstrap: ProjectBootstrap | null = null;
 /** Authoritative metadata of the open project, read from the session service. */
 let activeProjectSummary: ProjectSummary | null = null;
 let activeProjectSummaryProjectId: string | null = null;
+/** Real cost-account hierarchy of the open project, read once per project. */
+let activeCostAccounts: CostAccountOption[] = [];
+let activeCostAccountsProjectId: string | null = null;
+const activeCostAccountsInflight = new Set<string>();
 /** Data Date published by the open project's schedule settings, never guessed. */
 let activeProjectDataDate: string | null = null;
 let activeProjectDataDateProjectId: string | null = null;
@@ -868,6 +872,37 @@ function openProjectSettings(
     defaultDurationTypeSelect.append(option);
   }
 
+  const defaultCostAccountSelect = document.createElement("select");
+  defaultCostAccountSelect.name = "default_cost_account_id";
+  defaultCostAccountSelect.dataset.projectDefaultCostAccount = "true";
+  const renderCostAccountOptions = (selectedValue: string): void => {
+    defaultCostAccountSelect.replaceChildren();
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = labels.projectDefaultCostAccountNone;
+    defaultCostAccountSelect.append(none);
+    const accounts = activeCostAccountsProjectId === state.context.project_id
+      ? activeCostAccounts
+      : [];
+    for (const account of accounts) {
+      const option = document.createElement("option");
+      option.value = account.account_id;
+      option.textContent = account.name
+        ? `${account.account_id} — ${account.name}`
+        : account.account_id;
+      defaultCostAccountSelect.append(option);
+    }
+    // A stored reference that is no longer listed is kept visible rather than
+    // silently replaced by the empty value when the editor opens.
+    if (selectedValue && !accounts.some((account) => account.account_id === selectedValue)) {
+      const stored = document.createElement("option");
+      stored.value = selectedValue;
+      stored.textContent = selectedValue;
+      defaultCostAccountSelect.append(stored);
+    }
+    defaultCostAccountSelect.value = selectedValue;
+  };
+
   const activityIdPrefixInput = document.createElement("input");
   activityIdPrefixInput.name = "activity_id_prefix";
   activityIdPrefixInput.maxLength = 20;
@@ -911,6 +946,7 @@ function openProjectSettings(
     labelled(labels.projectDefaultActivityType, defaultActivityTypeSelect),
     labelled(labels.projectDefaultPercentCompleteType, defaultPercentCompleteSelect),
     labelled(labels.projectDefaultDurationType, defaultDurationTypeSelect),
+    labelled(labels.projectDefaultCostAccount, defaultCostAccountSelect),
     defaultsInline,
     incrementRow,
   );
@@ -1013,6 +1049,7 @@ function openProjectSettings(
     defaultActivityTypeSelect.value = project.default_activity_type ?? "Task Dependent";
     defaultPercentCompleteSelect.value = (project.default_percent_complete_type ?? "DURATION").toUpperCase();
     defaultDurationTypeSelect.value = project.default_duration_type ?? "Fixed Duration & Units";
+    renderCostAccountOptions(project.default_cost_account_id ?? "");
     activityIdPrefixInput.value = project.activity_id_prefix ?? "";
     activityIdSuffixInput.value = project.activity_id_suffix ?? "";
     activityIdIncrementInput.value = String(project.activity_id_increment ?? 10);
@@ -1205,6 +1242,15 @@ function openProjectSettings(
       retry.hidden = false;
       return;
     }
+    if (activeCostAccountsProjectId !== state.context.project_id) {
+      const accounts = await bootstrap.loadProjectCostAccounts(state.context.project_id);
+      if (accounts.ok) {
+        activeCostAccounts = accounts.data.cost_accounts
+          .map((entry) => entry.cost_account)
+          .filter((entry) => entry && typeof entry.account_id === "string" && entry.account_id.trim());
+        activeCostAccountsProjectId = state.context.project_id;
+      }
+    }
     applyLoaded(result.data.project);
     setStatus("", "info");
     retry.hidden = true;
@@ -1300,6 +1346,7 @@ function openProjectSettings(
         default_activity_type: defaultActivityTypeSelect.value,
         default_percent_complete_type: defaultPercentCompleteSelect.value,
         default_duration_type: defaultDurationTypeSelect.value,
+        default_cost_account_id: defaultCostAccountSelect.value,
         activity_id_prefix: activityIdPrefix,
         activity_id_suffix: activityIdSuffix,
         activity_id_increment: activityIdIncrement,
@@ -2949,6 +2996,7 @@ function renderApp(
     // authoritative metadata row; both come from the server, never from a guess.
     projects: currentBootstrap?.openableProjects() ?? [],
     projectSummary: activeProjectSummary,
+    costAccounts: activeCostAccountsProjectId === state.context.project_id ? activeCostAccounts : [],
     activityUsage: activeActivityUsageSource(state.context.project_id),
     onActivityUsageRefresh: () => {
       void loadActiveAssignmentPeriods(container, state.context, true);
@@ -3136,7 +3184,7 @@ function renderApp(
     onActivityCreate: async (input) => {
       try {
         const response = await aiTransport.post<
-          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; duration_type: string; leveling_priority: string },
+          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; duration_type: string; cost_account_id: string | null; leveling_priority: string },
           { activity: { activity_id: string } }
         >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, {
           contract_version: "p6-activity-master-api.v1",
@@ -3150,6 +3198,7 @@ function renderApp(
           status_code: input.statusCode,
           percent_complete_type: input.percentCompleteType,
           duration_type: input.durationType,
+          cost_account_id: input.costAccountId,
           leveling_priority: input.levelingPriority,
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
@@ -3240,6 +3289,7 @@ function renderApp(
             duration_unit: string;
             wbs_id: string | null;
             duration_type?: string;
+            cost_account_id?: string | null;
             record_revision: number;
           };
         }>(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activityId)}`, state.context);
@@ -3317,6 +3367,31 @@ function renderApp(
         }
         durationTypeLabel.append(durationTypeSelect);
         form.append(durationTypeLabel);
+        const costAccountLabel = document.createElement("label");
+        costAccountLabel.append(document.createTextNode(t("Cost account", "حساب هزینه") + " "));
+        const costAccountSelect = document.createElement("select");
+        costAccountSelect.name = "cost_account_id";
+        const noneOption = document.createElement("option");
+        noneOption.value = "";
+        noneOption.textContent = t("No cost account", "بدون حساب هزینه");
+        costAccountSelect.append(noneOption);
+        for (const account of activeCostAccountsProjectId === state.context.project_id ? activeCostAccounts : []) {
+          const option = document.createElement("option");
+          option.value = account.account_id;
+          option.textContent = account.name ? `${account.account_id} — ${account.name}` : account.account_id;
+          option.selected = account.account_id === (activity.cost_account_id ?? "");
+          costAccountSelect.append(option);
+        }
+        if (activity.cost_account_id && !Array.from(costAccountSelect.options).some((option) => option.value === activity.cost_account_id)) {
+          const stored = document.createElement("option");
+          stored.value = activity.cost_account_id;
+          stored.textContent = activity.cost_account_id;
+          stored.selected = true;
+          costAccountSelect.append(stored);
+        }
+        costAccountSelect.value = activity.cost_account_id ?? "";
+        costAccountLabel.append(costAccountSelect);
+        form.append(costAccountLabel);
         const save = document.createElement("button");
         save.type = "submit";
         save.textContent = t("Save changes", "ذخیره تغییرات");
@@ -3333,7 +3408,7 @@ function renderApp(
           try {
             if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
             const updated = await aiTransport.patch<
-              { contract_version: string; expected_revision: number; name: string; duration_value: number; duration_unit: string; wbs_id: string; duration_type: string },
+              { contract_version: string; expected_revision: number; name: string; duration_value: number; duration_unit: string; wbs_id: string; duration_type: string; cost_account_id: string | null },
               { activity: { activity_id: string } }
             >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activity.activity_id)}`, {
               contract_version: "p6-activity-master-api.v1",
@@ -3343,6 +3418,7 @@ function renderApp(
               duration_unit: unit.value,
               wbs_id: wbsId,
               duration_type: durationTypeSelect.value,
+              cost_account_id: costAccountSelect.value || null,
             }, state.context);
             if (!updated.ok) throw new Error(updated.error.code);
             // The edit is committed; the refreshed grid must not resurrect the
@@ -3994,6 +4070,34 @@ async function loadActiveProjectSummary(
 }
 
 /**
+ * Reads the open project's real cost-account hierarchy once. Project defaults
+ * and the activity editor choose from these stored accounts; the browser never
+ * invents an account identifier.
+ */
+async function loadActiveCostAccounts(
+  container: HTMLElement,
+  bootstrap: ProjectBootstrap,
+  projectId: string,
+): Promise<void> {
+  if (activeCostAccountsProjectId === projectId || activeCostAccountsInflight.has(projectId)) return;
+  activeCostAccountsInflight.add(projectId);
+  try {
+    const result = await bootstrap.loadProjectCostAccounts(projectId);
+    const current = currentWorkspaceState;
+    if (!current || current.context.project_id !== projectId) return;
+    activeCostAccounts = result.ok
+      ? result.data.cost_accounts
+          .map((entry) => entry.cost_account)
+          .filter((entry) => entry && typeof entry.account_id === "string" && entry.account_id.trim())
+      : [];
+    activeCostAccountsProjectId = projectId;
+    renderAppPreservingDrafts(container, current);
+  } finally {
+    activeCostAccountsInflight.delete(projectId);
+  }
+}
+
+/**
  * Reads the Data Date once per opened project from the schedule settings the
  * server owns. A missing or failed read leaves the Gantt without a Data Date
  * line instead of inventing a project reference date.
@@ -4172,6 +4276,10 @@ function renderBootstrapState(
     rememberOpenedProject(state.userId, state.context.project_id);
     if (activeProjectSummaryProjectId !== state.context.project_id) activeProjectSummary = null;
     activeProjectSummaryProjectId = state.context.project_id;
+    if (activeCostAccountsProjectId !== state.context.project_id) {
+      activeCostAccounts = [];
+      activeCostAccountsProjectId = null;
+    }
     if (activeProjectDataDateProjectId !== state.context.project_id) {
       activeProjectDataDate = null;
       activeProjectDataDateProjectId = null;
@@ -4195,6 +4303,7 @@ function renderBootstrapState(
     switchProjectWindows(state.context.project_id);
     renderApp(container, applyRememberedMenu(state.workspace));
     void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
+    void loadActiveCostAccounts(container, bootstrap, state.context.project_id);
     void loadActiveProjectDataDate(container, state.context);
     void loadActiveProjectBaseline(container, state.context);
     void loadActiveAssignmentPeriods(container, state.context);

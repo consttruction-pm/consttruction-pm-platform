@@ -39,6 +39,7 @@ export type ProjectSummary = {
   default_activity_type?: string;
   default_percent_complete_type?: string;
   default_duration_type?: string;
+  default_cost_account_id?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;
@@ -80,6 +81,7 @@ export type ProjectMetadataInput = {
   default_activity_type?: string;
   default_percent_complete_type?: string;
   default_duration_type?: string;
+  default_cost_account_id?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;
@@ -127,10 +129,28 @@ export type ProjectCreateMetadata = {
   default_activity_type?: string;
   default_percent_complete_type?: string;
   default_duration_type?: string;
+  default_cost_account_id?: string;
   activity_id_prefix?: string;
   activity_id_suffix?: string;
   activity_id_increment?: number;
   increment_activity_id?: boolean;
+};
+
+export type CostAccountOption = {
+  account_id: string;
+  name: string;
+  parent_account_id: string | null;
+  description?: string | null;
+};
+
+export type CostAccountList = {
+  contract_version: string;
+  cost_accounts: Array<{
+    contract_version?: string;
+    kind?: string;
+    scope?: { tenant_id: string; project_id: string; project_revision: number };
+    cost_account: CostAccountOption;
+  }>;
 };
 
 export type ProjectContext = {
@@ -165,6 +185,7 @@ export type SessionApi = {
   projectStatusHistory?(
     projectId: string,
   ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>>;
+  listCostAccounts?(projectId: string): Promise<ApiResult<CostAccountList>>;
   setProjectCheckout?(
     projectId: string,
     checkedOut: boolean,
@@ -243,6 +264,12 @@ export class FetchSessionApi implements SessionApi {
   projectStatusHistory(projectId: string) {
     return this.request<{ contract_version: string; events: ProjectStatusEvent[] }>(
       `/api/projects/${encodeURIComponent(projectId)}/status-history`,
+    );
+  }
+
+  listCostAccounts(projectId: string) {
+    return this.request<CostAccountList>(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/cost-accounts`,
     );
   }
 

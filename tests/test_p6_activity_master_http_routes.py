@@ -36,6 +36,7 @@ class Projects:
         self.default_activity_type = "Task Dependent"
         self.default_percent_complete_type = "DURATION"
         self.default_duration_type = "Fixed Duration & Units"
+        self.default_cost_account_id = ""
         self.settings_revision = 0
 
     def list_for_user(self, tenant_id: str, user_id: str):
@@ -48,6 +49,7 @@ class Projects:
                 default_activity_type=self.default_activity_type,
                 default_percent_complete_type=self.default_percent_complete_type,
                 default_duration_type=self.default_duration_type,
+                default_cost_account_id=self.default_cost_account_id,
             )
             for project_id, (project_id, name, revision) in self.items.items()
         )
@@ -64,6 +66,7 @@ class Projects:
             default_activity_type=self.default_activity_type,
             default_percent_complete_type=self.default_percent_complete_type,
             default_duration_type=self.default_duration_type,
+            default_cost_account_id=self.default_cost_account_id,
         )
 
     def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str, **_):
@@ -81,6 +84,7 @@ class Projects:
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
+        default_cost_account_id: str | None = None,
         **_,
     ):
         item = self.items.get(project_id)
@@ -93,7 +97,22 @@ class Projects:
             self.default_percent_complete_type = default_percent_complete_type
         if default_duration_type is not None:
             self.default_duration_type = default_duration_type
+        if default_cost_account_id is not None:
+            self.default_cost_account_id = default_cost_account_id
         return self.get_for_user(tenant_id, project_id, user_id)
+
+
+class CostAccounts:
+    def __init__(self, account_ids=("CA-CIVIL",)):
+        self.account_ids = set(account_ids)
+
+    def get(self, scope, account_id, *, auth_context):
+        if account_id in self.account_ids:
+            return {"account_id": account_id}
+        return None
+
+    def cost_account_exists(self, tenant_id, project_id, project_revision, account_id):
+        return account_id in self.account_ids
 
 
 def _app(
@@ -103,6 +122,8 @@ def _app(
     default_activity_type: str = "Task Dependent",
     default_percent_complete_type: str = "DURATION",
     default_duration_type: str = "Fixed Duration & Units",
+    default_cost_account_id: str = "",
+    cost_accounts: CostAccounts | None = None,
 ):
     now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
@@ -113,8 +134,12 @@ def _app(
     projects.default_activity_type = default_activity_type
     projects.default_percent_complete_type = default_percent_complete_type
     projects.default_duration_type = default_duration_type
+    projects.default_cost_account_id = default_cost_account_id
+    accounts = cost_accounts or CostAccounts()
     lifecycle = ProjectLifecycleAPI(
-        ProjectLifecycleService(Sessions(session), projects, policy)
+        ProjectLifecycleService(
+            Sessions(session), projects, policy, cost_accounts=accounts
+        )
     )
     connection = sqlite3.connect(db_path)
     repository = SQLiteActivityMasterRepository(connection)
@@ -124,6 +149,7 @@ def _app(
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_activity_master_api=P6ActivityMasterAPI(repository, policy),
         p6_wbs_master_api=P6WBSMasterAPI(wbs_repository, policy),
+        p6_cost_account_api=accounts,
     )
     return ProjectLifecycleWsgiApp(routes), repository, connection
 
@@ -857,5 +883,115 @@ def test_activity_create_inherits_project_defaults_and_explicit_values_win(tmp_p
         )
         assert status == "400 Bad Request"
         assert error["code"] == "P6_ACTIVITY_MASTER_REQUEST_INVALID"
+    finally:
+        connection.close()
+
+
+def test_activity_cost_account_inherits_the_project_default_and_can_change_per_activity(tmp_path):
+    db_path = str(tmp_path / "cubi-activity-cost-account.sqlite")
+    app, _repository, connection = _app(
+        db_path=db_path,
+        default_cost_account_id="CA-CIVIL",
+        cost_accounts=CostAccounts({"CA-CIVIL", "CA-MEP"}),
+    )
+    try:
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/wbs",
+            {
+                "contract_version": P6_WBS_MASTER_API_VERSION,
+                "wbs_id": "W-ROOT",
+                "parent_kind": "project",
+                "parent_wbs_id": None,
+                "code": "1",
+                "name": "Project Root",
+                "sequence_number": 0,
+            },
+        )
+        assert status == "201 Created"
+        path = "/api/projects/p1/p6/activities"
+        base = {
+            "contract_version": "p6-activity-master-api.v1",
+            "duration_value": "5",
+            "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
+        }
+        status, created = _request(
+            app, "POST", path, {**base, "activity_id": "A-DEFAULT", "name": "Inherits"}
+        )
+        assert status == "201 Created"
+        assert created["activity"]["cost_account_id"] == "CA-CIVIL"
+
+        status, created = _request(
+            app,
+            "POST",
+            path,
+            {
+                **base,
+                "activity_id": "A-EXPLICIT",
+                "name": "Explicit account",
+                "cost_account_id": "CA-MEP",
+            },
+        )
+        assert status == "201 Created"
+        assert created["activity"]["cost_account_id"] == "CA-MEP"
+
+        status, patched = _request(
+            app,
+            "PATCH",
+            path + "/A-DEFAULT",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "expected_revision": 1,
+                "cost_account_id": "CA-MEP",
+            },
+        )
+        assert status == "200 OK"
+        assert patched["activity"]["cost_account_id"] == "CA-MEP"
+
+        # A default change never rewrites existing activities.
+        status, changed = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1",
+            {
+                "name": "Project One",
+                "default_cost_account_id": "CA-MEP",
+                "expected_revision": 0,
+            },
+        )
+        assert status == "200 OK"
+        assert changed["project"]["default_cost_account_id"] == "CA-MEP"
+        status, reloaded = _request(app, "GET", path + "/A-EXPLICIT")
+        assert status == "200 OK"
+        assert reloaded["activity"]["cost_account_id"] == "CA-MEP"
+
+        status, cleared = _request(
+            app,
+            "PATCH",
+            path + "/A-DEFAULT",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "expected_revision": 2,
+                "cost_account_id": None,
+            },
+        )
+        assert status == "200 OK"
+        assert cleared["activity"]["cost_account_id"] is None
+
+        status, error = _request(
+            app,
+            "POST",
+            path,
+            {
+                **base,
+                "activity_id": "A-UNKNOWN",
+                "name": "Unknown account",
+                "cost_account_id": "CA-MISSING",
+            },
+        )
+        assert status == "400 Bad Request"
+        assert error["code"] == "P6_ACTIVITY_COST_ACCOUNT_NOT_FOUND"
     finally:
         connection.close()

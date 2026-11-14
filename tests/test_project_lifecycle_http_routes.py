@@ -95,6 +95,7 @@ class Projects:
                 default_activity_type=p.default_activity_type,
                 default_percent_complete_type=p.default_percent_complete_type,
                 default_duration_type=p.default_duration_type,
+                default_cost_account_id=p.default_cost_account_id,
                 activity_id_prefix=p.activity_id_prefix,
                 activity_id_suffix=p.activity_id_suffix,
                 activity_id_increment=p.activity_id_increment,
@@ -121,6 +122,7 @@ class Projects:
             default_activity_type=project.default_activity_type,
             default_percent_complete_type=project.default_percent_complete_type,
             default_duration_type=project.default_duration_type,
+            default_cost_account_id=project.default_cost_account_id,
             activity_id_prefix=project.activity_id_prefix,
             activity_id_suffix=project.activity_id_suffix,
             activity_id_increment=project.activity_id_increment,
@@ -138,6 +140,7 @@ class Projects:
         default_activity_type="Task Dependent",
         default_percent_complete_type="DURATION",
         default_duration_type="Fixed Duration & Units",
+        default_cost_account_id="",
         activity_id_prefix="", activity_id_suffix="",
         activity_id_increment=10, increment_activity_id=False,
     ):
@@ -151,6 +154,7 @@ class Projects:
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
+            default_cost_account_id=default_cost_account_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -166,6 +170,7 @@ class Projects:
         obs_responsible_manager=None, website_url=None,
         default_activity_type=None, default_percent_complete_type=None,
         default_duration_type=None,
+        default_cost_account_id=None,
         activity_id_prefix=None, activity_id_suffix=None,
         activity_id_increment=None, increment_activity_id=None,
     ):
@@ -201,6 +206,11 @@ class Projects:
                 default_duration_type
                 if default_duration_type is not None
                 else project.default_duration_type
+            ),
+            default_cost_account_id=(
+                default_cost_account_id
+                if default_cost_account_id is not None
+                else project.default_cost_account_id
             ),
             activity_id_prefix=(
                 activity_id_prefix
@@ -260,6 +270,11 @@ class Projects:
         return updated
 
 
+class CostAccounts:
+    def cost_account_exists(self, tenant_id, project_id, project_revision, account_id):
+        return account_id == "CA-CIVIL"
+
+
 def routes():
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
     session = AuthenticatedSession(
@@ -269,7 +284,8 @@ def routes():
         "construction_pm.application.project_lifecycle",
         fromlist=["ProjectLifecycleService"],
     ).ProjectLifecycleService(
-        Sessions(session), Projects(), default_project_policy()
+        Sessions(session), Projects(), default_project_policy(),
+        cost_accounts=CostAccounts(),
     )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
@@ -3272,3 +3288,34 @@ def test_project_http_rejects_edits_held_by_another_user():
     )
     assert status == 409
     assert json.loads(body)["code"] == "PROJECT_CHECKOUT_CONFLICT"
+
+
+def test_project_http_persists_a_default_cost_account_from_the_hierarchy():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "default_cost_account_id": "CA-CIVIL",
+            "expected_revision": 0,
+        }).encode(),
+    )
+    assert status == 200
+    assert json.loads(body)["project"]["default_cost_account_id"] == "CA-CIVIL"
+
+    status, _, body = r.handle("GET", "/api/projects/p1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(body)["project"]["default_cost_account_id"] == "CA-CIVIL"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "default_cost_account_id": "CA-MISSING",
+            "expected_revision": 1,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND"

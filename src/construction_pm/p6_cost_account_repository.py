@@ -141,6 +141,22 @@ class SQLiteP6CostAccountRepository:
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
+    def cost_account_exists(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        account_id: str,
+    ) -> bool:
+        if not isinstance(account_id, str) or not account_id.strip():
+            return False
+        row = self.connection.execute(
+            "SELECT 1 FROM p6_cost_account "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND account_id=?",
+            (tenant_id, project_id, project_revision, account_id),
+        ).fetchone()
+        return row is not None
+
 
 @dataclass(frozen=True)
 class P6CostAccountApplicationService:
@@ -236,6 +252,22 @@ class PostgresP6CostAccountRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
+
+    def cost_account_exists(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        account_id: str,
+    ) -> bool:
+        if not isinstance(account_id, str) or not account_id.strip():
+            return False
+        row = self.connection.execute(
+            "SELECT 1 FROM p6_cost_account "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND account_id=%s",
+            (tenant_id, project_id, project_revision, account_id),
+        ).fetchone()
+        return row is not None
 
 
 __all__ = [

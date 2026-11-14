@@ -1090,6 +1090,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         statusCode: selected("status_code", "Planned"),
         percentCompleteType: selected("percent_complete_type", "DURATION"),
         durationType: selected("duration_type", "Fixed Duration & Units"),
+        costAccountId: selected("cost_account_id", "") || null,
         levelingPriority: selected("leveling_priority", "Normal"),
       });
     } else if (form.matches("[data-relationship-create-form]")) {
@@ -2751,7 +2752,7 @@ export type WorkspaceRendererOptions = {
   onWbsCopy?: (wbsId: string, targetParentWbsId: string, rootCode: string) => void | Promise<void>;
   onWbsMilestonesUpdate?: (wbsId: string, milestones: readonly WorkspaceWbsMilestone[], expectedRevision: number) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
-  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; levelingPriority: string }) => void | Promise<void>;
+  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; durationType: string; costAccountId: string | null; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
   onRelationshipCreate?: (input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
   onRelationshipUpdate?: (relationshipId: string, recordRevision: number, input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
@@ -2781,6 +2782,8 @@ export type WorkspaceRendererOptions = {
   onProjectSettings?: () => void;
   /** Authoritative metadata row of the open project, when the server returned it. */
   projectSummary?: ProjectSummary | null;
+  /** Stored cost-account hierarchy of the open project. */
+  costAccounts?: readonly { account_id: string; name: string }[];
   /** Projects the session may open, exactly as the session service listed them. */
   projects?: readonly ProjectSummary[];
   /** Switches the open project from the Projects window. */
@@ -2865,6 +2868,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     percentCompleteType: percentTypeValues.has(storedPercentType.toUpperCase()) ? storedPercentType.toUpperCase() : undefined,
     durationType: durationTypeValues.has(storedDurationType) ? storedDurationType : undefined,
   };
+  const costAccounts = options.costAccounts ?? [];
+  const storedCostAccountId = projectSummary?.default_cost_account_id ?? "";
+  let costAccountOptions = [
+    `<option value="">${escapeHtml(uiText(state.locale, "No cost account", "بدون حساب هزینه"))}</option>`,
+    ...costAccounts.map((account) => `<option value="${escapeAttribute(account.account_id)}" ${account.account_id === storedCostAccountId ? "selected" : ""}>${escapeHtml(account.name ? `${account.account_id} — ${account.name}` : account.account_id)}</option>`),
+  ].join("");
+  if (storedCostAccountId && !costAccounts.some((account) => account.account_id === storedCostAccountId)) {
+    costAccountOptions += `<option value="${escapeAttribute(storedCostAccountId)}" selected>${escapeHtml(storedCostAccountId)}</option>`;
+  }
   const activityIdSuggestion = computeNextActivityId(
     state.activities.map((activity) => activity.id),
     projectDefaults,
@@ -3190,6 +3202,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status_code"))} <select name="status_code">${renderActivityCreateOptions(state.locale, "status_code")}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type", activityDefaults.percentCompleteType)}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "duration_type"))} <select name="duration_type">${renderActivityCreateOptions(state.locale, "duration_type", activityDefaults.durationType)}</select></label>
+              <label>${escapeHtml(uiText(state.locale, "Cost account", "حساب هزینه"))} <select name="cost_account_id">${costAccountOptions}</select></label>
               <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "leveling_priority"))} <select name="leveling_priority">${renderActivityCreateOptions(state.locale, "leveling_priority")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
@@ -5865,6 +5878,7 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
           ${field(uiText(state.locale, "Default activity type", "نوع پیش‌فرض فعالیت"), activityTypeLabel(summary.default_activity_type ?? "Task Dependent"))}
           ${field(uiText(state.locale, "Percent complete type", "نوع درصد تکمیل"), percentTypeLabel((summary.default_percent_complete_type ?? "DURATION").toUpperCase()))}
           ${field(uiText(state.locale, "Duration type", "نوع مدت"), durationTypeLabel(summary.default_duration_type ?? "Fixed Duration & Units"))}
+          ${field(uiText(state.locale, "Default cost account", "حساب هزینهٔ پیش‌فرض"), summary.default_cost_account_id || "—")}
           ${field(uiText(state.locale, "Activity ID prefix", "پیشوند شناسهٔ فعالیت"), summary.activity_id_prefix || "—")}
           ${field(uiText(state.locale, "Activity ID suffix", "پسوند شناسهٔ فعالیت"), summary.activity_id_suffix || "—")}
           ${field(uiText(state.locale, "ID increment", "گام افزایش شناسه"), String(summary.activity_id_increment ?? 10))}

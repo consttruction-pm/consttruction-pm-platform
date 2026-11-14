@@ -446,3 +446,55 @@ def test_activity_master_migrates_an_existing_table_with_a_duration_type_default
     restored = repo.get(scope(), "A-LEGACY")
     assert restored is not None
     assert restored.duration_type is ActivityDurationType.FIXED_DURATION_UNITS
+
+
+def test_activity_master_cost_account_round_trips_and_clears_independently():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(activity())
+    assert stored.cost_account_id is None
+
+    linked = repo.save(
+        replace(activity(), cost_account_id="CA-CIVIL"), expected_revision=1
+    )
+    assert linked.cost_account_id == "CA-CIVIL"
+    assert repo.get(scope(), "A-1").cost_account_id == "CA-CIVIL"
+
+    cleared = repo.save(replace(activity(), cost_account_id=None), expected_revision=2)
+    assert cleared.cost_account_id is None
+    assert repo.get(scope(), "A-1").cost_account_id is None
+
+
+def test_activity_master_rejects_an_empty_cost_account_reference():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ActivityPersistenceError, match="INVALID_COST_ACCOUNT_ID"):
+        repo.save(replace(activity(), cost_account_id=" "))
+
+
+def test_activity_master_migrates_an_existing_table_with_a_null_cost_account():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL, activity_id TEXT NOT NULL,
+            duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
+            actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER,
+            remaining_start TEXT, percent_complete REAL, percent_complete_type TEXT,
+            record_revision INTEGER NOT NULL DEFAULT 0, expected_finish TEXT,
+            planned_finish TEXT, leveling_priority TEXT NOT NULL DEFAULT 'Normal',
+            original_duration INTEGER, name TEXT NOT NULL DEFAULT '',
+            activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+            status TEXT NOT NULL DEFAULT 'Not Started',
+            status_code TEXT NOT NULL DEFAULT 'Planned',
+            short_name TEXT, duration_type TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id))"""
+    )
+    connection.execute(
+        "INSERT INTO activity_master (tenant_id, project_id, project_revision, "
+        "activity_id, duration_value, duration_unit, percent_complete_type, "
+        "record_revision) "
+        "VALUES ('T-1', 'P-1', 7, 'A-LEGACY', '2', 'working-day', 'DURATION', 1)"
+    )
+    repo = SQLiteActivityMasterRepository(connection)
+    restored = repo.get(scope(), "A-LEGACY")
+    assert restored is not None
+    assert restored.cost_account_id is None

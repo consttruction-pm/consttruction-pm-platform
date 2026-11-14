@@ -60,6 +60,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
             "duration_value": str(item.duration_value),
             "duration_unit": item.duration_unit.value,
             "duration_type": item.duration_type.value,
+            "cost_account_id": item.cost_account_id,
             "actual_start": _optional_iso(item.actual_start),
             "actual_finish": _optional_iso(item.actual_finish),
             "remaining_duration": item.remaining_duration,

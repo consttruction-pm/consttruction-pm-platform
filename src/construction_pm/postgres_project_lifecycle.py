@@ -37,6 +37,7 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         default_activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
         default_percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
         default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units',
+        default_cost_account_id TEXT NOT NULL DEFAULT '',
         activity_id_prefix TEXT NOT NULL DEFAULT '',
         activity_id_suffix TEXT NOT NULL DEFAULT '',
         activity_id_increment INTEGER NOT NULL DEFAULT 10,
@@ -66,6 +67,10 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
     """
     ALTER TABLE project_lifecycle_projects
         ADD COLUMN IF NOT EXISTS default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units'
+    );
+    connection.execute(
+        "ALTER TABLE project_lifecycle_projects "
+        "ADD COLUMN IF NOT EXISTS default_cost_account_id TEXT NOT NULL DEFAULT ''"
     """,
     """
     ALTER TABLE project_lifecycle_projects
@@ -168,7 +173,7 @@ class PostgresProjectRepository(ProjectRepository):
         "p.default_activity_type, p.default_percent_complete_type, "
         "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
         "p.increment_activity_id, p.checkout_state, p.checked_out_by, p.checked_out_at, "
-        "p.default_duration_type "
+        "p.default_duration_type, p.default_cost_account_id "
         "FROM project_lifecycle_projects p "
     )
 
@@ -210,6 +215,7 @@ class PostgresProjectRepository(ProjectRepository):
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
+        default_cost_account_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -220,9 +226,10 @@ class PostgresProjectRepository(ProjectRepository):
             "(tenant_id, project_id, name, revision, description, start_date, date_system, "
             "primary_calendar_id, settings_revision, business_domain, "
             "obs_responsible_manager, website_url, default_activity_type, "
-            "default_percent_complete_type, default_duration_type, activity_id_prefix, "
-            "activity_id_suffix, activity_id_increment, increment_activity_id) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "default_percent_complete_type, default_duration_type, "
+            "default_cost_account_id, activity_id_prefix, activity_id_suffix, "
+            "activity_id_increment, increment_activity_id) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 tenant_id,
                 project_id,
@@ -237,6 +244,7 @@ class PostgresProjectRepository(ProjectRepository):
                 default_activity_type,
                 default_percent_complete_type,
                 default_duration_type,
+                default_cost_account_id,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -263,6 +271,7 @@ class PostgresProjectRepository(ProjectRepository):
             default_activity_type=default_activity_type,
             default_percent_complete_type=default_percent_complete_type,
             default_duration_type=default_duration_type,
+            default_cost_account_id=default_cost_account_id,
             activity_id_prefix=activity_id_prefix,
             activity_id_suffix=activity_id_suffix,
             activity_id_increment=activity_id_increment,
@@ -287,6 +296,7 @@ class PostgresProjectRepository(ProjectRepository):
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
+        default_cost_account_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -301,6 +311,7 @@ class PostgresProjectRepository(ProjectRepository):
             "default_activity_type=COALESCE(%s, default_activity_type), "
             "default_percent_complete_type=COALESCE(%s, default_percent_complete_type), "
             "default_duration_type=COALESCE(%s, default_duration_type), "
+            "default_cost_account_id=COALESCE(%s, default_cost_account_id), "
             "activity_id_prefix=COALESCE(%s, activity_id_prefix), "
             "activity_id_suffix=COALESCE(%s, activity_id_suffix), "
             "activity_id_increment=COALESCE(%s, activity_id_increment), "
@@ -316,7 +327,7 @@ class PostgresProjectRepository(ProjectRepository):
             "default_activity_type, default_percent_complete_type, "
             "activity_id_prefix, activity_id_suffix, activity_id_increment, "
             "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
-            "default_duration_type",
+            "default_duration_type, default_cost_account_id",
             (
                 name,
                 description,
@@ -329,6 +340,7 @@ class PostgresProjectRepository(ProjectRepository):
                 default_activity_type,
                 default_percent_complete_type,
                 default_duration_type,
+                default_cost_account_id,
                 activity_id_prefix,
                 activity_id_suffix,
                 activity_id_increment,
@@ -384,7 +396,7 @@ class PostgresProjectRepository(ProjectRepository):
             "default_activity_type, default_percent_complete_type, "
             "activity_id_prefix, activity_id_suffix, activity_id_increment, "
             "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
-            "default_duration_type",
+            "default_duration_type, default_cost_account_id",
             (status, tenant_id, project_id, expected_revision, user_id),
         ).fetchone()
         if row is None:
@@ -451,7 +463,7 @@ class PostgresProjectRepository(ProjectRepository):
             "default_activity_type, default_percent_complete_type, "
             "activity_id_prefix, activity_id_suffix, activity_id_increment, "
             "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
-            "default_duration_type",
+            "default_duration_type, default_cost_account_id",
             (
                 next_state,
                 next_owner,
@@ -537,6 +549,9 @@ def _summary(row: Any) -> ProjectSummary:
             str(row[22])
             if len(row) > 22 and row[22]
             else "Fixed Duration & Units"
+        ),
+        default_cost_account_id=(
+            str(row[23]) if len(row) > 23 and row[23] else ""
         ),
     )
 

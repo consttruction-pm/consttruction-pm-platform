@@ -88,6 +88,10 @@ class ProjectSummary:
     checkout_state: str = "checked_in"
     checked_out_by: str = ""
     checked_out_at: str | None = None
+    # V26 Defaults tab: the stored cost-account reference applied to newly
+    # created activities. It must exist in this project's real cost-account
+    # hierarchy; the empty string means no default.
+    default_cost_account_id: str = ""
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
@@ -278,6 +282,19 @@ def normalize_default_duration_type(value: object) -> str:
     return duration_type
 
 
+def normalize_default_cost_account_id(value: object) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_INVALID")
+    account_id = value.strip()
+    if not account_id:
+        return ""
+    if len(account_id) > 120 or any(ord(character) < 32 for character in account_id):
+        raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_INVALID")
+    return account_id
+
+
 def normalize_activity_id_affix(value: object, code: str) -> str:
     if value is None:
         return ""
@@ -386,6 +403,18 @@ class ProjectContext:
         )
 
 
+class ProjectCostAccountLookup(Protocol):
+    """Read-only check that a cost account belongs to the project's hierarchy."""
+
+    def cost_account_exists(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        account_id: str,
+    ) -> bool: ...
+
+
 class ProjectRepository(Protocol):
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]: ...
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None: ...
@@ -406,6 +435,7 @@ class ProjectRepository(Protocol):
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
+        default_cost_account_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -429,6 +459,7 @@ class ProjectRepository(Protocol):
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
+        default_cost_account_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -478,10 +509,12 @@ class ProjectLifecycleService:
         sessions: SessionRepository,
         projects: ProjectRepository,
         policy: RoleBasedAuthorizationPolicy,
+        cost_accounts: ProjectCostAccountLookup | None = None,
     ) -> None:
         self._sessions = sessions
         self._projects = projects
         self._policy = policy
+        self._cost_accounts = cost_accounts
 
     def session(self, session_id: str, *, now: datetime) -> AuthenticatedSession:
         session = self._sessions.get(session_id)
@@ -568,6 +601,7 @@ class ProjectLifecycleService:
         default_activity_type: str = "Task Dependent",
         default_percent_complete_type: str = "DURATION",
         default_duration_type: str = "Fixed Duration & Units",
+        default_cost_account_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
@@ -598,6 +632,13 @@ class ProjectLifecycleService:
             obs_responsible_manager
         )
         normalized_website_url = normalize_project_website_url(website_url)
+        normalized_default_cost_account_id = normalize_default_cost_account_id(
+            default_cost_account_id
+        )
+        # A project that is being created cannot yet own a cost-account
+        # hierarchy, so a non-empty reference cannot be verified.
+        if normalized_default_cost_account_id:
+            raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND")
         project = self._projects.create_for_user(
             session.tenant_id,
             session.user_id,
@@ -619,6 +660,7 @@ class ProjectLifecycleService:
             default_duration_type=normalize_default_duration_type(
                 default_duration_type
             ),
+            default_cost_account_id=normalized_default_cost_account_id,
             activity_id_prefix=normalize_activity_id_affix(
                 activity_id_prefix, "PROJECT_ACTIVITY_ID_PREFIX_INVALID"
             ),
@@ -675,6 +717,7 @@ class ProjectLifecycleService:
         default_activity_type: str | None = None,
         default_percent_complete_type: str | None = None,
         default_duration_type: str | None = None,
+        default_cost_account_id: str | None = None,
         activity_id_prefix: str | None = None,
         activity_id_suffix: str | None = None,
         activity_id_increment: int | None = None,
@@ -757,6 +800,21 @@ class ProjectLifecycleService:
             if default_duration_type is None
             else normalize_default_duration_type(default_duration_type)
         )
+        normalized_default_cost_account_id = (
+            None
+            if default_cost_account_id is None
+            else normalize_default_cost_account_id(default_cost_account_id)
+        )
+        if normalized_default_cost_account_id:
+            if self._cost_accounts is None:
+                raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_UNAVAILABLE")
+            if not self._cost_accounts.cost_account_exists(
+                existing.tenant_id,
+                existing.project_id,
+                existing.revision,
+                normalized_default_cost_account_id,
+            ):
+                raise ProjectLifecycleError("PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND")
         normalized_activity_id_prefix = (
             None
             if activity_id_prefix is None
@@ -797,6 +855,7 @@ class ProjectLifecycleService:
             default_activity_type=normalized_default_activity_type,
             default_percent_complete_type=normalized_default_percent_complete_type,
             default_duration_type=normalized_default_duration_type,
+            default_cost_account_id=normalized_default_cost_account_id,
             activity_id_prefix=normalized_activity_id_prefix,
             activity_id_suffix=normalized_activity_id_suffix,
             activity_id_increment=normalized_activity_id_increment,

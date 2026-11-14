@@ -45,6 +45,8 @@ export type BootstrapLabels = {
   projectDefaultActivityType: string;
   projectDefaultPercentCompleteType: string;
   projectDefaultDurationType: string;
+  projectDefaultCostAccount: string;
+  projectDefaultCostAccountNone: string;
   durationTypeFixedUnitsTime: string;
   durationTypeFixedDurationUnitsTime: string;
   durationTypeFixedUnits: string;
@@ -162,6 +164,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultActivityType: "Default activity type",
     projectDefaultPercentCompleteType: "Percent complete type",
     projectDefaultDurationType: "Default duration type",
+    projectDefaultCostAccount: "Default cost account",
+    projectDefaultCostAccountNone: "No default cost account",
     durationTypeFixedUnitsTime: "Fixed Units/Time",
     durationTypeFixedDurationUnitsTime: "Fixed Duration & Units/Time",
     durationTypeFixedUnits: "Fixed Units",
@@ -277,6 +281,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDefaultActivityType: "نوع پیش‌فرض فعالیت",
     projectDefaultPercentCompleteType: "نوع درصد تکمیل",
     projectDefaultDurationType: "نوع پیش‌فرض مدت",
+    projectDefaultCostAccount: "حساب هزینهٔ پیش‌فرض",
+    projectDefaultCostAccountNone: "بدون حساب هزینهٔ پیش‌فرض",
     durationTypeFixedUnitsTime: "واحد/زمان ثابت",
     durationTypeFixedDurationUnitsTime: "مدت و واحد/زمان ثابت",
     durationTypeFixedUnits: "واحد ثابت",

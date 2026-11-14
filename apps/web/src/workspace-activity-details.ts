@@ -615,6 +615,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Activity Type", "نوع فعالیت"), item("activity_type", "type"))}
         ${field(locale, t(locale, "Duration Type", "نوع مدت"), item("duration_type"))}
+        ${field(locale, t(locale, "Cost Account", "حساب هزینه"), item("cost_account_id"))}
         ${field(locale, t(locale, "% Complete Type", "نوع درصد پیشرفت"), item("percent_complete_type", "progress_basis"))}
         ${field(locale, t(locale, "Activity Calendar", "تقویم فعالیت"), item("calendar_id", "calendar_name", "calendar"))}
         ${field(locale, t(locale, "WBS", "ساختار شکست"), wbsLabel)}

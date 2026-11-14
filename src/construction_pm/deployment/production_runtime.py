@@ -40,6 +40,11 @@ from ..identity_session import (
     PostgresIdentityStore,
     load_identity_settings,
 )
+from ..p6_cost_account_api import P6CostAccountAPI
+from ..p6_cost_account_repository import (
+    P6CostAccountApplicationService,
+    PostgresP6CostAccountRepository,
+)
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
@@ -256,11 +261,13 @@ class ProductionRuntime:
     def _build(self) -> None:
         connection = self.connection
         policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        cost_account_repository = PostgresP6CostAccountRepository(connection)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
                 PostgresProjectRepository(connection),
                 policy,
+                cost_accounts=cost_account_repository,
             )
         )
         activity_repository = PostgresActivityMasterRepository(connection)
@@ -306,6 +313,12 @@ class ProductionRuntime:
                 field_service=field_service,
                 udf_service=udf_service,
                 authorization_policy=policy,
+            ),
+            p6_cost_account_api=P6CostAccountAPI(
+                P6CostAccountApplicationService(
+                    cost_account_repository, transaction_manager
+                ),
+                policy,
             ),
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},

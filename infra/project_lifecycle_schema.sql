@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
     checked_out_by TEXT NOT NULL DEFAULT '',
     checked_out_at TIMESTAMPTZ,
     default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units',
+    default_cost_account_id TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (tenant_id, project_id)
 );
 
@@ -80,6 +81,8 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS checked_out_at TIMESTAMPTZ;
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS default_cost_account_id TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,
