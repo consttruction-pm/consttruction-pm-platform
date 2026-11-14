@@ -69,10 +69,10 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
     """
     ALTER TABLE project_lifecycle_projects
         ADD COLUMN IF NOT EXISTS default_duration_type TEXT NOT NULL DEFAULT 'Fixed Duration & Units'
-    );
-    connection.execute(
-        "ALTER TABLE project_lifecycle_projects "
-        "ADD COLUMN IF NOT EXISTS default_cost_account_id TEXT NOT NULL DEFAULT ''"
+    """,
+    """
+    ALTER TABLE project_lifecycle_projects
+        ADD COLUMN IF NOT EXISTS default_cost_account_id TEXT NOT NULL DEFAULT ''
     """,
     """
     ALTER TABLE project_lifecycle_projects
