@@ -76,7 +76,7 @@ The initial Task Center is a narrow, truthful slice of the Enterprise Team & Tas
 | Task search | Case-insensitive title and description search | enterprise-task-center.test.ts |
 | Create | Title, description, priority, due date and personal/project scope | Authenticated POST with CSRF and idempotency key |
 | Update lifecycle | Start, complete and reopen via revision-checked PATCH | Authenticated PATCH; server owns completion actor/time |
-| Scope and security | Same-origin credentials, CSRF, no client-supplied tenant/actor authority | Production WSGI integration coverage |
+| Scope and security | Same-origin credentials, CSRF, explicit server-side Enterprise environment roles, no client-supplied tenant/actor authority, and separate project permissions | Production WSGI integration coverage; exact-head CI pending |
 | Responsive and RTL | Narrow-screen layout and Persian RTL direction | Browser QA required before acceptance |
 
 Not included in V1: team assignment (disabled server-side until membership persistence), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
