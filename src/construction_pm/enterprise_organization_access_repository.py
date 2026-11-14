@@ -91,6 +91,12 @@ class PostgresEnterpriseOrganizationAccessRepository:
 
     def create_team(self, team: EnterpriseTeam, *, actor_id: str) -> EnterpriseTeam:
         team.validate()
+        owner = self._connection.execute(
+            "SELECT tenant_id,active FROM identity_users WHERE user_id=%s",
+            (team.owner_user_id,),
+        ).fetchone()
+        if owner is None or str(owner[0]) != team.tenant_id or not bool(owner[1]):
+            raise OrganizationAccessError("TEAM_OWNER_ACCOUNT_NOT_FOUND")
         self._connection.execute(
             "INSERT INTO enterprise_teams "
             "(tenant_id,team_id,name,owner_user_id,status,revision,created_at,updated_at) "
