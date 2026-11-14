@@ -2744,6 +2744,38 @@ test("Project Details tabs read the authoritative project summary instead of pla
   assert.doesNotMatch(unread.innerHTML, />R0</);
 });
 
+test("Project Details Defaults tab shows the stored defaults without a placeholder", () => {
+  const summary: ProjectSummary = {
+    project_id: "p-1",
+    tenant_id: "tenant-1",
+    name: "Metro Line",
+    revision: 3,
+    settings_revision: 5,
+    default_activity_type: "Level of Effort",
+    default_percent_complete_type: "PHYSICAL",
+    activity_id_prefix: "AH-",
+    activity_id_suffix: "-B",
+    activity_id_increment: 25,
+    increment_activity_id: true,
+  };
+  for (const locale of ["en", "fa"] as const) {
+    const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, locale), activeMenu: "project" as const };
+    const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+    renderMainWorkspace(container as unknown as HTMLElement, state, { projectSummary: summary });
+    const html = container.innerHTML;
+    assert.match(html, /data-project-detail-panel="defaults"/);
+    assert.match(html, /Level of Effort|تلاش مستمر/);
+    assert.match(html, /Physical|فیزیکی/);
+    assert.match(html, /AH-/);
+    assert.match(html, /-B/);
+    assert.match(html, />25</);
+    assert.match(html, /Yes|بله/);
+    assert.doesNotMatch(html, /No authoritative Defaults detail fields/);
+    // The Settings tab must no longer claim Activity ID numbering is unstored.
+    assert.doesNotMatch(html, /activity ID numbering are not stored/);
+  }
+});
+
 test("opening another project from the table dispatches exactly one switch request", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const container = {
