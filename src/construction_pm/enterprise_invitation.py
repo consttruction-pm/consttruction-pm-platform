@@ -57,6 +57,7 @@ class EnterpriseInvitationRepository(Protocol):
     def public_id_for_user(self, tenant_id: str, user_id: str) -> str: ...
     def user_id_for_cubi_id(self, tenant_id: str, cubi_id: str) -> str: ...
     def list_invitations(self, tenant_id: str, team_id: str) -> tuple[TeamInvitation, ...]: ...
+    def list_received_invitations(self, tenant_id: str, target_user_id: str) -> tuple[TeamInvitation, ...]: ...
 
 
 class EnterpriseInvitationService:
@@ -152,6 +153,13 @@ class EnterpriseInvitationService:
         if team is None or membership is None or membership.status != "active" or membership.role not in {"owner", "admin"}:
             raise InvitationDenied("TEAM_ADMIN_PERMISSION_REQUIRED")
         return self._repository.list_invitations(session.tenant_id, team_id)
+
+    def list_received(self, session_id: str) -> tuple[TeamInvitation, ...]:
+        """Return only the authenticated user's incoming invitations."""
+        session = self._session(session_id)
+        return self._repository.list_received_invitations(
+            session.tenant_id, session.user_id
+        )
 
     def _session(self, session_id: str):
         if not isinstance(session_id, str) or not session_id:
