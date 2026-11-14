@@ -30,7 +30,7 @@ type Filter = "all" | "active" | "blocked" | "due" | "completed" | "overdue";
 
 const COPY = {
   en: {
-    title: "Task Center", eyebrow: "CUBI ENTERPRISE", subtitle: "Coordinate work across your projects and personal workspace.",
+    title: "Task Center", eyebrow: "CUBI ENTERPRISE", subtitle: "Coordinate work across your projects and personal workspace.", organization: "Organization & Access",
     back: "Personal workbench", refresh: "Refresh", create: "New task", createTitle: "Create a task",
     taskTitle: "Task title", description: "Description", project: "Project scope", personal: "Personal tasks",
     due: "Due date", priority: "Priority", low: "Low", normal: "Normal", high: "High", urgent: "Urgent",
@@ -46,7 +46,7 @@ const COPY = {
     workspace: "Enterprise workspace", securityNote: "Access is checked by the server. Project tasks appear only when you have project permission.",
   },
   fa: {
-    title: "مرکز وظایف", eyebrow: "کوبی سازمانی", subtitle: "هماهنگی کارها در پروژه‌ها و فضای کاری شخصی.",
+    title: "مرکز وظایف", eyebrow: "کوبی سازمانی", subtitle: "هماهنگی کارها در پروژه‌ها و فضای کاری شخصی.", organization: "سازمان و دسترسی",
     back: "میزکار شخصی", refresh: "تازه‌سازی", create: "وظیفه جدید", createTitle: "ایجاد وظیفه",
     taskTitle: "عنوان وظیفه", description: "شرح", project: "محدوده پروژه", personal: "وظایف شخصی",
     due: "سررسید", priority: "اولویت", low: "کم", normal: "عادی", high: "زیاد", urgent: "فوری",
@@ -149,9 +149,11 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   brand.setAttribute("aria-label", "CUBI workspace");
   const identity = element("div", "ce-header-title");
   identity.append(element("span", "ce-eyebrow", t.eyebrow), element("strong", "", t.workspace));
+  const organization = element("a", "ce-back", t.organization);
+  organization.href = "/enterprise/organization";
   const back = element("a", "ce-back", `← ${t.back}`);
   back.href = "/app";
-  header.append(brand, identity, back);
+  header.append(brand, identity, organization, back);
 
   const hero = element("section", "ce-hero");
   const heroCopy = element("div");
