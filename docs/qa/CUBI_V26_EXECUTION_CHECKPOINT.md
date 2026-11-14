@@ -3907,6 +3907,42 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
   1147 + 14 passed, typecheck and build clean at the same code.
 
+### PRJ-002 enterprise responsibility structure — 2026-11-14 (`2f39c1de`)
+
+- The responsibility structure (OBS) is now one tenant-wide hierarchy in
+  `p6_obs_node` (`tenant_id, obs_id` primary key plus parent, code, name,
+  manager and sequence) instead of a per-project string. `SQLiteP6OBSRepository`
+  and `PostgresP6OBSRepository` persist it; the PostgreSQL table is created by
+  the deployment schema.
+- `P6OBSApplicationService.save` validates the node, requires the parent to
+  exist in the same tenant and walks the ancestor chain before writing, so
+  `OBS_PARENT_NOT_FOUND`, `OBS_SELF_PARENT` and `OBS_PARENT_CYCLE` are rejected
+  without mutating the stored tree.
+- `GET/POST /api/projects/{id}/p6/obs-nodes` lists, reads and saves nodes behind
+  `PROJECT_READ`/`PROJECT_WRITE` and the authenticated project scope
+  (`p6-obs-node-api.v1`).
+- `ProjectSummary.obs_id` references that tree: normalized
+  (`PROJECT_OBS_ID_INVALID`), validated on create/PATCH
+  (`PROJECT_OBS_NODE_NOT_FOUND`, `PROJECT_OBS_NODE_UNAVAILABLE`), preserved on
+  omission and cleared with an empty string. Preview SQLite (additive
+  migration) and PostgreSQL (`ADD COLUMN IF NOT EXISTS`) persist it with
+  `COALESCE`; `infra/project_lifecycle_schema.sql` mirrors the column.
+- The Project Details General tab renders a "Responsibility structure" select
+  loaded from the enterprise list when the panel opens, keeps an unseen stored
+  reference visible, and the labels no longer expose the vendor OBS term
+  (en/fa).
+- Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`
+  (`testedCodeSha`/`gitHead` `2f39c1deeccddabc389d4dd6759025373257c631`, 9/9
+  scenarios, 13 screenshots, zero exceptions/console errors/API failures);
+  scenario `02` creates `OBS-CIVIL` through the node API, assigns it, reads it
+  back after reload, and the viewer and Persian RTL cells assert the stored
+  reference and the localized label. Post-merge Python 4281 passed / 192
+  skipped, live project-lifecycle PostgreSQL 4 passed, web 1148 + 14 passed,
+  typecheck and build clean.
+- Remaining: no management window for the hierarchy (nodes are API-created, no
+  move/delete endpoint), no project rollups by node, and the responsible
+  manager is still a validated project string.
+
 ### PRJ-002 defaults application history — 2026-11-14 (`0188b51b`)
 
 - The server now keeps an append-only, immutable history of the defaults each
