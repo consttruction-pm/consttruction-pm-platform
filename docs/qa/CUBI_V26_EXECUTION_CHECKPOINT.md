@@ -3907,6 +3907,37 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   untouched; the owner then checks in. Python 4233 passed / 190 skipped, web
   1147 + 14 passed, typecheck and build clean at the same code.
 
+### PRJ-002 checkout across every write domain — 2026-11-14 (`41aaf874`)
+
+- The exclusive project checkout now gates every project-scoped write. One
+  `project_checkout` module provides `ProjectCheckoutLease`,
+  `ProjectCheckoutConflict` (`PROJECT_CHECKED_OUT_BY_OTHER`) and
+  `require_project_write_ownership`, called immediately before each repository
+  write so a non-holder never mutates a row or appends history.
+- Guarded domains: activity create/update (including progress writes and AI
+  activity creation), WBS create/update/delete/copy/replace-milestones,
+  relationship create/update/delete and cost-account create. Every route block
+  returns `409 PROJECT_CHECKED_OUT_BY_OTHER`; the holder and an unleased project
+  are unchanged.
+- The preview lease reads the same SQLite checkout row as the checkout endpoint;
+  the production lease reads the project row through the request-scoped
+  PostgreSQL connection, so the ownership check and the guarded write share one
+  transaction. Both runtimes and `production_composition` inject the lease.
+- A prerequisite production defect was found and fixed (`e8c4e5bd`): the Python
+  PostgreSQL schema tuple nested the `default_cost_account_id` migration inside
+  the `default_duration_type` statement, so schema initialization failed with a
+  syntax error at every boot. A live test now executes the initializer.
+- Tests: `tests/test_project_checkout.py` (owner/non-owner for every write path,
+  no mutation on conflict), HTTP 409 cases for all four domains, a two-session
+  preview WSGI test that rejects all four writes and proves nothing persisted,
+  and a live PostgreSQL lease/tenant-isolation test. Post-merge Python 4290
+  passed / 194 skipped, live PostgreSQL 6 passed, Web 1148 + 14 passed,
+  typecheck and build clean; E2E `project-details-v26.mjs` 9/9 on a fresh
+  database.
+- Evidence: `docs/workspace/evidence/project-checkout-write-domains-2026-11-14/`
+  (`summary.md`, targeted and live test logs, E2E log, checkout screenshots at
+  `41aaf874`).
+
 ### PRJ-002 enterprise responsibility structure — 2026-11-14 (`2f39c1de`)
 
 - The responsibility structure (OBS) is now one tenant-wide hierarchy in
@@ -4021,10 +4052,11 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
   a validated project string pending the Agent 3 OBS contract, not a linked OBS
   element.
-- Canonical schedule-settings writes now reject another user's write while the
-  project is checked out (`409 PROJECT_CHECKED_OUT_BY_OTHER`); metadata and
-  status writes already did. The lease is still not consulted by activity,
-  WBS or relationship writes.
+- Every project write domain now rejects another user's write while the project
+  is checked out (`409 PROJECT_CHECKED_OUT_BY_OTHER`): metadata/status, canonical
+  schedule settings, activity, WBS, relationship and cost-account writes. The
+  browser suite proves metadata and schedule-settings conflicts; activity/WBS/
+  relationship/cost conflicts are proven through the real preview WSGI app.
 - The Defaults tab stores activity type, percent complete type, duration type,
   the cost account (validated against the real hierarchy) and the Activity ID
   numbering fields, and lists the server-written history of defaults applied to

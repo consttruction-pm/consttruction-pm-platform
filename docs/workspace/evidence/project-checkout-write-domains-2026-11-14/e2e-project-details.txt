@@ -1,0 +1,43 @@
+
+[01] Project Details reads the stored OBS, web-site, checkout and leveling values
+  captured project-details-v26/01-project-details-initial.png
+  PASS 01. Project Details reads the stored OBS, web-site, checkout and leveling values
+
+[02] Responsibility structure, OBS manager and web-site persist through the lifecycle API
+  captured project-details-v26/02-project-details-persisted.png
+  PASS 02. Responsibility structure, OBS manager and web-site persist through the lifecycle API
+
+[02b] Defaults tab values persist and prefill a new activity
+  captured project-details-v26/02b-project-defaults-persisted.png
+  captured project-details-v26/02b-defaults-application-history.png
+  captured project-details-v26/02b-activity-created-from-defaults.png
+  PASS 02b. Defaults tab values persist and prefill a new activity
+
+[03] leveling priority saves through the canonical schedule-settings contract
+  captured project-details-v26/03-leveling-priority-persisted.png
+  PASS 03. leveling priority saves through the canonical schedule-settings contract
+
+[04] project checkout is an exclusive stored lease with check-in
+  captured project-details-v26/04-project-checked-out.png
+  captured project-details-v26/04-project-checked-in.png
+  PASS 04. project checkout is an exclusive stored lease with check-in
+
+[04b] canonical schedule-settings writes honour the exclusive checkout lease
+  captured project-details-v26/04b-schedule-settings-checkout-lease.png
+  PASS 04b. canonical schedule-settings writes honour the exclusive checkout lease
+
+[05] a stale Project Details save is rejected and reloads the latest values
+  captured project-details-v26/05-project-details-conflict.png
+  PASS 05. a stale Project Details save is rejected and reloads the latest values
+
+[06] a viewer reads Project Details but the server rejects every write
+  captured project-details-v26/06-project-details-viewer.png
+  PASS 06. a viewer reads Project Details but the server rejects every write
+
+[07] the new fields fit the Persian 1280x720 layout in RTL
+  captured project-details-v26/07-project-details-fa-1280.png
+  captured project-details-v26/07-project-details-fa-checkout.png
+  PASS 07. the new fields fit the Persian 1280x720 layout in RTL
+
+Project details E2E: 9/9 scenarios passed
+Screenshots: 01-project-details-initial.png, 02-project-details-persisted.png, 02b-project-defaults-persisted.png, 02b-defaults-application-history.png, 02b-activity-created-from-defaults.png, 03-leveling-priority-persisted.png, 04-project-checked-out.png, 04-project-checked-in.png, 04b-schedule-settings-checkout-lease.png, 05-project-details-conflict.png, 06-project-details-viewer.png, 07-project-details-fa-1280.png, 07-project-details-fa-checkout.png
