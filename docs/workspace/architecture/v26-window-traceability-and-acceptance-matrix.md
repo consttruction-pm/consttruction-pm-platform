@@ -309,3 +309,42 @@ apply and reload persistence. Browser evidence for 1280×720, 1366×768 and 1920
 `fa` is recorded in `docs/workspace/evidence/toolbars-v26-2026-11-12/` at tested SHA
 `9ddb1fa235eb20c89339e73622719ffb1915cb99`; statuses and remaining PARTIAL commands are listed in
 `docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.
+
+## Dual tool-rail customization increment — 2026-11-14
+
+The two tool rails are now one registry-driven customization engine rather than
+duplicated icon maps. `apps/web/src/workspace-toolbar-registry.ts` defines every
+command once (label/tooltip, icon, families, window support, admin gate, disabled
+reason, handler target, default visibility, allowed customizations). Six left
+families and the eighteen required right families render through
+`apps/web/src/workspace-toolbar-view.ts`; each family ends with its own Add or
+Remove control, and the same engine supports visibility, order, styles, rail or
+dock placement, custom toolbars and per-user/per-project persistence in
+`workspace-toolbar-config.ts` (versioned `cubi:workspace-toolbars:v2`, legacy
+key migrated).
+
+Right-click on a toolbar opens visibility/Customize/Add or Remove/Lock/Reset/
+Create/Rename/Delete controls; right-click on an icon opens Move, Hide/Delete,
+Rename, Default/Text/Image+Text, Begin a Group and Reset. Pointer drag with a
+ghost and insertion line reorders buttons, moves commands between families and
+across rails, docks whole families horizontally above the workspace, re-docks
+them and reorders toolbar rows; Alt+Arrow provides keyboard reorder. Toolbar
+menus are body-level and are not the Activity Table or Gantt context menus. A
+toolbar operation never writes project, Activity Layout or schedule data.
+
+Browser evidence at code `7aa9a2d4d29e5492c212ea8bfaf8c74eed13d9a2`:
+`apps/web/e2e/toolbar-rails-v26.mjs` 24/24 checks, 17 screenshots, zero
+exceptions/console errors/API 5xx, covering all 24 families, Add or Remove,
+reset, empty restore, right-click surfaces, pointer and keyboard reorder,
+cross-family/rail moves, dock/re-dock/row reorder, custom toolbar
+create/add/rename/reload/delete/reload, user isolation, viewer permissions,
+Persian RTL and 1280×720/1366×768/1920×1080. Evidence is in
+`docs/workspace/evidence/toolbar-rails-v26-2026-11-14/`; requirement statuses and
+the 20 required browser tests are in
+`docs/qa/V26_DUAL_RAIL_TOOLBAR_MATRIX_2026-11-14.md`. Unit tests 1117 `tsx` + 14
+`node --test`, `tsc --noEmit` and the esbuild bundle pass at the same code.
+
+The "floating" state is a persisted horizontal dock above the workspace, not a
+free-position palette with saved coordinates; icon style is family-level;
+browser coverage is English and Persian; preferences are browser-local. These
+limits are explicit in the matrix and are not presented as complete.
