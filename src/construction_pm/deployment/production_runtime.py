@@ -353,6 +353,9 @@ class ProductionRuntime:
             connection = self.pool.acquire()
             try:
                 initialize_production_schema(connection)
+                # Schema creation runs in the pool connection's transaction.
+                # Commit it before release(), which rolls back any open transaction.
+                connection.commit()
             except Exception:
                 self.pool.release(connection, healthy=False)
                 raise
