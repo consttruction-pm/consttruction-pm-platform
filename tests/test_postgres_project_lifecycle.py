@@ -233,3 +233,53 @@ def test_project_creation_and_update_persist_activity_defaults():
     assert "default_activity_type=COALESCE(%s, default_activity_type)" in sql
     assert "increment_activity_id=COALESCE(%s, increment_activity_id)" in sql
     assert params[8:16] == (None, None, None, None, None, None, 5, None)
+
+
+def test_defaults_application_is_appended_and_read_back_scoped():
+    c = FakeConnection()
+    recorded_at = datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc)
+    c.next_rows = [
+        (
+            "A1000",
+            "Level of Effort",
+            "PHYSICAL",
+            "Fixed Units",
+            "CA-CIVIL",
+            "u1",
+            recorded_at,
+        )
+    ]
+    event = PostgresProjectRepository(c).record_defaults_application_for_user(
+        "t1",
+        "u1",
+        "p1",
+        activity_id="A1000",
+        applied_activity_type="Level of Effort",
+        applied_percent_complete_type="PHYSICAL",
+        applied_duration_type="Fixed Units",
+        applied_cost_account_id="CA-CIVIL",
+        actor_user_id="u1",
+        recorded_at=recorded_at,
+    )
+    assert event.event_id == "p1@A1000"
+    assert event.applied_cost_account_id == "CA-CIVIL"
+    assert "ON CONFLICT DO NOTHING" in c.calls[0][0]
+    assert c.calls[0][1][:4] == ("t1", "p1", "p1@A1000", "A1000")
+    assert c.calls[1][1] == ("t1", "p1", "p1@A1000")
+
+    c.next_rows = [
+        (
+            "p1@A1000",
+            "A1000",
+            "Level of Effort",
+            "PHYSICAL",
+            "Fixed Units",
+            "CA-CIVIL",
+            "u1",
+            recorded_at,
+        )
+    ]
+    history = PostgresProjectRepository(c).defaults_history_for_user("t1", "p1", "u1")
+    assert len(history) == 1
+    assert history[0].activity_id == "A1000"
+    assert "JOIN project_lifecycle_memberships" in c.calls[2][0]

@@ -23,6 +23,9 @@ def connect():
 def _prepare(connection, tenant: str) -> None:
     connection.execute(SCHEMA.read_text())
     connection.execute(
+        "DELETE FROM project_lifecycle_defaults_event WHERE tenant_id=%s", (tenant,)
+    )
+    connection.execute(
         "DELETE FROM project_lifecycle_status_event WHERE tenant_id=%s", (tenant,)
     )
     connection.execute(
@@ -157,3 +160,56 @@ def test_postgres_activity_defaults_round_trip_and_partial_update():
         assert cleared.activity_id_prefix == ""
         assert cleared.increment_activity_id is False
         assert cleared.default_percent_complete_type == "PHYSICAL"
+
+
+def test_postgres_defaults_application_history_is_append_only_and_scoped():
+    tenant, user, project = (
+        "tenant-defaults-history-live",
+        "user-defaults-history-live",
+        "project-defaults-history-live",
+    )
+    now = datetime(2026, 11, 14, 10, 15, tzinfo=timezone.utc)
+    with connect() as connection:
+        _prepare(connection, tenant)
+        repo = PostgresProjectRepository(connection)
+        repo.create_for_user(tenant, user, project, "Defaults History Live")
+        connection.commit()
+
+        event = repo.record_defaults_application_for_user(
+            tenant,
+            user,
+            project,
+            activity_id="A1000",
+            applied_activity_type="Level of Effort",
+            applied_percent_complete_type="PHYSICAL",
+            applied_duration_type="Fixed Units",
+            applied_cost_account_id="CA-CIVIL",
+            actor_user_id=user,
+            recorded_at=now,
+        )
+        connection.commit()
+        assert event.event_id == f"{project}@A1000"
+        assert event.applied_cost_account_id == "CA-CIVIL"
+        assert event.recorded_at == now
+
+        # A retried write keeps the first row: the history is append-only.
+        replay = repo.record_defaults_application_for_user(
+            tenant,
+            user,
+            project,
+            activity_id="A1000",
+            applied_activity_type="Changed",
+            applied_percent_complete_type="",
+            applied_duration_type="",
+            applied_cost_account_id="",
+            actor_user_id=user,
+            recorded_at=now,
+        )
+        connection.commit()
+        assert replay.applied_activity_type == "Level of Effort"
+        history = repo.defaults_history_for_user(tenant, project, user)
+        assert [item.event_id for item in history] == [f"{project}@A1000"]
+
+        # Another tenant and a non-member cannot read the row.
+        assert repo.defaults_history_for_user("tenant-other", project, user) == ()
+        assert repo.defaults_history_for_user(tenant, project, "user-other") == ()

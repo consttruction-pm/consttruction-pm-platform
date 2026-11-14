@@ -7,6 +7,7 @@ from .authorization import Permission
 
 from .project_lifecycle import (
     ProjectContext,
+    ProjectDefaultsApplicationEvent,
     ProjectLifecycleService,
     ProjectStatusEvent,
     ProjectSummary,
@@ -209,3 +210,31 @@ class ProjectLifecycleAPI:
         self, session_id: str, project_id: str, *, now: datetime
     ) -> tuple[ProjectStatusEvent, ...]:
         return self._service.project_status_history(session_id, project_id, now=now)
+
+    def record_defaults_application(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str = "",
+        applied_percent_complete_type: str = "",
+        applied_duration_type: str = "",
+        applied_cost_account_id: str = "",
+        now: datetime,
+    ) -> ProjectDefaultsApplicationEvent:
+        return self._service.record_defaults_application(
+            session_id,
+            project_id,
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            now=now,
+        )
+
+    def project_defaults_history(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]:
+        return self._service.project_defaults_history(session_id, project_id, now=now)

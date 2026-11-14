@@ -114,3 +114,23 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_status_event (
 
 CREATE INDEX IF NOT EXISTS idx_project_lifecycle_status_event
     ON project_lifecycle_status_event (tenant_id, project_id, settings_revision);
+
+CREATE TABLE IF NOT EXISTS project_lifecycle_defaults_event (
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    activity_id TEXT NOT NULL,
+    applied_activity_type TEXT NOT NULL DEFAULT '',
+    applied_percent_complete_type TEXT NOT NULL DEFAULT '',
+    applied_duration_type TEXT NOT NULL DEFAULT '',
+    applied_cost_account_id TEXT NOT NULL DEFAULT '',
+    actor_user_id TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (tenant_id, project_id, event_id),
+    FOREIGN KEY (tenant_id, project_id)
+        REFERENCES project_lifecycle_projects(tenant_id, project_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_lifecycle_defaults_event
+    ON project_lifecycle_defaults_event (tenant_id, project_id, recorded_at);

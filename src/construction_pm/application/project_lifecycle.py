@@ -388,6 +388,55 @@ def normalize_expected_revision(value: object) -> int:
 
 
 @dataclass(frozen=True)
+class ProjectDefaultsApplicationEvent:
+    """Append-only record of the project defaults applied to one new activity.
+
+    The server writes this record; the client never supplies it. Each element
+    stays empty when the request carried an explicit value, so the history
+    shows exactly what the defaults contributed.
+    """
+
+    tenant_id: str
+    project_id: str
+    event_id: str
+    activity_id: str
+    applied_activity_type: str = ""
+    applied_percent_complete_type: str = ""
+    applied_duration_type: str = ""
+    applied_cost_account_id: str = ""
+    actor_user_id: str = ""
+    recorded_at: datetime | None = None
+
+    def validate(self) -> None:
+        for name, value in (
+            ("tenant_id", self.tenant_id),
+            ("project_id", self.project_id),
+            ("event_id", self.event_id),
+            ("activity_id", self.activity_id),
+            ("actor_user_id", self.actor_user_id),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ProjectLifecycleError(
+                    f"INVALID_PROJECT_DEFAULTS_EVENT_{name.upper()}"
+                )
+        applied = (
+            self.applied_activity_type,
+            self.applied_percent_complete_type,
+            self.applied_duration_type,
+            self.applied_cost_account_id,
+        )
+        if not any(applied):
+            raise ProjectLifecycleError("INVALID_PROJECT_DEFAULTS_EVENT_APPLIED")
+        for value in applied:
+            if not isinstance(value, str) or len(value) > 120:
+                raise ProjectLifecycleError("INVALID_PROJECT_DEFAULTS_EVENT_APPLIED")
+        if not isinstance(self.recorded_at, datetime) or self.recorded_at.tzinfo is None:
+            raise ProjectLifecycleError(
+                "INVALID_PROJECT_DEFAULTS_EVENT_RECORDED_AT"
+            )
+
+
+@dataclass(frozen=True)
 class ProjectContext:
     tenant_id: str
     project_id: str
@@ -490,6 +539,23 @@ class ProjectRepository(Protocol):
     def status_history_for_user(
         self, tenant_id: str, project_id: str, user_id: str
     ) -> tuple[ProjectStatusEvent, ...]: ...
+    def record_defaults_application_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectDefaultsApplicationEvent: ...
+    def defaults_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]: ...
 
 
 class SessionRepository(Protocol):
@@ -1010,5 +1076,87 @@ class ProjectLifecycleService:
             Permission.PROJECT_READ,
         )
         return self._projects.status_history_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+
+    def record_defaults_application(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str = "",
+        applied_percent_complete_type: str = "",
+        applied_duration_type: str = "",
+        applied_cost_account_id: str = "",
+        now: datetime,
+    ) -> ProjectDefaultsApplicationEvent:
+        """Record the defaults a creation request actually inherited.
+
+        Called by the activity route after the activity is stored. The actor
+        and timestamp come from the authenticated session, never the request
+        body, and the event identity is deterministic so a retried write cannot
+        duplicate the history row.
+        """
+        session = self.session(session_id, now=now)
+        project = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if project is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        self._policy.require(
+            ProjectContext(
+                tenant_id=project.tenant_id,
+                project_id=project.project_id,
+                revision=project.revision,
+                user_id=session.user_id,
+            ).authorization_context(session.roles),
+            Permission.PROJECT_WRITE,
+        )
+        event = ProjectDefaultsApplicationEvent(
+            tenant_id=project.tenant_id,
+            project_id=project.project_id,
+            event_id=f"{project.project_id}@{activity_id}",
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=session.user_id,
+            recorded_at=now,
+        )
+        event.validate()
+        return self._projects.record_defaults_application_for_user(
+            session.tenant_id,
+            session.user_id,
+            project.project_id,
+            activity_id=event.activity_id,
+            applied_activity_type=event.applied_activity_type,
+            applied_percent_complete_type=event.applied_percent_complete_type,
+            applied_duration_type=event.applied_duration_type,
+            applied_cost_account_id=event.applied_cost_account_id,
+            actor_user_id=event.actor_user_id,
+            recorded_at=now,
+        )
+
+    def project_defaults_history(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]:
+        session = self.session(session_id, now=now)
+        project = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if project is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        self._policy.require(
+            ProjectContext(
+                tenant_id=project.tenant_id,
+                project_id=project.project_id,
+                revision=project.revision,
+                user_id=session.user_id,
+            ).authorization_context(session.roles),
+            Permission.PROJECT_READ,
+        )
+        return self._projects.defaults_history_for_user(
             session.tenant_id, project_id, session.user_id
         )

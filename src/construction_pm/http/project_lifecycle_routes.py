@@ -1923,37 +1923,76 @@ class ProjectLifecycleHttpRoutes:
                         if not isinstance(activity_id, str) or not activity_id.strip():
                             raise ValueError("INVALID_ACTIVITY_ID")
                         # V26 Defaults tab: a new activity inherits the project's
-                        # stored defaults when the client omits these two fields.
+                        # stored defaults when the client omits these fields.
                         # An explicit value in the request always wins, and only
                         # creation consults the defaults (never a later edit).
+                        defaults = self._api.get_project(
+                            session_id, project_id, now=now
+                        )
+                        if "activity_type" not in payload:
+                            payload["activity_type"] = defaults.default_activity_type
+                        if "percent_complete_type" not in payload:
+                            payload[
+                                "percent_complete_type"
+                            ] = defaults.default_percent_complete_type
+                        if "duration_type" not in payload:
+                            payload["duration_type"] = defaults.default_duration_type
                         if (
-                            "activity_type" not in payload
-                            or "percent_complete_type" not in payload
-                            or "duration_type" not in payload
-                            or "cost_account_id" not in payload
+                            "cost_account_id" not in payload
+                            and defaults.default_cost_account_id
                         ):
-                            defaults = self._api.get_project(
-                                session_id, project_id, now=now
-                            )
-                            payload.setdefault(
-                                "activity_type", defaults.default_activity_type
-                            )
-                            payload.setdefault(
-                                "percent_complete_type",
-                                defaults.default_percent_complete_type,
-                            )
-                            payload.setdefault(
-                                "duration_type",
-                                defaults.default_duration_type,
-                            )
-                            if defaults.default_cost_account_id:
-                                payload.setdefault(
-                                    "cost_account_id",
-                                    defaults.default_cost_account_id,
-                                )
+                            payload[
+                                "cost_account_id"
+                            ] = defaults.default_cost_account_id
                         result = self._p6_activity_master_api.create(
                             build_activity(activity_id), auth_context=auth
                         )
+                        # Record the defaults this new activity actually adopted.
+                        # The comparison is on the stored values, so a create
+                        # form that prefilled the same defaults is audited too;
+                        # a value the user changed is not.
+                        applied_defaults: dict[str, str] = {}
+                        if (
+                            payload.get("activity_type")
+                            == defaults.default_activity_type
+                        ):
+                            applied_defaults[
+                                "applied_activity_type"
+                            ] = defaults.default_activity_type
+                        if (
+                            payload.get("percent_complete_type")
+                            == defaults.default_percent_complete_type
+                        ):
+                            applied_defaults[
+                                "applied_percent_complete_type"
+                            ] = defaults.default_percent_complete_type
+                        if (
+                            payload.get("duration_type")
+                            == defaults.default_duration_type
+                        ):
+                            applied_defaults[
+                                "applied_duration_type"
+                            ] = defaults.default_duration_type
+                        raw_cost_account = payload.get("cost_account_id")
+                        if (
+                            isinstance(raw_cost_account, str)
+                            and defaults.default_cost_account_id
+                            and raw_cost_account.strip()
+                            == defaults.default_cost_account_id
+                        ):
+                            applied_defaults[
+                                "applied_cost_account_id"
+                            ] = defaults.default_cost_account_id
+                        if applied_defaults:
+                            # Server-written, append-only history of exactly
+                            # what the defaults contributed to this activity.
+                            self._api.record_defaults_application(
+                                session_id,
+                                project_id,
+                                activity_id=activity_id,
+                                now=now,
+                                **applied_defaults,
+                            )
                         return self._json(201, result)
                     if (
                         method == "GET"
@@ -6564,6 +6603,45 @@ class ProjectLifecycleHttpRoutes:
                             "actor_user_id": event.actor_user_id,
                             "recorded_at": event.recorded_at.isoformat(),
                             "settings_revision": event.settings_revision,
+                        }
+                        for event in events
+                    ],
+                })
+            if (
+                method == "GET"
+                and path.startswith("/api/projects/")
+                and path.endswith("/defaults-history")
+            ):
+                project_id = path[
+                    len("/api/projects/"):-len("/defaults-history")
+                ].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(
+                        400, "PROJECT_ID_REQUIRED", "error.project.id_required"
+                    )
+                events = self._api.project_defaults_history(
+                    session_id, project_id, now=now
+                )
+                return self._json(200, {
+                    "contract_version": "project-defaults-history-api.v1",
+                    "events": [
+                        {
+                            "event_id": event.event_id,
+                            "tenant_id": event.tenant_id,
+                            "project_id": event.project_id,
+                            "activity_id": event.activity_id,
+                            "applied_activity_type": event.applied_activity_type,
+                            "applied_percent_complete_type": (
+                                event.applied_percent_complete_type
+                            ),
+                            "applied_duration_type": event.applied_duration_type,
+                            "applied_cost_account_id": event.applied_cost_account_id,
+                            "actor_user_id": event.actor_user_id,
+                            "recorded_at": (
+                                event.recorded_at.isoformat()
+                                if event.recorded_at is not None
+                                else ""
+                            ),
                         }
                         for event in events
                     ],

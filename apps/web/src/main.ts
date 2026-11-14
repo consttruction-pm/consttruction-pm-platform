@@ -9,7 +9,7 @@ import {
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi, type CostAccountOption, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
+import { FetchSessionApi, type CostAccountOption, type ProjectDefaultsApplicationEvent, type ProjectScheduleSettings, type ProjectStatus, type ProjectStatusEvent, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -940,6 +940,15 @@ function openProjectSettings(
     labelled(labels.projectActivityIdIncrement, activityIdIncrementInput),
     labelled(labels.projectIncrementActivityId, incrementActivityIdInput),
   );
+  const defaultsHistoryHeading = document.createElement("h3");
+  defaultsHistoryHeading.textContent = labels.projectDefaultsHistory;
+  const defaultsHistoryEmpty = document.createElement("p");
+  defaultsHistoryEmpty.className = "cp-project-settings-history-empty";
+  defaultsHistoryEmpty.dataset.projectDefaultsHistoryEmpty = "true";
+  defaultsHistoryEmpty.textContent = labels.projectDefaultsHistoryEmpty;
+  const defaultsHistoryList = document.createElement("ul");
+  defaultsHistoryList.className = "cp-project-settings-history";
+  defaultsHistoryList.dataset.projectDefaultsHistory = "true";
   defaultsSection.append(
     defaultsHeading,
     defaultsHint,
@@ -949,6 +958,9 @@ function openProjectSettings(
     labelled(labels.projectDefaultCostAccount, defaultCostAccountSelect),
     defaultsInline,
     incrementRow,
+    defaultsHistoryHeading,
+    defaultsHistoryEmpty,
+    defaultsHistoryList,
   );
 
   const historyPanel = document.createElement("div");
@@ -1080,6 +1092,43 @@ function openProjectSettings(
       item.textContent = `${statusLabel(event.from_status)} → ${statusLabel(event.to_status)} · ${event.actor_user_id} · R${event.settings_revision} · ${event.recorded_at.slice(0, 10)}`;
       historyList.append(item);
     }
+  };
+
+  const renderDefaultsHistory = (
+    events: readonly ProjectDefaultsApplicationEvent[],
+  ): void => {
+    defaultsHistoryList.replaceChildren();
+    defaultsHistoryEmpty.hidden = events.length > 0;
+    for (const event of events) {
+      const applied = [
+        event.applied_activity_type,
+        event.applied_percent_complete_type,
+        event.applied_duration_type,
+        event.applied_cost_account_id,
+      ].filter((value) => value.length > 0);
+      const item = document.createElement("li");
+      item.dataset.projectDefaultsHistoryRow = "true";
+      item.textContent = [
+        event.activity_id,
+        ...applied,
+        event.actor_user_id,
+        event.recorded_at.slice(0, 10),
+      ].join(" · ");
+      defaultsHistoryList.append(item);
+    }
+  };
+
+  const loadDefaultsHistory = async (): Promise<void> => {
+    const result = await bootstrap.loadProjectDefaultsHistory(
+      state.context.project_id,
+    );
+    if (!result.ok) {
+      defaultsHistoryEmpty.hidden = false;
+      defaultsHistoryEmpty.textContent = `${labels.settingsFailed} (${result.error.code})`;
+      return;
+    }
+    defaultsHistoryEmpty.textContent = labels.projectDefaultsHistoryEmpty;
+    renderDefaultsHistory(result.data.events ?? []);
   };
 
   const loadHistory = async (): Promise<void> => {
@@ -1256,6 +1305,7 @@ function openProjectSettings(
     setStatus("", "info");
     retry.hidden = true;
     void loadHistory();
+    void loadDefaultsHistory();
     void loadLeveling();
   };
 

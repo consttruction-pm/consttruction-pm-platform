@@ -478,6 +478,37 @@ async function main() {
       assert(stored.activity.duration_type === "Fixed Units/Time", `stored duration type ${stored.activity.duration_type}`);
       assert(stored.activity.cost_account_id === "CA-CIVIL", `stored cost account ${stored.activity.cost_account_id}`);
       await page.evaluate(`document.querySelector("[data-tools-close]")?.click()`);
+
+      // The server-written application history lists exactly what the
+      // defaults contributed to this new activity, and only after a read.
+      await page.evaluate(`(() => {
+        document.querySelector("[data-project-settings-close]")?.click();
+        return true;
+      })()`);
+      await page.waitFor(
+        `!document.querySelector("[data-project-settings-panel]")`,
+        "settings panel closed before reading the defaults history",
+      );
+      await openProjectSettings(page);
+      await page.waitFor(
+        `Array.from(document.querySelectorAll("[data-project-defaults-history-row]")).some((row) => (row.textContent || "").includes(${JSON.stringify(form.activityId)}))`,
+        "defaults application history lists the new activity",
+      );
+      const defaultsHistory = await page.evaluate(`(() => {
+        const rows = Array.from(document.querySelectorAll("[data-project-defaults-history-row]"));
+        const row = rows.find((item) => (item.textContent || "").includes(${JSON.stringify(form.activityId)}));
+        return {
+          rows: rows.length,
+          emptyHidden: Boolean(document.querySelector("[data-project-defaults-history-empty]")?.hidden),
+          row: row?.textContent?.trim() ?? "",
+        };
+      })()`);
+      assert(defaultsHistory.emptyHidden, "defaults history empty message stays visible");
+      assert(/Level of Effort/.test(defaultsHistory.row), `history activity type ${defaultsHistory.row}`);
+      assert(/PHYSICAL/.test(defaultsHistory.row), `history percent type ${defaultsHistory.row}`);
+      assert(/Fixed Units\/Time/.test(defaultsHistory.row), `history duration type ${defaultsHistory.row}`);
+      assert(/CA-CIVIL/.test(defaultsHistory.row), `history cost account ${defaultsHistory.row}`);
+      await capture(page, "02b-defaults-application-history");
       await capture(page, "02b-activity-created-from-defaults");
       return {
         activityId: form.activityId,

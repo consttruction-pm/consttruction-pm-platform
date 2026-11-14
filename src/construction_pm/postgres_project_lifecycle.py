@@ -7,6 +7,7 @@ from typing import Any, Protocol
 from .application.project_lifecycle import (
     AuthenticatedSession,
     PROJECT_STATUSES,
+    ProjectDefaultsApplicationEvent,
     ProjectRepository,
     ProjectStatusEvent,
     ProjectSummary,
@@ -120,6 +121,25 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         settings_revision BIGINT NOT NULL,
         PRIMARY KEY (tenant_id, project_id, event_id)
     )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS project_lifecycle_defaults_event (
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        activity_id TEXT NOT NULL,
+        applied_activity_type TEXT NOT NULL DEFAULT '',
+        applied_percent_complete_type TEXT NOT NULL DEFAULT '',
+        applied_duration_type TEXT NOT NULL DEFAULT '',
+        applied_cost_account_id TEXT NOT NULL DEFAULT '',
+        actor_user_id TEXT NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (tenant_id, project_id, event_id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_project_lifecycle_defaults_event
+        ON project_lifecycle_defaults_event (tenant_id, project_id, recorded_at)
     """,
 )
 
@@ -500,6 +520,96 @@ class PostgresProjectRepository(ProjectRepository):
                 actor_user_id=str(row[3]),
                 recorded_at=_as_datetime(row[4]),
                 settings_revision=int(row[5]),
+            )
+            for row in rows
+        )
+
+    def record_defaults_application_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at: datetime,
+    ) -> ProjectDefaultsApplicationEvent:
+        """Append one defaults-application row; a repeated event is a no-op."""
+        event_id = f"{project_id}@{activity_id}"
+        self._connection.execute(
+            "INSERT INTO project_lifecycle_defaults_event "
+            "(tenant_id, project_id, event_id, activity_id, "
+            "applied_activity_type, applied_percent_complete_type, "
+            "applied_duration_type, applied_cost_account_id, "
+            "actor_user_id, recorded_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+            "ON CONFLICT DO NOTHING",
+            (
+                tenant_id,
+                project_id,
+                event_id,
+                activity_id,
+                applied_activity_type,
+                applied_percent_complete_type,
+                applied_duration_type,
+                applied_cost_account_id,
+                actor_user_id,
+                recorded_at,
+            ),
+        )
+        row = self._connection.execute(
+            "SELECT activity_id, applied_activity_type, "
+            "applied_percent_complete_type, applied_duration_type, "
+            "applied_cost_account_id, actor_user_id, recorded_at "
+            "FROM project_lifecycle_defaults_event "
+            "WHERE tenant_id=%s AND project_id=%s AND event_id=%s",
+            (tenant_id, project_id, event_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("PROJECT_DEFAULTS_EVENT_MISSING")
+        return ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=event_id,
+            activity_id=str(row[0]),
+            applied_activity_type=str(row[1]),
+            applied_percent_complete_type=str(row[2]),
+            applied_duration_type=str(row[3]),
+            applied_cost_account_id=str(row[4]),
+            actor_user_id=str(row[5]),
+            recorded_at=_as_datetime(row[6]),
+        )
+
+    def defaults_history_for_user(
+        self, tenant_id: str, project_id: str, user_id: str
+    ) -> tuple[ProjectDefaultsApplicationEvent, ...]:
+        rows = self._connection.execute(
+            "SELECT e.event_id, e.activity_id, e.applied_activity_type, "
+            "e.applied_percent_complete_type, e.applied_duration_type, "
+            "e.applied_cost_account_id, e.actor_user_id, e.recorded_at "
+            "FROM project_lifecycle_defaults_event e "
+            "JOIN project_lifecycle_memberships m "
+            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
+            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
+            "ORDER BY e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id),
+        ).fetchall()
+        return tuple(
+            ProjectDefaultsApplicationEvent(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                event_id=str(row[0]),
+                activity_id=str(row[1]),
+                applied_activity_type=str(row[2]),
+                applied_percent_complete_type=str(row[3]),
+                applied_duration_type=str(row[4]),
+                applied_cost_account_id=str(row[5]),
+                actor_user_id=str(row[6]),
+                recorded_at=_as_datetime(row[7]),
             )
             for row in rows
         )

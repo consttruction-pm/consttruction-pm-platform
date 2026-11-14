@@ -11,7 +11,7 @@ import pytest
 
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
 from construction_pm.application.authorization import default_project_policy
-from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectLifecycleService, ProjectSummary
+from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectDefaultsApplicationEvent, ProjectLifecycleService, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.authoritative_schedule_input_composer import (
     AuthoritativeScheduleInputComposer,
@@ -79,6 +79,9 @@ class Sessions:
 
 
 class Projects:
+    def __init__(self) -> None:
+        self.defaults_events = []
+
     def list_for_user(self, tenant_id: str, user_id: str):
         return (ProjectSummary("p1", tenant_id, "Project One", 2),)
 
@@ -89,6 +92,38 @@ class Projects:
 
     def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str, **_):
         return ProjectSummary(project_id, tenant_id, name, 2)
+
+    def record_defaults_application_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        activity_id: str,
+        applied_activity_type: str,
+        applied_percent_complete_type: str,
+        applied_duration_type: str,
+        applied_cost_account_id: str,
+        actor_user_id: str,
+        recorded_at,
+    ):
+        event = ProjectDefaultsApplicationEvent(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            event_id=f"{project_id}@{activity_id}",
+            activity_id=activity_id,
+            applied_activity_type=applied_activity_type,
+            applied_percent_complete_type=applied_percent_complete_type,
+            applied_duration_type=applied_duration_type,
+            applied_cost_account_id=applied_cost_account_id,
+            actor_user_id=actor_user_id,
+            recorded_at=recorded_at,
+        )
+        self.defaults_events.append(event)
+        return event
+
+    def defaults_history_for_user(self, tenant_id: str, project_id: str, user_id: str):
+        return tuple(self.defaults_events)
 
 
 def _request(app, method: str, path: str, payload: dict | None = None, headers: dict[str, str] | None = None):

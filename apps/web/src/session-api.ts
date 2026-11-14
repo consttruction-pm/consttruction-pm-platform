@@ -67,6 +67,19 @@ export type ProjectStatusEvent = {
   settings_revision: number;
 };
 
+export type ProjectDefaultsApplicationEvent = {
+  event_id: string;
+  tenant_id: string;
+  project_id: string;
+  activity_id: string;
+  applied_activity_type: string;
+  applied_percent_complete_type: string;
+  applied_duration_type: string;
+  applied_cost_account_id: string;
+  actor_user_id: string;
+  recorded_at: string;
+};
+
 export type ProjectMetadataInput = {
   name: string;
   description: string;
@@ -186,6 +199,11 @@ export type SessionApi = {
     projectId: string,
   ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>>;
   listCostAccounts?(projectId: string): Promise<ApiResult<CostAccountList>>;
+  projectDefaultsHistory?(
+    projectId: string,
+  ): Promise<
+    ApiResult<{ contract_version: string; events: ProjectDefaultsApplicationEvent[] }>
+  >;
   setProjectCheckout?(
     projectId: string,
     checkedOut: boolean,
@@ -271,6 +289,13 @@ export class FetchSessionApi implements SessionApi {
     return this.request<CostAccountList>(
       `/api/projects/${encodeURIComponent(projectId)}/p6/cost-accounts`,
     );
+  }
+
+  projectDefaultsHistory(projectId: string) {
+    return this.request<{
+      contract_version: string;
+      events: ProjectDefaultsApplicationEvent[];
+    }>(`/api/projects/${encodeURIComponent(projectId)}/defaults-history`);
   }
 
   setProjectCheckout(projectId: string, checkedOut: boolean, expectedRevision: number) {
