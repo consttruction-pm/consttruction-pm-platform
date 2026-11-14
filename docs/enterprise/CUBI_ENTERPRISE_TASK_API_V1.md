@@ -1,0 +1,76 @@
+# CUBI Enterprise Task API v1
+
+**Status:** Backend API implemented and previously CI-verified in PR #1951; Enterprise Task Center UI is now implemented on `feat/cubi-enterprise-task-center-v1`; exact-head UI CI/browser acceptance is pending  
+**Route root:** `/api/enterprise/tasks`
+
+## Authentication and trust boundary
+
+- Every route requires the existing authenticated `cp_session` session **and an explicit server-issued Enterprise environment role**. `enterprise_viewer` grants read-only access; `enterprise_user` and `enterprise_admin` grant Task API read/write access. A project role such as `project_admin` or `planner` alone does not grant Enterprise access.
+- State-changing requests pass through `ProductionWebApp` origin and CSRF verification before reaching the task middleware.
+- Tenant and actor IDs are derived from the authenticated session. Client-supplied identity fields are ignored and never establish authority.
+- Project task reads require `PROJECT_READ`; creates and updates require `PROJECT_WRITE`, in addition to the Enterprise environment role.
+- Personal tasks are visible only to their authenticated creator/owner.
+- Team assignment and Engineering object references are rejected until organization membership and cross-environment reference authorization are available.
+
+## Routes
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/api/enterprise/tasks` | List the caller's personal tasks |
+| GET | `/api/enterprise/tasks?project_id={id}` | List tasks in an authorized project |
+| POST | `/api/enterprise/tasks` | Create a personal or project task; requires `Idempotency-Key` |
+| GET | `/api/enterprise/tasks/{task_id}` | Read one authorized task |
+| PATCH | `/api/enterprise/tasks/{task_id}` | Revision-checked update |
+
+## Request contract
+
+POST and PATCH bodies must include `contract_version: "cubi-enterprise-task.v1"`.
+
+POST accepts `title`, optional `description`, `priority`, `project_id`, `assigned_user_id`, `due_at` and `dependency_ids`. Server-owned fields (tenant, creator, timestamps, task ID and revision) are derived by the service.
+
+PATCH requires `expected_revision` and accepts `title`, `description`, `priority`, `status`, `assigned_user_id`, `due_at` and `dependency_ids`. Project, tenant, creator and creation time are immutable. Completion actor/time are assigned by the server.
+
+## Pagination
+
+The list response returns `next_cursor` when another page exists. Cursor fields are the composite `before_updated_at` and `before_task_id`; a null timestamp cursor is supported for the `NULLS LAST` partition.
+
+## Error behavior
+
+- 401: missing or invalid session.
+- 403: project permission or assignment denied.
+- 404: task missing or outside the caller's personal scope.
+- 409: revision conflict or idempotency-key reuse.
+- 400: invalid contract, unsupported fields, dependency scope or validation failure.
+
+## Current limitations
+
+- Team assignment is intentionally disabled until Organization & Access membership persistence is implemented and tested.
+- Cross-environment Activity/WBS/Document/Risk references are intentionally disabled until an authorized, revision-pinned Engineering reference resolver exists.
+- No UI is included in this backend vertical slice.
+
+
+## Production runtime verification
+
+The live PostgreSQL production-runtime integration exercises this API through the real WSGI composition: missing CSRF is rejected before the task middleware, authenticated personal and project tasks can be created and listed under their authorized scopes, and completion attribution is server-authored. This is integration coverage, not a deployed-production acceptance claim.
+
+
+## UI and product parity boundary
+
+- Authenticated UI route: `/enterprise` (same-origin application shell, session-gated by the client bootstrap).
+- UI: `apps/web/src/enterprise-task-center.ts`; filters/search, project scope selector, create form, and revision-checked status actions.
+- UI verification: `apps/web/src/enterprise-task-center.test.ts` and preview shell route test. CI and browser E2E must pass on the final head before this UI is accepted.
+- Mandatory reference: `docs/enterprise/CUBI_ENTERPRISE_PRIMAVERA_P6_EPPM_HELP_PARITY_V26.md`. Generic Enterprise tasks are not P6 schedule activities, Team Member activity status updates, or timesheets.
+
+
+## Enterprise environment entitlement
+
+The Task application service fails closed unless the authenticated session carries one of the explicit roles below. These roles are stored with the server-side identity session; the client cannot self-assert them.
+
+| Session role | Personal/project task reads | Task create/update |
+|---|---:|---:|
+| enterprise_viewer | Yes | No |
+| enterprise_user | Yes | Yes, subject to project permissions for project tasks |
+| enterprise_admin | Yes | Yes, subject to project permissions for project tasks |
+| Any project-only role (for example planner, viewer, project_admin) | No | No |
+
+Organization & Access must eventually own assignment, revocation, audit and tenant-scoped administration of these roles. Until that management surface is implemented, roles must be granted through trusted identity provisioning only. Project membership and project permission checks remain independent and are still revalidated on each project task operation.

@@ -115,6 +115,15 @@ test("preview resolver maps the floating assistant module to the compiled Web ou
 });
 
 
+test("the isolated Enterprise route serves the authenticated application shell", () => {
+  const enterpriseShell = resolveRequestFile("/enterprise");
+  const enterpriseSlashShell = resolveRequestFile("/enterprise/");
+  const appShell = resolveRequestFile("/app");
+  assert.equal(enterpriseShell, appShell);
+  assert.equal(enterpriseSlashShell, appShell);
+  assert.match(readFileSync(enterpriseShell, "utf8"), /main\.bundle\.js/);
+});
+
 test("the authenticated workspace shell loads the workspace bundle directly", () => {
   const appShell = readFileSync(resolveRequestFile("/app"), "utf8");
   assert.match(appShell, /<title>CUBI Workspace<\/title>/);
