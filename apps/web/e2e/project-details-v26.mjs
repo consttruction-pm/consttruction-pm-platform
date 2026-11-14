@@ -365,6 +365,17 @@ async function main() {
         { awaitPromise: true },
       );
       assert(costAccount.status === 200, `cost account create ${costAccount.status}`);
+      // The hierarchy is read when Project Details opens; reopen the panel the
+      // way a user does after creating an account elsewhere.
+      await page.evaluate(`(() => {
+        document.querySelector("[data-project-settings-close]")?.click();
+        return true;
+      })()`);
+      await page.waitFor(
+        `!document.querySelector("[data-project-settings-panel]")`,
+        "settings panel closed before reopening",
+      );
+      await openProjectSettings(page);
       await page.waitFor(
         `Array.from(document.querySelectorAll("[data-project-default-cost-account] option")).some((option) => option.value === "CA-CIVIL")`,
         "default cost account option loads from the stored hierarchy",
