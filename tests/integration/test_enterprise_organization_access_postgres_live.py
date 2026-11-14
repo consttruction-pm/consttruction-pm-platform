@@ -107,3 +107,56 @@ def test_postgres_team_membership_persists_and_revocation_is_immediate():
                 (tenant, team.team_id),
             )
         connection.rollback()
+
+
+def test_postgres_ownership_transfer_is_atomic_audited_and_preserves_single_owner():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = f"org-transfer-{uuid.uuid4().hex}"
+    with psycopg.connect(DSN) as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        owner_id = _user(connection, tenant, "owner")
+        next_owner_id = _user(connection, tenant, "next-owner")
+        repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        repository.initialize()
+        team = EnterpriseTeam(
+            tenant_id=tenant, team_id=f"team-{uuid.uuid4().hex}",
+            name="Ownership transfer", owner_user_id=owner_id, status="active",
+            revision=1, created_at=NOW,
+        )
+        repository.create_team(team, actor_id=owner_id)
+        repository.add_member(EnterpriseTeamMembership(
+            tenant_id=tenant, team_id=team.team_id, user_id=next_owner_id,
+            role="admin", status="active", scope_project_ids=(), revision=1,
+            created_at=NOW,
+        ), actor_id=owner_id)
+        transferred = repository.transfer_ownership(
+            tenant, team.team_id, owner_id, next_owner_id,
+            expected_team_revision=1, occurred_at=NOW,
+        )
+        assert transferred.owner_user_id == next_owner_id
+        assert transferred.revision == 2
+        assert repository.get_membership(tenant, team.team_id, owner_id).role == "admin"
+        assert repository.get_membership(tenant, team.team_id, next_owner_id).role == "owner"
+        with pytest.raises(OrganizationAccessError, match="TEAM_OWNER_CHANGED"):
+            repository.transfer_ownership(
+                tenant, team.team_id, owner_id, next_owner_id,
+                expected_team_revision=2, occurred_at=NOW,
+            )
+        with pytest.raises(OrganizationAccessError, match="TEAM_LAST_OWNER_CANNOT_BE_REMOVED"):
+            repository.remove_member(
+                tenant, team.team_id, next_owner_id, actor_id=next_owner_id,
+                expected_revision=2, occurred_at=NOW,
+            )
+        audit_count = connection.execute(
+            "SELECT count(*) FROM enterprise_access_audit WHERE tenant_id=%s AND team_id=%s",
+            (tenant, team.team_id),
+        ).fetchone()[0]
+        assert audit_count == 3
+        transfer_event = connection.execute(
+            "SELECT action FROM enterprise_access_audit WHERE tenant_id=%s AND team_id=%s "
+            "ORDER BY occurred_at DESC,audit_id DESC LIMIT 1",
+            (tenant, team.team_id),
+        ).fetchone()
+        assert transfer_event[0] == "team_owner_transferred"
+        connection.commit()
