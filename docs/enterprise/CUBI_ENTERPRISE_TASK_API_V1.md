@@ -1,6 +1,6 @@
 # CUBI Enterprise Task API v1
 
-**Status:** Implemented in the stacked Task API branch; exact-head CI and review required  
+**Status:** Implemented in canonical PR #1951; exact-head ConstructionPM CI, PostgreSQL Integration (175 passed) and Client Typecheck passed on `89f3a223560eace09e9ddb9b6ad3cf37692d5043`; independent security review and product acceptance remain required  
 **Route root:** `/api/enterprise/tasks`
 
 ## Authentication and trust boundary
