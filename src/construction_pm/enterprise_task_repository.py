@@ -128,6 +128,11 @@ class PostgresEnterpriseTaskRepository:
             "CREATE INDEX IF NOT EXISTS idx_enterprise_tasks_assignee "
             "ON enterprise_tasks (tenant_id, updated_at DESC NULLS LAST, task_id ASC)"
         )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_enterprise_tasks_project_page "
+            "ON enterprise_tasks (tenant_id, ((task_json::jsonb ->> 'project_id')), "
+            "updated_at DESC NULLS LAST, task_id ASC)"
+        )
 
     def create(
         self,
@@ -212,6 +217,8 @@ class PostgresEnterpriseTaskRepository:
         limit: int = 100,
         before_updated_at: datetime | None = None,
         before_task_id: str | None = None,
+        project_id: str | None = None,
+        personal_user_id: str | None = None,
     ) -> tuple[StoredEnterpriseTask, ...]:
         if not isinstance(tenant_id, str) or not tenant_id.strip():
             raise ValueError("INVALID_ENTERPRISE_TASK_TENANT_ID")
@@ -450,8 +457,13 @@ class PostgresEnterpriseTaskRepository:
 
     @staticmethod
     def _fingerprint(task: EnterpriseTask) -> str:
+        # Generated transport metadata must not make a retried idempotent POST
+        # look like a different operation.
+        payload = task.as_dict()
+        for generated in ("task_id", "created_at", "updated_at", "revision"):
+            payload.pop(generated, None)
         return hashlib.sha256(
-            PostgresEnterpriseTaskRepository._serialize(task).encode("utf-8")
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
 
     @staticmethod
