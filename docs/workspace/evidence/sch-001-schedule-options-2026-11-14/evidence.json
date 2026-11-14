@@ -1,0 +1,3063 @@
+{
+  "contract": "cubi-preview-browser-e2e.v1",
+  "started_at": "2026-11-14T22:29:31.269Z",
+  "base_url": "http://127.0.0.1:38035",
+  "managed_runtime": true,
+  "git_head": "41d4f267c24dde9b492adaaab86f54d8eda0f2fd",
+  "checks": [
+    {
+      "name": "runtime health identifies local demo composition",
+      "at": "2026-11-14T22:29:32.069Z",
+      "project_count": 2,
+      "activity_count": 20,
+      "seed_version": "cubi-preview-seed.v4"
+    },
+    {
+      "name": "unauthenticated workspace and session APIs are guarded",
+      "at": "2026-11-14T22:29:32.072Z",
+      "app_status": 302,
+      "session_status": 401
+    },
+    {
+      "name": "landing page served by the same preview runtime",
+      "at": "2026-11-14T22:29:32.077Z",
+      "status": 200,
+      "bytes": 3607
+    },
+    {
+      "name": "homepage assistant avatar is rendered and loaded in dashboard, capability card and technology badge",
+      "at": "2026-11-14T22:29:32.656Z",
+      "avatars": {
+        "dashboard": {
+          "found": true,
+          "source": "http://127.0.0.1:38035/cubi-assistant-avatar.svg",
+          "loaded": true
+        },
+        "capability": {
+          "found": true,
+          "source": "http://127.0.0.1:38035/cubi-assistant-avatar.svg",
+          "loaded": true
+        },
+        "technology": {
+          "found": true,
+          "source": "http://127.0.0.1:38035/cubi-assistant-avatar.svg",
+          "loaded": true
+        }
+      }
+    },
+    {
+      "name": "assistant guide resolves the public homepage without inventing an action",
+      "at": "2026-11-14T22:29:32.666Z",
+      "found": true,
+      "page": "home",
+      "state": "visitor",
+      "heading": "On this page",
+      "purpose": "CUBI brings construction planning, project controls and project evidence into one workspace.",
+      "steps": [
+        "Explore the platform capabilities, or open the workspace to work on a project.",
+        "The workspace creates or reopens a project before it shows WBS, activities and schedules.",
+        "This entry only guides you; project actions always run inside the workspace with your permission."
+      ],
+      "stepsLabel": "Next steps",
+      "actionVisible": false,
+      "emptyList": false
+    },
+    {
+      "name": "homepage assistant launcher opens and closes its accessible workspace entry panel",
+      "at": "2026-11-14T22:29:32.667Z",
+      "before": {
+        "buttonFound": true,
+        "avatarLoaded": true,
+        "panelHidden": true,
+        "expanded": "false",
+        "actionPath": "/app/"
+      },
+      "open": {
+        "visible": true,
+        "expanded": "true",
+        "title": "CUBI AI Assistant",
+        "description": "For project-specific answers or schedule support, open your workspace and select a project."
+      },
+      "closed": {
+        "hidden": true,
+        "expanded": "false"
+      }
+    },
+    {
+      "name": "homepage assistant stays visible while scrolling",
+      "at": "2026-11-14T22:29:32.685Z",
+      "found": true,
+      "mountedOnBody": true,
+      "position": "fixed",
+      "avatarLoaded": true,
+      "staysVisible": true,
+      "staysPinned": true
+    },
+    {
+      "name": "floating assistant visible on /platform/",
+      "at": "2026-11-14T22:29:32.800Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "launcherDir": "ltr",
+      "launcherLabel": "CUBI AI Assistant",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /solutions/",
+      "at": "2026-11-14T22:29:32.916Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "launcherDir": "ltr",
+      "launcherLabel": "CUBI AI Assistant",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /resources/",
+      "at": "2026-11-14T22:29:33.036Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "launcherDir": "ltr",
+      "launcherLabel": "CUBI AI Assistant",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /contact/",
+      "at": "2026-11-14T22:29:33.156Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "launcherDir": "ltr",
+      "launcherLabel": "CUBI AI Assistant",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /fa/",
+      "at": "2026-11-14T22:29:33.271Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "fa",
+      "documentDir": "rtl",
+      "launcherDir": "rtl",
+      "launcherLabel": "دستیار هوشمند کوبی",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /fa/platform/",
+      "at": "2026-11-14T22:29:33.296Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "fa",
+      "documentDir": "rtl",
+      "launcherDir": "rtl",
+      "launcherLabel": "دستیار هوشمند کوبی",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /fa/solutions/",
+      "at": "2026-11-14T22:29:33.412Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "fa",
+      "documentDir": "rtl",
+      "launcherDir": "rtl",
+      "launcherLabel": "دستیار هوشمند کوبی",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /fa/resources/",
+      "at": "2026-11-14T22:29:33.531Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "fa",
+      "documentDir": "rtl",
+      "launcherDir": "rtl",
+      "launcherLabel": "دستیار هوشمند کوبی",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant visible on /fa/contact/",
+      "at": "2026-11-14T22:29:33.649Z",
+      "rootFound": true,
+      "mountedOnBody": true,
+      "visible": true,
+      "fixed": true,
+      "avatarLoaded": true,
+      "documentLang": "fa",
+      "documentDir": "rtl",
+      "launcherDir": "rtl",
+      "launcherLabel": "دستیار هوشمند کوبی",
+      "workspaceHref": "http://127.0.0.1:38035/app/"
+    },
+    {
+      "name": "floating assistant mounts once with one panel and zero API requests",
+      "at": "2026-11-14T22:29:33.675Z",
+      "roots": 1,
+      "panels": 1,
+      "launcherButtons": 1,
+      "requestInitiators": []
+    },
+    {
+      "name": "assistant panel closes on Escape anywhere and on outside pointer down",
+      "at": "2026-11-14T22:29:33.735Z",
+      "openByClick": true,
+      "closedByEscape": true,
+      "closedByOutsideClick": true,
+      "focusAfterEscape": "cubi-assistant-launcher",
+      "focusAfterOpen": "cubi-assistant-close",
+      "stillMounted": true,
+      "pageStillInteractive": true
+    },
+    {
+      "name": "failed assistant artwork keeps a working labelled entry point",
+      "at": "2026-11-14T22:29:33.753Z",
+      "slotCount": 2,
+      "everySlotFlaggedFailed": true,
+      "entryRemovedFromDom": false,
+      "entryStillVisible": true,
+      "fallbackBadgeShown": true,
+      "panelStillOpens": true
+    },
+    {
+      "name": "assistant entry mounts with a failing transport and issues zero transport calls",
+      "at": "2026-11-14T22:29:33.870Z",
+      "launcherFound": true,
+      "singleRoot": 1,
+      "entryVisible": true,
+      "openedWithoutSession": true,
+      "title": "CUBI AI Assistant",
+      "transportCalls": 0,
+      "pageContentIntact": true
+    },
+    {
+      "name": "mobile 390px assistant entry is pinned and overlaps no control",
+      "at": "2026-11-14T22:29:34.330Z",
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "compactMode": true,
+      "compactMediaMatches": true,
+      "viewportWidth": 390,
+      "layoutWidth": 390,
+      "launcherWidth": 56,
+      "insideViewport": true,
+      "labelHidden": true,
+      "labelWidth": 1,
+      "rootDirection": "ltr",
+      "declaredInlineEndInset": 12,
+      "inlineEndGap": 12,
+      "accessibleName": "CUBI AI Assistant",
+      "horizontalOverflow": 0,
+      "coverTargets": [
+        {
+          "name": "language",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "primary CTA",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "sign in",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "get started",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 0",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 1",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 2",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 3",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 4",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 5",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 6",
+          "present": true,
+          "overlaps": false
+        }
+      ]
+    },
+    {
+      "name": "tablet 820px assistant entry is pinned and overlaps no control",
+      "at": "2026-11-14T22:29:35.086Z",
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "compactMode": false,
+      "compactMediaMatches": false,
+      "viewportWidth": 820,
+      "layoutWidth": 820,
+      "launcherWidth": 211,
+      "insideViewport": true,
+      "labelHidden": false,
+      "labelWidth": 121,
+      "rootDirection": "ltr",
+      "declaredInlineEndInset": 23,
+      "inlineEndGap": 23,
+      "accessibleName": "CUBI AI Assistant",
+      "horizontalOverflow": 0,
+      "coverTargets": [
+        {
+          "name": "language",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "primary CTA",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "sign in",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "get started",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 0",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 1",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 2",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 3",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 4",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 5",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 6",
+          "present": true,
+          "overlaps": false
+        }
+      ]
+    },
+    {
+      "name": "desktop 1440px assistant entry is pinned and overlaps no control",
+      "at": "2026-11-14T22:29:35.321Z",
+      "documentLang": "en",
+      "documentDir": "ltr",
+      "compactMode": false,
+      "compactMediaMatches": false,
+      "viewportWidth": 1440,
+      "layoutWidth": 1440,
+      "launcherWidth": 211,
+      "insideViewport": true,
+      "labelHidden": false,
+      "labelWidth": 121,
+      "rootDirection": "ltr",
+      "declaredInlineEndInset": 32,
+      "inlineEndGap": 32,
+      "accessibleName": "CUBI AI Assistant",
+      "horizontalOverflow": 0,
+      "coverTargets": [
+        {
+          "name": "language",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "primary CTA",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "sign in",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "get started",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 0",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 1",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 2",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 3",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 4",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 5",
+          "present": true,
+          "overlaps": false
+        },
+        {
+          "name": "nav link 6",
+          "present": true,
+          "overlaps": false
+        }
+      ]
+    },
+    {
+      "name": "assistant panel fits the mobile viewport with a reachable close control",
+      "at": "2026-11-14T22:29:35.544Z",
+      "opened": true,
+      "insideViewport": true,
+      "panelWidth": 366,
+      "closeReachable": true
+    },
+    {
+      "name": "Persian RTL assistant entry mirrors, translates and stays operable",
+      "at": "2026-11-14T22:29:35.930Z",
+      "documentDir": "rtl",
+      "documentLang": "fa",
+      "launcherDir": "rtl",
+      "rootDirection": "rtl",
+      "declaredInlineEndInset": 32,
+      "inlineEndGap": 32,
+      "leftGap": 32,
+      "rightGap": 1188,
+      "pinnedToInlineEnd": true,
+      "insideViewport": true,
+      "panelInsideViewport": true,
+      "persianTitle": "دستیار هوشمند کوبی",
+      "persianAction": "ورود به فضای کاری پروژه ←",
+      "workspacePath": "/app/",
+      "panelClosesOnEscape": true
+    },
+    {
+      "name": "header language switch navigates from /fa/ to the English route",
+      "at": "2026-11-14T22:29:36.060Z",
+      "pathname": "/",
+      "lang": "en",
+      "dir": "ltr",
+      "assistantLabel": "CUBI AI Assistant",
+      "savedLocale": "en"
+    },
+    {
+      "name": "first-visit project deep link opens the canonical authenticated workspace",
+      "at": "2026-11-14T22:29:37.318Z",
+      "pathname": "/app",
+      "view": "live",
+      "requested_project": "preview-rps-01",
+      "project_found_in_session_list": true,
+      "project_name": "Riverside Pump Station Upgrade",
+      "visual_demo_visible": false,
+      "live_grid_visible": true,
+      "activity_rows": 14,
+      "gantt_rows": 14,
+      "wbs_bands": 7,
+      "session_authenticated": true
+    },
+    {
+      "name": "legacy visual URL is canonicalized without mounting another shell",
+      "at": "2026-11-14T22:29:37.801Z",
+      "view": "live",
+      "visualDemo": false,
+      "liveGrid": true
+    },
+    {
+      "name": "authenticated workspace language preference persists across refresh",
+      "at": "2026-11-14T22:29:38.247Z",
+      "lang": "fa",
+      "dir": "rtl",
+      "selected": "fa"
+    },
+    {
+      "name": "authenticated workspace sign out revokes the session and returns home",
+      "at": "2026-11-14T22:29:38.795Z",
+      "pathname": "/",
+      "session_status": 401
+    },
+    {
+      "name": "demo login exposes fixture-only personas including a real first-run account",
+      "at": "2026-11-14T22:29:39.143Z",
+      "personas": 4
+    },
+    {
+      "name": "planner session lists the two persisted fixture projects",
+      "at": "2026-11-14T22:29:39.534Z",
+      "projects": [
+        {
+          "id": "preview-rps-01",
+          "name": "Riverside Pump Station UpgradeR7"
+        },
+        {
+          "id": "preview-nse-02",
+          "name": "نوسازی سامانه شرقیR2"
+        }
+      ]
+    },
+    {
+      "name": "workspace language switch keeps the first step and persists the choice",
+      "at": "2026-11-14T22:29:39.546Z",
+      "before": {
+        "lang": "en",
+        "dir": "ltr",
+        "next": "en",
+        "options": 2
+      },
+      "persian": {
+        "lang": "fa",
+        "dir": "rtl",
+        "options": 2,
+        "stored": "fa"
+      },
+      "after": {
+        "lang": "en",
+        "dir": "ltr",
+        "options": 2,
+        "stored": "en"
+      }
+    },
+    {
+      "name": "the workspace route keeps one assistant entry instead of mounting the public floating launcher",
+      "at": "2026-11-14T22:29:39.547Z",
+      "floatingLauncher": 0,
+      "floatingPanel": 0,
+      "chatPanelsBeforeProject": 0
+    },
+    {
+      "name": "authenticated workspace renders loaded chat and action-panel assistant avatars",
+      "at": "2026-11-14T22:29:40.156Z",
+      "avatars": [
+        {
+          "src": "http://127.0.0.1:38035/cubi-assistant-avatar.svg",
+          "loaded": true
+        },
+        {
+          "src": "http://127.0.0.1:38035/cubi-assistant-avatar.svg",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "name": "workspace assistant rail command toggles the single real chat panel",
+      "at": "2026-11-14T22:29:41.064Z",
+      "found": true,
+      "floatingLauncher": 0,
+      "floatingPanel": 0,
+      "chatSingle": 1,
+      "startedClosed": true,
+      "opened": true,
+      "closed": true,
+      "actionLabel": "CUBI Assistant"
+    },
+    {
+      "name": "single desktop chrome sequence and promoted layout commands work",
+      "at": "2026-11-14T22:29:41.161Z",
+      "order": [
+        "titlebar",
+        "menu",
+        "toolbar",
+        "other",
+        "tabs"
+      ],
+      "menuCount": 1,
+      "toolbarCount": 1,
+      "tabsCount": 1,
+      "groupedToolbarCount": 0,
+      "layoutbarCount": 0,
+      "barsButton": true,
+      "fontRowButton": true,
+      "commandStripCount": 0
+    },
+    {
+      "name": "real workspace renders persisted rows, columns and Gantt facts",
+      "at": "2026-11-14T22:29:41.279Z",
+      "menu_count": 21,
+      "visible_columns": [
+        "Activity ID",
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete",
+        "Start",
+        "Finish",
+        "Total Float"
+      ],
+      "grid_rows": 14,
+      "gantt_rows": 14,
+      "critical_bars": 7,
+      "schedule_submenus": 13
+    },
+    {
+      "name": "grid and Gantt share real activity selection",
+      "at": "2026-11-14T22:29:41.448Z",
+      "activity": "A130"
+    },
+    {
+      "name": "Jalali/Gregorian display toggles without changing stored schedule dates",
+      "at": "2026-11-14T22:29:41.668Z",
+      "stored_iso": "2026-10-07",
+      "jalali": "۱۴۰۵/۰۷/۱۵"
+    },
+    {
+      "name": "menus and submenus expose their real implementation status",
+      "at": "2026-11-14T22:29:41.956Z",
+      "surfaces": [
+        "Project",
+        "Resources",
+        "Control",
+        "Schedule"
+      ]
+    },
+    {
+      "name": "effective-dated capacity is edited, closed append-only and resolved by the server",
+      "at": "2026-11-14T22:29:42.675Z",
+      "initial_segments": [
+        "8",
+        "12"
+      ],
+      "changed_segments": [
+        "8",
+        "12",
+        "10"
+      ],
+      "resolved_week": "50"
+    },
+    {
+      "name": "Details and table/Gantt panes respond to mouse resizing and persist local layout preferences",
+      "at": "2026-11-14T22:29:44.460Z",
+      "missing": false,
+      "details": "75.56%",
+      "table": "55.47%",
+      "keys": [
+        "cubi:workspace:split:cubi-preview-tenant:preview-rps-01:schedule:table-gantt",
+        "cubi:workspace:split:cubi-preview-tenant:preview-rps-01:schedule:details"
+      ],
+      "storage": [
+        [
+          "cubi:workspace:split:cubi-preview-tenant:preview-rps-01:schedule:table-gantt",
+          "55.47"
+        ],
+        [
+          "cubi:workspace:split:cubi-preview-tenant:preview-rps-01:schedule:details",
+          "75.56"
+        ]
+      ],
+      "activeWindow": "schedule"
+    },
+    {
+      "name": "column hide/remove/add/reorder/width/pin/freeze are persisted by the layout API",
+      "at": "2026-11-14T22:29:45.263Z",
+      "hidden_field": "activity.id",
+      "added_field": "activity.status",
+      "order_after_move": [
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete",
+        "Start",
+        "Finish",
+        "Status",
+        "Total Float"
+      ],
+      "width_before": 120,
+      "width_after": 140
+    },
+    {
+      "name": "layout survives a full reload through the real API and SQLite",
+      "at": "2026-11-14T22:29:45.899Z",
+      "order": [
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete",
+        "Start",
+        "Finish",
+        "Status",
+        "Total Float"
+      ],
+      "width": 170,
+      "pinned": "true",
+      "frozen": "true"
+    },
+    {
+      "name": "workspace and icon-directory geometry verified at 1280x720",
+      "at": "2026-11-14T22:29:46.124Z",
+      "body": {
+        "left": 48,
+        "right": 1240,
+        "top": 124,
+        "bottom": 664,
+        "width": 1192,
+        "height": 540
+      },
+      "main": {
+        "left": 48,
+        "right": 1240,
+        "top": 124,
+        "bottom": 664,
+        "width": 1192,
+        "height": 540
+      },
+      "details": {
+        "left": 48,
+        "right": 1240,
+        "top": 532.015625,
+        "bottom": 538.015625,
+        "width": 1192,
+        "height": 6
+      },
+      "table": {
+        "left": 709.1875,
+        "right": 713.1875,
+        "top": 156.9375,
+        "bottom": 532.015625,
+        "width": 4,
+        "height": 375.078125
+      },
+      "assistantLauncher": {
+        "left": 1243.5,
+        "right": 1277.5,
+        "top": 626,
+        "bottom": 660,
+        "width": 34,
+        "height": 34
+      },
+      "assistantRail": {
+        "left": 1240,
+        "right": 1280,
+        "top": 124,
+        "bottom": 664,
+        "width": 40,
+        "height": 540
+      },
+      "assistantInsideRail": true,
+      "assistantOutsideWorkspace": true,
+      "mainFits": true,
+      "detailsFits": true,
+      "tableFits": true,
+      "detailsReceivesPointer": true,
+      "tableReceivesPointer": true,
+      "navigation": {
+        "available": true,
+        "initialWidth": 48,
+        "focusWidth": 48,
+        "finalWidth": 48,
+        "flyoutOpened": true,
+        "flyoutMenus": 21,
+        "flyoutClosed": true,
+        "ariaExpandedAfterOpen": "true",
+        "ariaExpandedAfterClose": "false",
+        "bodyStable": true
+      }
+    },
+    {
+      "name": "workspace and icon-directory geometry verified at 1366x768",
+      "at": "2026-11-14T22:29:46.332Z",
+      "body": {
+        "left": 48,
+        "right": 1326,
+        "top": 139,
+        "bottom": 708,
+        "width": 1278,
+        "height": 569
+      },
+      "main": {
+        "left": 48,
+        "right": 1326,
+        "top": 139,
+        "bottom": 708,
+        "width": 1278,
+        "height": 569
+      },
+      "details": {
+        "left": 48,
+        "right": 1326,
+        "top": 568.921875,
+        "bottom": 574.921875,
+        "width": 1278,
+        "height": 6
+      },
+      "table": {
+        "left": 756.90625,
+        "right": 760.90625,
+        "top": 171.9375,
+        "bottom": 568.921875,
+        "width": 4,
+        "height": 396.984375
+      },
+      "assistantLauncher": {
+        "left": 1329.5,
+        "right": 1363.5,
+        "top": 670,
+        "bottom": 704,
+        "width": 34,
+        "height": 34
+      },
+      "assistantRail": {
+        "left": 1326,
+        "right": 1366,
+        "top": 139,
+        "bottom": 708,
+        "width": 40,
+        "height": 569
+      },
+      "assistantInsideRail": true,
+      "assistantOutsideWorkspace": true,
+      "mainFits": true,
+      "detailsFits": true,
+      "tableFits": true,
+      "detailsReceivesPointer": true,
+      "tableReceivesPointer": true,
+      "navigation": {
+        "available": true,
+        "initialWidth": 48,
+        "focusWidth": 48,
+        "finalWidth": 48,
+        "flyoutOpened": true,
+        "flyoutMenus": 21,
+        "flyoutClosed": true,
+        "ariaExpandedAfterOpen": "true",
+        "ariaExpandedAfterClose": "false",
+        "bodyStable": true
+      }
+    },
+    {
+      "name": "workspace and icon-directory geometry verified at 1920x1080",
+      "at": "2026-11-14T22:29:46.529Z",
+      "body": {
+        "left": 48,
+        "right": 1880,
+        "top": 139,
+        "bottom": 1020,
+        "width": 1832,
+        "height": 881
+      },
+      "main": {
+        "left": 48,
+        "right": 1880,
+        "top": 139,
+        "bottom": 1020,
+        "width": 1832,
+        "height": 881
+      },
+      "details": {
+        "left": 48,
+        "right": 1880,
+        "top": 804.671875,
+        "bottom": 810.671875,
+        "width": 1832,
+        "height": 6
+      },
+      "table": {
+        "left": 1064.203125,
+        "right": 1068.203125,
+        "top": 171.9375,
+        "bottom": 804.671875,
+        "width": 4,
+        "height": 632.734375
+      },
+      "assistantLauncher": {
+        "left": 1883.5,
+        "right": 1917.5,
+        "top": 982,
+        "bottom": 1016,
+        "width": 34,
+        "height": 34
+      },
+      "assistantRail": {
+        "left": 1880,
+        "right": 1920,
+        "top": 139,
+        "bottom": 1020,
+        "width": 40,
+        "height": 881
+      },
+      "assistantInsideRail": true,
+      "assistantOutsideWorkspace": true,
+      "mainFits": true,
+      "detailsFits": true,
+      "tableFits": true,
+      "detailsReceivesPointer": true,
+      "tableReceivesPointer": true,
+      "navigation": {
+        "available": true,
+        "initialWidth": 48,
+        "focusWidth": 48,
+        "finalWidth": 48,
+        "flyoutOpened": true,
+        "flyoutMenus": 21,
+        "flyoutClosed": true,
+        "ariaExpandedAfterOpen": "true",
+        "ariaExpandedAfterClose": "false",
+        "bodyStable": true
+      }
+    },
+    {
+      "name": "layout undo/redo appends revisions and preserves prior history",
+      "at": "2026-11-14T22:29:47.277Z",
+      "revision_before_undo": 9,
+      "revision_after_undo": 11,
+      "revision_after_redo": 12,
+      "history_revisions": [
+        12,
+        11,
+        10,
+        9,
+        8
+      ],
+      "restored_field": "activity.status"
+    },
+    {
+      "name": "layout restore reapplies a selected older revision as a new revision",
+      "at": "2026-11-14T22:29:47.613Z",
+      "restored_from_revision": 11,
+      "revision_after_restore": 13,
+      "history_revisions": [
+        13,
+        12,
+        11,
+        10,
+        9,
+        8
+      ],
+      "restored_field": "activity.status"
+    },
+    {
+      "name": "stale layout write fails closed, reloads the head and keeps the competing revision",
+      "at": "2026-11-14T22:29:48.012Z",
+      "stale_base_revision": 13,
+      "authoritative_head": 14,
+      "localized_conflict_shown": true,
+      "competing_width": 333
+    },
+    {
+      "name": "stale layout write behind a revision gap reloads the newest head and appends nothing",
+      "at": "2026-11-14T22:29:48.528Z",
+      "stale_base_revision": 15,
+      "authoritative_head": 17,
+      "localized_conflict_shown": true
+    },
+    {
+      "name": "layout undo remains durable across a full reload",
+      "at": "2026-11-14T22:29:49.652Z",
+      "revision_before": 18,
+      "revision_after": 19,
+      "restored_field": "activity.status"
+    },
+    {
+      "name": "temporary visible column changes restored to the fixture baseline",
+      "at": "2026-11-14T22:29:49.992Z",
+      "removed": "activity.status",
+      "restored": "activity.id",
+      "note": "the removed field stays addable in the demo field registry"
+    },
+    {
+      "name": "filter and numeric sort operate on persisted activity facts",
+      "at": "2026-11-14T22:29:52.124Z",
+      "civil_rows": [
+        "A120",
+        "A130",
+        "A140",
+        "A145",
+        "A160"
+      ],
+      "multi_token_row": "A120",
+      "no_match_empty_state": true,
+      "float_ascending": [
+        {
+          "id": "A130",
+          "value": 0
+        },
+        {
+          "id": "A150",
+          "value": 0
+        },
+        {
+          "id": "A160",
+          "value": 0
+        },
+        {
+          "id": "A180",
+          "value": 0
+        },
+        {
+          "id": "A190",
+          "value": 0
+        },
+        {
+          "id": "A200",
+          "value": 0
+        },
+        {
+          "id": "A210",
+          "value": 0
+        },
+        {
+          "id": "A140",
+          "value": 2
+        },
+        {
+          "id": "A120",
+          "value": 7
+        },
+        {
+          "id": "A110",
+          "value": 10
+        },
+        {
+          "id": "A100",
+          "value": 12
+        },
+        {
+          "id": "A145",
+          "value": 12
+        },
+        {
+          "id": "A155",
+          "value": 12
+        },
+        {
+          "id": "A170",
+          "value": 22
+        }
+      ],
+      "float_descending": [
+        22,
+        12,
+        12,
+        12,
+        10,
+        7,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "typed Jalali date entry converts to the canonical stored date and fails closed",
+      "at": "2026-11-14T22:29:52.855Z",
+      "rendered_jalali": "1405/06/30",
+      "invalid_input_error": "INVALID_PROJECT_START",
+      "persisted_iso": "2026-09-21",
+      "restored_system": "gregorian"
+    },
+    {
+      "name": "project settings and calendar persist through the real settings API",
+      "at": "2026-11-14T22:29:52.856Z",
+      "initial_revision": 1,
+      "saved_revision": 3,
+      "calendar": "Riverside Mon-Fri (Gregorian) — CUBI-RPS-CAL @ 1 (working-day)"
+    },
+    {
+      "name": "typed schedule options persist and bind to the next snapshot hash",
+      "at": "2026-11-14T22:29:53.836Z",
+      "baseline_hash": "658c9d34de722a20c62b3b341fea018454258756863a9efd40b311febbd74a86",
+      "changed_hash": "1e772e8548a896464fd8707d07e5d8a493008d2472e4e3aed2d6448a1734110b",
+      "saved_revision": 4
+    },
+    {
+      "name": "snapshot publication and Shared Core schedule query return real results",
+      "at": "2026-11-14T22:29:54.334Z",
+      "row_count": 14,
+      "hash": "38b3de294887a657d66823dd40e647dfa8bc33e39d4b4d6bc3293da8c27800d1",
+      "a130_start": "2026-10-07",
+      "a130_finish": "2026-10-13"
+    },
+    {
+      "name": "formula editor validates expressions through the Shared Core authority",
+      "at": "2026-11-14T22:29:54.992Z",
+      "valid": true,
+      "error_code": "FORMULA_SELF_REFERENCE",
+      "invalid_shows_type": false,
+      "unsupported_code": "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration",
+      "unsupported_shows_type": false
+    },
+    {
+      "name": "provider XML interchange round-trip uses persisted mappings and the real codec",
+      "at": "2026-11-14T22:29:54.998Z",
+      "format": "PRIMAVERA_XML",
+      "export_status": 200,
+      "import_status": 200,
+      "canonical_values": {
+        "activity.id": "A130",
+        "activity.name": "Earthworks"
+      }
+    },
+    {
+      "name": "project panel exports and re-imports every activity through the server codec",
+      "at": "2026-11-14T22:29:55.784Z",
+      "activity_count": "14 loaded activities",
+      "export_status": "The server generated the export document.",
+      "import_status": "14 rows mapped by the server codec",
+      "invalid_document_row_count": 0
+    },
+    {
+      "name": "typed resource Max Units/Time read resolves effective-dated registered ceilings",
+      "at": "2026-11-14T22:29:55.902Z",
+      "list_status": 200,
+      "profile_status": 200,
+      "segment_count": 3,
+      "first_max_units": "8",
+      "second_max_units": "12",
+      "latest_max_units": "10",
+      "unregistered_status": 404
+    },
+    {
+      "name": "Persian/RTL surface renders persisted project data",
+      "at": "2026-11-14T22:29:56.334Z",
+      "schedule_label": "زمان‌بندی",
+      "filter_placeholder": "شناسه، نام، WBS، وضعیت…"
+    },
+    {
+      "name": "German workspace switches without leaving the workspace",
+      "at": "2026-11-14T22:29:56.618Z",
+      "schedule_label": "Terminplan",
+      "column_header": "Aktivitäts-ID"
+    },
+    {
+      "name": "Chinese workspace switches without leaving the workspace",
+      "at": "2026-11-14T22:29:56.914Z",
+      "schedule_label": "进度计划"
+    },
+    {
+      "name": "language switching preserves project, menu, activity selection and unsaved drafts",
+      "at": "2026-11-14T22:29:57.095Z",
+      "activity": null,
+      "details": "—",
+      "menu": "schedule",
+      "project": "Activities — Riverside Pump Station Upgrade",
+      "unsaved_draft": "DRAFT-LANG"
+    },
+    {
+      "name": "full-screen activates and returns to the identical normal view",
+      "at": "2026-11-14T22:29:57.749Z",
+      "active": "Return to Main View",
+      "returned": "Full Screen",
+      "geometry_unchanged": true
+    },
+    {
+      "name": "assistant opens and closes as an overlay without resizing the workspace",
+      "at": "2026-11-14T22:29:57.877Z",
+      "panel_inside_viewport": true,
+      "geometry_unchanged": true
+    },
+    {
+      "name": "tools drawer floats over the table and Gantt without reflow",
+      "at": "2026-11-14T22:29:58.063Z",
+      "main": "{\"x\":48,\"y\":139,\"width\":1352,\"height\":701,\"top\":139,\"right\":1400,\"bottom\":840,\"left\":48}",
+      "grid": "{\"x\":48,\"y\":171.9375,\"width\":749.953125,\"height\":496.734375,\"top\":171.9375,\"right\":797.953125,\"bottom\":668.671875,\"left\":48}",
+      "insideViewport": true,
+      "position": "absolute"
+    },
+    {
+      "name": "activity details bind real selected facts without leaking between rows",
+      "at": "2026-11-14T22:29:58.612Z",
+      "first": "A100",
+      "second": "A110",
+      "status_fields": {
+        "percent_complete": "100",
+        "actual_start": "2026-09-22",
+        "actual_finish": "2026-09-24"
+      }
+    },
+    {
+      "name": "Home asks about unsaved input and returns to the public Home page",
+      "at": "2026-11-14T22:29:59.172Z",
+      "path": "/app",
+      "confirms": 1
+    },
+    {
+      "name": "mobile portrait guidance and landscape workspace geometry verified",
+      "at": "2026-11-14T22:30:00.706Z",
+      "portrait_title": "Rotate your device",
+      "landscape_main_width": 770,
+      "landscape_grid_width": 427
+    },
+    {
+      "name": "compact 1024px desktop layout keeps navigation usable",
+      "at": "2026-11-14T22:30:01.785Z",
+      "innerWidth": 1024,
+      "scrollWidth": 1024,
+      "menuWidth": 48,
+      "menuButtons": [
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "Baseline management is not available in this workspace yet",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "Report generation is not available in this workspace yet",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        },
+        {
+          "label": "Requires the project administrator role",
+          "left": 3,
+          "right": 44,
+          "width": 41
+        }
+      ]
+    },
+    {
+      "name": "effective-dated capacity survives a full reload and still resolves on the server",
+      "at": "2026-11-14T22:30:02.857Z",
+      "segments": [
+        "8",
+        "12",
+        "10"
+      ]
+    },
+    {
+      "name": "saved settings, calendar and layout survive a full reload",
+      "at": "2026-11-14T22:30:03.073Z",
+      "revision": 5,
+      "calendar": "Riverside Mon-Fri (Gregorian) — CUBI-RPS-CAL @ 1 (working-day)",
+      "project_start": "2026-09-21"
+    },
+    {
+      "name": "failed workspace keeps the real error reference and retry control without a duplicate assistant",
+      "at": "2026-11-14T22:30:03.175Z",
+      "referenceCode": "NETWORK_ERROR",
+      "pageText": "CUBIEnglishفارسیDeutsch中文العربيةFrançais日本語한국어РусскийThe workspace could not openThe server could not be reached. Check your connection and try again.Reference: NETWORK_ERRORRetry",
+      "floatingLauncher": 0,
+      "floatingPanel": 0,
+      "guides": 0,
+      "retryControl": true
+    },
+    {
+      "name": "session logout and /app guard work in the browser",
+      "at": "2026-11-14T22:30:03.644Z",
+      "path": "/preview/login"
+    },
+    {
+      "name": "viewer can read capacity but the effective change is explicitly denied",
+      "at": "2026-11-14T22:30:05.191Z",
+      "capacity_error": "Capacity operation failed\n    The server denied this operation for the current role.\n    AUTHORIZATION_PERMISSION_DENIED"
+    },
+    {
+      "name": "viewer can read interchange but the import write is explicitly denied",
+      "at": "2026-11-14T22:30:05.191Z",
+      "export_status": "The server generated the export document.",
+      "import_error": "Import / export failed\n    The server denied this operation for the current role.\n    AUTHORIZATION_PERMISSION_DENIED",
+      "import_rows": 0
+    },
+    {
+      "name": "viewer role is read-only and sees an explicit failed-calculation error",
+      "at": "2026-11-14T22:30:05.696Z",
+      "run_status": "Schedule calculation did not complete. (AUTHORIZATION_PERMISSION_DENIED)",
+      "layout_write_status": 403,
+      "snapshot_write_status": 403,
+      "result_rows": 0
+    },
+    {
+      "name": "E2E project 1794695405966",
+      "at": "2026-11-14T22:30:06.314Z",
+      "rows": 0,
+      "columns": 8
+    },
+    {
+      "name": "WBS parent/child writes, activity link, zero-activity node and fail-closed rules are persisted",
+      "at": "2026-11-14T22:30:06.465Z",
+      "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+      "wbs_nodes": 4,
+      "activities": 1,
+      "sqlite": true,
+      "rejections": {
+        "duplicate_code": "WBS_SIBLING_CODE_CONFLICT",
+        "wbs_edit_status": 200,
+        "stale_wbs_edit": "REVISION_CONFLICT",
+        "activity_without_wbs": "WBS_REQUIRED",
+        "foreign_wbs": "WBS_NOT_FOUND_OR_SCOPE_MISMATCH",
+        "cross_project_parent": "WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH",
+        "cross_tenant": "CROSS_SCOPE_ACCESS",
+        "stale_revision": "STALE_WORKSPACE_READ_SCOPE",
+        "unknown_project": 403
+      }
+    },
+    {
+      "name": "full browser reload renders the persisted WBS tree and linked activity from the v2 read",
+      "at": "2026-11-14T22:30:06.885Z",
+      "wbs_nodes": 4,
+      "activity_rows": 1,
+      "columns": 8
+    },
+    {
+      "name": "workspace activity edit persists and refreshes the activity grid",
+      "at": "2026-11-14T22:30:07.138Z",
+      "rowText": "NEW-100E2E linked activity revised2——————Edit activity",
+      "editForm": false
+    },
+    {
+      "name": "FS and SS logic with a working-day lag persist and invalid networks are rejected",
+      "at": "2026-11-14T22:30:07.231Z",
+      "relationships": [
+        "E2E-REL-FS",
+        "E2E-REL-SS"
+      ],
+      "activities": 4,
+      "rejected": {
+        "cycle": 400,
+        "duplicate": 400,
+        "orphan_endpoint": 400
+      }
+    },
+    {
+      "name": "browser logic panel and predecessors column match the persisted relationship model",
+      "at": "2026-11-14T22:30:07.811Z",
+      "rows": 4,
+      "relationships": 2,
+      "created_from_form": true
+    },
+    {
+      "name": "authoritative CPM output drives the result table and Gantt for FS/SS logic",
+      "at": "2026-11-14T22:30:08.332Z",
+      "rows": 4,
+      "first_hash": "1a371dbe38e5",
+      "second_hash": "c592988df72c"
+    },
+    {
+      "name": "Gantt draws persisted FS/SS arrows, a dated axis and day/week/month scales",
+      "at": "2026-11-14T22:30:08.587Z",
+      "links": "FS,SS",
+      "day_ticks": 9,
+      "week_ticks": 2,
+      "month_ticks": 1
+    },
+    {
+      "name": "a persisted calendar holiday changes authoritative CPM dates and survives a panel remount",
+      "at": "2026-11-14T22:30:09.219Z",
+      "date": "2026-11-20",
+      "new200_before": "2026-11-20",
+      "new200_after": "2026-11-23"
+    },
+    {
+      "name": "project settings edit is revision-guarded and refuses stale overwrites",
+      "at": "2026-11-14T22:30:09.815Z",
+      "saved_revision": "Revision R0",
+      "stale_state": "conflict",
+      "final_revision": "Revision R0"
+    },
+    {
+      "name": "assistant proposes without writing, then approval and execution persist a WBS-bound activity",
+      "at": "2026-11-14T22:30:10.576Z",
+      "proposal_id": "e699614f-ebde-4d85-b0d6-c23d8b1b6562",
+      "rows_after_execution": 5,
+      "scheduled_rows": 5,
+      "wbs_id": "E2E-WBS-DESIGN"
+    },
+    {
+      "name": "new project assistant opens in Persian with no fabricated activity content",
+      "at": "2026-11-14T22:30:11.213Z",
+      "lang": "fa",
+      "activityRows": 0,
+      "gridPresent": true,
+      "found": true,
+      "open": true,
+      "direction": "rtl",
+      "messages": 0,
+      "hasForm": true,
+      "description": "پرسش کنترل پروژه را مطرح کنید یا تغییر پشتیبانی‌شده‌ای بخواهید. اقدامات فقط به‌صورت پیشنهاد آماده می‌شوند و بدون تأیید صریح شما اجرا نخواهند شد."
+    },
+    {
+      "name": "control surface opens the assistant without a fabricated summary action",
+      "at": "2026-11-14T22:30:11.269Z",
+      "found": true,
+      "open": true,
+      "direction": "rtl",
+      "messages": 0,
+      "hasForm": true,
+      "description": "پرسش کنترل پروژه را مطرح کنید یا تغییر پشتیبانی‌شده‌ای بخواهید. اقدامات فقط به‌صورت پیشنهاد آماده می‌شوند و بدون تأیید صریح شما اجرا نخواهند شد.",
+      "summaryPresent": false,
+      "guideActionPresent": false
+    },
+    {
+      "name": "assistant remains the single workspace entry after reload without fabricated content",
+      "at": "2026-11-14T22:30:11.641Z",
+      "found": true,
+      "open": true,
+      "direction": "rtl",
+      "messages": 0,
+      "hasForm": true,
+      "description": "پرسش کنترل پروژه را مطرح کنید یا تغییر پشتیبانی‌شده‌ای بخواهید. اقدامات فقط به‌صورت پیشنهاد آماده می‌شوند و بدون تأیید صریح شما اجرا نخواهند شد."
+    },
+    {
+      "name": "a user without projects creates the first real project, and language, project and menu survive reload",
+      "at": "2026-11-14T22:30:11.740Z",
+      "project_id": "پروژه نخست 1794695410763",
+      "language": "fa",
+      "menu": "control",
+      "persisted_projects": 1
+    },
+    {
+      "name": "service restart keeps the WBS tree and activity readable from the same SQLite source",
+      "at": "2026-11-14T22:30:13.469Z",
+      "database": "/tmp/cubi-preview-e2e-ZoGB26/preview-e2e.sqlite3",
+      "base_url": "http://127.0.0.1:38985",
+      "wbs_nodes": 4,
+      "activities": 5
+    },
+    {
+      "name": "no uncaught browser exceptions or API 5xx responses",
+      "at": "2026-11-14T22:30:13.469Z",
+      "console_error_count": 2
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-homepage-assistant-avatar.png",
+      "file": "01-homepage-assistant-avatar.png"
+    },
+    {
+      "name": "02a-mobile-assistant-launcher.png",
+      "file": "02a-mobile-assistant-launcher.png"
+    },
+    {
+      "name": "02a2-tablet-assistant-launcher.png",
+      "file": "02a2-tablet-assistant-launcher.png"
+    },
+    {
+      "name": "02a3-desktop-assistant-launcher.png",
+      "file": "02a3-desktop-assistant-launcher.png"
+    },
+    {
+      "name": "02b-mobile-assistant-panel.png",
+      "file": "02b-mobile-assistant-panel.png"
+    },
+    {
+      "name": "02c-persian-rtl-assistant.png",
+      "file": "02c-persian-rtl-assistant.png"
+    },
+    {
+      "name": "01-login.png",
+      "file": "01-login.png"
+    },
+    {
+      "name": "02-project-selection.png",
+      "file": "02-project-selection.png"
+    },
+    {
+      "name": "03-workspace-assistant-panel.png",
+      "file": "03-workspace-assistant-panel.png"
+    },
+    {
+      "name": "03-workspace-desktop.png",
+      "file": "03-workspace-desktop.png"
+    },
+    {
+      "name": "08-capacity-effective-change.png",
+      "file": "08-capacity-effective-change.png"
+    },
+    {
+      "name": "04f-resizable-pane-layout.png",
+      "file": "04f-resizable-pane-layout.png"
+    },
+    {
+      "name": "04-column-operations.png",
+      "file": "04-column-operations.png"
+    },
+    {
+      "name": "05-workspace-1280x720.png",
+      "file": "05-workspace-1280x720.png"
+    },
+    {
+      "name": "05-workspace-1366x768.png",
+      "file": "05-workspace-1366x768.png"
+    },
+    {
+      "name": "05-workspace-1920x1080.png",
+      "file": "05-workspace-1920x1080.png"
+    },
+    {
+      "name": "04b-layout-undo-redo.png",
+      "file": "04b-layout-undo-redo.png"
+    },
+    {
+      "name": "04c-layout-restore.png",
+      "file": "04c-layout-restore.png"
+    },
+    {
+      "name": "04d-layout-conflict.png",
+      "file": "04d-layout-conflict.png"
+    },
+    {
+      "name": "04e-layout-conflict-gap.png",
+      "file": "04e-layout-conflict-gap.png"
+    },
+    {
+      "name": "05-filter-sort.png",
+      "file": "05-filter-sort.png"
+    },
+    {
+      "name": "06-settings-calendar.png",
+      "file": "06-settings-calendar.png"
+    },
+    {
+      "name": "06b-schedule-options.png",
+      "file": "06b-schedule-options.png"
+    },
+    {
+      "name": "07-schedule-results.png",
+      "file": "07-schedule-results.png"
+    },
+    {
+      "name": "07b-formula-valid.png",
+      "file": "07b-formula-valid.png"
+    },
+    {
+      "name": "07c-formula-invalid.png",
+      "file": "07c-formula-invalid.png"
+    },
+    {
+      "name": "07d-interchange-export.png",
+      "file": "07d-interchange-export.png"
+    },
+    {
+      "name": "07e-interchange-import.png",
+      "file": "07e-interchange-import.png"
+    },
+    {
+      "name": "07f-interchange-invalid.png",
+      "file": "07f-interchange-invalid.png"
+    },
+    {
+      "name": "08-persian-rtl.png",
+      "file": "08-persian-rtl.png"
+    },
+    {
+      "name": "08b-german-ltr.png",
+      "file": "08b-german-ltr.png"
+    },
+    {
+      "name": "08c-chinese-ltr.png",
+      "file": "08c-chinese-ltr.png"
+    },
+    {
+      "name": "09a-fullscreen-return-action.png",
+      "file": "09a-fullscreen-return-action.png"
+    },
+    {
+      "name": "09b-assistant-overlay.png",
+      "file": "09b-assistant-overlay.png"
+    },
+    {
+      "name": "09c-tools-drawer.png",
+      "file": "09c-tools-drawer.png"
+    },
+    {
+      "name": "09d-activity-details.png",
+      "file": "09d-activity-details.png"
+    },
+    {
+      "name": "10-mobile-portrait-guidance.png",
+      "file": "10-mobile-portrait-guidance.png"
+    },
+    {
+      "name": "10b-mobile-landscape.png",
+      "file": "10b-mobile-landscape.png"
+    },
+    {
+      "name": "09-compact-1024.png",
+      "file": "09-compact-1024.png"
+    },
+    {
+      "name": "10a-capacity-persisted.png",
+      "file": "10a-capacity-persisted.png"
+    },
+    {
+      "name": "10-reload-persisted.png",
+      "file": "10-reload-persisted.png"
+    },
+    {
+      "name": "10b-assistant-workspace-error.png",
+      "file": "10b-assistant-workspace-error.png"
+    },
+    {
+      "name": "11a-viewer-interchange.png",
+      "file": "11a-viewer-interchange.png"
+    },
+    {
+      "name": "11b-viewer-capacity.png",
+      "file": "11b-viewer-capacity.png"
+    },
+    {
+      "name": "11-viewer-permission.png",
+      "file": "11-viewer-permission.png"
+    },
+    {
+      "name": "12-admin-project-created.png",
+      "file": "12-admin-project-created.png"
+    },
+    {
+      "name": "12b-admin-wbs-activity-database.png",
+      "file": "12b-admin-wbs-activity-database.png"
+    },
+    {
+      "name": "12c-admin-wbs-activity-reload.png",
+      "file": "12c-admin-wbs-activity-reload.png"
+    },
+    {
+      "name": "12c-admin-assistant-action.png",
+      "file": "12c-admin-assistant-action.png"
+    },
+    {
+      "name": "12a-newcomer-empty-project-assistant.png",
+      "file": "12a-newcomer-empty-project-assistant.png"
+    },
+    {
+      "name": "13-newcomer-first-project.png",
+      "file": "13-newcomer-first-project.png"
+    },
+    {
+      "name": "12d-admin-wbs-activity-restart.png",
+      "file": "12d-admin-wbs-activity-restart.png"
+    }
+  ],
+  "exceptions": [],
+  "console_errors": [
+    {
+      "at": "2026-11-14T22:29:47.628Z",
+      "text": "P6 layout save failed Error: IMMUTABLE_LAYOUT_REVISION\n    at unwrap (http://127.0.0.1:38035/dist/main.bundle.js:2939:25)\n    at Object.save (http://127.0.0.1:38035/dist/main.bundle.js:3003:28)\n    at async Object.save (http://127.0.0.1:38035/dist/main.bundle.js:2926:27)\n    at async commitLayout (http://127.0.0.1:38035/dist/main.bundle.js:48385:21)"
+    },
+    {
+      "at": "2026-11-14T22:29:48.206Z",
+      "text": "P6 layout save failed Error: REVISION_CONFLICT\n    at unwrap (http://127.0.0.1:38035/dist/main.bundle.js:2939:25)\n    at Object.save (http://127.0.0.1:38035/dist/main.bundle.js:3003:28)\n    at async Object.save (http://127.0.0.1:38035/dist/main.bundle.js:2926:27)\n    at async commitLayout (http://127.0.0.1:38035/dist/main.bundle.js:48385:21)"
+    }
+  ],
+  "api_failures": [],
+  "persistence": {
+    "layout": {
+      "hidden_field": "activity.id",
+      "hidden_label": "Activity ID",
+      "added_field": "activity.status",
+      "added_label": "Status",
+      "order": [
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete",
+        "Start",
+        "Finish",
+        "Status",
+        "Total Float"
+      ],
+      "width": 170,
+      "pinned": "true",
+      "frozen": "true",
+      "reload_verified": true
+    },
+    "settings": {
+      "initial_revision": 1,
+      "saved_revision": 3,
+      "calendar": "Riverside Mon-Fri (Gregorian) — CUBI-RPS-CAL @ 1 (working-day)",
+      "project_start": "2026-09-21",
+      "calendar_system": "gregorian"
+    },
+    "capacity": {
+      "segments": [
+        "8",
+        "12",
+        "10"
+      ],
+      "resolved_week": "50",
+      "reload_verified": true
+    }
+  },
+  "calculation": {
+    "snapshot_meta": "Snapshot: 6fdf5b3b-e4f1-4528-b846-631a7fdfdc35Content hash: 38b3de294887a657d66823dd40e647dfa8bc33e39d4b4d6bc3293da8c27800d1Project finish: 2026-11-30Activity count: 14",
+    "snapshot_hash": "38b3de294887a657d66823dd40e647dfa8bc33e39d4b4d6bc3293da8c27800d1",
+    "row_count": 14,
+    "a130": [
+      "A130",
+      "2026-10-07",
+      "2026-10-13",
+      "5",
+      "0",
+      "Yes"
+    ],
+    "a100": [
+      "A100",
+      "2026-09-21",
+      "2026-09-21",
+      "0",
+      "9",
+      "No"
+    ],
+    "grid_a130": [
+      "A130",
+      "Earthworks",
+      "8",
+      "5",
+      "37.5",
+      "2026-10-07",
+      "2026-10-13",
+      "0",
+      "A120 FS",
+      "Edit activity"
+    ],
+    "source": "POST snapshot + /api/v1/schedule/query (Shared Domain/Calculation Core)"
+  },
+  "permissions": {
+    "session_roles": [
+      "viewer"
+    ],
+    "layout_read_status": 200,
+    "layout_write": {
+      "status": 403,
+      "body": {
+        "code": "AUTHORIZATION_PERMISSION_DENIED",
+        "retryable": false,
+        "message_key": "error.authorization.denied",
+        "available_actions": []
+      }
+    },
+    "snapshot_write": {
+      "status": 403,
+      "body": {
+        "code": "AUTHORIZATION_PERMISSION_DENIED",
+        "retryable": false,
+        "message_key": "error.authorization.denied",
+        "available_actions": []
+      }
+    },
+    "ai_action_proposal": {
+      "status": 403,
+      "body": {
+        "code": "AUTHORIZATION_PERMISSION_DENIED",
+        "retryable": false,
+        "message_key": "error.authorization.denied",
+        "available_actions": []
+      }
+    },
+    "interchange_export": "The server generated the export document.",
+    "interchange_import_denied": "Import / export failed\n    The server denied this operation for the current role.\n    AUTHORIZATION_PERMISSION_DENIED",
+    "capacity_read_resolved": "50",
+    "capacity_write_denied": "Capacity operation failed\n    The server denied this operation for the current role.\n    AUTHORIZATION_PERMISSION_DENIED"
+  },
+  "calendar_display": {
+    "stored_iso": "2026-10-07",
+    "jalali": "۱۴۰۵/۰۷/۱۵",
+    "restored_iso": "2026-10-07",
+    "source": "persisted workspace cells rendered in Jalali and Gregorian"
+  },
+  "capacity": {
+    "initial_profile": [
+      {
+        "from": "2026-09-21",
+        "to": "2026-10-14",
+        "max_units": "8",
+        "basis": "day",
+        "hours": "8",
+        "source": "preview-fixture:RPS-rev7-capacity-1",
+        "identity": "d32fbef6f7cc05e0f92375d569d088ab8a13193e742f57eec86103879a84f8d2"
+      },
+      {
+        "from": "2026-10-15",
+        "to": "Open-ended",
+        "max_units": "12",
+        "basis": "day",
+        "hours": "8",
+        "source": "preview-fixture:RPS-rev7-capacity-2",
+        "identity": "5c85b259a18d9f6e53bbd55a1c63e6fd61153b657d7ccb2c3ceab6d70cadd12b"
+      }
+    ],
+    "changed_profile": [
+      {
+        "from": "2026-09-21",
+        "to": "2026-10-14",
+        "max_units": "8",
+        "source": "preview-fixture:RPS-rev7-capacity-1"
+      },
+      {
+        "from": "2026-10-15",
+        "to": "2026-10-31",
+        "max_units": "12",
+        "source": "preview-fixture:RPS-rev7-capacity-2"
+      },
+      {
+        "from": "2026-11-01",
+        "to": "Open-ended",
+        "max_units": "10",
+        "source": "manual-entry:preview-planner"
+      }
+    ],
+    "resolved_before_change": "60",
+    "resolved_after_change": "50",
+    "out_of_range_error": "CAPACITY_SEGMENT_NOT_EFFECTIVE",
+    "supersession_reported": "The prior open-ended segment was closed and retained in history. 45542a7052affcdf7b3b7f7d4f2f0398e20b9b15d9df8fd0b8c954b1c684f591"
+  },
+  "jalali_entry": {
+    "rendered_from_iso": "2026-09-21 → 1405/06/30",
+    "invalid_input": "1405/13/01 rejected without persistence",
+    "persisted_iso": "2026-09-21",
+    "persisted_system": "jalali",
+    "restored_system": "gregorian",
+    "source": "schedule settings form over the authoritative settings API"
+  },
+  "schedule_options": {
+    "baseline_hash": "658c9d34de722a20c62b3b341fea018454258756863a9efd40b311febbd74a86",
+    "changed_hash": "1e772e8548a896464fd8707d07e5d8a493008d2472e4e3aed2d6448a1734110b",
+    "saved_revision": 4,
+    "persisted": {
+      "maximum_multiple_float_paths": 3,
+      "min_float_to_preserve": 2,
+      "data_date": "2026-09-28"
+    },
+    "source": "schedule options form -> POST /p6/schedule/settings -> GET -> snapshot publication hash"
+  },
+  "formula": {
+    "registry_version": "p6-field-registry.v1",
+    "valid_expression": "[activity.duration_percent_complete] / 100",
+    "valid_context_field": "activity.total_float",
+    "valid_result": "Valid expression activity.total_float\n    Referenced fields activity.duration_percent_complete\n    Result type double",
+    "invalid_expression": "[activity.duration_percent_complete] + 1",
+    "invalid_context_field": "activity.duration_percent_complete",
+    "invalid_result": "Expression is not valid\n      A formula column cannot reference itself.\n      FORMULA_SELF_REFERENCE",
+    "unsupported_expression": "[activity.planned_duration] * 2",
+    "unsupported_error": "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration",
+    "source": "POST /api/projects/{project}/p6/formulas/{registry_version}"
+  },
+  "interchange": {
+    "format": "PRIMAVERA_XML",
+    "export_status": 200,
+    "import_status": 200,
+    "exported_xml": "<APIBusinessObjects xmlns=\"http://xmlns.oracle.com/Primavera/P6/API/BusinessObjects\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:constructionpm=\"https://constructionpm.example/p6-interchange\"><Activity><Id>A130</Id><Name>Earthworks</Name></Activity></APIBusinessObjects>\n",
+    "imported_row": {
+      "values": {
+        "activity.id": "A130",
+        "activity.name": "Earthworks"
+      },
+      "extensions": {
+        "p6.primavera.xml.object": "Activity"
+      },
+      "warnings": []
+    }
+  },
+  "interchange_ui": {
+    "activity_count": "14 loaded activities",
+    "export_status": "The server generated the export document.",
+    "download_rows": 14,
+    "import_status": "14 rows mapped by the server codec",
+    "first_imported_row": "1\n    activity.id A100activity.name Project kickoffProvider object Activity\n    None",
+    "invalid_document": "Import / export failed\n    The server rejected this document or request.\n    INVALID_XML",
+    "source": "project import/export panel over the authenticated API"
+  },
+  "resource_capacity": {
+    "contract_version": "p6-resource-capacity-read-api.v1",
+    "list_status": 200,
+    "profile_status": 200,
+    "segments": [
+      {
+        "resource_id": "RPS-CIVIL-CREW",
+        "identity": "d32fbef6f7cc05e0f92375d569d088ab8a13193e742f57eec86103879a84f8d2",
+        "max_units": "8",
+        "unit_basis": "day",
+        "hours_per_time_period": "8",
+        "units_per_hour": "1",
+        "effective_from": "2026-09-21",
+        "effective_to": "2026-10-14",
+        "source": "preview-fixture:RPS-rev7-capacity-1"
+      },
+      {
+        "resource_id": "RPS-CIVIL-CREW",
+        "identity": "45542a7052affcdf7b3b7f7d4f2f0398e20b9b15d9df8fd0b8c954b1c684f591",
+        "max_units": "12",
+        "unit_basis": "day",
+        "hours_per_time_period": "8",
+        "units_per_hour": "1.5",
+        "effective_from": "2026-10-15",
+        "effective_to": "2026-10-31",
+        "source": "preview-fixture:RPS-rev7-capacity-2"
+      },
+      {
+        "resource_id": "RPS-CIVIL-CREW",
+        "identity": "6e4f012065f394efbd87023df8a7c37d6582a70fe9a40c3f37f0ea9a7aadaf73",
+        "max_units": "10",
+        "unit_basis": "day",
+        "hours_per_time_period": "8",
+        "units_per_hour": "1.25",
+        "effective_from": "2026-11-01",
+        "effective_to": null,
+        "source": "manual-entry:preview-planner"
+      }
+    ],
+    "missing_status": 404,
+    "missing_code": "RESOURCE_CAPACITY_NOT_REGISTERED",
+    "source": "GET /p6/resource-capacities over persisted typed capacity segments"
+  },
+  "project_creation": {
+    "name": "E2E project 1794695405966",
+    "description": "CUBI E2E persisted scope",
+    "start_date": "2026-10-07",
+    "date_system": "jalali",
+    "revision": "Revision R0",
+    "rows": 0,
+    "columns": 8,
+    "calendar_toggle": "jalali",
+    "source": "Web create-project form -> POST /api/projects (metadata) -> preview initializer -> GET /api/projects"
+  },
+  "wbs_activity": {
+    "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+    "tenant_id": "cubi-preview-tenant",
+    "revision": 0,
+    "root": {
+      "wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+      "local_code": "1",
+      "name": "E2E project 1794695405966",
+      "record_revision": 1
+    },
+    "persisted_api_nodes": [
+      {
+        "wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "parent_wbs_id": null,
+        "parent_kind": "project",
+        "local_code": "1",
+        "name": "E2E project 1794695405966",
+        "sequence_number": 0
+      },
+      {
+        "wbs_id": "E2E-WBS-DESIGN",
+        "parent_wbs_id": "E2E-WBS-SITE",
+        "parent_kind": "wbs",
+        "local_code": "2.1",
+        "name": "Detailed design",
+        "sequence_number": 10
+      },
+      {
+        "wbs_id": "E2E-WBS-SITE",
+        "parent_wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "parent_kind": "wbs",
+        "local_code": "2",
+        "name": "Site works revised",
+        "sequence_number": 10
+      },
+      {
+        "wbs_id": "E2E-WBS-NOACT",
+        "parent_wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "parent_kind": "wbs",
+        "local_code": "3",
+        "name": "No activity package",
+        "sequence_number": 20
+      }
+    ],
+    "persisted_api_activities": [
+      {
+        "id": "NEW-100",
+        "wbs_id": "E2E-WBS-DESIGN",
+        "name": "E2E linked activity",
+        "cells": {
+          "activity.id": "NEW-100",
+          "activity.name": "E2E linked activity",
+          "activity.status": "Not Started",
+          "activity.type": "Task Dependent",
+          "activity.duration_type": "Fixed Duration & Units",
+          "activity.cost_account": "",
+          "activity.status_code": "Planned",
+          "activity.leveling_priority": "Normal",
+          "activity.wbs": "2.1 Detailed design",
+          "activity.activity_id": "NEW-100",
+          "activity.activity_name": "E2E linked activity",
+          "activity.activity_status": "Not Started",
+          "activity.activity_type": "Task Dependent",
+          "duration": "2",
+          "activity.planned_duration": "2"
+        }
+      }
+    ],
+    "columns": [
+      "activity.id",
+      "activity.name",
+      "activity.planned_duration",
+      "activity.remaining_duration",
+      "activity.duration_percent_complete",
+      "activity.early_start",
+      "activity.early_finish",
+      "activity.status",
+      "activity.wbs",
+      "activity.total_float",
+      "activity.is_critical",
+      "activity.type",
+      "activity.leveling_priority",
+      "activity.status_code",
+      "activity.planned_finish",
+      "activity.actual_start",
+      "activity.actual_finish",
+      "activity.late_start",
+      "activity.late_finish",
+      "activity.free_float"
+    ],
+    "sqlite": {
+      "wbs": [
+        {
+          "wbs_id": "E2E-WBS-DESIGN",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "E2E-WBS-SITE",
+          "code": "2.1",
+          "name": "Detailed design"
+        },
+        {
+          "wbs_id": "E2E-WBS-NOACT",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+          "code": "3",
+          "name": "No activity package"
+        },
+        {
+          "wbs_id": "E2E-WBS-SITE",
+          "parent_kind": "wbs",
+          "parent_wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+          "code": "2",
+          "name": "Site works revised"
+        },
+        {
+          "wbs_id": "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+          "parent_kind": "project",
+          "parent_wbs_id": null,
+          "code": "1",
+          "name": "E2E project 1794695405966"
+        }
+      ],
+      "activities": [
+        {
+          "activity_id": "NEW-100",
+          "name": "E2E linked activity",
+          "project_revision": 0
+        }
+      ],
+      "assignments": [
+        {
+          "activity_id": "NEW-100",
+          "wbs_id": "E2E-WBS-DESIGN"
+        }
+      ]
+    },
+    "rejections": {
+      "duplicate_code": "WBS_SIBLING_CODE_CONFLICT",
+      "wbs_edit_status": 200,
+      "stale_wbs_edit": "REVISION_CONFLICT",
+      "activity_without_wbs": "WBS_REQUIRED",
+      "foreign_wbs": "WBS_NOT_FOUND_OR_SCOPE_MISMATCH",
+      "cross_project_parent": "WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH",
+      "cross_tenant": "CROSS_SCOPE_ACCESS",
+      "stale_revision": "STALE_WORKSPACE_READ_SCOPE",
+      "unknown_project": 403
+    },
+    "source": "Web create-project form -> POST /api/projects -> POST /p6/wbs -> POST /p6/activities -> GET /api/v2/workspace/control-room/read -> SQLite",
+    "browser": {
+      "wbsIds": [
+        "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "E2E-WBS-SITE",
+        "E2E-WBS-DESIGN",
+        "E2E-WBS-NOACT"
+      ],
+      "wbsText": "\n              Project / WBS\n              \n    \n      WBS Code\n      WBS Name\n      Activities\n      Sequence\n      Rev\n    \n    \n      1\n      E2E project 1794695405966\n      0\n      0\n      R1\n    \n      2\n      Site works revised\n      0\n      10\n      R2\n    \n      2.1\n      Detailed design\n      1\n      10\n      R1\n    \n      3\n      No activity package\n      0\n      20\n      R1\n    \n  \n              \n    WBS Details—\n    \n      GeneralNotebookBudget LogSpending PlanBudget SummaryWBS MilestonesWPs & DocsEarned ValuePlanning ResourcesUDFs\n    \n    Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.\n  \n              \n                Add WBS\n                Code \n                Name \n                Parent WBS\n                  \n                    1 — E2E project 17946954059662.1 — Detailed design2 — Site works revised3 — No activity package\n                  \n                \n                Sequence \n                Add WBS\n              \n              Select a WBS node to edit.\n              \n            ",
+      "rows": [
+        {
+          "id": "NEW-100",
+          "text": "NEW-100E2E linked activity2——————Edit activity"
+        }
+      ],
+      "columns": 8
+    },
+    "activity_edit": {
+      "rowText": "NEW-100E2E linked activity revised2——————Edit activity",
+      "editForm": false
+    }
+  },
+  "relationships": {
+    "api": {
+      "read_status": 200,
+      "relationship_ids": [
+        "E2E-REL-FS",
+        "E2E-REL-SS"
+      ],
+      "read_relationships": [
+        {
+          "relationship_id": "E2E-REL-FS",
+          "predecessor_id": "NEW-100",
+          "successor_id": "NEW-200",
+          "relationship_type": "FS",
+          "lag_value": "0",
+          "lag_unit": "working-day",
+          "record_revision": 1
+        },
+        {
+          "relationship_id": "E2E-REL-SS",
+          "predecessor_id": "NEW-200",
+          "successor_id": "NEW-300",
+          "relationship_type": "SS",
+          "lag_value": "1",
+          "lag_unit": "working-day",
+          "record_revision": 1
+        }
+      ]
+    },
+    "rejections": {
+      "cycle": 400,
+      "duplicate": 400,
+      "orphan_endpoint": 400
+    },
+    "source": "POST /p6/relationships -> Relationship Master -> GET /api/v2/workspace/control-room/read",
+    "browser": {
+      "rows": 4,
+      "logicItems": [
+        "NEW-100 → NEW-200 FS 0 Working day",
+        "NEW-200 → NEW-300 SS 1 Working day"
+      ],
+      "gridNew200": "NEW-100 FS",
+      "gridNew300": "NEW-200 SS+1d",
+      "gridNew400": "—",
+      "editForms": [
+        {
+          "id": "E2E-REL-FS",
+          "revision": 1,
+          "predecessor": "NEW-100",
+          "successor": "NEW-200",
+          "type": "FS",
+          "lag": "0",
+          "unit": "working-day"
+        },
+        {
+          "id": "E2E-REL-SS",
+          "revision": 3,
+          "predecessor": "NEW-200",
+          "successor": "NEW-300",
+          "type": "SS",
+          "lag": "1",
+          "unit": "working-day"
+        }
+      ],
+      "created_from_form": {
+        "count": 3,
+        "target": "NEW-300 → NEW-400\n      FS\n      0 Working day\n      Delete\n      \n      Edit\n      \n        Predecessor NEW-100 — E2E linked activity revisedNEW-200 — E2E structureNEW-300 — E2E envelopeNEW-400 — E2E finishes\n        Successor NEW-100 — E2E linked activity revisedNEW-200 — E2E structureNEW-300 — E2E envelopeNEW-400 — E2E finishes\n        Type FSSSFFSF\n        Lag \n        Lag unit Working dayWorking hour\n        Save relationship",
+        "predecessorCell": "NEW-300 FS"
+      },
+      "deleted_relationship_id": "REL-MWGZB378-MTB3VH",
+      "delete_confirm_calls": 1
+    },
+    "schedule": {
+      "first_run": {
+        "hash": "1a371dbe38e54027140eb9ff8c87a1e22a1d668ca997679b2a26f0921be14fa9",
+        "rows": [
+          [
+            "NEW-100",
+            "2026-11-16",
+            "2026-11-17",
+            "2",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-200",
+            "2026-11-18",
+            "2026-11-20",
+            "3",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-300",
+            "2026-11-19",
+            "2026-11-20",
+            "2",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-400",
+            "2026-11-16",
+            "2026-11-16",
+            "1",
+            "4",
+            "No"
+          ]
+        ],
+        "gantt": {
+          "rows": 4,
+          "NEW_100": 0,
+          "NEW_200": 50,
+          "NEW_300": 75,
+          "NEW_400": 0
+        }
+      },
+      "second_run": {
+        "hash": "c592988df72c7530714ef603735a9feb30a5a85ea826fa6eba69bacad287412b",
+        "rows": [
+          [
+            "NEW-100",
+            "2026-11-16",
+            "2026-11-19",
+            "4",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-200",
+            "2026-11-20",
+            "2026-11-24",
+            "3",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-300",
+            "2026-11-23",
+            "2026-11-24",
+            "2",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-400",
+            "2026-11-16",
+            "2026-11-16",
+            "1",
+            "6",
+            "No"
+          ]
+        ],
+        "gantt": {
+          "rows": 4,
+          "NEW_100": 0,
+          "NEW_200": 50,
+          "NEW_300": 87.5,
+          "NEW_400": 0
+        }
+      },
+      "duration_update_status": 200,
+      "source": "settings form -> POST /p6/schedule/snapshots -> POST /api/v1/schedule/query -> result table + Gantt"
+    },
+    "gantt": {
+      "day": {
+        "ticks": 9,
+        "links": [
+          {
+            "id": "E2E-REL-FS",
+            "type": "FS",
+            "from": "NEW-100",
+            "to": "NEW-200",
+            "d": "M 375 78.5 H 390 V 97.5 H 500"
+          },
+          {
+            "id": "E2E-REL-SS",
+            "type": "SS",
+            "from": "NEW-200",
+            "to": "NEW-300",
+            "d": "M 500 97.5 H 477 V 116.5 H 875"
+          }
+        ]
+      },
+      "week": {
+        "ticks": 2,
+        "dates": [
+          "2026-11-16",
+          "2026-11-23"
+        ]
+      },
+      "month": {
+        "ticks": 1,
+        "dates": [
+          "2026-11-16"
+        ]
+      },
+      "source": "persisted relationships + authoritative schedule facts -> #cp-gantt axis, arrows and scale control"
+    },
+    "holiday": {
+      "calendar": {
+        "id": "CUBI-082A1DA6-3D05-48E7-944F--8E4FBCE2-CAL",
+        "version": "1"
+      },
+      "date": "2026-11-20",
+      "list_after_save": [
+        "2026-11-20"
+      ],
+      "run_after_save": {
+        "hash": "7723349b1b0422df69a767aca58f6c2e9af8d8a80c7c6d6313cc6ebc63a92885",
+        "rows": [
+          [
+            "NEW-100",
+            "2026-11-16",
+            "2026-11-19",
+            "4",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-200",
+            "2026-11-23",
+            "2026-11-25",
+            "3",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-300",
+            "2026-11-24",
+            "2026-11-25",
+            "2",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-400",
+            "2026-11-16",
+            "2026-11-16",
+            "1",
+            "6",
+            "No"
+          ]
+        ],
+        "gantt": {
+          "rows": 4,
+          "NEW_100": 0,
+          "NEW_200": 77.78,
+          "NEW_300": 88.89,
+          "NEW_400": 0
+        }
+      },
+      "run_after_remount": {
+        "hash": "2357eab8aad4b66050a6913b88361fd0fa544851d9907b257c7fc9dc6ceeaa6a",
+        "rows": [
+          [
+            "NEW-100",
+            "2026-11-16",
+            "2026-11-19",
+            "4",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-200",
+            "2026-11-23",
+            "2026-11-25",
+            "3",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-300",
+            "2026-11-24",
+            "2026-11-25",
+            "2",
+            "0",
+            "Yes"
+          ],
+          [
+            "NEW-400",
+            "2026-11-16",
+            "2026-11-16",
+            "1",
+            "6",
+            "No"
+          ]
+        ]
+      },
+      "source": "holiday form -> POST /p6/calendars/{id}/{version}/exceptions -> GET exceptions -> snapshot/query -> table + Gantt"
+    }
+  },
+  "project_settings": {
+    "loaded": {
+      "name": "E2E project 1794695405966",
+      "description": "CUBI E2E persisted scope",
+      "start_date": "2026-10-07",
+      "date_system": "jalali",
+      "revision": "Configuration revision R0"
+    },
+    "saved": {
+      "state": "success",
+      "text": "Saved. The project configuration now has revision R1.",
+      "revision": "Revision R0",
+      "panelRevision": "Configuration revision R1"
+    },
+    "stale_conflict": {
+      "state": "conflict",
+      "text": "This project changed in another session. Reload the latest values before saving again.",
+      "revision": "Revision R0",
+      "panelRevision": "Configuration revision R1"
+    },
+    "reloaded_save": {
+      "state": "success",
+      "text": "Saved. The project configuration now has revision R3.",
+      "revision": "Revision R0",
+      "panelRevision": "Configuration revision R3"
+    },
+    "after_stale": {
+      "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+      "tenant_id": "cubi-preview-tenant",
+      "name": "E2E project 1794695405966 edited",
+      "revision": 0,
+      "description": "Concurrent editor value",
+      "start_date": "2026-12-01",
+      "date_system": "jalali",
+      "primary_calendar_id": null,
+      "settings_revision": 2,
+      "status": "active",
+      "business_domain": "",
+      "obs_responsible_manager": "",
+      "website_url": "",
+      "default_activity_type": "Task Dependent",
+      "default_percent_complete_type": "DURATION",
+      "default_duration_type": "Fixed Duration & Units",
+      "activity_id_prefix": "",
+      "activity_id_suffix": "",
+      "activity_id_increment": 10,
+      "increment_activity_id": false,
+      "checkout_state": "checked_in",
+      "checked_out_by": "",
+      "checked_out_at": null,
+      "default_cost_account_id": "",
+      "obs_id": ""
+    },
+    "after_first_save": {
+      "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+      "tenant_id": "cubi-preview-tenant",
+      "name": "E2E project 1794695405966 edited",
+      "revision": 0,
+      "description": "Edited in the project settings panel",
+      "start_date": "2026-12-01",
+      "date_system": "jalali",
+      "primary_calendar_id": null,
+      "settings_revision": 1,
+      "status": "active",
+      "business_domain": "",
+      "obs_responsible_manager": "",
+      "website_url": "",
+      "default_activity_type": "Task Dependent",
+      "default_percent_complete_type": "DURATION",
+      "default_duration_type": "Fixed Duration & Units",
+      "activity_id_prefix": "",
+      "activity_id_suffix": "",
+      "activity_id_increment": 10,
+      "increment_activity_id": false,
+      "checkout_state": "checked_in",
+      "checked_out_by": "",
+      "checked_out_at": null,
+      "default_cost_account_id": "",
+      "obs_id": ""
+    },
+    "final_project": {
+      "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+      "tenant_id": "cubi-preview-tenant",
+      "name": "E2E project 1794695405966 edited final",
+      "revision": 0,
+      "description": "Reloaded and saved",
+      "start_date": "2026-12-07",
+      "date_system": "gregorian",
+      "primary_calendar_id": null,
+      "settings_revision": 3,
+      "status": "active",
+      "business_domain": "",
+      "obs_responsible_manager": "",
+      "website_url": "",
+      "default_activity_type": "Task Dependent",
+      "default_percent_complete_type": "DURATION",
+      "default_duration_type": "Fixed Duration & Units",
+      "activity_id_prefix": "",
+      "activity_id_suffix": "",
+      "activity_id_increment": 10,
+      "increment_activity_id": false,
+      "checkout_state": "checked_in",
+      "checked_out_by": "",
+      "checked_out_at": null,
+      "default_cost_account_id": "",
+      "obs_id": ""
+    },
+    "source": "settings button -> GET /api/projects/{id} -> PATCH with expected_revision -> 200/201 success, 409 conflict, reload, save"
+  },
+  "assistant_action": {
+    "proposal_id": "e699614f-ebde-4d85-b0d6-c23d8b1b6562",
+    "before_proposal": {
+      "rows": 4,
+      "proposals": [
+        {
+          "id": "e699614f-ebde-4d85-b0d6-c23d8b1b6562",
+          "status": "proposed",
+          "activity_id": "AI-100",
+          "wbs_id": "E2E-WBS-DESIGN"
+        }
+      ],
+      "activityIds": [
+        "NEW-100",
+        "NEW-200",
+        "NEW-300",
+        "NEW-400"
+      ]
+    },
+    "after_approval": {
+      "rows": 4,
+      "statuses": [
+        "approved"
+      ]
+    },
+    "executed": {
+      "rows": [
+        "AI-100",
+        "NEW-100",
+        "NEW-200",
+        "NEW-300",
+        "NEW-400"
+      ],
+      "proposal_status": "executed",
+      "result": {
+        "activity": {
+          "activity_id": "AI-100",
+          "activity_type": "Task Dependent",
+          "actual_finish": null,
+          "actual_start": null,
+          "cost_account_id": null,
+          "duration_type": "Fixed Duration & Units",
+          "duration_unit": "working-day",
+          "duration_value": "2",
+          "expected_finish": null,
+          "leveling_priority": "Normal",
+          "name": "Assistant proposed activity",
+          "original_duration": null,
+          "percent_complete": null,
+          "percent_complete_type": "DURATION",
+          "planned_finish": null,
+          "record_revision": 1,
+          "remaining_duration": null,
+          "remaining_start": null,
+          "short_name": null,
+          "status": "Not Started",
+          "status_code": "Planned",
+          "wbs_id": "E2E-WBS-DESIGN"
+        },
+        "contract_version": "p6-activity-master-api.v1",
+        "kind": "p6_activity_master",
+        "scope": {
+          "project_id": "082a1da6-3d05-48e7-944f-7e6b505e6547",
+          "project_revision": 0,
+          "tenant_id": "cubi-preview-tenant"
+        }
+      },
+      "activity": {
+        "id": "AI-100",
+        "wbs_id": "E2E-WBS-DESIGN",
+        "code": "AI-100",
+        "name": "Assistant proposed activity",
+        "cells": {
+          "activity.id": "AI-100",
+          "activity.name": "Assistant proposed activity",
+          "activity.status": "Not Started",
+          "activity.type": "Task Dependent",
+          "activity.duration_type": "Fixed Duration & Units",
+          "activity.cost_account": "",
+          "activity.status_code": "Planned",
+          "activity.leveling_priority": "Normal",
+          "activity.wbs": "2.1 Detailed design",
+          "activity.activity_id": "AI-100",
+          "activity.activity_name": "Assistant proposed activity",
+          "activity.activity_status": "Not Started",
+          "activity.activity_type": "Task Dependent",
+          "duration": "2",
+          "activity.planned_duration": "2"
+        },
+        "gantt": null
+      }
+    },
+    "schedule": {
+      "rows": [
+        [
+          "AI-100",
+          "2026-11-16",
+          "2026-11-17",
+          "2",
+          "5",
+          "No"
+        ],
+        [
+          "NEW-100",
+          "2026-11-16",
+          "2026-11-19",
+          "4",
+          "0",
+          "Yes"
+        ],
+        [
+          "NEW-200",
+          "2026-11-23",
+          "2026-11-25",
+          "3",
+          "0",
+          "Yes"
+        ],
+        [
+          "NEW-300",
+          "2026-11-24",
+          "2026-11-25",
+          "2",
+          "0",
+          "Yes"
+        ],
+        [
+          "NEW-400",
+          "2026-11-16",
+          "2026-11-16",
+          "1",
+          "6",
+          "No"
+        ]
+      ],
+      "gantt": 5
+    },
+    "viewer_denied": {
+      "status": 403,
+      "body": {
+        "code": "AUTHORIZATION_PERMISSION_DENIED",
+        "retryable": false,
+        "message_key": "error.authorization.denied",
+        "available_actions": []
+      }
+    },
+    "source": "panel form -> POST /ai/actions/proposals (no write) -> POST .../decision -> POST .../execute -> GET proposals + v2 workspace read -> schedule query + Gantt"
+  },
+  "first_run": {
+    "project_name": "پروژه نخست 1794695410763",
+    "project_id": "پروژه نخست 1794695410763",
+    "address": "http://127.0.0.1:38035/app?view=live&project=d25eb342-90ea-4201-81ec-9edb12366c84",
+    "language": "fa",
+    "menu": "control",
+    "source": "preview-newcomer session -> GET /api/projects (empty) -> POST /api/projects -> GET /api/projects"
+  },
+  "restart": {
+    "database": "/tmp/cubi-preview-e2e-ZoGB26/preview-e2e.sqlite3",
+    "previous_base_url": "http://127.0.0.1:38035",
+    "base_url": "http://127.0.0.1:38985",
+    "health": {
+      "activity_count": 25,
+      "assistant": {
+        "actions_enabled": true,
+        "available_tools": [
+          "activity.create",
+          "project.plan.create"
+        ],
+        "enabled": false,
+        "provider_configured": false,
+        "provider_environment_complete": false
+      },
+      "capacity_segment_count": 5,
+      "database": "/tmp/cubi-preview-e2e-ZoGB26/preview-e2e.sqlite3",
+      "demo_data": true,
+      "demo_project_count": 2,
+      "mode": "local-full-stack-preview",
+      "private_owner_login_enabled": false,
+      "production": false,
+      "project_count": 4,
+      "public_demo": false,
+      "rate_fact_count": 3,
+      "read_only": false,
+      "resource_count": 2,
+      "seed_version": "cubi-preview-seed.v4",
+      "session_count": 0,
+      "status": "ok",
+      "tenant_id": "cubi-preview-tenant",
+      "wbs_node_count": 15,
+      "web_root": "/data/work/repo/apps/web"
+    },
+    "browser": {
+      "status": 200,
+      "calendarStatus": 200,
+      "calendarExceptions": [
+        "2026-11-20"
+      ],
+      "proposalStatus": 200,
+      "proposals": [
+        {
+          "id": "e699614f-ebde-4d85-b0d6-c23d8b1b6562",
+          "status": "executed",
+          "activity_id": "AI-100",
+          "wbs_id": "E2E-WBS-DESIGN"
+        }
+      ],
+      "projectMeta": {
+        "name": "E2E project 1794695405966 edited final",
+        "description": "Reloaded and saved",
+        "start_date": "2026-12-07",
+        "date_system": "gregorian",
+        "revision": 0,
+        "settings_revision": 3
+      },
+      "wbsIds": [
+        "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "E2E-WBS-SITE",
+        "E2E-WBS-DESIGN",
+        "E2E-WBS-NOACT"
+      ],
+      "wbsText": "\n              Project / WBS\n              \n    \n      WBS Code\n      WBS Name\n      Activities\n      Sequence\n      Rev\n    \n    \n      1\n      E2E project 1794695405966\n      0\n      0\n      R1\n    \n      2\n      Site works revised\n      0\n      10\n      R2\n    \n      2.1\n      Detailed design\n      5\n      10\n      R1\n    \n      3\n      No activity package\n      0\n      20\n      R1\n    \n  \n              \n    WBS Details—\n    \n      GeneralNotebookBudget LogSpending PlanBudget SummaryWBS MilestonesWPs & DocsEarned ValuePlanning ResourcesUDFs\n    \n    Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.Select a WBS element to display its details.\n  \n              \n                Add WBS\n                Code \n                Name \n                Parent WBS\n                  \n                    1 — E2E project 17946954059662.1 — Detailed design2 — Site works revised3 — No activity package\n                  \n                \n                Sequence \n                Add WBS\n              \n              Select a WBS node to edit.\n              \n            ",
+      "rowIds": [
+        "AI-100",
+        "NEW-100",
+        "NEW-200",
+        "NEW-300",
+        "NEW-400"
+      ],
+      "apiNodes": [
+        "WBS-082a1da6-3d05-48e7-944f-7e6b505e6547",
+        "E2E-WBS-DESIGN",
+        "E2E-WBS-SITE",
+        "E2E-WBS-NOACT"
+      ],
+      "apiActivities": [
+        {
+          "id": "AI-100",
+          "wbs_id": "E2E-WBS-DESIGN"
+        },
+        {
+          "id": "NEW-100",
+          "wbs_id": "E2E-WBS-DESIGN"
+        },
+        {
+          "id": "NEW-200",
+          "wbs_id": "E2E-WBS-DESIGN"
+        },
+        {
+          "id": "NEW-300",
+          "wbs_id": "E2E-WBS-DESIGN"
+        },
+        {
+          "id": "NEW-400",
+          "wbs_id": "E2E-WBS-DESIGN"
+        }
+      ],
+      "apiRelationships": [
+        {
+          "id": "E2E-REL-FS",
+          "type": "FS",
+          "lag": "0"
+        },
+        {
+          "id": "E2E-REL-SS",
+          "type": "SS",
+          "lag": "1"
+        }
+      ]
+    },
+    "source": "stop WSGI -> same SQLite without --reset -> login -> project list -> v2 read"
+  },
+  "finished_at": "2026-11-14T22:30:13.676Z",
+  "status": "passed"
+}
