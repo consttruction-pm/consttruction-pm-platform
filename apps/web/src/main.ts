@@ -860,8 +860,15 @@ function openProjectSettings(
     void loadHistory();
   };
 
-  const isForbidden = (code: string): boolean =>
-    code.includes("project.admin") || code.includes("authorization");
+  const isForbidden = (code: string): boolean => {
+    // Server authorization codes are upper-case (AUTHORIZATION_PERMISSION_DENIED);
+    // matching them case-sensitively fell through to the generic save failure and
+    // hid the actual permission message from the user.
+    const normalized = code.toLowerCase();
+    return normalized.includes("project.admin") ||
+      normalized.includes("authorization") ||
+      normalized.includes("permission_denied");
+  };
 
   const submit = async (): Promise<void> => {
     if (saving) return;
