@@ -45,8 +45,8 @@ Do not finalize raw hex palettes, typography choices or visual assets by copying
 - If shared semantic colors are adopted, their meanings must remain consistent across the scopes where they are used.
 - Engineering and Enterprise may use a restrained environment-context accent to help users recognize where they are. This accent is a tokenized context cue, not a separate brand palette.
 - During initial design, environment-specific palettes are permitted. Avoid arbitrary or inaccessible choices; do not copy a vendor's brand palette as CUBI identity.
-- Charts, badges, buttons, status indicators, alerts and navigation states must follow the same semantic rules.
-- Theme variants must derive from the same token definitions and pass contrast checks.
+- Within each environment, charts, badges, buttons, status indicators, alerts and navigation states should use consistent semantic rules.
+- If an environment supports theme variants, each variant should pass contrast and accessibility checks; a shared token source is optional.
 
 ## 5. Independent environment shell design
 
@@ -82,7 +82,7 @@ Engineering and Enterprise may each define a complete product frame suited to th
 
 - Remains the common entry and personal coordination surface.
 - Provides the authorized environment choice and personal work context.
-- Must visually connect to both environment shells without becoming a third shell with a separate identity.
+- May share selected brand cues with either environment where useful, without requiring visual convergence or becoming a third work environment.
 
 ## 6. Component and interaction standards (environment-owned initially)
 
