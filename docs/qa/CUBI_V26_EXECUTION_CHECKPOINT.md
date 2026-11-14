@@ -3740,6 +3740,44 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   Defaults tab text after reload and asserts the stored enums, affixes and
   increment. Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`.
 
+### RES-004 Resource Usage tab — 2026-11-14 (`35f2283a`)
+
+- The Resources window now has a lazy **Usage** tab (en/fa) that reads the
+  stored assignment periods of the selected resource from the existing
+  assignment read model and the stored `units_per_time` of each assignment.
+- Availability is never calculated in the browser: every distinct
+  `(period_start, basis, hours_per_time_period)` key is resolved through the
+  existing `POST /api/projects/{project}/p6/resource-capacities/{resource_id}/resolve`
+  service, whose canonical decimal `capacity` is compared with the summed
+  stored demand using exact decimal arithmetic.
+- Statuses are explicit rather than guessed: `Overallocated`, `Within
+  capacity`, `Missing rate`, `Partial rate`, `Mixed time bases`, `No effective
+  Max Units`, `Conflicting capacity segments` and `Capacity unavailable`.
+  Assignments in different bases or hours definitions are never converted or
+  combined, and the hint states that no scheduler or leveling pass runs.
+- Defect risk avoided: assignment bucket rows carry no width, so the tab shows
+  stored period amounts as stored and compares rates, instead of inventing a
+  bucket length or spreading values.
+- **Acceptance.** `apps/web/e2e/resources-v26.mjs` **13/13** at
+  `35f2283a008c1cb6bb94112e20a291af165eaa5f` (14 screenshots, zero
+  exceptions/console errors/5xx). Scenario `05b` seeds two assignments
+  (12/day/8 and 4/day/8) plus their periods, verifies the resolve API returns
+  `capacity: 8`, then asserts the two usage rows, the exact excess and the
+  summary `2 stored period(s) · 2 compared · 1 overallocated.`; scenario `12`
+  repeats the tab in Persian RTL at 1280×720. Evidence:
+  `docs/workspace/evidence/resources-v26-2026-11-14/`.
+- **Tests at the same code.** Web `1133 tsx` + `14 node --test`, `tsc
+  --noEmit` and esbuild pass; Python `4225 passed, 190 skipped`. New unit
+  coverage: `resource-usage.test.ts` (7 tests: decimal normalization,
+  resolve-key identity, grouping/summing, rate parsing, missing/partial/mixed
+  summaries, overallocated/within exact excess, capacity states) and the
+  Usage-tab DOM test in `workspace-resources.test.ts` (exact POST path and
+  body).
+- **Remaining gaps.** No overtime, no timescale or bucket editor, no usage
+  profile chart, no actual/remaining/forecast spread types and no leveling
+  run/apply; a resource with stored capacity segments but no assignment rate
+  still reports demand as missing rather than inferring one.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3756,8 +3794,12 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
-- `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
-  shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
-  export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are
-  the next P7 candidates and need their own stored contracts where the current
-  read models do not expose the data.
+- `RES-005` (curves, shifts, multiple prices), `TRK-001` (tracking layout
+  save/open/share/import/export/delete) and `PRO-002` (period actuals) remain
+  `NOT_AUDITED`; they are the next P7 candidates and need their own stored
+  contracts where the current read models do not expose the data.
+- `RES-004` availability/overallocation is now `WIRED_READ` through the
+  Resources window Usage tab (stored assignment periods + each assignment's
+  stored Units/Time against the service-resolved Max Units per period start).
+  Overtime, a timescale/bucket editor, a usage profile chart, actual/remaining/
+  forecast spread types and a leveling run/apply remain open.

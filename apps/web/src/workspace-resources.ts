@@ -1,7 +1,21 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
+import {
+  loadAssignmentPeriods,
+  loadAssignments,
+  type AssignmentPeriod,
+  type AssignmentRecord,
+} from "./workspace-assignments.js";
 import { loadCalendarCatalogue } from "./workspace-calendars.js";
 import type { WorkspaceCalendarRecord } from "./workspace-model.js";
+import {
+  buildResourceUsage,
+  groupResourceUsagePeriods,
+  resourceUsageResolveKey,
+  summarizeResourceUsageRates,
+  type CapacityResolution,
+  type ResourceUsageEntry,
+  type ResourceUsageStatus,
+} from "./resource-usage.js";
 
 export const RESOURCE_API_VERSION = "p6-resource-api.v1";
 export const RESOURCE_CAPACITY_READ_API_VERSION = "p6-resource-capacity-read-api.v1";
@@ -436,7 +450,7 @@ export async function updateResource(
   }
 }
 
-type ResourceTab = "general" | "assignments" | "capacity" | "rates";
+type ResourceTab = "general" | "assignments" | "capacity" | "rates" | "usage";
 type ResourceFilter = "all" | ResourceType;
 
 type PageState = {
@@ -454,6 +468,13 @@ type PageState = {
   /** Stored calendars in this project scope; the resource editor assigns by id. */
   calendars: readonly WorkspaceCalendarRecord[];
   calendarError: string | null;
+  usageResourceId: string | null;
+  usageStatus: "idle" | "loading" | "loaded" | "error";
+  usageErrorCode: string | null;
+  usagePeriods: readonly AssignmentPeriod[];
+  usagePeriodsLoaded: boolean;
+  usageResolutions: Map<string, CapacityResolution>;
+  usageRequestToken: number;
 };
 
 function emptyDraft(): ResourceInput {
@@ -502,6 +523,13 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     draft: emptyDraft(),
     calendars: [],
     calendarError: null,
+    usageResourceId: null,
+    usageStatus: "idle",
+    usageErrorCode: null,
+    usagePeriods: [],
+    usagePeriodsLoaded: false,
+    usageResolutions: new Map<string, CapacityResolution>(),
+    usageRequestToken: 0,
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -706,6 +734,143 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     return `<section class="cp-calendar-editor-panel" data-resource-panel="rates"><div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Rate", "نرخ"))}</th><th>${escapeHtml(say("Basis", "مبنا"))}</th><th>${escapeHtml(say("Currency", "ارز"))}</th><th>${escapeHtml(say("Unit", "واحد"))}</th><th>${escapeHtml(say("Effective From", "اعتبار از"))}</th><th>${escapeHtml(say("Effective To", "اعتبار تا"))}</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
 
+  function assignmentsById(): Map<string, AssignmentRecord> {
+    const map = new Map<string, AssignmentRecord>();
+    for (const row of state.rows) {
+      for (const assignment of row.assignments) map.set(assignment.assignmentId, assignment);
+    }
+    return map;
+  }
+
+  function usageStatusLabel(status: ResourceUsageStatus): string {
+    switch (status) {
+      case "overallocated": return say("Overallocated", "اضافه‌تخصیص");
+      case "within": return say("Within capacity", "در محدودهٔ ظرفیت");
+      case "missing-rate": return say("Units/Time not stored", "واحد/زمان ذخیره نشده");
+      case "partial-rate": return say("Some assignments lack Units/Time", "برخی تخصیص‌ها واحد/زمان ندارند");
+      case "mixed-basis": return say("Mixed time bases — not compared", "مبناهای زمانی متفاوت — مقایسه نشد");
+      case "missing-capacity": return say("No capacity stored for this date", "برای این تاریخ ظرفیتی ذخیره نشده");
+      case "capacity-conflict": return say("Stored capacity segments conflict", "بازه‌های ظرفیت ذخیره‌شده تعارض دارند");
+      default: return say("Capacity could not be resolved", "خواندن ظرفیت ناموفق بود");
+    }
+  }
+
+  async function resolveCapacity(
+    resourceId: string,
+    period: string,
+    basis: string,
+    hoursPerTimePeriod: string,
+  ): Promise<CapacityResolution> {
+    const result = await transport.post<Record<string, unknown>, unknown>(
+      `${resourcePath(context, "resource-capacities")}/${encodeURIComponent(resourceId)}/resolve`,
+      {
+        contract_version: RESOURCE_CAPACITY_READ_API_VERSION,
+        period,
+        basis,
+        hours_per_time_period: hoursPerTimePeriod,
+      },
+      context,
+    );
+    if (!result.ok) {
+      const code = result.error.code;
+      if (code === "RESOURCE_CAPACITY_NOT_REGISTERED" || code === "CAPACITY_SEGMENT_NOT_EFFECTIVE") {
+        return { status: "not-registered", capacity: null, basis: null, identity: null, source: null, errorCode: code };
+      }
+      if (code === "CAPACITY_SEGMENTS_OVERLAP") {
+        return { status: "conflict", capacity: null, basis: null, identity: null, source: null, errorCode: code };
+      }
+      return { status: "error", capacity: null, basis: null, identity: null, source: null, errorCode: code };
+    }
+    const payload = result.data;
+    if (!isRecord(payload) || payload.contract_version !== RESOURCE_CAPACITY_READ_API_VERSION || payload.kind !== "resource_capacity_value") {
+      return { status: "error", capacity: null, basis: null, identity: null, source: null, errorCode: "INVALID_RESOURCE_CAPACITY_RESOLUTION" };
+    }
+    const capacity = typeof payload.capacity === "string"
+      ? payload.capacity
+      : typeof payload.capacity === "number" ? String(payload.capacity) : "";
+    if (!/^-?\d+(\.\d+)?$/.test(capacity)) {
+      return { status: "error", capacity: null, basis: null, identity: null, source: null, errorCode: "INVALID_RESOURCE_CAPACITY_VALUE" };
+    }
+    return {
+      status: "resolved",
+      capacity,
+      basis: typeof payload.basis === "string" ? payload.basis : basis,
+      identity: typeof payload.identity === "string" ? payload.identity : null,
+      source: typeof payload.source === "string" ? payload.source : null,
+      errorCode: null,
+    };
+  }
+
+  async function ensureUsage(resourceId: string): Promise<void> {
+    const token = ++state.usageRequestToken;
+    state.usageResourceId = resourceId;
+    state.usageStatus = "loading";
+    state.usageErrorCode = null;
+    render();
+    if (!state.usagePeriodsLoaded) {
+      const result = await loadAssignmentPeriods(transport, context);
+      if (token !== state.usageRequestToken) return;
+      if (!result.ok) {
+        state.usageStatus = "error";
+        state.usageErrorCode = result.error.code;
+        render();
+        return;
+      }
+      state.usagePeriods = result.data;
+      state.usagePeriodsLoaded = true;
+    }
+    const groups = groupResourceUsagePeriods(state.usagePeriods, resourceId);
+    const assignments = assignmentsById();
+    const pending = new Map<string, { period: string; basis: string; hours: string }>();
+    for (const group of groups) {
+      const summary = summarizeResourceUsageRates(group, assignments);
+      if (summary.state !== "comparable") continue;
+      const key = resourceUsageResolveKey(group.periodStart, summary.basis, summary.hoursPerTimePeriod);
+      if (!state.usageResolutions.has(key) && !pending.has(key)) {
+        pending.set(key, { period: group.periodStart, basis: summary.basis, hours: summary.hoursPerTimePeriod });
+      }
+    }
+    await Promise.all([...pending.entries()].map(async ([key, request]) => {
+      const resolution = await resolveCapacity(resourceId, request.period, request.basis, request.hours);
+      state.usageResolutions.set(key, resolution);
+    }));
+    if (token !== state.usageRequestToken) return;
+    state.usageStatus = "loaded";
+    render();
+  }
+
+  function renderUsage(row: ResourceRow): string {
+    const heading = `<div class="cp-calendar-section-head"><strong>${escapeHtml(say("Stored usage and resolved availability", "استفادهٔ ذخیره‌شده و دسترس‌پذیری حل‌شده"))}</strong><span>${escapeHtml(row.resourceId)}</span></div>`;
+    if (state.usageResourceId !== row.resourceId || state.usageStatus === "idle") {
+      return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">${heading}<div class="cp-calendar-empty" role="status">${escapeHtml(say("Reading stored assignment periods and resolving availability…", "در حال خواندن دوره‌های ذخیره‌شدهٔ تخصیص و حل دسترس‌پذیری…"))}</div></section>`;
+    }
+    if (state.usageStatus === "loading") {
+      return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">${heading}<div class="cp-calendar-empty" role="status">${escapeHtml(say("Reading stored assignment periods and resolving availability…", "در حال خواندن دوره‌های ذخیره‌شدهٔ تخصیص و حل دسترس‌پذیری…"))}</div></section>`;
+    }
+    if (state.usageStatus === "error") {
+      return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">${heading}<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Stored assignment periods could not be read", "خواندن دوره‌های ذخیره‌شدهٔ تخصیص ناموفق بود"))} (${escapeHtml(state.usageErrorCode ?? "unknown")})</div></section>`;
+    }
+    const groups = groupResourceUsagePeriods(state.usagePeriods, row.resourceId);
+    if (!groups.length) {
+      return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">${heading}<div class="cp-calendar-empty" data-resource-usage-empty>${escapeHtml(say("No assignment period is stored for this resource, so usage and availability cannot be compared.", "هیچ دورهٔ تخصیصی برای این منبع ذخیره نشده است، بنابراین استفاده و دسترس‌پذیری قابل مقایسه نیستند."))}</div></section>`;
+    }
+    const entries: readonly ResourceUsageEntry[] = buildResourceUsage(groups, assignmentsById(), state.usageResolutions);
+    const rows = entries.map((entry) => `<tr data-resource-usage-row data-period-start="${escapeHtml(entry.periodStart)}" data-status="${escapeHtml(entry.status)}"><td>${escapeHtml(entry.periodStart)}</td><td>${escapeHtml(entry.demandUnits ?? "—")}</td><td>${escapeHtml(entry.demandCost ?? "—")}</td><td>${entry.assignmentIds.length}</td><td>${escapeHtml(entry.unitsPerTime ?? "—")}</td><td>${escapeHtml(entry.basis ?? "—")}</td><td>${escapeHtml(entry.capacity ?? "—")}</td><td>${escapeHtml(entry.excess ?? "—")}</td><td>${escapeHtml(usageStatusLabel(entry.status))}</td></tr>`).join("");
+    const overallocated = entries.filter((entry) => entry.status === "overallocated").length;
+    const compared = entries.filter((entry) => entry.status === "overallocated" || entry.status === "within").length;
+    return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">
+      <div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Period Start", "شروع دوره"))}</th><th>${escapeHtml(say("Stored Demand Units", "واحد تقاضای ذخیره‌شده"))}</th><th>${escapeHtml(say("Stored Cost", "هزینهٔ ذخیره‌شده"))}</th><th>${escapeHtml(say("Assignments", "تخصیص‌ها"))}</th><th>${escapeHtml(say("Units/Time", "واحد/زمان"))}</th><th>${escapeHtml(say("Basis", "مبنا"))}</th><th>${escapeHtml(say("Resolved Max Units", "حداکثر واحد حل‌شده"))}</th><th>${escapeHtml(say("Excess", "مازاد"))}</th><th>${escapeHtml(say("Status", "وضعیت"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="cp-calendar-hint" data-resource-usage-summary>${escapeHtml(say(
+        `${entries.length} stored period(s) · ${compared} compared · ${overallocated} overallocated.`,
+        `${entries.length} دورهٔ ذخیره‌شده · ${compared} مقایسه‌شده · ${overallocated} اضافه‌تخصیص.`,
+      ))}</p>
+      <p class="cp-calendar-hint" data-resource-usage-hint>${escapeHtml(say(
+        "Demand Units/Time and stored period amounts come from assignment facts. Max Units is resolved by the project service for each period start from the stored effective-dated capacity segment, converted to the demand's time basis and hours definition. Different time bases are never combined, and no scheduler or leveling pass runs here.",
+        "واحد/زمان تقاضا و مقادیر دوره‌های ذخیره‌شده از حقایق تخصیص می‌آیند. حداکثر واحد توسط سرویس پروژه برای هر شروع دوره از بازهٔ ظرفیت مؤثر-تاریخ‌دار ذخیره‌شده حل می‌شود و به مبنای زمانی و تعریف ساعت تقاضا تبدیل می‌گردد. مبناهای زمانی متفاوت هرگز با هم جمع نمی‌شوند و هیچ اجرای زمان‌بندی یا تراز منابعی در اینجا انجام نمی‌شود.",
+      ))}</p>
+    </section>`;
+  }
+
   function renderDetails(): string {
     if (state.mode === "create") return renderForm(null);
     const row = selected();
@@ -723,10 +888,12 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
       ["assignments", say("Assignments", "تخصیص‌ها")],
       ["capacity", say("Capacity", "ظرفیت")],
       ["rates", say("Rates", "نرخ‌ها")],
+      ["usage", say("Usage", "استفاده")],
     ];
     const panel = state.tab === "general" ? renderGeneral(row)
       : state.tab === "assignments" ? renderAssignments(row)
-        : state.tab === "capacity" ? renderCapacity(row) : renderRates(row);
+        : state.tab === "capacity" ? renderCapacity(row)
+          : state.tab === "rates" ? renderRates(row) : renderUsage(row);
     return `<div class="cp-calendar-editor-tabs" role="tablist">${tabs.map(([key, label]) => `<button type="button" role="tab" data-resource-tab="${key}" aria-selected="${state.tab === key}" class="${state.tab === key ? "is-active" : ""}">${escapeHtml(label)}</button>`).join("")}</div><div class="cp-calendar-editor-content">${panel}</div>`;
   }
 
@@ -760,6 +927,12 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
   }
 
   async function reload(keepSelection: string | null): Promise<void> {
+    state.usageRequestToken += 1;
+    state.usageStatus = "idle";
+    state.usageResourceId = null;
+    state.usagePeriods = [];
+    state.usagePeriodsLoaded = false;
+    state.usageResolutions.clear();
     state.status = "loading";
     render();
     const [result, calendarResult] = await Promise.all([
@@ -785,6 +958,9 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
       state.selectedId = null;
     }
     render();
+    if (state.tab === "usage" && state.selectedId) {
+      void ensureUsage(state.selectedId);
+    }
   }
 
   function readDraft(form: HTMLFormElement): ResourceInput {
@@ -826,6 +1002,10 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     const tab = target.closest<HTMLElement>("[data-resource-tab]")?.dataset.resourceTab as ResourceTab | undefined;
     if (tab) {
       state.tab = tab;
+      const current = selected();
+      if (tab === "usage" && current) {
+        void ensureUsage(current.resourceId);
+      }
       render();
       return;
     }
