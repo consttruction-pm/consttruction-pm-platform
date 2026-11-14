@@ -1,0 +1,41 @@
+SCH-002 CPM, float and multiple float paths — tests at 5d923063 (PR #1965)
+=========================================================================
+
+Python (repository root, no external DSN):
+  python3 -m pytest -q
+  => 4290 passed, 194 skipped, 3 warnings in 37.20s
+
+Web unit and preview-server tests:
+  npm --prefix apps/web test
+  => # tests 1151 / # pass 1151 / # fail 0
+  => # tests 14 / # pass 14 / # fail 0
+
+Web bundle:
+  npm --prefix apps/web run build
+  => tsc -p tsconfig.build.json + esbuild Done
+
+Browser full-stack E2E (managed runtime, fresh temporary SQLite):
+  CUBI_CHROME_NO_SANDBOX=1 CUBI_PYTHON=python3 node e2e/preview-e2e.mjs
+  => CUBI full-stack preview E2E passed (99 recorded checks)
+  => 53 screenshots, zero uncaught exceptions, zero API 5xx
+
+New recorded check:
+  multiple float paths are calculated and rendered per activity
+    settings: multiple_float_paths_enabled=true, maximum_multiple_float_paths=2
+    result headers: Activity | Start | Finish | Duration | Total float |
+                    Float path | Float path order | Critical
+    observed rows: A100 p1 o1, A110 p1 o2, A120 p1 o3, A130 p1 o4, A145 p2 o1
+    revision after save: 5
+
+Existing CPM/float server coverage relied on by this audit:
+  tests/scheduling/test_forward_pass.py
+  tests/scheduling/test_schedule.py
+  tests/scheduling/test_multi_project_float.py
+  tests/scheduling/test_authoritative_schedule.py
+  tests/scheduling/test_authoritative_schedule_batch.py
+  tests/scheduling/test_out_of_sequence.py
+  tests/scheduling/test_oos_policy.py
+
+External Version 26 fixture comparison: BLOCKED_EXTERNAL (no licensed V26
+schedule export fixture exists in the repository; internal full-dataset
+CPM/float/multi-path tests and the V26 behavior catalogue are the fallback).
