@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Mapping
 from uuid import uuid4
 
-from .application.authorization import Permission
+from .application.authorization import AuthorizationError, Permission
 from .application.project_lifecycle import ProjectLifecycleError
 from .enterprise_task import (
     EnterpriseTask,
@@ -202,7 +202,7 @@ class EnterpriseTaskApplicationService:
             context = self._lifecycle.authorize_project(
                 session_id, project_id, permission, now=self._now()
             ).context
-        except ProjectLifecycleError as exc:
+        except (ProjectLifecycleError, AuthorizationError) as exc:
             raise EnterpriseTaskAuthorizationError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED") from exc
         if context.tenant_id != tenant_id or context.project_id != project_id:
             raise EnterpriseTaskAuthorizationError("CROSS_SCOPE_ACCESS")
