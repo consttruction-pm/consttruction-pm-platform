@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import uuid4
 
-from .application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
+from .application.authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
 
 PROJECT_PERMISSION_CODES = frozenset(item.value for item in Permission)
@@ -333,6 +333,12 @@ class EnterpriseProjectAuthorizationPolicy:
         return self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, permission.value
         )
+
+    def require(self, context: AuthorizationContext, permission: Permission) -> None:
+        if not self.is_allowed(context, permission):
+            raise AuthorizationError(
+                f"authorization denied for permission={permission.value}"
+            )
 
 
 __all__ = [
