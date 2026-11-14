@@ -175,7 +175,7 @@ Classification key:
 | D-018 | Project risk workflows | EPPM documents project risks, detailed/high-level risks, activity risk assignments, risk response plans and action items. | Professional documents create/assign/respond/modify/delete risks as a Professional-only database feature. | BOTH / DIFFERENT DATA MODEL |
 | D-019 | Document content repository | EPPM supports documents stored in a Content Repository, templates, check-in/check-out, folders, searching, viewing/downloading and document review. | Professional WPs & Docs primarily manages document/work-product records and location references; when connected to EPPM it can surface EPPM document records. | EPPM PLATFORM / BOTH DIFFERENT |
 | D-020 | Document review workflow | EPPM documents document reviews, participants, termination and dashboard review portlets. | Professional WPs & Docs records do not constitute the same managed review workflow. | EPPM PLATFORM |
-| D-021 | Budget change requests | EPPM supports budget log entries at EPS/project/WBS level, responsible party, status, reason and approval/denial workflow. | Professional has budgeting and cost controls; the EPPM web request/approval workflow must be treated as a distinct surface. | BOTH / DIFFERENT SURFACE |
+| D-021 | Budget change requests / Budget Log | EPPM supports Budget Change Log entries at EPS/project/WBS level with date, amount, responsible, status and reason; authorized users can set Approved/Not Approved. | Professional V26 User Guide also documents Budget Log entries with date, amount, responsible, pending/approved/not approved status and reason; Current Budget = Original + Approved, Proposed Budget = Original + Approved + Pending. | BOTH / SHARED DATA CONCEPT, DIFFERENT UI SURFACE; Pro V26 WBS-level workflow/permission parity NOT VERIFIED |
 | D-022 | Project scheduled services | EPPM provides server-side scheduled project services and configuration. | Professional Help separately documents Job Services as P6 Professional Only. | BOTH / DIFFERENT SERVICE MODEL |
 | D-023 | Publication services | EPPM provides project/global/baseline data publication, publication periods, automatic/on-demand publication and service settings. | Professional has Project Web Site Publisher and desktop publishing layouts/reports. | BOTH / DIFFERENT SERVICE MODEL |
 | D-024 | Summarization | EPPM has server-side summarizer service and project summarization settings. | Professional has summary service; global summarization settings are explicitly Professional Only in the Professional Help. | BOTH / DIFFERENT SERVICE MODEL |
@@ -224,6 +224,8 @@ Classification key:
 - EPPM What-if Analysis: https://docs.oracle.com/cd/G48897_01/p6help/en/36491.htm
 - EPPM Capacity Planning role allocation: https://docs.oracle.com/cd/G48897_01/p6help/en/7855.htm
 - EPPM Budget Change Requests: https://docs.oracle.com/cd/G48897_01/p6help/en/7962.htm
+- EPPM Approving or Denying Budget Change Requests: https://docs.oracle.com/cd/G48897_01/p6help/en/44036.htm
+- Professional V26 Budget Log / Enter Budget Changes: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf
 - EPPM Unifier Activity Sheet integration: https://docs.oracle.com/cd/G48897_01/p6help/en/89593.htm
 - Professional database-context qualifier: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/62783.htm
 - Professional Reporting Guide EPPM-only report defaults: https://docs.oracle.com/cd/G48902_01/English/admin/p6_pro_reporting/p6_pro_reporting.pdf
