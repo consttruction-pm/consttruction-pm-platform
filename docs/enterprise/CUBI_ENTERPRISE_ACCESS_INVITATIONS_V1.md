@@ -31,10 +31,10 @@ These references describe user administration, module/project access, security p
 - Only a SHA-256 token digest is persisted.
 - Acceptance is bound to the authenticated target account and writes the membership plus access audit in the same database transaction.
 - Decline, revoke and expiry are explicit states; duplicate pending invitations are constrained by a partial unique index.
-- Team membership does not grant project access. Project/OBS grants, ownership transfer, HTTP routes and UI remain subsequent acceptance gates.
+- Authenticated API routes are mounted behind the production session, Origin and CSRF boundary. Team membership does not grant project access. Project/OBS grants, ownership transfer, invitation inbox/notifications and the Organization & Access UI remain subsequent acceptance gates.
 
 ## Verification required before promotion
 
 - Unit tests: tests/test_enterprise_invitation.py.
 - Live PostgreSQL integration must cover unique public IDs, tenant isolation, duplicate invitation prevention, concurrent accept/replay, token secrecy, expiry, revocation, atomic membership creation and append-only audit.
-- Production API must be mounted behind the existing authenticated session, origin and CSRF boundary before this is called end-to-end.
+- Production API composition is wired; exact-head CI and live PostgreSQL verification are required before promotion. The UI and invitation inbox/notification delivery are not included in this slice.
