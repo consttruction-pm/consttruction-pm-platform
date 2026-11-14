@@ -22,8 +22,8 @@
 | 1 | Portfolio capability | Portfolios section with project grouping and analysis tools | Enterprise > Project Portfolios; create/manage project portfolios | Both support portfolios. CONFIRMED |
 | 2 | Main navigation | Dedicated Portfolios section in P6 web navigation | Enterprise menu > Project Portfolios | Different user surface. CONFIRMED |
 | 3 | Portfolio purpose | Group projects for strategic review, comparison, performance and resource capacity | Group projects and control which users can access the project portfolio | Shared grouping purpose; different depth. CONFIRMED |
-| 4 | Portfolio membership | Manual selection or automatic membership by filter | Add projects through the Projects tab | EPPM supports filtered/automatic portfolios; Professional documented workflow is manually curated. CONFIRMED |
-| 5 | Filtered membership | EPPM can define filter criteria and periodically refresh portfolio membership | Professional V26 Create Portfolio workflow does not document filter-based membership | Material workflow difference. CONFIRMED (documented scope) |
+| 4 | Portfolio membership | Manual selection or automatic membership by filter | Professional V26 Help explicitly references filtered portfolios and says projects cannot be manually added to them; manual portfolios accept selected projects | Both products support manual and filtered portfolio concepts; Pro filter-creation workflow is less fully documented. CONFIRMED |
+| 5 | Filtered membership | EPPM documents filter criteria and a configurable stale-period refresh when a portfolio is viewed | Professional V26 Help confirms filtered portfolios exist, but the cited add-project topic does not document filter creation criteria or refresh cadence | Filtered portfolios are shared; EPPM refresh behavior is explicit, Pro configuration details remain PARTIALLY VERIFIED |
 | 6 | Portfolio types/access | User, Multiple Users, Global portfolio groups; access settings on multi-user portfolios | General tab selects users with access; Shared Users are added on User Access tab | Similar audience controls, different configuration model. CONFIRMED |
 | 7 | Global portfolio | Available to users with appropriate access/module privileges | Professional portfolio access can be configured for users; global portfolio icon is documented | Shared global portfolio concept. CONFIRMED |
 | 8 | Portfolio details | Name, description, membership and access configured in Manage Portfolios | Name, description, user access and Projects tab | Shared metadata. CONFIRMED |
@@ -54,11 +54,13 @@
 | 33 | Summarized data dependency | Capacity Planning displays latest summarized data or a selected scenario; timescale depends on project summarization | Professional Resource Analysis can use live data from open projects and stored summary data from closed projects | Different summary-data path. CONFIRMED |
 | 34 | All-project analysis | EPPM can display current portfolio projects or all projects; some all-project views cannot use scenarios | Professional resource analysis can include closed projects based on User Preferences and leveling priority | Both aggregate across projects, but selection/summary rules differ. CONFIRMED |
 | 35 | Create portfolio from analysis | EPPM can create a portfolio from selected projects in Portfolio Analysis or Capacity Planning | Professional creates portfolio from Enterprise > Project Portfolios and adds projects | Different entry points. CONFIRMED |
-| 36 | Portfolio project filtering | EPPM can filter portfolios by EPS, project code or project criteria | Professional project portfolio membership is explicitly selected in Projects tab | EPPM more dynamic filtering. CONFIRMED |
+| 36 | Portfolio project filtering | EPPM can define filter criteria, including project selection based on filters; portfolio views can filter by EPS, portfolio or project code | Professional supports filtered portfolios, but exact filterable fields and refresh semantics are not established by the cited V26 Help page | Shared filter concept; EPPM field/scope details are clearer in V26 docs. PARTIALLY VERIFIED |
 | 37 | Resource usage profiles | EPPM Capacity Planning is role-first, with staffed/un-staffed and project/role/code stacking | Professional Resource Usage Profile and Resource Analysis are resource/role allocation views across projects | Related resource analytics, not identical feature. CONFIRMED |
 | 38 | Resource summary treatment | EPPM Capacity Planning uses latest summarized project data and scenario snapshots | Professional Resource Analysis can combine live open-project data with stored summary for closed projects, excluding What-If projects in one preference option | Different aggregation rules. CONFIRMED |
 | 39 | What-if project effect on summaries | EPPM portfolio scenarios preserve data snapshots; What-If projects can be included in portfolio analysis depending status/filter | Professional What-If projects are excluded from some resource calculations and leveling, per Resource Analysis preferences | Must record project status and preference before comparing capacity results. CONFIRMED |
 | 40 | Dashboard presentation | EPPM Portfolio View portlets display named portfolio views on private, multi-user or global dashboards | Professional Project Portfolios is a desktop management object; no equivalent web Portfolio View portlet documented | EPPM web/dashboard integration. CONFIRMED |
+| 41 | Portfolio API create scope | V26 ProjectPortfolio REST/Integration API supports manual portfolios; filtered portfolios are based on web-app filter results and cannot be created/modified through that API workflow | Professional Java API Release 24 reference also documents filtered portfolio types and restricts API creation to manual portfolios; not V26 proof | UI capability and API capability must be compared separately. CONFIRMED for EPPM V26; Pro API version-limited |
+| 42 | Manual project assignment to filtered portfolio | EPPM Help states filtered portfolios are populated from their filter and refreshed according to stale-period settings | Professional V26 Help explicitly says projects cannot be manually added to a filtered portfolio | Shared filtered-portfolio behavior. CONFIRMED |
 
 ## 3. Reconciled meanings
 
@@ -91,8 +93,8 @@ EPPM uses “scorecard” for both a named Portfolio View Scorecard and the gene
 
 ### P6 EPPM V26
 1. EPPM V26 Help TOC (Portfolios and Capacity Planning): https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
-2. About Portfolios: https://docs.oracle.com/cd/G48897_01/p6help/en/36489.htm
-3. Working with Portfolios: https://docs.oracle.com/cd/G48897_01/p6help/en/36488.htm
+2. About Portfolios: https://docs.oracle.com/cd/G48897_01/p6help/en/6611.htm
+3. Working with Portfolios: https://docs.oracle.com/cd/G48897_01/p6help/en/6671.htm
 4. Creating Portfolios (V26 User Guide): https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/7858.htm
 5. Working with Portfolio Views: https://docs.oracle.com/cd/G48897_01/p6help/en/14090.htm
 6. Working with Portfolio View Scorecards: https://docs.oracle.com/cd/G48897_01/p6help/en/9116.htm
@@ -100,15 +102,18 @@ EPPM uses “scorecard” for both a named Portfolio View Scorecard and the gene
 8. About Capacity Planning: https://docs.oracle.com/cd/G48897_01/p6help/en/36490.htm
 9. Capacity Planning Page: https://docs.oracle.com/cd/G48897_01/p6help/en/5973.htm
 10. Working with the Capacity Planning Page: https://docs.oracle.com/cd/G48897_01/p6help/en/36496.htm
-11. Defining Performance Thresholds: https://docs.oracle.com/cd/G48897_01/p6help/en/??.htm
+11. Defining Performance Thresholds: https://docs.oracle.com/cd/G48897_01/p6help/en/7857.htm
+12. EPPM V26 REST ProjectPortfolio endpoints: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/api-projectportfolio.html
 
 ### P6 Professional V26
-12. Professional V26 Help TOC: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
-13. Create a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_portfolio.htm
-14. Add projects to a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_projects_to_a_portfolio.htm
-15. Add users to a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_users_to_a_portfolio.htm
-16. Define a what-if project: https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_a_what-if_project.htm
-17. Professional V26 User Guide — Resource Analysis and What-If projects: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf
+13. Professional V26 Help TOC: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+14. Create a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_portfolio.htm
+15. Add projects to a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_projects_to_a_portfolio.htm
+16. Add users to a portfolio: https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_users_to_a_portfolio.htm
+17. Define a what-if project: https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_a_what-if_project.htm
+18. Professional V26 User Guide — Resource Analysis and What-If projects: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf
+
+19. Professional API ProjectPortfolio (Release 24; version-limited): https://docs.oracle.com/cd/F88968_01/English/Integration/p6_pro_api_reference/com/primavera/integration/client/bo/object/ProjectPortfolio.html
 
 ## 5. Remaining gaps — explicitly open
 
