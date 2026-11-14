@@ -159,6 +159,219 @@ function extractAuthoritativeScheduleFacts(value: unknown): AuthoritativeSchedul
   };
 }
 
+export type ScheduleCheckSeverityValue = "ERROR" | "WARNING" | "INFO";
+
+export type ScheduleCheckRule = {
+  ruleId: string;
+  severity: ScheduleCheckSeverityValue;
+  count: number;
+};
+
+export type ScheduleCheckFinding = {
+  ruleId: string;
+  severity: ScheduleCheckSeverityValue;
+  message: string;
+  activityId: string | null;
+  relationshipId: string | null;
+  constraintId: string | null;
+  details: Record<string, string>;
+};
+
+export type ScheduleCheck = {
+  contractVersion: "p6-schedule-check.v1";
+  snapshotId: string;
+  snapshotHash: string;
+  calculationRunIdentity: string;
+  scope: { projectId: string; projectRevision: number };
+  total: number;
+  counts: { error: number; warning: number; info: number };
+  rules: ScheduleCheckRule[];
+  findings: ScheduleCheckFinding[];
+};
+
+const CHECK_SEVERITIES: readonly ScheduleCheckSeverityValue[] = ["ERROR", "WARNING", "INFO"];
+
+function readCheckSeverity(value: unknown): ScheduleCheckSeverityValue {
+  if (typeof value !== "string" || !(CHECK_SEVERITIES as readonly string[]).includes(value)) {
+    throw new Error("INVALID_SCHEDULE_CHECK_SEVERITY");
+  }
+  return value as ScheduleCheckSeverityValue;
+}
+
+function readNonNegativeInteger(value: unknown, code: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw new Error(code);
+  return value;
+}
+
+function readOptionalText(value: unknown, code: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new Error(code);
+  return value;
+}
+
+/**
+ * Parse the server-side schedule check block. The document is authoritative:
+ * rules, severities, counts and findings are rendered as returned. The browser
+ * never infers a rule or recomputes a count.
+ */
+export function extractScheduleCheck(value: unknown): ScheduleCheck | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = (value as Record<string, unknown>).schedule_check;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const block = raw as Record<string, unknown>;
+  if (block.contract_version !== "p6-schedule-check.v1" || block.kind !== "schedule_check") return null;
+  if (!Array.isArray(block.rules) || !Array.isArray(block.findings)) return null;
+  if (!block.counts || typeof block.counts !== "object" || Array.isArray(block.counts)) return null;
+  const counts = block.counts as Record<string, unknown>;
+  if (!block.scope || typeof block.scope !== "object" || Array.isArray(block.scope)) {
+    throw new Error("INVALID_SCHEDULE_CHECK_SCOPE");
+  }
+  const scope = block.scope as Record<string, unknown>;
+  if (typeof scope.project_id !== "string" || !scope.project_id) {
+    throw new Error("INVALID_SCHEDULE_CHECK_SCOPE");
+  }
+  const projectRevision = readNonNegativeInteger(scope.project_revision, "INVALID_SCHEDULE_CHECK_SCOPE");
+  const rules = block.rules.map((item) => {    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("INVALID_SCHEDULE_CHECK_RULE");
+    const rule = item as Record<string, unknown>;
+    if (typeof rule.rule_id !== "string" || !rule.rule_id) throw new Error("INVALID_SCHEDULE_CHECK_RULE");
+    return {
+      ruleId: rule.rule_id,
+      severity: readCheckSeverity(rule.severity),
+      count: readNonNegativeInteger(rule.count, "INVALID_SCHEDULE_CHECK_RULE"),
+    };
+  });
+  const findings = block.findings.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("INVALID_SCHEDULE_CHECK_FINDING");
+    const finding = item as Record<string, unknown>;
+    if (typeof finding.rule_id !== "string" || !finding.rule_id) throw new Error("INVALID_SCHEDULE_CHECK_FINDING");
+    if (typeof finding.message !== "string") throw new Error("INVALID_SCHEDULE_CHECK_FINDING");
+    const details: Record<string, string> = {};
+    if (finding.details !== undefined && finding.details !== null) {
+      if (typeof finding.details !== "object" || Array.isArray(finding.details)) {
+        throw new Error("INVALID_SCHEDULE_CHECK_FINDING");
+      }
+      for (const [key, detail] of Object.entries(finding.details as Record<string, unknown>)) {
+        if (detail !== null && detail !== undefined) details[key] = String(detail);
+      }
+    }
+    return {
+      ruleId: finding.rule_id,
+      severity: readCheckSeverity(finding.severity),
+      message: finding.message,
+      activityId: readOptionalText(finding.activity_id, "INVALID_SCHEDULE_CHECK_FINDING"),
+      relationshipId: readOptionalText(finding.relationship_id, "INVALID_SCHEDULE_CHECK_FINDING"),
+      constraintId: readOptionalText(finding.constraint_id, "INVALID_SCHEDULE_CHECK_FINDING"),
+      details,
+    };
+  });
+  return {
+    contractVersion: "p6-schedule-check.v1",
+    snapshotId: typeof block.snapshot_id === "string" ? block.snapshot_id : "",
+    snapshotHash: typeof block.snapshot_hash === "string" ? block.snapshot_hash : "",
+    calculationRunIdentity:
+      typeof block.calculation_run_identity === "string" ? block.calculation_run_identity : "",
+    scope: { projectId: scope.project_id, projectRevision },
+    total: readNonNegativeInteger(counts.total, "INVALID_SCHEDULE_CHECK_COUNTS"),
+    counts: {
+      error: readNonNegativeInteger(counts.ERROR, "INVALID_SCHEDULE_CHECK_COUNTS"),
+      warning: readNonNegativeInteger(counts.WARNING, "INVALID_SCHEDULE_CHECK_COUNTS"),
+      info: readNonNegativeInteger(counts.INFO, "INVALID_SCHEDULE_CHECK_COUNTS"),
+    },
+    rules,
+    findings,
+  };
+}
+
+type ScheduleCheckLabels = {
+  checkTitle: string;
+  checkIntro: string;
+  checkRerunHint: string;
+  checkScope: string;
+  checkTotal: string;
+  checkErrors: string;
+  checkWarnings: string;
+  checkInfo: string;
+  checkRule: string;
+  checkSeverity: string;
+  checkCount: string;
+  checkFindings: string;
+  checkNoFindings: string;
+  checkOpenActivity: string;
+  severityError: string;
+  severityWarning: string;
+  severityInfo: string;
+  ruleNegativeFloat: string;
+  ruleOpenStart: string;
+  ruleOpenFinish: string;
+  ruleActivityConstraint: string;
+  ruleMandatoryConstraint: string;
+  ruleNegativeLag: string;
+};
+
+function checkRuleLabel(ruleId: string, labels: ScheduleCheckLabels): string {
+  switch (ruleId) {
+    case "NEGATIVE_FLOAT": return labels.ruleNegativeFloat;
+    case "OPEN_START": return labels.ruleOpenStart;
+    case "OPEN_FINISH": return labels.ruleOpenFinish;
+    case "ACTIVITY_CONSTRAINT": return labels.ruleActivityConstraint;
+    case "MANDATORY_CONSTRAINT": return labels.ruleMandatoryConstraint;
+    case "NEGATIVE_LAG": return labels.ruleNegativeLag;
+    default: return ruleId;
+  }
+}
+
+function checkSeverityLabel(severity: ScheduleCheckSeverityValue, labels: ScheduleCheckLabels): string {
+  if (severity === "ERROR") return labels.severityError;
+  if (severity === "WARNING") return labels.severityWarning;
+  return labels.severityInfo;
+}
+
+function checkFindingEvidence(finding: ScheduleCheckFinding): string {
+  const details = finding.details;
+  if (finding.relationshipId) {
+    const path = `${details.predecessor_id ?? ""} → ${details.successor_id ?? ""}`;
+    const suffix = [details.relationship_type, details.lag].filter(Boolean).join(", ");
+    return suffix ? `${path} (${suffix})` : path;
+  }
+  if (details.constraint_type) {
+    return [details.constraint_type, details.constraint_date].filter(Boolean).join(" · ");
+  }
+  if (details.total_float !== undefined) return details.total_float;
+  return finding.activityId ?? "";
+}
+
+export function renderScheduleCheck(check: ScheduleCheck, labels: ScheduleCheckLabels): string {
+  const ruleRows = check.rules.map((rule) =>
+    `<tr data-check-rule="${safe(rule.ruleId)}" data-check-severity="${safe(rule.severity)}" data-check-count="${rule.count}">` +
+    `<td>${safe(checkRuleLabel(rule.ruleId, labels))}</td>` +
+    `<td>${safe(checkSeverityLabel(rule.severity, labels))}</td>` +
+    `<td>${rule.count}</td></tr>`,
+  ).join("");
+  const findings = check.findings.map((finding) => {
+    const focus = finding.activityId;
+    const action = focus
+      ? `<button type="button" class="cp-detail-action" data-check-focus="${safe(focus)}" data-check-rule="${safe(finding.ruleId)}">${safe(labels.checkOpenActivity)} ${safe(focus)}</button>`
+      : "";
+    return `<li data-check-finding data-check-rule="${safe(finding.ruleId)}" data-check-severity="${safe(finding.severity)}" title="${safe(finding.message)}">` +
+      `<span>${safe(checkRuleLabel(finding.ruleId, labels))}</span>` +
+      `<span class="cp-muted">${safe(checkFindingEvidence(finding))}</span>` +
+      `${action}</li>`;
+  }).join("");
+  return `<section class="cp-schedule-check" data-schedule-check data-check-snapshot="${safe(check.snapshotId)}">` +
+    `<h3>${safe(labels.checkTitle)}</h3>` +
+    `<p class="cp-muted">${safe(labels.checkIntro)} ${safe(labels.checkRerunHint)}</p>` +
+    `<p data-check-scope="${safe(check.scope.projectId)}@${check.scope.projectRevision}"><b>${safe(labels.checkScope)}:</b> ${safe(check.scope.projectId)} · r${check.scope.projectRevision}</p>` +
+    `<p data-check-total="${check.total}"><b>${safe(labels.checkTotal)}:</b> ${check.total} · ` +
+    `${safe(labels.checkErrors)}: ${check.counts.error} · ${safe(labels.checkWarnings)}: ${check.counts.warning} · ` +
+    `${safe(labels.checkInfo)}: ${check.counts.info}</p>` +
+    `<table class="cp-schedule-check-rules"><thead><tr>` +
+    `<th scope="col">${safe(labels.checkRule)}</th><th scope="col">${safe(labels.checkSeverity)}</th><th scope="col">${safe(labels.checkCount)}</th>` +
+    `</tr></thead><tbody>${ruleRows}</tbody></table>` +
+    `<h4>${safe(labels.checkFindings)}</h4>` +
+    (findings ? `<ul class="cp-schedule-check-findings" data-check-findings>${findings}</ul>` : `<p data-check-empty>${safe(labels.checkNoFindings)}</p>`) +
+    `</section>`;
+}
+
 function renderScheduleRunResult(
   panel: HTMLElement,
   cached: ScheduleRunCacheRecord,
@@ -170,6 +383,13 @@ function renderScheduleRunResult(
     return;
   }
   const entries = Object.entries(facts.activities).sort(([left], [right]) => left.localeCompare(right));
+  let check: ScheduleCheck | null = null;
+  try {
+    check = extractScheduleCheck(cached.data);
+  } catch {
+    // A malformed check block must not hide the authoritative schedule table.
+    check = null;
+  }
   const showsFloat = entries.some(([, fact]) => fact.total_float !== undefined && fact.total_float !== null);
   const showsFloatPaths = entries.some(([, fact]) => fact.float_path !== undefined && fact.float_path !== null);
   const rows = entries.map(([id, fact]) => {
@@ -207,7 +427,8 @@ function renderScheduleRunResult(
     '<th scope="col">' + safe(labels.columnCritical) + '</th>' +
     '</tr></thead><tbody>' +
     (rows || `<tr><td colspan="${(showsFloat ? 6 : 5) + (showsFloatPaths ? 2 : 0)}">${safe(labels.empty)}</td></tr>`) +
-    '</tbody></table>';
+    '</tbody></table>' +
+    (check ? renderScheduleCheck(check, labels) : '');
 }
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
 type PublishedSnapshot = {
@@ -260,6 +481,10 @@ const LABELS = {
     holidayCanonicalDate: "Stored date", holidayRerunHint: "The calendar changed. Run the schedule again to refresh authoritative dates.",
     results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
     columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnFloatPath: "Float path", columnFloatPathOrder: "Float path order", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
+    checkTitle: "Schedule check", checkIntro: "Explicit quality checks run against this exact snapshot and calculation. A finding never rewrites the schedule.", checkRerunHint: "Fix the input and run the schedule again to recalculate the checks.",
+    checkScope: "Scope",
+    checkTotal: "Findings", checkErrors: "Errors", checkWarnings: "Warnings", checkInfo: "Info", checkRule: "Condition", checkSeverity: "Severity", checkCount: "Count", checkFindings: "Affected facts", checkNoFindings: "No condition was flagged by the supported checks.", checkOpenActivity: "Open activity",
+    severityError: "Error", severityWarning: "Warning", severityInfo: "Info", ruleNegativeFloat: "Negative total float", ruleOpenStart: "No predecessor", ruleOpenFinish: "No successor", ruleActivityConstraint: "Activity constraint", ruleMandatoryConstraint: "Mandatory constraint", ruleNegativeLag: "Negative relationship lag",
   },
   fa: {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
@@ -287,6 +512,10 @@ const LABELS = {
     holidayCanonicalDate: "تاریخ ذخیره‌شده", holidayRerunHint: "تقویم تغییر کرد. برای دریافت تاریخ‌های معتبر، زمان‌بندی را دوباره اجرا کنید.",
     results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
     columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnFloatPath: "مسیر شناوری", columnFloatPathOrder: "ترتیب مسیر شناوری", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
+    checkTitle: "بررسی زمان‌بندی", checkIntro: "بررسی‌های کیفی صریح روی همین تصویر و محاسبه اجرا می‌شود. یافته‌ها هرگز زمان‌بندی را بازنویسی نمی‌کنند.", checkRerunHint: "ورودی را اصلاح و زمان‌بندی را دوباره اجرا کنید تا بررسی‌ها بازمحاسبه شوند.",
+    checkScope: "دامنه",
+    checkTotal: "یافته‌ها", checkErrors: "خطاها", checkWarnings: "هشدارها", checkInfo: "اطلاعات", checkRule: "شرط", checkSeverity: "شدت", checkCount: "تعداد", checkFindings: "موارد متأثر", checkNoFindings: "هیچ شرطی توسط بررسی‌های پشتیبانی‌شده علامت‌گذاری نشد.", checkOpenActivity: "باز کردن فعالیت",
+    severityError: "خطا", severityWarning: "هشدار", severityInfo: "اطلاع", ruleNegativeFloat: "شناوری کل منفی", ruleOpenStart: "بدون پیش‌نیاز", ruleOpenFinish: "بدون پس‌نیاز", ruleActivityConstraint: "محدودیت فعالیت", ruleMandatoryConstraint: "محدودیت اجباری", ruleNegativeLag: "وقفهٔ منفی رابطه",
   },
 } as const;
 
@@ -876,6 +1105,20 @@ function mountRunPanel(
   const button = panel.querySelector<HTMLButtonElement>("[data-run-schedule]");
   const status = panel.querySelector<HTMLElement>("[data-run-status]");
   const resultPanel = panel.querySelector<HTMLElement>("[data-run-results]");
+  resultPanel?.addEventListener("click", (event) => {
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLElement>("[data-check-focus]")
+      : null;
+    const activityId = target?.dataset.checkFocus;
+    if (!activityId) return;
+    const rows = Array.from(
+      panel.ownerDocument.querySelectorAll<HTMLElement>("#cp-activity-grid tbody tr[data-activity-id]"),
+    );
+    const row = rows.find((candidate) => candidate.dataset.activityId === activityId);
+    if (!row) return;
+    row.click();
+    row.scrollIntoView({ block: "center" });
+  });
   const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
   if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {

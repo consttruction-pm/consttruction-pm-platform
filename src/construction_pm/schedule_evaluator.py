@@ -29,6 +29,7 @@ from .scheduling.resource_dependent_placement import (
 )
 from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
+from .scheduling.schedule_checks import ScheduleCheckFinding, evaluate_schedule_checks
 from .scheduling.schedule_options import ScheduleMode
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
@@ -53,6 +54,8 @@ class ScheduleEvaluationResult:
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
     time_result: TimeScheduleResult | None = None
     resource_dependent_placement: ResourceDependentPlacementResult | None = None
+    # Explicit schedule-quality findings derived from this exact input/result.
+    schedule_check_findings: tuple[ScheduleCheckFinding, ...] = ()
 
     @property
     def diagnostics(self) -> tuple[ScheduleDiagnostic, ...]:
@@ -253,6 +256,9 @@ def _evaluate_materialized(
                 mode=source.mode.value,
                 date_result=result,
                 resource_dependent_placement=placement,
+                schedule_check_findings=evaluate_schedule_checks(
+                    source, date_result=result
+                ),
             )
 
         activities = source.activities
@@ -294,6 +300,9 @@ def _evaluate_materialized(
             mode=source.mode.value,
             time_activities=timed_result.early_activities,
             time_result=timed_result,
+            schedule_check_findings=evaluate_schedule_checks(
+                source, time_result=timed_result
+            ),
         )
     except ScheduleEvaluationError:
         raise
