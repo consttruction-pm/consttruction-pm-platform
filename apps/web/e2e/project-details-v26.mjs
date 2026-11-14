@@ -383,6 +383,14 @@ async function main() {
       assert(state.activityIdSuffix === "-B", `reloaded suffix ${state.activityIdSuffix}`);
       assert(state.activityIdIncrement === "20", `reloaded increment ${state.activityIdIncrement}`);
       assert(state.incrementActivityId, "reloaded increment flag is off");
+      const defaultsTab = await page.evaluate(`(() => {
+        const panel = document.querySelector('[data-project-detail-panel="defaults"]');
+        return { text: panel?.textContent?.replace(/\\s+/g, " ").trim() ?? "" };
+      })()`);
+      assert(/Level of Effort/.test(defaultsTab.text), `Defaults tab activity type ${defaultsTab.text}`);
+      assert(/Physical/.test(defaultsTab.text), `Defaults tab percent type ${defaultsTab.text}`);
+      assert(/AH-/.test(defaultsTab.text) && /-B/.test(defaultsTab.text), `Defaults tab affixes ${defaultsTab.text}`);
+      assert(/ID increment20/.test(defaultsTab.text), `Defaults tab increment ${defaultsTab.text}`);
       await reveal(page, "[data-project-defaults]");
       await capture(page, "02b-project-defaults-persisted");
 

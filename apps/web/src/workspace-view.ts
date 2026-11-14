@@ -5824,6 +5824,32 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
         </div>
         <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Forecast, actual and finish dates are produced by the scheduling core from the activity data; this project record stores only the planned start.", "تاریخ‌های پیش‌بینی، واقعی و پایان توسط هستهٔ زمان‌بندی از داده‌های فعالیت تولید می‌شوند؛ این رکورد پروژه فقط شروع برنامه‌ای را ذخیره می‌کند."))}</p>`;
       }
+      if (tab === "defaults") {
+        if (!summary) return notRead();
+        const activityTypeLabel = (value: string): string => {
+          if (value === "Resource Dependent") return uiText(state.locale, "Resource Dependent", "وابسته به منبع");
+          if (value === "Level of Effort") return uiText(state.locale, "Level of Effort", "تلاش مستمر");
+          if (value === "Start Milestone") return uiText(state.locale, "Start Milestone", "نقطه عطف آغاز");
+          if (value === "Finish Milestone") return uiText(state.locale, "Finish Milestone", "نقطه عطف پایان");
+          if (value === "WBS Summary") return uiText(state.locale, "WBS Summary", "خلاصهٔ WBS");
+          return uiText(state.locale, "Task Dependent", "وابسته به وظیفه");
+        };
+        const percentTypeLabel = (value: string): string => {
+          if (value === "UNITS") return uiText(state.locale, "Units", "واحدها");
+          if (value === "PHYSICAL") return uiText(state.locale, "Physical", "فیزیکی");
+          if (value === "SCOPE") return uiText(state.locale, "Scope", "دامنه");
+          return uiText(state.locale, "Duration", "مدت");
+        };
+        return `<div class="cp-activity-detail-fields">
+          ${field(uiText(state.locale, "Default activity type", "نوع پیش‌فرض فعالیت"), activityTypeLabel(summary.default_activity_type ?? "Task Dependent"))}
+          ${field(uiText(state.locale, "Percent complete type", "نوع درصد تکمیل"), percentTypeLabel((summary.default_percent_complete_type ?? "DURATION").toUpperCase()))}
+          ${field(uiText(state.locale, "Activity ID prefix", "پیشوند شناسهٔ فعالیت"), summary.activity_id_prefix || "—")}
+          ${field(uiText(state.locale, "Activity ID suffix", "پسوند شناسهٔ فعالیت"), summary.activity_id_suffix || "—")}
+          ${field(uiText(state.locale, "ID increment", "گام افزایش شناسه"), String(summary.activity_id_increment ?? 10))}
+          ${field(uiText(state.locale, "Increment from selected activity", "افزایش بر پایهٔ فعالیت انتخاب‌شده"), summary.increment_activity_id ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر"))}
+        </div>
+        <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Applied when a new activity is created. Changing a default never rewrites existing activities.", "هنگام ساخت فعالیت جدید اعمال می‌شود. تغییر پیش‌فرض، فعالیت‌های موجود را بازنویسی نمی‌کند."))}</p>`;
+      }
       if (tab === "settings") {
         if (!summary) return notRead();
         return `<div class="cp-activity-detail-fields">
@@ -5832,7 +5858,7 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
           ${field(uiText(state.locale, "Business Domain", "حوزهٔ کاری"), businessDomainLabel(state.locale, summary.business_domain))}
           ${field(uiText(state.locale, "Settings revision", "ویرایش تنظیمات"), `R${summary.settings_revision ?? 0}`)}
         </div>
-        <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Fiscal year start, default price per unit and activity ID numbering are not stored on the project record this server exposes, so they are not shown as editable.", "شروع سال مالی، قیمت پیش‌فرض واحد و شماره‌گذاری شناسهٔ فعالیت در رکورد پروژه‌ای که این سرور ارائه می‌دهد ذخیره نمی‌شوند؛ بنابراین قابل ویرایش نمایش داده نمی‌شوند."))}</p>`;
+        <p class="cp-activity-detail-note">${escapeHtml(uiText(state.locale, "Fiscal year start and default price per unit are not stored on the project record this server exposes. Activity ID numbering is edited on the Defaults tab.", "شروع سال مالی و قیمت پیش‌فرض واحد در رکورد پروژه‌ای که این سرور ارائه می‌دهد ذخیره نمی‌شوند. شماره‌گذاری شناسهٔ فعالیت در زبانهٔ پیش‌فرض‌ها ویرایش می‌شود."))}</p>`;
       }
       const tabInfo = PROJECT_DETAIL_TABS.find(([key]) => key === tab);
       return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "project"} detail fields are loaded for this project.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات پروژه"}» برای این پروژه بارگذاری نشده است.`))}</p>`;
