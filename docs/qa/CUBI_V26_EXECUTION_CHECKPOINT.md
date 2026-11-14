@@ -3813,6 +3813,26 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   does not advance the project revision (the interval identity and overlap
   checks are the concurrency guard).
 
+### TRK-001 tracking layout lifecycle audit — 2026-11-14 (`15cc71e7`)
+
+- The Tracking window reads a real `tracking-read-model.v1` projection with four
+  views (`table`, `bar-chart`, `gantt-profile`, `resource-analysis`) and
+  scale/group/sort/direction controls. It never runs CPM, leveling or money
+  math.
+- Those controls are session-only. There is no save, open, share, import,
+  export or delete route for a tracking layout, and the Publish toolbar entry is
+  disabled with the truthful "no backend" reason. Reloading returns the default
+  view.
+- The activity-layout service cannot be reused: its document is an activity
+  column layout with one user document per view and no delete route.
+- The requested lifecycle contract (`p6-tracking-layout-api.v1`, user/project
+  scope, append-only revisions, portable `cubi-tracking-layout.v1` document,
+  delete, publish permission and failure codes) is recorded in
+  `docs/workspace/architecture/p6-tracking-layout-contract-request.md`.
+- No UI or browser evidence is claimed for the lifecycle: adding a localStorage
+  "saved layout" would misrepresent storage. Status is `BLOCKED_EXTERNAL` until
+  Agent 3 provides the contract.
+
 ### Remaining PRJ-002 / window gaps
 
 - The enterprise OBS hierarchy still does not exist; the responsible manager is
@@ -3829,10 +3849,12 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Project status filtering/portfolios, audited defaults application, and the
   remaining Project Register/Details tab behaviors (default settings beyond
   this slice, project properties) remain open.
-- `TRK-001` (tracking layout save/open/share/import/export/delete) and
-  `PRO-002` (period actuals) remain `NOT_AUDITED`; they are the next P7
-  candidates and need their own stored contracts where the current read models
-  do not expose the data.
+- `PRO-002` (period actuals) remains `NOT_AUDITED`; it is the next P7
+  candidate and needs its own stored contract where the current read model does
+  not expose the data.
+- `TRK-001` tracking-layout lifecycle is `BLOCKED_EXTERNAL`: the read model and
+  four views are real, but no layout store exists. See
+  `docs/workspace/architecture/p6-tracking-layout-contract-request.md`.
 - `RES-005` effective-dated rate changes are now `WIRED_WRITE` in the Resources
   Rates tab through the existing `p6-resource-rate-write-api.v1` contract
   (append-only interval change, close-open-segment supersession, revision and
