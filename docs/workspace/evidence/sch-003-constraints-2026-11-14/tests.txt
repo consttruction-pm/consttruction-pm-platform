@@ -1,0 +1,48 @@
+SCH-003 constraints, open ends and relationship lag calendar — tests at e81d3bb0 (PR #1967)
+==========================================================================================
+
+Python (repository root, no external DSN):
+  python3 -m pytest -q
+  => 4319 passed, 203 skipped, 3 warnings in 37.53s
+
+Web unit and preview-server tests:
+  npm --prefix apps/web test
+  => # tests 1162 / # pass 1162 / # fail 0
+  => # tests 15 / # pass 15 / # fail 0
+
+Web bundle:
+  npm --prefix apps/web run build
+  => tsc -p tsconfig.build.json + esbuild Done
+
+Browser full-stack E2E (managed runtime, fresh temporary SQLite):
+  CUBI_CHROME_NO_SANDBOX=1 CUBI_PYTHON=python3 node e2e/preview-e2e.mjs
+  => CUBI full-stack preview E2E passed (100 recorded checks)
+  => 54 screenshots, zero uncaught exceptions, zero API 5xx
+
+New recorded check:
+  activity constraints persist and move the authoritative schedule
+    editor options: six values, START_NO_EARLIER_THAN .. MANDATORY_FINISH
+    stored: A140 START_NO_EARLIER_THAN 2026-10-20 record_revision=1
+    constrained row: A140 | 2026-10-20 | 2026-11-03 | 10 | 0 | Yes
+    after delete: []
+    after delete schedule: A140 start < 2026-10-20
+
+New server/unit coverage:
+  tests/test_p6_constraint_api.py
+  tests/test_constraint_master_repository.py (datetime rejection, delete revisions)
+  tests/test_project_lifecycle_http_routes.py (constraint HTTP block)
+  apps/web/src/workspace-constraints.test.ts
+  apps/web/src/workspace-activity-details.test.ts (constraint section)
+
+Existing scheduler coverage relied on by this audit:
+  tests/scheduling/test_forward_pass.py
+  tests/scheduling/test_schedule.py (constraint windows, open-ended criticality)
+  tests/scheduling/test_constraints.py (all constraint types and windows)
+  tests/scheduling/test_calendar_context.py, test_time_schedule.py (lag calendars)
+  tests/test_authoritative_schedule_snapshot_composer.py (lag assignment input)
+
+External Version 26 fixture comparison: BLOCKED_EXTERNAL (no licensed V26
+constraint or schedule export fixture exists in the repository; internal
+full-dataset CPM/constraint tests and the V26 behavior catalogue are the
+fallback). Per-relationship lag-calendar assignment has repository and
+composer support but no HTTP/UI editor yet.

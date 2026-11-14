@@ -4168,3 +4168,38 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   `BLOCKED_EXTERNAL`; the run-results table shows only start/finish/duration/
   total float/float path/critical, while early/late dates, free float and
   diagnostics stay in the register query and grid columns.
+
+### SCH-003 constraints, open ends and relationship lag calendar — 2026-11-14 (`e81d3bb0`)
+
+- Constraints were already persisted and applied by the core, but the product
+  had no way to write them: no route, no delete and no editor. The repository
+  also accepted `datetime` precision. `ConstraintMaster.validate()` now rejects
+  it, and both repositories gained a revision-guarded `delete`
+  (`CONSTRAINT_NOT_FOUND`, `REVISION_CONFLICT`).
+- **Stored contract.** `p6-constraint-api.v1` (`kind: p6_constraint`) exposes
+  create/get/list/update/delete for all six `ConstraintType` values behind
+  `PROJECT_READ`/`PROJECT_WRITE` and the checkout lease. Targets must exist in
+  scope, Level of Effort and WBS Summary activities are rejected
+  (`CONSTRAINT_ACTIVITY_TYPE_UNSUPPORTED:<type>`), and a second constraint of
+  the same type on one activity is rejected (`DUPLICATE_CONSTRAINT_TYPE`).
+  Routes are `GET/POST /p6/constraints` and `GET/PATCH/DELETE
+  /p6/constraints/{constraint_id}`.
+- **Acceptance.** The Activity Details Status tab lists stored constraints and
+  renders a writer-only typed form with exactly six options and a date input.
+  The full-stack suite stores `START_NO_EARLIER_THAN 2026-10-20` on `A140`,
+  reads it back at revision 1, publishes and runs the schedule to
+  `A140` start `2026-10-20` / finish `2026-11-03` / total float `0` / critical
+  `Yes`, then deletes it through the UI and confirms the schedule reverts to a
+  start before `2026-10-20`. 100/100 checks at `e81d3bb0`, 54 screenshots,
+  zero exceptions/API 5xx. Evidence:
+  `docs/workspace/evidence/sch-003-constraints-2026-11-14/`.
+- **Tests at the same code.** `tests/test_p6_constraint_api.py`, constraint
+  repository datetime/delete cases, the constraint HTTP block,
+  `workspace-constraints.test.ts` and the activity-details constraint DOM test;
+  Python `4319 passed, 203 skipped`, Web `1162 + 15`, `tsc` and esbuild clean.
+- **Remaining gaps.** Per-relationship lag-calendar assignment has repository
+  and composer support but no HTTP/UI editor; the project-wide
+  `relationship_lag_calendar` option is typed, stored and consumed. External
+  V26 fixture comparison is `BLOCKED_EXTERNAL`; open-ended criticality is a
+  core option rather than a separate control, and leveling interactions remain
+  SCH-005.
