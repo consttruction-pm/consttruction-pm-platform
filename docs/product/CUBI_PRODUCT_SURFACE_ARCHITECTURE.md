@@ -20,18 +20,18 @@ The earlier one-environment-only decision is superseded to the extent that it pr
 The public website contains:
 1. Home and normal public/informational pages.
 2. A product entry flow.
-3. The personal workbench / personal dashboard.
-4. Role or working-context selection.
-5. Selection of an authorized environment: CUBI Engineering or CUBI Enterprise.
+3. Role or working-context selection (temporary login substitute until final authentication).
+4. The personal workbench / personal dashboard for the selected user context.
+5. Selection from that workbench of an authorized environment: CUBI Engineering or CUBI Enterprise.
 
 The personal workbench is an entry/personal coordination surface, not a third product environment. It must not replace or absorb either environment's workspace.
 
 ## 3. Temporary entry behavior and final authentication
 
-The final login/authentication system is not yet implemented. Until its final-stage delivery, the role-selection step is a temporary substitute for login for current development navigation only. It is not production authentication and must not be treated as proof of identity or authorization.
+The final login/authentication system is not yet implemented. Until its final-stage delivery, role selection is a temporary substitute for login for current development navigation only. After selecting a role/context, the user enters the personal workbench/dashboard and selects an authorized environment there. This is not production authentication and must not be treated as proof of identity or authorization.
 
 At the final authentication milestone:
-- roles and environment choices are sourced from authenticated identity and server-side grants;
+- role selection opens the personal workbench/dashboard, from which environment choices are sourced from authenticated identity and server-side grants;
 - users see only the roles and environments they are authorized to access;
 - the intended personal workbench → role/context → environment selection flow is preserved unless separately approved.
 
