@@ -1078,3 +1078,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Authorization limits:** personal tasks derive tenant/actor from session; project tasks use existing `PROJECT_READ`/`PROJECT_WRITE`. Team assignment and Engineering references remain disabled until their owning authorization foundations exist.
 - **Priority boundary:** Engineering remains primary. No Engineering calculations or shell are changed.
 - **Not yet claimed:** organization/team persistence, Task Center UI, workflow/approval, full PMBOK, production readiness.
+
+
+## CUBI Enterprise Task API production-bootstrap verification — 2026-11-15
+
+- **Canonical PR:** #1951, based directly on `main`; stacked duplicate PR #1950 was closed without merge and points to this consolidated PR.
+- **Production bootstrap correction:** `ProductionRuntime._initialize()` now commits the schema DDL transaction before releasing the connection to the pool. The pool intentionally rolls back any open transaction on release; without the explicit commit, schema creation was discarded.
+- **Schema defect found by new live-runtime coverage:** repaired malformed project-lifecycle migration SQL for `default_duration_type` and `default_cost_account_id`.
+- **Exact-head verification:** `89f3a223560eace09e9ddb9b6ad3cf37692d5043` — ConstructionPM CI: 4,343 passed / 124 skipped / 3 warnings on Python 3.11, 3.12 and 3.13; PostgreSQL Integration: 175 passed, including `test_production_login_postgres_live.py`; Client Typecheck passed for web, mobile, client-sync and desktop.
+- **Still open:** independent review of production session/CSRF and project-scope authorization; Task Center UI; Organization/team membership and assignment; Engineering reference resolver; Workflow/Approval; full PMBOK scope. No merge or deployment.
