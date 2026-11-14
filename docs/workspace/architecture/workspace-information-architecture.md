@@ -1,15 +1,16 @@
-# CUBI Workspace Information Architecture
+# CUBI Engineering Workspace Information Architecture
 
-Status: Phase 3 blueprint. Implementation starts after this document set is merged.
-Scope: the authenticated CUBI workspace only. Public marketing pages, pricing and site identity are out of scope and must not be changed by this programme. The website/product entry sequence and the single-workspace rule are governed by [`CUBI_PRODUCT_SURFACE_ARCHITECTURE.md`](../../product/CUBI_PRODUCT_SURFACE_ARCHITECTURE.md).
+Status: Engineering environment blueprint.  
+Scope: CUBI Engineering authenticated workspace only.  
+Platform-level product entry and the two-environment model are governed by [CUBI_PRODUCT_SURFACE_ARCHITECTURE.md](../../product/CUBI_PRODUCT_SURFACE_ARCHITECTURE.md) and [CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md](../../architecture/CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md).
 
 ## Product intent
 
-This document defines the interior of the single canonical CUBI Visual Workspace. It does not define a second application or a competing dashboard. Public website pages are ordinary public pages; the product entry point leads into this one workspace.
+This document defines the interior of the **CUBI Engineering** Visual Workspace only. It does not define the CUBI Enterprise environment or the platform-level personal workbench / environment selector.
 
-CUBI's workspace is a professional project-controls environment, not a SaaS dashboard. It must feel like a desktop planning tool that happens to run in the browser: persistent menus, a dense activity table, a synchronised Gantt, configurable detail tabs, saved layouts and real data operations.
+CUBI Engineering is the professional engineering and project-controls environment. It must retain its approved desktop-like workspace: persistent menus, dense activity table, synchronized Gantt, configurable detail tabs, saved layouts and real data operations. The two-environment platform decision does not authorize a redesign, replacement or regression of this shell.
 
-The structural reference is the P6 Professional desktop workspace (see `../reference/`). CUBI keeps the discipline of that model but uses its own vocabulary, its own calculation core and its own persistence. No Oracle or Primavera name may appear in the user interface.
+The structural reference is the P6 Professional desktop workspace (see ../reference/). CUBI uses its own vocabulary, calculation core and persistence. No Oracle or Primavera name may appear in the user interface.
 
 ## Objects
 
@@ -28,13 +29,13 @@ Business Domain (sector)
         └── Layouts (user/project)
 ```
 
-- **Business Domain** is the EPS-level classification used at project creation: Construction, Oil & Gas, Infrastructure, Industrial, Energy, Other.
+- **Business Domain** is the sector classification used at project creation.
 - **Project** is the unit of open/close, revision control and permissions.
 - **WBS** is the mandatory planning hierarchy; every activity belongs to one WBS element.
 - **Activity** is the unit of scheduling, grouping and detail editing.
 - **Layout** stores table columns, detail tabs, grouping, filters, Gantt settings and timescale for a window and scope.
 
-## Regions of the workspace
+## Regions of the Engineering workspace
 
 | Region | Required content | Behaviour |
 | --- | --- | --- |
@@ -42,8 +43,8 @@ Business Domain (sector)
 | Menu bar | Workspace, Edit, View, Project, Organization, Tools, Administration, Help | Commands enable per active window/layout; keyboard mnemonics |
 | Main toolbar | Standard + Project + Layout + Schedule groups | Compact, grouped, tooltips with shortcut |
 | Breadcrumb/context bar | Business domain › portfolio › project, revision, data date | Shows current scope; project switch menu |
-| Window tabs | One tab per open window; dirty indicator; close `X` | Idempotent open, drag order, keyboard cycling |
-| Navigation panel | Collapsible tree: project windows, dictionaries, reports | Collapsible, width-persisted |
+| Window tabs | One tab per open window; dirty indicator; close X | Idempotent open, drag order, keyboard cycling |
+| Navigation panel | Engineering project windows, dictionaries and reports | Collapsible, width-persisted |
 | Top layout | Table and/or Gantt/network | Splitter between table and chart |
 | Bottom layout | Detail tabs, usage profiles, trace logic, none | Height-persisted; can be hidden |
 | Layout bar | Layout name, filter name, layout menu | Opens columns/filter/group/timescale dialogs |
@@ -51,91 +52,45 @@ Business Domain (sector)
 
 ## Window model
 
-CUBI windows are **views of data**, not pages:
+Engineering windows are views of authoritative Engineering data, not a second application shell:
+- Projects and project structure.
+- Activities, WBS, relationships and schedule views.
+- Resource assignments, resources and calendars.
+- Engineering reports and tracking.
+- Engineering documents, expenses, thresholds, issues and risks where owned by Engineering.
+- Engineering administration and project security controls.
 
-- **Projects** — authorized project register, business-domain/portfolio structure when supplied by the organization API, and bottom-docked Project Details. The current build may show only the current session project; it must not fabricate an organization hierarchy.
-- **Activities** — activity table + Gantt/network + Activity Details in its own bottom layout.
-- **WBS** — WBS table/chart + element Details in its own bottom layout; WBS selection must not change the Project Details context in the Projects window.
-- **Resource Assignments** — assignments grouped by resource.
-- **Resources** — resource hierarchy and details.
-- **Calendars** — calendar dictionary and working-time editor.
-- **Reports** — report list and runner.
-- **Tracking** — progress layouts against a data date.
-- **Documents**, **Expenses**, **Thresholds**, **Issues**, **Risks** — project dictionaries.
-- **Administration** — users, security profiles, preferences, categories, currencies, financial periods.
-
-Opening a window:
-1. If closed, open a tab and load its data.
-2. If already open, activate the existing tab.
-3. Project windows close when the last project closes; enterprise windows stay open.
-4. Each window remembers its layout and splitter sizes per user.
+Opening a window activates an existing tab when already open; it must not create duplicate shells. Project windows close when the last project closes; persistent Engineering windows retain their own layouts per user.
 
 ## Command model
 
-Every command declares:
+Every command declares its identity, label, shortcut, permission conditions, target, effect, undoability and audit event. No command may exist only as a visual. Unavailable commands must be disabled with a truthful explanation, never fake success.
 
-```text
-id, label, mnemonic, shortcut, icon, group,
-enabled_when (window, layout, selection, permission, project state),
-target (route | window | dialog | toggle),
-effect (data operation or client state),
-undoable,
-audit_event
-```
-
-Rules:
-
-- No command may exist only as a visual. If the backend is not ready, the command is disabled with a reason or opens a dialog that clearly states "not yet available in this build" — never a fake success.
-- Destructive commands (delete WBS with activities, delete baseline, close with unsaved changes) require confirmation and show the affected count.
-- Commands that change data show the revision guard (`expected_revision`) and surface `409` conflicts.
-- Permission-denied commands stay visible but disabled with the reason (viewer/planner/admin).
-
-## Navigation map
-
-Top menus are the primary navigation. The left navigation tree is a secondary shortcut to the same windows. Both use the same window keys and routes. See `workspace-navigation-map.md`.
-
-## Layouts and personalization
-
-- Layouts belong to a window and a scope: **user** (private) or **project** (shared, revision-guarded).
-- A layout stores: columns (order/width/visibility/alignment), detail tab order, grouping bands, sort levels, filters, Gantt bar styles/legend/data date line, timescale, row height/font scale, splitter sizes.
-- Saving a project layout writes through the existing `/api/projects/{id}/p6/layouts/{scope}/{viewId}` API; user layouts use the same store with `scope=user`.
-- Default layout for Activities: grouping = WBS, sort = WBS hierarchy order. This must hold on first entry, after refresh and after project switch unless the user explicitly changes it.
+Destructive operations require confirmation and affected-record counts. Mutations use revision guards and surface conflicts. Permission-denied commands remain visible but disabled with the reason where appropriate.
 
 ## Data and calculation boundary
 
-The workspace never calculates schedule values. Dates, float, critical path, roll-ups and leveling come from the Shared Domain/Calculation Core through the API. The UI only presents, edits inputs and requests recalculation. Existing settings remain authoritative:
+The Engineering workspace does not independently calculate schedule values. Dates, float, critical path, roll-ups and leveling come from the authoritative Shared Domain/Calculation Core through the API. The UI presents data, edits permitted inputs and requests authoritative recalculation.
 
-`{duration: working-day, calendar: jalali-gregorian, lag: working, constraints: hybrid, mode: both}`
+## Shared platform capabilities
 
-## Localization
+Form Builder is available in both CUBI Engineering and CUBI Enterprise. Engineering uses it for engineering-owned records and workflows; Enterprise uses it for organizational/PMBOK-aligned processes. Shared form infrastructure must not change Engineering calculation ownership or couple the two environment release cycles.
 
-- English/LTR and Persian/RTL are equal first-class layouts, not translations of a fixed LTR shell.
-- Calendar system (Gregorian/Jalali) is independent of language.
-- Dates in tables honour the active calendar system; numeric columns use Latin digits in both languages unless the user chooses localized digits.
-- Menu mnemonics are English-letter based; Persian labels still expose access keys through a documented mapping.
-- Timescale, print and export respect direction, calendar and locale.
+## Localization and permissions
 
-## Permissions
-
-| Role | Workspace capabilities |
-| --- | --- |
-| Viewer | Read windows, layouts (user), reports preview; no mutations |
-| Planner | Edit WBS/activities/relationships/calendars/layouts; schedule |
-| Admin | Planner plus project settings, users/security, dictionaries |
-| Newcomer | Read-only onboarding scope until invited to a project |
-
-The command model consults the session roles and the project policy. Denied commands are disabled with an explanation, not hidden silently.
+English/LTR and Persian/RTL are equal first-class layouts. Calendar system is independent of language. Commands consult authenticated/session roles and project policy; denied commands are disabled with an explanation, not silently hidden.
 
 ## Explicitly out of scope
 
 - Public homepage, product marketing pages, pricing, SEO pages and brand redesign.
-- Server/EPPM-only commands (check-in/out, job services, timesheets, web publishing) until a CUBI backend capability exists.
-- Pixel copying of Oracle screenshots. Structural and behavioural parity is the target.
+- The CUBI Enterprise environment and its organizational workflow modules.
+- Platform-level personal workbench and environment selection.
+- Any Enterprise feature that is not part of an approved Engineering-owned contract.
 
 ## Success criteria
 
-1. A planner can open a project, see Activities grouped by WBS, edit activities, relationships, dates and resources, schedule, and read the Gantt without leaving the workspace.
-2. Every visible menu command either works against real data or is disabled with a truthful reason.
-3. Create Project follows Business Domain → Identity → Configuration → Development and ends in a usable WBS/activity workspace.
-4. Layouts survive refresh and project switch; WBS grouping is the default.
-5. Persian and English, Jalali and Gregorian, RTL and LTR all render the same workspace without layout breakage.
+1. Engineering project work continues inside the existing Visual Workspace.
+2. Engineering tools and calculations remain authoritative and regression-free.
+3. Every visible command works against real data or is disabled with a truthful reason.
+4. Layouts, localization, project context and existing Engineering behavior remain stable.
+5. Enterprise development and the platform entry flow do not block or regress Engineering completion.
