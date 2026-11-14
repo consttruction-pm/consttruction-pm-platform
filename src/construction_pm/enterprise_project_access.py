@@ -9,7 +9,7 @@ from uuid import uuid4
 from .application.authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
 
-PROJECT_PERMISSION_CODES = frozenset(item.value for item in Permission)
+PROJECT_PERMISSION_CODES = frozenset({Permission.PROJECT_READ.value, Permission.PROJECT_WRITE.value, Permission.PROJECT_SCHEDULE.value, Permission.PROJECT_ADMIN.value})
 PROFILE_ID_MAX = 120
 
 
@@ -102,9 +102,32 @@ class PostgresProjectAccessRepository:
                 target_user_id TEXT NOT NULL, obs_id TEXT NOT NULL, profile_id TEXT NOT NULL,
                 action TEXT NOT NULL CHECK(action IN ('profile_created','obs_assigned','obs_revoked')),
                 before_state JSONB, after_state JSONB NOT NULL, occurred_at TIMESTAMPTZ NOT NULL)""",
+            """CREATE OR REPLACE FUNCTION cubi_user_has_project_access(
+                    p_tenant_id TEXT,p_user_id TEXT,p_project_id TEXT,p_permission TEXT)
+                RETURNS BOOLEAN LANGUAGE SQL STABLE AS $
+                WITH RECURSIVE project_obs(obs_id,parent_obs_id,path) AS (
+                    SELECT o.obs_id,o.parent_obs_id,ARRAY[o.obs_id]::text[]
+                    FROM project_lifecycle_projects p
+                    JOIN p6_obs_node o ON o.tenant_id=p.tenant_id AND o.obs_id=p.obs_id
+                    WHERE p.tenant_id=p_tenant_id AND p.project_id=p_project_id
+                    UNION ALL
+                    SELECT parent.obs_id,parent.parent_obs_id,po.path || parent.obs_id
+                    FROM project_obs po
+                    JOIN p6_obs_node parent ON parent.obs_id=po.parent_obs_id
+                    WHERE parent.tenant_id=p_tenant_id AND NOT parent.obs_id=ANY(po.path)
+                )
+                SELECT EXISTS(SELECT 1 FROM project_lifecycle_memberships m
+                    WHERE m.tenant_id=p_tenant_id AND m.project_id=p_project_id AND m.user_id=p_user_id)
+                OR EXISTS(SELECT 1 FROM project_obs po
+                    JOIN enterprise_user_obs_assignments a ON a.tenant_id=p_tenant_id
+                        AND a.user_id=p_user_id AND a.obs_id=po.obs_id AND a.active=TRUE
+                    JOIN enterprise_project_security_profiles sp ON sp.tenant_id=a.tenant_id
+                        AND sp.profile_id=a.profile_id AND sp.active=TRUE
+                    WHERE sp.permissions ? p_permission)
+                $""",
             """CREATE OR REPLACE FUNCTION cubi_project_access_audit_immutable()
-                RETURNS trigger LANGUAGE plpgsql AS $$
-                BEGIN RAISE EXCEPTION 'PROJECT_ACCESS_AUDIT_APPEND_ONLY'; END; $$""",
+                RETURNS trigger LANGUAGE plpgsql AS $
+                BEGIN RAISE EXCEPTION 'PROJECT_ACCESS_AUDIT_APPEND_ONLY'; END; $""",
             """DROP TRIGGER IF EXISTS enterprise_project_access_audit_immutable
                 ON enterprise_project_access_audit""",
             """CREATE TRIGGER enterprise_project_access_audit_immutable
