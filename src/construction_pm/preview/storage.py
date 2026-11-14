@@ -112,6 +112,13 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         settings_revision=int(row[8]) if len(row) > 8 else 0,
         status=str(row[9]) if len(row) > 9 and row[9] else "active",
         business_domain=str(row[10]) if len(row) > 10 and row[10] else "",
+        obs_responsible_manager=str(row[11]) if len(row) > 11 and row[11] else "",
+        website_url=str(row[12]) if len(row) > 12 and row[12] else "",
+        checkout_state=(
+            str(row[13]) if len(row) > 13 and row[13] else "checked_in"
+        ),
+        checked_out_by=str(row[14]) if len(row) > 14 and row[14] else "",
+        checked_out_at=None if len(row) <= 15 or row[15] is None else str(row[15]),
     )
 
 
@@ -369,6 +376,11 @@ class PreviewStore:
                 settings_revision INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'active',
                 business_domain TEXT NOT NULL DEFAULT '',
+                obs_responsible_manager TEXT NOT NULL DEFAULT '',
+                website_url TEXT NOT NULL DEFAULT '',
+                checkout_state TEXT NOT NULL DEFAULT 'checked_in',
+                checked_out_by TEXT NOT NULL DEFAULT '',
+                checked_out_at TEXT,
                 PRIMARY KEY (tenant_id, project_id)
             );
             CREATE TABLE IF NOT EXISTS preview_project_status_event (
@@ -430,6 +442,26 @@ class PreviewStore:
                 "business_domain",
                 "ALTER TABLE preview_project ADD COLUMN business_domain TEXT NOT NULL DEFAULT ''",
             ),
+            (
+                "obs_responsible_manager",
+                "ALTER TABLE preview_project ADD COLUMN obs_responsible_manager TEXT NOT NULL DEFAULT ''",
+            ),
+            (
+                "website_url",
+                "ALTER TABLE preview_project ADD COLUMN website_url TEXT NOT NULL DEFAULT ''",
+            ),
+            (
+                "checkout_state",
+                "ALTER TABLE preview_project ADD COLUMN checkout_state TEXT NOT NULL DEFAULT 'checked_in'",
+            ),
+            (
+                "checked_out_by",
+                "ALTER TABLE preview_project ADD COLUMN checked_out_by TEXT NOT NULL DEFAULT ''",
+            ),
+            (
+                "checked_out_at",
+                "ALTER TABLE preview_project ADD COLUMN checked_out_at TEXT",
+            ),
         ):
             if column not in existing_columns:
                 self.connection.execute(ddl)
@@ -457,6 +489,8 @@ class PreviewStore:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
         commit: bool = True,
     ) -> None:
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
@@ -475,8 +509,8 @@ class PreviewStore:
             "INSERT INTO preview_project "
             "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at, "
             "description, start_date, date_system, primary_calendar_id, settings_revision, "
-            "business_domain) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "business_domain, obs_responsible_manager, website_url) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -491,6 +525,8 @@ class PreviewStore:
                 primary_calendar_id,
                 0,
                 business_domain,
+                obs_responsible_manager,
+                website_url,
             ),
         )
         if owns_transaction:
@@ -530,7 +566,9 @@ class PreviewStore:
         rows = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision, p.status, p.business_domain "
+            "p.settings_revision, p.status, p.business_domain, "
+            "p.obs_responsible_manager, p.website_url, p.checkout_state, "
+            "p.checked_out_by, p.checked_out_at "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -546,7 +584,9 @@ class PreviewStore:
         row = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
-            "p.settings_revision, p.status, p.business_domain "
+            "p.settings_revision, p.status, p.business_domain, "
+            "p.obs_responsible_manager, p.website_url, p.checkout_state, "
+            "p.checked_out_by, p.checked_out_at "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -570,6 +610,8 @@ class PreviewStore:
         date_system: str,
         primary_calendar_id: str | None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
     ) -> bool:
         """Apply a configuration-revision-guarded metadata update.
 
@@ -595,6 +637,8 @@ class PreviewStore:
             "UPDATE preview_project SET name=?, description=?, start_date=?, "
             "date_system=?, primary_calendar_id=?, "
             "business_domain=COALESCE(?, business_domain), "
+            "obs_responsible_manager=COALESCE(?, obs_responsible_manager), "
+            "website_url=COALESCE(?, website_url), "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
             "SELECT 1 FROM preview_project_member m "
@@ -607,6 +651,8 @@ class PreviewStore:
                 date_system,
                 primary_calendar_id,
                 business_domain,
+                obs_responsible_manager,
+                website_url,
                 tenant_id,
                 project_id,
                 expected_revision,
@@ -716,6 +762,70 @@ class PreviewStore:
             if owns_transaction and self.connection.in_transaction:
                 self.connection.rollback()
             raise
+
+    def set_project_checkout(
+        self,
+        tenant_id: str,
+        project_id: str,
+        user_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        actor_user_id: str,
+        changed_at: datetime,
+    ) -> bool:
+        """Apply an exclusive checkout lease under the configuration revision.
+
+        The conditional update makes the transition atomic: a second user can
+        never overwrite an existing lease even when both requests read the same
+        unlocked row first. Returns ``False`` when the row is missing, the
+        caller is not a member, the revision is stale, or the lease belongs to
+        another user.
+        """
+        if not tenant_id.strip() or not project_id.strip() or not user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
+        if not actor_user_id.strip():
+            raise ValueError("PREVIEW_PROJECT_CHECKOUT_ACTOR_REQUIRED")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+            raise ValueError("PREVIEW_PROJECT_REVISION_INVALID")
+        if changed_at.tzinfo is None or changed_at.utcoffset() is None:
+            raise ValueError("PREVIEW_PROJECT_CLOCK_MUST_BE_TIMEZONE_AWARE")
+        if checked_out:
+            next_state = "checked_out"
+            next_owner = actor_user_id
+            next_at: str | None = changed_at.isoformat()
+            lease_condition = "checkout_state='checked_in'"
+            lease_values: tuple[object, ...] = ()
+        else:
+            next_state = "checked_in"
+            next_owner = ""
+            next_at = None
+            lease_condition = "checkout_state='checked_out' AND checked_out_by=?"
+            lease_values = (actor_user_id,)
+        owns_transaction = not self.connection.in_transaction
+        cursor = self.connection.execute(
+            "UPDATE preview_project SET checkout_state=?, checked_out_by=?, "
+            "checked_out_at=?, settings_revision=settings_revision+1 "
+            "WHERE tenant_id=? AND project_id=? AND settings_revision=? "
+            "AND " + lease_condition + " AND EXISTS ("
+            "SELECT 1 FROM preview_project_member m "
+            "WHERE m.tenant_id=preview_project.tenant_id "
+            "AND m.project_id=preview_project.project_id AND m.user_id=?)",
+            (
+                next_state,
+                next_owner,
+                next_at,
+                tenant_id,
+                project_id,
+                expected_revision,
+                *lease_values,
+                user_id,
+            ),
+        )
+        updated = cursor.rowcount == 1
+        if owns_transaction:
+            self.connection.commit()
+        return updated
 
     def project_status_history(
         self, tenant_id: str, project_id: str, user_id: str
@@ -859,6 +969,8 @@ class PreviewProjectRepository:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
     ) -> ProjectSummary:
         if self.store.project_exists(tenant_id, project_id):
             raise ValueError("PROJECT_ALREADY_EXISTS")
@@ -887,6 +999,8 @@ class PreviewProjectRepository:
                 date_system=date_system,
                 primary_calendar_id=primary_calendar_id,
                 business_domain=business_domain,
+                obs_responsible_manager=obs_responsible_manager,
+                website_url=website_url,
                 commit=False,
             )
             self.store.add_members(
@@ -911,6 +1025,8 @@ class PreviewProjectRepository:
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
         )
 
     def update_for_user(
@@ -926,6 +1042,8 @@ class PreviewProjectRepository:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
     ) -> ProjectSummary | None:
         updated = self.store.update_project(
             tenant_id,
@@ -938,6 +1056,8 @@ class PreviewProjectRepository:
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
         )
         if not updated:
             return None
@@ -962,6 +1082,30 @@ class PreviewProjectRepository:
             expected_revision=expected_revision,
             actor_user_id=actor_user_id,
             recorded_at=recorded_at,
+        )
+        if not updated:
+            return None
+        return self.store.get_for_user(tenant_id, project_id, user_id)
+
+    def set_checkout_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        actor_user_id: str,
+        changed_at: datetime,
+    ) -> ProjectSummary | None:
+        updated = self.store.set_project_checkout(
+            tenant_id,
+            project_id,
+            user_id,
+            checked_out=checked_out,
+            expected_revision=expected_revision,
+            actor_user_id=actor_user_id,
+            changed_at=changed_at,
         )
         if not updated:
             return None

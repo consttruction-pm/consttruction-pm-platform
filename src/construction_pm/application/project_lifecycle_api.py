@@ -83,6 +83,8 @@ class ProjectLifecycleAPI:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
         now: datetime,
     ) -> ProjectContextResponse:
         return ProjectContextResponse(
@@ -95,6 +97,8 @@ class ProjectLifecycleAPI:
                 date_system=date_system,
                 primary_calendar_id=primary_calendar_id,
                 business_domain=business_domain,
+                obs_responsible_manager=obs_responsible_manager,
+                website_url=website_url,
                 now=now,
             )
         )
@@ -115,6 +119,8 @@ class ProjectLifecycleAPI:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -127,6 +133,8 @@ class ProjectLifecycleAPI:
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
             expected_revision=expected_revision,
             now=now,
         )
@@ -144,6 +152,23 @@ class ProjectLifecycleAPI:
             session_id,
             project_id,
             status=status,
+            expected_revision=expected_revision,
+            now=now,
+        )
+
+    def set_project_checkout(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        now: datetime,
+    ) -> ProjectSummary:
+        return self._service.set_project_checkout(
+            session_id,
+            project_id,
+            checked_out=checked_out,
             expected_revision=expected_revision,
             now=now,
         )

@@ -3627,13 +3627,55 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - Unit/type/build at `d98fa1d7`: 1117 `tsx` + 14 `node --test` pass,
   `tsc --noEmit` clean, esbuild bundle written.
 
+### PRJ-002 stored fields — 2026-11-14 (`f1ecba6e`)
+
+- **OBS responsible manager and web-site.** `ProjectSummary` now carries
+  `obs_responsible_manager` and `website_url` as real project columns in the
+  SQLite preview store and PostgreSQL repository. Create/PATCH normalize the
+  manager (160 characters) and require an absolute http/https URL with a host
+  and no credentials (2048 characters), returning
+  `PROJECT_OBS_RESPONSIBLE_MANAGER_TOO_LONG` / `PROJECT_WEBSITE_URL_INVALID`.
+  Both read back through `GET /api/projects/{id}` and survive reload.
+- **Leveling priority.** The dialog writes `project_leveling_priority` (1–100)
+  through the existing canonical `p6-project-schedule-settings-api.v1` settings
+  object with `expected_record_revision`. No second priority column was added;
+  the schedule-settings record revision is the single lost-update guard.
+- **Checkout.** `POST /api/projects/{id}/checkout` (`project-checkout-api.v1`)
+  requires `PROJECT_ADMIN` and stores `checkout_state`, `checked_out_by` and
+  `checked_out_at`. State transitions use a conditional `UPDATE … WHERE
+  settings_revision = ? AND checkout_state = ?` (check-in also matches the
+  owner) in SQLite and PostgreSQL. Another user's metadata or status write
+  returns 409 while the lease is held; check-in is owner-only; repeating the
+  current state is an idempotent no-op.
+- **UI defect fixed.** The Project Details metadata Save button sits outside the
+  `<form>` and had no handler, so clicking it never submitted a PATCH. It now
+  calls `form.requestSubmit()`; scenario 02 proves the values persist.
+- **Acceptance.** `apps/web/e2e/project-details-v26.mjs` **7/7** at
+  `f1ecba6eeea4310dc05e231b21a83d6e1d6073c8` (en 1366×768, Viewer 1366×768,
+  fa RTL 1280×720, 9 screenshots, zero exceptions/console errors/API
+  failures): initial readback, OBS/web-site persist + reload, priority save
+  through canonical settings + reload, exclusive checkout/check-in, stale
+  revision rejection + reload, Viewer read-only with disabled leveling and 403
+  on direct metadata/checkout/settings writes, Persian RTL layout.
+  Evidence: `docs/workspace/evidence/project-details-v26-2026-11-14/`.
+- **Tests at the same code.** Python full suite with live PostgreSQL:
+  `4452 passed, 1 skipped`; workflow PostgreSQL integration list: `156
+  passed`; Web `1117 tsx + 14 node --test`, `tsc --noEmit`, esbuild pass.
+  Regressions, each on its own fresh SQLite runtime:
+  `project-tabs-v26.mjs` **30/30**, `project-register-v26.mjs` **38/38**,
+  `project-status-v26.mjs` **6/6**, `preview-e2e.mjs` **97** checks.
+
 ### Remaining PRJ-002 / window gaps
 
-- Project Details still has no OBS responsible manager, leveling-priority,
-  checkout or web-site fields; adding them requires stored fields in the single
-  project model and its existing registry API, so they are not fabricated in the
-  dialog. Project status filtering/portfolios and audited defaults application
-  also remain open.
+- The enterprise OBS hierarchy still does not exist; the responsible manager is
+  a validated project string pending the Agent 3 OBS contract, not a linked OBS
+  element.
+- Canonical schedule-settings writes (including the new leveling priority) do
+  not yet consult the project checkout lease; only lifecycle metadata/status
+  writes are blocked while another user holds it.
+- Project status filtering/portfolios, audited defaults application, and the
+  remaining Project Register/Details tab behaviors (status filter, default
+  settings, project properties) remain open.
 - `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
   shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
   export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are

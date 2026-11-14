@@ -301,6 +301,38 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cp-project-settings-status[data-state="error"] { color:var(--cp-error); }
 .cp-project-settings-status[data-state="conflict"] { color:#8a5a00; }
 .cp-project-settings-revision { margin:0; color:var(--cp-muted); font-size:.82rem; }
+.cp-project-settings-section {
+  display:grid;
+  gap:.4rem;
+  padding-top:.7rem;
+  border-top:1px solid var(--cp-border);
+}
+.cp-project-settings-section h3 { margin:0; font-size:.92rem; color:var(--cp-navy); }
+.cp-project-settings-section p { margin:0; font-size:.86rem; }
+.cp-project-settings-inline { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+.cp-project-settings-inline input {
+  width:6.5rem;
+  border:1px solid var(--cp-border);
+  border-radius:.45rem;
+  padding:.4rem .55rem;
+  font:inherit;
+  background:#fff;
+}
+.cp-project-settings-inline button,
+.cp-project-settings-section > button {
+  border:1px solid var(--cp-navy);
+  background:#fff;
+  color:var(--cp-navy);
+  border-radius:.45rem;
+  padding:.4rem .65rem;
+  font:inherit;
+  cursor:pointer;
+}
+.cp-project-settings-inline button:disabled,
+.cp-project-settings-section > button:disabled { cursor:not-allowed; opacity:.6; }
+.cp-project-settings-inline [data-state="success"] { color:#1f7a45; }
+.cp-project-settings-inline [data-state="error"] { color:var(--cp-error); }
+.cp-project-settings-inline [data-state="conflict"] { color:#8a5a00; }
 .cp-bootstrap-bar {
   display:flex;
   align-items:center;

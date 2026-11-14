@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { ProjectContext as SessionProjectContext, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
+import type { ProjectContext as SessionProjectContext, ProjectScheduleSettings, ProjectScheduleSettingsInput, ProjectStatus, ProjectStatusEvent, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
@@ -183,6 +183,8 @@ export class ProjectBootstrap {
         | "energy"
         | "other"
         | "";
+      obs_responsible_manager?: string;
+      website_url?: string;
     },
     expectedRevision: number,
   ): Promise<ApiResult<{ project: ProjectSummary }>> {
@@ -208,6 +210,48 @@ export class ProjectBootstrap {
       };
     }
     return this.dependencies.sessionApi.setProjectStatus(projectId, status, expectedRevision);
+  }
+
+  /** Acquire or release the exclusive project checkout lease. */
+  async setProjectCheckout(
+    projectId: string,
+    checkedOut: boolean,
+    expectedRevision: number,
+  ): Promise<ApiResult<{ contract_version: string; project: ProjectSummary }>> {
+    if (!this.dependencies.sessionApi.setProjectCheckout) {
+      return {
+        ok: false,
+        error: localError("PROJECT_CHECKOUT_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.setProjectCheckout(projectId, checkedOut, expectedRevision);
+  }
+
+  /** Read the canonical schedule settings that own the leveling priority. */
+  async loadProjectScheduleSettings(
+    projectId: string,
+  ): Promise<ApiResult<ProjectScheduleSettings>> {
+    if (!this.dependencies.sessionApi.getProjectScheduleSettings) {
+      return {
+        ok: false,
+        error: localError("PROJECT_SCHEDULE_SETTINGS_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.getProjectScheduleSettings(projectId);
+  }
+
+  /** Save the full settings object so unrelated schedule fields are preserved. */
+  async saveProjectScheduleSettings(
+    projectId: string,
+    settings: ProjectScheduleSettingsInput,
+  ): Promise<ApiResult<ProjectScheduleSettings>> {
+    if (!this.dependencies.sessionApi.saveProjectScheduleSettings) {
+      return {
+        ok: false,
+        error: localError("PROJECT_SCHEDULE_SETTINGS_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.saveProjectScheduleSettings(projectId, settings);
   }
 
   /** Immutable status history for the settings panel. */

@@ -89,6 +89,12 @@ class Projects:
                 date_system=p.date_system,
                 primary_calendar_id=p.primary_calendar_id,
                 settings_revision=p.settings_revision,
+                business_domain=p.business_domain,
+                obs_responsible_manager=p.obs_responsible_manager,
+                website_url=p.website_url,
+                checkout_state=p.checkout_state,
+                checked_out_by=p.checked_out_by,
+                checked_out_at=p.checked_out_at,
             )
             for p in self.items.values()
         )
@@ -103,18 +109,26 @@ class Projects:
             primary_calendar_id=project.primary_calendar_id,
             settings_revision=project.settings_revision,
             business_domain=project.business_domain,
+            obs_responsible_manager=project.obs_responsible_manager,
+            website_url=project.website_url,
+            checkout_state=project.checkout_state,
+            checked_out_by=project.checked_out_by,
+            checked_out_at=project.checked_out_at,
         )
 
     def create_for_user(
         self, tenant_id, user_id, project_id, name, *,
         description="", start_date=None, date_system="gregorian",
         primary_calendar_id=None, business_domain="",
+        obs_responsible_manager="", website_url="",
     ):
         project = ProjectSummary(
             project_id, tenant_id, name, 0,
             description=description, start_date=start_date,
             date_system=date_system, primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
         )
         self.items[project_id] = project
         return project
@@ -123,6 +137,7 @@ class Projects:
         self, tenant_id, user_id, project_id, *, expected_revision, name,
         description="", start_date=None, date_system="gregorian",
         primary_calendar_id=None, business_domain=None,
+        obs_responsible_manager=None, website_url=None,
     ):
         project = self.items.get(project_id)
         if project is None or project.settings_revision != expected_revision: return None
@@ -134,6 +149,47 @@ class Projects:
             business_domain=(
                 business_domain if business_domain is not None else project.business_domain
             ),
+            obs_responsible_manager=(
+                obs_responsible_manager
+                if obs_responsible_manager is not None
+                else project.obs_responsible_manager
+            ),
+            website_url=(
+                website_url if website_url is not None else project.website_url
+            ),
+            checkout_state=project.checkout_state,
+            checked_out_by=project.checked_out_by,
+            checked_out_at=project.checked_out_at,
+        )
+        self.items[project_id] = updated
+        return updated
+
+    def set_checkout_for_user(
+        self, tenant_id, user_id, project_id, *, checked_out,
+        expected_revision, actor_user_id, changed_at,
+    ):
+        project = self.items.get(project_id)
+        if project is None or project.settings_revision != expected_revision:
+            return None
+        if checked_out and project.checkout_state == "checked_out":
+            return None
+        if not checked_out and (
+            project.checkout_state != "checked_out"
+            or project.checked_out_by != actor_user_id
+        ):
+            return None
+        updated = ProjectSummary(
+            project_id, tenant_id, project.name, project.revision,
+            description=project.description, start_date=project.start_date,
+            date_system=project.date_system,
+            primary_calendar_id=project.primary_calendar_id,
+            settings_revision=project.settings_revision + 1,
+            status=project.status, business_domain=project.business_domain,
+            obs_responsible_manager=project.obs_responsible_manager,
+            website_url=project.website_url,
+            checkout_state="checked_out" if checked_out else "checked_in",
+            checked_out_by=actor_user_id if checked_out else "",
+            checked_out_at=changed_at.isoformat() if checked_out else None,
         )
         self.items[project_id] = updated
         return updated
@@ -2979,3 +3035,107 @@ def test_unexpected_route_fault_returns_a_fixed_internal_error_code():
     assert payload["code"] == "INTERNAL_ERROR"
     assert payload["retryable"] is True
     assert "INTERNAL_SECRET" not in body.decode("utf-8")
+
+
+def test_project_http_persists_obs_manager_and_website():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "obs_responsible_manager": "Dana Whitfield",
+            "website_url": "https://example.com/p1",
+            "expected_revision": 0,
+        }).encode(),
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["obs_responsible_manager"] == "Dana Whitfield"
+    assert project["website_url"] == "https://example.com/p1"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1", cookies={"cp_session": "s1"}
+    )
+    stored = json.loads(body)["project"]
+    assert stored["obs_responsible_manager"] == "Dana Whitfield"
+    assert stored["website_url"] == "https://example.com/p1"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One",
+            "website_url": "javascript:alert(1)",
+            "expected_revision": 1,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_WEBSITE_URL_INVALID"
+
+
+def test_project_http_checkout_and_checkin_round_trip():
+    r = routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/checkout",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"checked_out": True, "expected_revision": 0}).encode(),
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["checkout_state"] == "checked_out"
+    assert project["checked_out_by"] == "u1"
+    assert project["settings_revision"] == 1
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1", cookies={"cp_session": "s1"}
+    )
+    stored = json.loads(body)["project"]
+    assert stored["checkout_state"] == "checked_out"
+    assert stored["checked_out_at"]
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/checkout",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"checked_out": False, "expected_revision": 1}).encode(),
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["checkout_state"] == "checked_in"
+    assert project["checked_out_by"] == ""
+    assert project["settings_revision"] == 2
+
+    # Releasing an already released lease is idempotent.
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/checkout",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"checked_out": False, "expected_revision": 2}).encode(),
+    )
+    assert status == 200
+    assert json.loads(body)["project"]["settings_revision"] == 2
+
+
+def test_project_http_rejects_edits_held_by_another_user():
+    r = routes()
+    repository = r._api._service._projects
+    repository.items["p1"] = ProjectSummary(
+        "p1", "t1", "Project One", 2,
+        checkout_state="checked_out",
+        checked_out_by="u2",
+        checked_out_at="2026-09-30T07:00:00+00:00",
+    )
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "Blocked", "expected_revision": 0}).encode(),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/checkout",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"checked_out": False, "expected_revision": 0}).encode(),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "PROJECT_CHECKOUT_CONFLICT"

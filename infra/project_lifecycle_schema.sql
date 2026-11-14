@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
     business_domain TEXT NOT NULL DEFAULT ''
         CHECK (business_domain IN ('', 'construction', 'oil_gas', 'infrastructure',
                                    'industrial', 'energy', 'other')),
+    obs_responsible_manager TEXT NOT NULL DEFAULT '',
+    website_url TEXT NOT NULL DEFAULT '',
+    checkout_state TEXT NOT NULL DEFAULT 'checked_in'
+        CHECK (checkout_state IN ('checked_in', 'checked_out')),
+    checked_out_by TEXT NOT NULL DEFAULT '',
+    checked_out_at TIMESTAMPTZ,
     PRIMARY KEY (tenant_id, project_id)
 );
 
@@ -42,6 +48,16 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS business_domain TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS obs_responsible_manager TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS website_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS checkout_state TEXT NOT NULL DEFAULT 'checked_in';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS checked_out_by TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS checked_out_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,

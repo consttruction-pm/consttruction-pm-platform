@@ -24,6 +24,22 @@ export type BootstrapLabels = {
   dateSystemGregorian: string;
   dateSystemJalali: string;
   projectBusinessDomain: string;
+  projectObsResponsibleManager: string;
+  projectObsResponsibleManagerHint: string;
+  projectWebsite: string;
+  projectWebsiteHint: string;
+  projectLevelingPriority: string;
+  projectLevelingPriorityHint: string;
+  projectLevelingPrioritySave: string;
+  projectLevelingPrioritySaved: string;
+  projectLevelingPriorityUnavailable: string;
+  projectCheckout: string;
+  projectCheckoutCheckedIn: string;
+  projectCheckoutCheckedOut: string;
+  projectCheckoutOwner: string;
+  projectCheckoutCheckOut: string;
+  projectCheckoutCheckIn: string;
+  projectCheckoutConflict: string;
   businessDomainNotClassified: string;
   businessDomainConstruction: string;
   businessDomainOilGas: string;
@@ -101,6 +117,22 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     dateSystemGregorian: "Gregorian",
     dateSystemJalali: "Jalali",
     projectBusinessDomain: "Business Domain",
+    projectObsResponsibleManager: "OBS responsible manager",
+    projectObsResponsibleManagerHint: "Recorded on the project and shown in Project Details after reload.",
+    projectWebsite: "Web-site",
+    projectWebsiteHint: "Optional absolute http:// or https:// address.",
+    projectLevelingPriority: "Leveling priority",
+    projectLevelingPriorityHint: "1–100. Stored with the project schedule settings used by the leveler.",
+    projectLevelingPrioritySave: "Save leveling priority",
+    projectLevelingPrioritySaved: "Leveling priority saved.",
+    projectLevelingPriorityUnavailable: "No schedule settings are stored for this project yet.",
+    projectCheckout: "Project checkout",
+    projectCheckoutCheckedIn: "Not checked out. Other users may edit this project.",
+    projectCheckoutCheckedOut: "Checked out. Only the checkout owner can edit the project.",
+    projectCheckoutOwner: "Checked out by {user} at {time}.",
+    projectCheckoutCheckOut: "Check out",
+    projectCheckoutCheckIn: "Check in",
+    projectCheckoutConflict: "This project is checked out by another user. Check it in there before editing.",
     businessDomainNotClassified: "Not classified",
     businessDomainConstruction: "Construction",
     businessDomainOilGas: "Oil & Gas",
@@ -176,6 +208,22 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     dateSystemGregorian: "میلادی",
     dateSystemJalali: "شمسی",
     projectBusinessDomain: "حوزهٔ کاری",
+    projectObsResponsibleManager: "مدیر مسئول OBS",
+    projectObsResponsibleManagerHint: "روی پروژه ذخیره می‌شود و پس از بازخوانی در جزئیات پروژه نمایش داده می‌شود.",
+    projectWebsite: "وب‌سایت",
+    projectWebsiteHint: "نشانی کامل و اختیاری با http:// یا https://.",
+    projectLevelingPriority: "اولویت تسطیح",
+    projectLevelingPriorityHint: "۱ تا ۱۰۰. همراه با تنظیمات زمان‌بندی پروژه که موتور تسطیح استفاده می‌کند ذخیره می‌شود.",
+    projectLevelingPrioritySave: "ذخیرهٔ اولویت تسطیح",
+    projectLevelingPrioritySaved: "اولویت تسطیح ذخیره شد.",
+    projectLevelingPriorityUnavailable: "هنوز تنظیمات زمان‌بندی برای این پروژه ذخیره نشده است.",
+    projectCheckout: "قفل ویرایش پروژه",
+    projectCheckoutCheckedIn: "پروژه قفل نیست. کاربران دیگر می‌توانند آن را ویرایش کنند.",
+    projectCheckoutCheckedOut: "پروژه قفل شده است. فقط صاحب قفل می‌تواند آن را ویرایش کند.",
+    projectCheckoutOwner: "قفل‌شده توسط {user} در {time}.",
+    projectCheckoutCheckOut: "قفل کردن",
+    projectCheckoutCheckIn: "باز کردن قفل",
+    projectCheckoutConflict: "این پروژه توسط کاربر دیگری قفل شده است. پیش از ویرایش، قفل آن را باز کنید.",
     businessDomainNotClassified: "طبقه‌بندی‌نشده",
     businessDomainConstruction: "ساخت‌وساز",
     businessDomainOilGas: "نفت و گاز",

@@ -28,6 +28,13 @@ export type ProjectSummary = {
    * empty string means the project has not been classified yet.
    */
   business_domain?: BusinessDomain | "";
+  /** Responsible manager recorded on the project (OBS reference when available). */
+  obs_responsible_manager?: string;
+  /** Optional absolute http(s) project web-site address. */
+  website_url?: string;
+  checkout_state?: "checked_in" | "checked_out";
+  checked_out_by?: string;
+  checked_out_at?: string | null;
 };
 
 export type BusinessDomain =
@@ -58,6 +65,41 @@ export type ProjectMetadataInput = {
   date_system: "gregorian" | "jalali";
   primary_calendar_id?: string | null;
   business_domain?: BusinessDomain | "";
+  /** Responsible manager recorded on the project (OBS reference when available). */
+  obs_responsible_manager?: string;
+  /** Optional absolute http(s) project web-site address. */
+  website_url?: string;
+};
+
+export type ProjectScheduleSettings = {
+  contract_version: "p6-project-schedule-settings-api.v1";
+  kind: "project_schedule_settings";
+  scope: { tenant_id: string; project_id: string; project_revision: number };
+  record_revision: number;
+  mode: "DATE_BASED" | "TIME_AWARE";
+  project_calendar: {
+    calendar_id: string;
+    calendar_version: string;
+    kind: string;
+    system: "gregorian" | "jalali";
+  };
+  project_start: string;
+  project_finish: string | null;
+  schedule_options: Record<string, unknown>;
+  project_leveling_priority: number;
+};
+
+export type ProjectScheduleSettingsInput = {
+  contract_version: "p6-project-schedule-settings-api.v1";
+  expected_record_revision: number;
+  mode: "DATE_BASED" | "TIME_AWARE";
+  project_calendar_id: string;
+  project_calendar_version: string;
+  project_calendar_system: "gregorian" | "jalali";
+  project_start: string;
+  project_finish: string | null;
+  schedule_options: Record<string, unknown>;
+  project_leveling_priority: number;
 };
 
 export type ProjectCreateMetadata = {
@@ -65,6 +107,8 @@ export type ProjectCreateMetadata = {
   start_date?: string | null;
   date_system?: "gregorian" | "jalali";
   business_domain?: BusinessDomain | "";
+  obs_responsible_manager?: string;
+  website_url?: string;
 };
 
 export type ProjectContext = {
@@ -99,6 +143,18 @@ export type SessionApi = {
   projectStatusHistory?(
     projectId: string,
   ): Promise<ApiResult<{ contract_version: string; events: ProjectStatusEvent[] }>>;
+  setProjectCheckout?(
+    projectId: string,
+    checkedOut: boolean,
+    expectedRevision: number,
+  ): Promise<ApiResult<{ contract_version: string; project: ProjectSummary }>>;
+  getProjectScheduleSettings?(
+    projectId: string,
+  ): Promise<ApiResult<ProjectScheduleSettings>>;
+  saveProjectScheduleSettings?(
+    projectId: string,
+    settings: ProjectScheduleSettingsInput,
+  ): Promise<ApiResult<ProjectScheduleSettings>>;
 };
 
 export class FetchSessionApi implements SessionApi {
@@ -165,6 +221,31 @@ export class FetchSessionApi implements SessionApi {
   projectStatusHistory(projectId: string) {
     return this.request<{ contract_version: string; events: ProjectStatusEvent[] }>(
       `/api/projects/${encodeURIComponent(projectId)}/status-history`,
+    );
+  }
+
+  setProjectCheckout(projectId: string, checkedOut: boolean, expectedRevision: number) {
+    return this.request<{ contract_version: string; project: ProjectSummary }>(
+      `/api/projects/${encodeURIComponent(projectId)}/checkout`,
+      "POST",
+      { checked_out: checkedOut, expected_revision: expectedRevision },
+    );
+  }
+
+  getProjectScheduleSettings(projectId: string) {
+    return this.request<ProjectScheduleSettings>(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/schedule/settings`,
+    );
+  }
+
+  saveProjectScheduleSettings(
+    projectId: string,
+    settings: ProjectScheduleSettingsInput,
+  ) {
+    return this.request<ProjectScheduleSettings>(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/schedule/settings`,
+      "POST",
+      settings,
     );
   }
 

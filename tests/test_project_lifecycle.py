@@ -50,6 +50,8 @@ class Projects:
         date_system="gregorian",
         primary_calendar_id=None,
         business_domain="",
+        obs_responsible_manager="",
+        website_url="",
     ):
         project = ProjectSummary(
             project_id,
@@ -61,6 +63,8 @@ class Projects:
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
             business_domain=business_domain,
+            obs_responsible_manager=obs_responsible_manager,
+            website_url=website_url,
         )
         self.items[(tenant_id, user_id, project_id)] = project
         return project
@@ -78,6 +82,8 @@ class Projects:
         date_system="gregorian",
         primary_calendar_id=None,
         business_domain=None,
+        obs_responsible_manager=None,
+        website_url=None,
     ):
         current = self.items.get((tenant_id, user_id, project_id))
         if current is None or current.settings_revision != expected_revision:
@@ -95,6 +101,52 @@ class Projects:
             business_domain=(
                 business_domain if business_domain is not None else current.business_domain
             ),
+            obs_responsible_manager=(
+                obs_responsible_manager
+                if obs_responsible_manager is not None
+                else current.obs_responsible_manager
+            ),
+            website_url=(
+                website_url if website_url is not None else current.website_url
+            ),
+            checkout_state=current.checkout_state,
+            checked_out_by=current.checked_out_by,
+            checked_out_at=current.checked_out_at,
+        )
+        self.items[(tenant_id, user_id, project_id)] = updated
+        return updated
+
+    def set_checkout_for_user(
+        self, tenant_id, user_id, project_id, *, checked_out,
+        expected_revision, actor_user_id, changed_at,
+    ):
+        current = self.items.get((tenant_id, user_id, project_id))
+        if current is None or current.settings_revision != expected_revision:
+            return None
+        if checked_out and current.checkout_state == "checked_out":
+            return None
+        if not checked_out and (
+            current.checkout_state != "checked_out"
+            or current.checked_out_by != actor_user_id
+        ):
+            return None
+        updated = ProjectSummary(
+            current.project_id,
+            current.tenant_id,
+            current.name,
+            current.revision,
+            description=current.description,
+            start_date=current.start_date,
+            date_system=current.date_system,
+            primary_calendar_id=current.primary_calendar_id,
+            settings_revision=current.settings_revision + 1,
+            status=current.status,
+            business_domain=current.business_domain,
+            obs_responsible_manager=current.obs_responsible_manager,
+            website_url=current.website_url,
+            checkout_state="checked_out" if checked_out else "checked_in",
+            checked_out_by=actor_user_id if checked_out else "",
+            checked_out_at=changed_at.isoformat() if checked_out else None,
         )
         self.items[(tenant_id, user_id, project_id)] = updated
         return updated
@@ -394,3 +446,110 @@ def test_project_list_requires_the_project_read_grant_in_addition_to_membership(
     assert [project.project_id for project in make_service(viewer).list_projects("session-a", now=now)] == [
         "project-a"
     ]
+
+
+def test_project_admin_can_store_obs_manager_and_website():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    created = service.create_project(
+        "session-a",
+        "project-b",
+        "Project B",
+        obs_responsible_manager="  Dana Whitfield  ",
+        website_url="https://example.com/projects/b",
+        now=now,
+    )
+    project = service.get_project("session-a", created.project_id, now=now)
+    assert project.obs_responsible_manager == "Dana Whitfield"
+    assert project.website_url == "https://example.com/projects/b"
+    assert project.checkout_state == "checked_in"
+
+    updated = service.update_project(
+        "session-a",
+        "project-b",
+        name="Project B",
+        obs_responsible_manager="",
+        website_url="http://example.org/b",
+        expected_revision=0,
+        now=now,
+    )
+    assert updated.obs_responsible_manager == ""
+    assert updated.website_url == "http://example.org/b"
+    assert updated.settings_revision == 1
+
+
+def test_project_website_rejects_non_http_and_userinfo():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    for bad in ("javascript:alert(1)", "//example.com", "ftp://example.com", "https://user:pass@example.com"):
+        with pytest.raises(ProjectLifecycleError, match="PROJECT_WEBSITE_URL_INVALID"):
+            service.update_project(
+                "session-a",
+                "project-a",
+                name="Project A",
+                website_url=bad,
+                expected_revision=0,
+                now=now,
+            )
+
+
+def test_checkout_is_exclusive_and_blocks_other_editors():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+    checked_out = service.set_project_checkout(
+        "session-a", "project-a", checked_out=True, expected_revision=0, now=now
+    )
+    assert checked_out.checkout_state == "checked_out"
+    assert checked_out.checked_out_by == "user-a"
+    assert checked_out.checked_out_at is not None
+    assert checked_out.settings_revision == 1
+
+    # Repeating the same checkout is idempotent and does not consume a revision.
+    repeat = service.set_project_checkout(
+        "session-a", "project-a", checked_out=True, expected_revision=1, now=now
+    )
+    assert repeat.settings_revision == 1
+
+    checked_in = service.set_project_checkout(
+        "session-a", "project-a", checked_out=False, expected_revision=1, now=now
+    )
+    assert checked_in.checkout_state == "checked_in"
+    assert checked_in.checked_out_by == ""
+    assert checked_in.settings_revision == 2
+
+
+def test_edits_are_rejected_while_another_user_holds_the_checkout():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    projects.items[("tenant-a", "user-a", "project-a")] = ProjectSummary(
+        "project-a",
+        "tenant-a",
+        "Project A",
+        7,
+        checkout_state="checked_out",
+        checked_out_by="user-b",
+        checked_out_at="2026-09-30T06:00:00+00:00",
+    )
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_CHECKED_OUT_BY_OTHER"):
+        service.update_project(
+            "session-a",
+            "project-a",
+            name="Blocked rename",
+            expected_revision=0,
+            now=now,
+        )
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_CHECKED_OUT_BY_OTHER"):
+        service.set_project_status(
+            "session-a",
+            "project-a",
+            status="inactive",
+            expected_revision=0,
+            now=now,
+        )
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_CHECKOUT_CONFLICT"):
+        service.set_project_checkout(
+            "session-a", "project-a", checked_out=False, expected_revision=0, now=now
+        )

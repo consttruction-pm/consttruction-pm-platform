@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol
+from urllib.parse import urlsplit
 
 from .authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 
@@ -66,6 +67,17 @@ class ProjectSummary:
     # rather than deriving a hierarchy from names. The empty string means the
     # record has not been classified yet.
     business_domain: str = ""
+    # V26 Project Details General/Defaults values. The responsible manager is
+    # stored on the project record until the Enterprise OBS domain (Agent 3)
+    # exposes a hierarchy reference; it is never a display-only decoration.
+    obs_responsible_manager: str = ""
+    website_url: str = ""
+    # P6 project checkout: while a project is checked out by one user, other
+    # sessions may read it but metadata/status edits are rejected until that
+    # user (or the checkout owner) checks it in.
+    checkout_state: str = "checked_in"
+    checked_out_by: str = ""
+    checked_out_at: str | None = None
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
@@ -77,6 +89,9 @@ BUSINESS_DOMAINS = frozenset(
 )
 MAX_PROJECT_DESCRIPTION = 2000
 MAX_PROJECT_CALENDAR_ID = 200
+MAX_PROJECT_OBS_MANAGER = 160
+MAX_PROJECT_WEBSITE_URL = 2048
+CHECKOUT_STATES = frozenset({"checked_in", "checked_out"})
 
 
 def normalize_project_description(value: object) -> str:
@@ -147,6 +162,51 @@ def normalize_project_business_domain(value: object) -> str:
     if domain not in BUSINESS_DOMAINS:
         raise ProjectLifecycleError("PROJECT_BUSINESS_DOMAIN_INVALID")
     return domain
+
+
+def normalize_project_obs_responsible_manager(value: object) -> str:
+    """Normalise the project's responsible-manager label.
+
+    CUBI's Enterprise OBS hierarchy is a separate domain. Until that reference
+    exists, the project stores the manager label as a first-class attribute so
+    Project Details can persist and read it back instead of showing a control
+    that discards its value.
+    """
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_OBS_RESPONSIBLE_MANAGER_INVALID")
+    manager = value.strip()
+    if len(manager) > MAX_PROJECT_OBS_MANAGER:
+        raise ProjectLifecycleError("PROJECT_OBS_RESPONSIBLE_MANAGER_TOO_LONG")
+    return manager
+
+
+def normalize_project_website_url(value: object) -> str:
+    """Normalise an optional http(s) project web-site address.
+
+    Only absolute HTTP(S) URLs are accepted. The value is persisted verbatim
+    (after trimming) so Project Details re-opens with exactly what the user
+    saved, and a ``javascript:`` or scheme-relative entry is never stored.
+    """
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProjectLifecycleError("PROJECT_WEBSITE_URL_INVALID")
+    url = value.strip()
+    if not url:
+        return ""
+    if len(url) > MAX_PROJECT_WEBSITE_URL or any(character.isspace() for character in url):
+        raise ProjectLifecycleError("PROJECT_WEBSITE_URL_INVALID")
+    try:
+        parsed = urlsplit(url)
+    except ValueError as exc:
+        raise ProjectLifecycleError("PROJECT_WEBSITE_URL_INVALID") from exc
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        raise ProjectLifecycleError("PROJECT_WEBSITE_URL_INVALID")
+    if parsed.username or parsed.password:
+        raise ProjectLifecycleError("PROJECT_WEBSITE_URL_INVALID")
+    return url
 
 
 def normalize_project_status(value: object) -> str:
@@ -238,6 +298,8 @@ class ProjectRepository(Protocol):
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
     ) -> ProjectSummary: ...
     def update_for_user(
         self,
@@ -252,6 +314,19 @@ class ProjectRepository(Protocol):
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
+    ) -> ProjectSummary | None: ...
+    def set_checkout_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        actor_user_id: str,
+        changed_at: datetime,
     ) -> ProjectSummary | None: ...
     def set_status_for_user(
         self,
@@ -371,6 +446,8 @@ class ProjectLifecycleService:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str = "",
+        obs_responsible_manager: str = "",
+        website_url: str = "",
         now: datetime,
     ) -> ProjectContext:
         session = self.session(session_id, now=now)
@@ -393,6 +470,10 @@ class ProjectLifecycleService:
         normalized_date_system = normalize_project_date_system(date_system)
         normalized_calendar_id = normalize_project_calendar_id(primary_calendar_id)
         normalized_business_domain = normalize_project_business_domain(business_domain)
+        normalized_obs_manager = normalize_project_obs_responsible_manager(
+            obs_responsible_manager
+        )
+        normalized_website_url = normalize_project_website_url(website_url)
         project = self._projects.create_for_user(
             session.tenant_id,
             session.user_id,
@@ -403,6 +484,8 @@ class ProjectLifecycleService:
             date_system=normalized_date_system,
             primary_calendar_id=normalized_calendar_id,
             business_domain=normalized_business_domain,
+            obs_responsible_manager=normalized_obs_manager,
+            website_url=normalized_website_url,
         )
         return ProjectContext(
             tenant_id=project.tenant_id,
@@ -442,6 +525,8 @@ class ProjectLifecycleService:
         date_system: str = "gregorian",
         primary_calendar_id: str | None = None,
         business_domain: str | None = None,
+        obs_responsible_manager: str | None = None,
+        website_url: str | None = None,
         expected_revision: int,
         now: datetime,
     ) -> ProjectSummary:
@@ -468,6 +553,15 @@ class ProjectLifecycleService:
             ).authorization_context(session.roles),
             Permission.PROJECT_ADMIN,
         )
+        # A checked-out project is editable only by the session that checked it
+        # out. This guard runs before validation so a blocked editor gets the
+        # checkout conflict rather than a misleading field error.
+        if (
+            existing.checkout_state == "checked_out"
+            and existing.checked_out_by
+            and existing.checked_out_by != session.user_id
+        ):
+            raise ProjectLifecycleError("PROJECT_CHECKED_OUT_BY_OTHER")
         if not isinstance(name, str) or not name.strip():
             raise ProjectLifecycleError("PROJECT_NAME_REQUIRED")
         revision = normalize_expected_revision(expected_revision)
@@ -483,6 +577,16 @@ class ProjectLifecycleService:
             if business_domain is None
             else normalize_project_business_domain(business_domain)
         )
+        normalized_obs_manager = (
+            None
+            if obs_responsible_manager is None
+            else normalize_project_obs_responsible_manager(obs_responsible_manager)
+        )
+        normalized_website_url = (
+            None
+            if website_url is None
+            else normalize_project_website_url(website_url)
+        )
         updated = self._projects.update_for_user(
             session.tenant_id,
             session.user_id,
@@ -494,6 +598,8 @@ class ProjectLifecycleService:
             date_system=normalized_date_system,
             primary_calendar_id=normalized_calendar_id,
             business_domain=normalized_business_domain,
+            obs_responsible_manager=normalized_obs_manager,
+            website_url=normalized_website_url,
         )
         if updated is None:
             if self._projects.get_for_user(
@@ -533,6 +639,12 @@ class ProjectLifecycleService:
             ).authorization_context(session.roles),
             Permission.PROJECT_ADMIN,
         )
+        if (
+            existing.checkout_state == "checked_out"
+            and existing.checked_out_by
+            and existing.checked_out_by != session.user_id
+        ):
+            raise ProjectLifecycleError("PROJECT_CHECKED_OUT_BY_OTHER")
         normalized_status = normalize_project_status(status)
         revision = normalize_expected_revision(expected_revision)
         if existing.status == normalized_status:
@@ -552,6 +664,71 @@ class ProjectLifecycleService:
             ) is None:
                 raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
             raise ProjectLifecycleError("PROJECT_REVISION_CONFLICT")
+        return updated
+
+    def set_project_checkout(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        checked_out: bool,
+        expected_revision: int,
+        now: datetime,
+    ) -> ProjectSummary:
+        """Check a project out or in under the configuration revision guard.
+
+        Checkout is an exclusive-edit lease: while another user holds it, this
+        service rejects metadata and status edits. Repeating the current state
+        is idempotent and does not bump the revision. The repository performs a
+        conditional write so two simultaneous checkout requests cannot both
+        win.
+        """
+        session = self.session(session_id, now=now)
+        if not isinstance(checked_out, bool):
+            raise ProjectLifecycleError("PROJECT_CHECKOUT_STATE_INVALID")
+        existing = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if existing is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        self._policy.require(
+            ProjectContext(
+                tenant_id=existing.tenant_id,
+                project_id=existing.project_id,
+                revision=existing.revision,
+                user_id=session.user_id,
+            ).authorization_context(session.roles),
+            Permission.PROJECT_ADMIN,
+        )
+        revision = normalize_expected_revision(expected_revision)
+        if checked_out:
+            if existing.checkout_state == "checked_out":
+                if existing.checked_out_by == session.user_id:
+                    return existing
+                raise ProjectLifecycleError("PROJECT_CHECKOUT_CONFLICT")
+        else:
+            if existing.checkout_state != "checked_out":
+                return existing
+            if existing.checked_out_by != session.user_id:
+                raise ProjectLifecycleError("PROJECT_CHECKOUT_CONFLICT")
+        updated = self._projects.set_checkout_for_user(
+            session.tenant_id,
+            session.user_id,
+            project_id,
+            checked_out=checked_out,
+            expected_revision=revision,
+            actor_user_id=session.user_id,
+            changed_at=now,
+        )
+        if updated is None:
+            current = self._projects.get_for_user(
+                session.tenant_id, project_id, session.user_id
+            )
+            if current is None:
+                raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+            if current.settings_revision != revision:
+                raise ProjectLifecycleError("PROJECT_REVISION_CONFLICT")
+            raise ProjectLifecycleError("PROJECT_CHECKOUT_CONFLICT")
         return updated
 
     def project_status_history(
