@@ -1069,3 +1069,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests at the same code:** repository round trip/independent update/legacy migration; activity HTTP inheritance, explicit override, PATCH persistence and invalid-value rejection; project service/HTTP/PostgreSQL/preview-store persistence and validation; web create-form field. Python 4235 passed / 190 skipped, web 1147 + 14 passed, `tsc` and `npm run build` clean.
 - **Browser evidence:** `docs/workspace/evidence/project-details-v26-2026-11-14/` — `testedCodeSha`/`gitHead` `ae6d2116`, 9/9 scenarios, 12 screenshots, zero exceptions/console errors/API failures. Scenario `02b` saves `Fixed Units/Time`, reads it back from the project API, survives a full reload, prefills the create drawer, creates an activity and reads its stored duration type back.
 - **Remaining:** the default Cost Account, the audited defaults history and the enterprise OBS hierarchy are still open. The checkout lease is not yet consulted by activity, WBS or relationship writes. Cost Account selection needs the real hierarchy before it can be stored.
+
+
+## CUBI Enterprise foundation implementation — 2026-11-15
+
+- **Current branch:** `feat/cubi-enterprise-foundation-v1-current-main`, created from current `main`; earlier PRs #1941 and #1942 were superseded during base-branch reconciliation and are closed, not merged.
+- **Scope:** versioned Enterprise task contract/domain; PostgreSQL repository; composite cursor pagination including NULL ordering; tenant-scoped advisory serialization for dependency graph mutation; completion actor attribution; append-only audit trigger and restrictive audit foreign key; domain and live PostgreSQL integration tests; reuse-first Enterprise foundation roadmap; independent environment design governance.
+- **Priority boundary:** CUBI Engineering remains the active primary completion priority. This Enterprise slice does not modify Engineering routes, calculation core, shell, production composition or release behavior.
+- **Not yet claimed:** organization/team persistence, task application authorization, HTTP API, Task Center UI, production composition, live PostgreSQL execution or production readiness.
+- **Verification:** exact-head CI and PostgreSQL Integration are required before this slice is marked verified.
