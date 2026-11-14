@@ -60,6 +60,7 @@ def test_postgres_team_membership_persists_and_revocation_is_immediate():
             revision=1, created_at=NOW,
         )
         repository.add_member(membership, actor_id=owner_id)
+        assert {item.user_id for item in repository.list_members(tenant, team.team_id)} == {owner_id, member_id}
         with pytest.raises(OrganizationAccessError, match="TEAM_MEMBER_ACCOUNT_NOT_FOUND"):
             repository.add_member(
                 EnterpriseTeamMembership(
