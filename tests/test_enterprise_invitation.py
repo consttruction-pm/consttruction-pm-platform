@@ -131,3 +131,11 @@ def test_invalid_public_id_and_token_fail_closed():
         service.lookup("owner", "CUBI-123")
     with pytest.raises(InvitationDenied, match="INVITATION_TOKEN_INVALID"):
         service.accept("member", "invite-x", "short")
+
+def test_invitation_rejects_user_who_is_already_an_active_team_member():
+    service, _ = build()
+    service._access.members[("tenant-a", "team-a", "member")] = SimpleNamespace(
+        status="active", role="member"
+    )
+    with pytest.raises(ValueError, match="USER_ALREADY_TEAM_MEMBER"):
+        service.invite("owner", "team-a", "CUBI-2345-6789-ABCD", "field_worker")
