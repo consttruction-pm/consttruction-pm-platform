@@ -29,7 +29,7 @@ class EnterpriseInvitationHttpMiddleware:
         except (InvitationError, ValueError, TypeError) as exc:
             status, payload = 400, {"code":str(exc) or "INVITATION_REQUEST_INVALID"}
         body = json.dumps(payload,ensure_ascii=False,separators=(",",":")).encode("utf-8")
-        reason = {200:"OK",201:"Created",400:"Bad Request",401:"Unauthorized",403:"Forbidden",404:"Not Found",405:"Method Not Allowed"}.get(status,"Internal Server Error")
+        reason = {200:"OK",201:"Created",400:"Bad Request",401:"Unauthorized",403:"Forbidden",404:"Not Found",405:"Method Not Allowed",409:"Conflict"}.get(status,"Internal Server Error")
         start_response(f"{status} {reason}",[("Content-Type","application/json; charset=utf-8"),("Content-Length",str(len(body))),("Cache-Control","no-store"),("X-Content-Type-Options","nosniff")])
         return [body]
 
