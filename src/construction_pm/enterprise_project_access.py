@@ -248,7 +248,7 @@ class PostgresProjectAccessRepository:
 
     def project_permission(self, tenant_id: str, user_id: str, project_id: str, permission: str) -> bool:
         row = self.connection.execute(
-            "SELECT cubi_user_has_project_access(%s,%s,%s,%s)",
+            "SELECT cubi_user_has_project_access(%s::text,%s::text,%s::text,%s::text)",
             (tenant_id, user_id, project_id, permission),
         ).fetchone()
         return bool(row and row[0])
@@ -349,6 +349,13 @@ class EnterpriseProjectAuthorizationPolicy:
             (context.tenant_id, context.project_id, context.user_id),
         ).fetchone()
         if direct is not None:
+            return True
+        exists = self.connection.execute(
+            "SELECT 1 FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
+            (context.tenant_id, context.project_id),
+        ).fetchone()
+        if exists is None and permission == Permission.PROJECT_ADMIN:
+            # Project creation is authorized before the new project/member rows exist.
             return True
         return self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, permission.value
