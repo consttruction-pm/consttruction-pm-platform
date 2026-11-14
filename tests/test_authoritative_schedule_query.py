@@ -703,6 +703,30 @@ def test_query_exposes_negative_float_diagnostic_in_fact_and_explanation():
     assert findings[0]["activity_id"] == "A"
     assert findings[0]["severity"] == "WARNING"
 
+    check = fact.data["schedule_check"]
+    assert check["contract_version"] == "p6-schedule-check.v1"
+    assert check["snapshot_id"] == "S-NF-FACT"
+    assert check["counts"] == {
+        "total": 5,
+        "ERROR": 0,
+        "WARNING": 5,
+        "INFO": 0,
+    }
+    rule_counts = {rule["rule_id"]: rule["count"] for rule in check["rules"]}
+    assert rule_counts == {
+        "NEGATIVE_FLOAT": 1,
+        "OPEN_START": 2,
+        "OPEN_FINISH": 2,
+        "ACTIVITY_CONSTRAINT": 0,
+        "MANDATORY_CONSTRAINT": 0,
+        "NEGATIVE_LAG": 0,
+    }
+    assert [item["rule_id"] for item in check["findings"] if item["activity_id"] == "A"] == [
+        "NEGATIVE_FLOAT",
+        "OPEN_START",
+        "OPEN_FINISH",
+    ]
+
     explanation = service.execute(
         ScheduleQueryRequest(
             "Q-NF-E",

@@ -4774,6 +4774,26 @@ async function main() {
       constrainedRun.rows === 14 && constrainedRun.a140?.[1] >= "2026-10-20",
       "the published schedule must honor START_NO_EARLIER_THAN in the shared core: " + JSON.stringify(constrainedRun),
     );
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-schedule-check]"))`,
+      "schedule check panel for the constrained run",
+    );
+    const checkWhileConstrained = await page.evaluate(`(() => {
+      const section = document.querySelector("[data-schedule-check]");
+      const rules = Array.from(section?.querySelectorAll("tr[data-check-rule]") ?? []).map((row) => ({
+        rule: row.dataset.checkRule,
+        severity: row.dataset.checkSeverity,
+        count: Number(row.dataset.checkCount),
+      }));
+      const constraints = Array.from(section?.querySelectorAll('[data-check-finding][data-check-rule="ACTIVITY_CONSTRAINT"]') ?? []).map((item) => item.textContent.trim());
+      return { rules, constraints, total: Number(section?.querySelector("[data-check-total]")?.dataset.checkTotal ?? -1) };
+    })()`);
+    assert(
+      checkWhileConstrained.rules.length === 6 &&
+        checkWhileConstrained.total === checkWhileConstrained.rules.reduce((sum, rule) => sum + rule.count, 0) &&
+        checkWhileConstrained.constraints.some((text) => text.includes("A140")),
+      "the schedule check must list every condition and reflect the stored constraint without rewriting the schedule: " + JSON.stringify(checkWhileConstrained),
+    );
     await page.click("[data-constraint-delete]");
     await page.waitFor(
       `document.querySelectorAll("[data-constraint-row]").length === 0`,
@@ -4795,6 +4815,61 @@ async function main() {
       "schedule reverts after constraint removal",
       60000,
     );
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-schedule-check]"))`,
+      "schedule check panel after the final run",
+    );
+    const scheduleCheck = await page.evaluate(`(() => {
+      const section = document.querySelector("[data-schedule-check]");
+      const rules = Array.from(section?.querySelectorAll("tr[data-check-rule]") ?? []).map((row) => ({
+        rule: row.dataset.checkRule,
+        severity: row.dataset.checkSeverity,
+        count: Number(row.dataset.checkCount),
+      }));
+      const findings = Array.from(section?.querySelectorAll("[data-check-finding]") ?? []).map((item) => ({
+        rule: item.dataset.checkRule,
+        severity: item.dataset.checkSeverity,
+        text: item.textContent.trim(),
+      }));
+      return {
+        rules,
+        findings,
+        total: Number(section?.querySelector("[data-check-total]")?.dataset.checkTotal ?? -1),
+        openStartA100: findings.some((item) => item.rule === "OPEN_START" && item.text.includes("A100")),
+        openFinishA210: findings.some((item) => item.rule === "OPEN_FINISH" && item.text.includes("A210")),
+        constraintFindings: findings.filter((item) => item.rule === "ACTIVITY_CONSTRAINT").length,
+      };
+    })()`);
+    assert(
+      scheduleCheck.rules.length === 6 &&
+        scheduleCheck.total === scheduleCheck.rules.reduce((sum, rule) => sum + rule.count, 0) &&
+        scheduleCheck.rules.find((rule) => rule.rule === "NEGATIVE_LAG")?.count === 0 &&
+        scheduleCheck.openStartA100 &&
+        scheduleCheck.openFinishA210 &&
+        scheduleCheck.constraintFindings === 0,
+      "the schedule check must list all conditions, exact counts and the affected open-ended activities: " + JSON.stringify(scheduleCheck),
+    );
+    await page.scrollTo("[data-schedule-check]");
+    await page.screenshot("07i-schedule-check.png");
+    await page.click('[data-schedule-check] [data-check-focus="A100"]');
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A100"]')?.getAttribute("aria-selected") === "true"`,
+      "schedule check drill-through selects A100",
+    );
+    EVIDENCE.schedule_check = {
+      rules: scheduleCheck.rules,
+      total: scheduleCheck.total,
+      open_start: "A100",
+      open_finish: "A210",
+      constraint_findings_after_delete: scheduleCheck.constraintFindings,
+      drill_through: "A100",
+      source: "authoritative schedule query -> p6-schedule-check.v1 -> run-results panel",
+    };
+    record("schedule check lists conditions, counts and drills through to an activity", {
+      rules: scheduleCheck.rules.length,
+      total: scheduleCheck.total,
+      drilled_through: "A100",
+    });
     EVIDENCE.constraints = {
       editor_options: constraintsBefore.options,
       stored: storedConstraint?.constraint ?? null,

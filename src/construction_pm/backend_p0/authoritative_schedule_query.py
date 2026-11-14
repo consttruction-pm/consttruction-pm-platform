@@ -28,6 +28,7 @@ from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
+from construction_pm.scheduling.schedule_checks import build_schedule_check_payload
 
 
 @dataclass(frozen=True)
@@ -340,6 +341,24 @@ def _diagnostic_payload(
     ]
 
 
+def _schedule_check_payload(
+    result: ScheduleEvaluationResult,
+    request: ScheduleQueryRequest,
+) -> dict[str, object]:
+    """Expose explicit schedule-quality checks for this exact calculation."""
+    return build_schedule_check_payload(
+        result.schedule_check_findings,
+        scope={
+            "tenant_id": request.scope.tenant_id,
+            "project_id": request.scope.project_id,
+            "project_revision": request.scope.project_revision,
+        },
+        snapshot_id=result.snapshot_id,
+        snapshot_hash=result.snapshot_hash,
+        calculation_run_identity=result.calculation_run_identity,
+    )
+
+
 def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
@@ -366,6 +385,7 @@ def _project_result(
                     for key, value in sorted(activities.items())
                 },
                 "diagnostics": _diagnostic_payload(result),
+                "schedule_check": _schedule_check_payload(result, request),
             }
             if placement is not None:
                 data["resource_dependent_placement"] = placement
@@ -401,6 +421,7 @@ def _project_result(
                 "activity_count": len(activities),
                 "explanation_key": "schedule.query.explanation.calculated_from_snapshot",
                 "diagnostics": _diagnostic_payload(result),
+                "schedule_check": _schedule_check_payload(result, request),
             }
             if placement is not None:
                 explanation["resource_dependent_placement"] = placement
@@ -419,6 +440,7 @@ def _project_result(
                     }
                     for key, value in sorted(result.time_activities.items())
                 },
+                "schedule_check": _schedule_check_payload(result, request),
             }
 
         if request.kind is ScheduleQueryKind.EXPLANATION:
@@ -426,6 +448,7 @@ def _project_result(
                 "calculation_run_identity": result.calculation_run_identity,
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(result.time_activities),
+                "schedule_check": _schedule_check_payload(result, request),
                 "explanation_key": "schedule.query.explanation.calculated_from_snapshot",
             }
 
