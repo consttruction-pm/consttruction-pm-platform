@@ -1,0 +1,50 @@
+SCH-004 Schedule Check and diagnostics — tests at 8948bff4 (PR #1970)
+====================================================================
+
+Python (repository root, no external DSN):
+  python3 -m pytest -q
+  => 4329 passed, 204 skipped, 3 warnings in 38.96s
+
+Web unit and preview-server tests:
+  npm --prefix apps/web test
+  => # tests 1165 / # pass 1165 / # fail 0
+  => # tests 15 / # pass 15 / # fail 0
+
+Web bundle:
+  npm --prefix apps/web run build
+  => tsc -p tsconfig.build.json + esbuild Done (part of the E2E run)
+
+Browser full-stack E2E (managed runtime, fresh temporary SQLite):
+  CUBI_CHROME_NO_SANDBOX=1 npm run test:e2e:preview
+  => CUBI full-stack preview E2E passed (101 recorded checks)
+  => 55 screenshots, zero uncaught exceptions, zero API 5xx
+
+New recorded check:
+  schedule check lists conditions, counts and drills through to an activity
+    rules: 6
+    final counts: NEGATIVE_FLOAT 0 / OPEN_START 1 / OPEN_FINISH 2 /
+                  ACTIVITY_CONSTRAINT 0 / MANDATORY_CONSTRAINT 0 /
+                  NEGATIVE_LAG 0
+    total: 3 (equals the sum of the rule counts)
+    open start: A100
+    open finish: A210
+    constraint findings after delete: 0
+    drill-through: A100 (grid row selected)
+    constrained run: A140 reported as ACTIVITY_CONSTRAINT before deletion
+
+New server/unit coverage:
+  tests/scheduling/test_schedule_checks.py (6 tests)
+  tests/test_authoritative_schedule_query.py (schedule_check block assertions)
+  apps/web/src/schedule-cycle.test.ts (3 tests)
+
+Existing scheduler coverage relied on by this audit:
+  src/construction_pm/scheduling/diagnostics.py
+  tests/scheduling/test_schedule.py (negative float, infeasibility)
+  tests/scheduling/test_constraints.py (constraint windows)
+  tests/scheduling/test_forward_pass.py (relationship topology, lags)
+
+External Version 26 rule-catalogue comparison: BLOCKED_EXTERNAL (no licensed
+V26 schedule export or rule fixture exists in the repository; the six-rule
+catalogue is asserted against the documented V26 Checking Schedules behavior
+and the internal core semantics). The check is rendered inside the Schedule
+window run-results panel; there is no separate docked window.
