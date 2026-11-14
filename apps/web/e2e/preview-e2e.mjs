@@ -3708,6 +3708,105 @@ async function main() {
       calendar: settings.selected_calendar,
     });
 
+    // Typed calculation options are generated from the same ScheduleOptions
+    // model used by persistence. Save them through the real form, read them
+    // back from the settings API, and prove the next published snapshot hash
+    // is bound to the changed options.
+    const optionControls = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-schedule-settings-form]");
+      const has = (name) => Boolean(form?.querySelector('[data-option="' + name + '"]'));
+      return {
+        maximum_multiple_float_paths: has("maximum_multiple_float_paths"),
+        min_float_to_preserve: has("min_float_to_preserve"),
+      };
+    })()`);
+    assert(
+      optionControls.maximum_multiple_float_paths && optionControls.min_float_to_preserve,
+      "typed schedule option controls must be rendered from the calculation schema",
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "baseline snapshot rows before option change",
+      60000,
+    );
+    const baselineOptionHash = await page.evaluate(
+      `document.querySelector(".cp-schedule-result-meta code")?.textContent.trim() ?? ""`,
+    );
+    assert(baselineOptionHash.length >= 16, "baseline snapshot hash must be substantial");
+    await page.setInput('[data-option="maximum_multiple_float_paths"]', "3");
+    await page.setInput('[data-option="min_float_to_preserve"]', "2");
+    await page.setInput('[data-option="data_date"]', "2026-09-28");
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "typed schedule option save status",
+    );
+    const optionsSavedRevision = await page.evaluate(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1)`,
+    );
+    assert(optionsSavedRevision > savedRevision, "typed option save must advance the settings revision");
+    const persistedOptions = await page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings", { headers });
+        return { status: response.status, body: await response.json() };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(persistedOptions.status === 200, `settings read after option save ${persistedOptions.status}`);
+    assert(
+      persistedOptions.body.schedule_options.maximum_multiple_float_paths === 3 &&
+        persistedOptions.body.schedule_options.min_float_to_preserve === 2 &&
+        persistedOptions.body.schedule_options.data_date === "2026-09-28",
+      "typed schedule options must persist through the settings contract: " +
+        JSON.stringify(persistedOptions.body.schedule_options),
+    );
+    await page.scrollTo("#cp-schedule-options");
+    await page.screenshot("06b-schedule-options.png");
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "snapshot rows after typed option change",
+      60000,
+    );
+    const optionChangedHash = await page.evaluate(
+      `document.querySelector(".cp-schedule-result-meta code")?.textContent.trim() ?? ""`,
+    );
+    assert(
+      optionChangedHash.length >= 16 && optionChangedHash !== baselineOptionHash,
+      "a published snapshot must bind the edited schedule options into its hash",
+    );
+    // Restore the seed defaults so later checks keep the original calculations.
+    await page.setInput('[data-option="maximum_multiple_float_paths"]', "0");
+    await page.setInput('[data-option="min_float_to_preserve"]', "0");
+    await page.setInput('[data-option="data_date"]', "");
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${optionsSavedRevision}`,
+      "restored schedule options revision",
+    );
+    EVIDENCE.schedule_options = {
+      baseline_hash: baselineOptionHash,
+      changed_hash: optionChangedHash,
+      saved_revision: optionsSavedRevision,
+      persisted: {
+        maximum_multiple_float_paths: persistedOptions.body.schedule_options.maximum_multiple_float_paths,
+        min_float_to_preserve: persistedOptions.body.schedule_options.min_float_to_preserve,
+        data_date: persistedOptions.body.schedule_options.data_date,
+      },
+      source: "schedule options form -> POST /p6/schedule/settings -> GET -> snapshot publication hash",
+    };
+    record("typed schedule options persist and bind to the next snapshot hash", {
+      baseline_hash: baselineOptionHash,
+      changed_hash: optionChangedHash,
+      saved_revision: optionsSavedRevision,
+    });
+
     await page.click("[data-run-schedule]");
     await page.waitFor(
       `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
