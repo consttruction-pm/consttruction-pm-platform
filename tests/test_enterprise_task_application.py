@@ -8,14 +8,12 @@ import pytest
 
 from construction_pm.application.authorization import Permission
 from construction_pm.application.project_lifecycle import ProjectLifecycleError, SessionError
-from construction_pm.enterprise_task import EnterpriseTask
 from construction_pm.enterprise_task_application import (
     EnterpriseTaskApplicationService,
     EnterpriseTaskAuthorizationError,
 )
 from construction_pm.enterprise_task_repository import (
     EnterpriseTaskNotFound,
-    EnterpriseTaskRevisionConflict,
     StoredEnterpriseTask,
 )
 
