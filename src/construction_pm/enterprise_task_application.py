@@ -209,12 +209,16 @@ class EnterpriseTaskApplicationService:
 
     def _authorize_task(self, session_id: str, session: object, task: EnterpriseTask, *, write: bool) -> None:
         if task.project_id is not None:
-            self._authorize_project(
-                session_id,
-                session.tenant_id,
-                task.project_id,
-                Permission.PROJECT_WRITE if write else Permission.PROJECT_READ,
-            )
+            try:
+                self._authorize_project(
+                    session_id,
+                    session.tenant_id,
+                    task.project_id,
+                    Permission.PROJECT_WRITE if write else Permission.PROJECT_READ,
+                )
+            except EnterpriseTaskAuthorizationError as exc:
+                # Do not disclose whether a guessed task identifier exists.
+                raise EnterpriseTaskNotFound("ENTERPRISE_TASK_NOT_FOUND") from exc
             return
         if task.created_by_user_id != session.user_id:
             raise EnterpriseTaskNotFound("ENTERPRISE_TASK_NOT_FOUND")
