@@ -1,3 +1,5 @@
 # Production runtime dependencies for the Vercel Python functions.
-# The application itself is standard-library only; PostgreSQL needs a driver.
+# The application itself is standard-library only apart from XLSX exchange,
+# which the WBS/resource codecs import at module scope.
 psycopg[binary]>=3.2,<3.4
+openpyxl>=3.1,<3.2

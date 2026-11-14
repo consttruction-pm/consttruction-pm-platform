@@ -3515,3 +3515,127 @@ Evidence: `docs/workspace/evidence/activity-filters-v26-2026-11-13/`
 scenarios, 0 exceptions/console errors/5xx, screenshots 01–11, `CHECKLIST.md`).
 Code `d9452209`; unit tests 999 `tsx` + 14 `node --test`, `tsc --noEmit` and
 `npm run build` pass.
+
+## Dual tool-rail customizable toolbar — 2026-11-14
+
+- **Scope.** Replaced the duplicated left/right icon maps and the
+  contextual-only command strip with one registry-driven toolbar system on both
+  rails. This is the mandatory correction requested after the rails and
+  floating widgets work; it is not the baseline API increment and is not
+  evidenced by PR #1923 alone.
+- **Architecture.** `apps/web/src/workspace-toolbar-registry.ts` is the single
+  typed command table (stable id, localized label/tooltip, icon, families,
+  supported windows, admin gate, enabled reason, handler target, default
+  visibility, customization actions). Six left families and exactly eighteen
+  right families (Project Tools, Assign, Edit, Layout, Enterprise, Print,
+  Action, Administrator, Bottom Layout, Display, Find, Dictionaries, Publish,
+  Standard Reports, Tools, Activity, Critical Check, Schedule) render from it.
+  A command may appear in several families but is defined once.
+- **Customization.** Every family ends with its own Add or Remove control that
+  opens the complete registered command list, checked = visible, supports
+  multiple changes per open menu, and offers Reset Toolbar. Rail context menus
+  offer visibility, Add or Remove, Customize, Lock/Unlock, Reset Toolbar, Reset
+  All, Create Custom Toolbar, Rename and Delete. Icon context menus offer Move
+  Up/Down, Move to toolbar, Hide/Delete, Rename, Default/Text/Image+Text style,
+  Begin a Group and Reset. A body-level Customize dialog toggles all families
+  without closing and provides per-family reset, dock/rail moves and custom
+  toolbar create/delete.
+- **Drag and keyboard.** Pointer capture, a 5px threshold, a ghost and an
+  insertion line support reordering buttons, moving commands between families
+  and across left/right rails, dragging a whole family into the horizontal dock
+  above the workspace, re-docking it, and reordering toolbar rows. Alt+Arrow
+  reorders the focused button; menus support Arrow/Home/End/Escape and outside
+  click. A drag suppresses the subsequent click so a command never fires by
+  accident.
+- **Persistence.** `apps/web/src/workspace-toolbar-config.ts` stores a versioned
+  `cubi:workspace-toolbars:v2:<user>` document with
+  `workspaces["project:<id>"]` for lock/family state, plus button visibility,
+  order, rail/dock, custom definitions, labels and styles. The legacy
+  `cubi:workspace-toolbars:<userId>` key is migrated. No project, Activity
+  Layout or schedule record is written by toolbar operations.
+- **Permissions.** Admin-only and capability-gated commands are disabled in
+  both the rail and the Add or Remove menu with a stable reason, and disabled
+  buttons carry no executable target. Existing APIs still re-authorize every
+  command server-side; toolbar preferences grant no data permission.
+- **Verification.** `apps/web/e2e/toolbar-rails-v26.mjs` passes 24/24 checks with
+  17 screenshots at
+  `docs/workspace/evidence/toolbar-rails-v26-2026-11-14/`: both rails, all 24
+  families hide/restore, multi-toggle Add or Remove, per-family and global
+  reset, empty-family restore, right-click toolbar/icon menus, icon hide and
+  restore, pointer reorder, cross-family and cross-rail moves, drag to dock,
+  re-dock, toolbar-row reorder, keyboard reorder, custom toolbar
+  create/add/rename/reload/delete/reload, user isolation, viewer permissions,
+  Persian RTL, and 1280×720/1366×768/1920×1080 with no page overflow, zero
+  uncaught exceptions, zero console errors and zero API 5xx. Unit tests: 1117
+  `tsx` + 14 `node --test` pass; `tsc --noEmit` and `npm run build` pass.
+- **Evidence and code.** Code `7aa9a2d4d29e5492c212ea8bfaf8c74eed13d9a2` on
+  `feat/vercel-preview-fixtures` (PR #1923 remains open). Acceptance detail and
+  the 20 required browser tests are in
+  `docs/qa/V26_DUAL_RAIL_TOOLBAR_MATRIX_2026-11-14.md`.
+- **Known limits.** The "floating" state is a persisted horizontal dock above
+  the workspace, not a free-position palette with saved coordinates; icon style
+  is family-level; browser coverage is English and Persian while the other
+  registered locale packs use the shared translation fallback; preferences are
+  browser-local per user/project. Enterprise, administrator, publish, report
+  and other unavailable commands remain visibly disabled. P4 custom formula
+  lifecycle stays BLOCKED_EXTERNAL.
+- **CI alignment, 2026-11-14 (`82d1cc1d`).** The pre-existing
+  `apps/web/e2e/preview-e2e.mjs` journey still assumed the public floating
+  assistant and the old inline navigation. It now asserts the single
+  rail-owned `action.assistant` entry against `#cp-ai-assistant-chat` and
+  drives the `[data-nav-flyout]` menu, including scoping the right-rail button
+  inside its own scroll container and keeping the failed-bootstrap page free of
+  a duplicate assistant. The full suite passes locally (97 recorded checks, 51
+  screenshots), and all PR #1923 checks — including `web`, PostgreSQL, Python
+  3.11/3.12/3.13 and all client typechecks — pass on `82d1cc1d`
+  (`feat/vercel-preview-fixtures`). The toolbar implementation code remains
+  `7aa9a2d4`; this commit changes tests and docs only.
+
+## P7 windows acceptance — 2026-11-14
+
+Reference: Oracle Primavera P6 Professional Help Version 26 —
+[General tab - Project Details](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_project_details.htm)
+and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/en_US/filter_by_project_status.htm).
+
+### Defect found and fixed
+
+- `openProjectSettings` (`apps/web/src/main.ts`) classified authorization
+  failures with case-sensitive `includes("authorization")`, while the server
+  emits `AUTHORIZATION_PERMISSION_DENIED`. A denied metadata or status save
+  therefore rendered the generic failure text and hid the localized permission
+  message. The helper now lower-cases the code and also matches
+  `permission_denied`; the metadata form and the status control share it.
+
+### Acceptance
+
+- `apps/web/e2e/project-status-v26.mjs` at code
+  `d98fa1d7ed2b7803bda6368d34e57aa98e1ade59`: **6/6 scenarios**, screenshots
+  01–06, zero exceptions/console errors/5xx. Scenario 05 now reports
+  `Your account does not have permission to edit this project.`, reverts the
+  select to the stored `planned` status and still records a 403 for the direct
+  write. The remaining cells (empty history, append-only status event, reload,
+  1920×1080, Persian 1280×720 RTL) pass unchanged.
+- Evidence: `docs/workspace/evidence/project-status-v26-2026-11-14/`
+  (`report.json` `testedCodeSha`/`gitHead` = the code above).
+- Regression acceptance on the same dual-rail build:
+  `project-tabs-v26.mjs` **30/30** checks (tab set, per-project window sets,
+  unsaved-switch guard, stale revision, Viewer scope, Persian RTL) and
+  `project-register-v26.mjs` **38/38** checks (tenant-scoped register, Business
+  Domain tree/search/sort, create/settings writes, Viewer denial). Each suite
+  ran against its own fresh SQLite runtime; running them on one shared database
+  mutates the expected revision and is not a valid ordering.
+- Unit/type/build at `d98fa1d7`: 1117 `tsx` + 14 `node --test` pass,
+  `tsc --noEmit` clean, esbuild bundle written.
+
+### Remaining PRJ-002 / window gaps
+
+- Project Details still has no OBS responsible manager, leveling-priority,
+  checkout or web-site fields; adding them requires stored fields in the single
+  project model and its existing registry API, so they are not fabricated in the
+  dialog. Project status filtering/portfolios and audited defaults application
+  also remain open.
+- `RES-004` (resource usage availability/overallocation), `RES-005` (curves,
+  shifts, multiple prices), `TRK-001` (tracking layout save/open/share/import/
+  export/delete) and `PRO-002` (period actuals) remain `NOT_AUDITED`; they are
+  the next P7 candidates and need their own stored contracts where the current
+  read models do not expose the data.

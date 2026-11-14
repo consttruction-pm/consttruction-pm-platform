@@ -554,7 +554,10 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
+  assert.deepEqual(registrations, [
+    "click", "click", "contextmenu", "pointerdown", "keydown",
+    "scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
+  ]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -600,6 +603,7 @@ test("menu-only rerenders replace only the navigation surface", () => {
     "en",
   );
   const navigation = { outerHTML: "" };
+  const addMenu = { outerHTML: "" };
   const menuButtons = [
     { dataset: { menu: "schedule" }, setAttribute: () => {} },
     { dataset: { menu: "reports" }, setAttribute: () => {} },
@@ -607,7 +611,9 @@ test("menu-only rerenders replace only the navigation surface", () => {
   const container = {
     innerHTML: "",
     querySelectorAll: (selector: string) => selector === "[data-menu]" ? menuButtons : [],
-    querySelector: (selector: string) => selector === ".cp-navigation-surface" ? navigation : null,
+    querySelector: (selector: string) => selector === ".cp-navigation-surface"
+      ? navigation
+      : selector === "[data-context-add]" ? addMenu : null,
     addEventListener: () => {},
   };
 
@@ -618,6 +624,9 @@ test("menu-only rerenders replace only the navigation surface", () => {
   assert.equal(container.innerHTML, initialHtml);
   assert.ok(navigation.outerHTML.includes("<strong>Reports</strong>"));
   assert.ok(navigation.outerHTML.includes('data-surface-status="preview"'));
+  // The incremental path repaints the contextual Add menu for the new window.
+  assert.match(addMenu.outerHTML, /This window has no create action\./);
+  assert.doesNotMatch(addMenu.outerHTML, /project\.add-activity/);
 });
 
 test("incremental selection rerenders avoid workspace innerHTML replacement", () => {
@@ -2145,11 +2154,15 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 test("desktop workbench renders one compact navigation rail, a full menu flyout and no artificial command strip", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
-  const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
+  const navigationStart = html.indexOf('data-tool-rail="left"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
-  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 21);
-  assert.match(html, /data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true"/);
+  // The left rail is a registry-driven tool rail with its own families, not a
+  // second copy of the 21-destination navigation tree.
+  assert.equal((navigationMarkup.match(/data-tool-family="/g) ?? []).length, 6);
+  assert.match(navigationMarkup, /data-tool-family="navigation"/);
+  assert.match(navigationMarkup, /data-tool-add-remove/);
+  assert.match(navigationMarkup, /data-nav-flyout-toggle/);
   const flyoutStart = html.indexOf('<div class="cp-p6-flyout" data-nav-flyout hidden>');
   assert.ok(flyoutStart > -1, "the full navigation flyout must be rendered");
   const flyoutEnd = html.indexOf('<div class="cp-p6-drawer', flyoutStart);
@@ -2166,12 +2179,81 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
   assert.match(html, /data-columns-open/);
   assert.match(html, /class="cp-p6-grid-actions"/);
   assert.doesNotMatch(html, /class="cp-window-tabs"/);
-  assert.doesNotMatch(html, /class="cp-context-add-menu"/);
+  assert.match(html, /class="cp-context-add-menu"/);
   assert.doesNotMatch(html, /class="cp-window-tab\b/);
   assert.match(html, /Calendars/);
   assert.match(html, /Roles/);
   assert.match(html, /Tracking/);
   assert.match(html, /Thresholds/);
+});
+
+test("the right rail leads with one Add command menu and never repeats left navigation", () => {
+  const html = render("en", "schedule");
+  const railStart = html.indexOf('<aside class="cp-comments-dock-rail cp-context-command-rail cp-tool-rail"');
+  assert.ok(railStart > -1, "the context command rail must be rendered");
+  const railEnd = html.indexOf("</aside>", railStart);
+  const rail = html.slice(railStart, railEnd);
+
+  // The Add menu is the fixed first control in the rail in both directions.
+  assert.match(rail, /^<aside[^>]*>\s*<details class="cp-context-add-menu"/);
+  assert.match(rail, /<summary role="button" aria-haspopup="menu" aria-expanded="false"[^>]*>\+<\/summary>/);
+  assert.match(rail, /data-context-add-popup role="menu"/);
+  // Contextual create commands dispatch through stable desktop command ids.
+  assert.match(rail, /data-desktop-command="project.add-activity"/);
+  assert.match(rail, /data-desktop-command="edit.link"/);
+  // The rail adds record-level commands; the left rail keeps destinations only.
+  assert.doesNotMatch(rail, /data-menu=/);
+  assert.match(rail, /data-rail-action="assistant"/);
+  assert.match(rail, /data-rail-action="details"/);
+  assert.match(rail, /data-rail-action="notebook"/);
+  assert.match(rail, /data-rail-action="comments"/);
+  // All eighteen Version 26 families are registered on the right rail.
+  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 18);
+  assert.match(rail, /data-tool-family="project-tools"/);
+  assert.match(rail, /data-tool-family="schedule"/);
+  // No write capability means every command stays visible but disabled with a
+  // reason the user can read; nothing pretends the action succeeded.
+  assert.match(rail, /data-desktop-command="project.add-activity" disabled aria-disabled="true"/);
+  assert.match(rail, /Requires the project planner or administrator role\./);
+});
+
+test("contextual Add commands follow the active window, selection and stored data", () => {
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const renderWith = (menu: WorkspaceMenuKey, options: Parameters<typeof renderMainWorkspace>[2]): string => {
+    const container = { innerHTML: "", querySelectorAll: () => [] };
+    renderMainWorkspace(container as unknown as HTMLElement, { ...state, activeMenu: menu }, options);
+    return container.innerHTML;
+  };
+
+  const schedule = renderWith("schedule", { canWrite: true });
+  assert.match(schedule, /data-desktop-command="project.add-activity"/);
+  assert.match(schedule, /data-desktop-command="edit.link"/);
+  // Without a selected activity the relationship command explains why it is off.
+  assert.match(schedule, /data-desktop-command="edit.link" disabled aria-disabled="true"[^>]*>/);
+  assert.match(schedule, /Select an activity in the register first\./);
+
+  const wbs = renderWith("wbs", { canWrite: true });
+  assert.match(wbs, /data-desktop-command="project.add-wbs"/);
+  assert.match(wbs, /data-desktop-command="project.add-activity" disabled aria-disabled="true"/);
+  assert.match(wbs, /Add a WBS element before creating activities\./);
+
+  const resources = renderWith("resources", { canWrite: true });
+  assert.match(resources, /data-desktop-command="resource.create"/);
+
+  const calendars = renderWith("calendars", { canWrite: true });
+  assert.match(calendars, /data-desktop-command="calendar.create" disabled aria-disabled="true"/);
+  assert.match(calendars, /A base calendar must exist before a calendar can be created\./);
+
+  const reports = renderWith("reports", { canWrite: true });
+  assert.match(reports, /This window has no create action\./);
+  const reportsAdd = reports.match(/<div class="cp-context-add-popup"[\s\S]*?<\/div>/);
+  assert.ok(reportsAdd, "the contextual Add popup must be rendered");
+  assert.doesNotMatch(reportsAdd[0], /data-desktop-command=/);
+
+  // A viewer sees the same commands disabled instead of write controls vanishing
+  // behind an ambiguous empty rail.
+  const viewer = renderWith("documents", { canWrite: false });
+  assert.match(viewer, /data-desktop-command="document.create" disabled aria-disabled="true"/);
 });
 
 test("desktop workbench exposes real keyboard-operable resize separators and reset commands instead of disabled placeholders", () => {
@@ -2828,4 +2910,48 @@ test("WBS toolbar copies the selected element and pastes beneath the selected ta
   paint("W-PM");
   clickListener?.({ target: paste } as unknown as Event);
   assert.deepEqual(events, ["copy:W-CIVIL:W-PM:1.1", "update:W-CIVIL-SITE:W-PM"]);
+});
+
+test("Layout Options persists progress line, baseline and Data Date toggles through the presentation callback", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withActivities(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [
+    {
+      id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation",
+      cells: { "activity.baseline_start": "2026-09-01", "activity.baseline_finish": "2026-09-05" },
+    },
+  ]);
+  const chosen: [string, boolean][] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    presentation: normalizePresentation({
+      bars: { baseline: { visible: true } },
+      gantt: { progressLine: { visible: false }, dataDateLine: { visible: true } },
+    }),
+    onGanttDisplayToggle: (kind, visible) => chosen.push([kind, visible]),
+  });
+  assert.match(container.innerHTML, /data-layout-baseline checked/);
+  assert.match(container.innerHTML, /data-layout-progress-line>/);
+  assert.match(container.innerHTML, /data-layout-data-date-line checked/);
+  const fire = (dataset: Record<string, string>, checked: boolean) => {
+    const target = { dataset, checked, closest: () => null };
+    listeners.get("change")?.({ target } as unknown as Event);
+  };
+  fire({ layoutProgressLine: "" }, true);
+  fire({ layoutBaseline: "" }, false);
+  fire({ layoutDataDateLine: "" }, false);
+  assert.deepEqual(chosen, [
+    ["progress-line", true],
+    ["baseline", false],
+    ["data-date-line", false],
+  ]);
+});
+
+test("baseline bars stay disabled with an explicit reason when no stored window is loaded", () => {
+  const empty = render("en", "schedule");
+  assert.match(empty, /data-layout-baseline checked disabled/);
+  assert.match(empty, /No stored baseline window is loaded for this project/);
 });

@@ -40,6 +40,15 @@ export type DesktopCommand =
   | "project.add-activity"
   | "project.edit-activity"
   | "project.schedule-options"
+  | "resource.create"
+  | "assignment.create"
+  | "role.create"
+  | "calendar.create"
+  | "document.create"
+  | "risk.create"
+  | "issue.create"
+  | "expense.create"
+  | "threshold.create"
   | "activity.assign-resources"
   | "activity.predecessors"
   | "activity.successors"
@@ -1275,7 +1284,7 @@ function restoreFilterDialog(dialog: HTMLDialogElement, snapshot: FilterDialogSn
   }
 }
 
-function markCurrentFilterRow(dialog: HTMLDialogElement, row: HTMLElement): void {
+function markCurrentFilterRow(dialog: HTMLDialogElement, row: HTMLElement, locale = "en"): void {
   for (const other of dialog.querySelectorAll("tr.is-current")) other.classList.remove("is-current");
   row.classList.add("is-current");
   for (const button of dialog.querySelectorAll<HTMLElement>("[data-filter-row-select]")) {
@@ -1284,6 +1293,32 @@ function markCurrentFilterRow(dialog: HTMLDialogElement, row: HTMLElement): void
   }
   const hidden = dialog.querySelector<HTMLInputElement>('input[name="filterRowId"]');
   if (hidden) hidden.value = row.dataset.filterId ?? "";
+  syncFilterRowActions(dialog, locale);
+}
+
+/**
+ * Delete, Cut and Modify act on the highlighted filter. Default filters are
+ * read-only in Version 26, so those commands stay disabled with a localized
+ * reason instead of silently doing nothing.
+ */
+function syncFilterRowActions(dialog: HTMLDialogElement, locale: string): void {
+  const row = dialog.querySelector<HTMLElement>("tr.is-current");
+  const builtin = row?.dataset.filterBuiltin === "true";
+  const manage = Boolean(row) && !builtin;
+  const reason = row
+    ? translateWorkspaceUiText(locale, "Default filters are read-only; select a saved filter first", "فیلترهای پیش‌فرض فقط‌خواندنی‌اند؛ ابتدا یک فیلتر ذخیره‌شده انتخاب کنید")
+    : translateWorkspaceUiText(locale, "Select a filter row first", "ابتدا یک ردیف فیلتر انتخاب کنید");
+  for (const selector of [
+    '[name="filterAction"][value="delete"]',
+    "[data-filter-cut]",
+    "[data-filter-modify]",
+  ]) {
+    const button = dialog.querySelector<HTMLButtonElement>(selector);
+    if (!button) continue;
+    button.disabled = !manage;
+    if (manage) button.removeAttribute("title");
+    else button.title = reason;
+  }
 }
 
 function openDialog(host: HTMLElement, name: DesktopDialogName): void {
@@ -1476,7 +1511,15 @@ function bindHost(host: HTMLElement): void {
     const filterRowSelect = target.closest<HTMLElement>("[data-filter-row-select]");
     if (filterRowSelect && filterDialog) {
       const row = filterRowSelect.closest<HTMLElement>("tr[data-filter-id]");
-      if (row) markCurrentFilterRow(filterDialog, row);
+      if (row) markCurrentFilterRow(filterDialog, row, runtime.state.locale);
+      return;
+    }
+    const filterClear = target.closest<HTMLElement>("[data-filter-clear]");
+    if (filterClear && filterDialog) {
+      const scope = filterDialog.querySelector<HTMLSelectElement>('select[name="filterScope"]')?.value;
+      resetFilterEditor(filterDialog, scope === "global" || scope === "user" ? scope : "layout");
+      updateFilterPreview(host, filterDialog);
+      filterDialog.querySelector<HTMLInputElement>('input[name="filterName"]')?.focus();
       return;
     }
     const filterOptimize = target.closest<HTMLElement>("[data-filter-optimize]");
@@ -1643,7 +1686,7 @@ function bindHost(host: HTMLElement): void {
     const data = new FormData(form);
     if (submitter instanceof HTMLButtonElement && submitter.name) data.append(submitter.name, submitter.value);
     if (dialogName === "filters") filterListFromState = true;
-    if (data.get("filterAction") === "delete") {
+    if (data.get("filterAction") === "delete" || data.get("filterAction") === "cut") {
       const editingId = String(data.get("filterEditingId") ?? "");
       const targetId = String(data.get("filterRowId") ?? "") || editingId;
       // The render happens inside onLayoutOptions, so flag the builder reset first.
@@ -1692,7 +1735,8 @@ function bindHost(host: HTMLElement): void {
     // A control that already consumed the chord (grid navigation, splitter,
     // context menu) keeps precedence over the shell binding.
     if (event.defaultPrevented) return;
-    const target = event.target as HTMLElement | null;
+    const candidate = event.target as HTMLElement | null;
+    const target = candidate && typeof candidate.closest === "function" ? candidate : null;
     const typing = Boolean(target?.closest("input, textarea, select, [contenteditable=true]"));
 
     // Keyboard tab reordering: Ctrl+Shift+Left/Right while a window tab has focus.

@@ -93,6 +93,10 @@ function createAvatarSlot(): { slot: HTMLElement; image: HTMLImageElement } {
  */
 export function mountGlobalAssistantLauncher(): void {
   if (typeof document === "undefined" || !document.body) return;
+  // The authenticated workspace already exposes one assistant entry in its
+  // context rail. Mounting the floating launcher there would put a second
+  // entry point over the grid, Gantt and details pane.
+  if (isWorkspaceRoute()) return;
   if (document.getElementById(ROOT_ID)) return;
 
   const root = document.createElement("div");

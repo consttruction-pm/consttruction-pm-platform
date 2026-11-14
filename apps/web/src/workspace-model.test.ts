@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   addFormulaColumn,
   applyAuthoritativeScheduleFacts,
+  applyBaselineDateFacts,
   createWorkspaceState,
   selectedActivityIdList,
   selectActivity,
@@ -889,4 +890,58 @@ test("a group plan is trimmed to three unique non-empty levels", () => {
     { fieldId: "activity_type", direction: "asc" },
   ]);
   assert.ok(Object.isFrozen(next.activityGroupLevels));
+});
+
+test("baseline windows become baseline cells only for the activities the baseline stores", () => {
+  const state = withActivities(createWorkspaceState(context), [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Columns" },
+  ]);
+  const facts = {
+    baselineId: "BL-1",
+    name: "Approved baseline",
+    activities: { "A-1": { start: "2026-09-01", finish: "2026-09-05" } },
+  };
+  const next = applyBaselineDateFacts(state, facts);
+  assert.notEqual(next, state);
+  assert.equal(next.activities[0].cells?.["activity.baseline_start"], "2026-09-01");
+  assert.equal(next.activities[0].cells?.["activity.baseline_finish"], "2026-09-05");
+  assert.equal(next.activities[1].cells?.["activity.baseline_start"], undefined);
+  // The projected cells never touch the current schedule result.
+  assert.equal(next.activities[0].cells?.start, undefined);
+  assert.deepEqual(next.activities[0].gantt, state.activities[0].gantt);
+  // Reapplying the same facts is a no-op, so a render cannot loop.
+  assert.equal(applyBaselineDateFacts(next, facts), next);
+});
+
+test("a revision or baseline change replaces or clears the projected baseline cells", () => {
+  let state = withActivities(createWorkspaceState(context), [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+  ]);
+  state = applyBaselineDateFacts(state, {
+    baselineId: "BL-1",
+    name: "Baseline 1",
+    activities: { "A-1": { start: "2026-09-01", finish: "2026-09-05" } },
+  });
+  const moved = applyBaselineDateFacts(state, {
+    baselineId: "BL-2",
+    name: "Baseline 2",
+    activities: { "A-1": { start: "2026-09-03", finish: "2026-09-08" } },
+  });
+  assert.equal(moved.activities[0].cells?.["activity.baseline_start"], "2026-09-03");
+  const cleared = applyBaselineDateFacts(moved, {
+    baselineId: "BL-2",
+    name: "Baseline 2",
+    activities: {},
+  });
+  assert.equal(cleared.activities[0].cells?.["activity.baseline_start"], undefined);
+  assert.equal(cleared.activities[0].cells?.["activity.baseline_finish"], undefined);
+  assert.throws(
+    () => applyBaselineDateFacts(state, {
+      baselineId: "BL-1",
+      name: "Baseline 1",
+      activities: { "A-1": { start: "2026-09-05", finish: "2026-09-01" } },
+    }),
+    /INVALID_BASELINE_DATE_FACT/,
+  );
 });

@@ -1,0 +1,345 @@
+{
+  "contract": "cubi-activity-baseline-v26.v1",
+  "url": "http://127.0.0.1:4202",
+  "testedCodeSha": "1d22269f0f3a8df07e725c05775de893740e9c7a",
+  "gitHead": "1d22269f0f3a8df07e725c05775de893740e9c7a",
+  "capturedAt": "2026-11-14T01:30:33.890Z",
+  "before": {
+    "bars": [],
+    "current": [
+      {
+        "activityId": "A100",
+        "kind": "milestone"
+      },
+      {
+        "activityId": "A110",
+        "kind": "task"
+      },
+      {
+        "activityId": "A210",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A120",
+        "kind": "task"
+      },
+      {
+        "activityId": "A130",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A140",
+        "kind": "task"
+      },
+      {
+        "activityId": "A145",
+        "kind": "task"
+      },
+      {
+        "activityId": "A160",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A150",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A155",
+        "kind": "task"
+      },
+      {
+        "activityId": "A180",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A170",
+        "kind": "task"
+      },
+      {
+        "activityId": "A190",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A200",
+        "kind": "critical"
+      }
+    ],
+    "status": "\n    Project: Riverside Pump Station UpgradeData Date: 2026-10-12Baseline: —User: —Database: Preview\n    Ready · 2 open windows\n  ",
+    "toggle": {
+      "disabled": true,
+      "checked": true
+    }
+  },
+  "capture": {
+    "status": 201,
+    "baselineId": "BL-E2E-P6",
+    "counts": {
+      "activities": 13,
+      "budgeted_cost": "0"
+    }
+  },
+  "afterReload": {
+    "bars": [
+      {
+        "activityId": "A110",
+        "left": 1.37,
+        "width": 2.74,
+        "top": 15,
+        "height": 2,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A210",
+        "left": 98.63,
+        "width": 1.37,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A120",
+        "left": 5.48,
+        "width": 6.85,
+        "top": 15,
+        "height": 2,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A130",
+        "left": 21.92,
+        "width": 12.33,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A140",
+        "left": 38.36,
+        "width": 19.18,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A145",
+        "left": 38.36,
+        "width": 4.11,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A160",
+        "left": 61.64,
+        "width": 10.96,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A150",
+        "left": 38.36,
+        "width": 21.92,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A155",
+        "left": 43.84,
+        "width": 5.48,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A180",
+        "left": 76.71,
+        "width": 5.48,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A170",
+        "left": 47.95,
+        "width": 10.96,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A190",
+        "left": 86.3,
+        "width": 4.11,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      },
+      {
+        "activityId": "A200",
+        "left": 91.78,
+        "width": 5.48,
+        "top": 13,
+        "height": 3,
+        "row": "3",
+        "shape": "line",
+        "rowHeight": 19
+      }
+    ],
+    "current": [
+      {
+        "activityId": "A100",
+        "kind": "milestone"
+      },
+      {
+        "activityId": "A110",
+        "kind": "task"
+      },
+      {
+        "activityId": "A210",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A120",
+        "kind": "task"
+      },
+      {
+        "activityId": "A130",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A140",
+        "kind": "task"
+      },
+      {
+        "activityId": "A145",
+        "kind": "task"
+      },
+      {
+        "activityId": "A160",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A150",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A155",
+        "kind": "task"
+      },
+      {
+        "activityId": "A180",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A170",
+        "kind": "task"
+      },
+      {
+        "activityId": "A190",
+        "kind": "critical"
+      },
+      {
+        "activityId": "A200",
+        "kind": "critical"
+      }
+    ],
+    "status": "\n    Project: Riverside Pump Station UpgradeData Date: 2026-10-12Baseline: E2E primary baselineUser: —Database: Preview\n    Ready · 2 open windows\n  ",
+    "toggle": {
+      "disabled": false,
+      "checked": true
+    }
+  },
+  "details": {
+    "rows": [
+      [
+        "Current",
+        "2026-09-22",
+        "2026-09-24"
+      ],
+      [
+        "Original or Planned",
+        "—",
+        "—"
+      ],
+      [
+        "Actual",
+        "2026-09-22",
+        "2026-09-24"
+      ],
+      [
+        "Remaining",
+        "—",
+        "—"
+      ],
+      [
+        "Early",
+        "2026-09-22",
+        "2026-09-24"
+      ],
+      [
+        "Late",
+        "2026-10-08",
+        "2026-10-08"
+      ],
+      [
+        "Baseline",
+        "2026-09-22",
+        "2026-09-24"
+      ]
+    ],
+    "text": "Date type\tStart\tFinish\nCurrent\t2026-09-22\t2026-09-24\nOriginal or Planned\t—\t—\nActual\t2026-09-22\t2026-09-24\nRemaining\t—\t—\nEarly\t2026-09-22\t2026-09-24\nLate\t2026-10-08\t2026-10-08\nBaseline\t2026-09-22\t2026-09-24"
+  },
+  "toggle": {
+    "hiddenBars": 0,
+    "toggle": {
+      "disabled": false,
+      "checked": false
+    },
+    "afterReloadBars": 0,
+    "afterReloadChecked": false
+  },
+  "screenshots": [
+    "baseline-bars-en-1366.png",
+    "baseline-summary-en-1366.png",
+    "baseline-restored-en-1366.png",
+    "baseline-bars-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "compare": {
+    "status": 200,
+    "rows": 13
+  },
+  "wide": {
+    "bars": 13,
+    "overflow": 0
+  },
+  "finishedAt": "2026-11-14T01:30:44.824Z"
+}

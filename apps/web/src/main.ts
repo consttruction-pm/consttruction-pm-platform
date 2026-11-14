@@ -16,6 +16,7 @@ import {
   addP6Field,
   addP6Fields,
   applyAuthoritativeScheduleFacts,
+  applyBaselineDateFacts,
   removeP6Field,
   reorderP6Fields,
   setActivityFilter,
@@ -111,7 +112,7 @@ import { mountWorkspaceBackupPage } from "./workspace-backup.js";
 import { mountWorkspaceThresholdsPage } from "./workspace-thresholds.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
 import { mountWorkspaceDocumentsPage } from "./workspace-documents.js";
-import { loadScheduleDataDate, mountWorkspaceCostPage } from "./workspace-cost.js";
+import { loadBaselineActivityDates, loadBaselines, loadScheduleDataDate, mountWorkspaceCostPage, type BaselineRecord } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
@@ -151,6 +152,13 @@ import {
   rememberHiddenToolbarGroups,
   toggleToolbarGroup,
 } from "./workspace-toolbars.js";
+import {
+  defaultToolbarConfig,
+  readToolbarConfig,
+  toolbarWorkspaceKey,
+  writeToolbarConfig,
+  type ToolbarWorkspaceConfig,
+} from "./workspace-toolbar-config.js";
 import {
   readWorkspaceDetailsVisible,
   rememberWorkspaceDetailsVisible,
@@ -194,6 +202,19 @@ let activeProjectSummaryProjectId: string | null = null;
 let activeProjectDataDate: string | null = null;
 let activeProjectDataDateProjectId: string | null = null;
 const activeProjectDataDateInflight = new Set<string>();
+/**
+ * Baseline windows of the open project, read from the selected stored baseline
+ * through the comparison endpoint. The browser projects these dates into the
+ * existing baseline cells; it never calculates a baseline window itself.
+ */
+type ActiveBaselineFacts = {
+  scopeKey: string;
+  baselineId: string;
+  name: string;
+  activities: Record<string, { start: string; finish: string }>;
+};
+let activeBaselineFacts: ActiveBaselineFacts | null = null;
+const activeBaselineInflight = new Set<string>();
 /** Stored assignment periods projected by the Activity Usage views, never derived. */
 let activeAssignmentPeriods: readonly AssignmentPeriod[] = [];
 let activeAssignmentPeriodsProjectId: string | null = null;
@@ -839,8 +860,15 @@ function openProjectSettings(
     void loadHistory();
   };
 
-  const isForbidden = (code: string): boolean =>
-    code.includes("project.admin") || code.includes("authorization");
+  const isForbidden = (code: string): boolean => {
+    // Server authorization codes are upper-case (AUTHORIZATION_PERMISSION_DENIED);
+    // matching them case-sensitively fell through to the generic save failure and
+    // hid the actual permission message from the user.
+    const normalized = code.toLowerCase();
+    return normalized.includes("project.admin") ||
+      normalized.includes("authorization") ||
+      normalized.includes("permission_denied");
+  };
 
   const submit = async (): Promise<void> => {
     if (saving) return;
@@ -992,7 +1020,10 @@ function captureWorkspaceDrafts(container: HTMLElement): WorkspaceDraft[] {
   container.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
     "input, select, textarea",
   ).forEach((field) => {
-    if (field.matches("[data-workspace-language], [data-bootstrap-language]")) return;
+    // Presentation controls mirror the saved layout presentation, not a draft.
+    // Capturing a value from an earlier render would restore it over the
+    // authoritative presentation on the next render.
+    if (field.matches("[data-workspace-language], [data-bootstrap-language], [data-layout-links], [data-layout-baseline], [data-layout-progress-line], [data-layout-data-date-line], [data-layout-timescale], [data-top-layout], [data-bottom-layout]")) return;
     if (field instanceof HTMLInputElement && ["hidden", "file", "submit", "button", "reset"].includes(field.type)) return;
     const key = workspaceDraftKey(field);
     if (!key.split("::")[1]) return;
@@ -1010,7 +1041,7 @@ function restoreWorkspaceDrafts(container: HTMLElement, drafts: readonly Workspa
   container.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
     "input, select, textarea",
   ).forEach((field) => {
-    if (field.matches("[data-workspace-language], [data-bootstrap-language]")) return;
+    if (field.matches("[data-workspace-language], [data-bootstrap-language], [data-layout-links], [data-layout-baseline], [data-layout-progress-line], [data-layout-data-date-line], [data-layout-timescale], [data-top-layout], [data-bottom-layout]")) return;
     const draft = remaining.get(workspaceDraftKey(field));
     if (!draft) return;
     field.value = draft.value;
@@ -1100,6 +1131,10 @@ function renderApp(
   // The layout may also restore which WBS branches were collapsed when it was
   // saved; apply it before the grid and Gantt read the display rows.
   hydrateCollapseFromLayout(state);
+  // The stored baseline windows belong to one project revision. Applying them
+  // before the first paint keeps the Gantt, grid and details consistent after
+  // any later render that starts from the canonical workspace state.
+  state = applyBaselineDateFacts(state, activeBaselineFactsFor(state.context));
   currentWorkspaceState = state;
   bindWindowDirtyIndicators(container);
   // The skin is a token set on the document root; applying it before paint
@@ -1593,6 +1628,44 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
+      // Module create commands open the owning window and activate the same
+      // "new" control a user would click. No second create flow is introduced.
+      case "resource.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-resource-action="new"]')?.click();
+        activateWindow("resources");
+        return;
+      case "assignment.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-assignment-action="new"]')?.click();
+        activateWindow("assignments");
+        return;
+      case "role.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-role-action="new"]')?.click();
+        activateWindow("roles");
+        return;
+      case "calendar.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-calendar-action="new"]')?.click();
+        activateWindow("calendars");
+        return;
+      case "document.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-document-action="new"]')?.click();
+        activateWindow("documents");
+        return;
+      case "risk.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-risk-action="new"]')?.click();
+        activateWindow("risks");
+        return;
+      case "issue.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-issue-action="new"]')?.click();
+        activateWindow("issues");
+        return;
+      case "expense.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-expense-action="new"]')?.click();
+        activateWindow("expenses");
+        return;
+      case "threshold.create":
+        pendingDesktopAction = () => container.querySelector<HTMLButtonElement>('[data-threshold-action="new"]')?.click();
+        activateWindow("thresholds");
+        return;
       case "project.edit-activity": {
         const activityId = state.selectedActivityId;
         if (!activityId) return;
@@ -1784,7 +1857,7 @@ function renderApp(
   const chromeProject = {
     name: activeProjectLabel(state.context.project_id),
     dataDate: projectDataDate ?? "—",
-    baseline: "—",
+    baseline: activeBaselineNameFor(state.context.project_id) ?? "—",
     user: "—",
     database: t("Preview", "پیش‌نمایش"),
     layout: layoutDisplayName(state.p6Layout, state.locale),
@@ -2436,10 +2509,29 @@ function renderApp(
     }
   };
 
+  const toolbarWorkspace = activeWorkspaceUserId
+    ? readToolbarConfig(activeWorkspaceUserId, toolbarWorkspaceKey(state.context.project_id))
+    : defaultToolbarConfig();
+  const saveToolbarConfig = (next: ToolbarWorkspaceConfig): void => {
+    // Toolbar preferences are user- and project-scoped browser preferences;
+    // they never touch the saved Activity Layout or project records.
+    if (activeWorkspaceUserId) {
+      writeToolbarConfig(activeWorkspaceUserId, toolbarWorkspaceKey(state.context.project_id), next);
+    }
+    renderAppPreservingDrafts(container, state, persistence);
+  };
+
   renderMainWorkspace(workspace, state, {
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     dataDate: projectDataDate,
+    toolbarConfig: toolbarWorkspace,
+    onToolbarConfigChange: saveToolbarConfig,
+    canAdminister: activeWorkspaceRoles.includes("project_admin"),
+    // The contextual rail derives its Add commands from the same session roles
+    // and dispatches the same desktop commands as the toolbar and menus.
+    canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+    onDesktopCommand: (command) => runDesktopCommand(command),
     // The Projects window renders the session's own project list and the
     // authoritative metadata row; both come from the server, never from a guess.
     projects: currentBootstrap?.openableProjects() ?? [],
@@ -2869,6 +2961,18 @@ function renderApp(
     onGanttRelationshipsChange: (visible) => {
       renderApp(container, setGanttRelationshipsVisible(state, visible), persistence);
     },
+    onGanttDisplayToggle: (kind, visible) => {
+      // Layout Options owns the same presentation block as the Bars dialog, so
+      // a toggle here is persisted with the saved layout instead of a second
+      // browser-only flag.
+      const base = visualPreferences.presentation;
+      const presentation: WorkspacePresentation = kind === "baseline"
+        ? { ...base, bars: { ...base.bars, baseline: { ...base.bars.baseline, visible } } }
+        : kind === "progress-line"
+          ? { ...base, gantt: { ...base.gantt, progressLine: { ...base.gantt.progressLine, visible } } }
+          : { ...base, gantt: { ...base.gantt, dataDateLine: { ...base.gantt.dataDateLine, visible } } };
+      applyLayoutOptions({ presentation });
+    },
     onProjectSettings: () => {
       openProjectSettings(container, state, persistence);
     },
@@ -2917,6 +3021,25 @@ function renderApp(
     onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
     onRailAction: (action) => {
       switch (action) {
+        case "details":
+          runDesktopCommand("view.bottom-details");
+          return;
+        case "help":
+          openDesktopDialog(desktopHost, "shortcuts");
+          return;
+        case "assistant":
+        case "proposals": {
+          // Both are workspace overlays with real behaviour; the rail button is
+          // the only floating entry, so its pressed state mirrors the panel.
+          const selector = action === "assistant" ? "#cp-ai-assistant-chat" : "#cp-ai-action-panel";
+          const panel = document.querySelector<HTMLDetailsElement>(selector);
+          if (!panel) return;
+          panel.open = !panel.open;
+          const button = container.querySelector<HTMLElement>(`[data-rail-action="${action}"]`);
+          button?.setAttribute("aria-expanded", String(panel.open));
+          if (panel.open) panel.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+          return;
+        }
         case "projects":
         case "eps":
           activateWindow("project");
@@ -2939,7 +3062,7 @@ function renderApp(
           activateWindow("documents");
           return;
         case "expenses":
-          activateWindow("cost");
+          activateWindow("expenses");
           return;
         case "risks":
         case "issues":
@@ -3462,6 +3585,82 @@ function activeProjectDataDateFor(projectId: string): string | null {
   return activeProjectDataDateProjectId === projectId ? activeProjectDataDate : null;
 }
 
+function baselineScopeKey(context: ProjectContext): string {
+  return `${context.tenant_id}:${context.project_id}:${context.revision}`;
+}
+
+function activeBaselineFactsFor(context: ProjectContext): ActiveBaselineFacts | null {
+  return activeBaselineFacts && activeBaselineFacts.scopeKey === baselineScopeKey(context)
+    ? activeBaselineFacts
+    : null;
+}
+
+/** Status-bar name of the baseline currently projected onto the Gantt. */
+function activeBaselineNameFor(projectId: string): string | null {
+  const current = currentWorkspaceState;
+  if (!current || current.context.project_id !== projectId) return null;
+  return activeBaselineFactsFor(current.context)?.name ?? null;
+}
+
+/**
+ * Picks the baseline whose stored windows the Gantt projects. The newest
+ * PRIMARY baseline wins; a single USER_SELECTED baseline is accepted only when
+ * it is the project's only baseline. Anything ambiguous leaves the Gantt with
+ * no baseline bar rather than choosing a baseline the project did not assign.
+ */
+function selectCurrentBaseline(baselines: readonly BaselineRecord[]): BaselineRecord | null {
+  if (!baselines.length) return null;
+  const newestFirst = [...baselines].sort((left, right) => {
+    const leftTime = Number.isFinite(Date.parse(left.createdAt)) ? Date.parse(left.createdAt) : 0;
+    const rightTime = Number.isFinite(Date.parse(right.createdAt)) ? Date.parse(right.createdAt) : 0;
+    return rightTime - leftTime;
+  });
+  return newestFirst.find((item) => item.baselineType === "PRIMARY") ?? (baselines.length === 1 ? baselines[0]! : null);
+}
+
+function sameBaselineFacts(left: ActiveBaselineFacts, right: ActiveBaselineFacts): boolean {
+  if (left.scopeKey !== right.scopeKey || left.baselineId !== right.baselineId) return false;
+  const leftIds = Object.keys(left.activities);
+  if (leftIds.length !== Object.keys(right.activities).length) return false;
+  return leftIds.every((id) => {
+    const a = left.activities[id]!;
+    const b = right.activities[id];
+    return Boolean(b) && a.start === b!.start && a.finish === b!.finish;
+  });
+}
+
+/**
+ * Reads the selected stored baseline once per opened project, then projects
+ * its activity windows into the baseline cells. A failed or empty read leaves
+ * the Gantt without baseline bars instead of drawing a derived window.
+ */
+async function loadActiveProjectBaseline(container: HTMLElement, context: ProjectContext): Promise<void> {
+  const scopeKey = baselineScopeKey(context);
+  if (activeBaselineInflight.has(scopeKey)) return;
+  activeBaselineInflight.add(scopeKey);
+  try {
+    const transport = new FetchApiTransport(window.location.origin);
+    const listed = await loadBaselines(transport, context);
+    if (!listed.ok) return;
+    const selected = selectCurrentBaseline(listed.data);
+    if (!selected) return;
+    const read = await loadBaselineActivityDates(transport, context, selected.baselineId);
+    if (!read.ok) return;
+    const activities: Record<string, { start: string; finish: string }> = {};
+    for (const row of read.data) {
+      activities[row.activityId] = { start: row.plannedStart, finish: row.plannedFinish };
+    }
+    const current = currentWorkspaceState;
+    if (!current || baselineScopeKey(current.context) !== scopeKey) return;
+    const next: ActiveBaselineFacts = { scopeKey, baselineId: selected.baselineId, name: selected.name, activities };
+    if (activeBaselineFacts && sameBaselineFacts(activeBaselineFacts, next)) return;
+    activeBaselineFacts = next;
+    renderAppPreservingDrafts(container, current);
+  } finally {
+    activeBaselineInflight.delete(scopeKey);
+  }
+}
+
 /** The authoritative assignment-period read the Activity Usage views project. */
 function activeActivityUsageSource(projectId: string) {
   if (activeAssignmentPeriodsProjectId !== projectId) {
@@ -3542,6 +3741,11 @@ function renderBootstrapState(
       activeProjectDataDate = null;
       activeProjectDataDateProjectId = null;
     }
+    // Baseline windows are revision-scoped; a project or revision transition
+    // drops them so the outgoing project's bars never paint on the new one.
+    if (activeBaselineFacts && !activeBaselineFactsFor(state.context)) {
+      activeBaselineFacts = null;
+    }
     if (activeAssignmentPeriodsProjectId !== state.context.project_id) {
       activeAssignmentPeriods = [];
       activeAssignmentPeriodsProjectId = null;
@@ -3557,6 +3761,7 @@ function renderBootstrapState(
     renderApp(container, applyRememberedMenu(state.workspace));
     void loadActiveProjectSummary(container, bootstrap, state.context.project_id);
     void loadActiveProjectDataDate(container, state.context);
+    void loadActiveProjectBaseline(container, state.context);
     void loadActiveAssignmentPeriods(container, state.context);
     return;
   }

@@ -968,6 +968,60 @@ export function applyAuthoritativeScheduleFacts(
   return { ...state, activities: Object.freeze(rows) };
 }
 
+/**
+ * Projects the authoritative baseline window of the current baseline into the
+ * activity cells the grid, Gantt and details already read. The dates come from
+ * the stored baseline record; the browser neither derives nor shifts them. A
+ * baseline fact that is missing for an activity simply leaves that activity
+ * without a baseline bar instead of borrowing another date.
+ */
+export type BaselineDateFacts = {
+  baselineId: string;
+  name: string;
+  activities: Readonly<Record<string, { start: string; finish: string }>>;
+};
+
+const BASELINE_START_CELL = "activity.baseline_start";
+const BASELINE_FINISH_CELL = "activity.baseline_finish";
+
+function isStoredDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
+}
+
+export function applyBaselineDateFacts(
+  state: WorkspaceState,
+  facts: BaselineDateFacts | null | undefined,
+): WorkspaceState {
+  if (!facts) return state;
+  let changed = false;
+  const rows = state.activities.map((activity) => {
+    const dates = facts.activities[activity.id];
+    const previous = activity.cells ?? {};
+    if (!dates) {
+      if (!(BASELINE_START_CELL in previous) && !(BASELINE_FINISH_CELL in previous)) return activity;
+      const cells = { ...previous };
+      delete cells[BASELINE_START_CELL];
+      delete cells[BASELINE_FINISH_CELL];
+      changed = true;
+      return Object.freeze({ ...activity, cells: Object.freeze(cells) });
+    }
+    if (!isStoredDate(dates.start) || !isStoredDate(dates.finish) || Date.parse(dates.finish) < Date.parse(dates.start)) {
+      throw new Error(`INVALID_BASELINE_DATE_FACT:${activity.id}`);
+    }
+    if (previous[BASELINE_START_CELL] === dates.start && previous[BASELINE_FINISH_CELL] === dates.finish) return activity;
+    changed = true;
+    return Object.freeze({
+      ...activity,
+      cells: Object.freeze({
+        ...previous,
+        [BASELINE_START_CELL]: dates.start,
+        [BASELINE_FINISH_CELL]: dates.finish,
+      }),
+    });
+  });
+  return changed ? { ...state, activities: Object.freeze(rows) } : state;
+}
+
 export function withActivities(
   state: WorkspaceState,
   activities: readonly WorkspaceActivityRow[],

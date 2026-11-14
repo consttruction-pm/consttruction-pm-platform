@@ -166,11 +166,14 @@ def _is_compressible(content_type: str) -> bool:
 class PreviewFrontend:
     """Explicit, non-traversable static file mapping for the built Web client."""
 
-    def __init__(self, web_root: Path) -> None:
+    def __init__(self, web_root: Path, *, require_build: bool = True) -> None:
         self.root = Path(web_root).expanduser().resolve()
         self.dist = self.root / "dist"
         self.public = self.root / "public"
-        if not (self.dist / "web" / "src" / "landing-entry.js").is_file():
+        # A deployment that serves the built bundle as static assets (the
+        # Vercel preview) only needs the HTML documents here; the bundle and
+        # stylesheets come from the platform CDN on the same origin.
+        if require_build and not (self.dist / "web" / "src" / "landing-entry.js").is_file():
             raise PreviewRuntimeError(
                 "PREVIEW_WEB_BUILD_MISSING",
                 "The Web client is not built. Run `npm run build` in apps/web first.",
@@ -242,7 +245,7 @@ class PreviewFrontend:
 class PreviewApplication:
     """Small WSGI wrapper around the real CUBI WSGI application."""
 
-    def __init__(self, runtime: PreviewRuntime) -> None:
+    def __init__(self, runtime: PreviewRuntime, *, require_web_build: bool = True) -> None:
         if runtime.web_root is None:
             raise PreviewRuntimeError(
                 "PREVIEW_WEB_ROOT_REQUIRED",
@@ -250,7 +253,7 @@ class PreviewApplication:
             )
         self.runtime = runtime
         self._runtime_lock = threading.RLock()
-        self.frontend = PreviewFrontend(runtime.web_root)
+        self.frontend = PreviewFrontend(runtime.web_root, require_build=require_web_build)
         self.public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
             "1", "true", "yes",
         }

@@ -8,10 +8,12 @@ import {
   buildFinancialPeriodPayload,
   captureBaseline,
   createFinancialPeriod,
+  loadBaselineActivityDates,
   loadBaselines,
   loadFinancialPeriods,
   loadScheduleDataDate,
   measureEarnedValue,
+  parseBaselineActivities,
   parseBaseline,
   parseEarnedValue,
   parseFinancialPeriod,
@@ -524,4 +526,53 @@ test("capture baseline posts the revision and returns the stored baseline record
     { baselineId: "BL-CAP", name: "Captured", baselineType: "USER_SELECTED", notes: "", currency: "" },
   );
   assert.equal(conflict.ok ? "" : conflict.error.code, "BASELINE_CAPTURE_TARGET_EXISTS");
+});
+
+test("baseline windows are read from the stored baseline activity contract", async () => {
+  const calls = { gets: [] as { path: string }[], posts: [] as { path: string; request: unknown }[] };
+  const result = await loadBaselineActivityDates(
+    transportWith(
+      {
+        "GET /api/projects/project-1/p6/baselines/BL-1/activities": {
+          ok: true,
+          data: {
+            contract_version: "p6-baseline-activity-api.v1",
+            kind: "p6_baseline_activity_list",
+            baseline_id: "BL-1",
+            activities: [
+              { activity_id: "A100", planned_start: "2026-10-05", planned_finish: "2026-10-09" },
+              { activity_id: "A120", planned_start: "2026-10-12", planned_finish: "2026-10-20" },
+            ],
+          },
+        },
+      },
+      calls,
+    ),
+    CONTEXT,
+    "BL-1",
+  );
+  assert.ok(result.ok);
+  assert.deepEqual(result.data, [
+    { activityId: "A100", plannedStart: "2026-10-05", plannedFinish: "2026-10-09" },
+    { activityId: "A120", plannedStart: "2026-10-12", plannedFinish: "2026-10-20" },
+  ]);
+  assert.deepEqual(calls.gets, [{ path: "/api/projects/project-1/p6/baselines/BL-1/activities" }]);
+  assert.deepEqual(calls.posts, []);
+});
+
+test("a baseline window with an invalid or inverted date is rejected, not repaired", () => {
+  const base = {
+    contract_version: "p6-baseline-activity-api.v1",
+    kind: "p6_baseline_activity_list",
+    activities: [{ activity_id: "A100", planned_start: "2026-10-10", planned_finish: "2026-10-09" }],
+  };
+  assert.throws(() => parseBaselineActivities(base), /INVALID_BASELINE_ACTIVITY_ROW/);
+  assert.throws(
+    () => parseBaselineActivities({ ...base, activities: [{ activity_id: "A100", planned_start: "10/10/2026", planned_finish: "2026-10-11" }] }),
+    /INVALID_BASELINE_ACTIVITY_ROW/,
+  );
+  assert.throws(
+    () => parseBaselineActivities({ contract_version: "p6-baseline-api.v1", kind: "p6_baseline_activity_list", activities: [] }),
+    /INVALID_BASELINE_ACTIVITY_RESPONSE/,
+  );
 });

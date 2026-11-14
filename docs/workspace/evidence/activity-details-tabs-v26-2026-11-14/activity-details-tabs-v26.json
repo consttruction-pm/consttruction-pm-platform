@@ -1,0 +1,156 @@
+{
+  "contract": "cubi-activity-details-tabs-v26.v1",
+  "url": "http://127.0.0.1:4198",
+  "testedCodeSha": "5b18346bbf8c999463dd780e21f13fc26b3b4522",
+  "gitHead": "5b18346bbf8c999463dd780e21f13fc26b3b4522",
+  "capturedAt": "2026-11-14T00:28:05.722Z",
+  "tabs": [
+    "general",
+    "status",
+    "resources",
+    "predecessors",
+    "successors",
+    "relationships",
+    "codes",
+    "notebook",
+    "steps",
+    "wps-docs",
+    "expenses",
+    "issues",
+    "risks",
+    "summary",
+    "udfs",
+    "update-history",
+    "calendar"
+  ],
+  "data": {
+    "resources": {
+      "text": "Resource\tRole\tUnits/Time\tBudgeted Units\tActual Units\tRemaining Units\tCost\nNo resource assignments are stored for this activity.\nResource ID\nRole ID\nBudgeted units\nPlanned cost\nCurrency\nNote\nAdd assignment\nReload\nDrive activity dates by default \nResources can be assigned to the same activity more than once\n\nAssignments are read from the project resource service and filtered by activity ID. The editor records a new assignment for this activity and reloads the authoritative list; it does not edit existing assignments or respect by role here.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "expenses": {
+      "text": "Expense Item\tCost Account\tExpense Category\tAccrual Type\tBudgeted or Planned Cost\tActual Cost\tRemaining Cost\tAt Completion Cost\tVendor\tAuto Compute Actuals\nNo expense records are stored for this activity.\nExpense item\nCategory\nlabor\nmaterial\nequipment\nsubcontract\noverhead\nother\nCurrency\nPlanned cost\nNote\nAdd expense\nReload\n\nExpenses are read from the cost service with an activity filter. The editor records a new expense tied to this activity and reloads the authoritative list. At-completion and vendor values stay empty because the cost record does not store them.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "issues": {
+      "text": "Issue ID\tTitle\tCategory\tSeverity\tStatus\tReported by\tUpdated\nNo issue records are linked to this activity.\nTitle\nDescription\nIssue type\ncost\nschedule\nquality\nsafety\nscope\nresource\nother\nStatus\nopen\nin_progress\nresolved\nclosed\nPriority\nlow\nnormal\nhigh\ncritical\nOwner\nDate identified\nDue date\nAdd issue\nReload\n\nIssues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed. The editor creates an issue already linked to this activity and reloads the authoritative list.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "risks": {
+      "text": "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity.\n\nRisk ID\tRisk Name\tRisk Category\tRisk Status\tExposure\tResponse\tRisk Owner\tIdentified On\nNo project risk records are stored for this project.\nAssign\nRemove\nReload",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "steps": {
+      "text": "Sequence\tStep Name\tStep Weight\tStart\tFinish\tStep UDFs\nNo steps are stored for this activity.\nAdd\nAdd from template\nDelete\nModify\nReload\n\nSteps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "udfs": {
+      "text": "User Defined Field\tData Type\tValue\nNo activity user-defined fields are defined by the project registry.\nCustomize User Defined Fields\nReload\n\nField names and data types come from the project UDF registry; values come from the selected activity projection. No field is inferred from its key shape.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    },
+    "update-history": {
+      "text": "Recorded\tActor\tRecord revision\tChanges\tSequence review\nNo progress update history is stored for this activity.\nReload\n\nHistory events are append-only records written by the authoritative progress service. This pane never synthesises an entry.",
+      "rows": 1,
+      "loading": false,
+      "error": false,
+      "refresh": true
+    }
+  },
+  "writes": {
+    "resources": {
+      "message": "Saved. The list was reloaded from the project service.",
+      "rows": 1,
+      "stored": true
+    },
+    "expenses": {
+      "message": "Saved. The list was reloaded from the project service.",
+      "rows": 1,
+      "stored": true
+    },
+    "issues": {
+      "message": "Saved. The list was reloaded from the project service.",
+      "rows": 1,
+      "stored": true
+    }
+  },
+  "customize": {
+    "afterApply": [
+      "general",
+      "resources",
+      "predecessors",
+      "successors",
+      "relationships",
+      "codes",
+      "notebook",
+      "steps",
+      "wps-docs",
+      "expenses",
+      "issues",
+      "risks",
+      "summary",
+      "udfs",
+      "update-history",
+      "calendar"
+    ],
+    "afterReload": [
+      "general",
+      "resources",
+      "predecessors",
+      "successors",
+      "relationships",
+      "codes",
+      "notebook",
+      "steps",
+      "wps-docs",
+      "expenses",
+      "issues",
+      "risks",
+      "summary",
+      "udfs",
+      "update-history",
+      "calendar"
+    ]
+  },
+  "screenshots": [
+    "details-unauthorized-en-1366.png",
+    "details-stale-response-en-1366.png",
+    "details-en-1366.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "steps": {
+    "rows": 3,
+    "text": "Sequence\tStep Name\tStep Weight\tStart\tFinish\tStep UDFs\n1\tStrip topsoil and set out the earthworks footprint\t25\t—\t—\t—\n2\tCut and fill to the design subgrade\t50\t—\t—\t—\n3\tCompact and survey acceptance\t25\t—\t—\t—\nAdd\nAdd from template\nDelete\nModify\nReload\n\nSteps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.",
+    "error": false
+  },
+  "unauthorized": {
+    "text": "You do not have permission to view these records in this project.\n\nExpense item\nCategory\nlabor\nmaterial\nequipment\nsubcontract\noverhead\nother\nCurrency\nPlanned cost\nNote\nAdd expense\nReload\n\nExpenses are read from the cost service with an activity filter. The editor records a new expense tied to this activity and reloads the authoritative list. At-completion and vendor values stay empty because the cost record does not store them.",
+    "code": false
+  },
+  "staleResponse": {
+    "text": "Sequence\tStep Name\tStep Weight\tStart\tFinish\tStep UDFs\nNo steps are stored for this activity.\nAdd\nAdd from template\nDelete\nModify\nReload\n\nSteps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.",
+    "selected": "A120",
+    "loading": false,
+    "slowHits": 1
+  },
+  "finishedAt": "2026-11-14T00:28:27.262Z"
+}

@@ -47,6 +47,11 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
+import { WORKSPACE_WINDOW_ICONS } from "./workspace-command-icons.js";
+import { contextAddCommands, type ContextAddItem } from "./workspace-context-add.js";
+import type { DesktopCommand } from "./workspace-desktop-shell.js";
+import { defaultToolbarConfig, type ToolbarWorkspaceConfig } from "./workspace-toolbar-config.js";
+import { renderToolbarRails, closeToolbarSurfaces, type ToolbarRailSession } from "./workspace-toolbar-view.js";
 import { buildWbsHierarchy, wbsActivityCounts } from "./workspace-wbs-hierarchy.js";
 import { weightedPercentComplete, wbsStatusLabel, wbsTechniqueLabel } from "./workspace-wbs-milestones.js";
 import {
@@ -844,6 +849,30 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const desired = Math.max(0, Math.min(maxScroll, target.scrollTop + delta));
     if (Math.abs(other.scrollTop - desired) > 0.5) other.scrollTop = desired;
   }, true);
+  // A contextual Add menu closes on any click that lands outside it and when
+  // focus leaves its own subtree, so it can never sit stale over the table.
+  if (typeof document !== "undefined") {
+    document.addEventListener("click", (event) => {
+      if (!container.isConnected) return;
+      const node = event.target as Node | null;
+      container.querySelectorAll<HTMLDetailsElement>("[data-context-add][open]").forEach((menu) => {
+        if (!node || !menu.contains(node)) menu.open = false;
+      });
+    });
+  }
+  container.addEventListener("focusout", (event) => {
+    const menu = (event.target as HTMLElement | null)?.closest?.<HTMLDetailsElement>("[data-context-add]");
+    if (!menu) return;
+    const next = event.relatedTarget as Node | null;
+    if (!next || !menu.contains(next)) menu.open = false;
+  });
+  container.addEventListener("toggle", (event) => {
+    const menu = event.target as HTMLDetailsElement | null;
+    if (!menu?.matches?.("[data-context-add]")) return;
+    const summary = menu.querySelector<HTMLElement>("summary");
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    summary?.toggleAttribute("data-open", menu.open);
+  }, true);
   container.addEventListener("pointerdown", (event) => {
     const target = event.target as HTMLElement | null;
     const columnHandle = target?.closest?.<HTMLElement>("[data-column-resize]");
@@ -1119,7 +1148,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-cut],[data-wbs-copy],[data-wbs-paste],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-desktop-command],[data-context-add] summary,[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-cut],[data-wbs-copy],[data-wbs-paste],[data-wbs-delete],[data-wbs-milestone-add],[data-wbs-milestone-remove],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-network-zoom],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-band-toggle],[data-wbs-toggle],[data-wbs-expand-all],[data-wbs-collapse-all],[data-wbs-collapse-to],[data-collapse-to-apply],[data-collapse-to-cancel],[data-wbs-row],[data-trace-goto],[data-usage-refresh],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths],[data-activity-create-open],[data-columns-open],[data-project-open],[data-project-row],[data-project-select],[data-project-domain-toggle],[data-project-filter-reset],[data-activity-select-all],[data-activity-export-open],[data-activity-export-cancel],[data-activity-export-scope],[data-activity-export-download]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1322,6 +1351,25 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
     if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
     if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
+    if (typeof target.matches === "function" && target.matches("[data-context-add] > summary")) {
+      const menu = target.parentElement as HTMLDetailsElement | null;
+      // Focus the first enabled command after the native toggle so keyboard
+      // users can continue without pressing Tab through the rail again.
+      window.setTimeout(() => {
+        if (!menu?.open) return;
+        menu.querySelector<HTMLButtonElement>("[role='menuitem']:not([disabled])")?.focus({ preventScroll: true });
+      }, 0);
+      return;
+    }
+    if (target.dataset.desktopCommand) {
+      const menu = target.closest<HTMLDetailsElement>("[data-context-add]");
+      if (menu) {
+        menu.open = false;
+        menu.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+      }
+      options.onDesktopCommand?.(target.dataset.desktopCommand as DesktopCommand);
+      return;
+    }
     if (target.dataset.railAction) {
       const action = target.dataset.railAction;
       if (action === "navigation") {
@@ -1632,7 +1680,37 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     rerenderWorkspaceRows(container);
   });
   container.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeToolbarSurfaces();
     const keyTarget = event.target as HTMLElement | null;
+    const addMenu = keyTarget?.closest?.<HTMLElement>("[data-context-add]") ?? null;
+    if (addMenu && typeof addMenu.querySelector === "function") {
+      const details = addMenu as HTMLDetailsElement;
+      const summary = addMenu.querySelector<HTMLElement>("summary");
+      const commands = () => Array.from(addMenu.querySelectorAll<HTMLButtonElement>("[role='menuitem']:not([disabled])"));
+      if (event.key === "Escape" && details.open) {
+        event.preventDefault();
+        event.stopPropagation();
+        details.open = false;
+        summary?.focus({ preventScroll: true });
+        return;
+      }
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        const items = commands();
+        if (items.length) {
+          event.preventDefault();
+          const current = items.indexOf(document.activeElement as HTMLButtonElement);
+          const last = items.length - 1;
+          let next = current;
+          if (event.key === "ArrowDown") next = current >= last ? 0 : current + 1;
+          else if (event.key === "ArrowUp") next = current <= 0 ? last : current - 1;
+          else if (event.key === "Home") next = 0;
+          else next = last;
+          if (!details.open) details.open = true;
+          items[next].focus({ preventScroll: true });
+          return;
+        }
+      }
+    }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       if (!keyTarget || typeof keyTarget.closest !== "function") return;
       if (keyTarget.closest("#cp-details")) return;
@@ -1850,6 +1928,18 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutLinks")) {
       workspaceRenderRecords.get(container)?.options.onGanttRelationshipsChange?.((element as HTMLInputElement).checked);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutBaseline")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("baseline", (element as HTMLInputElement).checked);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutProgressLine")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("progress-line", (element as HTMLInputElement).checked);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutDataDateLine")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("data-date-line", (element as HTMLInputElement).checked);
       return;
     }
     const isGroupSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activityGroup");
@@ -2521,6 +2611,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     if (kind) kind.textContent = next.activeMenu === "schedule" ? uiText(next.locale, "Activity workspace", "محیط کار فعالیت") : uiText(next.locale, "Workspace page", "صفحهٔ محیط کار");
     const stage = container.querySelector<HTMLElement>("#cp-p6-module-stage");
     if (stage) stage.outerHTML = renderP6ModuleStage(container, next, labels, options);
+    refreshContextAddMenu(container, next, options);
     container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
@@ -2582,6 +2673,9 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     row.setAttribute("aria-pressed", selected ? "true" : "false");
   });
   updateActivityScopeCounts(container, next, options, nextSelection);
+  // Add Relationship depends on the selected activity, so the rail follows the
+  // incremental selection instead of keeping its first-paint disabled state.
+  refreshContextAddMenu(container, next, options);
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = getWorkspaceLabels(next.locale);
@@ -2657,6 +2751,8 @@ export type WorkspaceRendererOptions = {
   onActivityContextCommand?: (command: ActivityContextCommand, activityId: string) => void;
   onGanttScaleChange?: (ganttScale: WorkspaceGanttScale) => void;
   onGanttRelationshipsChange?: (visible: boolean) => void;
+  /** Persists one Gantt display toggle through the same layout presentation. */
+  onGanttDisplayToggle?: (kind: "baseline" | "progress-line" | "data-date-line", visible: boolean) => void;
   onGanttCommand?: (command: "bars" | "font-row" | "user-preferences") => void;
   onProjectSettings?: () => void;
   /** Authoritative metadata row of the open project, when the server returned it. */
@@ -2694,9 +2790,22 @@ export type WorkspaceRendererOptions = {
     revisions?: readonly { revision: number; columnCount: number }[];
   };
   onRailAction?: (action: string) => void;
+  /** Authenticated write capability for this project (planner/administrator). */
+  canWrite?: boolean;
+  /**
+   * Dispatches a stable desktop command id. The contextual rail uses the same
+   * ids as the toolbar and application menu, never a second action handler.
+   */
+  onDesktopCommand?: (command: DesktopCommand) => void;
   presentation?: WorkspacePresentation;
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
+  /** Persisted dual-rail toolbar configuration for the signed-in user. */
+  toolbarConfig?: ToolbarWorkspaceConfig;
+  /** Persists a toolbar customization and repaints the workspace. */
+  onToolbarConfigChange?: (next: ToolbarWorkspaceConfig) => void;
+  /** True only when the signed-in session can use administrator commands. */
+  canAdminister?: boolean;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -2829,29 +2938,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     layout: uiText(state.locale, "Layout", "چیدمان"),
     noDataDate: uiText(state.locale, "Not provided", "ارائه نشده"),
   };
-  const railMenuIcons: Record<WorkspaceState["activeMenu"], WorkspaceIconName> = {
-    project: "folder",
-    wbs: "wbs",
-    schedule: "activity",
-    progress: "progress",
-    resources: "resource",
-    assignments: "link",
-    roles: "resource",
-    calendars: "calendar",
-    cost: "money",
-    expenses: "money",
-    documents: "file",
-    reports: "print",
-    tracking: "progress",
-    issues: "warning",
-    risks: "warning",
-    thresholds: "network",
-    control: "network",
-    settings: "settings",
-    administration: "administration",
-    exchange: "export",
-    backup: "file",
-  };
+  // One shared window→glyph table, so the rail, the flyout and the desktop
+  // shell can never show two different shapes for the same destination.
+  const railMenuIcons = WORKSPACE_WINDOW_ICONS;
   const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
   const activeFilterName = appliedFilterName
     ? state.activityFilter.trim()
@@ -2881,6 +2970,38 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       ? options.projectSummary
       : options.projects?.find((project) => project.project_id === state.context.project_id) ?? null;
   const headerProjectLabel = headerProject?.name || state.context.project_id;
+  const addCommands = contextAddCommands(contextAddState(state, options));
+  // Both rails are driven by one command registry and one persisted
+  // configuration. The old hard-coded icon map is gone: every destination and
+  // action below arrives through the registry, so customization can move,
+  // hide, reorder and dock any of them.
+  const toolbarSession: ToolbarRailSession = {
+    config: options.toolbarConfig ?? defaultToolbarConfig(),
+    context: {
+      activeWindow: state.activeMenu,
+      locale: state.locale,
+      capabilities: {
+        hasWbs: state.wbsNodes.length > 0,
+        hasSelectedActivity: Boolean(state.selectedActivityId),
+        hasMultiSelection: selectedActivityIdList(state).length > 1,
+        hasActivities: state.activities.length > 0,
+        hasRelationships: state.relationships.length > 0,
+        hasLayout: Boolean(state.p6Layout),
+        canUndoLayout: Boolean(options.layoutHistory?.canUndo),
+        canRedoLayout: Boolean(options.layoutHistory?.canRedo),
+        groupByWbs: state.activityGroupBy === "wbs",
+        canAdminister: options.canAdminister === true,
+        canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
+      },
+      detailsVisible,
+      ganttVisible: state.visiblePanels.gantt,
+      lineNumbers,
+    },
+    translate: (english, persian) => uiText(state.locale, english, persian),
+    onChange: options.onToolbarConfigChange ?? (() => undefined),
+    direction: state.direction,
+  };
+  const toolbarRails = renderToolbarRails(container, toolbarSession);
 
 
   container.innerHTML = `
@@ -2891,49 +3012,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
-      <div class="cp-p6-shell">
-        <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
-          <button type="button" class="cp-nav-tree-title" data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true" title="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></button>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
-            ${menuButton("project", t.project, state, railMenuIcons.project)}
-            ${railActionButton("eps", rail.eps, "portfolio")}
-            ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, railMenuIcons.wbs)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
-            ${menuButton("schedule", t.schedule, state, railMenuIcons.schedule)}
-            ${railActionButton("activities", rail.activities, "activity")}
-            ${menuButton("progress", t.progress, state, railMenuIcons.progress)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
-            ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
-            ${menuButton("assignments", uiText(state.locale, "Assignments", "تخصیص‌ها"), state, railMenuIcons.assignments)}
-            ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, railMenuIcons.calendars)}
-            ${menuButton("roles", uiText(state.locale, "Roles", "نقش‌ها"), state, railMenuIcons.roles)}
-            ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
-            ${menuButton("expenses", uiText(state.locale, "Expenses", "هزینه‌ها"), state, railMenuIcons.expenses)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
-            ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
-            ${menuButton("reports", t.reports, state, railMenuIcons.reports)}
-            ${menuButton("tracking", uiText(state.locale, "Tracking", "رهگیری"), state, railMenuIcons.tracking)}
-            ${menuButton("control", t.control, state, railMenuIcons.control)}
-            ${menuButton("thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها"), state, railMenuIcons.thresholds)}
-            ${menuButton("risks", uiText(state.locale, "Risks", "ریسک‌ها"), state, railMenuIcons.risks)}
-            ${menuButton("issues", uiText(state.locale, "Issues", "مسائل"), state, railMenuIcons.issues)}
-          </div>
-          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
-            ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
-            ${menuButton("settings", t.settings, state, railMenuIcons.settings)}
-            ${menuButton("administration", uiText(state.locale, "Administration", "مدیریت"), state, railMenuIcons.administration)}
-            ${menuButton("exchange", uiText(state.locale, "Import / Export", "ورود / خروجی"), state, railMenuIcons.exchange)}
-            ${menuButton("backup", uiText(state.locale, "Backup / Recovery", "پشتیبان‌گیری / بازیابی"), state, railMenuIcons.backup)}
-            ${railActionButton("tools", rail.tools, "tools")}
-          </div>
+      <div class="cp-p6-shell" data-left-tools="${toolbarRails.leftWide ? "wide" : "icon"}" data-right-tools="${toolbarRails.rightWide ? "wide" : "icon"}">
+        <nav class="cp-menu cp-p6-rail cp-navigation-tree cp-tool-rail" data-tool-rail="left" aria-label="${escapeAttribute(uiText(state.locale, "Left tool rail", "ریل ابزار چپ"))}">
+          ${toolbarRails.left}
         </nav>
         <div class="cp-p6-body">
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t, options) : ""}
           <main class="cp-main" data-details-split data-bottom-layout="${bottomLayout}" data-details-collapsed="${detailsVisible ? "false" : "true"}" style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
+              ${toolbarRails.floating}
               <div class="cp-layout-selector-host" data-layout-selector-host data-workspace-menu="schedule" role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activities layout", "چیدمان فعالیت‌ها"))}"></div>
               <section class="cp-p6-split" data-panel-split data-top-layout="${topLayout}" data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule" tabindex="-1">
@@ -3023,11 +3110,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </aside>
           </div>
         </div>
-        <aside class="cp-comments-dock-rail cp-context-command-rail" aria-label="${escapeAttribute(uiText(state.locale, "Contextual commands", "فرمان‌های زمینه‌ای"))}">
-          <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="documents" title="${escapeAttribute(rail.documents)}" aria-label="${escapeAttribute(rail.documents)}">${workspaceIcon("file")}<span class="cp-rail-label">${escapeHtml(rail.documents)}</span></button>
-          <button type="button" class="cp-rail-button" data-rail-action="risks" title="${escapeAttribute(rail.risks)}" aria-label="${escapeAttribute(rail.risks)}">${workspaceIcon("warning")}<span class="cp-rail-label">${escapeHtml(rail.risks)}</span></button>
+        <aside class="cp-comments-dock-rail cp-context-command-rail cp-tool-rail" data-tool-rail="right" aria-label="${escapeAttribute(uiText(state.locale, "Right tool rail", "ریل ابزار راست"))}">
+          ${renderContextAddMenu(addCommands, state)}
+          ${toolbarRails.right}
         </aside>
       </div>
       <div class="cp-p6-flyout" data-nav-flyout hidden>${renderFullNavigationMenu(state, railMenuIcons)}${renderNavigationSurface(state)}</div>
@@ -3585,12 +3670,10 @@ function renderFullNavigationMenu(state: WorkspaceState, icons: Record<Workspace
   return `<nav class="cp-p6-flyout-tree" aria-label="${escapeAttribute(t.mainMenu)}">
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
       ${menuButton("project", t.project, state, icons.project)}
-      ${railActionButton("eps", uiText(state.locale, "EPS / Portfolio", "EPS / سبد پروژه"), "portfolio")}
       ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, icons.wbs)}
     </div>
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
       ${menuButton("schedule", t.schedule, state, icons.schedule)}
-      ${railActionButton("activities", uiText(state.locale, "Activities", "فعالیت‌ها"), "activity")}
       ${menuButton("progress", t.progress, state, icons.progress)}
     </div>
     <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
@@ -5821,6 +5904,10 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels, op
   const networkAvailable = isWorkspaceTopLayoutAvailable("activity-network", state);
   const traceAvailable = isWorkspaceTraceLogicAvailable(state);
   const usageAvailable = usageSourceAvailable(options.activityUsage);
+  const presentation = options.presentation ?? DEFAULT_PRESENTATION;
+  // Baseline bars are only offered when a stored baseline window is projected
+  // onto the grid; otherwise the toggle would promise a date the project lacks.
+  const baselineAvailable = state.activities.some(hasBaselineDates);
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
@@ -5848,10 +5935,11 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels, op
         <h3>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</h3>
         <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
         <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
-        <p>${escapeHtml(uiText(state.locale, "Only relationship-line visibility and timescale are connected in this slice. Other options remain visibly present but disabled until their renderer and state contract are implemented.", "در این بخش فقط نمایش خطوط روابط و مقیاس زمانی متصل هستند. گزینه‌های دیگر تا پیاده‌سازی رندرکننده و قرارداد وضعیت، نمایش داده می‌شوند اما غیرفعال‌اند."))}</p>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-progress-line${presentation.gantt.progressLine.visible ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-baseline${presentation.bars.baseline.visible ? " checked" : ""}${baselineAvailable ? "" : " disabled"}> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-data-date-line${presentation.gantt.dataDateLine.visible ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+        <p>${escapeHtml(uiText(state.locale, "The progress line, baseline bars and Data Date line write the same saved layout presentation as the Bars dialog; they never change schedule data. The critical path is shown by the Critical bar style and the Critical filter, so this dialog does not add a second toggle.", "خط پیشرفت، میله‌های مبنا و خط تاریخ داده همان ارائهٔ چیدمان ذخیره‌شدهٔ کادر میله‌ها را می‌نویسند و هرگز دادهٔ زمان‌بندی را تغییر نمی‌دهند. مسیر بحرانی با سبک میلهٔ بحرانی و پالایهٔ بحرانی نمایش داده می‌شود؛ این کادر کلید دوم نمی‌سازد."))}</p>
+        ${baselineAvailable ? "" : `<p data-layout-baseline-unavailable>${escapeHtml(uiText(state.locale, "No stored baseline window is loaded for this project, so the baseline bars stay disabled instead of drawing a derived window.", "برای این پروژه پنجرهٔ مبنای ذخیره‌شده‌ای بارگذاری نشده است؛ میله‌های مبنا غیرفعال می‌مانند تا پنجرهٔ ساختگی رسم نشود."))}</p>`}
       </section>
       <footer><button type="button" data-layout-options-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button></footer>
     </form>
@@ -5927,6 +6015,58 @@ function menuButton(key: WorkspaceState["activeMenu"], label: string, state: Wor
 
 function railActionButton(action: string, label: string, icon: WorkspaceIconName): string {
   return `<button type="button" class="cp-rail-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
+}
+
+/** One projection of the state facts the contextual Add menu depends on. */
+function contextAddState(state: WorkspaceState, options: WorkspaceRendererOptions): Parameters<typeof contextAddCommands>[0] {
+  return {
+    activeMenu: state.activeMenu,
+    canWrite: options.canWrite === true,
+    hasWbs: state.wbsNodes.length > 0,
+    hasSelectedActivity: Boolean(state.selectedActivityId),
+    hasCalendarCatalog: state.calendarCatalog.calendars.length > 0,
+  };
+}
+
+/**
+ * The incremental menu/selection path must rebuild the rail commands from the
+ * same projection as a full render; otherwise the previous window's commands
+ * would stay clickable after switching windows.
+ */
+function refreshContextAddMenu(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions): void {
+  const current = typeof container.querySelector === "function"
+    ? container.querySelector<HTMLElement>("[data-context-add]")
+    : null;
+  if (!current) return;
+  current.outerHTML = renderContextAddMenu(contextAddCommands(contextAddState(state, options)), state);
+}
+
+/**
+ * The single "Add" entry at the top of the contextual rail. It opens a menu of
+ * real desktop commands for the active window; unavailable commands stay with
+ * their reason instead of disappearing behind a decorative button.
+ */
+function renderContextAddMenu(items: readonly ContextAddItem[], state: WorkspaceState): string {
+  const localized = (value: { en: string; fa: string }): string =>
+    state.locale.toLowerCase().startsWith("fa") ? value.fa : value.en;
+  const label = uiText(state.locale, "Add", "افزودن");
+  const entries = items.map((item) => {
+    const disabled = item.disabledReason ? " disabled aria-disabled=\"true\"" : "";
+    const reason = item.disabledReason
+      ? `<small class="cp-context-add-reason">${escapeHtml(localized(item.disabledReason))}</small>`
+      : "";
+    const title = item.disabledReason ? `${localized(item.label)} — ${localized(item.disabledReason)}` : localized(item.label);
+    return `<button type="button" role="menuitem" data-desktop-command="${escapeAttribute(item.command)}"${disabled} title="${escapeAttribute(title)}">${workspaceIcon(item.icon)}<span>${escapeHtml(localized(item.label))}</span>${reason}</button>`;
+  });
+  return `<details class="cp-context-add-menu" data-context-add>
+    <summary role="button" aria-haspopup="menu" aria-expanded="false" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(label)}">+</summary>
+    <div class="cp-context-add-popup" data-context-add-popup role="menu" aria-label="${escapeAttribute(label)}">
+      <strong>${escapeHtml(label)}</strong>
+      ${entries.length
+        ? entries.join("")
+        : `<p class="cp-context-add-empty">${escapeHtml(uiText(state.locale, "This window has no create action.", "این پنجره فرمان ایجاد ندارد."))}</p>`}
+    </div>
+  </details>`;
 }
 
 function escapeHtml(value: string): string {

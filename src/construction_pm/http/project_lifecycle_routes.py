@@ -57,6 +57,10 @@ from ..scheduling.activity import (
 )
 from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from ..p6_baseline_activity_api import (
+    P6BaselineActivityAPI,
+    P6BaselineActivityReadError,
+)
 from ..p6_baseline_update import (
     BASELINE_UPDATE_FIELDS,
     P6BaselineUpdateError,
@@ -315,6 +319,7 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_usage_api: P6CalendarUsageAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        p6_baseline_activity_api: P6BaselineActivityAPI | None = None,
         p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
         p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
         p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
@@ -375,6 +380,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_usage_api = p6_calendar_usage_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
+        self._p6_baseline_activity_api = p6_baseline_activity_api
         self._p6_baseline_update_api = p6_baseline_update_api
         self._p6_baseline_assignment_api = p6_baseline_assignment_api
         self._p6_baseline_conversion_api = p6_baseline_conversion_api
@@ -5482,6 +5488,48 @@ class ProjectLifecycleHttpRoutes:
                     "contract_version": P6_BASELINE_API_VERSION,
                     "baselines": list(result),
                 })
+            if (
+                method == "GET"
+                and path.startswith("/api/projects/")
+                and "/p6/baselines/" in path
+                and path.rstrip("/").endswith("/activities")
+            ):
+                # Stored baseline windows for the Gantt and Summary dates. This
+                # is a read of the immutable baseline activity rows; nothing is
+                # calculated or shifted here.
+                if self._p6_baseline_activity_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, remainder = path.split("/p6/baselines/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = [part for part in remainder.split("/") if part]
+                if (
+                    not project_id
+                    or "/" in project_id
+                    or len(parts) != 2
+                    or parts[1] != "activities"
+                ):
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                baseline_session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(baseline_session.roles)
+                try:
+                    result = self._p6_baseline_activity_api.list(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        parts[0],
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except P6BaselineActivityReadError as exc:
+                    code = str(exc) or "P6_BASELINE_REQUEST_INVALID"
+                    status = 404 if code == "BASELINE_NOT_FOUND" else 400
+                    return self._error(status, code, "error.request.invalid")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and "/p6/baselines/" in path:
                 if self._p6_baseline_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

@@ -1,6 +1,6 @@
 # Contract request — P6 formula column lifecycle API (`p6-formula-column-lifecycle-api.v1`)
 
-Status: **REQUESTED — Agent 3 / Shared Core**
+Status: **REQUESTED — Agent 3 / Shared Core** (re-audited 2026-11-14: still no lifecycle routes; frontend stays blocked rather than adding a parallel API)
 Owner of this request: Agent 1 (frontend / workspace integration)
 Requested: 2026-11-13
 Related evidence: `docs/workspace/evidence/formula-columns-v26-2026-11-13/`
@@ -155,6 +155,23 @@ stable machine code in `error_code`:
 
 Validation behavior must not change: division by zero continues to validate, and
 evaluation-time conditions surface only per row.
+
+## Re-audit 2026-11-14
+
+Checked on `feat/vercel-preview-fixtures` after PR #1921 merged into `main`:
+
+- `src/construction_pm/http/project_lifecycle_routes.py` still routes only
+  `GET|POST /api/projects/{id}/p6/formula-columns`; there is no PATCH, DELETE,
+  `versions`, `audit` or `preview` route.
+- `p6_formula_definition_repository.py` already stores versioned definitions and
+  exposes `create/get/list_versions/list_audit`, but has no update/delete write
+  and no preview evaluator; `p6_formula_definition_api.py` exposes only those
+  four operations and none of them has an HTTP route.
+- The Web slice remains at the recorded 10/10 list/create/create-column
+  scenarios and deliberately renders no edit, delete, versions, audit or preview
+  control. Adding those against a non-existent server would be a fake surface.
+- **P4 is BLOCKED_EXTERNAL** on the Shared Core surface below. No parallel API
+  or repository will be added by this workspace slice.
 
 ## Frontend consumption plan (Agent 1, after availability)
 

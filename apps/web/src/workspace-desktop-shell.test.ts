@@ -687,7 +687,7 @@ test("every application menu item resolves to one recognizable command icon", as
       assert.ok(desktopMenuIcon(item.id), `${menu.id}/${item.id} must carry an icon`);
     }
   }
-  assert.equal(desktopMenuIcon("window.schedule"), "activity");
+  assert.equal(desktopMenuIcon("window.schedule"), "gantt");
   assert.equal(desktopMenuIcon("view.toolbar-layout"), "workspace");
   assert.equal(desktopMenuIcon("view.theme-classic"), "workspace");
 });
