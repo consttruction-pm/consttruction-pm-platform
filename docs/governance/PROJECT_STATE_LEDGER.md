@@ -1060,3 +1060,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Wiring:** the preview lease reader reads the same `preview_project` row as the checkout endpoint; the Project Details leveling control shows the localized conflict and reloads the stored settings.
 - **Evidence:** `docs/workspace/evidence/project-details-v26-2026-11-14/` — `testedCodeSha` `91991e71`, 9/9 scenarios, 12 screenshots, zero exceptions/console errors/API 5xx. Scenario `04b`: owner saves priority 44 while checked out; Planner write for 45 returns `409 PROJECT_CHECKED_OUT_BY_OTHER` and leaves priority and record revision untouched; owner checks in. Python 4233 passed / 190 skipped, web 1147 + 14 passed, `tsc --noEmit` and build clean.
 - **Remaining:** the lease is not consulted by activity, WBS or relationship writes; Duration Type and Cost Account defaults, an enterprise OBS hierarchy and an audited defaults history remain open.
+
+
+## CUBI Enterprise foundation implementation — 2026-11-15
+
+- **Current branch:** `feat/cubi-enterprise-foundation-v1`, created from the current `main` ref; the earlier `feat/cubi-enterprise-task-domain-v1` / PR #1929 remains an older, divergent draft and is not used as this branch's base.
+- **Scope added in this slice:** Enterprise foundation/feasibility framework; versioned task contract and domain; PostgreSQL task repository; stable composite cursor pagination; tenant-scoped advisory serialization for dependency graph mutations; completion actor attribution; audit mutation trigger and restrictive audit foreign key; contract/domain tests; live PostgreSQL integration tests.
+- **Product boundary:** Enterprise remains separate and lower priority than Engineering. No Engineering routes, calculations, shell, database or release code is modified. Initial Enterprise design may be independent; shared shell/tokens/components are not mandatory.
+- **Not yet claimed:** organization/team persistence, task application authorization, HTTP API, Task Center UI, production composition, live PostgreSQL execution or production readiness. These remain subsequent acceptance gates.
+- **Verification status:** source and test artifacts are committed to this feature branch for exact-head CI; runtime and database results must be recorded only after the corresponding workflows actually run.
