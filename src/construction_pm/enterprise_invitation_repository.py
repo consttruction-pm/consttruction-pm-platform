@@ -193,12 +193,62 @@ class PostgresEnterpriseInvitationRepository:
         )
         return updated, membership
 
+    def accept_invitation_from_recipient(self, tenant_id: str, invitation_id: str, user_id: str,
+                                         *, now: datetime):
+        row = self._connection.execute(
+            "SELECT invitation_id,tenant_id,team_id,target_user_id,invited_by_user_id,role,status,expires_at,created_at,responded_at "
+            "FROM enterprise_team_invitations WHERE tenant_id=%s AND invitation_id=%s FOR UPDATE",
+            (tenant_id,invitation_id),
+        ).fetchone()
+        item = self._item(row)
+        if item.target_user_id != user_id:
+            raise InvitationDenied("INVITATION_ACCOUNT_MISMATCH")
+        if item.status != "pending":
+            raise InvitationDenied("INVITATION_NOT_PENDING")
+        if item.expires_at <= now:
+            return self._transition(tenant_id, invitation_id, "expired", user_id, now), None
+        updated = self._transition(tenant_id, invitation_id, "accepted", user_id, now)
+        membership = EnterpriseTeamMembership(
+            tenant_id=tenant_id, team_id=item.team_id, user_id=user_id, role=item.role,
+            status="active", scope_project_ids=(), revision=1, created_at=now,
+        )
+        self._connection.execute(
+            "INSERT INTO enterprise_team_memberships "
+            "(tenant_id,team_id,user_id,role,status,scope_project_ids,revision,created_at) "
+            "VALUES (%s,%s,%s,%s,'active','[]'::jsonb,1,%s)",
+            (tenant_id,item.team_id,user_id,item.role,now),
+        )
+        self._connection.execute(
+            "INSERT INTO enterprise_access_audit "
+            "(audit_id,tenant_id,team_id,actor_user_id,target_user_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,%s,'member_added',NULL,%s::jsonb,%s)",
+            (f"access-{secrets.token_hex(16)}",tenant_id,item.team_id,user_id,user_id,
+             json.dumps({"user_id":user_id,"role":item.role,"status":"active","revision":1}),now),
+        )
+        return updated, membership
+
     def decline_invitation(self, tenant_id: str, invitation_id: str, token_hash: str, user_id: str,
                            *, now: datetime) -> TeamInvitation:
         row = self._connection.execute(
             "SELECT invitation_id,tenant_id,team_id,target_user_id,invited_by_user_id,role,status,expires_at,created_at,responded_at "
             "FROM enterprise_team_invitations WHERE tenant_id=%s AND invitation_id=%s AND token_hash=%s FOR UPDATE",
             (tenant_id,invitation_id,token_hash),
+        ).fetchone()
+        item = self._item(row)
+        if item.target_user_id != user_id:
+            raise InvitationDenied("INVITATION_ACCOUNT_MISMATCH")
+        if item.status != "pending":
+            raise InvitationDenied("INVITATION_NOT_PENDING")
+        if item.expires_at <= now:
+            return self._transition(tenant_id, invitation_id, "expired", user_id, now)
+        return self._transition(tenant_id, invitation_id, "declined", user_id, now)
+
+    def decline_invitation_from_recipient(self, tenant_id: str, invitation_id: str,
+                                          user_id: str, *, now: datetime) -> TeamInvitation:
+        row = self._connection.execute(
+            "SELECT invitation_id,tenant_id,team_id,target_user_id,invited_by_user_id,role,status,expires_at,created_at,responded_at "
+            "FROM enterprise_team_invitations WHERE tenant_id=%s AND invitation_id=%s FOR UPDATE",
+            (tenant_id,invitation_id),
         ).fetchone()
         item = self._item(row)
         if item.target_user_id != user_id:
