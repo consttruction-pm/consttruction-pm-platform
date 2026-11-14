@@ -69,6 +69,7 @@
 | 47 | Parent/child document hierarchy | EPPM Web Services exposes ParentObjectId and repository folders | Professional document records can be associated to Activities/WBS but no equivalent repository folder-parent contract is documented | Do not equate assignments with folder hierarchy. CONFIRMED |
 | 48 | Content type and file format | EPPM repository stores document content and version metadata | Professional references external file locations and opens via Launch | Different file-content ownership. CONFIRMED |
 | 49 | DocumentType API classification | V26 Web Services distinguishes Non-Collaboration Document, Collaboration Document and Repository Document | Professional V26 UI describes records and file locations but no matching V26 API enum | EPPM service contract distinguishes repository/collaboration document classes. CONFIRMED; Pro API parity NOT VERIFIED |
+| 50 | Repository implementation capability gate | Oracle states that document features depend on the installed repository type; unsupported functions remain unavailable in P6 Help/UI | No equivalent repository implementation matrix is documented for Professional V26 | A configured repository does not guarantee every listed function; validate the exact repository implementation. CONFIRMED |
 
 ## 3. Lifecycle distinctions that must remain separate
 
