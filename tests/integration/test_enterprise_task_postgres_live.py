@@ -102,6 +102,13 @@ def test_postgres_task_pagination_has_stable_composite_cursor_for_equal_timestam
                 actor_id="integration-user",
                 occurred_at=timestamp,
             )
+        for suffix in ("a", "b", "c"):
+            repository.create(
+                _task(f"null-{suffix}", tenant),
+                idempotency_key=f"null-create-{suffix}",
+                actor_id="integration-user",
+                occurred_at=timestamp,
+            )
         connection.commit()
 
     with psycopg.connect(DSN) as connection:
@@ -114,6 +121,39 @@ def test_postgres_task_pagination_has_stable_composite_cursor_for_equal_timestam
         )
         assert [item.task.task_id for item in second] == ["task-c"]
         assert len({item.task.task_id for item in first + second}) == 3
+        null_page = repository.list_for_tenant(
+            tenant, limit=2, before_updated_at=None, before_task_id="null-b"
+        )
+        assert [item.task.task_id for item in null_page] == ["null-c"]
+
+
+def test_postgres_completion_actor_must_match_authenticated_operation_actor() -> None:
+    psycopg = pytest.importorskip("psycopg")
+    tenant = _new_scope()
+    task_id = f"complete-{uuid.uuid4().hex}"
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        repository.initialize()
+        created = repository.create(
+            _task(task_id, tenant),
+            idempotency_key="completion-create",
+            actor_id="integration-user",
+            occurred_at=datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc),
+        )
+        completed = replace(
+            created.task,
+            status=EnterpriseTaskStatus.COMPLETED,
+            completed_at=datetime(2026, 11, 15, 12, 1, tzinfo=timezone.utc),
+            completed_by_user_id="different-user",
+        )
+        with pytest.raises(ValueError, match="ENTERPRISE_TASK_COMPLETION_ACTOR_MISMATCH"):
+            repository.update(
+                completed,
+                expected_revision=created.revision,
+                actor_id="integration-user",
+                occurred_at=datetime(2026, 11, 15, 12, 1, tzinfo=timezone.utc),
+            )
+        connection.rollback()
 
 
 def test_postgres_dependency_cycle_check_serializes_concurrent_graph_mutations() -> None:
