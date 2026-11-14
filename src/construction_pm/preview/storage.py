@@ -660,6 +660,18 @@ class PreviewStore:
             return None
         return _project_summary(row)
 
+    def checkout_holder(self, tenant_id: str, project_id: str) -> str | None:
+        """Return the user holding the exclusive checkout lease, if any."""
+        row = self.connection.execute(
+            "SELECT checkout_state, checked_out_by FROM preview_project "
+            "WHERE tenant_id=? AND project_id=?",
+            (tenant_id, project_id),
+        ).fetchone()
+        if row is None or str(row[0]) != "checked_out":
+            return None
+        holder = str(row[1] or "").strip()
+        return holder or None
+
     def update_project(
         self,
         tenant_id: str,

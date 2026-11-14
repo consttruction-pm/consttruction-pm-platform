@@ -357,6 +357,16 @@ PREVIEW_ENGINE_VERSION = "cubi-preview-engine.v1"
 PREVIEW_DEFAULT_CALENDAR_NAME = "Project working calendar (Mon-Fri)"
 PREVIEW_DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
 
+
+class _PreviewCheckoutLease:
+    """Read the stored exclusive checkout holder for schedule-settings writes."""
+
+    def __init__(self, store: PreviewStore) -> None:
+        self._store = store
+
+    def checked_out_by(self, scope: BackendScope) -> str | None:
+        return self._store.checkout_holder(scope.tenant_id, scope.project_id)
+
 # Explicit activity-step definitions seeded into the demo project. Only the
 # earthworks activity carries steps; every other fixture activity stays without
 # steps so the tab can also demonstrate an authoritative empty collection.
@@ -1590,6 +1600,7 @@ def open_preview_runtime(
         policy,
         repositories.settings,
         repositories.calendars,
+        checkout_lease=_PreviewCheckoutLease(store),
     )
     baseline_api = P6BaselineAPI(
         P6BaselineApplicationService(

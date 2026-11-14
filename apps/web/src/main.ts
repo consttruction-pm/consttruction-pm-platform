@@ -1158,6 +1158,12 @@ function openProjectSettings(
       await loadLeveling();
       return;
     }
+    if (result.error.code === "PROJECT_CHECKED_OUT_BY_OTHER") {
+      levelingStatus.textContent = labels.projectCheckoutConflict;
+      levelingStatus.dataset.state = "conflict";
+      await loadLeveling();
+      return;
+    }
     if (isForbidden(result.error.code)) {
       levelingStatus.textContent = labels.settingsForbidden;
       levelingStatus.dataset.state = "error";
