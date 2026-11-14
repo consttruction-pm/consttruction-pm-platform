@@ -77,6 +77,16 @@ class EnterpriseInvitationHttpMiddleware:
                 return 200,{"invitation":self._serialize(item,False),"membership":{"team_id":membership.team_id,"user_id":membership.user_id,"role":membership.role,"status":membership.status}}
             if parts[4]=="decline":
                 return 200,{"invitation":self._serialize(self._service.decline(session_id,parts[3],token),False)}
+            if parts[4]=="accept-from-inbox":
+                item,membership=self._service.accept_from_inbox(session_id,parts[3])
+                if membership is None:
+                    return 409,{"code":"INVITATION_EXPIRED","invitation":self._serialize(item,False)}
+                return 200,{"invitation":self._serialize(item,False),"membership":{
+                    "team_id":membership.team_id,"user_id":membership.user_id,
+                    "role":membership.role,"status":membership.status}}
+            if parts[4]=="decline-from-inbox":
+                return 200,{"invitation":self._serialize(
+                    self._service.decline_from_inbox(session_id,parts[3]),False)}
             return 404,{"code":"ROUTE_NOT_FOUND"}
         if len(parts)==4 and parts[:3]==["api","enterprise","invitations"] and method=="DELETE":
             return 200,{"invitation":self._serialize(self._service.revoke(session_id,parts[3]),False)}
