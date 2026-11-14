@@ -463,33 +463,55 @@ This catalogue comparison is verified at:
 - EPPM SOAP Reference Guide: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/index.html
 - EPPM Team Member Help: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-tm/index.html
 
-## G. Status, completeness and what “done” means
+## G. Status, completeness and acceptance
 
-**Completed in this update:** official Version 26 Help TOC structures compared; selected high-impact EPPM topic pages opened; both official guide catalogues compared; direction-specific Oracle product labels captured; 60 capability areas classified at product-surface level; major false positives in the first pass corrected.
+### Completed comparison slices
 
-**Not represented as complete:** an exhaustive page-by-page content diff of every Help topic and every page of all companion guides. The web-rendered TOCs expose topic links, but this review did not fetch, hash and semantically diff every one of the 825/984 TOC lines and every linked guide page. The 60 rows are a substantial product capability comparison, not proof that every field, button, permission, validation, endpoint and import/export field has been compared.
+The following documentary slices are now present on this branch and linked from this parent register:
 
-For the remaining deep technical closure, use separate child matrices:
-1. **Completed:** Scheduling options and calculation semantics — 40-row V26 comparison of schedule dialogs, defaults, constraints, out-of-sequence modes, lag calendars, total-float formulas, critical-path and multiple-float-path behavior. Remaining API/runtime gaps are explicitly listed in the child matrix.
-2. Data dictionary / Extended Schema / API field-level mapping.
-3. Import/export format and field-by-field mapping.
-4. Security privileges, module access, OBS and resource access matrix.
-5. Reporting / publication / scheduled services and audit semantics.
-6. Team Member / timesheet / status update lifecycle and role matrix.
-7. Document repository and document review lifecycle.
-8. Risk model and response-plan schema.
+| Artifact | Rows / scope | Status |
+|---|---:|---|
+| Capability-level master register | 60 capability areas | Completed as a first-pass surface comparison; not a page-level census |
+| Security / User Access / OBS / Dashboard | 26 | Evidence-backed child matrix; full checkbox-level privilege parity remains open |
+| Team Member / Status / Timesheet | 36 | Evidence-backed lifecycle matrix; exhaustive API field parity remains open |
+| Reporting / Publication / Scheduled Services / Audit | 32 | Evidence-backed service/reporting matrix; all parameter and service fields remain open |
+| Scheduling Options / Calculation Semantics | 40 | Evidence-backed V26 options and calculation comparison; runtime parity/API gaps remain open |
+| Data Dictionary / Extended Schema / API Field Surface | 44 | Evidence-backed field-surface comparison; Professional V26 API schema and physical-column mapping remain open |
+| Import/Export XER/XML/XLSX | 61 | Evidence-backed mapping comparison; exhaustive parsing of all format maps and round-trip tests remain open |
+| Document Repository / Review Lifecycle | 49 | Evidence-backed optional-repository and review lifecycle comparison; repository connector/API gaps remain open |
+| Risk Model / Scoring / Response Plans | 53 | Evidence-backed risk-model comparison; Professional V26 API and runtime scoring parity remain open |
 
-New child matrix: [Scheduling Options & Calculation Semantics](EPPM_V26_SCHEDULING_OPTIONS_CALCULATION_SEMANTICS_MATRIX.md). It is a 40-row evidence-backed V26 comparison; its remaining API and runtime test gaps remain open.
+**Total technical child-matrix entries: 341 rows across eight topic-specific matrices**, in addition to the 60 capability-level rows in the parent register. The child matrices cite Oracle Version 26 source pages and preserve NOT VERIFIED / PARTIALLY VERIFIED states where the source set does not support a definitive conclusion.
 
-New child matrix: [Data Dictionary, Extended Schema & API Field Surface](EPPM_V26_DATA_DICTIONARY_EXTENDED_SCHEMA_API_FIELD_SURFACE_MATRIX.md) — 44 comparison rows covering field glossary vs physical schema, Extended Schema views/publication, PDS, REST/Java API surfaces, representative Activity field crosswalk, UDF types/subject areas and explicit V26 Professional API gaps.
+### Source inventory status — do not confuse line counts with topic counts
 
-New child matrix: [Import/Export XER/XML/XLSX Field Mapping](EPPM_V26_IMPORT_EXPORT_XER_XML_XLSX_FIELD_MAPPING_MATRIX.md) — 61 rows comparing shared V26 field maps and explicit Pro-only/EPPM-only XER structures, XLSX field names, import-option/security differences, secure codes, risks, location scope and role-rate handling.
+The existing read-only Professional V26 evidence corpus records the following exact source audit:
 
-New child matrix: [Document Repository & Review Lifecycle](EPPM_V26_DOCUMENT_REPOSITORY_REVIEW_LIFECYCLE_MATRIX.md) — 49 rows comparing base document records, optional EPPM Content Repository, check-in/out, versions/history, security policies, review types/states, Professional public/private file references, EPPM-connected Professional limitations and Web Services fields.
+| Source | Exact URL | Topics | HTTP | SHA-256 |
+|---|---|---:|---:|---|
+| Professional V26 Help (ingested authoritative edition) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | 982 | 200 | `ef78a19c6f3f2a7797456af6d592d5474d0c054692bf75de1392d1d894f1c92e` |
+| Professional V26 User Guide (ingested authoritative edition) | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | 557 | 200 | `c619051559bba3c0e7eb650a21c5b7910f46948ed7e457caa82ba1f252e4be89` |
+| Professional alternate Help TOC (not ingested) | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-help/toc.htm | 988 | 200 | `00602394c07597172b4f911a5e1ec93a99539627765d5404f017dee58fd52cbf` |
+| Professional alternate User Guide TOC (not ingested) | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm | 527 | 200 | `0d2487c625a532daac46df83b647cf5ff55883389c579d4b046c96f8af168e5b` |
 
-New child matrix: [Risk Model, Scoring & Response Plans](EPPM_V26_RISK_MODEL_SCORING_RESPONSE_PLAN_MATRIX.md) — 53 rows comparing EPPM configurable risk thresholds/matrices, three scoring methods, custom impacts, multiple response plans/actions and REST objects with Professional's fixed six-level Probability/Cost/Schedule scoring and single response section.
+The 982/557 and 988/527 counts refer to different official Professional TOC editions and must not be merged under one source identity.
 
-Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
+For EPPM V26, the official Help TOC was opened and structurally inspected at https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm. The web-rendered page reports **825 lines**, not 825 topics. An exact EPPM topic count, URL/breadcrumb export and SHA-256 content hash have **not** been captured in this audit. The EPPM Help is not present in the referenced Professional-only evidence database. Therefore, no EPPM ingestion, exact topic census, or EPPM source hash is claimed here.
+
+### Remaining acceptance work — audit is not complete
+
+The issue's full acceptance criteria remain open. In particular:
+
+1. Inventory every topic URL and breadcrumb in the EPPM V26 Help tree, record the exact topic count and content hash, and keep the EPPM source identity separate from the Professional corpus.
+2. Pair every topic across the two V26 Help trees semantically, including one-to-many matches and unmatched topics.
+3. Open and compare every paired and unmatched topic; capture UI path, actors, permissions, prerequisites, inputs, actions, outputs, validation, errors, licensing and deployment constraints.
+4. Review all relevant EPPM and Professional User, Administration, Reporting, Integration, API, Schema and Data Dictionary guides, not only the high-impact pages cited in the current child matrices.
+5. Complete field-by-field API/schema comparisons where a version-matched Professional V26 contract is available; where it is not publicly established, retain the gap rather than infer parity or absence.
+6. Parse all remaining V26 import/export maps and compare exact field, table, tag, enumeration and import-action behavior.
+7. Perform controlled runtime tests only when authorized test environments and representative project data are available; none are claimed in this documentary audit.
+8. Obtain an independent human review and record its disposition. No independent GitHub review has been recorded on PR #1926 yet.
+
+**Completion rule:** This audit must not be marked complete, the issue must not be closed, and the PR must not be merged until the full topic inventory/pairing and independent acceptance requirements above are met. The eight child matrices close their named topic slices only; they do not substitute for the full source-corpus audit.
 
 ## H. CUBI project boundary
 
