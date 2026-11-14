@@ -3,8 +3,8 @@
 **Status:** Active implementation workstream  
 **Product decision:** `CUBI-ARCH-ENV-001`  
 **Tracking:** GitHub issue #1928  
-**Baseline:** `main` at `d7e128f57804323b985917c1f2d680005b63d0c2`  
-**Implementation branch:** `feat/cubi-enterprise-task-domain-v1`
+**Baseline:** current `main` at `90f93cbea8f6c6d7d636483a4c288eeddd7da160`  
+**Implementation branch:** `feat/cubi-enterprise-foundation-v1`
 
 ## Product boundary
 
