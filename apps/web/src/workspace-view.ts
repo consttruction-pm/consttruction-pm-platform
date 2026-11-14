@@ -1927,6 +1927,18 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       workspaceRenderRecords.get(container)?.options.onGanttRelationshipsChange?.((element as HTMLInputElement).checked);
       return;
     }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutBaseline")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("baseline", (element as HTMLInputElement).checked);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutProgressLine")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("progress-line", (element as HTMLInputElement).checked);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutDataDateLine")) {
+      workspaceRenderRecords.get(container)?.options.onGanttDisplayToggle?.("data-date-line", (element as HTMLInputElement).checked);
+      return;
+    }
     const isGroupSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activityGroup");
     if (isGroupSelect) {
       const record = workspaceRenderRecords.get(container);
@@ -2736,6 +2748,8 @@ export type WorkspaceRendererOptions = {
   onActivityContextCommand?: (command: ActivityContextCommand, activityId: string) => void;
   onGanttScaleChange?: (ganttScale: WorkspaceGanttScale) => void;
   onGanttRelationshipsChange?: (visible: boolean) => void;
+  /** Persists one Gantt display toggle through the same layout presentation. */
+  onGanttDisplayToggle?: (kind: "baseline" | "progress-line" | "data-date-line", visible: boolean) => void;
   onGanttCommand?: (command: "bars" | "font-row" | "user-preferences") => void;
   onProjectSettings?: () => void;
   /** Authoritative metadata row of the open project, when the server returned it. */
@@ -5887,6 +5901,10 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels, op
   const networkAvailable = isWorkspaceTopLayoutAvailable("activity-network", state);
   const traceAvailable = isWorkspaceTraceLogicAvailable(state);
   const usageAvailable = usageSourceAvailable(options.activityUsage);
+  const presentation = options.presentation ?? DEFAULT_PRESENTATION;
+  // Baseline bars are only offered when a stored baseline window is projected
+  // onto the grid; otherwise the toggle would promise a date the project lacks.
+  const baselineAvailable = state.activities.some(hasBaselineDates);
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
@@ -5914,10 +5932,11 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels, op
         <h3>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</h3>
         <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
         <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
-        <p>${escapeHtml(uiText(state.locale, "Only relationship-line visibility and timescale are connected in this slice. Other options remain visibly present but disabled until their renderer and state contract are implemented.", "در این بخش فقط نمایش خطوط روابط و مقیاس زمانی متصل هستند. گزینه‌های دیگر تا پیاده‌سازی رندرکننده و قرارداد وضعیت، نمایش داده می‌شوند اما غیرفعال‌اند."))}</p>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-progress-line${presentation.gantt.progressLine.visible ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-baseline${presentation.bars.baseline.visible ? " checked" : ""}${baselineAvailable ? "" : " disabled"}> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" data-layout-data-date-line${presentation.gantt.dataDateLine.visible ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+        <p>${escapeHtml(uiText(state.locale, "The progress line, baseline bars and Data Date line write the same saved layout presentation as the Bars dialog; they never change schedule data. The critical path is shown by the Critical bar style and the Critical filter, so this dialog does not add a second toggle.", "خط پیشرفت، میله‌های مبنا و خط تاریخ داده همان ارائهٔ چیدمان ذخیره‌شدهٔ کادر میله‌ها را می‌نویسند و هرگز دادهٔ زمان‌بندی را تغییر نمی‌دهند. مسیر بحرانی با سبک میلهٔ بحرانی و پالایهٔ بحرانی نمایش داده می‌شود؛ این کادر کلید دوم نمی‌سازد."))}</p>
+        ${baselineAvailable ? "" : `<p data-layout-baseline-unavailable>${escapeHtml(uiText(state.locale, "No stored baseline window is loaded for this project, so the baseline bars stay disabled instead of drawing a derived window.", "برای این پروژه پنجرهٔ مبنای ذخیره‌شده‌ای بارگذاری نشده است؛ میله‌های مبنا غیرفعال می‌مانند تا پنجرهٔ ساختگی رسم نشود."))}</p>`}
       </section>
       <footer><button type="button" data-layout-options-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button></footer>
     </form>

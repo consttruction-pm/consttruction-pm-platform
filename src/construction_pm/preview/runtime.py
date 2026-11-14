@@ -184,6 +184,7 @@ from construction_pm.p6_activity_step_repository import (
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
 )
+from construction_pm.p6_baseline_activity_api import P6BaselineActivityAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI
 from construction_pm.p6_baseline_assignment import (
     P6BaselineAssignmentService,
@@ -1594,6 +1595,11 @@ def open_preview_runtime(
         ),
         policy,
     )
+    baseline_activity_api = P6BaselineActivityAPI(
+        repositories.baseline_activities,
+        repositories.baselines,
+        policy,
+    )
     baseline_update_service = P6BaselineUpdateService(
         repository=repositories.baseline_activities,
         transaction_manager=repositories.transaction_manager,
@@ -1883,6 +1889,7 @@ def open_preview_runtime(
             transaction_manager=repositories.transaction_manager,
         ),
         p6_baseline_api=baseline_api,
+        p6_baseline_activity_api=baseline_activity_api,
         p6_baseline_update_api=baseline_update_api,
         p6_baseline_assignment_api=baseline_assignment_api,
         p6_baseline_conversion_api=baseline_conversion_api,

@@ -2898,3 +2898,47 @@ test("WBS toolbar copies the selected element and pastes beneath the selected ta
   clickListener?.({ target: paste } as unknown as Event);
   assert.deepEqual(events, ["copy:W-CIVIL:W-PM:1.1", "update:W-CIVIL-SITE:W-PM"]);
 });
+
+test("Layout Options persists progress line, baseline and Data Date toggles through the presentation callback", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withActivities(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [
+    {
+      id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation",
+      cells: { "activity.baseline_start": "2026-09-01", "activity.baseline_finish": "2026-09-05" },
+    },
+  ]);
+  const chosen: [string, boolean][] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    presentation: normalizePresentation({
+      bars: { baseline: { visible: true } },
+      gantt: { progressLine: { visible: false }, dataDateLine: { visible: true } },
+    }),
+    onGanttDisplayToggle: (kind, visible) => chosen.push([kind, visible]),
+  });
+  assert.match(container.innerHTML, /data-layout-baseline checked/);
+  assert.match(container.innerHTML, /data-layout-progress-line>/);
+  assert.match(container.innerHTML, /data-layout-data-date-line checked/);
+  const fire = (dataset: Record<string, string>, checked: boolean) => {
+    const target = { dataset, checked, closest: () => null };
+    listeners.get("change")?.({ target } as unknown as Event);
+  };
+  fire({ layoutProgressLine: "" }, true);
+  fire({ layoutBaseline: "" }, false);
+  fire({ layoutDataDateLine: "" }, false);
+  assert.deepEqual(chosen, [
+    ["progress-line", true],
+    ["baseline", false],
+    ["data-date-line", false],
+  ]);
+});
+
+test("baseline bars stay disabled with an explicit reason when no stored window is loaded", () => {
+  const empty = render("en", "schedule");
+  assert.match(empty, /data-layout-baseline checked disabled/);
+  assert.match(empty, /No stored baseline window is loaded for this project/);
+});

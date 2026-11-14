@@ -23,6 +23,7 @@ from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_calendar_usage_api import P6CalendarUsageAPI
+from construction_pm.p6_baseline_activity_api import P6BaselineActivityAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI
 from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_baseline_assignment_api import P6BaselineAssignmentAPI
@@ -126,6 +127,7 @@ def build_project_lifecycle_wsgi_app(
     p6_calendar_usage_api: P6CalendarUsageAPI | None = None,
     p6_calendar_api: P6CalendarAPI | None = None,
     p6_baseline_api: P6BaselineAPI | None = None,
+    p6_baseline_activity_api: P6BaselineActivityAPI | None = None,
     p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
     p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
     p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
@@ -355,6 +357,7 @@ def build_project_lifecycle_wsgi_app(
         p6_calendar_usage_api=p6_calendar_usage_api,
         p6_calendar_api=p6_calendar_api,
         p6_baseline_api=p6_baseline_api,
+        p6_baseline_activity_api=p6_baseline_activity_api,
         p6_baseline_update_api=p6_baseline_update_api,
         p6_baseline_assignment_api=p6_baseline_assignment_api,
         p6_baseline_conversion_api=p6_baseline_conversion_api,

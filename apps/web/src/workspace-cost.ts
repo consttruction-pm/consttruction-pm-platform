@@ -11,6 +11,7 @@ import { translateUiString } from "./workspace-ui-translations.js";
 export const FINANCIAL_PERIOD_API_VERSION = "p6-financial-period-api.v1";
 export const BASELINE_API_VERSION = "p6-baseline-api.v1";
 export const BASELINE_CAPTURE_API_VERSION = "p6-baseline-capture-api.v1";
+export const BASELINE_ACTIVITY_API_VERSION = "p6-baseline-activity-api.v1";
 export const EARNED_VALUE_API_VERSION = "p6-earned-value-read-model.v1";
 export const SCHEDULE_SETTINGS_API_VERSION = "p6-project-schedule-settings-api.v1";
 
@@ -325,8 +326,64 @@ export async function loadBaselines(
   }
 }
 
-export function parseScheduleDataDate(value: unknown): string | null {
-  if (!isRecord(value)) throw new Error("INVALID_SCHEDULE_SETTINGS_RECORD");
+/** One stored baseline activity window, read from the baseline activity endpoint. */
+export type BaselineActivityDate = {
+  activityId: string;
+  plannedStart: string;
+  plannedFinish: string;
+};
+
+function baselineIsoDate(value: unknown, code: string): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value))) {
+    throw new Error(code);
+  }
+  return value;
+}
+
+/**
+ * Parses the stored baseline windows of one baseline. The browser only
+ * projects the dates the server returned; it never derives a window.
+ */
+export function parseBaselineActivities(value: unknown): readonly BaselineActivityDate[] {
+  if (!isRecord(value)) throw new Error("INVALID_BASELINE_ACTIVITY_RESPONSE");
+  if (value.contract_version !== BASELINE_ACTIVITY_API_VERSION) throw new Error("INVALID_BASELINE_ACTIVITY_RESPONSE");
+  if (value.kind !== "p6_baseline_activity_list" || !Array.isArray(value.activities)) {
+    throw new Error("INVALID_BASELINE_ACTIVITY_RESPONSE");
+  }
+  const rows: BaselineActivityDate[] = [];
+  for (const activity of value.activities) {
+    if (!isRecord(activity) || typeof activity.activity_id !== "string" || !activity.activity_id) {
+      throw new Error("INVALID_BASELINE_ACTIVITY_ROW");
+    }
+    const plannedStart = baselineIsoDate(activity.planned_start, "INVALID_BASELINE_ACTIVITY_ROW");
+    const plannedFinish = baselineIsoDate(activity.planned_finish, "INVALID_BASELINE_ACTIVITY_ROW");
+    if (Date.parse(plannedFinish) < Date.parse(plannedStart)) {
+      throw new Error("INVALID_BASELINE_ACTIVITY_ROW");
+    }
+    rows.push({ activityId: activity.activity_id, plannedStart, plannedFinish });
+  }
+  return rows;
+}
+
+export async function loadBaselineActivityDates(
+  transport: ApiTransport,
+  context: ProjectContext,
+  baselineId: string,
+): Promise<ApiResult<readonly BaselineActivityDate[]>> {
+  if (!baselineId) return localError("BASELINE_ID_REQUIRED");
+  const result = await transport.get<unknown>(
+    projectPath(context, `/p6/baselines/${encodeURIComponent(baselineId)}/activities`),
+    context,
+  );
+  if (!result.ok) return result;
+  try {
+    return { ok: true, data: parseBaselineActivities(result.data) };
+  } catch (error) {
+    return localError(error instanceof Error ? error.message : "INVALID_BASELINE_ACTIVITY_RESPONSE");
+  }
+}
+
+export function parseScheduleDataDate(value: unknown): string | null {  if (!isRecord(value)) throw new Error("INVALID_SCHEDULE_SETTINGS_RECORD");
   if (value.contract_version !== SCHEDULE_SETTINGS_API_VERSION) {
     throw new Error("INVALID_SCHEDULE_SETTINGS_RESPONSE");
   }
