@@ -26,6 +26,7 @@ from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_application import EnterpriseTaskApplicationService
+from ..enterprise_project_access import EnterpriseProjectAuthorizationPolicy, PostgresProjectAccessRepository
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..application.authorization import (
@@ -290,7 +291,9 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        project_access_repository = PostgresProjectAccessRepository(connection)
+        policy = EnterpriseProjectAuthorizationPolicy(role_policy, project_access_repository, connection)
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
