@@ -481,6 +481,8 @@ For the remaining deep technical closure, use separate child matrices:
 
 New child matrix: [Scheduling Options & Calculation Semantics](EPPM_V26_SCHEDULING_OPTIONS_CALCULATION_SEMANTICS_MATRIX.md). It is a 40-row evidence-backed V26 comparison; its remaining API and runtime test gaps remain open.
 
+New child matrix: [Data Dictionary, Extended Schema & API Field Surface](EPPM_V26_DATA_DICTIONARY_EXTENDED_SCHEMA_API_FIELD_SURFACE_MATRIX.md) — 44 comparison rows covering field glossary vs physical schema, Extended Schema views/publication, PDS, REST/Java API surfaces, representative Activity field crosswalk, UDF types/subject areas and explicit V26 Professional API gaps.
+
 Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
 
 ## H. CUBI project boundary
