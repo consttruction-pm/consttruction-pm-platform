@@ -6,7 +6,68 @@ import json
 from construction_pm.enterprise_task_application import EnterpriseTaskApplicationService
 from construction_pm.enterprise_task_http import EnterpriseTaskHttpMiddleware
 
-from tests.test_enterprise_task_application import FakeLifecycle, FakeRepository, NOW
+from dataclasses import replace
+from datetime import datetime, timezone
+from types import SimpleNamespace
+
+from construction_pm.application.authorization import Permission
+from construction_pm.application.project_lifecycle import ProjectLifecycleError, SessionError
+from construction_pm.enterprise_task_repository import EnterpriseTaskNotFound, StoredEnterpriseTask
+
+NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
+
+
+class FakeLifecycle:
+    def __init__(self):
+        self.sessions = {"alice-session": SimpleNamespace(user_id="alice", tenant_id="tenant-a", roles=frozenset({"project_manager"}))}
+        self.grants = set()
+
+    def get_session(self, session_id, *, now):
+        if session_id not in self.sessions:
+            raise SessionError("SESSION_INVALID")
+        return self.sessions[session_id]
+
+    def authorize_project(self, session_id, project_id, permission, *, now):
+        if (session_id, project_id, permission) not in self.grants:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        session = self.sessions[session_id]
+        return SimpleNamespace(context=SimpleNamespace(tenant_id=session.tenant_id, project_id=project_id))
+
+
+class FakeRepository:
+    def __init__(self):
+        self.tasks = {}
+        self.idempotency = {}
+
+    def create(self, task, *, idempotency_key, actor_id, occurred_at):
+        key = (task.tenant_id, idempotency_key)
+        if key in self.idempotency:
+            return self.idempotency[key]
+        stored = StoredEnterpriseTask(replace(task, revision=1), 1)
+        self.tasks[(task.tenant_id, task.task_id)] = stored
+        self.idempotency[key] = stored
+        return stored
+
+    def get(self, tenant_id, task_id):
+        stored = self.tasks.get((tenant_id, task_id))
+        if stored is None:
+            raise EnterpriseTaskNotFound("ENTERPRISE_TASK_NOT_FOUND")
+        return stored
+
+    def list_for_tenant(self, tenant_id, *, limit=100, before_updated_at=None, before_task_id=None, project_id=None, personal_user_id=None):
+        items = [stored for (tenant, _), stored in self.tasks.items() if tenant == tenant_id]
+        if project_id is not None:
+            items = [item for item in items if item.task.project_id == project_id]
+        elif personal_user_id is not None:
+            items = [item for item in items if item.task.project_id is None and item.task.created_by_user_id == personal_user_id]
+        return tuple(items[:limit])
+
+    def update(self, task, *, expected_revision, actor_id, occurred_at):
+        stored = self.get(task.tenant_id, task.task_id)
+        updated = StoredEnterpriseTask(replace(task, revision=expected_revision + 1, updated_at=occurred_at), expected_revision + 1)
+        self.tasks[(task.tenant_id, task.task_id)] = updated
+        return updated
+
 
 
 def _request(app, method, path, *, body=None, cookie=True, headers=None, query=""):
