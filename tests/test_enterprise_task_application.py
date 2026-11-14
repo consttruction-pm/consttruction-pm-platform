@@ -23,8 +23,8 @@ NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
 class FakeLifecycle:
     def __init__(self):
         self.sessions = {
-            "alice-session": SimpleNamespace(user_id="alice", tenant_id="tenant-a", roles=frozenset({"project_manager"})),
-            "bob-session": SimpleNamespace(user_id="bob", tenant_id="tenant-a", roles=frozenset({"viewer"})),
+            "alice-session": SimpleNamespace(user_id="alice", tenant_id="tenant-a", roles=frozenset({"project_manager", "enterprise_user"})),
+            "bob-session": SimpleNamespace(user_id="bob", tenant_id="tenant-a", roles=frozenset({"viewer", "enterprise_viewer"})),
         }
         self.grants = set()
 
@@ -166,3 +166,28 @@ def test_idempotent_create_retry_returns_original_task(service):
         idempotency_key="retry-key",
     )
     assert second == first
+
+
+def test_enterprise_access_requires_explicit_session_entitlement(service):
+    service._lifecycle.sessions["unentitled-session"] = SimpleNamespace(
+        user_id="unentitled",
+        tenant_id="tenant-a",
+        roles=frozenset({"project_admin"}),
+    )
+    with pytest.raises(EnterpriseTaskAuthorizationError, match="ENTERPRISE_ACCESS_DENIED"):
+        service.list_tasks("unentitled-session")
+    with pytest.raises(EnterpriseTaskAuthorizationError, match="ENTERPRISE_ACCESS_DENIED"):
+        service.create_task(
+            "unentitled-session",
+            {"title": "Must not enter Enterprise"},
+            idempotency_key="unentitled-create",
+        )
+
+
+def test_enterprise_viewer_can_read_but_cannot_write_personal_tasks(service):
+    with pytest.raises(EnterpriseTaskAuthorizationError, match="ENTERPRISE_WRITE_DENIED"):
+        service.create_task(
+            "bob-session",
+            {"title": "Read-only role cannot create"},
+            idempotency_key="viewer-create",
+        )
