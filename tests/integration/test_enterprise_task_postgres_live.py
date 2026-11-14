@@ -198,3 +198,56 @@ def test_postgres_dependency_cycle_check_serializes_concurrent_graph_mutations()
         repository = PostgresEnterpriseTaskRepository(connection)
         persisted = [repository.get(tenant, task_id).task for task_id in (task_a, task_b)]
         assert sum(bool(item.dependency_ids) for item in persisted) == 1
+
+
+def test_postgres_create_idempotency_ignores_generated_task_id_and_timestamp() -> None:
+    psycopg = pytest.importorskip("psycopg")
+    tenant = _new_scope()
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        repository.initialize()
+        first = repository.create(
+            _task("generated-first", tenant),
+            idempotency_key="same-request",
+            actor_id="integration-user",
+            occurred_at=datetime(2026, 11, 15, 13, 1, tzinfo=timezone.utc),
+        )
+        retry_task = replace(
+            _task("generated-retry", tenant),
+            created_at=datetime(2026, 11, 15, 13, 2, tzinfo=timezone.utc),
+        )
+        retried = repository.create(
+            retry_task,
+            idempotency_key="same-request",
+            actor_id="integration-user",
+            occurred_at=datetime(2026, 11, 15, 13, 3, tzinfo=timezone.utc),
+        )
+        connection.commit()
+    assert retried == first
+
+
+def test_postgres_task_listing_filters_project_and_personal_scopes() -> None:
+    psycopg = pytest.importorskip("psycopg")
+    tenant = _new_scope()
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        repository.initialize()
+        tasks = [
+            replace(_task("project-a", tenant), project_id="project-a"),
+            replace(_task("project-b", tenant), project_id="project-b"),
+            _task("personal-a", tenant),
+        ]
+        for index, task in enumerate(tasks):
+            repository.create(
+                task,
+                idempotency_key=f"filter-{index}",
+                actor_id="integration-user",
+                occurred_at=datetime(2026, 11, 15, 14, 1, tzinfo=timezone.utc),
+            )
+        connection.commit()
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseTaskRepository(connection)
+        project_items = repository.list_for_tenant(tenant, project_id="project-a")
+        personal_items = repository.list_for_tenant(tenant, personal_user_id="integration-user")
+    assert [item.task.task_id for item in project_items] == ["project-a"]
+    assert [item.task.task_id for item in personal_items] == ["personal-a"]
