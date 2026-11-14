@@ -1061,6 +1061,16 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Evidence:** `docs/workspace/evidence/project-details-v26-2026-11-14/` — `testedCodeSha` `91991e71`, 9/9 scenarios, 12 screenshots, zero exceptions/console errors/API 5xx. Scenario `04b`: owner saves priority 44 while checked out; Planner write for 45 returns `409 PROJECT_CHECKED_OUT_BY_OTHER` and leaves priority and record revision untouched; owner checks in. Python 4233 passed / 190 skipped, web 1147 + 14 passed, `tsc --noEmit` and build clean.
 - **Remaining:** the lease is not consulted by activity, WBS or relationship writes; Duration Type and Cost Account defaults, an enterprise OBS hierarchy and an audited defaults history remain open.
 
+## PRJ-002 defaults application history — 2026-11-14
+
+- **Shipped (`0188b51b`):** `project_lifecycle_defaults_event` (PostgreSQL) and `preview_project_defaults_event` (SQLite) are append-only tables with `event_id={project}@{activity}`, the applied activity type, percent complete type, duration type and cost account, the actor and the timestamp. A repeated write is `ON CONFLICT DO NOTHING`; there is no update/delete path.
+- **Authority:** `ProjectLifecycleService.record_defaults_application` takes the actor and time from the authenticated session and requires `project.write`; `project_defaults_history` requires `project.read` and membership. The client never supplies the record.
+- **Application rule:** after a successful activity create, the route compares the stored values with the project defaults and records exactly the defaults the new activity adopted — a create form that prefilled them is audited, a user-changed value is not, and an all-explicit request records nothing.
+- **API/UI:** `GET /api/projects/{id}/defaults-history` returns `project-defaults-history-api.v1`; the Project Details Defaults tab lists activity id, applied values, actor and date in en/fa and reloads when the panel opens.
+- **Tests at the same code:** service authorization/idempotency/non-member; activity HTTP create and explicit values; preview store append-only and membership scoping; PostgreSQL fake and live round trip, replay, tenant/member isolation. Python 4250 passed / 191 skipped, live PostgreSQL 421 passed, web 1148 + 14 passed, `tsc --noEmit` and `npm run build` clean.
+- **Browser evidence:** `docs/workspace/evidence/project-details-v26-2026-11-14/` — `testedCodeSha`/`gitHead` `0188b51b`, 9/9 scenarios, 13 screenshots, zero exceptions/console errors/API failures. Scenario `02b` creates `AH-A230-B`, reopens Project Details and reads the history row with `Level of Effort`, `PHYSICAL`, `Fixed Units/Time` and `CA-CIVIL`.
+- **Remaining:** the enterprise OBS hierarchy and defaults change timeline are open; the checkout lease is not yet consulted by activity, WBS or relationship writes.
+
 ## PRJ-002 stored default cost account — 2026-11-14
 
 - **Shipped (`5fdafcf3`, refresh fix `9b25bdb5`):** `ProjectSummary.default_cost_account_id` is normalized (`PROJECT_DEFAULT_COST_ACCOUNT_INVALID`), rejected on create (`PROJECT_DEFAULT_COST_ACCOUNT_NOT_FOUND`, no hierarchy exists yet) and on PATCH validated by `ProjectCostAccountLookup.cost_account_exists` against the project's revision-scoped `p6_cost_account` rows; a runtime without the lookup reports `PROJECT_DEFAULT_COST_ACCOUNT_UNAVAILABLE`.
