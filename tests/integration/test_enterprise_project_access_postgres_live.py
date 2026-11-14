@@ -13,7 +13,7 @@ from construction_pm.enterprise_project_access import (
 )
 from construction_pm.identity_session import IdentityUser, PostgresIdentityStore
 from construction_pm.p6_obs_repository import P6OBSNode, P6OBSApplicationService, PostgresP6OBSRepository
-from construction_pm.postgres_project_lifecycle import initialize_project_lifecycle_schema
+from construction_pm.postgres_project_lifecycle import PostgresProjectRepository, initialize_project_lifecycle_schema
 
 DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="CONSTRUCTION_PM_POSTGRES_DSN is required")
@@ -58,6 +58,9 @@ def test_postgres_obs_assignment_inherits_to_descendant_projects_and_revokes_imm
         repository = PostgresProjectAccessRepository(connection)
         assert repository.project_permission(tenant,member_id,project_id,"project.read") is True
         assert repository.project_permission(tenant,member_id,project_id,"project.admin") is False
+        projects = PostgresProjectRepository(connection)
+        assert projects.get_for_user(tenant,project_id,member_id) is not None
+        assert [item.project_id for item in projects.list_for_user(tenant,member_id)] == [project_id]
         connection.commit()
 
     with psycopg.connect(DSN) as connection:
@@ -71,6 +74,9 @@ def test_postgres_obs_assignment_inherits_to_descendant_projects_and_revokes_imm
     with psycopg.connect(DSN) as connection:
         repository = PostgresProjectAccessRepository(connection)
         assert repository.project_permission(tenant,member_id,project_id,"project.read") is False
+        projects = PostgresProjectRepository(connection)
+        assert projects.get_for_user(tenant,project_id,member_id) is None
+        assert projects.list_for_user(tenant,member_id) == ()
         audit = connection.execute(
             "SELECT count(*) FROM enterprise_project_access_audit WHERE tenant_id=%s",
             (tenant,),
