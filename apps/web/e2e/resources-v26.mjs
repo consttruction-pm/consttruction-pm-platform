@@ -120,6 +120,19 @@ const resourcesState = `(() => {
     status: row.dataset.status,
     cells: [...row.querySelectorAll("td")].map((cell) => (cell.textContent || "").trim()),
   }));
+  const usageChart = page ? {
+    timescale: page.querySelector("[data-resource-usage-timescale]")?.value ?? null,
+    options: [...page.querySelectorAll("[data-resource-usage-timescale] option")].map((option) => [option.value, option.textContent.trim()]),
+    bars: [...page.querySelectorAll("[data-resource-usage-bar]")].map((bar) => ({
+      start: bar.dataset.bucketStart,
+      end: bar.dataset.bucketEnd,
+      demand: bar.dataset.demand,
+      periods: Number(bar.dataset.periods),
+      overallocated: bar.classList.contains("is-overallocated"),
+      label: bar.querySelector(".cp-usage-bar-label")?.textContent?.trim() ?? null,
+    })),
+    hint: page.querySelector("[data-resource-usage-chart-hint]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+  } : null;
   const form = document.querySelector("[data-resource-create-form], [data-resource-edit-form]");
   return {
     activeMenu: document.querySelector(".cp-workspace")?.dataset.activeMenu ?? null,
@@ -132,6 +145,7 @@ const resourcesState = `(() => {
     hint: page?.querySelector(".cp-calendar-hint")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
     panels: { assignments: table("assignments"), capacity: table("capacity"), rates: table("rates") },
     usageRows,
+    usageChart,
     usageTabLabel: page?.querySelector('[data-resource-tab="usage"]')?.textContent?.trim() ?? null,
     direction: page ? getComputedStyle(page).direction : null,
     usageSummary: page?.querySelector("[data-resource-usage-summary]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
@@ -631,7 +645,7 @@ async function main() {
       await page.click('[data-resource-tab="usage"]');
       await page.waitForSelector("[data-resource-usage-row]", "usage rows", 20000);
       await sleep(400);
-      const state = await page.evaluate(resourcesState);
+      let state = await page.evaluate(resourcesState);
       assert(state.activeTab === "usage", `active tab is ${state.activeTab}`);
       assert(state.usageRows.length === 2, `usage rows ${state.usageRows.length}`);
       assert(JSON.stringify(state.usageRows[0].cells) === JSON.stringify(["2026-09-30", "16", "1280", "2", "16", "day", "8", "8", "Overallocated"]), `first usage row ${JSON.stringify(state.usageRows[0].cells)}`);
@@ -640,8 +654,47 @@ async function main() {
       assert(state.usageRows[1].status === "within", `second usage status ${state.usageRows[1].status}`);
       assert(state.usageSummary === "2 stored period(s) · 2 compared · 1 overallocated.", `usage summary ${state.usageSummary}`);
       assert(/no scheduler or leveling pass runs here/.test(state.usageHint ?? ""), `usage hint ${state.usageHint}`);
+      assert(JSON.stringify(state.usageChart?.options) === JSON.stringify([["day", "Day"], ["week", "Week"], ["month", "Month"]]), `usage timescale options ${JSON.stringify(state.usageChart?.options)}`);
+      assert(state.usageChart?.timescale === "day", `usage timescale ${state.usageChart?.timescale}`);
+      assert(JSON.stringify(state.usageChart?.bars.map((bar) => [bar.start, bar.end, bar.demand, bar.periods, bar.overallocated])) === JSON.stringify([
+        ["2026-09-30", "2026-09-30", "16", 1, true],
+        ["2026-10-16", "2026-10-16", "4", 1, false],
+      ]), `day usage bars ${JSON.stringify(state.usageChart?.bars)}`);
+      assert(/Each bar sums the stored period values/.test(state.usageChart?.hint ?? ""), `usage chart hint ${state.usageChart?.hint}`);
       await capture(page, "05b-resource-usage");
-      return { rows: state.usageRows.map((row) => [row.period, row.status]), summary: state.usageSummary };
+
+      const selectTimescale = (value) => page.evaluate(`(() => {
+        const select = document.querySelector("[data-resource-usage-timescale]");
+        if (!select) return false;
+        select.value = ${JSON.stringify(value)};
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      })()`);
+
+      assert(await selectTimescale("week"), "the usage timescale select is missing");
+      await sleep(250);
+      state = await page.evaluate(resourcesState);
+      assert(state.usageChart?.timescale === "week", `usage timescale after week switch ${state.usageChart?.timescale}`);
+      assert(JSON.stringify(state.usageChart?.bars.map((bar) => [bar.start, bar.end, bar.demand, bar.periods, bar.overallocated])) === JSON.stringify([
+        ["2026-09-28", "2026-10-04", "16", 1, true],
+        ["2026-10-12", "2026-10-18", "4", 1, false],
+      ]), `week usage bars ${JSON.stringify(state.usageChart?.bars)}`);
+      assert(state.usageChart?.bars[0].label === "2026-09-28 → 2026-10-04", `week bar label ${state.usageChart?.bars[0].label}`);
+
+      assert(await selectTimescale("month"), "the usage timescale select is missing");
+      await sleep(250);
+      state = await page.evaluate(resourcesState);
+      assert(state.usageChart?.timescale === "month", `usage timescale after month switch ${state.usageChart?.timescale}`);
+      assert(JSON.stringify(state.usageChart?.bars.map((bar) => [bar.start, bar.end, bar.demand, bar.periods, bar.overallocated])) === JSON.stringify([
+        ["2026-09-01", "2026-09-30", "16", 1, true],
+        ["2026-10-01", "2026-10-31", "4", 1, false],
+      ]), `month usage bars ${JSON.stringify(state.usageChart?.bars)}`);
+      assert(state.usageChart?.bars[0].label === "2026-09", `month bar label ${state.usageChart?.bars[0].label}`);
+      await capture(page, "05c-resource-usage-month");
+
+      await selectTimescale("day");
+      await sleep(250);
+      return { rows: state.usageRows.map((row) => [row.period, row.status]), summary: state.usageSummary, timescales: ["day", "week", "month"] };
     });
 
     await openMenu(page, "calendars", "[data-calendar-row]", "calendar register");
@@ -902,6 +955,10 @@ async function main() {
       assert(state.usageRows[1].status === "within", `Persian second usage status ${state.usageRows[1].status}`);
       assert(/2 دورهٔ ذخیره‌شده · 2 مقایسه‌شده · 1 اضافه‌تخصیص\./.test(state.usageSummary ?? ""), `Persian usage summary ${state.usageSummary}`);
       assert(/هیچ اجرای زمان‌بندی یا تراز منابعی در اینجا انجام نمی‌شود/.test(state.usageHint ?? ""), `Persian usage hint ${state.usageHint}`);
+      assert(JSON.stringify(state.usageChart?.options) === JSON.stringify([["day", "روز"], ["week", "هفته"], ["month", "ماه"]]), `Persian usage timescale options ${JSON.stringify(state.usageChart?.options)}`);
+      assert(state.usageChart?.bars.length === 2, `Persian usage bars ${JSON.stringify(state.usageChart?.bars)}`);
+      assert(JSON.stringify(state.usageChart?.bars.map((bar) => [bar.start, bar.demand, bar.overallocated])) === JSON.stringify([["2026-09-30", "16", true], ["2026-10-16", "4", false]]), `Persian usage bar facts ${JSON.stringify(state.usageChart?.bars)}`);
+      assert(/در روزها پخش/.test(state.usageChart?.hint ?? ""), `Persian usage chart hint ${state.usageChart?.hint}`);
       const bounds = await page.evaluate(`(() => {
         const panel = document.querySelector('[data-resource-panel="usage"]');
         if (!panel) return null;

@@ -57,6 +57,25 @@ export type ResourceUsageStatus =
   | "capacity-conflict"
   | "capacity-error";
 
+export const RESOURCE_USAGE_TIMESCALES = ["day", "week", "month"] as const;
+
+export type ResourceUsageTimescale = (typeof RESOURCE_USAGE_TIMESCALES)[number];
+
+/**
+ * A display bucket that sums stored period values whose start falls inside the
+ * bucket. Buckets never spread an amount across days and never invent a width
+ * the stored row does not have.
+ */
+export type ResourceUsageBucket = {
+  bucketStart: string;
+  bucketEnd: string;
+  periodStarts: string[];
+  assignmentIds: string[];
+  demandUnits: string | null;
+  demandCost: string | null;
+  overallocatedPeriods: number;
+};
+
 export type ResourceUsageEntry = {
   periodStart: string;
   assignmentIds: string[];
@@ -236,4 +255,101 @@ export function buildResourceUsage(
       errorCode: null,
     };
   });
+}
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function isoDate(value: string): Date | null {
+  const match = ISO_DATE.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
+function isoText(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+/** Inclusive first/last day of the bucket that contains a stored period start. */
+export function resourceUsageBucketBounds(
+  periodStart: string,
+  timescale: ResourceUsageTimescale,
+): { start: string; end: string } | null {
+  const date = isoDate(periodStart);
+  if (!date) return null;
+  if (timescale === "day") return { start: periodStart, end: periodStart };
+  if (timescale === "week") {
+    const start = new Date(date);
+    start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return { start: isoText(start), end: isoText(end) };
+  }
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+  return { start: isoText(start), end: isoText(end) };
+}
+
+/**
+ * Sum already-grouped stored periods into display buckets.
+ *
+ * A period with an unparseable start stays in its own bucket so it is never
+ * silently moved into a bucket whose range would be wrong.
+ */
+export function groupResourceUsageBuckets(
+  groups: readonly ResourceUsageGroup[],
+  timescale: ResourceUsageTimescale,
+  overallocatedStarts: ReadonlySet<string> = new Set(),
+): ResourceUsageBucket[] {
+  const byBucket = new Map<string, {
+    bucketStart: string;
+    bucketEnd: string;
+    periodStarts: string[];
+    assignmentIds: Set<string>;
+    units: string[];
+    costs: string[];
+    overallocated: number;
+  }>();
+  for (const group of groups) {
+    const bounds = resourceUsageBucketBounds(group.periodStart, timescale);
+    const bucketStart = bounds?.start ?? group.periodStart;
+    const bucketEnd = bounds?.end ?? group.periodStart;
+    const key = `${bucketStart}|${bucketEnd}`;
+    const existing = byBucket.get(key) ?? {
+      bucketStart,
+      bucketEnd,
+      periodStarts: [],
+      assignmentIds: new Set<string>(),
+      units: [],
+      costs: [],
+      overallocated: 0,
+    };
+    existing.periodStarts.push(group.periodStart);
+    for (const assignmentId of group.assignmentIds) existing.assignmentIds.add(assignmentId);
+    if (group.demandUnits !== null) existing.units.push(group.demandUnits);
+    if (group.demandCost !== null) existing.costs.push(group.demandCost);
+    if (overallocatedStarts.has(group.periodStart)) existing.overallocated += 1;
+    byBucket.set(key, existing);
+  }
+  return [...byBucket.values()]
+    .sort((left, right) => left.bucketStart.localeCompare(right.bucketStart))
+    .map((bucket) => ({
+      bucketStart: bucket.bucketStart,
+      bucketEnd: bucket.bucketEnd,
+      periodStarts: bucket.periodStarts.sort((left, right) => left.localeCompare(right)),
+      assignmentIds: [...bucket.assignmentIds].sort(),
+      demandUnits: bucket.units.length ? addDecimalText(bucket.units) : null,
+      demandCost: bucket.costs.length ? addDecimalText(bucket.costs) : null,
+      overallocatedPeriods: bucket.overallocated,
+    }));
 }

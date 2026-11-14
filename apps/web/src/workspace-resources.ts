@@ -9,12 +9,15 @@ import { loadCalendarCatalogue } from "./workspace-calendars.js";
 import type { WorkspaceCalendarRecord } from "./workspace-model.js";
 import {
   buildResourceUsage,
+  groupResourceUsageBuckets,
   groupResourceUsagePeriods,
+  RESOURCE_USAGE_TIMESCALES,
   resourceUsageResolveKey,
   summarizeResourceUsageRates,
   type CapacityResolution,
   type ResourceUsageEntry,
   type ResourceUsageStatus,
+  type ResourceUsageTimescale,
 } from "./resource-usage.js";
 
 export const RESOURCE_API_VERSION = "p6-resource-api.v1";
@@ -635,6 +638,7 @@ type PageState = {
   usagePeriodsLoaded: boolean;
   usageResolutions: Map<string, CapacityResolution>;
   usageRequestToken: number;
+  usageTimescale: ResourceUsageTimescale;
 };
 
 function emptyDraft(): ResourceInput {
@@ -691,6 +695,7 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     usagePeriodsLoaded: false,
     usageResolutions: new Map<string, CapacityResolution>(),
     usageRequestToken: 0,
+    usageTimescale: "day",
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -1044,7 +1049,51 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
     const rows = entries.map((entry) => `<tr data-resource-usage-row data-period-start="${escapeHtml(entry.periodStart)}" data-status="${escapeHtml(entry.status)}"><td>${escapeHtml(entry.periodStart)}</td><td>${escapeHtml(entry.demandUnits ?? "—")}</td><td>${escapeHtml(entry.demandCost ?? "—")}</td><td>${entry.assignmentIds.length}</td><td>${escapeHtml(entry.unitsPerTime ?? "—")}</td><td>${escapeHtml(entry.basis ?? "—")}</td><td>${escapeHtml(entry.capacity ?? "—")}</td><td>${escapeHtml(entry.excess ?? "—")}</td><td>${escapeHtml(usageStatusLabel(entry.status))}</td></tr>`).join("");
     const overallocated = entries.filter((entry) => entry.status === "overallocated").length;
     const compared = entries.filter((entry) => entry.status === "overallocated" || entry.status === "within").length;
+    const overallocatedStarts = new Set(
+      entries.filter((entry) => entry.status === "overallocated").map((entry) => entry.periodStart),
+    );
+    const buckets = groupResourceUsageBuckets(groups, state.usageTimescale, overallocatedStarts);
+    const maxDemand = buckets.reduce((highest, bucket) => {
+      const value = bucket.demandUnits === null ? 0 : Number(bucket.demandUnits);
+      return Number.isFinite(value) && value > highest ? value : highest;
+    }, 0);
+    const timescaleOptions: readonly [ResourceUsageTimescale, string][] = [
+      ["day", say("Day", "روز")],
+      ["week", say("Week", "هفته")],
+      ["month", say("Month", "ماه")],
+    ];
+    const bars = buckets.map((bucket) => {
+      const demand = bucket.demandUnits ?? "—";
+      const numeric = bucket.demandUnits === null ? 0 : Number(bucket.demandUnits);
+      const height = maxDemand > 0 && Number.isFinite(numeric) ? Math.max(2, Math.round((numeric / maxDemand) * 100)) : 0;
+      const label = state.usageTimescale === "day"
+        ? bucket.bucketStart
+        : state.usageTimescale === "week"
+          ? `${bucket.bucketStart} → ${bucket.bucketEnd}`
+          : bucket.bucketStart.slice(0, 7);
+      const periods = bucket.periodStarts.length;
+      const title = say(
+        `${bucket.bucketStart} to ${bucket.bucketEnd}: ${demand} stored units from ${periods} stored period(s)` +
+          (bucket.overallocatedPeriods ? `, ${bucket.overallocatedPeriods} overallocated` : ""),
+        `${bucket.bucketStart} تا ${bucket.bucketEnd}: ${demand} واحد ذخیره‌شده از ${periods} دورهٔ ذخیره‌شده` +
+          (bucket.overallocatedPeriods ? `، ${bucket.overallocatedPeriods} اضافه‌تخصیص` : ""),
+      );
+      return `<div class="cp-usage-bar${bucket.overallocatedPeriods ? " is-overallocated" : ""}" data-resource-usage-bar data-bucket-start="${escapeHtml(bucket.bucketStart)}" data-bucket-end="${escapeHtml(bucket.bucketEnd)}" data-demand="${escapeHtml(demand)}" data-periods="${periods}" title="${escapeHtml(title)}">
+        <span class="cp-usage-bar-track"><span class="cp-usage-bar-fill" style="height:${height}%"></span></span>
+        <span class="cp-usage-bar-value">${escapeHtml(demand)}</span>
+        <span class="cp-usage-bar-label">${escapeHtml(label)}</span>
+      </div>`;
+    }).join("");
+    const chart = `<div class="cp-usage-chart-head"><strong>${escapeHtml(say("Stored usage profile", "نمای استفادهٔ ذخیره‌شده"))}</strong><label>${escapeHtml(say("Timescale", "مقیاس زمانی"))}<select data-resource-usage-timescale>${timescaleOptions.map(([value, label]) => `<option value="${value}" ${state.usageTimescale === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label></div>
+      <div class="cp-usage-chart" data-resource-usage-chart data-timescale="${state.usageTimescale}" role="img" aria-label="${escapeHtml(say("Stored demand units per display bucket", "واحد تقاضای ذخیره‌شده در هر بازهٔ نمایش"))}">
+        <div class="cp-usage-chart-bars">${bars}</div>
+      </div>
+      <p class="cp-calendar-hint" data-resource-usage-chart-hint>${escapeHtml(say(
+        "Each bar sums the stored period values whose start falls in the bucket. A stored amount is never spread across days and no bucket width is inferred; overallocation is still evaluated per stored period in the table below.",
+        "هر ستون مقادیر دوره‌های ذخیره‌شده‌ای را جمع می‌زند که شروع آن‌ها در آن بازه قرار دارد. مقدار ذخیره‌شده هرگز در روزها پخش نمی‌شود و عرض بازه استنتاج نمی‌گردد؛ اضافه‌تخصیص همچنان برای هر دورهٔ ذخیره‌شده در جدول زیر ارزیابی می‌شود.",
+      ))}</p>`;
     return `<section class="cp-calendar-editor-panel" data-resource-panel="usage">
+      ${chart}
       <div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(say("Period Start", "شروع دوره"))}</th><th>${escapeHtml(say("Stored Demand Units", "واحد تقاضای ذخیره‌شده"))}</th><th>${escapeHtml(say("Stored Cost", "هزینهٔ ذخیره‌شده"))}</th><th>${escapeHtml(say("Assignments", "تخصیص‌ها"))}</th><th>${escapeHtml(say("Units/Time", "واحد/زمان"))}</th><th>${escapeHtml(say("Basis", "مبنا"))}</th><th>${escapeHtml(say("Resolved Max Units", "حداکثر واحد حل‌شده"))}</th><th>${escapeHtml(say("Excess", "مازاد"))}</th><th>${escapeHtml(say("Status", "وضعیت"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="cp-calendar-hint" data-resource-usage-summary>${escapeHtml(say(
         `${entries.length} stored period(s) · ${compared} compared · ${overallocated} overallocated.`,
@@ -1228,6 +1277,12 @@ export function mountWorkspaceResourcesPage(host: HTMLElement, options: Resource
 
   host.addEventListener("change", (event) => {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
+    if (target.matches("[data-resource-usage-timescale]")) {
+      const value = target.value as ResourceUsageTimescale;
+      state.usageTimescale = RESOURCE_USAGE_TIMESCALES.includes(value) ? value : "day";
+      render();
+      return;
+    }
     if (target.matches("[data-resource-filter]")) {
       state.filter = (target as HTMLSelectElement).value as ResourceFilter;
       render();
