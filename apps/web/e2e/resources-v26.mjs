@@ -136,6 +136,13 @@ const resourcesState = `(() => {
     direction: page ? getComputedStyle(page).direction : null,
     usageSummary: page?.querySelector("[data-resource-usage-summary]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
     usageHint: page?.querySelector("[data-resource-usage-hint]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+    rateForm: page?.querySelector("[data-resource-rate-form]")
+      ? {
+          submitLabel: page.querySelector('[data-resource-rate-form] button[type="submit"]')?.textContent?.trim() ?? null,
+          hint: page.querySelector("[data-resource-rate-hint]")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+          basisOptions: [...page.querySelectorAll('[data-resource-rate-form] [name="rate-basis"] option')].map((option) => option.value),
+        }
+      : null,
     empty: page?.querySelector(".cp-calendar-empty")?.textContent?.trim() ?? null,
     filter: page?.querySelector("[data-resource-filter]")?.value ?? null,
     refreshDisabled: Boolean(page?.querySelector("[data-resource-action=reload]")?.disabled),
@@ -307,6 +314,29 @@ async function readCalendarSnapshot(page, calendarId, calendarVersion) {
   })()`, { awaitPromise: true });
 }
 
+async function fillRateForm(page, { rate, currency, unit, from, close }) {
+  const filled = await page.evaluate(`(() => {
+    const form = document.querySelector("[data-resource-rate-form]");
+    if (!form) return false;
+    const set = (name, value) => {
+      const element = form.querySelector('[name="' + name + '"]');
+      if (!element) return false;
+      element.value = value;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    };
+    set("rate-value", ${JSON.stringify(rate)});
+    set("rate-currency", ${JSON.stringify(currency)});
+    set("rate-unit", ${JSON.stringify(unit)});
+    set("rate-from", ${JSON.stringify(from)});
+    const closeBox = form.querySelector('[name="rate-close"]');
+    if (closeBox) closeBox.checked = ${close ? "true" : "false"};
+    return true;
+  })()`);
+  assert(filled, "the effective-dated rate form is missing");
+}
+
 function field(state, label) {
   return state.fields.find((entry) => entry.label === label)?.value ?? null;
 }
@@ -464,6 +494,43 @@ async function main() {
       assert(JSON.stringify(state.panels.rates[1]) === JSON.stringify(["525", "per_day", "USD", "crew-day", "2026-10-15", "Open-ended"]), `second rate is ${state.panels.rates[1]}`);
       await capture(page, "04-resource-rates");
       return { rates: state.panels.rates };
+    });
+
+    await scenario("04b", "فرم Rates یک تغییر نرخ مؤثر-تاریخ‌دار را ذخیره می‌کند، نرخ باز را می‌بندد و بازهٔ هم‌پوشان را رد می‌کند", async () => {
+      await page.click('[data-resource-tab="rates"]');
+      await page.waitForSelector('[data-resource-rate-form]', "rate form");
+      let state = await page.evaluate(resourcesState);
+      assert(JSON.stringify(state.rateForm?.basisOptions) === JSON.stringify(["per_unit", "per_hour", "per_day", "lump_sum"]), `basis options ${JSON.stringify(state.rateForm?.basisOptions)}`);
+      assert(/not recalculated/.test(state.rateForm?.hint ?? ""), `rate hint ${state.rateForm?.hint}`);
+
+      await fillRateForm(page, { rate: "610", currency: "USD", unit: "crew-day", from: "2026-11-01", close: true });
+      await page.click('[data-resource-rate-form] button[type="submit"]');
+      await page.waitForSelector('[data-resource-notice][data-state="ok"]', "rate save notice", 20000);
+      await sleep(600);
+      state = await page.evaluate(resourcesState);
+      assert(JSON.stringify(state.panels.rates) === JSON.stringify([
+        ["480", "per_day", "USD", "crew-day", "2026-09-21", "2026-10-14"],
+        ["525", "per_day", "USD", "crew-day", "2026-10-15", "2026-10-31"],
+        ["610", "per_day", "USD", "crew-day", "2026-11-01", "Open-ended"],
+      ]), `rates after change ${JSON.stringify(state.panels.rates)}`);
+      assert(/Rate 610 stored effective 2026-11-01/.test(state.notice?.text ?? ""), `notice ${state.notice?.text}`);
+      assert(/previous open-ended rate now ends 2026-10-31/.test(state.notice?.text ?? ""), `superseded notice ${state.notice?.text}`);
+      let api = await readApi(page);
+      const stored = api.rates.filter((item) => item.resource_id === "RPS-CIVIL-CREW").map((item) => [item.rate, item.effective_from, item.effective_to]);
+      assert(JSON.stringify(stored) === JSON.stringify([["480", "2026-09-21", "2026-10-14"], ["525", "2026-10-15", "2026-10-31"], ["610", "2026-11-01", null]]), `API rates ${JSON.stringify(stored)}`);
+
+      await fillRateForm(page, { rate: "700", currency: "USD", unit: "crew-day", from: "2026-12-01", close: false });
+      await page.click('[data-resource-rate-form] button[type="submit"]');
+      await page.waitForSelector('[data-resource-notice][data-state="error"]', "rate overlap notice", 20000);
+      await sleep(400);
+      state = await page.evaluate(resourcesState);
+      assert(/overlaps a stored rate/.test(state.notice?.text ?? ""), `overlap notice ${state.notice?.text}`);
+      assert(/RATE_INTERVALS_OVERLAP/.test(state.notice?.text ?? ""), `overlap code ${state.notice?.text}`);
+      assert(state.panels.rates.length === 3, `rows after rejected change ${state.panels.rates.length}`);
+      api = await readApi(page);
+      assert(api.rates.filter((item) => item.resource_id === "RPS-CIVIL-CREW").length === 3, "the rejected change was stored");
+      await capture(page, "04b-resource-rate-change");
+      return { rates: state.panels.rates, rejected: state.notice?.text ?? null };
     });
 
     await scenario("05", "تب Assignments همان تخصیص‌های ذخیره‌شده را نشان می‌دهد و Refresh ثبت را دوباره از سرور می‌خواند", async () => {
@@ -845,7 +912,16 @@ async function main() {
       assert(bounds.left >= -1 && bounds.right <= bounds.width + 1, `usage panel overflows horizontally: ${JSON.stringify(bounds)}`);
       assert(bounds.bottom <= bounds.height + 1, `usage panel overflows vertically: ${JSON.stringify(bounds)}`);
       await capture(page, "13-resource-usage-fa");
-      return { direction: state.direction, summary: state.usageSummary };
+      await page.click('[data-resource-tab="rates"]');
+      await page.waitForSelector("[data-resource-rate-form]", "Persian rate form", 20000);
+      await sleep(300);
+      const ratesState = await page.evaluate(resourcesState);
+      assert(ratesState.direction === "rtl", `rate form direction ${ratesState.direction}`);
+      assert(ratesState.rateForm?.submitLabel === "افزودن تغییر نرخ", `Persian rate submit ${ratesState.rateForm?.submitLabel}`);
+      assert(/بازمحاسبه نمی‌شوند/.test(ratesState.rateForm?.hint ?? ""), `Persian rate hint ${ratesState.rateForm?.hint}`);
+      assert(ratesState.panels.rates.length === 3, `Persian rate rows ${ratesState.panels.rates.length}`);
+      await capture(page, "14-resource-rates-fa");
+      return { direction: state.direction, summary: state.usageSummary, rateRows: ratesState.panels.rates.length };
     });
 
     assert(exceptions.length === 0, `uncaught page exceptions: ${JSON.stringify(exceptions.slice(0, 3))}`);
