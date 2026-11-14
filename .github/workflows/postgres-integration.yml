@@ -190,6 +190,13 @@ on:
       - "src/construction_pm/enterprise_organization_access_repository.py"
       - "tests/test_enterprise_organization_access.py"
       - "tests/integration/test_enterprise_organization_access_postgres_live.py"
+      - "src/construction_pm/enterprise_project_access.py"
+      - "src/construction_pm/enterprise_project_access_http.py"
+      - "src/construction_pm/postgres_project_lifecycle.py"
+      - "src/construction_pm/deployment/schema.py"
+      - "src/construction_pm/deployment/production_runtime.py"
+      - "tests/integration/test_enterprise_project_access_postgres_live.py"
+      - "tests/test_enterprise_project_access.py"
 
 jobs:
   postgres:
