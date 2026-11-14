@@ -78,6 +78,7 @@ class EnterpriseOrganizationAccessRepository(Protocol):
     def remove_member(self, tenant_id: str, team_id: str, user_id: str, *, actor_id: str, expected_revision: int, occurred_at: datetime) -> EnterpriseTeamMembership: ...
     def transfer_ownership(self, tenant_id: str, team_id: str, current_owner_id: str, new_owner_id: str, *, expected_team_revision: int, occurred_at: datetime) -> EnterpriseTeam: ...
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]: ...
+    def list_members(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]: ...
 
 
 class EnterpriseOrganizationAccessService:
@@ -156,6 +157,12 @@ class EnterpriseOrganizationAccessService:
     def list_my_teams(self, session_id: str) -> tuple[EnterpriseTeam, ...]:
         session = self._session(session_id)
         return self._repository.list_teams_for_user(session.tenant_id, session.user_id)
+
+    def list_members(self, session_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        self._require_manager(session, team)
+        return self._repository.list_members(session.tenant_id, team_id)
 
     def transfer_ownership(
         self, session_id: str, team_id: str, new_owner_user_id: str,
