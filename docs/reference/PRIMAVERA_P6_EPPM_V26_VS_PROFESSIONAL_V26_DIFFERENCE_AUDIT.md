@@ -268,3 +268,227 @@ For the future EPPM MENU concept, the most relevant EPPM enterprise capabilities
 10. API-backed integrations and data provenance.
 
 This is a product-design input only. Do not implement these modules, alter the current Project Control Workspace, or modify Professional V26 parity work under this audit. Any future EPPM MENU scope requires separate explicit approval and a dedicated implementation plan.
+
+
+
+---
+
+# Version 26 source-level comparison — expanded verified findings
+
+**Review update:** 2026-11-14. This section records direct review of the two official Help topic trees, selected feature pages, and the official Version 26 guide catalogues. It supersedes any earlier implication that the initial 20 candidates constituted a complete review.
+
+## A. Exact source inventory and documentation-set boundary
+
+| Source | Oracle Version 26 evidence | What can be stated |
+|---|---|---|
+| EPPM Help topic tree | https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm — 825 rendered TOC lines | EPPM Help has a distinct web/application-oriented topic tree. TOC line count is not a page count. |
+| Professional Help topic tree | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm — 984 rendered TOC lines | Professional Help has a distinct desktop/client-oriented topic tree. TOC line count is not a page count. |
+| EPPM all-guides catalogue | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/books.html | Includes EPPM Application Administration, Identity Management Administration, Data Dictionary, Extended Schema, EPPM Reporting, REST API, SOAP Web Services Programming and Reference, Team Member Help, Import/Export Data Maps and Integration guides. |
+| Professional all-guides catalogue | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html | Lists Professional Administration, Help, Licensing, Reporting, User Guide and P6 Visualizer Help. |
+
+**Counting rule:** 825 and 984 are rendered TOC line counts, not unique page/topic counts and not PDF page counts. The earlier “815-page” description is not validated by those numbers. The exact number of topic pages requires crawling each link target and deduplicating canonical URLs. This audit does not mislabel TOC lines as pages.
+
+**Corpus correction remains in force:** the existing CUBI Knowledge V26 corpus described in SOURCE_STATUS is the Professional help/user-guide corpus, not an EPPM Help ingestion. EPPM source identity and ingestion need to be separate.
+
+## B. Confirmed direction-specific markers in Professional Help
+
+The Professional V26 Help itself explicitly labels the following topic groups. This is stronger evidence than absence from a TOC.
+
+### B1. EPPM-only labels exposed in Professional Help
+
+| Finding | Exact Professional Help topic label | Classification | Implication |
+|---|---|---|---|
+| EPPM-ONLY-01 | “Designating an activity owner (P6 EPPM Only)” | EPPM_ONLY_CONFIRMED | Activity ownership workflow is not a generic Professional desktop capability. |
+| EPPM-ONLY-02 | “Change an activity's cost breakdown structure assignment (P6 EPPM Only)” | EPPM_ONLY_CONFIRMED | CBS assignment is an EPPM-specific activity workflow in this client help context. |
+| EPPM-ONLY-03 | “Using Reflection projects and Activity Owner features to collect and review activity status (P6 EPPM Only)” | EPPM_ONLY_CONFIRMED | Reflection-based status collection/review must not be conflated with ordinary project copy/what-if workflows. |
+| EPPM-ONLY-04 | Tools > Approvals; “Timesheets overview” and approve/reject/delegate actions under “Approvals (P6 EPPM Only)” | EPPM_ONLY_CONFIRMED | The EPPM approval workflow is explicitly distinguished in Professional Help. |
+| EPPM-ONLY-05 | “Set the Industry Type (P6 EPPM Only)” | EPPM_ONLY_CONFIRMED | Industry-type administration is EPPM-specific in this documented context. |
+| EPPM-ONLY-06 | “Working With Oracle Primavera Cloud (P6 EPPM Only)” and Gateway exchange | EPPM_ONLY_CONFIRMED | EPPM-specific product integration workflow; distinguish from general P6 data exchange. |
+| EPPM-ONLY-07 | “Primavera Cache Service (P6 EPPM Only)” including cloud cache, offline work and synchronization | EPPM_ONLY_CONFIRMED | Cloud Connect local cache is a separate Professional deployment capability, not the EPPM browser UI. |
+| EPPM-ONLY-08 | “Linking Primavera Unifier data (P6 EPPM only)” and schedule/summary/activity sheet exchanges | EPPM_ONLY_CONFIRMED | The documented integration path is EPPM-scoped; do not imply every Unifier exchange is the same in both clients. |
+
+Source: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm (topic tree sections “Activities”, “Reflection”, “Tools”, “Administration”, and “Reference”).
+
+### B2. Professional-only labels exposed in Professional Help
+
+| Finding | Exact Professional Help topic group | Classification | Important caveat |
+|---|---|---|---|
+| PRO-ONLY-01 | Adding and Assigning Risks (P6 Professional Only) | PROFESSIONAL_ONLY_CONFIRMED for this desktop Risks feature | EPPM separately documents Enterprise Risk Data, Project Risks, scoring matrices, thresholds, categories and response plans. Risk as a business domain is not Professional-only. |
+| PRO-ONLY-02 | Performing Top-down Estimation; prior-experience/function-point methods and saved estimates | PROFESSIONAL_ONLY_CONFIRMED | Do not confuse this with WBS top-down planning or cost/effort estimation in other products. |
+| PRO-ONLY-03 | Job Services and configuring a job service (P6 Professional Only) | PROFESSIONAL_ONLY_CONFIRMED for this named Professional feature | EPPM has separate Project Scheduled Services and Publication Services; they are not automatically equivalent to desktop Job Services. |
+| PRO-ONLY-04 | Administrative Preferences (including invalid upload types, global code separator, week start, default activity duration, hierarchy/code/baseline limits, default workhours and default EV settings) | PROFESSIONAL_ONLY_CONFIRMED for those named client administration settings | EPPM has Application Settings; compare each setting separately rather than assuming all admin settings are absent. |
+| PRO-ONLY-05 | Administrative Categories (baseline types, expense categories, WBS categories, document categories/statuses, risk categories, notebook topics, units of measure) | PROFESSIONAL_ONLY_CONFIRMED for this Professional administration menu set | EPPM has Enterprise Data dictionaries; entity overlap does not prove identical administration surface. |
+| PRO-ONLY-06 | Defining Currencies and Managing Financial Periods | PROFESSIONAL_ONLY_CONFIRMED for the documented Professional administration workflows | EPPM currency/time-period preferences and period-performance features are separate; compare data model and workflow. |
+| PRO-ONLY-07 | Managing User Security, Resource Security and EPS-level Activity Code Security | PROFESSIONAL_ONLY_CONFIRMED for the Professional client administration workflows as labelled | EPPM has its own User Access, OBS, module access, resource access, global/project security profiles and UI views. Do not infer EPPM has no security model. |
+| PRO-ONLY-08 | Admin Menu and Administrator Toolbar (P6 Professional Only) | PROFESSIONAL_ONLY_CONFIRMED for desktop UI surface | EPPM administration is delivered through web Administration pages and separate identity-management tooling. |
+| PRO-ONLY-09 | Set global summarization options (P6 Professional Only) | PROFESSIONAL_ONLY_CONFIRMED for this Professional setting | EPPM Application Settings documents Summarization Periods; the controls and services differ. |
+
+Source: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm (TOC topics labelled “P6 Professional Only”).
+
+## C. Capability-by-capability product comparison
+
+Legend:
+- **EPPM web/enterprise** means a documented EPPM application capability; it does not necessarily mean Professional cannot access the same underlying EPPM database entity.
+- **Professional desktop** means a documented Professional client workflow.
+- **Different surface** means a related function exists in both products but actors, UI, configuration, service architecture or workflow differ.
+- **Conditional** means licensing, deployment, configuration, connected services or modules must be checked.
+
+| ID | Capability area | EPPM V26 Help / guide evidence | Professional V26 Help / guide evidence | Result |
+|---|---|---|---|---|
+| CMP-001 | Primary application surface | Browser-based P6 web application; EPPM Help has dashboard, portfolio, project and administration pages | Windows desktop client with windows, toolbars, menu customization, layouts and Visualizer | BOTH_DIFFERENT_SURFACE |
+| CMP-002 | Dashboards | User, multi-user and global dashboards; dashboard creator controls content/layout/access; dashboard data appears in portlets | No equivalent EPPM-style dashboard-home/portlet model in the Professional desktop TOC | EPPM_WEB_CAPABILITY; exact client parity not established |
+| CMP-003 | Portlets | Expandable themed windows; show data by association, ownership or filters; shared dashboards support centralized collaboration | Professional uses windows, layouts, tracking layouts and reports rather than the EPPM dashboard portlet container | EPPM_WEB_CAPABILITY |
+| CMP-004 | Portfolio objects | User, multi-user and global portfolios; summary/status of multiple projects; portfolio views and scorecards | Professional supports portfolio creation, adding/removing projects, users and portfolio details | BOTH_SHARED with DIFFERENT_SURFACE in analysis/visualization |
+| CMP-005 | Portfolio analysis | Portfolio views include scorecards, bubble charts, pie charts, histograms and What-if Analysis | Professional supports what-if projects and portfolio membership; no same EPPM web portfolio-view analysis chapter in its TOC | BOTH_DIFFERENT_SURFACE |
+| CMP-006 | Capacity Planning | Dedicated EPPM Capacity Planning page and role allocation analysis | Professional resource/role assignments and resource analysis; no same named EPPM capacity page in TOC | BOTH_DIFFERENT_SURFACE |
+| CMP-007 | EPS / project structure | EPS and project management via web pages | EPS and project management via desktop windows | BOTH_SHARED |
+| CMP-008 | WBS | EPPM WBS pages, milestones, categories and EV | Professional WBS chart/table, weighted milestones, categories and EV | BOTH_SHARED |
+| CMP-009 | Activities and relationships | EPPM activity pages and browser interaction | Rich desktop Activity Table, Network, Gantt, trace logic and activity detail workflows | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-010 | Scheduling engine controls | EPPM scheduling page exposes general/advanced options and schedule actions | Professional schedule dialog exposes schedule options and desktop scheduling workflows | BOTH_SHARED; exact option-by-option parity needs a separate scheduler-options diff |
+| CMP-011 | Multiple float paths / critical path | EPPM has critical activity and float topics | Professional has multiple critical float path, trace logic and critical path topics | BOTH_SHARED; verify calculation-option equivalence separately |
+| CMP-012 | Resource and role assignments | EPPM assignment, staffing, resource teams, role teams and capacity/resource analysis | Professional assignment, rate type/source, curves, future period buckets, resource explorer and profiles | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-013 | Resource analysis | EPPM Resource Analysis, role/resource usage and unstaffed activity assignment | Professional Resource Analysis layouts, Project Gantt/Profile, Resource Explorer and dynamic leveling | BOTH_DIFFERENT_SURFACE |
+| CMP-014 | Team Member Web/Mobile | Separate Team Member Web/mobile status and time reporting applications; own Help guide | Professional desktop is a full planning client, not the Team Member Web/mobile UI | EPPM_ECOSYSTEM_CAPABILITY; separate Team Member product documentation |
+| CMP-015 | Email Statusing | EPPM email status service for activity updates and email notifications | Professional can participate in EPPM connected workflows; Help describes EPPM-only workflows in client context | EPPM_SERVICE_CAPABILITY; deployment-dependent |
+| CMP-016 | Activity Owner | Explicit EPPM-only marker in Professional Help | Professional Help marks feature EPPM Only | EPPM_ONLY_CONFIRMED |
+| CMP-017 | Reflection status review | EPPM status updates, reviewers, accept/reject/override/hold and history | Professional Help marks Reflection + Activity Owner status collection EPPM Only | EPPM_ONLY_CONFIRMED |
+| CMP-018 | Timesheets | EPPM Timesheets, approvals/rejections, delegates, resource configuration and Team Member reporting | Professional Help marks Approvals/Timesheet approval workflow EPPM Only | EPPM_ONLY_CONFIRMED for approval workflow |
+| CMP-019 | Issues | EPPM issue pages and project issue workflows | Professional issue creation, responsibility, tracking layouts, history and email | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-020 | Thresholds | EPPM performance thresholds and project health metrics | Professional thresholds and threshold-generated issues | BOTH_SHARED |
+| CMP-021 | Risks | Enterprise risk data, scoring matrices, categories, thresholds, project risks, response plans and OPC sharing | Separate Professional Risks feature explicitly marked P6 Professional Only | BOTH_DIFFERENT_SURFACE; separate risk models |
+| CMP-022 | Documents without repository | EPPM document records can be maintained without content repository | Professional Work Products and Documents stores records and location references | BOTH_SHARED; DIFFERENT_STORAGE_MODEL |
+| CMP-023 | Managed document repository | EPPM Content Repository supports templates, document storage, check-in/out and document review flows | Professional Help describes document records and location references; not the same managed web repository/review model | EPPM_WEB_CAPABILITY; deployment/configuration-dependent |
+| CMP-024 | Document reviews | EPPM document review workflows and dashboard portlets | No matching document-review workflow in Professional Help TOC | EPPM_WEB_CAPABILITY |
+| CMP-025 | Project scheduled/publication services | EPPM Application Settings, publication services, project scheduled services and published reporting data | Professional has report publishing, Project Website Publisher and desktop Job Services | BOTH_DIFFERENT_SURFACE |
+| CMP-026 | Desktop Job Services | EPPM has separate server-side scheduled/publication services | Job Services explicitly marked P6 Professional Only | PROFESSIONAL_ONLY_CONFIRMED for named feature |
+| CMP-027 | Audit | EPPM has Table Auditing, audit settings and viewing audit data | Professional Help includes consent auditing and desktop administrative topics; does not show same EPPM table-audit workflow | EPPM_WEB/ADMIN CAPABILITY; inspect audit data model and retention |
+| CMP-028 | Enterprise user access | EPPM creates accounts and assigns module access, OBS, resource access, global/project security profiles and UI views | Professional Help includes client user security, resource security, global/project profiles, and administrative access controls; some are Professional Only | BOTH_DIFFERENT_SURFACE |
+| CMP-029 | Identity management | EPPM guide catalogue has separate Identity Management Administration Guide for users, personal info, companies and passwords | Professional guide catalogue has Professional Administration Guide; identity-management guide not listed in Professional set | EPPM_PLATFORM/DEPLOYMENT CAPABILITY |
+| CMP-030 | User Interface Views | EPPM admin can create/configure UI Views and assign to users | Professional offers layouts, user preferences and menu/toolbar customization | BOTH_DIFFERENT_SURFACE |
+| CMP-031 | REST API | Dedicated EPPM REST API Release 26 with endpoint catalogue | No Professional REST API guide in the published Professional Version 26 all-guides list | EPPM_DOCUMENTED_API_SURFACE; do not infer all client internals are API-only |
+| CMP-032 | SOAP Web Services | Dedicated EPPM SOAP Web Services Programming and Reference Guides | No corresponding Professional SOAP guide in the Professional all-guides list | EPPM_DOCUMENTED_INTEGRATION_SURFACE |
+| CMP-033 | Data Dictionary | Dedicated EPPM Data Dictionary | No corresponding Professional Data Dictionary guide listed in the Professional guide catalogue | EPPM_DOCUMENTED_DATA_REFERENCE |
+| CMP-034 | Extended Schema | Dedicated EPPM Extended Schema guide for reporting views | Professional has its own reporting guide; no matching Extended Schema guide listed in Professional catalogue | EPPM_REPORTING_DATA_SURFACE |
+| CMP-035 | Reporting | EPPM Reporting Guide covers sample reports, publication services and table auditing | Professional Reporting Guide covers configuring/running desktop reports; P6 Visualizer provides Gantt and Timescaled Logic Diagrams | BOTH_DIFFERENT_SURFACE |
+| CMP-036 | Import/export | EPPM guides include XER Project/Resource/Role maps, XLSX, XML, MPX, UN/CEFACT, IPMDAR, CPP and Unifier Schedule Sheet maps | Professional Help has import/export workflows and Professional reporting/desktop tooling; guide catalogue has no equivalent list of EPPM mapping guides | BOTH_DIFFERENT_SURFACE; exact field maps differ |
+| CMP-037 | Primavera Unifier integration | EPPM documents schedule, summary and activity sheet integrations, CBS mapping and Gateway configuration | Professional Help labels Unifier linking workflow P6 EPPM Only; Professional may participate in initiating an exchange after setup for certain activity-sheet flows | EPPM_INTEGRATION_CONFIRMED; nuanced client participation |
+| CMP-038 | Oracle Primavera Cloud integration | EPPM supports scope, tasks, enterprise risk and Gateway transfer; Help describes send/return workflows | Professional Help labels OPC/Gateway workflow P6 EPPM Only | EPPM_ONLY_CONFIRMED for documented integration flow |
+| CMP-039 | Primavera Gateway | EPPM documents Gateway configuration and data flows for Unifier/OPC integrations | Professional reference topics mark the related EPPM integration paths as EPPM Only | EPPM_INTEGRATION_CAPABILITY |
+| CMP-040 | Cloud cache/offline | EPPM has Team Member and web client services; it is not the Professional local cache feature | Professional Help documents Primavera Cache Service, offline work and Cloud Connect local synchronization as EPPM-only scoped reference feature | PROFESSIONAL_CLIENT_DEPLOYMENT_FEATURE within EPPM ecosystem |
+| CMP-041 | Project templates | EPPM templates and project creation in browser | Professional templates and desktop project workflows | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-042 | Global Change | EPPM has web Global Search & Replace templates and enterprise global data search/replace | Professional has Global Change specifications, expressions, arithmetic, import/export | BOTH_DIFFERENT_SURFACE; do not equate Global Search & Replace and Global Change |
+| CMP-043 | Store Period Performance | EPPM stores period performance via web workflow | Professional has Store Period Performance, post actuals and past-period editing | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-044 | Future Period Planning | EPPM has Future Period Planning layout and assignment period editing | Professional has manual future-period bucket planning and extensive FAQ/workflows | BOTH_SHARED; DIFFERENT_SURFACE |
+| CMP-045 | Admin dictionaries | EPPM Enterprise Data pages include global dictionaries and user access configuration | Professional Administrative Categories menu and separate currencies/financial periods are explicitly Professional-only | BOTH_DIFFERENT_SURFACE |
+| CMP-046 | Industry-specific field naming/type | EPPM Help supports industry-specific field names; Professional Help exposes Set Industry Type as EPPM Only | Professional can consume displayed names when connected but cannot use the EPPM-only administration control as a standalone feature | EPPM_ONLY_CONFIRMED for industry-type setting |
+| CMP-047 | User preferences | EPPM global/view preferences, My Calendar, notifications and password/session settings | Professional client preferences include date/time/currency, email, startup, calculations and local UI settings | BOTH_DIFFERENT_SURFACE |
+| CMP-048 | Consent / personal information | EPPM consent and auditing topics cover P6, Team Member and Professional clients | Professional has its own personal-information and consent topics | BOTH_SHARED; deployment-specific handling |
+| CMP-049 | Visualizer | EPPM can provide visual/project information in web portlets and dashboards | Dedicated P6 Visualizer Help in Professional guide set, including Gantt and Timescaled Logic Diagrams | PROFESSIONAL_CLIENT_CAPABILITY |
+| CMP-050 | Project Website Publisher | EPPM web publication/report services | Professional Help documents Project Website schemes and publishing reports to a website | BOTH_DIFFERENT_SURFACE |
+| CMP-051 | Standalone / Cloud Connect modes | EPPM is server/web application deployment | Professional explicitly documents Standalone and Cloud Connect | PROFESSIONAL_DEPLOYMENT_CAPABILITY |
+| CMP-052 | Remote project check-in/out | EPPM project access is server-side and browser-oriented | Professional Help documents remote projects, check out to XML/local database and check-in workflows | PROFESSIONAL_CLIENT_CAPABILITY |
+| CMP-053 | Undo and local editing ergonomics | EPPM Help has undoing mistakes in web pages | Professional has Undo reference topic and extensive desktop clipboard/table/toolbar behavior | BOTH_DIFFERENT_SURFACE |
+| CMP-054 | Desktop menu/toolbar customization | EPPM web interface is browser-based and uses preferences/views | Professional offers customizable menus, toolbars, icons and menu commands | PROFESSIONAL_CLIENT_CAPABILITY |
+| CMP-055 | User-defined fields | EPPM has project/resource/activity/risk UDF workflows | Professional has UDFs in project/resource/activity and related areas | BOTH_SHARED; field support differs by entity/API |
+| CMP-056 | Code dictionaries | EPPM has project/resource/role/assignment codes and values | Professional has project/resource/role/activity codes and values, including colors | BOTH_SHARED; compare scope and field support |
+| CMP-057 | Cost Breakdown Structure | EPPM CBS assignment and Unifier cost integration | Professional Help marks activity CBS assignment EPPM Only | EPPM_ONLY_CONFIRMED for the named activity assignment operation |
+| CMP-058 | Performance metrics / health | EPPM dashboards include project health, CPI/SPI/TCPI and thresholds | Professional has earned value and project analysis reports/profiles | BOTH_SHARED; DIFFERENT_PRESENTATION |
+| CMP-059 | Email notifications | EPPM email notifications cover documents, issues, timesheets, managers/resources and status updates | Professional can configure email settings and send email about issues; several EPPM status services remain separate | BOTH_DIFFERENT_SURFACE |
+| CMP-060 | Resource teams | EPPM has Resource Teams and dashboard/resource-team notification workflows | Professional has resource hierarchy/security and assignments, but not equivalent EPPM team-member distribution workflow in same surface | EPPM_WEB_CAPABILITY; compare exact entities |
+ 
+## D. Corrections to the initial 30-item list
+
+1. **Risk management is not simply EPPM-only.** EPPM has Enterprise Risk Management and project risk response plans; Professional labels its own desktop Risks feature Professional Only. The correct comparison is two related but different risk feature sets.
+2. **Timesheets are not simply absent from Professional.** Professional Help contains EPPM-only Approvals/Timesheet workflow. The EPPM application and Team Member help describe timesheet submission and approvals. This is an EPPM workflow that can be surfaced in a Professional client connected to EPPM; it is not an isolated product database feature.
+3. **Unifier is not a simple yes/no integration.** The EPPM help documents three sheet integration types and Gateway configuration. It notes that after the first exchange for activity sheets, exchange can be initiated from P6, P6 Professional or Unifier. The integration remains EPPM-scoped while a Professional client can participate in a configured flow.
+4. **Job Services are not equivalent to Project Scheduled Services.** Professional Job Services are explicitly Professional Only. EPPM uses server-side project scheduled/publication services.
+5. **Documents are not binary.** Professional Work Products and Documents can reference document locations. EPPM additionally documents a managed Content Repository and review workflows. Both have document-related capability, but the storage/workflow models differ.
+6. **Portfolios are not EPPM-only.** Professional documents portfolio objects and project membership. EPPM adds web portfolio analysis views, scorecards and portlets.
+7. **P6 Professional is not the EPPM web UI.** A Professional client can connect to an EPPM database and invoke certain EPPM-backed functions, but that does not make browser dashboards, Team Member, server publication, web user administration or portlet functionality part of the desktop client.
+8. **The guide catalogues are different evidence sets.** EPPM has separately published API, schema, Data Dictionary, Team Member, SOAP, data-map and identity-management guides. Professional has separate Administration, Reporting, User, Licensing and Visualizer guides. A guide not listed in the other catalogue is a documented-guide difference, not by itself proof that no underlying feature/API exists.
+
+## E. EPPM guide inventory for integration and data contracts
+
+The Version 26 EPPM catalogue explicitly lists:
+- Identity Management Administration Guide
+- P6 EPPM Application Administration Guide
+- P6 EPPM Client System Requirements
+- CPP Import/Export Data Map Guide
+- P6 EPPM Data Dictionary
+- P6 EPPM Extended Schema Guide
+- P6 EPPM Help
+- P6 EPPM Importing and Exporting Guide
+- IPMDAR Import/Export Data Map Guide
+- Licensing Information User Manual
+- Microsoft Project MPX and XML Data Map Guides
+- P6 EPPM Reporting Guide
+- P6 EPPM REST API Release 26
+- UN/CEFACT Import/Export Data Map Guide
+- Unifier Schedule Sheet Data Map Guide
+- P6 EPPM User Guide
+- P6 EPPM Virtual Desktop User Guide
+- P6 EPPM Web Services Programming Guide
+- P6 EPPM Web Services Reference Guide
+- XER Project, Resource Only and Role Only Data Map Guides
+- XLSX Import/Export Data Map Guide
+- P6 Team Member Help
+- What's New
+
+The Professional Version 26 catalogue lists:
+- P6 EPPM Client System Requirements
+- P6 Professional Administration Guide
+- P6 Professional Help
+- P6 Professional Licensing Information User Manual
+- P6 Professional Reporting Guide
+- P6 Professional User Guide
+- P6 Visualizer Help
+
+This catalogue comparison is verified at:
+- https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/books.html
+- https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html
+
+## F. Direct topic-page evidence reviewed
+
+- EPPM “About Dashboards”: https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm — defines user, multi-user and global dashboards, ownership and access.
+- EPPM “About Portlets”: https://docs.oracle.com/cd/G48897_01/p6help/en/36613_1.htm — portlets are dashboard-only expandable themed windows, with data based on association, ownership or filters.
+- EPPM “About Portfolios”: https://docs.oracle.com/cd/G48897_01/p6help/en/6611.htm — portfolio grouping, sharing and summary/status analysis.
+- EPPM “Working With Primavera Unifier”: https://docs.oracle.com/cd/G48897_01/p6help/en/78769.htm — schedule, summary and activity sheets; CBS; Gateway; prerequisites and caveats.
+- EPPM “Working With Oracle Primavera Cloud”: https://docs.oracle.com/cd/G48897_01/p6help/en/88851.htm — scope, risk, task and portfolio integration and transfer-back flow.
+- EPPM Application Administration Guide: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-app-admin/index.html
+- EPPM Data Dictionary: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-dd/index.html
+- EPPM Extended Schema: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ext-schema/index.html
+- EPPM Reporting Guide: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-reports/index.html
+- EPPM REST API Release 26: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/
+- EPPM SOAP Programming Guide: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-prog/index.html
+- EPPM SOAP Reference Guide: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/index.html
+- EPPM Team Member Help: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-tm/index.html
+
+## G. Status, completeness and what “done” means
+
+**Completed in this update:** official Version 26 Help TOC structures compared; selected high-impact EPPM topic pages opened; both official guide catalogues compared; direction-specific Oracle product labels captured; 60 capability areas classified at product-surface level; major false positives in the first pass corrected.
+
+**Not represented as complete:** an exhaustive page-by-page content diff of every Help topic and every page of all companion guides. The web-rendered TOCs expose topic links, but this review did not fetch, hash and semantically diff every one of the 825/984 TOC lines and every linked guide page. The 60 rows are a substantial product capability comparison, not proof that every field, button, permission, validation, endpoint and import/export field has been compared.
+
+For the remaining deep technical closure, use separate child matrices:
+1. Scheduling options and calculation semantics (all schedule dialog options, defaults and constraints).
+2. Data dictionary / Extended Schema / API field-level mapping.
+3. Import/export format and field-by-field mapping.
+4. Security privileges, module access, OBS and resource access matrix.
+5. Reporting / publication / scheduled services and audit semantics.
+6. Team Member / timesheet / status update lifecycle and role matrix.
+7. Document repository and document review lifecycle.
+8. Risk model and response-plan schema.
+
+Each child matrix must contain exact topic/page URL, exact field/operation, product support, prerequisites, permission, behavioral notes and evidence status. Only then can the audit be called exhaustive at the implementation-contract level.
+
+## H. CUBI project boundary
+
+This document is an approved **reference analysis artifact only**. It does not alter:
+- current CUBI Project Control Workspace,
+- Professional V26 compatibility implementation,
+- scheduler/calculation core,
+- existing menus/navigation,
+- project/activity/WBS data flows,
+- or current production behavior.
+
+Any later EPPM-derived CUBI feature proposal must be a separate requirement, with owner approval, security model, API/data contract and regression plan.
