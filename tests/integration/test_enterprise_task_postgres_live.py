@@ -266,7 +266,7 @@ def test_postgres_authenticated_task_application_personal_and_project_vertical_s
     class Lifecycle:
         def get_session(self, session_id, *, now):
             assert session_id == "session-a"
-            return SimpleNamespace(user_id="integration-user", tenant_id=tenant, roles=frozenset({"project_manager"}))
+            return SimpleNamespace(user_id="integration-user", tenant_id=tenant, roles=frozenset({"project_manager", "enterprise_user"}))
 
         def authorize_project(self, session_id, project_id, permission, *, now):
             assert session_id == "session-a"
