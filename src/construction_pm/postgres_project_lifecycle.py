@@ -454,10 +454,8 @@ class PostgresProjectRepository(ProjectRepository):
             raise ValueError("PROJECT_STATUS_INVALID")
         current = self._connection.execute(
             "SELECT p.status, p.settings_revision FROM project_lifecycle_projects p "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
-            "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "AND m.user_id=%s)",
+            "WHERE p.tenant_id=%s AND p.project_id=%s "
+            "AND cubi_user_has_project_access(p.tenant_id,%s,p.project_id,'project.admin')",
             (tenant_id, project_id, user_id),
         ).fetchone()
         if current is None:
@@ -569,9 +567,8 @@ class PostgresProjectRepository(ProjectRepository):
             "SELECT e.event_id, e.from_status, e.to_status, e.actor_user_id, "
             "e.recorded_at, e.settings_revision "
             "FROM project_lifecycle_status_event e "
-            "JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
-            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
+            "WHERE e.tenant_id=%s AND e.project_id=%s "
+            "AND cubi_user_has_project_access(e.tenant_id,%s,e.project_id,'project.read') "
             "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
             (tenant_id, project_id, user_id),
         ).fetchall()
@@ -657,9 +654,8 @@ class PostgresProjectRepository(ProjectRepository):
             "e.applied_percent_complete_type, e.applied_duration_type, "
             "e.applied_cost_account_id, e.actor_user_id, e.recorded_at "
             "FROM project_lifecycle_defaults_event e "
-            "JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
-            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
+            "WHERE e.tenant_id=%s AND e.project_id=%s "
+            "AND cubi_user_has_project_access(e.tenant_id,%s,e.project_id,'project.read') "
             "ORDER BY e.recorded_at ASC, e.event_id ASC",
             (tenant_id, project_id, user_id),
         ).fetchall()
