@@ -47,6 +47,12 @@ class PostgresEnterpriseTaskRepository:
         self.connection = connection
 
     def initialize(self) -> None:
+        # Serialize cold-start schema setup across production instances. The
+        # repository performs an in-place audit-FK/trigger upgrade below.
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            ("enterprise-task-schema-v1",),
+        )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS enterprise_tasks (
                 tenant_id TEXT NOT NULL,
