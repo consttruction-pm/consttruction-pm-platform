@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Protocol, Sequence
 from uuid import uuid4
 
-from .application.project_lifecycle import ProjectLifecycleError
+from .application.project_lifecycle import ProjectLifecycleError, SessionError
 
 TEAM_ROLES = frozenset({"owner", "admin", "project_manager", "approver", "field_worker", "member", "viewer"})
 TEAM_STATUSES = frozenset({"active", "suspended", "archived"})
@@ -118,7 +118,7 @@ class EnterpriseOrganizationAccessService:
     ) -> EnterpriseTeamMembership:
         session = self._session(session_id)
         team = self._team(team_id, session.tenant_id)
-        actor_membership = self._require_manager(session, team)
+        self._require_manager(session, team)
         if role not in TEAM_ROLES - {"owner"}:
             raise OrganizationAccessError("TEAM_ROLE_INVALID")
         if not isinstance(user_id, str) or not user_id.strip() or user_id == session.user_id:
@@ -179,7 +179,7 @@ class EnterpriseOrganizationAccessService:
             raise OrganizationAccessDenied("SESSION_REQUIRED")
         try:
             session = self._lifecycle.get_session(session_id, now=self._now())
-        except ProjectLifecycleError as exc:
+        except (ProjectLifecycleError, SessionError) as exc:
             raise OrganizationAccessDenied("SESSION_REQUIRED") from exc
         if session is None or not getattr(session, "tenant_id", None) or not getattr(session, "user_id", None):
             raise OrganizationAccessDenied("SESSION_REQUIRED")
