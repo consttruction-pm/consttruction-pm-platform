@@ -67,3 +67,71 @@ The model is tenant-scoped. Team/project membership and permission checks remain
 ## Verification and promotion policy
 
 Every slice must pass its focused tests before expansion. Persistence/API/UI slices additionally require real PostgreSQL round-trip, tenant and permission negative tests, stale-revision/replay protection and browser E2E where applicable. A branch or documentation/schema-only change is not described as a production feature. Only merged-main behavior counts as completed product implementation.
+
+
+## Updated product-owner priority and roadmap (2026-11-14)
+
+This section is the current controlling delivery direction and supersedes any earlier wording that could imply Enterprise is an equal-priority delivery stream or that the initial task-domain slice determines the functional product order.
+
+### Product priority and non-interference
+
+1. **CUBI Engineering is Priority 1.** Engineering's active implementation agent, delivery plan, schedule, resources and release path take precedence. Enterprise work must not divert Engineering capacity, slow reviews, add shared dependencies, create CI/runtime contention or delay Engineering milestones.
+2. **CUBI Enterprise is Priority 2.** It is a separately owned workstream and progresses only within available, isolated capacity. When parallel execution creates a conflict, Enterprise pauses or is resequenced.
+3. No Enterprise shell, dashboard, PMBOK capability, task module, identity redesign, shared styling change or release dependency may block Engineering.
+4. Shared code or infrastructure changes require evidence of compatibility and explicit approval whenever Engineering behavior, route, shell, schema, calculation, tests or release path could be affected.
+
+### Functional priority: P6 EPPM first
+
+The first Enterprise product objective is a coherent functional baseline covering the organizational/project-management capabilities of Oracle Primavera P6 EPPM. Use official, version-specific Oracle Help as the functional reference and record exact Help topics for each capability.
+
+| Sequence | P6 EPPM capability group | CUBI Enterprise target |
+|---:|---|---|
+| 1 | Dashboards and portlets | Personal/role-aware landing views and configurable dashboard panels |
+| 2 | Portfolio management | Portfolio views, project health and executive monitoring |
+| 3 | Project overview and EPS | Project hierarchy, authorized project discovery and overview |
+| 4 | Resource administration and analysis | Resource directory, assignments and capacity views |
+| 5 | Team Member, status and approvals | Assigned work, status updates, time/work reporting where relevant, approval lifecycle |
+| 6 | Risks and issues | Risk/issue registers, scoring, response and follow-up |
+| 7 | Reports and performance status | Operational reports, KPIs and management summaries |
+| 8 | Administration and security | Enterprise settings, role/access governance and audit visibility |
+| 9 | Documents and project information | Project document access and lifecycle controls within the selected P6 scope |
+
+This is a CUBI product priority, not a requirement to copy Oracle's UI. P6 EPPM and Primavera Unifier are distinct products. Unifier's contract, cost and commercial business processes are not to be described as P6 EPPM parity.
+
+### Proposed extensions after EPPM baseline — feasibility gate
+
+The following proposals are individually assessed only after the relevant EPPM baseline and existing CUBI foundations have been inspected:
+
+1. Resource & Capacity Management extensions.
+2. Advanced Risk & Schedule Assurance.
+3. Scenario & What-if Analysis.
+4. Benefits & Value Realization.
+5. Enterprise Knowledge & PMO Framework.
+6. Document & Information Management extensions.
+7. Contract & Commercial Management (Unifier-informed, separate from P6 EPPM parity).
+8. Field & Mobile Operations.
+
+Each proposal requires a short feasibility record covering: user/business value, existing CUBI overlap, reuse candidates, data ownership, smallest required change, UI/API/persistence gap, permissions/audit, performance/operational risks, cost/complexity and measurable acceptance tests. No proposal is automatically approved for implementation by appearing in this list.
+
+### Reuse-first, minimum-change delivery
+
+- Verify actual code, runtime, persistence and tests before creating anything new.
+- Reuse current identity/access, teams, tasks, Workflow Studio foundations, Form Builder, portfolio read/decision models, reporting, jobs/operations, audit and storage wherever they fit.
+- Add the smallest missing capability at a clear ownership boundary; do not create shadow services or duplicate calculation authority.
+- Broad third-party integrations are not an active priority. Keep contracts extensible, but do not let connector expansion consume current Enterprise capacity.
+- The existing task-domain foundation remains a technical foundation only; it does not override the EPPM-first functional roadmap.
+
+### Unified CUBI visual identity and complete environment shells
+
+Create and govern one CUBI Product Design System before expanding Enterprise screens.
+
+- One coherent CUBI brand and design language across Engineering and Enterprise.
+- Purpose-specific but consistent environment shells; shared design tokens, typography, spacing, iconography, control behavior, navigation grammar and accessibility.
+- A centrally governed semantic color system; no arbitrary per-module palettes and no direct copying of Oracle, Microsoft, Autodesk or other vendor visual themes.
+- Consistent buttons, menus, tabs, forms, tables, filters, dialogs, charts, notifications, status indicators and interaction states.
+- Full RTL/Persian and LTR support, responsive layouts, keyboard navigation and accessible contrast.
+- Distinct environment context may use restrained semantic accents, not a different product identity.
+- Preserve the existing Engineering shell and visual workspace. No Engineering visual refactor or shared CSS migration is authorized by this document. Any adoption that could affect Engineering requires a separately scoped, reviewed and approved change.
+- Enterprise must use the CUBI design system from its first real shell, avoiding temporary inconsistent module styling.
+
+Detailed specification: `docs/design/CUBI_PRODUCT_DESIGN_SYSTEM_AND_ENVIRONMENT_SHELLS.md`.
