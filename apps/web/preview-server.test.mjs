@@ -121,7 +121,7 @@ test("the isolated Enterprise route serves the authenticated application shell",
   const appShell = resolveRequestFile("/app");
   assert.equal(enterpriseShell, appShell);
   assert.equal(enterpriseSlashShell, appShell);
-  assert.match(readFileSync(enterpriseShell, "utf8"), /main\\.bundle\\.js/);
+  assert.match(readFileSync(enterpriseShell, "utf8"), /main\.bundle\.js/);
 });
 
 test("the authenticated workspace shell loads the workspace bundle directly", () => {
