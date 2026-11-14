@@ -1078,3 +1078,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Priority boundary:** CUBI Engineering remains the active primary completion priority. This Enterprise slice does not modify Engineering routes, calculation core, shell, production composition or release behavior.
 - **Not yet claimed:** organization/team persistence, task application authorization, HTTP API, Task Center UI, production composition, live PostgreSQL execution or production readiness.
 - **Verification:** exact-head CI and PostgreSQL Integration are required before this slice is marked verified.
+
+
+## CUBI Enterprise Task API vertical slice — 2026-11-15
+
+- **Stacked branch:** `feat/cubi-enterprise-task-api-v1`, based on the tested foundation branch `feat/cubi-enterprise-foundation-v1-final` (PR #1944).
+- **Implementation added:** authenticated task application service; `/api/enterprise/tasks` WSGI routes for list/create/read/revision-checked update; production runtime mount behind existing session and CSRF validation; production schema initialization; project/personal SQL filters; idempotent create fingerprint that ignores server-generated IDs/timestamps; scoped task API documentation and unit/HTTP/PostgreSQL vertical-slice tests.
+- **Authorization boundary:** personal tasks derive tenant and actor from the session; project task reads/writes require existing `PROJECT_READ`/`PROJECT_WRITE` authorization. Team assignment and Engineering object references remain fail-closed until their own organization/reference authorization foundations exist.
+- **Not yet claimed:** organization/team persistence, team assignment, Engineering reference resolver, Task Center UI, workflow/approval modules or production readiness.
