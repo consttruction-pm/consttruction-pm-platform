@@ -147,6 +147,8 @@ export type WorkspaceWbsNode = {
   name: string;
   sequenceNumber: number;
   recordRevision: number;
+  /** Oracle P6 WBS Responsible Manager / OBS element identity. */
+  responsibleObsId?: string | null;
   /** Absent until the authoritative WBS read has supplied the field. */
   status?: WorkspaceWbsStatus;
   percentCompleteTechnique?: WorkspaceWbsPercentCompleteTechnique;
