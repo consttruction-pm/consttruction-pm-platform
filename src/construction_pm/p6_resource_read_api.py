@@ -28,6 +28,47 @@ def _require_read(policy: AuthorizationPolicy, auth_context: AuthorizationContex
         raise AuthorizationError("RESOURCE_READ_NOT_AUTHORIZED")
 
 
+def _uses_wbs_authorization(policy: AuthorizationPolicy) -> bool:
+    return callable(getattr(policy, "is_allowed_for_wbs", None))
+
+
+def _filter_activity_records(
+    policy: AuthorizationPolicy,
+    auth_context: AuthorizationContext,
+    scope: BackendScope,
+    items: tuple[Any, ...],
+    activity_repository: Any | None,
+) -> tuple[Any, ...]:
+    """Filter assignment facts using the owning activity's effective WBS.
+
+    Project-profile policies authorize each WBS independently. This permits
+    users responsible for one WBS to read that WBS without receiving blanket
+    project visibility, while preserving the policy's read-only override rule.
+    """
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if not callable(scoped):
+        return items
+    if activity_repository is None:
+        return ()
+    allowed_by_activity: dict[str, bool] = {}
+    visible: list[Any] = []
+    for item in items:
+        activity_id = getattr(item, "activity_id", None)
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            continue
+        if activity_id not in allowed_by_activity:
+            activity = activity_repository.get(scope, activity_id)
+            wbs_id = None if activity is None else getattr(activity, "wbs_id", None)
+            allowed_by_activity[activity_id] = bool(
+                isinstance(wbs_id, str)
+                and wbs_id.strip()
+                and scoped(auth_context, Permission.PROJECT_READ, wbs_id)
+            )
+        if allowed_by_activity[activity_id]:
+            visible.append(item)
+    return tuple(visible)
+
+
 @dataclass(frozen=True)
 class P6ResourceReadAPI:
     """Read-only transport boundary over authoritative resource persistence."""
@@ -36,37 +77,64 @@ class P6ResourceReadAPI:
     period_service: P6ResourceAssignmentPeriodApplicationService
     spread_service: P6ResourceSpreadApplicationService
     authorization_policy: AuthorizationPolicy
+    activity_repository: Any | None = None
 
     def get_assignment(self, scope: BackendScope, assignment_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_read(self.authorization_policy, auth_context)
+        if not _uses_wbs_authorization(self.authorization_policy):
+            _require_read(self.authorization_policy, auth_context)
         item = self.assignment_service.read(scope, assignment_id)
-        return None if item is None else _assignment_dto(item)
+        if item is None:
+            return None
+        visible = _filter_activity_records(
+            self.authorization_policy, auth_context, scope, (item,),
+            self.activity_repository,
+        )
+        return None if not visible else _assignment_dto(visible[0])
 
     def list_assignments(
         self, scope: BackendScope, *, activity_id: str | None = None,
         resource_id: str | None = None, auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_read(self.authorization_policy, auth_context)
-        return tuple(_assignment_dto(item) for item in self.assignment_service.list(scope, activity_id, resource_id))
+        if not _uses_wbs_authorization(self.authorization_policy):
+            _require_read(self.authorization_policy, auth_context)
+        items = self.assignment_service.list(scope, activity_id, resource_id)
+        visible = _filter_activity_records(
+            self.authorization_policy, auth_context, scope, items,
+            self.activity_repository,
+        )
+        return tuple(_assignment_dto(item) for item in visible)
 
     def get_assignment_period(
         self, scope: BackendScope, assignment_id: str, period_start: str, *,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_read(self.authorization_policy, auth_context)
+        if not _uses_wbs_authorization(self.authorization_policy):
+            _require_read(self.authorization_policy, auth_context)
         item = self.period_service.read(scope, assignment_id, period_start)
-        return None if item is None else _period_dto(item)
+        if item is None:
+            return None
+        visible = _filter_activity_records(
+            self.authorization_policy, auth_context, scope, (item,),
+            self.activity_repository,
+        )
+        return None if not visible else _period_dto(visible[0])
 
     def list_assignment_periods(
         self, scope: BackendScope, *, assignment_id: str | None = None,
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_read(self.authorization_policy, auth_context)
-        return tuple(_period_dto(item) for item in self.period_service.list(scope, assignment_id))
+        if not _uses_wbs_authorization(self.authorization_policy):
+            _require_read(self.authorization_policy, auth_context)
+        items = self.period_service.list(scope, assignment_id)
+        visible = _filter_activity_records(
+            self.authorization_policy, auth_context, scope, items,
+            self.activity_repository,
+        )
+        return tuple(_period_dto(item) for item in visible)
 
     def get_spread(
         self, scope: BackendScope, spread_id: str, period_id: str, *,
