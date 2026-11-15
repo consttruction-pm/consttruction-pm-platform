@@ -102,3 +102,11 @@ The role policy accepts the granular capability as an application-level gate, wh
 Tests added for activity view vs write separation and issue/expense operation-specific grants. The exact-head Python, web, typecheck and live PostgreSQL checks are the promotion gate; browser-level security acceptance remains outstanding.
 
 **Still not full V26 parity:** Activity deletion is not exposed by the current Activity Master repository/API; Expense update/delete routes are absent; Risk and Threshold routes are not yet migrated; Baseline and the remaining Project Data, Resource Assignment, Tools, Views/Reports and related-application privileges still need endpoint-by-endpoint mapping. Global Security Profiles, module/resource access, Owner/Contributor exceptions, and the exhaustive Oracle privilege traceability matrix also remain open. Do not describe this increment as full P6 V26 security parity.
+
+
+### Additional Project Data enforcement (risk and threshold registers)
+
+- **Risks:** list/read/history use `risk.view`; create uses `risk.add_edit`; update uses `risk.edit`; delete uses `risk.delete`. Responsible WBS authorization remains independently checked.
+- **Thresholds:** list/read/history/runs use `threshold.view`; create uses `threshold.add_edit`; update uses `threshold.edit`; delete uses `threshold.delete`. OBS responsibility checks remain independent. The monitor operation is intentionally still behind the legacy project-write gate pending an explicit V26 Tools privilege mapping; it is not silently equated with threshold editing.
+
+These are route/service-boundary mappings, not a claim that all Project Data privileges are complete. In particular, threshold monitoring must be mapped to the exact V26 tool privilege before granular-only profiles can run it. The project privilege catalogue, resource assignment operations, baseline/document permissions, global/module/resource security and full acceptance matrix remain outstanding.
