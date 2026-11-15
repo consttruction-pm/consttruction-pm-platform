@@ -488,6 +488,7 @@ def test_preview_wbs_and_activity_write_path_persists_and_rejects_invalid_links(
                 "duration_value": 2,
                 "duration_unit": "working-day",
                 "wbs_id": "WBS-RPS-CIVIL",
+                "responsible_obs_id": "OBS-OPERATIONS",
             }
         )
         assert status == 400
