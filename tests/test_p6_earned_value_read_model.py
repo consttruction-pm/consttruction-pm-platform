@@ -7,6 +7,7 @@ import pytest
 from construction_pm.activity_master_repository import ActivityMaster
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -310,6 +311,29 @@ def test_api_enforces_scope_and_returns_the_read_model_payload():
                 project_id="project-a",
                 roles=frozenset({"viewer"}),
             ),
+        )
+
+
+def test_api_requires_explicit_project_costs_financials_visibility():
+    class DenyFinancials:
+        @staticmethod
+        def is_allowed(context, permission):
+            return permission != Permission.PROJECT_COSTS_VIEW
+
+    api = P6EarnedValueReadModelAPI(service((), ()), DenyFinancials())
+    auth = AuthorizationContext(
+        user_id="user-1",
+        tenant_id="tenant-a",
+        project_id="project-a",
+        roles=frozenset({"viewer"}),
+    )
+    with pytest.raises(PermissionError, match="project.view_costs_financials"):
+        api.get(
+            scope(),
+            "B-1",
+            data_date=date(2026, 11, 4),
+            currency="USD",
+            auth_context=auth,
         )
 
 
