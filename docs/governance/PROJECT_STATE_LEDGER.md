@@ -1224,3 +1224,16 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - The first live PostgreSQL run for the new deactivation regression reached the test but its login returned `AUTHENTICATION_THROTTLED`: the integration fixture reuses a durable IP-throttle table across tests. This was a test-isolation defect, not a failure of the account-active check.
 - Corrected the regression to assign a unique per-run client IP before login. The corrected test is committed at `1502fa6d31d1692ade702ef993bca7101aa58247`.
 - Fresh ConstructionPM CI, PostgreSQL Integration, Client Typecheck and ConstructionPM Web CI were queued for this corrected head. Results must be checked before promotion.
+
+
+## Organization & Access — tenant user account administration slice — 2026-11-15
+
+- **API:** `GET /api/enterprise/users` and `PATCH /api/enterprise/users/{user_id}/status`, with separate versioned contracts, mounted in the authenticated production Organization & Access middleware.
+- **Authorization:** tenant is derived from the session. The service re-reads the active `enterprise_admin` role from the current identity row rather than relying only on the login-time role snapshot.
+- **Safeguards:** no self-deactivation; the last active Enterprise administrator cannot be deactivated; an owner of an active team must transfer ownership first. Deactivation updates the account and revokes all persisted sessions in the same request transaction.
+- **Audit:** `enterprise_user_access_audit` records actor, target, before/after state and timestamp; database trigger rejects update/delete. No password hash, roles JSON or credential material is returned to the UI.
+- **UI:** bilingual Persian/English account directory and activate/deactivate controls added to `/enterprise/organization` for authorized administrators.
+- **Tests added:** account admin HTTP contract tests, service authorization/self-deactivation tests, and live PostgreSQL coverage for tenant listing, role checks, last-admin protection, session revocation and immutable audit.
+- **V26 boundary:** this is the Users Page active/inactive account-status behavior slice, not full Users Page parity. Account creation/invitation/password lifecycle, security profiles, module access, OBS/project/resource access, UI views, Copy User Settings and effective-access reporting remain open.
+- **Code head:** `4bc0ea5f9f5d66d6a264c87ac9c19988ad52694a`. Exact-head ConstructionPM CI, PostgreSQL Integration, Client Typecheck and ConstructionPM Web CI are running; earlier code/test head `01392b1253f49ef0b5ca98c4e7eb3bb05793a259` passed all four workflows after correcting the deactivation regression's expected `SESSION_NOT_FOUND` response.
+- **Release gate:** no merge or deployment; do not promote until the current exact-head workflows and preview/browser acceptance are green.
