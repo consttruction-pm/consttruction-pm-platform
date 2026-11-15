@@ -124,7 +124,7 @@ class P6WBSMasterAPI:
     def create(self, item: WBSMaster, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(item.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
-            raise AuthorizationError("authorization denied for permission=project.write")
+            raise AuthorizationError("authorization denied for permission=wbs.add_edit")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
         if callable(getattr(self.repository, "has_wbs_permission", None)) and not item.responsible_obs_id:
             raise AuthorizationError("WBS_RESPONSIBLE_OBS_REQUIRED")
@@ -240,7 +240,7 @@ class P6WBSMasterAPI:
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_VIEW):
-            raise AuthorizationError("authorization denied for permission=project.read")
+            raise AuthorizationError("authorization denied for permission=wbs.view")
         item = self.repository.get(scope, wbs_id)
         if item is None:
             return None
