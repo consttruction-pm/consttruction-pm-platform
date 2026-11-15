@@ -137,6 +137,8 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if self.wbs_access_repository is not None and not issue.responsible_obs_id:
+            raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
         self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value, issue.responsible_obs_id)
         with self._transaction():
             stored = self.repository.create(
@@ -195,6 +197,8 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if self.wbs_access_repository is not None and not issue.responsible_obs_id:
+            raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
         existing = self.repository.get(issue.scope, issue.issue_id)
         if existing is not None:
             self._require_wbs_permission(issue.scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
