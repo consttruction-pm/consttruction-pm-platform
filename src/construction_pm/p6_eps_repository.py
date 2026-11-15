@@ -87,11 +87,11 @@ class PostgresP6EPSRepository:
         )
         self.connection.execute(
             """CREATE OR REPLACE FUNCTION cubi_p6_eps_audit_immutable()
-            RETURNS trigger LANGUAGE plpgsql AS $
+            RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
                 RAISE EXCEPTION 'P6_EPS_AUDIT_APPEND_ONLY';
             END;
-            $"""
+            $$"""
         )
         self.connection.execute(
             "DROP TRIGGER IF EXISTS p6_eps_audit_immutable ON p6_eps_audit"
@@ -149,11 +149,11 @@ class PostgresP6EPSRepository:
         )
         self.connection.execute(
             """CREATE OR REPLACE FUNCTION cubi_p6_wbs_obs_audit_immutable()
-            RETURNS trigger LANGUAGE plpgsql AS $
+            RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
                 RAISE EXCEPTION 'P6_WBS_OBS_AUDIT_APPEND_ONLY';
             END;
-            $"""
+            $$"""
         )
         self.connection.execute(
             "DROP TRIGGER IF EXISTS p6_wbs_obs_audit_immutable "
