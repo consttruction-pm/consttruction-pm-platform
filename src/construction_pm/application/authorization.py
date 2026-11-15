@@ -17,6 +17,33 @@ class Permission(str, Enum):
     P6_UDF_ADMIN = "p6.udf.admin"
     P6_WBS_ADMIN = "p6.wbs.admin"
     P6_ACTIVITY_ADMIN = "p6.activity.admin"
+    P6_ACTIVITY_RELATIONSHIP_ADMIN = "p6.activity.relationship.admin"
+    P6_ACTIVITY_ID_ADMIN = "p6.activity.id.admin"
+    P6_EXPENSE_ADMIN = "p6.expense.admin"
+    P6_DISCUSSION_DELETE = "p6.discussion.delete"
+    P6_ISSUE_ADMIN = "p6.issue.admin"
+    P6_BASELINE_ADMIN = "p6.baseline.admin"
+    P6_PROJECT_CALENDAR_ADMIN = "p6.project.calendar.admin"
+    P6_RISK_ADMIN = "p6.risk.admin"
+    P6_PROJECT_DOCUMENT_ADMIN = "p6.project.document.admin"
+    P6_ASSIGN_PROJECT_BASELINE = "p6.project.baseline.assign"
+    P6_APPLY_ACTUALS = "p6.actuals.apply"
+    P6_STORE_PERIOD_PERFORMANCE = "p6.period.performance.store"
+    P6_MONITOR_THRESHOLDS = "p6.thresholds.monitor"
+    P6_COSTS_VIEW = "p6.costs.view"
+    P6_RESOURCE_REQUEST_ADMIN = "p6.resource.request.admin"
+    P6_PROJECT_CHECKOUT_ADMIN = "p6.project.checkout.admin"
+    P6_LEVEL_RESOURCES = "p6.resources.level"
+    P6_BASELINE_UPDATE = "p6.baseline.update"
+    P6_GLOBAL_CHANGE = "p6.global.change"
+    P6_EPS_ADMIN = "p6.eps.admin"
+    P6_PROJECT_CREATE = "p6.project.create"
+    P6_PROJECT_DELETE = "p6.project.delete"
+    P6_EPS_COSTS_ADMIN = "p6.eps.costs.admin"
+    P6_WBS_COSTS_ADMIN = "p6.wbs.costs.admin"
+    P6_EXPORT_PROJECT_DATA = "p6.project.export"
+    P6_PROJECT_LEVEL_LAYOUT_ADMIN = "p6.project.layout.admin"
+    P6_REPORT_ADMIN = "p6.project.report.admin"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -97,6 +124,33 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_SCHEDULE,
                 Permission.P6_UDF_ADMIN,
                 Permission.P6_ACTIVITY_ADMIN,
+                Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+                Permission.P6_ACTIVITY_ID_ADMIN,
+                Permission.P6_EXPENSE_ADMIN,
+                Permission.P6_DISCUSSION_DELETE,
+                Permission.P6_ISSUE_ADMIN,
+                Permission.P6_BASELINE_ADMIN,
+                Permission.P6_PROJECT_CALENDAR_ADMIN,
+                Permission.P6_RISK_ADMIN,
+                Permission.P6_PROJECT_DOCUMENT_ADMIN,
+                Permission.P6_ASSIGN_PROJECT_BASELINE,
+                Permission.P6_APPLY_ACTUALS,
+                Permission.P6_STORE_PERIOD_PERFORMANCE,
+                Permission.P6_MONITOR_THRESHOLDS,
+                Permission.P6_COSTS_VIEW,
+                Permission.P6_RESOURCE_REQUEST_ADMIN,
+                Permission.P6_PROJECT_CHECKOUT_ADMIN,
+                Permission.P6_LEVEL_RESOURCES,
+                Permission.P6_BASELINE_UPDATE,
+                Permission.P6_GLOBAL_CHANGE,
+                Permission.P6_EPS_ADMIN,
+                Permission.P6_PROJECT_CREATE,
+                Permission.P6_PROJECT_DELETE,
+                Permission.P6_EPS_COSTS_ADMIN,
+                Permission.P6_WBS_COSTS_ADMIN,
+                Permission.P6_EXPORT_PROJECT_DATA,
+                Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
+                Permission.P6_REPORT_ADMIN,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
