@@ -59,6 +59,7 @@ def _expense(**overrides):
         "name": "Concrete delivery",
         "category": "material",
         "currency": "USD",
+        "wbs_id": "WBS-RPS-CIVIL",
         "expense_date": "2026-11-01",
         "accrual_date": "2026-11-02",
         "planned_amount": "900.00",
