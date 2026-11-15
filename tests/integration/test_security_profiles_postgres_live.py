@@ -471,6 +471,8 @@ def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
     with _connect() as connection:
         identity = PostgresIdentityStore(connection)
         identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
         PostgresP6EPSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(first_id, tenant, "project_admin"))
