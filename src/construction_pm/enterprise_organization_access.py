@@ -76,6 +76,10 @@ class EnterpriseOrganizationAccessRepository(Protocol):
     def get_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership | None: ...
     def add_member(self, membership: EnterpriseTeamMembership, *, actor_id: str) -> EnterpriseTeamMembership: ...
     def remove_member(self, tenant_id: str, team_id: str, user_id: str, *, actor_id: str, expected_revision: int, occurred_at: datetime) -> EnterpriseTeamMembership: ...
+    def transfer_team_ownership(
+        self, tenant_id: str, team_id: str, new_owner_user_id: str, *, actor_id: str,
+        expected_team_revision: int, expected_membership_revision: int, occurred_at: datetime,
+    ) -> EnterpriseTeam: ...
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]: ...
     def list_memberships(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]: ...
     def list_active_users(self, tenant_id: str) -> tuple[dict[str, str], ...]: ...
@@ -158,6 +162,30 @@ class EnterpriseOrganizationAccessService:
         return self._repository.remove_member(
             session.tenant_id, team_id, user_id, actor_id=session.user_id,
             expected_revision=expected_revision, occurred_at=self._now(),
+        )
+
+    def transfer_team_ownership(
+        self, session_id: str, team_id: str, new_owner_user_id: str, *,
+        expected_team_revision: int, expected_membership_revision: int,
+    ) -> EnterpriseTeam:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        # Ownership is a distinct authority: even team administrators cannot
+        # silently replace the owner. Only the current owner may transfer it.
+        if session.user_id != team.owner_user_id:
+            raise OrganizationAccessDenied("TEAM_OWNER_PERMISSION_REQUIRED")
+        if not isinstance(new_owner_user_id, str) or not new_owner_user_id.strip():
+            raise OrganizationAccessError("TEAM_OWNER_TARGET_INVALID")
+        if new_owner_user_id == team.owner_user_id:
+            raise OrganizationAccessError("TEAM_OWNER_TARGET_UNCHANGED")
+        for value in (expected_team_revision, expected_membership_revision):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise OrganizationAccessError("TEAM_OWNER_REVISION_REQUIRED")
+        return self._repository.transfer_team_ownership(
+            session.tenant_id, team_id, new_owner_user_id, actor_id=session.user_id,
+            expected_team_revision=expected_team_revision,
+            expected_membership_revision=expected_membership_revision,
+            occurred_at=self._now(),
         )
 
     def list_my_teams(self, session_id: str) -> tuple[EnterpriseTeam, ...]:
