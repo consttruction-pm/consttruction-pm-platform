@@ -154,10 +154,10 @@ def test_postgres_ownership_transfer_is_atomic_audited_and_preserves_single_owne
             (tenant, team.team_id),
         ).fetchone()[0]
         assert audit_count == 3
-        transfer_event = connection.execute(
-            "SELECT action FROM enterprise_access_audit WHERE tenant_id=%s AND team_id=%s "
-            "ORDER BY occurred_at DESC,audit_id DESC LIMIT 1",
+        transfer_events = connection.execute(
+            "SELECT count(*) FROM enterprise_access_audit WHERE tenant_id=%s AND team_id=%s "
+            "AND action='team_owner_transferred'",
             (tenant, team.team_id),
-        ).fetchone()
-        assert transfer_event[0] == "team_owner_transferred"
+        ).fetchone()[0]
+        assert transfer_events == 1
         connection.commit()
