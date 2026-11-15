@@ -9,6 +9,8 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     default_project_policy,
+    Permission,
+    RoleBasedAuthorizationPolicy,
 )
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.threshold_application import (
@@ -263,3 +265,41 @@ def test_error_dto_maps_failures_to_stable_categories() -> None:
     assert error.category.value == "authorization"
     error = ThresholdApplicationService.error_dto(ValueError("INVALID_THRESHOLD_NAME"))
     assert error.category.value == "validation"
+
+
+def test_threshold_crud_uses_independent_granular_privileges(parts):
+    _, metrics, writer = parts
+    connection = sqlite3.connect(":memory:")
+    store = SQLiteThresholdStore(connection)
+    store.initialize()
+    policy = RoleBasedAuthorizationPolicy({
+        "threshold_creator": frozenset({Permission.THRESHOLD_ADD_EDIT}),
+        "threshold_reader": frozenset({Permission.THRESHOLD_VIEW}),
+        "threshold_editor": frozenset({Permission.THRESHOLD_EDIT}),
+        "threshold_deleter": frozenset({Permission.THRESHOLD_DELETE}),
+    })
+    service = ThresholdApplicationService(
+        store, policy, SQLiteTransactionManager(connection), metrics, writer
+    )
+    def actor(role: str) -> AuthorizationContext:
+        return context(role, user=role)
+
+    created = service.create_threshold(
+        threshold(), idempotency_key="granular-threshold", context=actor("threshold_creator"),
+        actor_id="threshold_creator", occurred_at=NOW,
+    )
+    assert created.revision == 1
+    with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+        service.read_threshold(tenant_id="T-1", project_id="P-1", threshold_id="TH-1", context=actor("threshold_creator"))
+    assert service.read_threshold(tenant_id="T-1", project_id="P-1", threshold_id="TH-1", context=actor("threshold_reader")).revision == 1
+
+    updated = service.update_threshold(
+        threshold(name="Granular edit"), expected_revision=1, context=actor("threshold_editor"),
+        actor_id="threshold_editor", occurred_at=NOW,
+    )
+    assert updated.revision == 2
+    with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+        service.delete_threshold(tenant_id="T-1", project_id="P-1", threshold_id="TH-1",
+            expected_revision=2, context=actor("threshold_editor"), actor_id="threshold_editor", occurred_at=NOW)
+    service.delete_threshold(tenant_id="T-1", project_id="P-1", threshold_id="TH-1",
+        expected_revision=2, context=actor("threshold_deleter"), actor_id="threshold_deleter", occurred_at=NOW)
