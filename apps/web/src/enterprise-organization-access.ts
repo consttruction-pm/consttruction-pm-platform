@@ -25,6 +25,9 @@ const COPY = {
     accounts: "User accounts", accountStatus: "Account status", deactivate: "Deactivate", activate: "Reactivate",
     confirmDeactivate: "Deactivate this account and revoke all active sessions?", confirmActivate: "Reactivate this account?",
     accountDeactivated: "Account deactivated; existing sessions revoked.", accountActivated: "Account reactivated.",
+    lastAdminError: "The last active Enterprise administrator cannot be deactivated.",
+    ownerTransferError: "Transfer active team ownership before deactivating this account.",
+    selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
     title: "سازمان و دسترسی", eyebrow: "کوبی سازمانی", subtitle: "مدیریت تیم‌های سازمان و عضویت اعضا.",
@@ -44,6 +47,9 @@ const COPY = {
     accounts: "حساب‌های کاربری", accountStatus: "وضعیت حساب", deactivate: "غیرفعال‌سازی", activate: "فعال‌سازی مجدد",
     confirmDeactivate: "این حساب غیرفعال و تمام نشست‌های فعال آن لغو شود؟", confirmActivate: "این حساب دوباره فعال شود؟",
     accountDeactivated: "حساب غیرفعال شد و نشست‌های قبلی لغو شدند.", accountActivated: "حساب دوباره فعال شد.",
+    lastAdminError: "آخرین مدیر فعال سازمان را نمی‌توان غیرفعال کرد.",
+    ownerTransferError: "پیش از غیرفعال‌سازی این حساب، مالکیت تیم فعال را منتقل کنید.",
+    selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
 
@@ -270,8 +276,13 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     if (busy) return;
     busy = true; failure = ""; render();
     try { await action(); } catch (error) {
-      failure = error instanceof Error && error.message === "SESSION_REQUIRED" ? t.session
-        : error instanceof Error ? error.message : t.error;
+      const code = error instanceof Error ? error.message : "";
+      const messages: Record<string, string> = {
+        LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED: t.lastAdminError,
+        TEAM_OWNER_TRANSFER_REQUIRED: t.ownerTransferError,
+        SELF_DEACTIVATION_NOT_ALLOWED: t.selfDeactivateError,
+      };
+      failure = code === "SESSION_REQUIRED" ? t.session : messages[code] ?? (code || t.error);
     } finally { busy = false; render(); }
   };
 
