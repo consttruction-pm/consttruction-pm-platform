@@ -286,7 +286,7 @@ class EnterpriseOrganizationAccessService:
 
     def assign_security_profile(
         self, session_id: str, profile_id: str, *, user_id: str,
-        project_id: str = "", expected_revision: int | None = None,
+        obs_id: str = "", expected_revision: int | None = None,
     ) -> int:
         session = self._session(session_id)
         self._require_enterprise_admin(session)
@@ -296,13 +296,13 @@ class EnterpriseOrganizationAccessService:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.assign(
             tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
-            project_id=project_id, expected_revision=expected_revision,
+            obs_id=obs_id, expected_revision=expected_revision,
             actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
     def unassign_security_profile(
         self, session_id: str, profile_id: str, *, user_id: str,
-        project_id: str = "", expected_revision: int,
+        obs_id: str = "", expected_revision: int,
     ) -> None:
         session = self._session(session_id)
         self._require_enterprise_admin(session)
