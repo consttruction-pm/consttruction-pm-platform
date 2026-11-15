@@ -915,16 +915,17 @@ class PostgresSecurityProfileAuthorizationPolicy:
                 effective_obs_id = str(project_obs[0])
             else:
                 eps_obs = self._connection.execute(
-                    "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth) AS ("
-                    "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0 "
+                    "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth,path) AS ("
+                    "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0,ARRAY[eps.eps_id]::text[] "
                     "FROM p6_project_eps_assignment assignment "
                     "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
                     "AND eps.eps_id=assignment.eps_id "
                     "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
                     "UNION ALL "
-                    "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1 "
+                    "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1,child.path || parent.eps_id "
                     "FROM p6_eps_node parent JOIN project_eps child "
-                    "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s) "
+                    "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s "
+                    "AND NOT parent.eps_id=ANY(child.path)) "
                     "SELECT NULLIF(responsible_obs_id,'') FROM project_eps "
                     "WHERE responsible_obs_id<>'' ORDER BY depth LIMIT 1",
                     (context.tenant_id,context.project_id,context.tenant_id),
