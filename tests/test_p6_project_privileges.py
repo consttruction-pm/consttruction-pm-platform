@@ -17,10 +17,8 @@ def test_v26_privilege_catalogue_has_unique_keys_and_all_expected_groups():
 
 
 def test_delete_privilege_inherits_edit_assign_and_view():
-    # The catalogue uses independent explicit keys for delete/edit/view.  A
-    # matching assign key is added in the next catalogue refinement when present.
     expanded = expand_project_privileges({"issue.delete"})
-    assert {"issue.delete", "issue.view"} <= expanded
+    assert {"issue.delete", "issue.edit", "issue.assign", "issue.view"} <= expanded
 
 
 def test_unknown_privilege_fails_closed():
