@@ -128,6 +128,11 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
             )
         # A Global profile alone is not project access; OBS Project assignment is required.
         assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_OBS_NOT_FOUND"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
+                obs_id="missing-obs", actor_user_id=user_id, occurred_at=now,
+            )
         profiles.assign(
             tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
             obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
