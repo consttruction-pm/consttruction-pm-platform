@@ -160,6 +160,7 @@ test("payload trims text, keeps authoritative ratings and drops empty optionals"
     response_due_date: null,
     owner: "u-owner",
     responsible_manager: null,
+    wbs_id: null,
     date_identified: "2026-11-01",
     closure_note: null,
   });
