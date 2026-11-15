@@ -4,6 +4,9 @@ type Team = { team_id: string; name: string; owner_user_id: string; status: stri
 type Membership = { team_id: string; user_id: string; role: string; status: string; scope_project_ids: string[]; revision: number; created_at: string; revoked_at: string | null };
 type EligibleUser = { user_id: string; email: string; display_name: string };
 type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
+type SecurityProfile = { profile_id: string; name: string; scope: "global" | "project"; active: boolean; revision: number; privileges: string[] };
+type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string };
+type PrivilegeCatalogs = { global: string[]; project: string[] };
 type Locale = "en" | "fa";
 
 const COPY = {
@@ -29,6 +32,16 @@ const COPY = {
     ownerTransferError: "Transfer active team ownership before deactivating this account.",
     transferOwner: "Transfer ownership", newOwner: "New owner", confirmTransfer: "Transfer team ownership? Your role will become Administrator.",
     transferred: "Team ownership transferred.",
+    securityProfiles: "Security profiles", profileId: "Profile ID", profileName: "Profile name",
+    profileScope: "Profile scope", globalProfile: "Global", projectProfile: "Project",
+    createProfile: "Create profile", selectProfile: "Select a profile", privileges: "Privileges",
+    savePrivileges: "Save privileges", assignProfile: "Assign profile", obsId: "Responsible OBS ID",
+    assignmentRevision: "Existing assignment revision (for replacement)", assignedUsers: "Assignments",
+    noProfiles: "No security profiles are defined.", profileCreated: "Security profile created.",
+    profileSaved: "Privileges saved.", profileAssigned: "Profile assigned.", profileActive: "Active",
+    profileInactive: "Inactive", profileActivate: "Activate", profileDeactivate: "Deactivate",
+    profileStatusSaved: "Profile status updated.", removeAssignment: "Remove assignment",
+    profileHelp: "Every user requires one Global profile. Project profiles are assigned to OBS responsibility and do not replace project membership.",
     selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
@@ -53,6 +66,16 @@ const COPY = {
     ownerTransferError: "پیش از غیرفعال‌سازی این حساب، مالکیت تیم فعال را منتقل کنید.",
     transferOwner: "انتقال مالکیت", newOwner: "مالک جدید", confirmTransfer: "مالکیت تیم منتقل شود؟ نقش شما به مدیر تغییر می‌کند.",
     transferred: "مالکیت تیم منتقل شد.",
+    securityProfiles: "پروفایل‌های امنیتی", profileId: "شناسه پروفایل", profileName: "نام پروفایل",
+    profileScope: "دامنه پروفایل", globalProfile: "سراسری", projectProfile: "پروژه‌ای",
+    createProfile: "ایجاد پروفایل", selectProfile: "انتخاب پروفایل", privileges: "مجوزها",
+    savePrivileges: "ذخیره مجوزها", assignProfile: "اختصاص پروفایل", obsId: "شناسه مسئولیت OBS",
+    assignmentRevision: "نسخه تخصیص قبلی (برای جایگزینی)", assignedUsers: "تخصیص‌ها",
+    noProfiles: "پروفایل امنیتی تعریف نشده است.", profileCreated: "پروفایل امنیتی ایجاد شد.",
+    profileSaved: "مجوزها ذخیره شدند.", profileAssigned: "پروفایل اختصاص یافت.", profileActive: "فعال",
+    profileInactive: "غیرفعال", profileActivate: "فعال‌سازی", profileDeactivate: "غیرفعال‌سازی",
+    profileStatusSaved: "وضعیت پروفایل به‌روزرسانی شد.", removeAssignment: "حذف تخصیص",
+    profileHelp: "هر کاربر به یک پروفایل سراسری نیاز دارد. پروفایل پروژه به مسئولیت OBS اختصاص می‌یابد و جایگزین عضویت پروژه نیست.",
     selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
