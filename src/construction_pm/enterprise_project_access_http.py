@@ -22,6 +22,7 @@ class EnterpriseProjectAccessHttpMiddleware:
     def __call__(self, environ: Mapping[str, object], start_response: Callable):
         path = str(environ.get("PATH_INFO", "/") or "/")
         if not (path == "/api/enterprise/project-security-profiles"
+                or path == "/api/enterprise/obs"
                 or path == "/api/enterprise/user-obs-access"
                 or path.startswith("/api/enterprise/user-obs-access/")):
             return self._app(environ, start_response)
