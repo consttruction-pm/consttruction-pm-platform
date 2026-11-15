@@ -16,7 +16,6 @@ class ProjectPrivilegeGroup(StrEnum):
     EPS_PROJECTS = "eps_projects"
     PROJECT_DATA = "project_data"
     RELATED_APPLICATIONS = "related_applications"
-    TIMESHEETS = "timesheets"
     RESOURCE_ASSIGNMENTS = "resource_assignments"
     TOOLS = "tools"
     VIEWS_REPORTS = "views_reports"
@@ -58,7 +57,7 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("code.view", ProjectPrivilegeGroup.CODES, "View Codes", "View project and activity codes."),
     ProjectPrivilegeDefinition("code.edit", ProjectPrivilegeGroup.CODES, "Edit Codes", "Edit project and activity codes."),
     ProjectPrivilegeDefinition("code.assign", ProjectPrivilegeGroup.CODES, "Assign Codes", "Assign codes."),
-    ProjectPrivilegeDefinition("timesheet.view", ProjectPrivilegeGroup.TIMESHEETS, "View Timesheets", "View timesheets."),
+    ProjectPrivilegeDefinition("timesheet.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Timesheets", "View timesheets."),
     ProjectPrivilegeDefinition("timesheet.edit", ProjectPrivilegeGroup.TIMESHEETS, "Edit Timesheets", "Edit timesheets."),
     ProjectPrivilegeDefinition("activity.view", ProjectPrivilegeGroup.ACTIVITIES, "View Activities", "View activity data."),
     ProjectPrivilegeDefinition("activity.add_edit", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities", "Create and edit activities."),
