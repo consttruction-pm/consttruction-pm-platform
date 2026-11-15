@@ -368,6 +368,35 @@ def bootstrap_first_admin_superuser(
     if occupied is not None:
         raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
 
+    # Provision the other two Oracle built-ins alongside the first
+    # administrator so every tenant has the complete immutable catalog.
+    for builtin_id, builtin_name, builtin_scope in (
+        (NO_GLOBAL_PRIVILEGES_PROFILE_ID, "No Global Privileges", "global"),
+        (PROJECT_SUPERUSER_PROFILE_ID, "Project Superuser", "project"),
+    ):
+        builtin = connection.execute(
+            "SELECT name,scope,active FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            (tenant_id, builtin_id),
+        ).fetchone()
+        if builtin is None:
+            connection.execute(
+                "INSERT INTO p6_security_profiles "
+                "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+                "VALUES (%s,%s,%s,%s,TRUE,1,%s,%s,%s,%s)",
+                (tenant_id,builtin_id,builtin_name,builtin_scope,user_id,user_id,occurred_at,occurred_at),
+            )
+            connection.execute(
+                "INSERT INTO p6_security_profile_audit "
+                "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+                "VALUES (%s,%s,%s,%s,'profile_created',NULL,%s::jsonb,%s)",
+                (str(uuid.uuid4()),tenant_id,user_id,builtin_id,
+                 json.dumps({"name":builtin_name,"scope":builtin_scope,"active":True,"revision":1}),
+                 occurred_at),
+            )
+        elif str(builtin[0]) != builtin_name or str(builtin[1]) != builtin_scope or not bool(builtin[2]):
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
+
     profile = connection.execute(
         "SELECT name,scope,active,revision FROM p6_security_profiles "
         "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
