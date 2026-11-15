@@ -243,6 +243,35 @@ def expand_project_privileges(selected: set[str] | frozenset[str]) -> frozenset[
     return frozenset(result)
 
 
+def privilege_keys_for_group(group: ProjectPrivilegeGroup) -> frozenset[str]:
+    """Return every selectable privilege in one Oracle V26 detail-window group."""
+    try:
+        normalized = ProjectPrivilegeGroup(group)
+    except ValueError as exc:
+        raise ValueError("UNKNOWN_PROJECT_PRIVILEGE_GROUP") from exc
+    return frozenset(item.key for item in PROJECT_PRIVILEGES if item.group == normalized)
+
+
+def set_privilege_group(
+    selected: set[str] | frozenset[str],
+    group: ProjectPrivilegeGroup,
+    enabled: bool,
+) -> frozenset[str]:
+    """Implement the V26 group header checkbox without changing other groups."""
+    if not isinstance(enabled, bool):
+        raise ValueError("PROJECT_PRIVILEGE_GROUP_STATE_INVALID")
+    keys = privilege_keys_for_group(group)
+    unknown = set(selected) - PRIVILEGE_BY_KEY.keys()
+    if unknown:
+        raise ValueError("UNKNOWN_PROJECT_PRIVILEGE")
+    updated = set(selected)
+    if enabled:
+        updated.update(keys)
+    else:
+        updated.difference_update(keys)
+    return expand_project_privileges(updated)
+
+
 LEGACY_PROJECT_PERMISSION_CODES = frozenset({
     "project.read", "project.write", "project.schedule", "project.admin",
 })
