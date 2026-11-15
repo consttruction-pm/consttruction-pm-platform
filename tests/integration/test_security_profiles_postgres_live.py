@@ -85,6 +85,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
 
         # P6 requires both a Global profile and an OBS-assigned Project profile.
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
 
         global_profile = profiles.create_profile(
@@ -125,6 +126,8 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
                 tenant_id=tenant, profile_id="global-replacement", user_id=user_id,
                 expected_revision=2, actor_user_id=user_id, occurred_at=now,
             )
+        # A Global profile alone is not project access; OBS Project assignment is required.
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
         profiles.assign(
             tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
             obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
