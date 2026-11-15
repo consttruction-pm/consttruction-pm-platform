@@ -88,7 +88,7 @@ SECURITY_PROFILE_SCHEMA = (
         PRIMARY KEY (tenant_id, profile_id, user_id, project_id),
         FOREIGN KEY (tenant_id, profile_id)
             REFERENCES p6_security_profiles(tenant_id, profile_id) ON DELETE RESTRICT,
-        CHECK (project_id <> '')
+        CHECK (project_id IS NOT NULL)
     )
     """,
     """
