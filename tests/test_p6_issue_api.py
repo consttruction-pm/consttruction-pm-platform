@@ -102,3 +102,27 @@ def test_update_and_history_payloads_keep_identity_and_revision() -> None:
     assert [item["event"]["event_type"] for item in history] == ["created", "updated"]
     assert history[-1]["event"]["detail"]["fields"] == ["priority", "responsible_manager"]
     assert history[-1]["event"]["actor_id"] == "planner-1"
+
+
+def test_issue_access_is_scoped_by_responsible_wbs_obs():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(issue(wbs_id="W-FOREIGN"), auth_context=planner(), occurred_at=AT)
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return permission == "project.read"
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=WBSAccess())
+    assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["wbs_id"] == "W-FOREIGN"
+    assert [item["issue"]["issue_id"] for item in scoped.list(SCOPE, auth_context=planner())] == ["ISSUE-API-1"]
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        scoped.update(
+            issue(wbs_id="W-FOREIGN", title="Unauthorized"),
+            expected_revision=1, auth_context=planner(), occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        scoped.create(
+            issue(issue_id="ISSUE-DENIED", wbs_id="W-FOREIGN"),
+            auth_context=planner(), occurred_at=AT,
+        )
