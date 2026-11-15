@@ -88,6 +88,20 @@ class P6ActivityMasterAPI:
     repository: ActivityMasterRepository
     authorization_policy: AuthorizationPolicy
     checkout_lease: ProjectCheckoutLease | None = None
+    wbs_access_repository: Any | None = None
+
+    def _require_wbs_permission(
+        self,
+        scope: BackendScope,
+        auth_context: AuthorizationContext,
+        wbs_id: str | None,
+        permission: str,
+    ) -> None:
+        if wbs_id is None or self.wbs_access_repository is None:
+            return
+        checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
+        if callable(checker) and not checker(scope, auth_context.user_id, wbs_id, permission):
+            raise AuthorizationError("WBS_OBS_ACCESS_DENIED")
 
     def create(
         self,
@@ -99,6 +113,7 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
+        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.repository.save(activity, expected_revision=0))
 
     def update(
@@ -118,6 +133,12 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
+        existing = self.repository.get(activity.scope, activity.activity_id)
+        if existing is not None:
+            self._require_wbs_permission(
+                activity.scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value
+            )
+        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
     def get(
@@ -131,7 +152,20 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
         item = self.repository.get(scope, activity_id)
-        return None if item is None else _dto(item)
+        if item is None:
+            return None
+        self._require_wbs_permission(scope, auth_context, item.wbs_id, Permission.PROJECT_READ.value)
+        return _dto(item)
+
+    def _can_read_activity(
+        self, scope: BackendScope, auth_context: AuthorizationContext, wbs_id: str | None
+    ) -> bool:
+        if wbs_id is None or self.wbs_access_repository is None:
+            return True
+        checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
+        return True if not callable(checker) else bool(
+            checker(scope, auth_context.user_id, wbs_id, Permission.PROJECT_READ.value)
+        )
 
     def list(
         self,
@@ -142,7 +176,10 @@ class P6ActivityMasterAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
-        return tuple(_dto(item) for item in self.repository.list(scope))
+        return tuple(
+            _dto(item) for item in self.repository.list(scope)
+            if self._can_read_activity(scope, auth_context, item.wbs_id)
+        )
 
 
 __all__ = ["P6_ACTIVITY_MASTER_API_VERSION", "P6ActivityMasterAPI"]
