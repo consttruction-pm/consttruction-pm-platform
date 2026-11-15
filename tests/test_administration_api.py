@@ -90,6 +90,7 @@ def test_administration_defaults_matrix_and_viewer_read(tmp_path: Path) -> None:
         assert matrix["permissions"] == sorted(matrix["permissions"])
         assert matrix["permissions"] == sorted(permission.value for permission in Permission)
         assert "p6.activity.admin" in matrix["permissions"]
+        assert "p6.period.performance.edit" in roles["planner"]
         assert "p6.project.create" in matrix["permissions"]
     finally:
         runtime.close()

@@ -181,6 +181,7 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.P6_MONITOR_THRESHOLDS,
                 Permission.P6_COSTS_VIEW,
                 Permission.P6_RESOURCE_REQUEST_ADMIN,
+                Permission.P6_EDIT_PERIOD_PERFORMANCE,
                 Permission.P6_PROJECT_CHECKOUT_ADMIN,
                 Permission.P6_LEVEL_RESOURCES,
                 Permission.P6_BASELINE_UPDATE,
