@@ -326,3 +326,87 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
         connection.commit()
+
+def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
+    suffix = uuid.uuid4().hex
+    tenant = f"admin-superuser-{suffix}"
+    admin_id = f"p6-admin-{suffix}"
+    target_id = f"p6-target-{suffix}"
+    project_id = f"p6-project-{suffix}"
+    obs_id = f"p6-obs-{suffix}"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
+        identity.upsert_user(_identity_user(target_id, tenant, "planner"))
+        PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, obs_id, name="Admin Scope"))
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, target_id, project_id, "Admin Superuser project", obs_id=obs_id
+        )
+        # Controlled installation bootstrap: this reserved built-in is inserted
+        # only by the trusted installation operator, never through the tenant API.
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,'p6-admin-superuser','Admin Superuser','global',TRUE,1,%s,%s,%s,%s)",
+            (tenant, admin_id, admin_id, now, now),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_assignments "
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
+            "VALUES (%s,'p6-admin-superuser',%s,'',1,%s,%s)",
+            (tenant, admin_id, admin_id, now),
+        )
+        connection.commit()
+
+    with _connect() as connection:
+        profiles = PostgresSecurityProfileRepository(connection)
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"enterprise_admin"}))
+        assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
+        assert policy.is_allowed(admin_context, Permission.PROJECT_WRITE)
+
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.create_profile(
+                tenant_id=tenant, profile_id="p6-admin-superuser",
+                name="Forged Admin", scope="global", actor_user_id=admin_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.set_active(
+                tenant_id=tenant, profile_id="p6-admin-superuser", active=False,
+                expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.set_privileges(
+                tenant_id=tenant, profile_id="p6-admin-superuser", privileges=set(),
+                expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+            )
+
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="p6-admin-superuser", user_id=target_id,
+                actor_user_id=target_id, occurred_at=now,
+            )
+        assert profiles.assign(
+            tenant_id=tenant, profile_id="p6-admin-superuser", user_id=target_id,
+            actor_user_id=admin_id, occurred_at=now,
+        ) == 1
+
+        profiles.create_profile(
+            tenant_id=tenant, profile_id="ordinary-global", name="Ordinary Global",
+            scope="global", actor_user_id=admin_id, occurred_at=now,
+        )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
+                actor_user_id=admin_id, occurred_at=now, expected_revision=1,
+            )
+        connection.rollback()
+
