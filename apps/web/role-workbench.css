@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: Inter, "Segoe UI", Tahoma, sans-serif; background: #081a2f; color: #10233a; }
+* { box-sizing: border-box; }
+body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(1000px 600px at 12% -10%, #17436b 0%, transparent 62%), radial-gradient(900px 500px at 100% 0%, #0e5967 0%, transparent 55%), #081a2f; }
+.rw-card { width: min(620px, 100%); padding: clamp(24px, 5vw, 42px); border-radius: 20px; background: #fff; box-shadow: 0 28px 80px #020c1880; }
+.rw-eyebrow { margin: 0 0 12px; color: #087e8b; font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.rw-card h1 { margin: 0 0 12px; font-size: clamp(25px, 4vw, 34px); line-height: 1.2; }
+.rw-copy { color: #52657a; line-height: 1.7; }
+.rw-card fieldset { display: grid; gap: 10px; margin: 24px 0; padding: 0; border: 0; }
+.rw-card legend { margin-bottom: 10px; font-weight: 700; }
+.rw-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #d6e0e9; border-radius: 12px; cursor: pointer; }
+.rw-option:has(input:checked) { border-color: #087e8b; background: #effafb; }
+.rw-option input { width: 18px; height: 18px; accent-color: #087e8b; }
+.rw-option span { display: grid; gap: 4px; }
+.rw-option small, .rw-environment span, .rw-environment small { color: #607286; }
+.rw-primary { width: 100%; padding: 14px 18px; border: 0; border-radius: 10px; background: #087e8b; color: white; font: inherit; font-weight: 700;¶»§q«^

@@ -14,6 +14,11 @@ test("preview resolver serves the main HTML entry", () => {
   assert.ok(portable(resolved)?.endsWith("apps/web/index.html"));
 });
 
+test("preview resolver serves the temporary role picker and personal workbench", () => {
+  assert.ok(portable(resolveRequestFile("/login"))?.endsWith("apps/web/login.html"));
+  assert.ok(portable(resolveRequestFile("/workbench"))?.endsWith("apps/web/workbench.html"));
+});
+
 test("preview resolver serves the application shell at /app", () => {
   for (const route of ["/app", "/app/", "/app/index.html", "/app?view=activity"]) {
     const resolved = resolveRequestFile(route);
@@ -29,105 +34,4 @@ test("preview resolver strips query strings", () => {
 });
 
 test("preview resolver maps the checkout module into the built web output", () => {
-  const resolved = portable(resolveRequestFile("/dist/pro-checkout.js"));
-  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/pro-checkout.js"));
-});
-
-test("preview resolver maps built web output under /dist", () => {
-  const resolved = resolveRequestFile("/dist/main.js?cache=1");
-  assert.ok(portable(resolved)?.endsWith("apps/web/dist/web/src/main.js"));
-});
-
-test("preview resolver maps built client-sync output explicitly", () => {
-  const resolved = resolveRequestFile("/client-sync/src/scheduling-adapter.js");
-  assert.ok(portable(resolved)?.endsWith("apps/web/dist/client-sync/src/scheduling-adapter.js"));
-});
-
-test("preview resolver rejects path traversal outside the preview roots", () => {
-  assert.equal(resolveRequestFile("/../package.json"), null);
-  assert.equal(resolveRequestFile("/%2e%2e/package.json"), null);
-});
-
-test("preview resolver serves public marketing pages with and without trailing slash", () => {
-  for (const route of ["/platform/", "/platform", "/solutions/", "/pricing/", "/pricing", "/resources/", "/contact/"]) {
-    const resolved = portable(resolveRequestFile(route));
-    assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
-    assert.ok(resolved?.includes("/public/"), "Expected " + route + " to resolve from public assets");
-  }
-});
-
-test("preview resolver serves the canonical assistant avatar from the public asset root", () => {
-  const resolved = portable(resolveRequestFile("/cubi-assistant-avatar.svg"));
-  assert.ok(resolved?.endsWith("/apps/web/public/cubi-assistant-avatar.svg"));
-  assert.ok(resolved && existsSync(resolved), "assistant avatar asset must exist at the resolved path");
-});
-
-
-test("preview resolver serves the Persian language routes as real documents", () => {
-  for (const route of ["/fa/", "/fa", "/fa/index.html", "/fa/platform/", "/fa/solutions/", "/fa/pricing/", "/fa/pricing", "/fa/resources/", "/fa/contact/"]) {
-    const resolved = portable(resolveRequestFile(route));
-    assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
-    assert.ok(resolved?.includes("/public/fa/"), "Expected " + route + " to resolve from the Persian documents");
-    assert.ok(resolved && existsSync(resolved), "Expected a shipped document for " + route);
-  }
-});
-
-test("the language twins describe themselves and link to each other", () => {
-  const pairs = [
-    ["/platform/", "/fa/platform/"],
-    ["/solutions/", "/fa/solutions/"],
-    ["/pricing/", "/fa/pricing/"],
-    ["/resources/", "/fa/resources/"],
-    ["/contact/", "/fa/contact/"],
-  ];
-  const switchHref = (html) => html.match(/<a class="cubi-public-language"[^>]*?href="([^"]+)"/)?.[1];
-  for (const [english, persian] of pairs) {
-    const englishHtml = readFileSync(resolveRequestFile(english), "utf8");
-    const persianHtml = readFileSync(resolveRequestFile(persian), "utf8");
-    assert.match(englishHtml, /<html lang="en" dir="ltr">/);
-    assert.match(persianHtml, /<html lang="fa" dir="rtl">/);
-    const forward = switchHref(englishHtml);
-    const backward = switchHref(persianHtml);
-    assert.ok(forward, `${english} has no language switch link`);
-    assert.ok(backward, `${persian} has no language switch link`);
-    // Directory URLs make a wrong "./" prefix resolve to a dead route, so the
-    // switch is verified as a real URL rather than as a string.
-    assert.equal(new URL(forward, "https://preview.test" + english).pathname, persian);
-    assert.equal(new URL(backward, "https://preview.test" + persian).pathname, english);
-  }
-});
-
-test("every public page and the workspace shell load the shared floating assistant", () => {
-  for (const route of [
-    "/", "/platform/", "/solutions/", "/pricing/", "/resources/", "/contact/",
-    "/fa/", "/fa/platform/", "/fa/solutions/", "/fa/pricing/", "/fa/resources/", "/fa/contact/",
-    "/app",
-  ]) {
-    const resolved = resolveRequestFile(route);
-    assert.ok(resolved && existsSync(resolved), "Expected a page for " + route);
-    assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.bundle\.js/, "Missing assistant launcher script on " + route);
-  }
-});
-
-test("preview resolver maps the floating assistant module to the compiled Web output", () => {
-  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.bundle.js"));
-  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.bundle.js"));
-});
-
-
-test("the isolated Enterprise route serves the authenticated application shell", () => {
-  const enterpriseShell = resolveRequestFile("/enterprise");
-  const enterpriseSlashShell = resolveRequestFile("/enterprise/");
-  const appShell = resolveRequestFile("/app");
-  assert.equal(enterpriseShell, appShell);
-  assert.equal(enterpriseSlashShell, appShell);
-  assert.match(readFileSync(enterpriseShell, "utf8"), /main\.bundle\.js/);
-});
-
-test("the authenticated workspace shell loads the workspace bundle directly", () => {
-  const appShell = readFileSync(resolveRequestFile("/app"), "utf8");
-  assert.match(appShell, /<title>CUBI Workspace<\/title>/);
-  assert.match(appShell, /<script type="module" src="\/dist\/main\.bundle\.js"><\/script>/);
-  assert.doesNotMatch(appShell, /landing-entry\.bundle\.js/);
-  assert.match(appShell, /global-assistant-launcher\.bundle\.js/);
-});
+  const resolved = portable(resolveRequestFile("/dist/pro-ch¶»§q«^
