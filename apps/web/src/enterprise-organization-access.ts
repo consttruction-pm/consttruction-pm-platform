@@ -174,6 +174,8 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const current=membersData.find(item=>item.user_id===currentUserId);
     const canManage=Boolean(current && current.status==="active" && (current.role==="owner" || current.role==="admin"));
     inviteForm.hidden=!canManage;
+    const adminOption=Array.from(role.options).find(option=>option.value==="admin");
+    if(adminOption) adminOption.disabled=current?.role!=="owner";
     for(const member of membersData){
       const row=el("article","oa-row");
       const info=el("div"); info.append(el("strong","",member.user_id),el("small","",`${t[member.role as keyof typeof t] ?? member.role} · ${member.status}`));
