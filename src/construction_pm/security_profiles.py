@@ -224,7 +224,7 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_assignment_guard()
-    RETURNS trigger LANGUAGE plpgsql AS $
+    RETURNS trigger LANGUAGE plpgsql AS $$
     DECLARE profile_scope TEXT; profile_active BOOLEAN;
             account_tenant TEXT; account_active BOOLEAN;
     BEGIN
