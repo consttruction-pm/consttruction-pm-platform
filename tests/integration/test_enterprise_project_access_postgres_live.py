@@ -46,6 +46,12 @@ def test_postgres_obs_assignment_inherits_to_descendant_projects_and_revokes_imm
                (tenant_id,project_id,name,revision,obs_id) VALUES(%s,%s,%s,0,%s)""",
             (tenant, project_id, "OBS scoped project", child_id),
         )
+        # Legacy membership is deliberately present: revoking the OBS/profile
+        # grant must still remove project access rather than falling back to it.
+        connection.execute(
+            "INSERT INTO project_lifecycle_memberships (tenant_id,project_id,user_id) VALUES(%s,%s,%s)",
+            (tenant, project_id, member_id),
+        )
         repository = PostgresProjectAccessRepository(connection)
         repository.initialize()
         profile = ProjectSecurityProfile(tenant,"read_only","Read only",("project.read",),True,1,NOW)
