@@ -41,10 +41,11 @@ def _is_allowed_for_activity(
     policy: AuthorizationPolicy, auth_context: AuthorizationContext,
     permission: Permission, wbs_id: str,
 ) -> bool:
-    if wbs_id:
-        scoped = getattr(policy, "is_allowed_for_wbs", None)
-        if callable(scoped):
-            return bool(scoped(auth_context, permission, wbs_id))
+    if not isinstance(wbs_id, str) or not wbs_id.strip():
+        return False
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if callable(scoped):
+        return bool(scoped(auth_context, permission, wbs_id))
     return policy.is_allowed(auth_context, permission)
 
 
