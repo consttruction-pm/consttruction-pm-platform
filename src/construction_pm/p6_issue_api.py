@@ -100,7 +100,7 @@ class P6IssueAPI:
         self, issue: P6Issue, *, auth_context: AuthorizationContext, occurred_at: str
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
         with self._transaction():
             stored = self.repository.create(
                 issue, actor_id=auth_context.user_id, occurred_at=occurred_at
@@ -153,7 +153,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
         with self._transaction():
             stored = self.repository.update(
                 issue,
@@ -173,7 +173,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
         with self._transaction():
             deleted = self.repository.delete(
                 scope,
@@ -202,7 +202,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
         with self._transaction():
             stored = self.repository.add_comment(
                 scope,
