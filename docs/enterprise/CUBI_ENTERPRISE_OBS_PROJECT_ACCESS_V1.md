@@ -122,7 +122,7 @@ The current baseline application surface has no delete/restore/assign operations
 
 ### WBS and Responsible OBS privilege alignment (2026-11-15)
 
-- WBS create/update/copy/milestone replacement use the WBS management operation grant; delete uses the WBS delete grant; get/list use the WBS view grant. These are separately checked from the OBS responsibility scope.
+- WBS create/copy use `wbs.add_edit`; update/milestone replacement use `wbs.edit`; delete uses `wbs.delete`; get/list use `wbs.view`. Copy checks source view and destination add/edit scope. These are separately checked from the OBS responsibility scope.
 - Activity OBS checks now evaluate the corresponding activity privilege (`activity.view`, `activity.add_edit`, or `activity.edit`) rather than requiring the unrelated broad `project.read` / `project.write` profile keys.
 - Expense, Issue, Risk, and Threshold Responsible OBS checks likewise use the operation's own granular privilege. This closes the granular-only profile failure where the route accepted an activity/issue/etc. privilege but the second OBS gate incorrectly demanded `project.read` or `project.write`.
 - The WBS operation keys are CUBI route-level keys. They still require reconciliation against Oracle's full privilege-detail matrix, including the V26 combined WBS hierarchy privilege and WBS financial/cost restrictions; do not treat this increment as complete WBS privilege parity.
