@@ -949,7 +949,7 @@ class PostgresWBSMasterRepository:
                     WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
                     ELSE p_permissions ? p_permission
                 END
-                $"""
+                $cubi$"""
         )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS wbs_master (
