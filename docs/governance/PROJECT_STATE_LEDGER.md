@@ -1347,3 +1347,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Added integration coverage for token rejection, initial bootstrap, duplicate-bootstrap rejection, last-admin deactivation protection and recovery after an administrator account becomes inactive. Exact-head PostgreSQL CI for this test addition is pending; no pass is claimed until the run completes.
 - Follow-on code commits: `8fc8dd6f` (bootstrap service), `0c8f7f18` (operator CLI), `78ffa3c1` (active-admin counting), `b05b7381` (deactivation guard), `0858d189` (HTTP conflict mapping), `5b637c6c`/`3aede307` (bootstrap/recovery tests), `61eba436` (schema initialization in CLI).
 
+### EPS responsibility inheritance slice — 2026-11-15
+
+- Added `src/construction_pm/p6_eps_repository.py`: tenant-scoped EPS hierarchy, responsible OBS reference per EPS node, parent validation and cycle rejection, revision-guarded EPS node writes, and project-to-EPS placement.
+- Production schema initialization now provisions the EPS hierarchy and project placement tables.
+- The PostgreSQL authorization evaluator now resolves a project's effective OBS set from its direct project OBS plus the responsible OBS values on its EPS node and all EPS ancestors, then applies the OBS ancestor hierarchy to match the V26 responsibility inheritance path.
+- Added live PostgreSQL integration coverage for project access inherited from an EPS ancestor, including rejection of EPS cycles. The built-in bootstrap now provisions all three V26 reserved profiles (Admin Superuser, No Global Privileges, Project Superuser); the bootstrap integration test asserts all three exist.
+- **Code commits:** `b019b58a` (EPS persistence), `3dbcdae8` (production schema), `b5869838` (EPS authorization inheritance), `ac870d7c` (integration test), `9fcfb822` (bootstrap all built-ins), `9f01cffb` (built-in catalog assertion).
+- **Still incomplete:** no production EPS administration UI/API or EPS audit lifecycle yet. WBS-level OBS assignment must be implemented with object-level authorization: a WBS assignment cannot be treated as blanket access to every WBS/activity in the project. Activity, issue and threshold access must inherit the correct WBS/OBS scope before V26 parity can be claimed.
+- **Verification status:** exact-head PostgreSQL Integration for the EPS slice is being run; no success claim is made until the run at the final branch SHA completes.
+- **Oracle V26 references:** Help V26, Creating an OBS; Application Administration Guide V26, Assigning OBS Elements to the EPS; Useful P6 EPPM Terms. See the parity baseline for the canonical URLs.
+
