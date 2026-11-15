@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import uuid
+from decimal import Decimal
 from io import BytesIO
 from types import SimpleNamespace
 from datetime import datetime, timezone
@@ -10,6 +12,13 @@ from datetime import datetime, timezone
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.p6_issue_api import P6IssueAPI
+from construction_pm.p6_issue_repository import P6Issue, SQLiteP6IssueRepository
+from construction_pm.p6_expense_api import P6ExpenseAPI
+from construction_pm.p6_expense_repository import (
+    P6Expense, P6ExpenseApplicationService, SQLiteP6ExpenseRepository,
+)
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.application.authorization import (
     AuthorizationContext,
@@ -746,3 +755,164 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         connection.rollback()
 
+
+
+def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility():
+    suffix = uuid.uuid4().hex
+    tenant = f"wbs-linked-api-{suffix}"
+    user_id = f"wbs-linked-user-{suffix}"
+    project_id = f"wbs-linked-project-{suffix}"
+    project_obs = f"wbs-linked-project-obs-{suffix}"
+    restricted_obs = f"wbs-linked-restricted-obs-{suffix}"
+    root_wbs = f"wbs-linked-root-{suffix}"
+    restricted_wbs = f"wbs-linked-restricted-{suffix}"
+    now = datetime.now(timezone.utc)
+    occurred_at = now.isoformat()
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        obs_repository = PostgresP6OBSRepository(connection)
+        obs_repository.initialize()
+        PostgresWBSMasterRepository(connection).initialize()
+        eps_repository = PostgresP6EPSRepository(connection)
+        eps_repository.initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant, "planner"))
+        obs_repository.upsert(P6OBSNode(tenant, project_obs, name="Project Responsible OBS"))
+        obs_repository.upsert(P6OBSNode(tenant, restricted_obs, name="Restricted WBS OBS"))
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, user_id, project_id, "WBS linked API project", obs_id=project_obs
+        )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_tech) "
+            "VALUES (%s,%s,0,%s,'project',NULL,'ROOT','Root WBS',0,1,'active','activities')",
+            (tenant, project_id, root_wbs),
+        )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_tech) "
+            "VALUES (%s,%s,0,%s,'wbs',%s,'RESTRICTED','Restricted WBS',1,1,'active','activities')",
+            (tenant, project_id, restricted_wbs, root_wbs),
+        )
+        eps_repository.assign_wbs_responsibility(
+            tenant, project_id, restricted_wbs, restricted_obs,
+            actor_user_id=user_id, occurred_at=now,
+        )
+
+        profiles = PostgresSecurityProfileRepository(connection)
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"global-{suffix}", name="WBS API Global",
+            scope="global", actor_user_id=user_id, occurred_at=now,
+        )
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"project-{suffix}", name="WBS API Project",
+            scope="project", actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_delete_issues_issue_thresholds",
+                "add_edit_delete_expenses",
+            },
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=global_profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id, user_id=user_id,
+            obs_id=project_obs, actor_user_id=user_id, occurred_at=now,
+        )
+        connection.commit()
+
+    issue_connection = sqlite3.connect(":memory:")
+    expense_connection = sqlite3.connect(":memory:")
+    with _connect() as connection:
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
+        scope = BackendScope(tenant, project_id, 0)
+        issue_repository = SQLiteP6IssueRepository(issue_connection)
+        issue_api = P6IssueAPI(issue_repository, policy)
+        visible_issue = P6Issue(
+            scope, f"visible-{suffix}", "Visible WBS issue", "", "scope", "open",
+            "normal", user_id, date_identified="2026-11-15", wbs_id=root_wbs,
+        )
+        restricted_issue = P6Issue(
+            scope, f"restricted-{suffix}", "Restricted WBS issue", "", "scope", "open",
+            "normal", user_id, date_identified="2026-11-15", wbs_id=restricted_wbs,
+        )
+        issue_api.create(visible_issue, auth_context=context, occurred_at=occurred_at)
+        issue_repository.create(restricted_issue, actor_id=user_id, occurred_at=occurred_at)
+
+        # The project OBS assignment keeps read-only visibility on a WBS
+        # overridden to another OBS, but cannot authorize issue writes there.
+        assert issue_api.get(scope, restricted_issue.issue_id, auth_context=context) is not None
+        assert {item["issue"]["issue_id"] for item in issue_api.list(scope, auth_context=context)} == {
+            visible_issue.issue_id, restricted_issue.issue_id,
+        }
+        with pytest.raises(Exception, match="authorization denied"):
+            issue_api.create(
+                P6Issue(
+                    scope, f"denied-{suffix}", "Denied WBS issue", "", "scope", "open",
+                    "normal", user_id, date_identified="2026-11-15", wbs_id=restricted_wbs,
+                ),
+                auth_context=context, occurred_at=occurred_at,
+            )
+        with pytest.raises(Exception, match="authorization denied"):
+            issue_api.update(
+                restricted_issue, expected_revision=1, auth_context=context,
+                occurred_at=occurred_at,
+            )
+        with pytest.raises(Exception, match="authorization denied"):
+            issue_api.delete(
+                scope, restricted_issue.issue_id, expected_revision=1,
+                auth_context=context, occurred_at=occurred_at,
+            )
+        with pytest.raises(Exception, match="authorization denied"):
+            issue_api.add_comment(
+                scope, restricted_issue.issue_id, comment="not allowed",
+                expected_revision=1, auth_context=context, occurred_at=occurred_at,
+            )
+
+        expense_repository = SQLiteP6ExpenseRepository(expense_connection)
+        expense_api = P6ExpenseAPI(
+            P6ExpenseApplicationService(
+                expense_repository, SQLiteTransactionManager(expense_connection)
+            ),
+            policy,
+        )
+        visible_expense = P6Expense(
+            scope, f"visible-expense-{suffix}", "Visible WBS expense", "SITE",
+            wbs_id=root_wbs, planned_cost=Decimal("10.00"),
+        )
+        restricted_expense = P6Expense(
+            scope, f"restricted-expense-{suffix}", "Restricted WBS expense", "SITE",
+            wbs_id=restricted_wbs, planned_cost=Decimal("20.00"),
+        )
+        expense_api.create(visible_expense, auth_context=context)
+        expense_repository.upsert(restricted_expense)
+        assert expense_api.get(
+            scope, restricted_expense.expense_id, auth_context=context
+        ) is not None
+        assert {item["expense"]["expense_id"] for item in expense_api.list(
+            scope, auth_context=context
+        )} == {visible_expense.expense_id, restricted_expense.expense_id}
+        with pytest.raises(Exception, match="authorization denied"):
+            expense_api.create(
+                P6Expense(
+                    scope, f"denied-expense-{suffix}", "Denied WBS expense", "SITE",
+                    wbs_id=restricted_wbs, planned_cost=Decimal("30.00"),
+                ),
+                auth_context=context,
+            )
+        connection.rollback()
+    issue_connection.close()
+    expense_connection.close()
