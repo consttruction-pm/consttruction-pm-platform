@@ -111,3 +111,49 @@ def test_postgres_team_membership_persists_and_revocation_is_immediate():
                 (tenant, team.team_id),
             )
         connection.rollback()
+
+
+def test_postgres_account_deactivation_is_tenant_scoped_audited_and_revokes_sessions():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = f"org-account-{uuid.uuid4().hex}"
+    with psycopg.connect(DSN) as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        admin_id = f"account-admin-{uuid.uuid4().hex}"
+        target_id = f"account-target-{uuid.uuid4().hex}"
+        identity.upsert_user(IdentityUser(
+            user_id=admin_id, tenant_id=tenant, email=f"{admin_id}@example.invalid",
+            display_name="Admin", roles=frozenset({"enterprise_admin"}),
+            password_hash="unused-integration-hash", active=True,
+        ))
+        identity.upsert_user(IdentityUser(
+            user_id=target_id, tenant_id=tenant, email=f"{target_id}@example.invalid",
+            display_name="Target", roles=frozenset(), password_hash="unused-integration-hash",
+            active=True,
+        ))
+        repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        repository.initialize()
+        assert repository.has_active_role(tenant, admin_id, "enterprise_admin")
+        accounts = repository.list_tenant_users(tenant)
+        assert {item["user_id"] for item in accounts} == {admin_id, target_id}
+
+        changed = repository.set_account_active(
+            tenant, target_id, admin_id, False, NOW,
+        )
+        assert changed == {"user_id": target_id, "active": False, "changed": True}
+        assert not identity.is_user_active(target_id, tenant)
+
+        with pytest.raises(OrganizationAccessError, match="LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED"):
+            repository.set_account_active(tenant, admin_id, admin_id, False, NOW)
+
+        audit_count = connection.execute(
+            "SELECT count(*) FROM enterprise_user_access_audit WHERE tenant_id=%s",
+            (tenant,),
+        ).fetchone()[0]
+        assert audit_count == 1
+        with pytest.raises(psycopg.Error, match="ENTERPRISE_ACCESS_AUDIT_APPEND_ONLY"):
+            connection.execute(
+                "UPDATE enterprise_user_access_audit SET action='account_activated' WHERE tenant_id=%s",
+                (tenant,),
+            )
+        connection.rollback()
