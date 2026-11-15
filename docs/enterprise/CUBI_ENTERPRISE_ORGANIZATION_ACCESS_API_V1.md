@@ -15,9 +15,18 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | GET | `/api/enterprise/teams/{team_id}/eligible-users` | List active same-tenant accounts not yet active members; owner/admin only |
 | POST | `/api/enterprise/teams` | Create a tenant team; atomically creates owner membership |
 | POST | `/api/enterprise/teams/{team_id}/members` | Add an active same-tenant account with a team role and optional project-scope metadata |
-| DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |\n| PUT | `/api/enterprise/teams/{team_id}/owner` | Transfer ownership to an existing active team member using expected team and target-membership revisions |
+| DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |
+| PUT | `/api/enterprise/teams/{team_id}/owner` | Transfer ownership to an existing active team member using expected team and target-membership revisions |
 | GET | `/api/enterprise/users` | List safe account identity/status fields for the authenticated tenant; Enterprise administrator only |
 | PATCH | `/api/enterprise/users/{user_id}/status` | Activate/deactivate an account; deactivation revokes every persisted session for that tenant/user |
+| GET | `/api/enterprise/security-profiles?scope=global|project` | List tenant-owned profiles and supported operation permissions; Enterprise administrator only |
+| POST | `/api/enterprise/security-profiles` | Create a Global or Project profile |
+| PATCH | `/api/enterprise/security-profiles/{profile_id}/privileges` | Replace the profile's operation grants with expected revision |
+| PATCH | `/api/enterprise/security-profiles/{profile_id}/status` | Activate/deactivate a profile with expected revision |
+| PUT | `/api/enterprise/security-profiles/{profile_id}/assignments` | Assign a global profile to a user or a project profile to a user/project |
+| DELETE | `/api/enterprise/security-profiles/{profile_id}/assignments/{user_id}` | Remove assignment with expected revision and optional project_id query
+
+Security-profile contracts are `cubi-p6-security-profile.v1`, `cubi-p6-security-profile-privileges.v1`, `cubi-p6-security-profile-status.v1`, and `cubi-p6-security-profile-assignment.v1`. All profile management routes require a live re-check of the actor's active `enterprise_admin` role. Tenant and actor remain session-derived.
 
 Create and membership mutation bodies use `contract_version: cubi-enterprise-team.v1`. Account status mutation uses `contract_version: cubi-enterprise-user-admin.v1` and a strict boolean `active` field. The API never accepts tenant or actor identity from the client. Tenant and actor are derived from the authenticated session by `EnterpriseOrganizationAccessService`.
 
@@ -26,17 +35,22 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 - Team creation requires both server-side `enterprise_admin` and `pro_monthly_active` claims. Until entitlement provisioning is authoritative, creation fails closed.
 - Membership changes and eligible-user directory access require an active owner/admin membership in the target team. Roster visibility requires an active membership in that team.
 - Member accounts must exist, be active and belong to the same tenant.
-- The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.\n- Ownership transfer is allowed only to the current owner, only to an existing active same-tenant member, and requires both current team revision and target membership revision. PostgreSQL serializes the transition on the team row, promotes the target to `owner`, demotes the previous owner to `admin`, increments all affected revisions, and appends one immutable before/after audit event in the same transaction. The target retains their existing project-scope metadata; it still grants no project access.
+- The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.
+- Ownership transfer is allowed only to the current owner, only to an existing active same-tenant member, and requires both current team revision and target membership revision. PostgreSQL serializes the transition on the team row, promotes the target to `owner`, demotes the previous owner to `admin`, increments all affected revisions, and appends one immutable before/after audit event in the same transaction. The target retains their existing project-scope metadata; it still grants no project access.
 - Revocation increments membership revision and writes an append-only actor-bound audit event.
 - Account directory and status changes require a currently active `enterprise_admin` role re-read from the tenant-bound identity row; the browser/session role snapshot is not the sole authorization source.
 - Account deactivation is tenant-scoped, prevents self-deactivation, prevents disabling the last active Enterprise administrator, and prevents deactivating an owner of an active team before ownership transfer.
 - Deactivation atomically changes account state, revokes all existing sessions, and appends an immutable actor/target audit event. Session resolution independently rechecks account state as defense in depth.
 - Team membership and `scope_project_ids` are not project authorization grants. They do not grant access to projects, forms, documents, files, reports or Engineering records.
+- Security profiles are persisted in tenant-scoped PostgreSQL tables. Privilege changes and status transitions require the current profile revision; assignments require an active same-tenant user and, for Project profiles, an existing project in the same tenant. A profile assignment never creates project membership.
+- The production authorization policy evaluates the existing role policy as a hard ceiling, then intersects assigned Global and Project profile grants. Profiles can restrict access but cannot elevate a user beyond their existing role grants. Inactive assigned profiles fail closed. No profile assignment preserves legacy role behavior during the migration window.
+- Profile mutations append immutable actor-bound before/after audit records. Self-assignment is prohibited. Project membership remains a separate prerequisite for project APIs.
+- The current profile privilege vocabulary reuses CUBI's existing operation permissions; it is not yet the complete Oracle Global Security Profile catalog or all Project Profile privilege groups.
 - Team assignment in Task API remains disabled until that API explicitly consumes the active-membership authorization adapter and adds its own cross-scope tests.
 
 ## V26 Help traceability
 
-This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation, plus a current-owner-only, revision-guarded ownership transfer workflow. It also includes tenant-scoped account directory/status controls for active Enterprise administrators, audited activation/deactivation, last-admin/team-owner protections and immediate session revocation. It remains partial against V26: account invitation/creation and password lifecycle, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, Copy User Settings, effective-access previews and access reports are not yet implemented.
+This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation, plus a current-owner-only, revision-guarded ownership transfer workflow. It also includes tenant-scoped account directory/status controls and a first persisted Global/Project Security Profile engine. The profile API is wired to the production authorization policy, uses role grants as a non-escalation ceiling, supports tenant-safe assignment, revision-guarded privilege updates and immutable audit. This is partial against V26: account invitation/creation and password lifecycle, full Oracle global/project privilege catalogs, module access, OBS responsibility/resource access, User Interface Views, Copy User Settings, assignment/effective-access previews and access reports remain outstanding.
 
 | V26 Help topic / observable behavior | CUBI contract or surface | Evidence / state |
 |---|---|---|
