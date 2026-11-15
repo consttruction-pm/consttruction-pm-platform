@@ -252,7 +252,7 @@ SECURITY_PROFILE_SCHEMA = (
         END IF;
         RETURN NEW;
     END;
-    $
+    $$
     """,
     """
     DROP TRIGGER IF EXISTS p6_security_profile_assignment_guard
