@@ -80,6 +80,12 @@ class P6ResourceWriteAPI:
     assignment_service: P6ResourceAssignmentApplicationService | None = None
     activity_repository: Any | None = None
 
+    def __post_init__(self) -> None:
+        if callable(getattr(self.authorization_policy, "is_allowed_for_wbs", None)) and not callable(
+            getattr(self.activity_repository, "get", None)
+        ):
+            raise ValueError("RESOURCE_ACTIVITY_SCOPE_NOT_CONFIGURED")
+
     def save_assignment(
         self,
         value: P6ResourceAssignment,

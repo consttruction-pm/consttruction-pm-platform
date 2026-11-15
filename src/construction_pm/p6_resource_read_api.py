@@ -79,6 +79,12 @@ class P6ResourceReadAPI:
     authorization_policy: AuthorizationPolicy
     activity_repository: Any | None = None
 
+    def __post_init__(self) -> None:
+        if _uses_wbs_authorization(self.authorization_policy) and not callable(
+            getattr(self.activity_repository, "get", None)
+        ):
+            raise ValueError("RESOURCE_ACTIVITY_SCOPE_NOT_CONFIGURED")
+
     def get_assignment(self, scope: BackendScope, assignment_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
         if not _uses_wbs_authorization(self.authorization_policy):

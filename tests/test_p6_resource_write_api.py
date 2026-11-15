@@ -245,11 +245,10 @@ def test_resource_write_api_uses_activity_wbs_and_v26_privilege_per_operation():
 
     # Profile-backed WBS authorization must fail closed when activity lookup
     # was not wired; it cannot silently degrade to project-wide authorization.
-    unscoped_api = P6ResourceWriteAPI(
-        legacy_api.period_service, policy,
-        assignment_service=legacy_api.assignment_service,
-    )
-    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
-        unscoped_api.save_assignment(allowed_assignment, auth_context=auth())
+    with pytest.raises(ValueError, match="RESOURCE_ACTIVITY_SCOPE_NOT_CONFIGURED"):
+        P6ResourceWriteAPI(
+            legacy_api.period_service, policy,
+            assignment_service=legacy_api.assignment_service,
+        )
     connection.close()
 

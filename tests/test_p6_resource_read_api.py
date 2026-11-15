@@ -231,3 +231,14 @@ def test_resource_read_api_filters_assignments_and_periods_by_activity_wbs():
     ] == ["ra-restricted"]
     connection.close()
 
+def test_resource_read_api_profile_policy_requires_activity_repository():
+    connection, api, *_ = build_api()
+    with pytest.raises(ValueError, match="RESOURCE_ACTIVITY_SCOPE_NOT_CONFIGURED"):
+        P6ResourceReadAPI(
+            api.assignment_service,
+            api.period_service,
+            api.spread_service,
+            _WbsScopedReadPolicy(),
+        )
+    connection.close()
+

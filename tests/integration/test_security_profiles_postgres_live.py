@@ -3,20 +3,19 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from contextlib import contextmanager
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from decimal import Decimal
 from io import BytesIO
 from types import SimpleNamespace
-from datetime import datetime, timezone
 
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.activity_master_repository import (
-    ActivityMaster, PostgresActivityMasterRepository,
+    ActivityMaster, PostgresActivityMasterRepository, SQLiteActivityMasterRepository,
 )
-from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment, P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue,
@@ -29,7 +28,6 @@ from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
 from construction_pm.scheduling.relationships import RelationshipType
-from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_issue_repository import P6Issue, SQLiteP6IssueRepository
 from construction_pm.p6_expense_api import P6ExpenseAPI
