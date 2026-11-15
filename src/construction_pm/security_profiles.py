@@ -97,6 +97,11 @@ PROJECT_PERMISSION_PRIVILEGE_MAP = {
     Permission.PROJECT_ADMIN: "edit_project_details_except_costs_financials",
 }
 
+GLOBAL_PERMISSION_PRIVILEGE_MAP = {
+    # V26 Global Security Profile privilege for creating/editing/deleting UDF definitions.
+    Permission.P6_UDF_ADMIN: "add_edit_delete_user_defined_fields",
+}
+
 GLOBAL_PRIVILEGE_IMPLICATIONS = {
     "delete_global_activity_codes": {"add_global_activity_codes", "edit_global_activity_codes"},
     "add_global_activity_codes": {"edit_global_activity_codes"},
@@ -655,6 +660,11 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # OBS. A project profile does not create project membership.
         if not any(bool(row[1]) for row in global_rows):
             return False
+        global_required = GLOBAL_PERMISSION_PRIVILEGE_MAP.get(permission)
+        if global_required is not None:
+            return any(bool(row[1]) and global_required in self._profile_privileges(
+                context.tenant_id, str(row[3])
+            ) for row in global_rows)
         # Read access follows the assigned OBS/project profile. Only the
         # operations with a verified V26 privilege mapping are enabled here;
         # generic write and CUBI-only permissions fail closed until each API
