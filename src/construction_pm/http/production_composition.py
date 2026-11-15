@@ -380,6 +380,11 @@ def build_project_lifecycle_wsgi_app(
                 threshold_api,
                 service=replace(threshold_api.service, responsible_obs_access=wbs_master_repository),
             )
+        if risk_api is not None and hasattr(risk_api, "service"):
+            risk_api = replace(
+                risk_api,
+                service=replace(risk_api.service, wbs_access_repository=wbs_master_repository),
+            )
 
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
