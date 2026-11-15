@@ -16,6 +16,8 @@ from uuid import uuid4
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 
+_WBS_OBS_UNSET = object()
+
 
 class WBSPersistenceError(ValueError):
     """Raised when WBS identity, hierarchy, scope, or revision is invalid."""
@@ -54,6 +56,7 @@ class WBSMaster:
     record_revision: int = 0
     status: WBSStatus = WBSStatus.PLANNED
     percent_complete_technique: PercentCompleteTechnique = PercentCompleteTechnique.ACTIVITIES
+    responsible_obs_id: str | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -89,6 +92,10 @@ class WBSMaster:
             raise WBSPersistenceError("INVALID_WBS_STATUS")
         if not isinstance(self.percent_complete_technique, PercentCompleteTechnique):
             raise WBSPersistenceError("INVALID_WBS_PERCENT_COMPLETE_TECHNIQUE")
+        if self.responsible_obs_id is not None and (
+            not isinstance(self.responsible_obs_id, str) or not self.responsible_obs_id.strip()
+        ):
+            raise WBSPersistenceError("INVALID_WBS_RESPONSIBLE_OBS")
 
 
 @dataclass(frozen=True)
@@ -217,6 +224,7 @@ def _decode_row(scope: BackendScope, row: tuple[object, ...]) -> WBSMaster:
         record_revision = row[6]
         status = WBSStatus(str(row[7]))
         technique = PercentCompleteTechnique(str(row[8]))
+        responsible_obs_id = None if len(row) <= 10 or row[10] is None else str(row[10])
         if isinstance(sequence_number, bool) or not isinstance(sequence_number, int):
             raise ValueError("INVALID_WBS_SEQUENCE_NUMBER")
         if isinstance(record_revision, bool) or not isinstance(record_revision, int):
@@ -232,6 +240,7 @@ def _decode_row(scope: BackendScope, row: tuple[object, ...]) -> WBSMaster:
             record_revision=record_revision,
             status=status,
             percent_complete_technique=technique,
+            responsible_obs_id=responsible_obs_id,
         )
         wbs.validate()
         return wbs
@@ -271,7 +280,7 @@ class SQLiteWBSMasterRepository:
 
     _SELECT_COLUMNS = (
         "wbs_id,parent_kind,parent_wbs_id,code,name,sequence_number,"
-        "record_revision,status,percent_complete_technique,project_revision"
+        "record_revision,status,percent_complete_technique,project_revision,responsible_obs_id"
     )
 
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -313,6 +322,8 @@ class SQLiteWBSMasterRepository:
             self.connection.execute(
                 "ALTER TABLE wbs_master ADD COLUMN percent_complete_technique TEXT NOT NULL DEFAULT 'activities'"
             )
+        if "responsible_obs_id" not in existing:
+            self.connection.execute("ALTER TABLE wbs_master ADD COLUMN responsible_obs_id TEXT")
         self.connection.execute(
             """CREATE UNIQUE INDEX IF NOT EXISTS uq_wbs_master_project_root
                ON wbs_master (tenant_id, project_id)
@@ -449,12 +460,13 @@ class SQLiteWBSMasterRepository:
                     record_revision=1,
                     status=wbs.status,
                     percent_complete_technique=wbs.percent_complete_technique,
+            responsible_obs_id=wbs.responsible_obs_id,
                 )
                 self.connection.execute(
                     "INSERT INTO wbs_master "
                     "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-                    "code,name,sequence_number,record_revision,status,percent_complete_technique) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "code,name,sequence_number,record_revision,status,percent_complete_technique,responsible_obs_id) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         stored.scope.tenant_id,
                         stored.scope.project_id,
@@ -468,12 +480,13 @@ class SQLiteWBSMasterRepository:
                         stored.record_revision,
                         stored.status.value,
                         stored.percent_complete_technique.value,
+                        stored.responsible_obs_id,
                     ),
                 )
             else:
                 if int(row[9]) != wbs.scope.project_revision:
                     raise WBSPersistenceError("REVISION_CONFLICT")
-                current = _decode_row(wbs.scope, row[:9])
+                current = _decode_row(wbs.scope, row[:11])
                 if expected_revision is None or expected_revision != current.record_revision:
                     raise WBSPersistenceError("REVISION_CONFLICT")
                 self._validate_parent(wbs)
@@ -489,11 +502,12 @@ class SQLiteWBSMasterRepository:
                     record_revision=current.record_revision + 1,
                     status=wbs.status,
                     percent_complete_technique=wbs.percent_complete_technique,
+            responsible_obs_id=wbs.responsible_obs_id,
                 )
                 cursor = self.connection.execute(
                     "UPDATE wbs_master SET project_revision=?,parent_kind=?,parent_wbs_id=?,"
                     "code=?,name=?,sequence_number=?,record_revision=?,status=?,"
-                    "percent_complete_technique=? "
+                    "percent_complete_technique=?,responsible_obs_id=? "
                     "WHERE tenant_id=? AND project_id=? AND wbs_id=? AND record_revision=?",
                     (
                         stored.scope.project_revision,
@@ -505,6 +519,7 @@ class SQLiteWBSMasterRepository:
                         stored.record_revision,
                         stored.status.value,
                         stored.percent_complete_technique.value,
+                        stored.responsible_obs_id,
                         stored.scope.tenant_id,
                         stored.scope.project_id,
                         stored.wbs_id,
@@ -556,7 +571,7 @@ class SQLiteWBSMasterRepository:
                 raise WBSPersistenceError("WBS_NOT_FOUND")
             if int(row[9]) != scope.project_revision:
                 raise WBSPersistenceError("REVISION_CONFLICT")
-            current = _decode_row(scope, row[:9])
+            current = _decode_row(scope, row[:11])
             if current.record_revision != expected_revision:
                 raise WBSPersistenceError("REVISION_CONFLICT")
 
@@ -641,7 +656,7 @@ class SQLiteWBSMasterRepository:
                 raise WBSPersistenceError("WBS_NOT_FOUND")
             if any(int(row[9]) != scope.project_revision for row in rows):
                 raise WBSPersistenceError("REVISION_CONFLICT")
-            nodes = tuple(_decode_row(scope, row[:9]) for row in rows)
+            nodes = tuple(_decode_row(scope, row[:11]) for row in rows)
             by_id = {node.wbs_id: node for node in nodes}
             if wbs_id not in by_id:
                 raise WBSPersistenceError("WBS_NOT_FOUND")
@@ -684,12 +699,13 @@ class SQLiteWBSMasterRepository:
                     record_revision=1,
                     status=node.status,
                     percent_complete_technique=node.percent_complete_technique,
+                    responsible_obs_id=node.responsible_obs_id,
                 )
                 self.connection.execute(
                     "INSERT INTO wbs_master "
                     "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-                    "code,name,sequence_number,record_revision,status,percent_complete_technique) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "code,name,sequence_number,record_revision,status,percent_complete_technique,responsible_obs_id) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         stored.scope.tenant_id,
                         stored.scope.project_id,
@@ -703,6 +719,7 @@ class SQLiteWBSMasterRepository:
                         stored.record_revision,
                         stored.status.value,
                         stored.percent_complete_technique.value,
+                        stored.responsible_obs_id,
                     ),
                 )
                 stored_nodes.append(stored)
@@ -757,7 +774,7 @@ class SQLiteWBSMasterRepository:
             return None
         if int(row[9]) != scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
-        return _decode_row(scope, row[:9])
+        return _decode_row(scope, row[:11])
 
     def list(self, scope: BackendScope) -> tuple[WBSMaster, ...]:
         scope.validate()
@@ -770,7 +787,7 @@ class SQLiteWBSMasterRepository:
         ).fetchall()
         if any(int(row[9]) != scope.project_revision for row in rows):
             raise WBSPersistenceError("REVISION_CONFLICT")
-        result = tuple(_decode_row(scope, row[:9]) for row in rows)
+        result = tuple(_decode_row(scope, row[:11]) for row in rows)
         root_count = sum(item.parent_kind is WBSParentKind.PROJECT for item in result)
         if result and root_count != 1:
             raise WBSPersistenceError("INVALID_WBS_PROJECT_ROOT")
@@ -827,7 +844,7 @@ class SQLiteWBSMasterRepository:
                 raise WBSPersistenceError("WBS_NOT_FOUND")
             if int(row[9]) != scope.project_revision:
                 raise WBSPersistenceError("REVISION_CONFLICT")
-            current = _decode_row(scope, row[:9])
+            current = _decode_row(scope, row[:11])
             if current.record_revision != expected_revision:
                 raise WBSPersistenceError("REVISION_CONFLICT")
 
@@ -900,7 +917,7 @@ class PostgresWBSMasterRepository:
 
     _SELECT_COLUMNS = (
         "wbs_id,parent_kind,parent_wbs_id,code,name,sequence_number,"
-        "record_revision,status,percent_complete_technique,project_revision"
+        "record_revision,status,percent_complete_technique,project_revision,responsible_obs_id"
     )
 
     def __init__(self, connection: object) -> None:
@@ -935,6 +952,7 @@ class PostgresWBSMasterRepository:
         self.connection.execute(
             "ALTER TABLE wbs_master ADD COLUMN IF NOT EXISTS percent_complete_technique TEXT NOT NULL DEFAULT 'activities'"
         )
+        self.connection.execute("ALTER TABLE wbs_master ADD COLUMN IF NOT EXISTS responsible_obs_id TEXT")
         self.connection.execute(
             """CREATE UNIQUE INDEX IF NOT EXISTS uq_wbs_master_project_root
                ON wbs_master (tenant_id, project_id)
@@ -968,6 +986,129 @@ class PostgresWBSMasterRepository:
                     ON DELETE CASCADE
             )"""
         )
+
+    def has_responsible_obs_permission(
+        self, scope: BackendScope, user_id: str, responsible_obs_id: str | None, permission: str
+    ) -> bool:
+        """Resolve a proposed WBS OBS against project scope and its OBS ancestors."""
+        row = self.connection.execute(
+            """WITH RECURSIVE target AS (
+                   SELECT p.obs_id AS project_obs_id,
+                          COALESCE(%s,p.obs_id) AS responsible_obs_id
+                   FROM project_lifecycle_projects p
+                   WHERE p.tenant_id=%s AND p.project_id=%s
+               ), obs_scope(obs_id,parent_obs_id,path) AS (
+                   SELECT o.obs_id,o.parent_obs_id,ARRAY[o.obs_id]::text[]
+                   FROM p6_obs_node o JOIN target t ON t.responsible_obs_id=o.obs_id
+                   WHERE o.tenant_id=%s
+                   UNION ALL
+                   SELECT parent.obs_id,parent.parent_obs_id,scope.path || parent.obs_id
+                   FROM obs_scope scope
+                   JOIN p6_obs_node parent ON parent.tenant_id=%s
+                       AND parent.obs_id=scope.parent_obs_id
+                   WHERE NOT parent.obs_id=ANY(scope.path)
+               )
+               SELECT CASE
+                 WHEN target.responsible_obs_id=target.project_obs_id
+                   THEN cubi_user_has_project_access(%s,%s,%s,%s)
+                 WHEN %s='project.read'
+                   THEN cubi_user_has_project_access(%s,%s,%s,'project.read')
+                     OR EXISTS (
+                       SELECT 1 FROM obs_scope scope
+                       JOIN enterprise_user_obs_assignments assignment
+                         ON assignment.tenant_id=%s AND assignment.user_id=%s
+                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
+                       JOIN enterprise_project_security_profiles profile
+                         ON profile.tenant_id=assignment.tenant_id
+                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
+                       WHERE profile.permissions ? %s
+                     )
+                 ELSE EXISTS (
+                       SELECT 1 FROM obs_scope scope
+                       JOIN enterprise_user_obs_assignments assignment
+                         ON assignment.tenant_id=%s AND assignment.user_id=%s
+                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
+                       JOIN enterprise_project_security_profiles profile
+                         ON profile.tenant_id=assignment.tenant_id
+                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
+                       WHERE profile.permissions ? %s
+                 )
+               END
+               FROM target""",
+            (
+                responsible_obs_id, scope.tenant_id, scope.project_id,
+                scope.tenant_id, scope.tenant_id,
+                scope.tenant_id, user_id, scope.project_id, permission,
+                permission, scope.tenant_id, user_id, scope.project_id,
+                scope.tenant_id, user_id, permission,
+                scope.tenant_id, user_id, permission,
+            ),
+        ).fetchone()
+        return bool(row and row[0])
+
+    def has_wbs_permission(
+        self, scope: BackendScope, user_id: str, wbs_id: str, permission: str,
+        responsible_obs_id_override: object = _WBS_OBS_UNSET,
+    ) -> bool:
+        """Apply project inheritance plus WBS-specific read-only/OBS override rules."""
+        row = self.connection.execute(
+            """WITH RECURSIVE target AS (
+                   SELECT p.obs_id AS project_obs_id,
+                          CASE WHEN %s THEN COALESCE(%s,p.obs_id) ELSE COALESCE(w.responsible_obs_id,p.obs_id) END AS responsible_obs_id
+                   FROM wbs_master w
+                   JOIN project_lifecycle_projects p
+                     ON p.tenant_id=w.tenant_id AND p.project_id=w.project_id
+                   WHERE w.tenant_id=%s AND w.project_id=%s AND w.wbs_id=%s
+               ), obs_scope(obs_id,parent_obs_id,path) AS (
+                   SELECT o.obs_id,o.parent_obs_id,ARRAY[o.obs_id]::text[]
+                   FROM p6_obs_node o JOIN target t ON t.responsible_obs_id=o.obs_id
+                   WHERE o.tenant_id=%s
+                   UNION ALL
+                   SELECT parent.obs_id,parent.parent_obs_id,scope.path || parent.obs_id
+                   FROM obs_scope scope
+                   JOIN p6_obs_node parent ON parent.tenant_id=%s
+                       AND parent.obs_id=scope.parent_obs_id
+                   WHERE NOT parent.obs_id=ANY(scope.path)
+               )
+               SELECT CASE
+                 WHEN target.responsible_obs_id=target.project_obs_id
+                   THEN cubi_user_has_project_access(%s,%s,%s,%s)
+                 WHEN %s='project.read'
+                   THEN cubi_user_has_project_access(%s,%s,%s,'project.read')
+                     OR EXISTS (
+                       SELECT 1 FROM obs_scope scope
+                       JOIN enterprise_user_obs_assignments assignment
+                         ON assignment.tenant_id=%s AND assignment.user_id=%s
+                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
+                       JOIN enterprise_project_security_profiles profile
+                         ON profile.tenant_id=assignment.tenant_id
+                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
+                       WHERE profile.permissions ? %s
+                     )
+                 ELSE EXISTS (
+                       SELECT 1 FROM obs_scope scope
+                       JOIN enterprise_user_obs_assignments assignment
+                         ON assignment.tenant_id=%s AND assignment.user_id=%s
+                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
+                       JOIN enterprise_project_security_profiles profile
+                         ON profile.tenant_id=assignment.tenant_id
+                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
+                       WHERE profile.permissions ? %s
+                 )
+               END
+               FROM target""",
+            (
+                responsible_obs_id_override is not _WBS_OBS_UNSET,
+                None if responsible_obs_id_override is _WBS_OBS_UNSET else responsible_obs_id_override,
+                scope.tenant_id, scope.project_id, wbs_id,
+                scope.tenant_id, scope.tenant_id,
+                scope.tenant_id, user_id, scope.project_id, permission,
+                permission, scope.tenant_id, user_id, scope.project_id,
+                scope.tenant_id, user_id, permission,
+                scope.tenant_id, user_id, permission,
+            ),
+        ).fetchone()
+        return bool(row and row[0])
 
     def _row(self, scope: BackendScope, wbs_id: str, *, lock: bool = False) -> tuple[object, ...] | None:
         suffix = " FOR UPDATE" if lock else ""
@@ -1058,12 +1199,13 @@ class PostgresWBSMasterRepository:
                 record_revision=1,
                 status=wbs.status,
                 percent_complete_technique=wbs.percent_complete_technique,
+            responsible_obs_id=wbs.responsible_obs_id,
             )
             self.connection.execute(
                 "INSERT INTO wbs_master "
                 "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-                "code,name,sequence_number,record_revision,status,percent_complete_technique) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "code,name,sequence_number,record_revision,status,percent_complete_technique,responsible_obs_id) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     stored.scope.tenant_id,
                     stored.scope.project_id,
@@ -1077,13 +1219,14 @@ class PostgresWBSMasterRepository:
                     stored.record_revision,
                     stored.status.value,
                     stored.percent_complete_technique.value,
+                    stored.responsible_obs_id,
                 ),
             )
             return stored
 
         if int(row[9]) != wbs.scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
-        current = _decode_row(wbs.scope, row[:9])
+        current = _decode_row(wbs.scope, row[:11])
         if expected_revision is None or expected_revision != current.record_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
         self._validate_parent(wbs)
@@ -1099,11 +1242,12 @@ class PostgresWBSMasterRepository:
             record_revision=current.record_revision + 1,
             status=wbs.status,
             percent_complete_technique=wbs.percent_complete_technique,
+            responsible_obs_id=wbs.responsible_obs_id,
         )
         cursor = self.connection.execute(
             "UPDATE wbs_master SET project_revision=%s,parent_kind=%s,parent_wbs_id=%s,"
             "code=%s,name=%s,sequence_number=%s,record_revision=%s,status=%s,"
-            "percent_complete_technique=%s "
+            "percent_complete_technique=%s,responsible_obs_id=%s "
             "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s AND record_revision=%s",
             (
                 stored.scope.project_revision,
@@ -1115,6 +1259,7 @@ class PostgresWBSMasterRepository:
                 stored.record_revision,
                 stored.status.value,
                 stored.percent_complete_technique.value,
+                stored.responsible_obs_id,
                 stored.scope.tenant_id,
                 stored.scope.project_id,
                 stored.wbs_id,
@@ -1138,7 +1283,7 @@ class PostgresWBSMasterRepository:
             raise WBSPersistenceError("WBS_NOT_FOUND")
         if int(row[9]) != scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
-        current = _decode_row(scope, row[:9])
+        current = _decode_row(scope, row[:11])
         if current.record_revision != expected_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
 
@@ -1207,7 +1352,7 @@ class PostgresWBSMasterRepository:
             raise WBSPersistenceError("WBS_NOT_FOUND")
         if any(int(row[9]) != scope.project_revision for row in rows):
             raise WBSPersistenceError("REVISION_CONFLICT")
-        nodes = tuple(_decode_row(scope, row[:9]) for row in rows)
+        nodes = tuple(_decode_row(scope, row[:11]) for row in rows)
         by_id = {node.wbs_id: node for node in nodes}
         if wbs_id not in by_id:
             raise WBSPersistenceError("WBS_NOT_FOUND")
@@ -1254,8 +1399,8 @@ class PostgresWBSMasterRepository:
             self.connection.execute(
                 "INSERT INTO wbs_master "
                 "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-                "code,name,sequence_number,record_revision,status,percent_complete_technique) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "code,name,sequence_number,record_revision,status,percent_complete_technique,responsible_obs_id) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     stored.scope.tenant_id,
                     stored.scope.project_id,
@@ -1269,6 +1414,7 @@ class PostgresWBSMasterRepository:
                     stored.record_revision,
                     stored.status.value,
                     stored.percent_complete_technique.value,
+                    stored.responsible_obs_id,
                 ),
             )
             stored_nodes.append(stored)
@@ -1307,7 +1453,7 @@ class PostgresWBSMasterRepository:
             return None
         if int(row[9]) != scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
-        return _decode_row(scope, row[:9])
+        return _decode_row(scope, row[:11])
 
     def list(self, scope: BackendScope) -> tuple[WBSMaster, ...]:
         scope.validate()
@@ -1320,7 +1466,7 @@ class PostgresWBSMasterRepository:
         ).fetchall()
         if any(int(row[9]) != scope.project_revision for row in rows):
             raise WBSPersistenceError("REVISION_CONFLICT")
-        result = tuple(_decode_row(scope, row[:9]) for row in rows)
+        result = tuple(_decode_row(scope, row[:11]) for row in rows)
         root_count = sum(item.parent_kind is WBSParentKind.PROJECT for item in result)
         if result and root_count != 1:
             raise WBSPersistenceError("INVALID_WBS_PROJECT_ROOT")
@@ -1367,7 +1513,7 @@ class PostgresWBSMasterRepository:
             raise WBSPersistenceError("WBS_NOT_FOUND")
         if int(row[9]) != scope.project_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
-        current = _decode_row(scope, row[:9])
+        current = _decode_row(scope, row[:11])
         if current.record_revision != expected_revision:
             raise WBSPersistenceError("REVISION_CONFLICT")
 
