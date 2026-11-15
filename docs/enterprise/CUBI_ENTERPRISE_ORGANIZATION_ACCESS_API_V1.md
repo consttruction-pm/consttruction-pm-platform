@@ -23,8 +23,8 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | POST | `/api/enterprise/security-profiles` | Create a Global or Project profile |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/privileges` | Replace the profile's operation grants with expected revision |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/status` | Activate/deactivate a profile with expected revision |
-| PUT | `/api/enterprise/security-profiles/{profile_id}/assignments` | Assign a global profile to a user or a project profile to a user/project |
-| DELETE | `/api/enterprise/security-profiles/{profile_id}/assignments/{user_id}` | Remove assignment with expected revision and optional project_id query
+| PUT | `/api/enterprise/security-profiles/{profile_id}/assignments` | Assign a global profile to a user or a project profile to a user/OBS node |
+| DELETE | `/api/enterprise/security-profiles/{profile_id}/assignments/{user_id}` | Remove assignment with expected revision and optional obs_id query
 
 Security-profile contracts are `cubi-p6-security-profile.v1`, `cubi-p6-security-profile-privileges.v1`, `cubi-p6-security-profile-status.v1`, and `cubi-p6-security-profile-assignment.v1`. All profile management routes require a live re-check of the actor's active `enterprise_admin` role. Tenant and actor remain session-derived.
 
@@ -42,8 +42,8 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 - Account deactivation is tenant-scoped, prevents self-deactivation, prevents disabling the last active Enterprise administrator, and prevents deactivating an owner of an active team before ownership transfer.
 - Deactivation atomically changes account state, revokes all existing sessions, and appends an immutable actor/target audit event. Session resolution independently rechecks account state as defense in depth.
 - Team membership and `scope_project_ids` are not project authorization grants. They do not grant access to projects, forms, documents, files, reports or Engineering records.
-- Security profiles are persisted in tenant-scoped PostgreSQL tables. Privilege changes and status transitions require the current profile revision; assignments require an active same-tenant user and, for Project profiles, an existing project in the same tenant. A profile assignment never creates project membership.
-- The production authorization policy evaluates the existing role policy as a hard ceiling, then intersects assigned Global and Project profile grants. Profiles can restrict access but cannot elevate a user beyond their existing role grants. Inactive assigned profiles fail closed. No profile assignment preserves legacy role behavior during the migration window.
+- Security profiles are persisted in tenant-scoped PostgreSQL tables. Privilege changes and status transitions require the current profile revision; assignments require an active same-tenant user and, for Project profiles, an existing OBS node in the same tenant. A profile assignment never creates project membership.
+- The production authorization policy evaluates the existing role policy as a hard ceiling, requires an active Global profile for every user, and requires an active Project profile assigned to the OBS responsible for the selected project. The Project profile's operation grants are intersected with the existing role grants, so profiles cannot elevate a user beyond the role ceiling. Inactive or missing required profiles fail closed. Project membership remains a separate prerequisite; assigning a profile does not create project membership.
 - Profile mutations append immutable actor-bound before/after audit records. Self-assignment is prohibited. Project membership remains a separate prerequisite for project APIs.
 - The current profile privilege vocabulary reuses CUBI's existing operation permissions; it is not yet the complete Oracle Global Security Profile catalog or all Project Profile privilege groups.
 - Team assignment in Task API remains disabled until that API explicitly consumes the active-membership authorization adapter and adds its own cross-scope tests.
