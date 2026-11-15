@@ -581,8 +581,10 @@ class PostgresSecurityProfileRepository:
                         raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
                     if str(occupied[0]) == ADMIN_SUPERUSER_PROFILE_ID and profile_id != ADMIN_SUPERUSER_PROFILE_ID:
                         remaining = self._connection.execute(
-                            "SELECT count(*) FROM p6_security_profile_assignments "
-                            "WHERE tenant_id=%s AND profile_id=%s AND obs_id=''",
+                            "SELECT count(*) FROM p6_security_profile_assignments a "
+                            "JOIN identity_users u ON u.user_id=a.user_id "
+                            "WHERE a.tenant_id=%s AND a.profile_id=%s AND a.obs_id='' "
+                            "AND u.active=TRUE",
                             (tenant_id, ADMIN_SUPERUSER_PROFILE_ID),
                         ).fetchone()
                         if remaining is not None and int(remaining[0]) <= 1:
