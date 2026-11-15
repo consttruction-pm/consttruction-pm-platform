@@ -39,6 +39,33 @@ def _require_permission(
         raise AuthorizationError(f"authorization denied for permission={permission.value}")
 
 
+def _is_allowed_for_wbs(
+    policy: AuthorizationPolicy,
+    auth_context: AuthorizationContext,
+    permission: Permission,
+    wbs_id: str | None,
+) -> bool:
+    if not wbs_id:
+        return policy.is_allowed(auth_context, permission)
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if callable(scoped):
+        return bool(scoped(auth_context, permission, wbs_id))
+    # Keep the provider-neutral development policy usable; production always
+    # injects PostgresSecurityProfileAuthorizationPolicy, which has the
+    # authoritative WBS/OBS evaluator.
+    return policy.is_allowed(auth_context, permission)
+
+
+def _require_wbs_permission(
+    policy: AuthorizationPolicy,
+    auth_context: AuthorizationContext,
+    permission: Permission,
+    wbs_id: str | None,
+) -> None:
+    if not _is_allowed_for_wbs(policy, auth_context, permission, wbs_id):
+        raise AuthorizationError(f"authorization denied for permission={permission.value}")
+
+
 def _scope_dto(scope: BackendScope) -> dict[str, Any]:
     return {
         "tenant_id": scope.tenant_id,
@@ -100,7 +127,9 @@ class P6IssueAPI:
         self, issue: P6Issue, *, auth_context: AuthorizationContext, occurred_at: str
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
+        _require_wbs_permission(
+            self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN, issue.wbs_id
+        )
         with self._transaction():
             stored = self.repository.create(
                 issue, actor_id=auth_context.user_id, occurred_at=occurred_at
@@ -111,9 +140,14 @@ class P6IssueAPI:
         self, scope: BackendScope, issue_id: str, *, auth_context: AuthorizationContext
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         stored = self.repository.get(scope, issue_id)
-        return None if stored is None else _dto(stored)
+        if stored is None or not _is_allowed_for_wbs(
+            self.authorization_policy, auth_context, Permission.PROJECT_READ, stored.wbs_id
+        ):
+            # A record outside the caller's WBS responsibility is indistinguishable
+            # from a missing record at this read boundary.
+            return None
+        return _dto(stored)
 
     def list(
         self,
@@ -129,18 +163,24 @@ class P6IssueAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        items = self.repository.list(
+            scope,
+            status=status,
+            priority=priority,
+            owner=owner,
+            issue_type=issue_type,
+            wbs_id=wbs_id,
+            activity_id=activity_id,
+            search=search,
+        )
+        # Filter each result by its own responsible OBS. This also permits a
+        # user assigned to a WBS-only OBS to see that WBS without granting
+        # project-wide visibility or access to sibling WBS branches.
         return tuple(
             _dto(item)
-            for item in self.repository.list(
-                scope,
-                status=status,
-                priority=priority,
-                owner=owner,
-                issue_type=issue_type,
-                wbs_id=wbs_id,
-                activity_id=activity_id,
-                search=search,
+            for item in items
+            if _is_allowed_for_wbs(
+                self.authorization_policy, auth_context, Permission.PROJECT_READ, item.wbs_id
             )
         )
 
@@ -153,7 +193,15 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
+        existing = self.repository.get(issue.scope, issue.issue_id)
+        if existing is not None:
+            _require_wbs_permission(
+                self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN, existing.wbs_id
+            )
+        # Moving an issue must be authorized at both its current and target WBS.
+        _require_wbs_permission(
+            self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN, issue.wbs_id
+        )
         with self._transaction():
             stored = self.repository.update(
                 issue,
@@ -173,7 +221,11 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
+        existing = self.repository.get(scope, issue_id)
+        if existing is not None:
+            _require_wbs_permission(
+                self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN, existing.wbs_id
+            )
         with self._transaction():
             deleted = self.repository.delete(
                 scope,
@@ -202,7 +254,11 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN)
+        existing = self.repository.get(scope, issue_id)
+        if existing is not None:
+            _require_wbs_permission(
+                self.authorization_policy, auth_context, Permission.P6_ISSUE_ADMIN, existing.wbs_id
+            )
         with self._transaction():
             stored = self.repository.add_comment(
                 scope,
@@ -218,9 +274,12 @@ class P6IssueAPI:
         self, scope: BackendScope, issue_id: str, *, auth_context: AuthorizationContext
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
-        if self.repository.get(scope, issue_id) is None:
+        stored = self.repository.get(scope, issue_id)
+        if stored is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
+        _require_wbs_permission(
+            self.authorization_policy, auth_context, Permission.PROJECT_READ, stored.wbs_id
+        )
         return tuple(_event_dto(event) for event in self.repository.history(scope, issue_id))
 
 
