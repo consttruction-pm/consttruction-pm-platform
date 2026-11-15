@@ -143,6 +143,11 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        existing = self.repository.get(item.scope, item.wbs_id)
+        if existing is None:
+            raise ValueError("WBS_NOT_FOUND")
+        self._require_obs_permission(item.scope, auth_context, Permission.PROJECT_WRITE.value,
+                                     wbs_id=item.wbs_id)
         self._require_obs_permission(item.scope, auth_context, Permission.PROJECT_WRITE.value,
                                      wbs_id=item.wbs_id, responsible_obs_id=item.responsible_obs_id)
         stored = self.repository.save(item, expected_revision=expected_revision)
