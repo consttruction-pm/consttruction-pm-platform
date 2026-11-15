@@ -103,6 +103,7 @@ class Risk:
     response_due_date: str | None = None
     responsible_manager: str | None = None
     closure_note: str | None = None
+    wbs_id: str | None = None
 
     @property
     def score(self) -> int:
@@ -143,6 +144,8 @@ class Risk:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise RiskPersistenceError(code)
+        if self.wbs_id is not None and (not isinstance(self.wbs_id, str) or not self.wbs_id.strip()):
+            raise RiskPersistenceError("INVALID_RISK_WBS")
         if self.closure_note is not None and not isinstance(self.closure_note, str):
             raise RiskPersistenceError("INVALID_RISK_CLOSURE_NOTE")
         if self.status == "closed" and not (self.closure_note or "").strip():
@@ -166,6 +169,7 @@ class Risk:
             "response_due_date": self.response_due_date,
             "responsible_manager": self.responsible_manager,
             "closure_note": self.closure_note,
+            "wbs_id": self.wbs_id,
         }
 
 
@@ -546,6 +550,7 @@ class SQLiteRiskStore:
             response_due_date=data.get("response_due_date"),
             responsible_manager=data.get("responsible_manager"),
             closure_note=data.get("closure_note"),
+            wbs_id=data.get("wbs_id"),
         )
 
 
