@@ -52,6 +52,8 @@ class PostgresP6EPSRepository:
         self.connection = connection
 
     def initialize(self) -> None:
+        from .wbs_master_repository import PostgresWBSMasterRepository
+        PostgresWBSMasterRepository(self.connection).initialize()
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS p6_eps_node (
                 tenant_id TEXT NOT NULL,
@@ -97,6 +99,8 @@ class PostgresP6EPSRepository:
                 PRIMARY KEY (tenant_id, project_id, wbs_id),
                 FOREIGN KEY (tenant_id, project_id)
                     REFERENCES project_lifecycle_projects(tenant_id, project_id) ON DELETE CASCADE,
+                FOREIGN KEY (tenant_id, project_id, wbs_id)
+                    REFERENCES wbs_master(tenant_id, project_id, wbs_id) ON DELETE CASCADE,
                 FOREIGN KEY (tenant_id, responsible_obs_id)
                     REFERENCES p6_obs_node(tenant_id, obs_id) ON DELETE RESTRICT
             )"""
