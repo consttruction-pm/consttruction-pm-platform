@@ -103,6 +103,7 @@ function input(overrides: Partial<ThresholdInput> = {}): ThresholdInput {
     warningLevel: "10",
     issueLevel: "50",
     responsibleManager: "preview-planner",
+    responsibleObsId: null,
     status: "active",
     ...overrides,
   };
