@@ -456,7 +456,8 @@ class PostgresSecurityProfileRepository:
         if existing is not None:
             if expected_revision is None or int(existing[0]) != expected_revision:
                 raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
-            revision = expected_revision + 1            self._connection.execute(
+            revision = expected_revision + 1
+            self._connection.execute(
                 "UPDATE p6_security_profile_assignments SET revision=%s,assigned_by=%s,assigned_at=%s "
                 "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s",
                 (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
