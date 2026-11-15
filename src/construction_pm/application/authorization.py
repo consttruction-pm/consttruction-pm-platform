@@ -123,8 +123,16 @@ class RoleBasedAuthorizationPolicy:
             Permission.P6_EXPORT_PROJECT_DATA, Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
             Permission.P6_REPORT_ADMIN,
         }
+        p6_project_admin_permissions = {
+            Permission.P6_PROJECT_CREATE, Permission.P6_PROJECT_DELETE,
+            Permission.P6_EPS_ADMIN,
+        }
         return any(
             permission in self._role_permissions.get(role, frozenset())
+            or (
+                permission in p6_project_admin_permissions
+                and Permission.PROJECT_ADMIN in self._role_permissions.get(role, frozenset())
+            )
             or (
                 permission in p6_project_write_permissions
                 and Permission.PROJECT_WRITE in self._role_permissions.get(role, frozenset())
