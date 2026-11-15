@@ -25,6 +25,8 @@ from .wbs_master_repository import (
 
 P6_WBS_MASTER_API_VERSION = "p6-wbs-master-api.v1"
 
+DELETE_ACTIVITY_ACTIONS = ("reject", "reassign_to_parent")
+
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
     scope.validate()
@@ -123,8 +125,17 @@ class P6WBSMasterAPI:
         *,
         expected_revision: int,
         auth_context: AuthorizationContext,
+        activity_action: str = "reject",
     ) -> dict[str, Any]:
-        """Delete an unused WBS node only for a current, authorized revision."""
+        """Delete a WBS node for a current, authorized revision.
+
+        ``activity_action`` selects the V26 delete prompt branch. ``reject``
+        refuses an element that still has activity assignments; the CUBI
+        extension ``reassign_to_parent`` moves those assignments to the parent
+        WBS element in the same transaction before deleting the element. The
+        documented "delete the element and its activities" branch is not offered
+        because no audited activity-delete capability exists yet.
+        """
         _require_scope(scope, auth_context)
         if (
             isinstance(expected_revision, bool)
@@ -132,16 +143,25 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if activity_action not in DELETE_ACTIVITY_ACTIONS:
+            raise ValueError("WBS_DELETE_ACTIVITY_ACTION_INVALID")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
-        self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
+        reassigned = self.repository.delete(
+            scope,
+            wbs_id,
+            expected_revision=expected_revision,
+            reassign_activities_to_parent=activity_action == "reassign_to_parent",
+        )
         return {
             "contract_version": P6_WBS_MASTER_API_VERSION,
             "kind": "p6_wbs_master_delete",
             "scope": _scope_dto(scope),
             "wbs_id": wbs_id,
             "deleted": True,
+            "activity_action": activity_action,
+            "reassigned_activities": reassigned,
         }
 
     def copy(

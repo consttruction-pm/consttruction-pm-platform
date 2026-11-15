@@ -577,6 +577,89 @@ def test_authenticated_wbs_delete_rejects_stale_revision_and_assigned_activity()
     connection.close()
 
 
+def test_wbs_delete_reassigns_activity_assignments_to_parent_through_route():
+    app, _repository, connection = _app()
+    wbs_path = "/api/projects/p1/p6/wbs"
+    for payload in (
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-PARENT",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-ROOT",
+            "code": "2",
+            "name": "Substructure",
+            "sequence_number": 10,
+        },
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-LEAF",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-PARENT",
+            "code": "3",
+            "name": "Piling",
+            "sequence_number": 20,
+        },
+    ):
+        status, _ = _request(app, "POST", wbs_path, payload)
+        assert status == "201 Created"
+    status, created = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-LEAF",
+            "name": "Pile cap",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+            "wbs_id": "W-LEAF",
+        },
+    )
+    assert status == "201 Created"
+
+    invalid_status, invalid = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-LEAF",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "expected_revision": 1,
+            "activity_action": "delete_activities",
+        },
+    )
+    assert invalid_status == "400 Bad Request"
+    assert invalid["code"] == "WBS_DELETE_ACTIVITY_ACTION_INVALID"
+
+    status, deleted = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-LEAF",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "expected_revision": 1,
+            "activity_action": "reassign_to_parent",
+        },
+    )
+    assert status == "200 OK"
+    assert deleted["activity_action"] == "reassign_to_parent"
+    assert deleted["reassigned_activities"] == 1
+    assert deleted["deleted"] is True
+
+    status, loaded = _request(app, "GET", "/api/projects/p1/p6/activities/A-LEAF")
+    assert status == "200 OK"
+    assert loaded["activity"]["wbs_id"] == "W-PARENT"
+    connection.close()
+
+
 def test_wbs_status_and_weighted_milestones_round_trip_through_http_routes(tmp_path):
     db_path = str(tmp_path / "cubi-wbs-milestones.sqlite")
     app, _activity_repository, connection = _app(db_path=db_path)

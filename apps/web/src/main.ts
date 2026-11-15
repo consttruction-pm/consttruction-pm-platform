@@ -3254,23 +3254,44 @@ function renderApp(
         const node = state.wbsNodes.find((item) => item.id === wbsId);
         if (!node) throw new Error("WBS_NOT_FOUND");
         if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
-        const response = await aiTransport.delete<{ expected_revision: number }, unknown>(
-          projectWbsPath(wbsId), { expected_revision: node.recordRevision }, state.context,
+        const response = await aiTransport.delete<{ expected_revision: number; activity_action: "reject" | "reassign_to_parent" }, unknown>(
+          projectWbsPath(wbsId), { expected_revision: node.recordRevision, activity_action: "reject" }, state.context,
         );
         if (!response.ok) {
           if (response.error.code === "WBS_IN_USE") {
             // The V26 delete topic offers a cascade or an activity reassignment
-            // decision. This increment refuses the delete and states what must
-            // move first instead of exposing the raw persistence code.
+            // decision. Reassignment is offered when the element has a WBS
+            // parent; the cascade branch stays unavailable because no audited
+            // activity-delete path exists.
             const guidance = wbsClipboardLabels(state.locale).deleteGuidance;
             container.querySelectorAll<HTMLElement>("[data-wbs-delete-guidance]").forEach((element) => {
               element.hidden = false;
-              element.textContent = guidance;
+              const text = element.querySelector<HTMLElement>("[data-wbs-delete-guidance-text]");
+              if (text) text.textContent = guidance;
+              else element.textContent = guidance;
+              const reassign = element.querySelector<HTMLButtonElement>("[data-wbs-delete-reassign]");
+              const hasChildren = state.wbsNodes.some((item) => item.parentKind === "wbs" && item.parentWbsId === wbsId);
+              if (reassign) reassign.hidden = node.parentKind !== "wbs" || !node.parentWbsId || hasChildren;
             });
             return;
           }
           throw new Error(response.error.code);
         }
+        await refreshWorkspaceAfterWbsMutation(null);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
+    },
+    onWbsReassignDelete: async (wbsId) => {
+      if (!wbsId) return;
+      try {
+        const node = state.wbsNodes.find((item) => item.id === wbsId);
+        if (!node) throw new Error("WBS_NOT_FOUND");
+        if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.delete<{ expected_revision: number; activity_action: "reject" | "reassign_to_parent" }, unknown>(
+          projectWbsPath(wbsId), { expected_revision: node.recordRevision, activity_action: "reassign_to_parent" }, state.context,
+        );
+        if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(null);
       } catch (error) {
         reportWbsMutationError(error);

@@ -151,7 +151,14 @@ def weighted_percent_complete(milestones: tuple[WBSMilestone, ...]) -> float:
 
 class WBSMasterRepository(Protocol):
     def save(self, wbs: WBSMaster, expected_revision: int | None = None) -> WBSMaster: ...
-    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None: ...
+    def delete(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        expected_revision: int,
+        reassign_activities_to_parent: bool = False,
+    ) -> int: ...
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[WBSMaster, ...]: ...
     def list_milestones(self, scope: BackendScope, wbs_id: str) -> tuple[WBSMilestone, ...]: ...
@@ -535,17 +542,29 @@ class SQLiteWBSMasterRepository:
                 self.connection.rollback()
             raise
 
-    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None:
+    def delete(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        expected_revision: int,
+        reassign_activities_to_parent: bool = False,
+    ) -> int:
         """Delete an unused WBS node using an optimistic revision check.
 
-        Nodes with children or assigned activities cannot be deleted. The
-        database foreign key remains the final guard against concurrent writes.
+        Nodes with children cannot be deleted. An activity assignment blocks the
+        delete unless ``reassign_activities_to_parent`` moves every assignment to
+        the node's parent WBS element first, matching the reassignment branch of
+        the V26 delete prompt. The database foreign key remains the final guard
+        against concurrent writes. Returns the number of reassigned assignments.
         """
         scope.validate()
         if not isinstance(wbs_id, str) or not wbs_id.strip():
             raise WBSPersistenceError("INVALID_WBS_ID")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+        if not isinstance(reassign_activities_to_parent, bool):
+            raise WBSPersistenceError("INVALID_WBS_REASSIGN_FLAG")
 
         was_in_transaction = self.connection.in_transaction
         if not was_in_transaction:
@@ -568,6 +587,7 @@ class SQLiteWBSMasterRepository:
             if child is not None:
                 raise WBSPersistenceError("WBS_IN_USE")
 
+            reassigned = 0
             assignment_table = self.connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='activity_wbs_assignment'"
             ).fetchone()
@@ -578,7 +598,21 @@ class SQLiteWBSMasterRepository:
                     (scope.tenant_id, scope.project_id, wbs_id),
                 ).fetchone()
                 if assigned is not None:
-                    raise WBSPersistenceError("WBS_IN_USE")
+                    if not reassign_activities_to_parent:
+                        raise WBSPersistenceError("WBS_IN_USE")
+                    if current.parent_kind is not WBSParentKind.WBS or not current.parent_wbs_id:
+                        raise WBSPersistenceError("WBS_REASSIGN_PARENT_REQUIRED")
+                    cursor = self.connection.execute(
+                        "UPDATE activity_wbs_assignment SET wbs_id=? "
+                        "WHERE tenant_id=? AND project_id=? AND wbs_id=?",
+                        (
+                            current.parent_wbs_id,
+                            scope.tenant_id,
+                            scope.project_id,
+                            wbs_id,
+                        ),
+                    )
+                    reassigned = int(cursor.rowcount or 0)
 
             self.connection.execute(
                 "DELETE FROM wbs_milestone WHERE tenant_id=? AND project_id=? AND wbs_id=?",
@@ -593,6 +627,7 @@ class SQLiteWBSMasterRepository:
                 raise WBSPersistenceError("REVISION_CONFLICT")
             if not was_in_transaction:
                 self.connection.commit()
+            return reassigned
         except sqlite3.IntegrityError as exc:
             if not was_in_transaction and self.connection.in_transaction:
                 self.connection.rollback()
@@ -1125,13 +1160,27 @@ class PostgresWBSMasterRepository:
             raise WBSPersistenceError("REVISION_CONFLICT")
         return stored
 
-    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None:
-        """Delete an unused WBS node with optimistic concurrency protection."""
+    def delete(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        expected_revision: int,
+        reassign_activities_to_parent: bool = False,
+    ) -> int:
+        """Delete an unused WBS node with optimistic concurrency protection.
+
+        The caller owns the transaction, so the reassignment and the deletes
+        commit or roll back together. Returns the number of reassigned
+        activity assignments.
+        """
         scope.validate()
         if not isinstance(wbs_id, str) or not wbs_id.strip():
             raise WBSPersistenceError("INVALID_WBS_ID")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+        if not isinstance(reassign_activities_to_parent, bool):
+            raise WBSPersistenceError("INVALID_WBS_REASSIGN_FLAG")
 
         row = self._row(scope, wbs_id, lock=True)
         if row is None:
@@ -1150,6 +1199,7 @@ class PostgresWBSMasterRepository:
         if child is not None:
             raise WBSPersistenceError("WBS_IN_USE")
 
+        reassigned = 0
         table = self.connection.execute("SELECT to_regclass('activity_wbs_assignment')").fetchone()
         if table is not None and table[0] is not None:
             assigned = self.connection.execute(
@@ -1158,7 +1208,21 @@ class PostgresWBSMasterRepository:
                 (scope.tenant_id, scope.project_id, wbs_id),
             ).fetchone()
             if assigned is not None:
-                raise WBSPersistenceError("WBS_IN_USE")
+                if not reassign_activities_to_parent:
+                    raise WBSPersistenceError("WBS_IN_USE")
+                if current.parent_kind is not WBSParentKind.WBS or not current.parent_wbs_id:
+                    raise WBSPersistenceError("WBS_REASSIGN_PARENT_REQUIRED")
+                cursor = self.connection.execute(
+                    "UPDATE activity_wbs_assignment SET wbs_id=%s "
+                    "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+                    (
+                        current.parent_wbs_id,
+                        scope.tenant_id,
+                        scope.project_id,
+                        wbs_id,
+                    ),
+                )
+                reassigned = int(getattr(cursor, "rowcount", 0) or 0)
 
         self.connection.execute(
             "DELETE FROM wbs_milestone WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
@@ -1171,6 +1235,7 @@ class PostgresWBSMasterRepository:
         )
         if getattr(cursor, "rowcount", 1) != 1:
             raise WBSPersistenceError("REVISION_CONFLICT")
+        return reassigned
 
     def copy_subtree(
         self,
