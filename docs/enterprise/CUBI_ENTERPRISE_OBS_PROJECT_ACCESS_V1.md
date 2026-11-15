@@ -30,15 +30,15 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 8. Project issue records persist an independent `responsible_obs_id`; issue read/list/history/comment/create/update/delete operations enforce that OBS scope, with WBS scope retained as the fallback for legacy issues.
 9. Threshold definitions persist an independent `responsible_obs_id`; threshold read/list/history/runs/monitor/create/update/delete operations enforce that OBS scope. Threshold-triggered issues inherit the threshold OBS.
 10. Risk records carry a WBS reference and the risk register filters reads and enforces writes through that WBS responsible OBS. New Activity and Expense writes require WBS association; new Risk writes require WBS association; new Issue and Threshold writes require their own Responsible OBS.
-6. Append-only project-access audit for profile creation, OBS assignment and revocation.
-7. Production schema bootstrap and WSGI routes:
+11. Append-only project-access audit for profile creation, OBS assignment and revocation.
+12. Production schema bootstrap and WSGI routes:
    - GET /api/enterprise/project-security-profiles
    - POST /api/enterprise/project-security-profiles
    - GET /api/enterprise/obs
    - POST /api/enterprise/user-obs-access
    - GET /api/enterprise/user-obs-access/{user_id}
    - DELETE /api/enterprise/user-obs-access/{user_id}/{obs_id} with profile_id and expected_revision JSON body
-8. Every administration route requires the authenticated cp_session and an enterprise_admin session role; production Origin/CSRF/session protections remain owned by the outer production web boundary.
+13. Every administration route requires the authenticated cp_session and an enterprise_admin session role; production Origin/CSRF/session protections remain owned by the outer production web boundary.
 
 ## Deliberate boundaries and gaps
 
