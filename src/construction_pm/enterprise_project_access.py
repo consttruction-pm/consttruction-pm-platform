@@ -410,6 +410,8 @@ class EnterpriseProjectAuthorizationPolicy:
             Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
+            Permission.BASELINE_VIEW: Permission.PROJECT_READ,
+            Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
         }.get(permission)
         return False if legacy is None else self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, legacy.value
