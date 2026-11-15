@@ -1,6 +1,6 @@
 # CUBI Enterprise Organization & Access — Team API V1
 
-**Status:** Implemented on PR #1974 branch; expanded CI and live PostgreSQL verification are queued/pending. Do not merge until the exact final code head is green.  
+**Status:** Implemented on PR #1974 branch; live PostgreSQL integration and all client typechecks passed for the account-administration slice, including the end-to-end WSGI test. Python CI and ConstructionPM Web CI remain pending on the latest code/test head. Do not merge until exact-head checks and browser acceptance are green.  
 **Reference:** Oracle P6 EPPM Help V26, Administration / user security and team-related workflows.  
 **Ownership:** Enterprise; tenant and authenticated identity remain owned by the existing identity/session layer.
 
@@ -52,4 +52,4 @@ Normative source: https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
 
 ## Verification gate
 
-Before promotion, run the new HTTP tests, existing organization-access domain tests, live PostgreSQL integration tests, all Python versions, Client Typecheck, and the production-runtime composition tests on the exact final branch SHA. A green run on an earlier SHA is not evidence for later changes.
+Verified on the account-administration code head: HTTP/domain tests, live PostgreSQL integration (including real WSGI login → tenant account directory → CSRF-protected deactivation → immediate session rejection), and Client Typecheck. The full Python matrix and ConstructionPM Web CI are still running on the newest test head. Before promotion, require all of those exact-head workflows plus browser acceptance and a usable preview deployment. A green run on an earlier SHA is not evidence for later changes.
