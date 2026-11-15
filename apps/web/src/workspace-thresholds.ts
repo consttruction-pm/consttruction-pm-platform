@@ -429,7 +429,7 @@ export function buildThresholdPayload(input: ThresholdInput): Record<string, unk
     warning_level: warning,
     issue_level: issue,
     responsible_manager: trimmedOrNull(input.responsibleManager),
-    responsible_obs_id: trimmedOrNull(input.responsibleObsId),
+    responsible_obs_id: trimmedOrNull(input.responsibleObsId ?? null),
     status,
   };
 }
