@@ -172,3 +172,37 @@ def test_issue_responsible_obs_does_not_inherit_project_only_read():
     with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
         scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())
     assert scoped.list(SCOPE, auth_context=planner()) == ()
+
+
+def test_issue_operations_use_independent_granular_privileges():
+    from construction_pm.application.authorization import Permission, RoleBasedAuthorizationPolicy
+
+    policy = RoleBasedAuthorizationPolicy({
+        "issue_creator": frozenset({Permission.ISSUE_ADD_EDIT}),
+        "issue_editor": frozenset({Permission.ISSUE_EDIT}),
+        "issue_reader": frozenset({Permission.ISSUE_VIEW}),
+        "issue_deleter": frozenset({Permission.ISSUE_DELETE}),
+    })
+    service = P6IssueAPI(SQLiteP6IssueRepository(sqlite3.connect(":memory:")), policy)
+    def actor(role: str) -> AuthorizationContext:
+        return AuthorizationContext("t1", "p1", role, frozenset({role}))
+
+    created = service.create(issue(), auth_context=actor("issue_creator"), occurred_at=AT)
+    assert created["issue"]["record_revision"] == 1
+    with pytest.raises(AuthorizationError, match="issue.view"):
+        service.get(SCOPE, "ISSUE-API-1", auth_context=actor("issue_creator"))
+    assert service.get(SCOPE, "ISSUE-API-1", auth_context=actor("issue_reader")) is not None
+
+    updated = service.update(
+        issue(title="Granular edit"), expected_revision=1,
+        auth_context=actor("issue_editor"), occurred_at=AT,
+    )
+    assert updated["issue"]["record_revision"] == 2
+    with pytest.raises(AuthorizationError, match="issue.delete"):
+        service.delete(SCOPE, "ISSUE-API-1", expected_revision=2,
+                       auth_context=actor("issue_editor"), occurred_at=AT)
+    deleted = service.delete(
+        SCOPE, "ISSUE-API-1", expected_revision=2,
+        auth_context=actor("issue_deleter"), occurred_at=AT,
+    )
+    assert deleted["deleted"] is True
