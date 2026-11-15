@@ -516,8 +516,15 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       try {
         accounts = accountList(await api<unknown>("/api/enterprise/users"));
         canAdminAccounts = true;
+        try {
+          await loadProfiles();
+        } catch (error) {
+          profiles = []; profileAssignments = []; canManageSecurityProfiles = false;
+          if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
+        }
       } catch (error) {
         accounts = []; canAdminAccounts = false;
+        profiles = []; profileAssignments = []; canManageSecurityProfiles = false;
         if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
       }
       render();
