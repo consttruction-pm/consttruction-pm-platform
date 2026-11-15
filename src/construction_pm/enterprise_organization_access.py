@@ -161,7 +161,7 @@ class EnterpriseOrganizationAccessService:
     def list_team_members(self, session_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
         session = self._session(session_id)
         team = self._team(team_id, session.tenant_id)
-        self._require_manager(session, team)
+        self.require_active_membership(session.tenant_id, team_id, session.user_id)
         return self._repository.list_memberships(session.tenant_id, team_id)
 
     def list_eligible_users(self, session_id: str, team_id: str) -> tuple[dict[str, str], ...]:
