@@ -59,15 +59,6 @@ class PostgresEnterpriseOrganizationAccessRepository:
             WHERE role='owner' AND status='active'
             """,
             """
-            ALTER TABLE enterprise_access_audit
-            DROP CONSTRAINT IF EXISTS enterprise_access_audit_action_check
-            """,
-            """
-            ALTER TABLE enterprise_access_audit
-            ADD CONSTRAINT enterprise_access_audit_action_check
-            CHECK (action IN ('team_created','member_added','member_removed','team_owner_transferred'))
-            """,
-            """
             CREATE TABLE IF NOT EXISTS enterprise_access_audit (
                 audit_id TEXT PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
@@ -81,6 +72,15 @@ class PostgresEnterpriseOrganizationAccessRepository:
                 FOREIGN KEY (tenant_id, team_id) REFERENCES enterprise_teams(tenant_id, team_id)
                     ON DELETE RESTRICT
             )
+            """,
+            """
+            ALTER TABLE enterprise_access_audit
+            DROP CONSTRAINT IF EXISTS enterprise_access_audit_action_check
+            """,
+            """
+            ALTER TABLE enterprise_access_audit
+            ADD CONSTRAINT enterprise_access_audit_action_check
+            CHECK (action IN ('team_created','member_added','member_removed','team_owner_transferred'))
             """,
             """
             CREATE OR REPLACE FUNCTION cubi_enterprise_access_audit_immutable()
