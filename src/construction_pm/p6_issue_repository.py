@@ -647,7 +647,7 @@ class PostgresP6IssueRepository:
                 stored.priority, stored.owner, stored.responsible_manager,
                 stored.date_identified, stored.due_date, stored.wbs_id,
                 stored.activity_id, json.dumps(list(stored.document_refs)),
-                stored.resolution_note, stored.record_revision, stored.updated_at,
+                stored.resolution_note, stored.record_revision, stored.updated_at, stored.responsible_obs_id,
                 stored.scope.tenant_id, stored.scope.project_id, stored.issue_id,
             ),
         )
