@@ -23,7 +23,8 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | POST | `/api/enterprise/security-profiles` | Create a Global or Project profile |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/privileges` | Replace the profile's operation grants with expected revision |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/status` | Activate/deactivate a profile with expected revision |
-| GET | `/api/enterprise/security-profiles/{profile_id}/assignments` | List tenant-scoped user/OBS assignments for a profile |\n| PUT | `/api/enterprise/security-profiles/{profile_id}/assignments` | Assign/replace a user's single Global profile or assign a Project profile to a user/OBS node |
+| GET | `/api/enterprise/security-profiles/{profile_id}/assignments` | List tenant-scoped user/OBS assignments for a profile |
+| PUT | `/api/enterprise/security-profiles/{profile_id}/assignments` | Assign/replace a user's single Global profile or assign a Project profile to a user/OBS node |
 | DELETE | `/api/enterprise/security-profiles/{profile_id}/assignments/{user_id}` | Remove assignment with expected revision and optional obs_id query
 
 Security-profile contracts are `cubi-p6-security-profile.v1`, `cubi-p6-security-profile-privileges.v1`, `cubi-p6-security-profile-status.v1`, and `cubi-p6-security-profile-assignment.v1`. All profile management routes require a live re-check of the actor's active `enterprise_admin` role. Tenant and actor remain session-derived.
