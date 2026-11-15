@@ -38,6 +38,7 @@ class Permission(str, Enum):
     BASELINE_VIEW = "baseline.view"
     BASELINE_CREATE_UPDATE = "baseline.create_update"
     WBS_VIEW = "wbs.view"
+    WBS_EDIT = "wbs.edit"
     WBS_ADD_EDIT = "wbs.add_edit"
     WBS_DELETE = "wbs.delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
@@ -123,6 +124,7 @@ class RoleBasedAuthorizationPolicy:
             Permission.BASELINE_VIEW: Permission.PROJECT_READ,
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
+            Permission.WBS_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_DELETE: Permission.PROJECT_WRITE,
         }.get(permission)
