@@ -174,3 +174,37 @@ def test_filters_delete_and_errors() -> None:
     )
     assert viewer["code"] == "RISK_PERMISSION_DENIED"
     assert viewer["category"] == "authorization"
+
+
+def test_risk_read_write_follows_wbs_responsible_obs():
+    from dataclasses import replace
+
+    base = build_api()
+    base.create_risk(
+        risk(wbs_id="W-FOREIGN"), idempotency_key="risk-obs",
+        context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return permission == "project.read"
+
+    scoped = RiskAPI(replace(base.service, wbs_access_repository=WBSAccess()))
+    listed = scoped.list_risks(
+        tenant_id="T-1", project_id="P-1", context=context("viewer", user="v-1")
+    )
+    assert [item["risk_id"] for item in listed["risks"]] == ["RK-1"]
+    read = scoped.read_risk(
+        tenant_id="T-1", project_id="P-1", risk_id="RK-1", context=context()
+    )
+    assert read["wbs_id"] == "W-FOREIGN"
+    denied = scoped.update_risk(
+        risk(wbs_id="W-FOREIGN", title="Unauthorized"),
+        expected_revision=1, context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    assert denied["code"] == "RISK_WBS_OBS_ACCESS_DENIED"
+    denied_create = scoped.create_risk(
+        risk(risk_id="RK-2", wbs_id="W-FOREIGN"),
+        idempotency_key="risk-obs-2", context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    assert denied_create["code"] == "RISK_WBS_OBS_ACCESS_DENIED"
