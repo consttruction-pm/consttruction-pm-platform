@@ -459,6 +459,9 @@ def test_planner_can_write_project_but_not_administer(runtime):
 def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
     ids = runtime.test_ids
     cookie, csrf = login(runtime, "planner")
+    eps_status, _, eps_body = call(runtime, "GET", "/api/p6/eps", cookie=cookie)
+    assert eps_status == 200
+    assert [node["eps_id"] for node in json.loads(eps_body)["eps_nodes"]] == [ids["eps_a"]]
     project_id = f"planner-created-{uuid.uuid4().hex[:8]}"
     status, _, body = call(
         runtime,
@@ -479,11 +482,35 @@ def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
     finally:
         runtime.pool.release(connection, healthy=True)
     assert row is not None and row[0] == ids["eps_a"]
+    assignment_status, _, assignment_body = call(
+        runtime, "GET", f"/api/projects/{project_id}/p6/eps-assignment", cookie=cookie
+    )
+    assert assignment_status == 200
+    assert json.loads(assignment_body)["eps_id"] == ids["eps_a"]
+    moved_status, _, moved_body = call(
+        runtime, "PUT", f"/api/projects/{project_id}/p6/eps-assignment",
+        cookie=cookie, csrf=csrf,
+        body={"eps_id": ids["eps_a"], "expected_revision": 1},
+    )
+    assert moved_status == 200
+    assert json.loads(moved_body)["revision"] == 2
 
 
 def test_admin_can_create_a_project(runtime):
     ids = runtime.test_ids
     cookie, csrf = login(runtime, "admin")
+    new_eps_id = f"admin-eps-{uuid.uuid4().hex[:8]}"
+    eps_status, _, eps_body = call(
+        runtime, "POST", "/api/p6/eps",
+        cookie=cookie, csrf=csrf,
+        body={
+            "eps_id": new_eps_id,
+            "name": "Admin Created EPS",
+            "responsible_obs_id": f"obs-a-{ids['tenant_a'].split('-')[-1]}",
+            "sequence_number": 9,
+        },
+    )
+    assert eps_status == 201, eps_body
     project_id = f"admin-created-{uuid.uuid4().hex[:8]}"
     status, _, body = call(
         runtime,
