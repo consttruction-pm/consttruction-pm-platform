@@ -39,10 +39,14 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
 
 def _is_allowed_for_activity(
     policy: AuthorizationPolicy, auth_context: AuthorizationContext,
-    permission: Permission, wbs_id: str,
+    permission: Permission, wbs_id: str | None,
 ) -> bool:
     if not isinstance(wbs_id, str) or not wbs_id.strip():
-        return False
+        # Preserve legacy projects that do not yet have a canonical WBS tree.
+        # If a WBS tree exists, the repository rejects the missing assignment
+        # with WBS_REQUIRED; callers with a WBS ID are always checked against
+        # the persisted WBS/OBS responsibility evaluator below.
+        return policy.is_allowed(auth_context, permission)
     scoped = getattr(policy, "is_allowed_for_wbs", None)
     if callable(scoped):
         return bool(scoped(auth_context, permission, wbs_id))
