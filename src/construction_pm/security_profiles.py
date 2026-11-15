@@ -587,7 +587,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "JOIN p6_obs_node obs ON obs.tenant_id=project.tenant_id "
             "AND obs.obs_id=project.obs_id "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
-            "UNION ALL "
+            "UNION "
             "SELECT parent.obs_id,parent.parent_obs_id FROM p6_obs_node parent "
             "JOIN project_obs child ON child.parent_obs_id=parent.obs_id "
             "WHERE parent.tenant_id=%s) "
