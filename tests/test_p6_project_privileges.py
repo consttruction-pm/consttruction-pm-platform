@@ -33,7 +33,7 @@ def test_unknown_privilege_fails_closed():
 
 
 
-def test_v26_oracle_checkbox_catalogue_covers_all_nine_detail_categories():
+def test_v26_oracle_checkbox_catalogue_covers_all_eight_detail_categories():
     labels = {item.label for item in PROJECT_PRIVILEGES}
     required = {
         "Add/Edit Activities Except Relationships",
