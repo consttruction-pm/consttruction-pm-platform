@@ -375,6 +375,11 @@ def build_project_lifecycle_wsgi_app(
             p6_issue_api = replace(p6_issue_api, wbs_access_repository=wbs_master_repository)
         if p6_expense_api is not None and hasattr(p6_expense_api, "wbs_access_repository"):
             p6_expense_api = replace(p6_expense_api, wbs_access_repository=wbs_master_repository)
+        if threshold_api is not None and hasattr(threshold_api, "service"):
+            threshold_api = replace(
+                threshold_api,
+                service=replace(threshold_api.service, responsible_obs_access=wbs_master_repository),
+            )
 
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
