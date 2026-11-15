@@ -2207,6 +2207,10 @@ class ProjectLifecycleHttpRoutes:
                         record_revision=0 if existing is None else existing.record_revision,
                         status=status,
                         percent_complete_technique=technique,
+                        responsible_obs_id=payload.get(
+                            "responsible_obs_id",
+                            existing.responsible_obs_id if existing is not None else None,
+                        ),
                     )
 
                 try:
