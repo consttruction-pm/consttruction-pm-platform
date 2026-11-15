@@ -165,5 +165,6 @@ def test_postgres_wbs_obs_override_grants_project_read_only_until_matching_obs_p
         )
         connection.execute("DELETE FROM enterprise_user_obs_assignments WHERE tenant_id=%s", (tenant,))
         connection.execute("DELETE FROM enterprise_project_security_profiles WHERE tenant_id=%s", (tenant,))
-        connection.execute("DELETE FROM p6_obs_node WHERE tenant_id=%s", (tenant,))
+        connection.execute("DELETE FROM p6_obs_node WHERE tenant_id=%s AND obs_id IN (%s,%s)", (tenant, project_obs_id, wbs_obs_id))
+        connection.execute("DELETE FROM p6_obs_node WHERE tenant_id=%s AND obs_id=%s", (tenant, root_id))
         connection.commit()
