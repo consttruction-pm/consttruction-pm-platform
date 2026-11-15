@@ -35,6 +35,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             code = str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"
             status = 409 if code in {
                 "TEAM_MEMBERSHIP_REVISION_CONFLICT",
+                "TEAM_REVISION_CONFLICT",
                 "LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED",
                 "TEAM_OWNER_TRANSFER_REQUIRED",
             } else 400
@@ -110,6 +111,26 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 item = self._service.remove_member(session_id, team_id, user_id, expected_revision=expected)
                 return 200, {"contract_version": "cubi-enterprise-team-membership.v1",
                              "membership": self._membership(item)}
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
+        if len(parts) == 5 and parts[:3] == ["api", "enterprise", "teams"] and parts[4] == "owner":
+            if method == "PUT":
+                payload = self._body(environ, "cubi-enterprise-team-owner-transfer.v1")
+                target_user_id = self._text(payload, "new_owner_user_id")
+                team_revision = payload.get("expected_team_revision")
+                membership_revision = payload.get("expected_membership_revision")
+                if (isinstance(team_revision, bool) or not isinstance(team_revision, int)
+                        or isinstance(membership_revision, bool) or not isinstance(membership_revision, int)):
+                    raise OrganizationAccessError("TEAM_OWNER_REVISION_REQUIRED")
+                team = self._service.transfer_team_ownership(
+                    session_id, parts[3], target_user_id,
+                    expected_team_revision=team_revision,
+                    expected_membership_revision=membership_revision,
+                )
+                return 200, {
+                    "contract_version": "cubi-enterprise-team-owner-transfer.v1",
+                    "team": self._team(team),
+                }
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
         if len(parts) == 5 and parts[:3] == ["api", "enterprise", "teams"]:
