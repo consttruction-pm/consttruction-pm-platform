@@ -479,7 +479,6 @@ class SQLiteWBSMasterRepository:
                         stored.status.value,
                         stored.percent_complete_technique.value,
                         stored.responsible_obs_id,
-                    stored.responsible_obs_id,
                     ),
                 )
             else:
