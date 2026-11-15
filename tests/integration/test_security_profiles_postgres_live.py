@@ -103,7 +103,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         )
         project_profile = profiles.set_privileges(
             tenant_id=tenant, profile_id=project_profile.profile_id,
-            privileges={"add_edit_activities_except_relationships", "schedule_projects"},
+            privileges={"add_edit_activities_except_relationships", "schedule_projects", "delete_project_activity_codes"},
             expected_revision=1, actor_user_id=user_id, occurred_at=now,
         )
 
@@ -165,7 +165,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         ).fetchone()
         assert event is not None
         assert event[1]["privileges"] == []
-        assert event[2]["privileges"] == ["add_edit_activities_except_relationships", "schedule_projects"]
+        assert event[2]["privileges"] == ["add_edit_activities_except_relationships", "add_project_activity_codes", "delete_project_activity_codes", "edit_project_activity_codes", "schedule_projects"]
 
         with pytest.raises(Exception, match="P6_SECURITY_PROFILE_AUDIT_APPEND_ONLY"):
             connection.execute(
@@ -264,7 +264,7 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-privileges.v1",
-                "expected_revision": 1, "privileges": ["add_edit_activities_except_relationships", "schedule_projects"],
+                "expected_revision": 1, "privileges": ["add_edit_activities_except_relationships", "delete_project_activity_codes", "schedule_projects"],
             },
         )
         assert status == 200, changed
