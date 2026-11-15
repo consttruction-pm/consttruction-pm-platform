@@ -518,7 +518,6 @@ class SQLiteWBSMasterRepository:
                         stored.status.value,
                         stored.percent_complete_technique.value,
                         stored.responsible_obs_id,
-                    stored.responsible_obs_id,
                         stored.scope.tenant_id,
                         stored.scope.project_id,
                         stored.wbs_id,
@@ -719,7 +718,6 @@ class SQLiteWBSMasterRepository:
                         stored.status.value,
                         stored.percent_complete_technique.value,
                         stored.responsible_obs_id,
-                    stored.responsible_obs_id,
                     ),
                 )
                 stored_nodes.append(stored)
