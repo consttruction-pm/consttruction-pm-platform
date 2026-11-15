@@ -20,6 +20,71 @@ from .application.authorization import (
 _PROFILE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
 _PROFILE_SCOPES = frozenset({"global", "project"})
 
+# Oracle P6 EPPM Help V26, Privileges Detail Window of the Global Security Profiles Page.
+GLOBAL_PRIVILEGES = frozenset({
+    "add_edit_delete_obs", "add_edit_delete_security_profiles", "add_edit_delete_users",
+    "add_edit_delete_user_interface_views", "edit_application_settings", "provision_users_from_ldap",
+    "view_published_audit_data", "add_global_activity_codes", "edit_global_activity_codes",
+    "delete_global_activity_codes", "add_global_issue_codes", "edit_global_issue_codes",
+    "delete_global_issue_codes", "add_project_codes", "edit_project_codes", "delete_project_codes",
+    "add_resource_codes", "edit_resource_codes", "delete_resource_codes", "add_role_codes",
+    "edit_role_codes", "delete_role_codes", "add_assignment_codes", "edit_assignment_codes",
+    "delete_assignment_codes", "add_delete_secure_codes", "edit_secure_codes",
+    "assign_secure_codes", "view_secure_codes", "add_edit_delete_categories_overhead_codes",
+    "add_edit_delete_cost_accounts", "add_edit_delete_currencies", "add_edit_delete_locations",
+    "add_edit_delete_financial_period_calendars", "add_edit_delete_funding_sources",
+    "add_edit_delete_global_calendars", "add_edit_delete_global_portfolios",
+    "add_edit_delete_risk_categories_matrices_thresholds", "add_edit_delete_timesheet_period_dates",
+    "add_edit_delete_user_defined_fields", "add_edit_delete_stored_images", "add_resources",
+    "edit_resources", "delete_resources", "add_edit_delete_resource_calendars",
+    "add_edit_delete_resource_curves", "add_edit_delete_roles",
+    "add_edit_delete_global_resource_role_teams", "add_edit_delete_rate_types_units_of_measure",
+    "view_resource_role_costs_financials", "view_resource_role_proficiency",
+    "approve_resource_timesheets", "add_edit_delete_activity_step_templates",
+    "add_edit_delete_issue_forms", "add_edit_delete_microsoft_primavera_templates",
+    "add_edit_delete_project_templates", "administer_global_external_applications",
+    "administer_global_scheduled_services", "administer_project_scheduled_services",
+    "edit_global_change_definitions", "import_p6_professional_xer_mpx", "import_xlsx",
+    "import_xml", "enable_work_offline", "add_edit_delete_global_activity_assignment_layouts_views_filters",
+    "add_edit_delete_global_dashboards", "add_edit_delete_global_project_wbs_portfolio_layouts_views_filters",
+    "add_edit_delete_global_reports", "edit_global_tracking_layouts", "edit_projects_from_scorecards",
+    "add_edit_delete_global_visualizer_layouts", "add_edit_delete_global_visualizer_filters",
+})
+
+# Oracle P6 EPPM Help V26, Privileges Detail Window of the Project Security Profiles Page.
+PROJECT_PRIVILEGES = frozenset({
+    "add_edit_activities_except_relationships", "delete_activities",
+    "add_edit_delete_activity_relationships", "edit_activity_id", "add_edit_delete_expenses",
+    "delete_discussion_comments", "add_project_activity_codes", "edit_project_activity_codes",
+    "delete_project_activity_codes", "add_eps_activity_codes", "edit_eps_activity_codes",
+    "delete_eps_activity_codes", "add_edit_delete_eps_except_costs_financials",
+    "edit_eps_costs_financials", "add_projects", "delete_projects",
+    "edit_project_details_except_costs_financials", "add_edit_delete_wbs_except_costs_financials",
+    "edit_wbs_costs_financials", "view_project_costs_financials",
+    "delete_project_data_with_timesheet_actuals", "delete_published_project_data",
+    "export_project_data", "add_edit_delete_issues_issue_thresholds",
+    "add_edit_delete_project_baselines", "add_edit_delete_project_calendars",
+    "add_edit_delete_risks", "add_edit_delete_template_documents",
+    "add_edit_delete_work_products_documents", "assign_project_baselines",
+    "approve_timesheets_as_project_manager", "administer_project_external_applications",
+    "exchange_project_data_unifier", "exchange_project_data_primavera_cloud",
+    "exchange_project_data_gateway", "add_edit_activity_resource_requests",
+    "add_edit_delete_resource_assignments_resource_planning",
+    "add_edit_delete_role_assignments_resource_planning", "edit_committed_flag_resource_planning",
+    "edit_future_periods", "edit_period_performance", "apply_actuals",
+    "check_in_check_out_projects_open_exclusively", "level_resources", "schedule_projects",
+    "monitor_project_thresholds", "store_period_performance", "summarize_projects",
+    "edit_publication_priority", "run_baseline_update", "run_global_change",
+    "allow_integration_with_primavera_unifier", "perform_global_search_replace",
+    "add_edit_project_level_layouts", "edit_project_reports", "publish_project_website",
+    "add_edit_delete_project_visualizer_layouts",
+})
+
+PROJECT_PERMISSION_PRIVILEGE_MAP = {
+    Permission.PROJECT_SCHEDULE: "schedule_projects",
+    Permission.PROJECT_ADMIN: "edit_project_details_except_costs_financials",
+}
+
 
 class SecurityProfileError(ValueError):
     def __init__(self, code: str) -> None:
@@ -173,9 +238,6 @@ class PostgresSecurityProfileRepository:
         expected_revision: int, actor_user_id: str, occurred_at: Any,
     ) -> SecurityProfile:
         normalized = frozenset(privileges)
-        valid = {permission.value for permission in Permission}
-        if not normalized.issubset(valid):
-            raise SecurityProfileError("SECURITY_PROFILE_PRIVILEGE_INVALID")
         row = self._connection.execute(
             "SELECT name,scope,active,revision FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
@@ -185,6 +247,9 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        valid = GLOBAL_PRIVILEGES if str(row[1]) == "global" else PROJECT_PRIVILEGES
+        if not normalized.issubset(valid):
+            raise SecurityProfileError("SECURITY_PROFILE_PRIVILEGE_INVALID")
         before = self.get_profile(tenant_id, profile_id)
         self._connection.execute(
             "DELETE FROM p6_security_profile_privileges WHERE tenant_id=%s AND profile_id=%s",
@@ -391,9 +456,26 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # OBS. A project profile does not create project membership.
         if not any(bool(row[1]) for row in global_rows):
             return False
-        if not any(bool(row[1]) and row[2] == permission.value for row in project_rows):
+        # Read access follows the assigned OBS/project profile. Only the
+        # operations with a verified V26 privilege mapping are enabled here;
+        # generic write and CUBI-only permissions fail closed until each API
+        # endpoint is mapped to its precise P6 privilege.
+        if permission == Permission.PROJECT_READ:
+            return any(bool(row[1]) for row in project_rows)
+        required = PROJECT_PERMISSION_PRIVILEGE_MAP.get(permission)
+        if required is None:
             return False
-        return True
+        return any(bool(row[1]) and required in self._profile_privileges(
+            context.tenant_id, str(row[3])
+        ) for row in project_rows)
+
+    def _profile_privileges(self, tenant_id: str, profile_id: str) -> frozenset[str]:
+        rows = self._connection.execute(
+            "SELECT permission FROM p6_security_profile_privileges "
+            "WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        ).fetchall()
+        return frozenset(str(row[0]) for row in rows)
 
     def require(self, context: AuthorizationContext, permission: Permission) -> None:
         from .application.authorization import AuthorizationError
