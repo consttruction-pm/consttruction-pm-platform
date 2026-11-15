@@ -13,6 +13,7 @@ from .application.authorization import (
     RoleBasedAuthorizationPolicy,
 )
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
+from .p6_project_privileges import normalize_project_privileges
 
 PROJECT_PERMISSION_CODES = frozenset({
     Permission.PROJECT_READ.value,
@@ -47,10 +48,12 @@ class ProjectSecurityProfile:
             raise ProjectAccessError("PROJECT_SECURITY_PROFILE_REQUIRED")
         if len(self.profile_id) > PROFILE_ID_MAX or len(self.name) > 160:
             raise ProjectAccessError("PROJECT_SECURITY_PROFILE_INVALID")
-        if len(set(self.permissions)) != len(self.permissions):
-            raise ProjectAccessError("PROJECT_SECURITY_PROFILE_DUPLICATE_PERMISSION")
-        if any(value not in PROJECT_PERMISSION_CODES for value in self.permissions):
-            raise ProjectAccessError("PROJECT_SECURITY_PROFILE_PERMISSION_INVALID")
+        try:
+            normalized = normalize_project_privileges(self.permissions)
+        except ValueError as exc:
+            raise ProjectAccessError("PROJECT_SECURITY_PROFILE_PERMISSION_INVALID") from exc
+        if normalized != tuple(sorted(self.permissions)):
+            raise ProjectAccessError("PROJECT_SECURITY_PROFILE_PERMISSION_NOT_NORMALIZED")
         if self.revision < 1 or self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ProjectAccessError("PROJECT_SECURITY_PROFILE_REVISION_INVALID")
 
@@ -303,8 +306,12 @@ class EnterpriseProjectAccessService:
     def create_profile(self, session_id: str, profile_id: str, name: str,
                        permissions: tuple[str, ...]) -> ProjectSecurityProfile:
         session = self._admin_session(session_id)
+        try:
+            normalized_permissions = normalize_project_privileges(permissions)
+        except ValueError as exc:
+            raise ProjectAccessError("PROJECT_SECURITY_PROFILE_PERMISSION_INVALID") from exc
         profile = ProjectSecurityProfile(session.tenant_id, profile_id.strip(), name.strip(),
-            tuple(dict.fromkeys(permissions)), True, 1, self._now())
+            normalized_permissions, True, 1, self._now())
         profile.validate()
         return self.repository.create_profile(profile, session.user_id)
 
