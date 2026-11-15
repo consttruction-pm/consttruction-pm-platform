@@ -456,6 +456,37 @@ def bootstrap_first_admin_superuser(
     elif str(profile[0]) != "Admin Superuser" or str(profile[1]) != "global" or not bool(profile[2]):
         raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
 
+    for builtin_id, builtin_name, builtin_scope in (
+        (NO_GLOBAL_PRIVILEGES_PROFILE_ID, "No Global Privileges", "global"),
+        (PROJECT_SUPERUSER_PROFILE_ID, "Project Superuser", "project"),
+    ):
+        existing_builtin = connection.execute(
+            "SELECT name,scope,active FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            (tenant_id,builtin_id),
+        ).fetchone()
+        if existing_builtin is None:
+            connection.execute(
+                "INSERT INTO p6_security_profiles "
+                "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+                "VALUES (%s,%s,%s,%s,TRUE,1,%s,%s,%s,%s)",
+                (tenant_id,builtin_id,builtin_name,builtin_scope,user_id,user_id,occurred_at,occurred_at),
+            )
+            connection.execute(
+                "INSERT INTO p6_security_profile_audit "
+                "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+                "VALUES (%s,%s,%s,%s,'profile_created',NULL,%s::jsonb,%s)",
+                (str(uuid.uuid4()),tenant_id,user_id,builtin_id,
+                 json.dumps({"name":builtin_name,"scope":builtin_scope,"active":True,"revision":1}),
+                 occurred_at),
+            )
+        elif (
+            str(existing_builtin[0]) != builtin_name
+            or str(existing_builtin[1]) != builtin_scope
+            or not bool(existing_builtin[2])
+        ):
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
+
     connection.execute(
         "INSERT INTO p6_security_profile_assignments "
         "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
