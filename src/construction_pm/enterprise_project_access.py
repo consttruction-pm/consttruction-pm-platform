@@ -365,6 +365,10 @@ class EnterpriseProjectAuthorizationPolicy:
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         if not self.role_policy.is_allowed(context, permission):
             return False
+        # Oracle's Admin Superuser global profile is the documented exception
+        # to OBS/project-profile scoping; it still needs an explicit global grant.
+        if "admin_superuser" in context.roles:
+            return True
         exists = self.connection.execute(
             "SELECT 1 FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
             (context.tenant_id, context.project_id),
