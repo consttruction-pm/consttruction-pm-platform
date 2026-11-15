@@ -1254,6 +1254,17 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Atomic persistence:** PostgreSQL locks the team row as the serialization point, validates both revisions, promotes the target to `owner`, demotes the previous owner to `admin`, increments team and membership revisions, and appends an immutable before/after audit event in the same transaction. Existing target project-scope metadata is preserved and is not an access grant.
 - **Account lifecycle:** The owner pointer is updated by the same transaction, so the existing account deactivation guard no longer blocks deactivation of a former owner after successful transfer.
 - **UI:** Added bilingual transfer form and confirmation to Organization & Access; candidates are existing active members. Server-side owner-only authorization remains authoritative.
-- **Tests:** Added service-level authorization/state-transition coverage and live PostgreSQL integration coverage for revision conflict, owner/member role changes, retained metadata and audit before/after state. These tests have been committed but have not yet been run on the current exact head.
+- **Tests:** Added service-level authorization/state-transition coverage and live PostgreSQL integration coverage for revision conflict, owner/member role changes, retained metadata and audit before/after state. The first PostgreSQL run exposed an assertion that incorrectly relied on ordering events with identical timestamps; the assertion was corrected to select the named immutable event directly.
 - **V26 parity boundary:** This closes an account-administration lifecycle dependency, but does not implement Global/Project Security Profiles, privilege catalogs, module access, OBS/resource/project grants, UI Views, Copy User Settings, effective-access reporting or Team Member activity/timesheet/review workflows. Full P6 EPPM V26 parity is not yet achieved.
 - **Release gate:** Exact-head CI, live PostgreSQL execution and browser acceptance remain required. PR #1974 remains open Draft; no merge or deployment performed.
+
+
+## Organization & Access — ownership transfer exact-head verification — 2026-11-15
+
+- **Code/test head:** `f94d5cca3408ea6724fbc3b10355806f9cdc9ed4`.
+- **ConstructionPM CI #8772:** passed on exact code/test head across Python 3.11, 3.12 and 3.13.
+- **ConstructionPM Web CI #2725:** passed on exact code/test head; web typecheck, tests, build, production-shaped artifact validation, preview runtime smoke test and both existing browser E2E workflows passed.
+- **Client Typecheck #8470:** passed on exact code/test head across Web, Desktop, Mobile and Client Sync.
+- **PostgreSQL Integration #3117:** passed on exact code/test head; live suite reported 186 passed, including the new atomic ownership-transfer test.
+- **Correction evidence:** initial test run on pre-correction head exposed nondeterministic ordering of same-timestamp audit events; test was corrected to query `team_owner_transferred` by action. The subsequent exact code/test head passed all four workflows.
+- **Release gate:** this confirms the ownership-transfer code slice and its tests, not full P6 EPPM V26 parity. PR #1974 remains open Draft. No merge, production deployment or live schema migration was performed.
