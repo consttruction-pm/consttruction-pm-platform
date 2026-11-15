@@ -124,7 +124,7 @@ def test_issue_access_is_scoped_by_responsible_wbs_obs():
         )
     with pytest.raises(AuthorizationError, match="ISSUE_RESPONSIBLE_OBS_REQUIRED"):
         scoped.create(
-            issue(issue_id="ISSUE-DENIED", wbs_id="W-FOREIGN"),
+            issue(issue_id="ISSUE-DENIED", wbs_id="W-FOREIGN", responsible_obs_id=None),
             auth_context=planner(), occurred_at=AT,
         )
 
