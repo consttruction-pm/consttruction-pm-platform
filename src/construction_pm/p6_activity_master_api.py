@@ -113,6 +113,8 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
+        if self.wbs_access_repository is not None and not activity.wbs_id:
+            raise AuthorizationError("ACTIVITY_WBS_REQUIRED")
         self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.repository.save(activity, expected_revision=0))
 
@@ -133,6 +135,8 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
+        if self.wbs_access_repository is not None and not activity.wbs_id:
+            raise AuthorizationError("ACTIVITY_WBS_REQUIRED")
         existing = self.repository.get(activity.scope, activity.activity_id)
         if existing is not None:
             self._require_wbs_permission(
