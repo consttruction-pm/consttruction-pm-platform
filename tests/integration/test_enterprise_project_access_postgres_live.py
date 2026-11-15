@@ -84,7 +84,7 @@ def test_postgres_obs_assignment_inherits_to_descendant_projects_and_revokes_imm
         assert audit == 3
 
 
-def test_postgres_wbs_obs_override_grants_project_read_only_until_matching_obs_profile():
+def test_postgres_wbs_obs_requires_matching_responsible_obs_profile():
     from construction_pm.backend_p0.models import BackendScope
     from construction_pm.wbs_master_repository import (
         PostgresWBSMasterRepository, WBSMaster, WBSParentKind,
@@ -143,17 +143,19 @@ def test_postgres_wbs_obs_override_grants_project_read_only_until_matching_obs_p
         ))
         connection.commit()
 
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is True
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is False
         assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is False
 
         access.assign_user_obs(UserOBSAssignment(
             tenant, member_id, wbs_obs_id, "wbs-write", True, 1, admin_id, NOW
         ))
         connection.commit()
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is True
         assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is True
 
         access.revoke_user_obs(tenant, member_id, wbs_obs_id, "wbs-write", admin_id, 1, NOW)
         connection.commit()
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is False
         assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is False
 
         connection.execute(
