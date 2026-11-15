@@ -145,3 +145,19 @@ def test_enterprise_admin_can_list_profiles_and_obs_directory():
     nodes=service.list_obs_nodes("valid-session")
     assert profiles[0].profile_id=="read_only"
     assert nodes[0].obs_id=="root"
+
+
+def test_user_can_hold_multiple_obs_profile_pairs_without_collapsing_scope():
+    repository = FakeRepository()
+    service = EnterpriseProjectAccessService(
+        repository, FakeLifecycle(), FakeOBS(), clock=lambda: NOW
+    )
+    service.create_profile("valid-session", "read_only", "Read only", ("project.read",))
+    service.create_profile("planner", "schedule", "Schedule", ("project.read", "project.schedule"))
+    root = service.assign_user_obs("valid-session", "member-1", "root", "read_only")
+    child = service.assign_user_obs("valid-session", "member-1", "child", "schedule")
+    assignments = service.list_user_obs("valid-session", "member-1")
+    assert {(item.obs_id, item.profile_id) for item in assignments} == {
+        ("root", "read_only"), ("child", "schedule")
+    }
+    assert root.active and child.active
