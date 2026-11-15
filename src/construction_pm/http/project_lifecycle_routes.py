@@ -502,11 +502,105 @@ class ProjectLifecycleHttpRoutes:
                     "roles": sorted(response.roles),
                     "expires_at": response.expires_at.isoformat(),
                 })
-            if method == "GET" and path == "/api/projects":
+            if method == "GET" and path == "/api/p6/eps":
+                nodes = self._api.list_eps_nodes(session_id, now=now)
+                return self._json(200, {
+                    "contract_version": "cubi-p6-eps-list.v1",
+                    "eps_nodes": [asdict(node) for node in nodes],
+                })
+            if method == "POST" and path == "/api/p6/eps":
+                from ..p6_eps_repository import P6EPSNode
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_EPS_REQUEST_INVALID", "error.request.invalid")
+                session = self._api.get_session(session_id, now=now)
+                expected_revision = payload.get("expected_revision", 0)
+                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                    return self._error(400, "P6_EPS_REVISION_REQUIRED", "error.request.invalid")
+                node = P6EPSNode(
+                    tenant_id=session.tenant_id,
+                    eps_id=str(payload.get("eps_id", "")),
+                    name=str(payload.get("name", "")),
+                    parent_eps_id=payload.get("parent_eps_id"),
+                    responsible_obs_id=str(payload.get("responsible_obs_id", "")),
+                    sequence_number=payload.get("sequence_number", 0),
+                )
+                saved = self._api.save_eps_node(
+                    session_id, node, expected_revision=expected_revision, now=now
+                )
+                return self._json(201, {
+                    "contract_version": "cubi-p6-eps-node.v1",
+                    "eps_node": asdict(saved),
+                })
+            if method == "PATCH" and path.startswith("/api/p6/eps/"):
+                from ..p6_eps_repository import P6EPSNode
+                eps_id = path[len("/api/p6/eps/"):]
+                if not eps_id or "/" in eps_id:
+                    return self._error(400, "P6_EPS_ID_REQUIRED", "error.request.invalid")
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_EPS_REQUEST_INVALID", "error.request.invalid")
+                session = self._api.get_session(session_id, now=now)
+                expected_revision = payload.get("expected_revision")
+                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                    return self._error(400, "P6_EPS_REVISION_REQUIRED", "error.request.invalid")
+                node = P6EPSNode(
+                    tenant_id=session.tenant_id,
+                    eps_id=eps_id,
+                    name=str(payload.get("name", "")),
+                    parent_eps_id=payload.get("parent_eps_id"),
+                    responsible_obs_id=str(payload.get("responsible_obs_id", "")),
+                    sequence_number=payload.get("sequence_number", 0),
+                )
+                saved = self._api.save_eps_node(
+                    session_id, node, expected_revision=expected_revision, now=now
+                )
+                return self._json(200, {
+                    "contract_version": "cubi-p6-eps-node.v1",
+                    "eps_node": asdict(saved),
+                })
+            if method == "GET" and path == "/api/projects" :
                 response = self._api.list_projects(session_id, now=now)
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if path.startswith("/api/projects/") and path.endswith("/p6/eps-assignment"):
+                project_id = path[len("/api/projects/"):-len("/p6/eps-assignment")].strip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                if method == "GET":
+                    assignment = self._api.get_project_eps(
+                        session_id, project_id, now=now
+                    )
+                    if assignment is None:
+                        return self._error(404, "PROJECT_EPS_ASSIGNMENT_NOT_FOUND", "error.resource.not_found")
+                    return self._json(200, {
+                        "contract_version": "cubi-p6-project-eps-assignment.v1",
+                        "project_id": project_id,
+                        "eps_id": assignment[0],
+                        "revision": assignment[1],
+                    })
+                if method == "PUT":
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict):
+                        return self._error(400, "P6_EPS_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                    eps_id = payload.get("eps_id")
+                    expected_revision = payload.get("expected_revision")
+                    if not isinstance(eps_id, str) or not eps_id.strip():
+                        return self._error(400, "P6_EPS_ID_REQUIRED", "error.request.invalid")
+                    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                        return self._error(400, "P6_EPS_REVISION_REQUIRED", "error.request.invalid")
+                    revision = self._api.assign_project_eps(
+                        session_id, project_id, eps_id,
+                        expected_revision=expected_revision, now=now,
+                    )
+                    return self._json(200, {
+                        "contract_version": "cubi-p6-project-eps-assignment.v1",
+                        "project_id": project_id,
+                        "eps_id": eps_id,
+                        "revision": revision,
+                    })
+                return self._error(405, "P6_EPS_ASSIGNMENT_METHOD_UNSUPPORTED", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.count("/") == 3:
                 project_id = path[len("/api/projects/"):]
                 if not project_id:
