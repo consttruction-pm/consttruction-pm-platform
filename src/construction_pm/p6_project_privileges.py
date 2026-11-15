@@ -58,7 +58,7 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("code.edit", ProjectPrivilegeGroup.CODES, "Edit Codes", "Edit project and activity codes."),
     ProjectPrivilegeDefinition("code.assign", ProjectPrivilegeGroup.CODES, "Assign Codes", "Assign codes."),
     ProjectPrivilegeDefinition("timesheet.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Timesheets", "View timesheets."),
-    ProjectPrivilegeDefinition("timesheet.edit", ProjectPrivilegeGroup.TIMESHEETS, "Edit Timesheets", "Edit timesheets."),
+    ProjectPrivilegeDefinition("timesheet.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Timesheets", "Edit timesheets."),
     ProjectPrivilegeDefinition("activity.view", ProjectPrivilegeGroup.ACTIVITIES, "View Activities", "View activity data."),
     ProjectPrivilegeDefinition("activity.add_edit", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities", "Create and edit activities."),
     ProjectPrivilegeDefinition("activity.add_edit_except_relationships", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities Except Relationships", "Edit activity fields without changing relationships."),
