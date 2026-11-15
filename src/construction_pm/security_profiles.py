@@ -2,7 +2,7 @@
 
 The evaluator is intentionally restrictive: legacy role grants remain a ceiling;
 an assigned global profile and/or project profile can only narrow those grants.
-No profile assignment means the legacy policy remains in force during migration.
+Missing Global or Project assignments fail closed for project authorization.
 """
 from __future__ import annotations
 
