@@ -92,7 +92,7 @@ class ThresholdApplicationService:
             item for item in self.store.list_thresholds(
                 tenant_id, project_id, monitoring_subject=monitoring_subject,
                 parameter=parameter, status=status, search=search,
-            ) if self._can_access_obs(tenant_id, project_id, item.threshold.responsible_obs_id, context, Permission.PROJECT_READ)
+            ) if self._can_access_obs(tenant_id, project_id, item.threshold.responsible_obs_id, context, Permission.THRESHOLD_VIEW)
         )
 
     def read_threshold(
@@ -147,7 +147,7 @@ class ThresholdApplicationService:
         self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id, Permission.THRESHOLD_ADD_EDIT)
         if self.responsible_obs_access is not None and not threshold.responsible_obs_id:
             raise ThresholdAuthorizationError("THRESHOLD_RESPONSIBLE_OBS_REQUIRED")
-        self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
+        self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.THRESHOLD_ADD_EDIT)
         with self.transaction_manager.transaction():
             return self.store.create_threshold(
                 threshold,
@@ -169,8 +169,8 @@ class ThresholdApplicationService:
         current = self.store.get_threshold(threshold.tenant_id, threshold.project_id, threshold.threshold_id)
         if self.responsible_obs_access is not None and not threshold.responsible_obs_id:
             raise ThresholdAuthorizationError("THRESHOLD_RESPONSIBLE_OBS_REQUIRED")
-        self._require_obs_access(threshold.tenant_id, threshold.project_id, current.threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
-        self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
+        self._require_obs_access(threshold.tenant_id, threshold.project_id, current.threshold.responsible_obs_id, context, Permission.THRESHOLD_EDIT)
+        self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.THRESHOLD_DELETE)
         with self.transaction_manager.transaction():
             return self.store.update_threshold(
                 threshold,
