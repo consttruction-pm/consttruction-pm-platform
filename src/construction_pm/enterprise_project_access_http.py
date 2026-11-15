@@ -49,6 +49,13 @@ class EnterpriseProjectAccessHttpMiddleware:
         if not session_id:
             return 401, {"code":"SESSION_REQUIRED"}
         if path == "/api/enterprise/project-security-profiles":
+            if method == "GET":
+                profiles = self._service.list_profiles(session_id)
+                return 200, {"contract_version":_VERSION,"profiles":[{
+                    "profile_id":item.profile_id,"name":item.name,
+                    "permissions":list(item.permissions),"active":item.active,
+                    "revision":item.revision,
+                } for item in profiles]}
             if method != "POST":
                 return 405, {"code":"METHOD_NOT_ALLOWED"}
             payload = self._body(environ)
@@ -63,6 +70,13 @@ class EnterpriseProjectAccessHttpMiddleware:
                 "permissions":list(profile.permissions),"active":profile.active,
                 "revision":profile.revision,
             }}
+        if path == "/api/enterprise/obs" and method == "GET":
+            nodes = self._service.list_obs_nodes(session_id)
+            return 200, {"contract_version":_VERSION,"obs_nodes":[{
+                "obs_id":node.obs_id,"parent_obs_id":node.parent_obs_id,
+                "code":node.code,"name":node.name,
+                "manager_user_id":node.manager_user_id,"sequence_number":node.sequence_number,
+            } for node in nodes]}
         parts = [unquote(part) for part in path.strip("/").split("/")]
         if parts[:3] != ["api","enterprise","user-obs-access"]:
             return 404, {"code":"ROUTE_NOT_FOUND"}
