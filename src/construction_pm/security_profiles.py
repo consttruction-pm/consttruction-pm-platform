@@ -349,13 +349,30 @@ class PostgresSecurityProfileRepository:
                 raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
             if scope == "global":
                 occupied = self._connection.execute(
-                    "SELECT 1 FROM p6_security_profile_assignments a "
-                    "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
-                    "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global'",
+                    "SELECT profile_id,revision FROM p6_security_profile_assignments "
+                    "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
                     (tenant_id, user_id),
                 ).fetchone()
                 if occupied is not None:
-                    raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ALREADY_ASSIGNED")
+                    if expected_revision is None or int(occupied[1]) != expected_revision:
+                        raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+                    revision = expected_revision + 1
+                    self._connection.execute(
+                        "UPDATE p6_security_profile_assignments "
+                        "SET profile_id=%s,revision=%s,assigned_by=%s,assigned_at=%s "
+                        "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=''",
+                        (profile_id, revision, actor_user_id, occurred_at,
+                         tenant_id, str(occupied[0]), user_id),
+                    )
+                    self._audit(
+                        tenant_id, actor_user_id, profile_id, "profile_assigned",
+                        {"profile_id": str(occupied[0]), "user_id": user_id,
+                         "obs_id": "", "revision": int(occupied[1])},
+                        {"profile_id": profile_id, "user_id": user_id,
+                         "obs_id": "", "revision": revision},
+                        occurred_at,
+                    )
+                    return revision
             revision = 1
             self._connection.execute(
                 "INSERT INTO p6_security_profile_assignments "
@@ -373,6 +390,14 @@ class PostgresSecurityProfileRepository:
         obs_id: str = "", expected_revision: int,
         actor_user_id: str, occurred_at: Any,
     ) -> None:
+        profile = self._connection.execute(
+            "SELECT scope FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if profile is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if str(profile[0]) == "global":
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
         result = self._connection.execute(
             "DELETE FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s AND revision=%s "
