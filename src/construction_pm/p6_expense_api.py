@@ -94,6 +94,8 @@ class P6ExpenseAPI:
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if self.wbs_access_repository is not None and not expense.wbs_id:
+            raise AuthorizationError("EXPENSE_WBS_REQUIRED")
         self._require_wbs_permission(expense.scope, auth_context, expense.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.service.save(expense))
 
