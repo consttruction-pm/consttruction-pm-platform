@@ -3,6 +3,7 @@ import { withCsrfHeader } from "./csrf.js";
 type Team = { team_id: string; name: string; owner_user_id: string; status: string; revision: number; created_at: string; updated_at: string | null };
 type Membership = { team_id: string; user_id: string; role: string; status: string; scope_project_ids: string[]; revision: number; created_at: string; revoked_at: string | null };
 type EligibleUser = { user_id: string; email: string; display_name: string };
+type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
 type Locale = "en" | "fa";
 
 const COPY = {
@@ -21,6 +22,8 @@ const COPY = {
     confirmRemove: "Revoke this team membership?", createHint: "Creating a team requires an active Pro entitlement and Enterprise administrator permission.",
     selectAccount: "Choose an account", selectTeam: "Choose a team", roleRequired: "Choose a team role.",
     teamRequired: "Enter a team name.", scopeHint: "Optional project IDs are recorded as scope metadata only; they do not grant access.",
+    accounts: "User accounts", accountStatus: "Account status", deactivate: "Deactivate", activate: "Reactivate",
+    confirmDeactivate: "Deactivate this account and revoke all active sessions?", confirmActivate: "Reactivate this account?",
   },
   fa: {
     title: "سازمان و دسترسی", eyebrow: "کوبی سازمانی", subtitle: "مدیریت تیم‌های سازمان و عضویت اعضا.",
@@ -37,6 +40,8 @@ const COPY = {
     confirmRemove: "عضویت این کاربر در تیم لغو شود؟", createHint: "ایجاد تیم به اشتراک فعال Pro و مجوز مدیر سازمان نیاز دارد.",
     selectAccount: "انتخاب حساب", selectTeam: "انتخاب تیم", roleRequired: "نقش تیمی را انتخاب کنید.",
     teamRequired: "نام تیم را وارد کنید.", scopeHint: "شناسه پروژه اختیاری صرفاً فراداده محدوده است و مجوز دسترسی ایجاد نمی‌کند.",
+    accounts: "حساب‌های کاربری", accountStatus: "وضعیت حساب", deactivate: "غیرفعال‌سازی", activate: "فعال‌سازی مجدد",
+    confirmDeactivate: "این حساب غیرفعال و تمام نشست‌های فعال آن لغو شود؟", confirmActivate: "این حساب دوباره فعال شود؟",
   },
 } as const;
 
@@ -90,6 +95,17 @@ function memberList(value: unknown): Membership[] {
   });
 }
 
+function accountList(value: unknown): Account[] {
+  if (!isRecord(value) || value.contract_version !== "cubi-enterprise-user-list.v1"
+    || !Array.isArray(value.users)) throw new Error("INVALID_ENTERPRISE_USER_LIST");
+  return value.users.map((item) => {
+    if (!isRecord(item) || typeof item.user_id !== "string" || typeof item.email !== "string"
+      || typeof item.display_name !== "string" || typeof item.active !== "boolean"
+      || typeof item.created_at !== "string") throw new Error("INVALID_ENTERPRISE_USER_LIST");
+    return item as Account;
+  });
+}
+
 function eligibleList(value: unknown): EligibleUser[] {
   if (!isRecord(value) || value.contract_version !== "cubi-enterprise-eligible-users.v1"
     || !Array.isArray(value.users)) throw new Error("INVALID_ELIGIBLE_USERS");
@@ -110,7 +126,9 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let teams: Team[] = [];
   let memberships: Membership[] = [];
   let eligibleUsers: EligibleUser[] = [];
+  let accounts: Account[] = [];
   let canManage = false;
+  let canAdminAccounts = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
@@ -127,6 +145,11 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       <td>${canManage && item.status === "active" && item.role !== "owner" ? `<button class="cubi-oa-button cubi-oa-danger" data-remove="${escapeHtml(item.user_id)}" data-revision="${item.revision}" type="button">${escapeHtml(t.remove)}</button>` : "—"}</td>
     </tr>`).join("");
     const usersOptions = eligibleUsers.map((user) => `<option value="${escapeHtml(user.user_id)}">${escapeHtml(user.display_name || user.email)} · ${escapeHtml(user.email)}</option>`).join("");
+    const accountRows = accounts.map((account) => `<tr>
+      <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
+      <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
+      <td><button class="cubi-oa-button ${account.active ? "cubi-oa-danger" : ""}" data-account-status="${escapeHtml(account.user_id)}" data-active="${account.active}" type="button">${account.active ? t.deactivate : t.activate}</button></td>
+    </tr>`).join("");
     container.innerHTML = `
       <style>
         .cubi-oa{min-height:100vh;background:#f3f6fa;color:#18283c;font:14px/1.5 Inter,Arial,sans-serif;padding:28px;box-sizing:border-box}
@@ -180,6 +203,10 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           </section>
         </section>
         <p class="cubi-oa-note">${t.security}</p>
+        ${canAdminAccounts ? `<section class="cubi-oa-card" style="margin-top:18px"><h2>${t.accounts}</h2>
+          <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.accountStatus}</th><th></th></tr></thead>
+          <tbody>${accountRows || `<tr><td colspan="3">${t.noEligible}</td></tr>`}</tbody></table></div>
+        </section>` : ""}
       </div></main>`;
     container.querySelector<HTMLButtonElement>("#cubi-oa-refresh")?.addEventListener("click", () => void load());
     container.querySelectorAll<HTMLButtonElement>("[data-team]").forEach((button) => button.addEventListener("click", () => {
@@ -212,6 +239,18 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         notice = t.added; await loadTeam();
       });
     });
+    container.querySelectorAll<HTMLButtonElement>("[data-account-status]").forEach((button) => button.addEventListener("click", () => {
+      const userId = button.dataset.accountStatus ?? "";
+      const wasActive = button.dataset.active === "true";
+      if (!userId || !window.confirm(wasActive ? t.confirmDeactivate : t.confirmActivate)) return;
+      void run(async () => {
+        await api(`/api/enterprise/users/${encodeURIComponent(userId)}/status`, "PATCH", {
+          contract_version: "cubi-enterprise-user-admin.v1", active: !wasActive,
+        });
+        notice = wasActive ? t.removedOk : t.added;
+        await load();
+      });
+    }));
     container.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach((button) => button.addEventListener("click", () => {
       const userId = button.dataset.remove ?? "";
       const revision = Number(button.dataset.revision);
@@ -261,6 +300,14 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       teams = teamList(await api<unknown>("/api/enterprise/teams"));
       if (!teams.some(team => team.team_id === selectedTeamId)) selectedTeamId = teams[0]?.team_id ?? "";
       await loadTeam();
+      try {
+        accounts = accountList(await api<unknown>("/api/enterprise/users"));
+        canAdminAccounts = true;
+      } catch (error) {
+        accounts = []; canAdminAccounts = false;
+        if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
+      }
+      render();
     } catch (error) {
       failure = error instanceof Error && error.message === "SESSION_REQUIRED" ? t.session
         : error instanceof Error ? error.message : t.error;
