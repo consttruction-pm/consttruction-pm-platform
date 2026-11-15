@@ -154,38 +154,93 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("project_report.edit", ProjectPrivilegeGroup.VIEWS_REPORTS, "Edit Project Reports", "Modify reports and report batches and export reports."),
     ProjectPrivilegeDefinition("project_website.publish", ProjectPrivilegeGroup.VIEWS_REPORTS, "Publish Project Website", "Publish a website for a project."),
     ProjectPrivilegeDefinition("project_visualizer_layout.add_edit_delete", ProjectPrivilegeGroup.VIEWS_REPORTS, "Add/Edit/Delete Project Visualizer Layouts", "Create, modify, and remove project layouts in Visualizer."),
+
+    ProjectPrivilegeDefinition("expense.add_edit_delete", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit/Delete Expenses", "Create, modify, and remove expenses assigned to projects."),
+    ProjectPrivilegeDefinition("activity.relationship.edit", ProjectPrivilegeGroup.ACTIVITIES, "Edit Activity Relationships", "Edit existing activity relationships."),
+    ProjectPrivilegeDefinition("activity.relationship.assign", ProjectPrivilegeGroup.ACTIVITIES, "Assign Activity Relationships", "Assign activity relationships."),
+    ProjectPrivilegeDefinition("activity.relationship.view", ProjectPrivilegeGroup.ACTIVITIES, "View Activity Relationships", "View activity relationships."),
+    ProjectPrivilegeDefinition("project_activity_code.assign", ProjectPrivilegeGroup.CODES, "Assign Project Activity Codes", "Assign project activity codes."),
+    ProjectPrivilegeDefinition("project_activity_code.view", ProjectPrivilegeGroup.CODES, "View Project Activity Codes", "View project activity codes."),
+    ProjectPrivilegeDefinition("eps_activity_code.assign", ProjectPrivilegeGroup.CODES, "Assign EPS Activity Codes", "Assign EPS activity codes."),
+    ProjectPrivilegeDefinition("eps_activity_code.view", ProjectPrivilegeGroup.CODES, "View EPS Activity Codes", "View EPS activity codes."),
+    ProjectPrivilegeDefinition("calendar.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Project Calendars", "Edit existing project calendars."),
+    ProjectPrivilegeDefinition("calendar.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Project Calendars", "View project calendars."),
+    ProjectPrivilegeDefinition("activity_resource_request.edit", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Edit Activity Resource Requests", "Edit existing activity resource requests."),
+    ProjectPrivilegeDefinition("activity_resource_request.assign", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Assign Activity Resource Requests", "Assign activity resource requests."),
+    ProjectPrivilegeDefinition("activity_resource_request.view", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "View Activity Resource Requests", "View activity resource requests."),
+    ProjectPrivilegeDefinition("resource_planning_assignment.edit", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Edit Resource Planning Assignments", "Edit resource planning assignments."),
+    ProjectPrivilegeDefinition("resource_planning_assignment.assign", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Assign Resource Planning Assignments", "Assign resource planning assignments."),
+    ProjectPrivilegeDefinition("resource_planning_assignment.view", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "View Resource Planning Assignments", "View resource planning assignments."),
+    ProjectPrivilegeDefinition("role_planning_assignment.edit", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Edit Role Planning Assignments", "Edit role planning assignments."),
+    ProjectPrivilegeDefinition("role_planning_assignment.assign", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Assign Role Planning Assignments", "Assign role planning assignments."),
+    ProjectPrivilegeDefinition("role_planning_assignment.view", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "View Role Planning Assignments", "View role planning assignments."),
 )
 
 PRIVILEGE_BY_KEY = {item.key: item for item in PROJECT_PRIVILEGES}
 
 
-def expand_project_privileges(selected: set[str] | frozenset[str]) -> frozenset[str]:
-    """Apply the documented Add/Delete -> Edit/Assign/View hierarchy.
+# Explicit inheritance from the V26 Help hierarchy. Compound Oracle options
+# are expanded deliberately; suffix-based guessing is unsafe for names such as
+# add_edit_except_relationships and add_edit_delete.
+PROJECT_PRIVILEGE_INHERITANCE: dict[str, frozenset[str]] = {
+    "activity.add_edit": frozenset({"activity.edit", "activity.assign", "activity.view"}),
+    "activity.add_edit_except_relationships": frozenset({"activity.edit", "activity.assign", "activity.view"}),
+    "activity.delete": frozenset({"activity.edit", "activity.assign", "activity.view"}),
+    "activity.relationship.add_edit_delete": frozenset({"activity.relationship.edit", "activity.relationship.assign", "activity.relationship.view"}),
+    "expense.add_edit": frozenset({"expense.edit", "expense.assign", "expense.view"}),
+    "expense.add_edit_delete": frozenset({"expense.edit", "expense.assign", "expense.view"}),
+    "expense.delete": frozenset({"expense.edit", "expense.assign", "expense.view"}),
+    "eps.add_edit_delete_except_costs_financials": frozenset({"eps.edit", "eps.assign", "eps.view"}),
+    "eps.edit": frozenset({"eps.assign", "eps.view"}),
+    "project.add": frozenset({"project.edit", "project.assign", "project.view"}),
+    "project.create": frozenset({"project.edit", "project.assign", "project.view"}),
+    "project.delete": frozenset({"project.edit", "project.assign", "project.view"}),
+    "project.edit": frozenset({"project.assign", "project.view"}),
+    "project_activity_code.add": frozenset({"project_activity_code.edit", "project_activity_code.assign", "project_activity_code.view"}),
+    "project_activity_code.delete": frozenset({"project_activity_code.add", "project_activity_code.edit", "project_activity_code.assign", "project_activity_code.view"}),
+    "eps_activity_code.add": frozenset({"eps_activity_code.edit", "eps_activity_code.assign", "eps_activity_code.view"}),
+    "eps_activity_code.delete": frozenset({"eps_activity_code.add", "eps_activity_code.edit", "eps_activity_code.assign", "eps_activity_code.view"}),
+    "wbs.add_edit": frozenset({"wbs.edit", "wbs.assign", "wbs.view"}),
+    "wbs.add_edit_delete_except_costs_financials": frozenset({"wbs.edit", "wbs.assign", "wbs.view"}),
+    "wbs.delete": frozenset({"wbs.edit", "wbs.assign", "wbs.view"}),
+    "issue.add_edit": frozenset({"issue.edit", "issue.assign", "issue.view"}),
+    "issue.delete": frozenset({"issue.edit", "issue.assign", "issue.view"}),
+    "issue_threshold.add_edit_delete": frozenset({"issue.edit", "issue.assign", "issue.view", "threshold.edit", "threshold.assign", "threshold.view"}),
+    "threshold.add_edit": frozenset({"threshold.edit", "threshold.assign", "threshold.view"}),
+    "threshold.delete": frozenset({"threshold.edit", "threshold.assign", "threshold.view"}),
+    "risk.add_edit": frozenset({"risk.edit", "risk.assign", "risk.view"}),
+    "risk.add_edit_delete": frozenset({"risk.edit", "risk.assign", "risk.view"}),
+    "risk.delete": frozenset({"risk.edit", "risk.assign", "risk.view"}),
+    "project_baseline.add_edit_delete": frozenset({"baseline.edit", "baseline.assign", "baseline.view"}),
+    "project_calendar.add_edit_delete": frozenset({"calendar.edit", "calendar.assign", "calendar.view"}),
+    "document.add_edit_delete": frozenset({"document.edit", "document.assign", "document.view"}),
+    "work_product_document.add_edit_delete": frozenset({"document.edit", "document.assign", "document.view"}),
+    "resource_assignment.add_edit": frozenset({"resource_assignment.edit", "resource_assignment.assign", "resource_assignment.view"}),
+    "resource_assignment.delete": frozenset({"resource_assignment.edit", "resource_assignment.assign", "resource_assignment.view"}),
+    "resource_planning_assignment.add_edit_delete": frozenset({"resource_planning_assignment.edit", "resource_planning_assignment.assign", "resource_planning_assignment.view"}),
+    "role_planning_assignment.add_edit_delete": frozenset({"role_planning_assignment.edit", "role_planning_assignment.assign", "role_planning_assignment.view"}),
+    "activity_resource_request.add_edit": frozenset({"activity_resource_request.edit", "activity_resource_request.assign", "activity_resource_request.view"}),
+    "code.edit": frozenset({"code.assign", "code.view"}),
+    "code.assign": frozenset({"code.view"}),
+    "timesheet.edit": frozenset({"timesheet.view"}),
+}
 
-    This function only expands explicit, known privileges. It never grants
-    unrelated capabilities and rejects unknown keys to fail closed.
-    """
+
+def expand_project_privileges(selected: set[str] | frozenset[str]) -> frozenset[str]:
+    """Apply only explicit, Help-reviewed privilege inheritance and fail closed."""
     unknown = set(selected) - PRIVILEGE_BY_KEY.keys()
     if unknown:
         raise ValueError("UNKNOWN_PROJECT_PRIVILEGE")
     result = set(selected)
-    for key in tuple(result):
-        if key.endswith(".delete"):
-            stem = key[:-len(".delete")]
-            result.update({f"{stem}.edit", f"{stem}.assign", f"{stem}.view"})
-        elif key.endswith(".add_edit"):
-            stem = key[:-len(".add_edit")]
-            result.update({f"{stem}.edit", f"{stem}.assign", f"{stem}.view"})
-        elif key.endswith(".edit"):
-            stem = key[:-len(".edit")]
-            result.update({f"{stem}.assign", f"{stem}.view"})
-        elif key.endswith(".assign"):
-            stem = key[:-len(".assign")]
-            result.add(f"{stem}.view")
-    # Fail closed if the catalogue ever omits an inheritance target.
-    missing = result - PRIVILEGE_BY_KEY.keys()
-    if missing:
-        raise ValueError("PROJECT_PRIVILEGE_INHERITANCE_TARGET_MISSING")
+    pending = list(selected)
+    while pending:
+        key = pending.pop()
+        for inherited in PROJECT_PRIVILEGE_INHERITANCE.get(key, frozenset()):
+            if inherited not in PRIVILEGE_BY_KEY:
+                raise ValueError("PROJECT_PRIVILEGE_INHERITANCE_TARGET_MISSING")
+            if inherited not in result:
+                result.add(inherited)
+                pending.append(inherited)
     return frozenset(result)
 
 
