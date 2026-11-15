@@ -582,14 +582,25 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if not self._role_policy.is_allowed(context, permission):
             return False
         rows = self._connection.execute(
-            "SELECT p.scope,p.active,a.obs_id,p.profile_id FROM p6_security_profile_assignments a "
-            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
-            "LEFT JOIN project_lifecycle_projects project "
-            "ON project.tenant_id=a.tenant_id AND project.project_id=%s "
+            "WITH RECURSIVE project_obs(obs_id,parent_obs_id) AS ("
+            "SELECT obs.obs_id,obs.parent_obs_id FROM project_lifecycle_projects project "
+            "JOIN p6_obs_node obs ON obs.tenant_id=project.tenant_id "
+            "AND obs.obs_id=project.obs_id "
+            "WHERE project.tenant_id=%s AND project.project_id=%s "
+            "UNION ALL "
+            "SELECT parent.obs_id,parent.parent_obs_id FROM p6_obs_node parent "
+            "JOIN project_obs child ON child.parent_obs_id=parent.obs_id "
+            "WHERE parent.tenant_id=%s) "
+            "SELECT p.scope,p.active,a.obs_id,p.profile_id "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id "
+            "AND p.profile_id=a.profile_id "
             "WHERE a.tenant_id=%s AND a.user_id=%s "
-            "AND ((p.scope='global' AND a.obs_id='') "
-            "OR (p.scope='project' AND a.obs_id=project.obs_id AND project.obs_id<>''))",
-            (context.project_id, context.tenant_id, context.user_id),
+            "AND ( (p.scope='global' AND a.obs_id='') "
+            "OR (p.scope='project' AND a.obs_id IN "
+            "(SELECT obs_id FROM project_obs)))",
+            (context.tenant_id, context.project_id, context.tenant_id,
+             context.tenant_id, context.user_id),
         ).fetchall()
         global_rows = [row for row in rows if str(row[0]) == "global"]
         project_rows = [row for row in rows if str(row[0]) == "project"]
