@@ -127,7 +127,7 @@ def expand_project_privileges(selected: set[str] | frozenset[str]) -> frozenset[
             result.update({f"{stem}.edit", f"{stem}.assign", f"{stem}.view"})
         elif key.endswith(".add_edit"):
             stem = key[:-len(".add_edit")]
-            result.update({f"{stem}.assign", f"{stem}.view"})
+            result.update({f"{stem}.edit", f"{stem}.assign", f"{stem}.view"})
         elif key.endswith(".edit"):
             stem = key[:-len(".edit")]
             result.update({f"{stem}.assign", f"{stem}.view"})
