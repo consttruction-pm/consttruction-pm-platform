@@ -104,6 +104,7 @@ on:
       - "src/construction_pm/deployment/production_runtime.py"
       - "tests/integration/test_enterprise_project_access_postgres_live.py"
       - "tests/test_enterprise_project_access.py"
+      - "tests/test_enterprise_project_access_http.py"
 
   pull_request:
     paths:
