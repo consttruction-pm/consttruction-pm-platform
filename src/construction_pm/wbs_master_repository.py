@@ -925,6 +925,33 @@ class PostgresWBSMasterRepository:
 
     def initialize(self) -> None:
         self.connection.execute(
+            """CREATE OR REPLACE FUNCTION cubi_project_profile_has_privilege(
+                    p_permissions JSONB,p_permission TEXT)
+                RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE AS $
+                SELECT CASE p_permission
+                    WHEN 'project.read' THEN p_permissions ?| ARRAY['project.read','project.view']
+                    WHEN 'project.write' THEN p_permissions ?| ARRAY['project.write','project.edit_details_except_costs_financials']
+                    WHEN 'project.schedule' THEN p_permissions ?| ARRAY['project.schedule','schedule.run']
+                    WHEN 'activity.add_edit' THEN p_permissions ?| ARRAY['activity.add_edit','activity.add_edit_except_relationships']
+                    WHEN 'expense.add_edit' THEN p_permissions ?| ARRAY['expense.add_edit','expense.add_edit_delete']
+                    WHEN 'issue.add_edit' THEN p_permissions ?| ARRAY['issue.add_edit','issue_threshold.add_edit_delete']
+                    WHEN 'issue.edit' THEN p_permissions ?| ARRAY['issue.edit','issue_threshold.add_edit_delete']
+                    WHEN 'issue.delete' THEN p_permissions ?| ARRAY['issue.delete','issue_threshold.add_edit_delete']
+                    WHEN 'risk.add_edit' THEN p_permissions ?| ARRAY['risk.add_edit','risk.add_edit_delete']
+                    WHEN 'risk.edit' THEN p_permissions ?| ARRAY['risk.edit','risk.add_edit_delete']
+                    WHEN 'risk.delete' THEN p_permissions ?| ARRAY['risk.delete','risk.add_edit_delete']
+                    WHEN 'threshold.add_edit' THEN p_permissions ?| ARRAY['threshold.add_edit','issue_threshold.add_edit_delete']
+                    WHEN 'threshold.edit' THEN p_permissions ?| ARRAY['threshold.edit','issue_threshold.add_edit_delete']
+                    WHEN 'threshold.delete' THEN p_permissions ?| ARRAY['threshold.delete','issue_threshold.add_edit_delete']
+                    WHEN 'baseline.create_update' THEN p_permissions ?| ARRAY['baseline.create_update','project_baseline.add_edit_delete']
+                    WHEN 'wbs.add_edit' THEN p_permissions ?| ARRAY['wbs.add_edit','wbs.add_edit_delete_except_costs_financials']
+                    WHEN 'wbs.edit' THEN p_permissions ?| ARRAY['wbs.edit','wbs.add_edit_delete_except_costs_financials']
+                    WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
+                    ELSE p_permissions ? p_permission
+                END
+                $"""
+        )
+        self.connection.execute(
             """CREATE TABLE IF NOT EXISTS wbs_master (
                 tenant_id TEXT NOT NULL,
                 project_id TEXT NOT NULL,
