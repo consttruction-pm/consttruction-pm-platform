@@ -856,8 +856,6 @@ class PostgresSecurityProfileAuthorizationPolicy:
             # Project Superuser grants complete P6 project access, but only
             # within the OBS responsibility assigned to this project.
             return True
-        if not self._role_policy.is_allowed(context, permission):
-            return False
         global_required = GLOBAL_PERMISSION_PRIVILEGE_MAP.get(permission)
         if global_required is not None:
             return any(bool(row[1]) and global_required in self._profile_privileges(
@@ -928,8 +926,6 @@ class PostgresSecurityProfileAuthorizationPolicy:
             return False
         if PROJECT_SUPERUSER_PROFILE_ID in profile_ids:
             return True
-        if not self._role_policy.is_allowed(context, permission):
-            return False
         return any(
             "add_projects" in self._profile_privileges(context.tenant_id, profile_id)
             for profile_id in profile_ids
@@ -1088,14 +1084,12 @@ class PostgresSecurityProfileAuthorizationPolicy:
                 "AND p.active=TRUE AND a.obs_id = ANY(%s) LIMIT 1",
                 (context.tenant_id,context.user_id,sorted(project_obs_ids)),
             ).fetchone()
-            return readonly is not None and self._role_policy.is_allowed(context, permission)
+            return readonly is not None
 
         if permission in p6_project_permissions and any(
             profile_id == PROJECT_SUPERUSER_PROFILE_ID for profile_id in active_profiles
         ):
             return True
-        if not self._role_policy.is_allowed(context, permission):
-            return False
         if permission == Permission.PROJECT_READ:
             return True
         required = PROJECT_PERMISSION_PRIVILEGE_MAP.get(permission)
