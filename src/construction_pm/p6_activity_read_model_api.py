@@ -28,8 +28,10 @@ class P6ActivityReadModelAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_VIEW):
             raise AuthorizationError("authorization denied for permission=project.read")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_COSTS_VIEW):
+            raise AuthorizationError("authorization denied for permission=project.view_costs_financials")
         result = self.service.read(scope, activity_id)
         return {
             "contract_version": P6_ACTIVITY_READ_MODEL_VERSION,
