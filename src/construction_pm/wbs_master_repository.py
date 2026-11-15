@@ -1052,7 +1052,7 @@ class PostgresWBSMasterRepository:
                        JOIN enterprise_project_security_profiles profile
                          ON profile.tenant_id=assignment.tenant_id
                         AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
+                       WHERE cubi_project_profile_has_privilege(profile.permissions,%s)
                  )
                END
                FROM target""",
