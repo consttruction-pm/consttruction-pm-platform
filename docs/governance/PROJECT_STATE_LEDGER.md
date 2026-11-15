@@ -1188,3 +1188,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Next action:** resolve/verify `AGENTS.md`, refresh active schedule ownership, then define the typed scenario/reflection contract (pinned source snapshot, project revision, calculation-context hash, isolated fork, immutable runs, typed comparison, authorization/revision/idempotency). Only then start the backend vertical slice in the canonical execution environment.
 
 - **Documentation verification checkpoint:** tracker update commit `ca45fbccb2f4a8e01c3e18ef414e1481e1cfa45b`; PR #1988 remains documentation-only, Draft/open/unmerged. Latest exact status on the then-current head was Vercel preview **failure: build-rate-limit / upgrade required**; no runtime/test suite was executed by the ChatGPT GitHub connector. This is not a green gate. See the tracker §11 and issue #1989.
+
+## Primavera Help authority clarification — 2026-11-15
+
+- Product-owner rule: **P6 EPPM V26 HTML Help is the universal primary parity authority for all capabilities and topics.**
+- Capabilities newly added in Primavera Cloud and absent from EPPM Help must be functionally sourced from the corresponding Primavera Cloud HTML Help.
+- If a Cloud capability has an EPPM counterpart, reconcile and integrate it without semantic, menu, API, data-owner or calculation duplication. Preserve EPPM baseline behavior and add Cloud extensions explicitly where justified.
+- Cloud-only capabilities remain clearly classified as Cloud-origin extensions; never label them as EPPM parity.
+- Every feature/phase requires a dual-source disposition: exact EPPM HTML topic(s) or “not present”; exact Cloud HTML topic(s) or “not applicable”; classification; differences/resolution; CUBI owner/menu/API/data boundary; tests/evidence.
+- Professional Help is supplementary cross-reference only, not a substitute for EPPM Help. This corrects the earlier Scenario Tracker emphasis on Professional Reflection topics.
+- Any inaccessible or ambiguous source is marked **MISSING / VERIFY** or **OPEN — OWNER DECISION REQUIRED**; no inferred parity.
+- This hierarchy applies to Engineering, Enterprise and Workbench, all existing and new features. See tracker §12 and execution issue #1989.
