@@ -146,7 +146,7 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
         existing = self.repository.get(item.scope, item.wbs_id)
@@ -209,7 +209,7 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
-        self._require_obs_permission(scope, auth_context, Permission.WBS_ADD_EDIT.value, wbs_id=wbs_id)
+        self._require_obs_permission(scope, auth_context, Permission.WBS_VIEW.value, wbs_id=wbs_id)
         self._require_obs_permission(scope, auth_context, Permission.WBS_ADD_EDIT.value, wbs_id=target_parent_wbs_id)
         nodes = self.repository.copy_subtree(
             scope,
@@ -284,7 +284,7 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         self._require_obs_permission(scope, auth_context, Permission.WBS_ADD_EDIT.value, wbs_id=wbs_id)
