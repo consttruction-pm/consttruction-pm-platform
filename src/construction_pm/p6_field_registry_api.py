@@ -106,7 +106,7 @@ class P6FieldRegistryAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(definition.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_UDF_ADMIN)
         return _udf_dto(self.udf_service.save_definition(definition))
 
     def get_udf(
