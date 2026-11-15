@@ -411,13 +411,13 @@ class SQLiteP6IssueRepository:
             "UPDATE p6_issue SET title=?,description=?,issue_type=?,status=?,priority=?,"
             "owner=?,responsible_manager=?,date_identified=?,due_date=?,wbs_id=?,"
             "activity_id=?,document_refs_json=?,resolution_note=?,record_revision=?,"
-            "updated_at=? WHERE tenant_id=? AND project_id=? AND issue_id=?",
+            "updated_at=?,responsible_obs_id=? WHERE tenant_id=? AND project_id=? AND issue_id=?",
             (
                 stored.title, stored.description, stored.issue_type, stored.status,
                 stored.priority, stored.owner, stored.responsible_manager,
                 stored.date_identified, stored.due_date, stored.wbs_id,
                 stored.activity_id, json.dumps(list(stored.document_refs)),
-                stored.resolution_note, stored.record_revision, stored.updated_at,
+                stored.resolution_note, stored.record_revision, stored.updated_at, stored.responsible_obs_id,
                 stored.scope.tenant_id, stored.scope.project_id, stored.issue_id,
             ),
         )
@@ -539,8 +539,8 @@ class PostgresP6IssueRepository:
         self.connection.execute(
             "INSERT INTO p6_issue (tenant_id,project_id,issue_id,title,description,issue_type,"
             "status,priority,owner,responsible_manager,date_identified,due_date,wbs_id,"
-            "activity_id,document_refs_json,resolution_note,record_revision,created_at,updated_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "activity_id,document_refs_json,resolution_note,record_revision,created_at,updated_at,responsible_obs_id) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 stored.scope.tenant_id, stored.scope.project_id, stored.issue_id,
                 stored.title, stored.description, stored.issue_type, stored.status,
@@ -548,7 +548,7 @@ class PostgresP6IssueRepository:
                 stored.date_identified, stored.due_date, stored.wbs_id,
                 stored.activity_id, json.dumps(list(stored.document_refs)),
                 stored.resolution_note, stored.record_revision, stored.created_at,
-                stored.updated_at,
+                stored.updated_at, stored.responsible_obs_id,
             ),
         )
         self._event(stored, ISSUE_EVENT_CREATED, actor_id, occurred_at, {
@@ -641,7 +641,7 @@ class PostgresP6IssueRepository:
             "UPDATE p6_issue SET title=%s,description=%s,issue_type=%s,status=%s,priority=%s,"
             "owner=%s,responsible_manager=%s,date_identified=%s,due_date=%s,wbs_id=%s,"
             "activity_id=%s,document_refs_json=%s,resolution_note=%s,record_revision=%s,"
-            "updated_at=%s WHERE tenant_id=%s AND project_id=%s AND issue_id=%s",
+            "updated_at=%s,responsible_obs_id=%s WHERE tenant_id=%s AND project_id=%s AND issue_id=%s",
             (
                 stored.title, stored.description, stored.issue_type, stored.status,
                 stored.priority, stored.owner, stored.responsible_manager,
