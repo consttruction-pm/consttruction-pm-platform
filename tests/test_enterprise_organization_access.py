@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -61,6 +62,26 @@ class Repository:
         )
         self.members[(tenant_id, team_id, user_id)] = removed
         return removed
+
+    def transfer_team_ownership(
+        self, tenant_id, team_id, new_owner_user_id, *, actor_id,
+        expected_team_revision, expected_membership_revision, occurred_at,
+    ):
+        team = self.teams[(tenant_id, team_id)]
+        if team.revision != expected_team_revision:
+            raise ValueError("TEAM_REVISION_CONFLICT")
+        target_key = (tenant_id, team_id, new_owner_user_id)
+        target = self.members[target_key]
+        if target.revision != expected_membership_revision:
+            raise ValueError("TEAM_MEMBERSHIP_REVISION_CONFLICT")
+        old_key = (tenant_id, team_id, actor_id)
+        self.members[old_key] = replace(self.members[old_key], role="admin",
+                                         revision=self.members[old_key].revision + 1)
+        self.members[target_key] = replace(target, role="owner", revision=target.revision + 1)
+        updated = replace(team, owner_user_id=new_owner_user_id,
+                           revision=team.revision + 1, updated_at=occurred_at)
+        self.teams[(tenant_id, team_id)] = updated
+        return updated
 
     def list_teams_for_user(self, tenant_id, user_id):
         return tuple(
@@ -136,6 +157,29 @@ def test_non_manager_cannot_add_members_and_owner_cannot_be_removed():
         app.add_member("viewer-session", team.team_id, "member-2", "member")
     with pytest.raises(OrganizationAccessDenied, match="TEAM_OWNER_TRANSFER_REQUIRED"):
         app.remove_member("owner-session", team.team_id, "owner", expected_revision=1)
+
+
+def test_only_current_owner_can_transfer_ownership_and_old_owner_becomes_admin():
+    app, repository = service()
+    team = app.create_team("owner-session", "Team A")
+    member = app.add_member("owner-session", team.team_id, "member-1", "member")
+
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_OWNER_PERMISSION_REQUIRED"):
+        app.transfer_team_ownership(
+            "viewer-session", team.team_id, "member-1",
+            expected_team_revision=team.revision,
+            expected_membership_revision=member.revision,
+        )
+
+    updated = app.transfer_team_ownership(
+        "owner-session", team.team_id, "member-1",
+        expected_team_revision=team.revision,
+        expected_membership_revision=member.revision,
+    )
+    assert updated.owner_user_id == "member-1"
+    assert updated.revision == team.revision + 1
+    assert repository.get_membership("tenant-a", team.team_id, "owner").role == "admin"
+    assert repository.get_membership("tenant-a", team.team_id, "member-1").role == "owner"
 
 
 def test_revoked_membership_fails_closed_on_next_authorization_check():
