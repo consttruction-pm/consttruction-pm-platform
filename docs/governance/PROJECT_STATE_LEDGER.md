@@ -1321,3 +1321,12 @@ Recorded and read-back verified in:
 - Issue #1990 comment records this as a binding product-owner acceptance rule.
 
 Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, source-to-CUBI mapping, equivalent-state screenshots and visual-diff review, full forms/options/charts/reports/tables inventory, responsive evidence, interaction/permission tests, duplicate-surface scan, Professional-aligned regression tests, exact-head CI and a fresh Vercel Preview tied to the same SHA. Unknowns remain MISSING / VERIFY and cannot be claimed as complete parity.
+
+
+## Strict Cloud Help one-to-one parity clarification — 2026-11-15
+
+- Product-owner clarification: Cloud-derived CUBI capabilities must be checked against the applicable Cloud HTML Help **topic by topic, page by page, section by section and procedure-step by procedure-step**, and must match one-to-one. Approximate resemblance, selective implementation, omitted choices or generic placeholders do not qualify as parity.
+- Binding rule added to capability register section 2B and the master feasibility/execution blueprint. Both require exhaustive bidirectional Help↔CUBI traceability, complete option/control/chart/report/table inventories, procedure replay, side-by-side visual evidence, Professional V26/EPPM V26 collision review and 100% disposition of applicable Help rows before any parity-complete claim.
+- Register update commit: `452321349de923dc888b67f9abeeeea87cefdc0b`; resulting file blob SHA: `ffd25c05bacbdf7f4b0c3a749202471ba1ef80b1`.
+- Blueprint update commit: `60f1f41e30d4b6311f1b6ec66b48f6c62b277db1`; resulting file blob SHA: `264346521b5d9b61cb471d22d332f40ec23d9fc2`.
+- This is a documentation/governance correction, not evidence that Cloud Help topics have already been exhaustively audited or that any product capability is implemented or parity-complete.
