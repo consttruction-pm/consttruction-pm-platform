@@ -88,6 +88,7 @@ class P6WBSMasterAPI:
     repository: WBSMasterRepository
     authorization_policy: AuthorizationPolicy
     checkout_lease: ProjectCheckoutLease | None = None
+    responsibility_repository: Any | None = None
 
     def create(self, item: WBSMaster, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(item.scope, auth_context)
@@ -213,6 +214,58 @@ class P6WBSMasterAPI:
             _dto(item, self.repository.list_milestones(scope, item.wbs_id))
             for item in self.repository.list(scope)
         )
+
+    def get_responsible_obs(
+        self, scope: BackendScope, wbs_id: str, *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any] | None:
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise AuthorizationError("authorization denied for permission=project.read")
+        if self.responsibility_repository is None:
+            raise RuntimeError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
+        result = self.responsibility_repository.get_wbs_responsibility(
+            scope.tenant_id, scope.project_id, wbs_id
+        )
+        if result is None:
+            return None
+        return {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "kind": "p6_wbs_responsibility",
+            "wbs_id": wbs_id,
+            "responsible_obs_id": result[0],
+            "revision": result[1],
+        }
+
+    def assign_responsible_obs(
+        self, scope: BackendScope, wbs_id: str, responsible_obs_id: str, *,
+        expected_revision: int, occurred_at: Any,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        _require_scope(scope, auth_context)
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.P6_WBS_ADMIN):
+            raise AuthorizationError("authorization denied for permission=p6.wbs.admin")
+        require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        if self.responsibility_repository is None:
+            raise RuntimeError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
+        revision = self.responsibility_repository.assign_wbs_responsibility(
+            scope.tenant_id, scope.project_id, wbs_id, responsible_obs_id,
+            actor_user_id=auth_context.user_id, occurred_at=occurred_at,
+            expected_revision=expected_revision,
+        )
+        return {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "kind": "p6_wbs_responsibility",
+            "wbs_id": wbs_id,
+            "responsible_obs_id": responsible_obs_id,
+            "revision": revision,
+        }
 
     def replace_milestones(
         self,
