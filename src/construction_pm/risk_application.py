@@ -97,6 +97,8 @@ class RiskApplicationService:
         occurred_at: datetime,
     ) -> StoredRisk:
         self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id)
+        if self.wbs_access_repository is not None and not risk.wbs_id:
+            raise RiskAuthorizationError("RISK_WBS_REQUIRED")
         self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.PROJECT_WRITE)
         with self.transaction_manager.transaction():
             return self.store.create_risk(
@@ -118,6 +120,8 @@ class RiskApplicationService:
     ) -> StoredRisk:
         self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id)
         current = self.store.get_risk(risk.tenant_id, risk.project_id, risk.risk_id)
+        if self.wbs_access_repository is not None and not risk.wbs_id:
+            raise RiskAuthorizationError("RISK_WBS_REQUIRED")
         self._require_wbs_access(risk.tenant_id, risk.project_id, current.risk.wbs_id, context, Permission.PROJECT_WRITE)
         self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.PROJECT_WRITE)
         with self.transaction_manager.transaction():
