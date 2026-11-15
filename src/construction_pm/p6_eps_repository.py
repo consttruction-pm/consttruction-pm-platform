@@ -291,6 +291,11 @@ class PostgresP6EPSRepository:
         self, tenant_id: str, project_id: str, wbs_id: str,
     ) -> tuple[str, int, str] | None:
         """Resolve the nearest WBS override, then project, then EPS default."""
+        if self.connection.execute(
+            "SELECT 1 FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+            (tenant_id,project_id,wbs_id),
+        ).fetchone() is None:
+            raise P6EPSError("P6_WBS_NOT_FOUND")
         wbs = self.connection.execute(
             "WITH RECURSIVE wbs_path(wbs_id,parent_kind,parent_wbs_id,depth,path) AS ("
             "SELECT wbs_id,parent_kind,parent_wbs_id,0,ARRAY[wbs_id]::text[] FROM wbs_master "
