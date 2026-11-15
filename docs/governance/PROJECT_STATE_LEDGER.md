@@ -1230,3 +1230,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Normative source hierarchy: P6 EPPM V26 HTML Help primary for parity; Primavera Cloud HTML Help supplies genuinely new capabilities absent from EPPM; shared capabilities are reconciled without duplicate records, APIs, menus, owners, workflows or calculations; Team Member V26 is a separate normative source; Professional Help supplementary only.
 - Engineering P1 is handed to Qoder for actual implementation. Enterprise P2 architecture and integration are coordinated here after Engineering contracts stabilize. Workbench remains non-owning.
 - PR #1988 includes the master register and tracker link; remains documentation-only until review/merge. Issue #1990 tracks the program. This checkpoint records documentation and scope only: no source code implementation, runtime tests, merge, deployment, Jalal 5 weight change or earned progress is claimed.
+
+
+## First verified dual-Help crosswalk tranche — 2026-11-15
+
+- Master register crosswalk appendix commit: `83a2b91185fb6400b6dee1834fbec7d87a07b1e3`.
+- Verified EPPM V26 HTML topic families include Activities, WBS, Gantt, baselines, scheduling, float, critical path, resource leveling, progress, resources, constraints, relationships, risks, steps, budgets, earned value, Dashboards/Portlets, Portfolios/Portfolio Analysis, Capacity Planning, Timesheets, User Access, OBS, Security Profiles and audit.
+- Verified Primavera Cloud HTML topics include Schedule Scenarios/Manage Scenario, Risk Analysis prerequisites and execution/iteration results, Work Plan/hand-offs/commitments/Pull Plans, Portfolio Resource Planning scenarios, and Workflow Design/Inbox.
+- Exact official HTML page URLs and feature-level dispositions are in the master register appendix. This is a first tranche only; remaining topic-level crosswalk is still open and no unverified topic is marked absent.
+- Program issue #1990 tracks the complete inventory and delivery. Scenario issue #1989 is a child Engineering slice. No code, runtime, test, merge or deployment completion is claimed by this documentation work.
