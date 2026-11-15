@@ -96,6 +96,7 @@ PROJECT_PERMISSION_PRIVILEGE_MAP = {
     Permission.PROJECT_SCHEDULE: "schedule_projects",
     Permission.PROJECT_ADMIN: "edit_project_details_except_costs_financials",
     Permission.P6_WBS_ADMIN: "add_edit_delete_wbs_except_costs_financials",
+    Permission.P6_ACTIVITY_ADMIN: "add_edit_activities_except_relationships",
 }
 
 GLOBAL_PERMISSION_PRIVILEGE_MAP = {
@@ -746,7 +747,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         p6_project_permissions = {
             Permission.PROJECT_READ, Permission.PROJECT_WRITE,
             Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
-            Permission.P6_WBS_ADMIN,
+            Permission.P6_WBS_ADMIN, Permission.P6_ACTIVITY_ADMIN,
         }
         p6_permissions = p6_project_permissions | {Permission.P6_UDF_ADMIN}
         admin_superuser = self._connection.execute(
