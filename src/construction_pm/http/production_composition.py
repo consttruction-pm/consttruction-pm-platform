@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
@@ -369,6 +370,12 @@ def build_project_lifecycle_wsgi_app(
             ),
             authorization_policy=authorization_policy,
         )
+    if wbs_master_repository is not None:
+        if p6_issue_api is not None and hasattr(p6_issue_api, "wbs_access_repository"):
+            p6_issue_api = replace(p6_issue_api, wbs_access_repository=wbs_master_repository)
+        if p6_expense_api is not None and hasattr(p6_expense_api, "wbs_access_repository"):
+            p6_expense_api = replace(p6_expense_api, wbs_access_repository=wbs_master_repository)
+
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
