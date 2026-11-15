@@ -375,12 +375,24 @@ def build_project_lifecycle_wsgi_app(
             p6_issue_api = replace(p6_issue_api, wbs_access_repository=wbs_master_repository)
         if p6_expense_api is not None and hasattr(p6_expense_api, "wbs_access_repository"):
             p6_expense_api = replace(p6_expense_api, wbs_access_repository=wbs_master_repository)
-        if threshold_api is not None and hasattr(threshold_api, "service"):
+        if (
+            threshold_api is not None
+            and hasattr(threshold_api, "service")
+            and callable(getattr(wbs_master_repository, "has_responsible_obs_permission", None))
+        ):
             threshold_api = replace(
                 threshold_api,
                 service=replace(threshold_api.service, responsible_obs_access=wbs_master_repository),
             )
-        if risk_api is not None and hasattr(risk_api, "service"):
+        # The PostgreSQL WBS repository exposes the authoritative OBS
+        # permission resolver. The SQLite preview repository intentionally does
+        # not model enterprise OBS assignments, so do not inject it as though it
+        # were an authorization provider (Risk would correctly fail closed).
+        if (
+            risk_api is not None
+            and hasattr(risk_api, "service")
+            and callable(getattr(wbs_master_repository, "has_wbs_permission", None))
+        ):
             risk_api = replace(
                 risk_api,
                 service=replace(risk_api.service, wbs_access_repository=wbs_master_repository),
