@@ -652,6 +652,26 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert not policy.is_allowed_for_wbs(
             context, Permission.PROJECT_WRITE, f"eps-wbs-override-{suffix}"
         )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_WBS_ADMIN, f"eps-wbs-{suffix}"
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_ACTIVITY_ADMIN, f"eps-wbs-{suffix}"
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_delete_wbs_except_costs_financials",
+                "add_edit_activities_except_relationships",
+            },
+            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_ACTIVITY_ADMIN, f"eps-wbs-{suffix}"
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_ACTIVITY_ADMIN, f"eps-wbs-override-{suffix}"
+        )
         wbs_api = P6WBSMasterAPI(
             PostgresWBSMasterRepository(connection), policy,
             responsibility_repository=eps,
