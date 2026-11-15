@@ -13,6 +13,7 @@ from construction_pm.enterprise_project_access import (
     ProjectAccessError,
     ProjectSecurityProfile,
     UserOBSAssignment,
+    project_profile_has_permission,
 )
 
 NOW = datetime(2026, 11, 15, 18, 0, tzinfo=timezone.utc)
@@ -251,3 +252,43 @@ def test_granular_wbs_profile_is_checked_without_legacy_project_read_write():
     )
     assert policy.is_allowed(planner, Permission.WBS_VIEW)
     assert not policy.is_allowed(planner, Permission.WBS_DELETE)
+
+
+
+@pytest.mark.parametrize(
+    ("profile_grant", "route_permission"),
+    [
+        ("activity.add_edit_except_relationships", "activity.add_edit"),
+        ("expense.add_edit_delete", "expense.add_edit"),
+        ("issue_threshold.add_edit_delete", "issue.add_edit"),
+        ("issue_threshold.add_edit_delete", "issue.delete"),
+        ("issue_threshold.add_edit_delete", "threshold.add_edit"),
+        ("risk.add_edit_delete", "risk.delete"),
+        ("project_baseline.add_edit_delete", "baseline.create_update"),
+        ("wbs.add_edit_delete_except_costs_financials", "wbs.add_edit"),
+        ("wbs.add_edit_delete_except_costs_financials", "wbs.delete"),
+        ("project.view", "project.read"),
+        ("project.edit_details_except_costs_financials", "project.write"),
+        ("schedule.run", "project.schedule"),
+    ],
+)
+def test_oracle_v26_profile_checkbox_maps_to_its_cubi_route_grant(
+    profile_grant, route_permission
+):
+    assert project_profile_has_permission({profile_grant}, route_permission)
+
+
+def test_wbs_structural_profile_never_grants_wbs_costs_or_financials():
+    structural = {"wbs.add_edit_delete_except_costs_financials"}
+    assert project_profile_has_permission(structural, "wbs.edit")
+    assert not project_profile_has_permission(structural, "wbs.edit_costs_financials")
+    assert not project_profile_has_permission(structural, "project.view_costs_financials")
+
+
+def test_unmapped_profile_privileges_do_not_grant_unrelated_routes():
+    assert not project_profile_has_permission(
+        {"threshold.monitor"}, "threshold.add_edit"
+    )
+    assert not project_profile_has_permission(
+        {"activity.add_edit_except_relationships"}, "activity.relationship.add_edit_delete"
+    )
