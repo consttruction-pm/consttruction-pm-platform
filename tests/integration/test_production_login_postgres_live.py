@@ -601,6 +601,9 @@ def test_enterprise_task_api_requires_an_explicit_environment_role(runtime):
 
 def test_account_deactivation_revokes_existing_session_immediately(runtime):
     user = runtime.test_ids["users"]["planner"]
+    # Keep this authentication flow independent from the durable per-IP
+    # throttle state left by other integration tests in a shared database.
+    runtime.test_ids["client_ip"] = f"2001:db8::{uuid.uuid4().hex[:10]}"
     cookie, _ = login(runtime, "planner")
 
     connection = runtime.pool.acquire()
