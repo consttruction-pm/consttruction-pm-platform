@@ -85,6 +85,27 @@ class PostgresEnterpriseOrganizationAccessRepository:
             BEFORE UPDATE OR DELETE ON enterprise_access_audit
             FOR EACH ROW EXECUTE FUNCTION cubi_enterprise_access_audit_immutable()
             """,
+            """
+            CREATE TABLE IF NOT EXISTS enterprise_user_access_audit (
+                audit_id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                actor_user_id TEXT NOT NULL,
+                target_user_id TEXT NOT NULL,
+                action TEXT NOT NULL CHECK (action IN ('account_activated','account_deactivated')),
+                before_active BOOLEAN NOT NULL,
+                after_active BOOLEAN NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL
+            )
+            """,
+            """
+            DROP TRIGGER IF EXISTS enterprise_user_access_audit_immutable
+            ON enterprise_user_access_audit
+            """,
+            """
+            CREATE TRIGGER enterprise_user_access_audit_immutable
+            BEFORE UPDATE OR DELETE ON enterprise_user_access_audit
+            FOR EACH ROW EXECUTE FUNCTION cubi_enterprise_access_audit_immutable()
+            """,
         )
         for statement in statements:
             self._connection.execute(statement)
@@ -213,6 +234,79 @@ class PostgresEnterpriseOrganizationAccessRepository:
         ).fetchall()
         return tuple({"user_id": str(row[0]), "email": str(row[1]),
                       "display_name": str(row[2] or "")} for row in rows)
+
+    def list_tenant_users(self, tenant_id: str) -> tuple[dict[str, object], ...]:
+        rows = self._connection.execute(
+            "SELECT user_id,email,display_name,active,created_at FROM identity_users "
+            "WHERE tenant_id=%s ORDER BY lower(display_name),lower(email),user_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple({
+            "user_id": str(row[0]), "email": str(row[1]),
+            "display_name": str(row[2] or ""), "active": bool(row[3]),
+            "created_at": row[4].isoformat() if hasattr(row[4], "isoformat") else str(row[4]),
+        } for row in rows)
+
+    def has_active_role(self, tenant_id: str, user_id: str, role: str) -> bool:
+        row = self._connection.execute(
+            "SELECT roles_json FROM identity_users WHERE tenant_id=%s AND user_id=%s AND active=TRUE",
+            (tenant_id, user_id),
+        ).fetchone()
+        if row is None:
+            return False
+        roles = json.loads(row[0])
+        return isinstance(roles, list) and role in roles
+
+    def set_account_active(
+        self, tenant_id: str, target_user_id: str, actor_user_id: str,
+        active: bool, occurred_at: datetime,
+    ) -> dict[str, object]:
+        target = self._connection.execute(
+            "SELECT active,roles_json FROM identity_users "
+            "WHERE tenant_id=%s AND user_id=%s FOR UPDATE",
+            (tenant_id, target_user_id),
+        ).fetchone()
+        if target is None:
+            raise OrganizationAccessError("ENTERPRISE_ACCOUNT_NOT_FOUND")
+        before_active = bool(target[0])
+        roles = json.loads(target[1])
+        if not active and before_active:
+            if "enterprise_admin" in roles:
+                admins = self._connection.execute(
+                    "SELECT count(*) FROM identity_users WHERE tenant_id=%s AND active=TRUE "
+                    "AND roles_json::jsonb ? 'enterprise_admin'",
+                    (tenant_id,),
+                ).fetchone()
+                if int(admins[0]) <= 1:
+                    raise OrganizationAccessError("LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED")
+            owned = self._connection.execute(
+                "SELECT count(*) FROM enterprise_teams WHERE tenant_id=%s "
+                "AND owner_user_id=%s AND status='active'",
+                (tenant_id, target_user_id),
+            ).fetchone()
+            if int(owned[0]) > 0:
+                raise OrganizationAccessError("TEAM_OWNER_TRANSFER_REQUIRED")
+        if before_active != active:
+            self._connection.execute(
+                "UPDATE identity_users SET active=%s WHERE tenant_id=%s AND user_id=%s",
+                (active, tenant_id, target_user_id),
+            )
+            if not active:
+                self._connection.execute(
+                    "UPDATE identity_sessions SET revoked_at=%s "
+                    "WHERE tenant_id=%s AND user_id=%s AND revoked_at IS NULL",
+                    (occurred_at, tenant_id, target_user_id),
+                )
+            from uuid import uuid4
+            self._connection.execute(
+                "INSERT INTO enterprise_user_access_audit "
+                "(audit_id,tenant_id,actor_user_id,target_user_id,action,before_active,after_active,occurred_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (f"user-access-{uuid4().hex}", tenant_id, actor_user_id, target_user_id,
+                 "account_activated" if active else "account_deactivated",
+                 before_active, active, occurred_at),
+            )
+        return {"user_id": target_user_id, "active": active, "changed": before_active != active}
 
     def _insert_membership(self, membership: EnterpriseTeamMembership) -> None:
         self._connection.execute(
