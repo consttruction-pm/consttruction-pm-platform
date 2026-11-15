@@ -383,8 +383,22 @@ class EnterpriseProjectAuthorizationPolicy:
         if exists is None and permission == Permission.PROJECT_ADMIN:
             # Project creation is authorized before the new project/member rows exist.
             return True
-        return self.project_access.project_permission(
+        if self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, permission.value
+        ):
+            return True
+        # Transitional compatibility is deliberately one-way: old broad
+        # project.read/write grants continue to work, while granular-only
+        # profiles are evaluated against the exact operation privilege above.
+        legacy = {
+            Permission.ACTIVITY_VIEW: Permission.PROJECT_READ,
+            Permission.ACTIVITY_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_DELETE: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_RELATIONSHIP_MANAGE: Permission.PROJECT_WRITE,
+        }.get(permission)
+        return False if legacy is None else self.project_access.project_permission(
+            context.tenant_id, context.user_id, context.project_id, legacy.value
         )
 
     def require(self, context: AuthorizationContext, permission: Permission) -> None:
