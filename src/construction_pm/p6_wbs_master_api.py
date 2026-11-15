@@ -90,11 +90,36 @@ class P6WBSMasterAPI:
     authorization_policy: AuthorizationPolicy
     checkout_lease: ProjectCheckoutLease | None = None
 
+    def _require_obs_permission(
+        self,
+        scope: BackendScope,
+        auth_context: AuthorizationContext,
+        permission: str,
+        *,
+        wbs_id: str | None = None,
+        responsible_obs_id: str | None = None,
+    ) -> None:
+        checker = getattr(self.repository, "has_wbs_permission", None)
+        if wbs_id is not None and callable(checker):
+            allowed = checker(
+                scope, auth_context.user_id, wbs_id, permission,
+                responsible_obs_id_override=responsible_obs_id,
+            )
+        else:
+            checker = getattr(self.repository, "has_responsible_obs_permission", None)
+            if not callable(checker):
+                return
+            allowed = checker(scope, auth_context.user_id, responsible_obs_id, permission)
+        if not allowed:
+            raise AuthorizationError("WBS_OBS_ACCESS_DENIED")
+
     def create(self, item: WBSMaster, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(item.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        self._require_obs_permission(item.scope, auth_context, Permission.PROJECT_WRITE.value,
+                                     responsible_obs_id=item.responsible_obs_id)
         return _dto(self.repository.save(item, expected_revision=0))
 
     def update(
@@ -114,6 +139,8 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        self._require_obs_permission(item.scope, auth_context, Permission.PROJECT_WRITE.value,
+                                     wbs_id=item.wbs_id, responsible_obs_id=item.responsible_obs_id)
         stored = self.repository.save(item, expected_revision=expected_revision)
         return _dto(stored, self.repository.list_milestones(item.scope, stored.wbs_id))
 
@@ -136,6 +163,7 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_WRITE.value, wbs_id=wbs_id)
         self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
         return {
             "contract_version": P6_WBS_MASTER_API_VERSION,
@@ -166,6 +194,8 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_WRITE.value, wbs_id=wbs_id)
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_WRITE.value, wbs_id=target_parent_wbs_id)
         nodes = self.repository.copy_subtree(
             scope,
             wbs_id,
@@ -196,10 +226,17 @@ class P6WBSMasterAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_READ.value, wbs_id=wbs_id)
         item = self.repository.get(scope, wbs_id)
         if item is None:
             return None
         return _dto(item, self.repository.list_milestones(scope, wbs_id))
+
+    def _can_read_wbs(self, scope: BackendScope, auth_context: AuthorizationContext, wbs_id: str) -> bool:
+        checker = getattr(self.repository, "has_wbs_permission", None)
+        return True if not callable(checker) else bool(
+            checker(scope, auth_context.user_id, wbs_id, Permission.PROJECT_READ.value)
+        )
 
     def list(
         self,
@@ -213,6 +250,7 @@ class P6WBSMasterAPI:
         return tuple(
             _dto(item, self.repository.list_milestones(scope, item.wbs_id))
             for item in self.repository.list(scope)
+            if self._can_read_wbs(scope, auth_context, item.wbs_id)
         )
 
     def replace_milestones(
@@ -234,6 +272,7 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_WRITE.value, wbs_id=wbs_id)
         item, stored = self.repository.replace_milestones(
             scope, wbs_id, milestones, expected_revision=expected_revision
         )
