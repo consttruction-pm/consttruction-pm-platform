@@ -875,12 +875,22 @@ class PostgresSecurityProfileAuthorizationPolicy:
             context.tenant_id, str(row[3])
         ) for row in project_rows)
 
+    def is_admin_superuser(self, context: AuthorizationContext) -> bool:
+        context.validate()
+        return self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE LIMIT 1",
+            (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
+        ).fetchone() is not None
+
     def is_allowed_for_eps(
         self, context: AuthorizationContext, permission: Permission, eps_id: str,
     ) -> bool:
         """Authorize project creation against the responsible OBS of an EPS branch."""
         context.validate()
-        if permission != Permission.P6_PROJECT_CREATE or not isinstance(eps_id,str) or not eps_id.strip():
+        if permission not in {Permission.P6_PROJECT_CREATE, Permission.P6_EPS_ADMIN} or not isinstance(eps_id,str) or not eps_id.strip():
             return False
         admin = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
@@ -927,8 +937,12 @@ class PostgresSecurityProfileAuthorizationPolicy:
             return False
         if PROJECT_SUPERUSER_PROFILE_ID in profile_ids:
             return True
+        required = (
+            "add_projects" if permission == Permission.P6_PROJECT_CREATE
+            else "add_edit_delete_eps_except_costs_financials"
+        )
         return any(
-            "add_projects" in self._profile_privileges(context.tenant_id, profile_id)
+            required in self._profile_privileges(context.tenant_id, profile_id)
             for profile_id in profile_ids
         )
 
