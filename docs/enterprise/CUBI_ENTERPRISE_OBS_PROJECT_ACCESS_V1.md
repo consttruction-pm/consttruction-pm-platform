@@ -39,7 +39,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
    - GET /api/enterprise/user-obs-access/{user_id}
    - DELETE /api/enterprise/user-obs-access/{user_id}/{obs_id} with profile_id and expected_revision JSON body
 13. Every administration route requires the authenticated cp_session and an enterprise_admin session role; production Origin/CSRF/session protections remain owned by the outer production web boundary.
-14. The explicit `admin_superuser` authorization role is recognized as the P6 Admin Superuser project-access exception. It is not yet backed by a complete persisted Global Security Profile catalogue and assignment UI.
+
 
 ## Deliberate boundaries and gaps
 
@@ -49,7 +49,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 - WBS OBS enforcement is now connected to WBS master, activities, expenses and risks. Issues and thresholds also support their own Responsible OBS fields and authorization. Baseline, document/security-policy, resource, and all other project-data surfaces still need a complete endpoint-by-endpoint authorization matrix and tests.
 - User/resource access, resource-node restrictions, module access administration, global security profiles (including the predefined Admin Superuser and No Global Privileges semantics), UI View assignment/editing restrictions and copy-user-settings are not part of this slice.
 - The Organization & Access browser UI and received invitation inbox remain tracked separately; notification delivery remains a separate task.
-- The `admin_superuser` role claim implements the P6 project-access bypass, but global profile definition/assignment, the mandatory one-profile-per-user rule, No Global Privileges, secure-code privileges, and Admin Superuser administration restrictions are not yet persisted end-to-end. `enterprise_admin` is not equivalent to Admin Superuser.
+- No Admin Superuser bypass is implemented. Global profile definition/assignment, the mandatory one-profile-per-user rule, Admin Superuser and No Global Privileges semantics, secure-code privileges, and Admin Superuser administration restrictions remain open. `enterprise_admin` is not equivalent to Admin Superuser.
 
 
 ## V26 acceptance details still required
