@@ -113,7 +113,7 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_ADD_EDIT):
             raise AuthorizationError("authorization denied for permission=activity.add_edit")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
-        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
+        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.ACTIVITY_ADD_EDIT.value)
         return _dto(self.repository.save(activity, expected_revision=0))
 
     def update(
@@ -138,9 +138,9 @@ class P6ActivityMasterAPI:
         existing = self.repository.get(activity.scope, activity.activity_id)
         if existing is not None:
             self._require_wbs_permission(
-                activity.scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value
+                activity.scope, auth_context, existing.wbs_id, Permission.ACTIVITY_EDIT.value
             )
-        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
+        self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.ACTIVITY_EDIT.value)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
     def get(
@@ -156,7 +156,7 @@ class P6ActivityMasterAPI:
         item = self.repository.get(scope, activity_id)
         if item is None:
             return None
-        self._require_wbs_permission(scope, auth_context, item.wbs_id, Permission.PROJECT_READ.value)
+        self._require_wbs_permission(scope, auth_context, item.wbs_id, Permission.ACTIVITY_VIEW.value)
         return _dto(item)
 
     def _can_read_activity(
@@ -166,7 +166,7 @@ class P6ActivityMasterAPI:
             return True
         checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
         return True if not callable(checker) else bool(
-            checker(scope, auth_context.user_id, wbs_id, Permission.PROJECT_READ.value)
+            checker(scope, auth_context.user_id, wbs_id, Permission.ACTIVITY_VIEW.value)
         )
 
     def list(
