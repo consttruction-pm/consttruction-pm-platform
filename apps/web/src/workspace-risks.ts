@@ -76,6 +76,7 @@ export type RiskInput = {
   responseDueDate: string | null;
   owner: string;
   responsibleManager: string | null;
+  wbsId?: string | null;
   dateIdentified: string;
   closureNote: string | null;
 };
