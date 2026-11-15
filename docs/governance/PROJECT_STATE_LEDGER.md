@@ -1209,3 +1209,13 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Scenario classification: Cloud-origin Engineering extension integrated with EPPM project/activity/WBS/relationship/calendar/baseline/scheduling/security primitives. Enterprise portfolio/resource scenarios remain a separate P2 portfolio capability and consume authorized Engineering facts only.
 - Exact active-writer/path ownership and root AGENTS.md remain unresolved; full topic-level crosswalk and independent contract review are pending. Therefore Phase 1 is **DRAFTED / IN REVIEW**, not complete; no source code or runtime changes; no merge/deploy; Jalal 5 weights unchanged and earned progress remains zero.
 - PR #1988 remains Draft/open/unmerged. New contract and tracker commits are documentation-only. Current Vercel status is build-rate-limit failure (not a test result); GitHub Actions checks were still in progress at the checkpoint.
+
+
+## Qoder execution handoff packet — Issue #1989 — 2026-11-15
+
+- Published executable handoff: `docs/engineering/QODER_HANDOFF_ISSUE_1989_SCHEDULE_SCENARIOS_PHASE1_EXECUTION_PACKET.md` (commit `0852bb8bf8ce439120276698546b45290f0772a4`).
+- Tracker §14 links the packet. Issue #1989 has an explicit Qoder execution comment.
+- The packet makes the user's delivery hierarchy binding: EPPM V26 HTML primary; Primavera Cloud HTML for genuinely Cloud-only capabilities; reconcile shared capabilities without duplication; Engineering P1/Qoder; Enterprise P2/ChatGPT after Engineering contracts stabilize.
+- It specifies the immediate implementation vertical slice: isolated scenario create/read/edit/run using the existing Shared Scheduling Core, immutable pinned source and run records, tenant/project authorization, revision/idempotency, SQLite/PostgreSQL tests, then wire the existing Scenario Lab; comparison follows; promotion is a separate release gate.
+- Status distinction: documentation handoff is committed; **Qoder source implementation has not been executed by this ChatGPT GitHub connector**. This session cannot launch the desktop Qoder agent or run the canonical checkout's tests/browser runtime. Do not misreport code/test progress. The immediate next action is Qoder executing the packet in the canonical checkout.
+- PR #1988 remains Draft/open/unmerged. No merge/deploy authorized. Jalal 5 weights unchanged and no earned progress claimed.
