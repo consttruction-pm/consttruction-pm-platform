@@ -12,9 +12,11 @@ from enum import StrEnum
 
 class ProjectPrivilegeGroup(StrEnum):
     ACTIVITIES = "activities"
+    CODES = "codes"
     EPS_PROJECTS = "eps_projects"
     PROJECT_DATA = "project_data"
     RELATED_APPLICATIONS = "related_applications"
+    TIMESHEETS = "timesheets"
     RESOURCE_ASSIGNMENTS = "resource_assignments"
     TOOLS = "tools"
     VIEWS_REPORTS = "views_reports"
@@ -31,6 +33,32 @@ class ProjectPrivilegeDefinition:
 # Keys are stable internal identifiers. Labels/descriptions follow the V26 Help
 # privilege concepts; this catalogue does not imply endpoint enforcement.
 PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
+
+    # Explicit inheritance targets. P6 privilege inheritance is represented as
+    # separate persisted capabilities so API checks never infer broad write.
+    ProjectPrivilegeDefinition("activity.edit", ProjectPrivilegeGroup.ACTIVITIES, "Edit Activities", "Edit existing activities."),
+    ProjectPrivilegeDefinition("activity.assign", ProjectPrivilegeGroup.ACTIVITIES, "Assign Activities", "Assign activities."),
+    ProjectPrivilegeDefinition("eps.assign", ProjectPrivilegeGroup.EPS_PROJECTS, "Assign EPS", "Assign EPS responsibility."),
+    ProjectPrivilegeDefinition("project.assign", ProjectPrivilegeGroup.EPS_PROJECTS, "Assign Projects", "Assign project responsibility."),
+    ProjectPrivilegeDefinition("wbs.edit", ProjectPrivilegeGroup.EPS_PROJECTS, "Edit WBS", "Edit existing WBS elements."),
+    ProjectPrivilegeDefinition("wbs.assign", ProjectPrivilegeGroup.EPS_PROJECTS, "Assign WBS", "Assign WBS responsibility."),
+    ProjectPrivilegeDefinition("expense.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Expenses", "Edit existing expenses."),
+    ProjectPrivilegeDefinition("expense.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Expenses", "Assign expenses."),
+    ProjectPrivilegeDefinition("threshold.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Thresholds", "Edit existing thresholds."),
+    ProjectPrivilegeDefinition("threshold.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Thresholds", "Assign thresholds."),
+    ProjectPrivilegeDefinition("risk.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Risks", "Edit existing risks."),
+    ProjectPrivilegeDefinition("risk.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Risks", "Assign risks."),
+    ProjectPrivilegeDefinition("baseline.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Baselines", "Edit existing baselines."),
+    ProjectPrivilegeDefinition("baseline.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Baselines", "Assign baselines."),
+    ProjectPrivilegeDefinition("document.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Documents", "Edit project documents."),
+    ProjectPrivilegeDefinition("document.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Documents", "Assign project documents."),
+    ProjectPrivilegeDefinition("resource_assignment.edit", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Edit Resource Assignments", "Edit existing resource assignments."),
+    ProjectPrivilegeDefinition("resource_assignment.assign", ProjectPrivilegeGroup.RESOURCE_ASSIGNMENTS, "Assign Resource Assignments", "Assign resources."),
+    ProjectPrivilegeDefinition("code.view", ProjectPrivilegeGroup.CODES, "View Codes", "View project and activity codes."),
+    ProjectPrivilegeDefinition("code.edit", ProjectPrivilegeGroup.CODES, "Edit Codes", "Edit project and activity codes."),
+    ProjectPrivilegeDefinition("code.assign", ProjectPrivilegeGroup.CODES, "Assign Codes", "Assign codes."),
+    ProjectPrivilegeDefinition("timesheet.view", ProjectPrivilegeGroup.TIMESHEETS, "View Timesheets", "View timesheets."),
+    ProjectPrivilegeDefinition("timesheet.edit", ProjectPrivilegeGroup.TIMESHEETS, "Edit Timesheets", "Edit timesheets."),
     ProjectPrivilegeDefinition("activity.view", ProjectPrivilegeGroup.ACTIVITIES, "View Activities", "View activity data."),
     ProjectPrivilegeDefinition("activity.add_edit", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities", "Create and edit activities."),
     ProjectPrivilegeDefinition("activity.add_edit_except_relationships", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities Except Relationships", "Edit activity fields without changing relationships."),
@@ -106,6 +134,33 @@ def expand_project_privileges(selected: set[str] | frozenset[str]) -> frozenset[
         elif key.endswith(".assign"):
             stem = key[:-len(".assign")]
             result.add(f"{stem}.view")
-    # Only retain inherited keys represented by this versioned catalogue.
-    # Some UI privileges intentionally have no generic CRUD inheritance.
-    return frozenset(result & PRIVILEGE_BY_KEY.keys())
+    # Fail closed if the catalogue ever omits an inheritance target.
+    missing = result - PRIVILEGE_BY_KEY.keys()
+    if missing:
+        raise ValueError("PROJECT_PRIVILEGE_INHERITANCE_TARGET_MISSING")
+    return frozenset(result)
+
+
+LEGACY_PROJECT_PERMISSION_CODES = frozenset({
+    "project.read", "project.write", "project.schedule", "project.admin",
+})
+
+
+def normalize_project_privileges(selected: tuple[str, ...] | list[str] | set[str] | frozenset[str]) -> tuple[str, ...]:
+    """Validate and normalize a profile's legacy or granular P6 grants.
+
+    Legacy permissions remain readable during migration. Granular privileges
+    are expanded according to P6 inheritance and stored in deterministic order.
+    """
+    values = tuple(selected)
+    if any(not isinstance(value, str) for value in values):
+        raise ValueError("UNKNOWN_PROJECT_PRIVILEGE")
+    unique = set(values)
+    if len(unique) != len(values):
+        raise ValueError("DUPLICATE_PROJECT_PRIVILEGE")
+    legacy = unique & LEGACY_PROJECT_PERMISSION_CODES
+    granular = unique - LEGACY_PROJECT_PERMISSION_CODES
+    expanded = set(expand_project_privileges(granular)) if granular else set()
+    if unique != legacy | granular:
+        raise ValueError("UNKNOWN_PROJECT_PRIVILEGE")
+    return tuple(sorted(legacy | expanded))
