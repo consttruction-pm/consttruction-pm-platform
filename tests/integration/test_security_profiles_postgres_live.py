@@ -380,7 +380,7 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
         )
-        admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"project_admin", "enterprise_admin"}))
+        admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"viewer"}))
         assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
         assert policy.is_allowed(admin_context, Permission.PROJECT_WRITE)
 
@@ -446,7 +446,7 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
             tenant_id=tenant, profile_id="p6-project-superuser", user_id=target_id,
             obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
         )
-        target_context = AuthorizationContext(tenant, project_id, target_id, frozenset({"planner"}))
+        target_context = AuthorizationContext(tenant, project_id, target_id, frozenset({"viewer"}))
         assert policy.is_allowed(target_context, Permission.PROJECT_SCHEDULE)
         assert policy.is_allowed(target_context, Permission.PROJECT_WRITE)
         connection.rollback()
