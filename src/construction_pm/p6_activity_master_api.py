@@ -176,8 +176,8 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
-            raise AuthorizationError("authorization denied for permission=project.read")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_VIEW):
+            raise AuthorizationError("authorization denied for permission=activity.view")
         return tuple(
             _dto(item) for item in self.repository.list(scope)
             if self._can_read_activity(scope, auth_context, item.wbs_id)
