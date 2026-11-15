@@ -188,6 +188,7 @@ def _risk(stored: StoredRisk) -> dict[str, Any]:
         "responsible_manager": risk.responsible_manager,
         "date_identified": risk.date_identified,
         "closure_note": risk.closure_note,
+        "wbs_id": risk.wbs_id,
         "revision": stored.revision,
     }
 
