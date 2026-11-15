@@ -17,7 +17,7 @@ from construction_pm.identity_session import (
     PostgresIdentityStore,
     hash_password,
 )
-from construction_pm.postgres_project_lifecycle import PostgresProjectRepository
+from construction_pm.postgres_project_lifecycle import (\n    PostgresProjectRepository,\n    initialize_project_lifecycle_schema,\n)
 from construction_pm.security_profiles import (
     PostgresSecurityProfileAuthorizationPolicy,
     PostgresSecurityProfileRepository,
@@ -58,7 +58,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
 
     with _connect() as connection:
         PostgresIdentityStore(connection).initialize()
-        initialize_security_profile_schema(connection)
+        initialize_project_lifecycle_schema(connection)\n        initialize_security_profile_schema(connection)
         PostgresIdentityStore(connection).upsert_user(_identity_user(user_id, tenant))
         PostgresProjectRepository(connection).create_for_user(
             tenant, user_id, project_id, "Profile protected project"
