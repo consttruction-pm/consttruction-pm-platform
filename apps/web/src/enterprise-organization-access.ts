@@ -27,6 +27,8 @@ const COPY = {
     accountDeactivated: "Account deactivated; existing sessions revoked.", accountActivated: "Account reactivated.",
     lastAdminError: "The last active Enterprise administrator cannot be deactivated.",
     ownerTransferError: "Transfer active team ownership before deactivating this account.",
+    transferOwner: "Transfer ownership", newOwner: "New owner", confirmTransfer: "Transfer team ownership? Your role will become Administrator.",
+    transferred: "Team ownership transferred.",
     selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
@@ -49,6 +51,8 @@ const COPY = {
     accountDeactivated: "حساب غیرفعال شد و نشست‌های قبلی لغو شدند.", accountActivated: "حساب دوباره فعال شد.",
     lastAdminError: "آخرین مدیر فعال سازمان را نمی‌توان غیرفعال کرد.",
     ownerTransferError: "پیش از غیرفعال‌سازی این حساب، مالکیت تیم فعال را منتقل کنید.",
+    transferOwner: "انتقال مالکیت", newOwner: "مالک جدید", confirmTransfer: "مالکیت تیم منتقل شود؟ نقش شما به مدیر تغییر می‌کند.",
+    transferred: "مالکیت تیم منتقل شد.",
     selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
@@ -153,6 +157,12 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       <td>${canManage && item.status === "active" && item.role !== "owner" ? `<button class="cubi-oa-button cubi-oa-danger" data-remove="${escapeHtml(item.user_id)}" data-revision="${item.revision}" type="button">${escapeHtml(t.remove)}</button>` : "—"}</td>
     </tr>`).join("");
     const usersOptions = eligibleUsers.map((user) => `<option value="${escapeHtml(user.user_id)}">${escapeHtml(user.display_name || user.email)} · ${escapeHtml(user.email)}</option>`).join("");
+    const ownerCandidates = memberships.filter((item) => item.status === "active" && item.user_id !== selected?.owner_user_id);
+    const ownerOptions = ownerCandidates.map((item) => {
+      const account = accounts.find((candidate) => candidate.user_id === item.user_id);
+      const label = account ? (account.display_name || account.email) + " · " + account.email : item.user_id;
+      return `<option value="${escapeHtml(item.user_id)}" data-revision="${item.revision}">${escapeHtml(label)}</option>`;
+    }).join("");
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
@@ -200,6 +210,11 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           <section class="cubi-oa-card"><h2>${t.members}</h2>
             ${selected ? `<div class="cubi-oa-field"><label for="cubi-oa-selected">${t.selectTeam}</label><select id="cubi-oa-selected">${teamOptions}</select></div>
               <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.role}</th><th>Status</th><th>Revision</th><th></th></tr></thead><tbody>${memberRows || `<tr><td colspan="5">${t.noMembers}</td></tr>`}</tbody></table></div>
+              ${canManage ? `<form class="cubi-oa-form" id="cubi-oa-transfer">
+                <h2>${t.transferOwner}</h2>
+                <div class="cubi-oa-field"><label for="cubi-oa-new-owner">${t.newOwner}</label><select id="cubi-oa-new-owner" name="new_owner_user_id" required><option value="">${t.selectAccount}</option>${ownerOptions}</select></div>
+                <button class="cubi-oa-button" type="submit" ${busy || !ownerCandidates.length ? "disabled" : ""}>${t.transferOwner}</button>
+              </form>` : ""}
               ${canManage ? `<form class="cubi-oa-form" id="cubi-oa-add">
                 <h2>${t.addMember}</h2>
                 <div class="cubi-oa-field"><label for="cubi-oa-user">${t.user}</label><select id="cubi-oa-user" name="user_id" required><option value="">${t.selectAccount}</option>${usersOptions}</select></div>
@@ -233,6 +248,23 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         notice = t.created; selectedTeamId = result.team.team_id; await load(true);
       });
     });
+    container.querySelector<HTMLFormElement>("#cubi-oa-transfer")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const targetUserId = String(form.get("new_owner_user_id") ?? "");
+      const target = ownerCandidates.find((item) => item.user_id === targetUserId);
+      if (!target || !selected) return;
+      if (!window.confirm(t.confirmTransfer)) return;
+      void run(async () => {
+        await api(`/api/enterprise/teams/${encodeURIComponent(selectedTeamId)}/owner`, "PUT", {
+          contract_version: "cubi-enterprise-team-owner-transfer.v1",
+          new_owner_user_id: targetUserId,
+          expected_team_revision: selected.revision,
+          expected_membership_revision: target.revision,
+        });
+        notice = t.transferred; await load(true);
+      });
+    }));
     container.querySelector<HTMLFormElement>("#cubi-oa-add")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget as HTMLFormElement);
