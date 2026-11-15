@@ -3688,6 +3688,9 @@ class ProjectLifecycleHttpRoutes:
                                 responsible_manager=(
                                     payload.get("responsible_manager") or None
                                 ),
+                                responsible_obs_id=(
+                                    payload.get("responsible_obs_id") or None
+                                ),
                                 status=str(payload.get("status") or "active"),
                             )
 
