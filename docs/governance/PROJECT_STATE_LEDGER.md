@@ -1297,3 +1297,13 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 
 - Rechecked Vercel deployment `dpl_2N2k8Jvstv3FD1hgh9cAa1NvzZRL` after the prior BUILDING observation. It is now **READY**, target production, exact main SHA `4acf281829775e5dcf9160b4e78c0942f089610b`, with both canonical main aliases attached.
 - This confirms the documentation merge did not break the configured Vercel build. It does not establish browser acceptance for login, workspace or Enterprise routes. GitHub workflow-run lookup on the merge commit SHA returned no run records; the successful CI evidence remains the two exact PR-head runs documented above.
+
+
+## 2026-11-15 — Vercel Preview quota and Enterprise authorization CI findings
+
+- Latest Vercel production deployment checked: `dpl_EU2zyGi1RwVSGPrLfGjEeGkPEG1v`, **READY**, main SHA `28899ec805b489ebd04da0d88ad4f58c6a93fab3`. Build completed: TypeScript/esbuild, 15-page Pages artifact validation, Python dependencies, deployment. Main JS bundle emitted a 3.1 MB size warning.
+- Vercel runtime error aggregation for 7 days returned no runtime errors. A 24-hour runtime log request was rejected because Hobby retains only one hour; no absence-of-logs claim is made.
+- PR #1983's last READY Preview is stale at `b5f7b1835ca7c37e81c887cecc1dde0c53191fae`. Exact-SHA Client Typecheck #8831 and Web CI #3075 passed, while ConstructionPM CI #9133 failed for Python 3.11/3.12/3.13 and PostgreSQL Integration #3472 failed. Job logs show PostgreSQL syntax failure at `cubi_project_profile_has_privilege` due bare `AS $` / `$` dollar quote. Current branch source fetched from the branch ref now uses tagged `$cubi$`; this appears to be a correction after the failing SHA but is not yet validated on a fresh exact-head run.
+- Attempted fresh Vercel Preview deployment from `feat/enterprise-obs-project-access-v4`; Vercel returned HTTP 402 `payment_required`, resource `api-deployments-free-per-day`, more than 100 deployments/day, retry in 24 hours. No billing/plan/security settings were changed. Exact-head Preview is blocked until quota reset or owner resolves the plan limit.
+- PR #1983 and overlapping PR #1980 now have comments requiring a single authoritative implementation, exact-head full CI, fresh Preview and browser authorization tests. Neither was merged.
+- PR #1987 remains unmergeable until `apps/web/api/enterprise.py` is a tracked source entrypoint and the actual authenticated/permission-gated route passes exact-head Preview and browser checks.
