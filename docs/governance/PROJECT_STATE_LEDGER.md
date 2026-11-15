@@ -1311,3 +1311,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Policy correction:** The earlier checkpoint sentence saying unassigned users retain legacy role behavior is superseded. The actual policy requires active Global and Project profile assignments for project API access and fails closed if either is absent.
 - **Exact code/test head:** 8b3e67557c9bc18a6b1a9de7dde297001f278f71. GitHub Actions (ConstructionPM CI, ConstructionPM Web CI, Client Typecheck, PostgreSQL Integration) were queued on this head; no green result is claimed yet. Vercel preview remains blocked by the account's build-rate limit.
 - **Release gate:** PR #1974 remains open Draft. No merge, production deployment or live schema migration has been performed. EPS/WBS responsible-structure resolution, resource access, complete operation-to-privilege mapping and the other parity gaps remain outstanding.
+
+
+## Oracle V26 parity correction — Admin Superuser and project-profile optionality — 2026-11-15
+
+- **Normative clarification:** Oracle V26 Application Level Security states that every user must have a Global profile, but a Project profile is not universally required: a user can access projects through an assigned Project profile or the built-in Admin Superuser Global profile. The Admin Superuser profile grants access to all projects. The V26 Users Page also documents separate module access, resource access, UI View access and Copy User Settings.
+- **Current implementation deviation:** CUBI currently requires an active OBS-assigned Project profile for all project access and has not implemented the built-in Admin Superuser / No Global Privileges / Project Superuser profiles or Admin Superuser bypass. This is intentionally stricter, not equivalent; do not claim exact security parity until this exception and the built-in lifecycle are implemented with secure bootstrap/assignment rules and tests.
+- **Documentation:** Updated the V26 parity baseline to state the Oracle exception and distinguish implemented OBS ancestor inheritance from outstanding EPS/WBS responsibility resolution.
+- **Authoritative V26 references:** Oracle Application Level Security and Users Page; links are recorded in the parity baseline. This correction supersedes any earlier wording that implied Oracle requires a Project profile for every project user.
