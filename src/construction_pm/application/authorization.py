@@ -44,6 +44,9 @@ class Permission(str, Enum):
     P6_EXPORT_PROJECT_DATA = "p6.project.export"
     P6_PROJECT_LEVEL_LAYOUT_ADMIN = "p6.project.layout.admin"
     P6_REPORT_ADMIN = "p6.project.report.admin"
+    P6_OBS_ADMIN = "p6.obs.admin"
+    P6_COST_ACCOUNT_ADMIN = "p6.cost.account.admin"
+    P6_FINANCIAL_PERIOD_ADMIN = "p6.financial.period.admin"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -172,6 +175,9 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.P6_EXPORT_PROJECT_DATA,
                 Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
                 Permission.P6_REPORT_ADMIN,
+                Permission.P6_OBS_ADMIN,
+                Permission.P6_COST_ACCOUNT_ADMIN,
+                Permission.P6_FINANCIAL_PERIOD_ADMIN,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
