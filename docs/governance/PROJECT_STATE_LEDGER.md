@@ -1307,3 +1307,17 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Attempted fresh Vercel Preview deployment from `feat/enterprise-obs-project-access-v4`; Vercel returned HTTP 402 `payment_required`, resource `api-deployments-free-per-day`, more than 100 deployments/day, retry in 24 hours. No billing/plan/security settings were changed. Exact-head Preview is blocked until quota reset or owner resolves the plan limit.
 - PR #1983 and overlapping PR #1980 now have comments requiring a single authoritative implementation, exact-head full CI, fresh Preview and browser authorization tests. Neither was merged.
 - PR #1987 remains unmergeable until `apps/web/api/enterprise.py` is a tracked source entrypoint and the actual authenticated/permission-gated route passes exact-head Preview and browser checks.
+
+
+## 2026-11-15 — Binding Cloud UI parity and P6 Professional V26 non-interference decision
+
+Product-owner rule confirmed and recorded: every Cloud-origin/Cloud-informed user-facing capability must be implemented only after exact feature-specific Cloud HTML Help inspection and a complete UI/visual/interaction inventory. This includes all screens/panels/tabs/dialogs/wizards/menus/toolbars/icons, geometry/sizing/responsive behavior, colors/status semantics, form fields/defaults/validation/dependencies, every user-selectable option/filter/group/sort/layout, every chart/graph and its axes/series/legends/tooltips/drill-through/export, every report/table and its columns/widths/row heights/grouping/totals/actions/print/export/pagination, and all lifecycle/permission/empty/loading/error states. CUBI must faithfully reproduce documented behavior and information structure with CUBI branding, not external product branding; omissions/placeholders block parity acceptance.
+
+Before design or merge, each Cloud-derived feature must be compared against P6 Professional V26 HTML Help and P6 EPPM V26 HTML Help (and Team Member Help when relevant). Existing Professional/EPPM behavior must reuse/complete the canonical CUBI surface. Cloud may add missing behavior only within that same capability; no duplicate menus, windows, routes, forms, reports, tables, data owners or calculation engines, and no regression to the Professional V26-aligned Activity/Schedule workspace.
+
+Recorded and read-back verified in:
+- `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md` §2A (file SHA `70065cd743b40da3c8a54948ea0093e152fcf963`).
+- `docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md` mandatory Cloud-derived UI parity work package (file SHA `7645b3f0fa12d8317e7f52b463a4529b76302a1f`).
+- Issue #1990 comment records this as a binding product-owner acceptance rule.
+
+Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, source-to-CUBI mapping, equivalent-state screenshots and visual-diff review, full forms/options/charts/reports/tables inventory, responsive evidence, interaction/permission tests, duplicate-surface scan, Professional-aligned regression tests, exact-head CI and a fresh Vercel Preview tied to the same SHA. Unknowns remain MISSING / VERIFY and cannot be claimed as complete parity.
