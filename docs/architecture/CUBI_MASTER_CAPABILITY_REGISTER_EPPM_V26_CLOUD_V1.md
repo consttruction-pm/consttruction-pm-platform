@@ -201,3 +201,12 @@ The open-PR search also returned unrelated public-site and legacy workspace PRs;
 3. #1925/#1926 provide source-difference evidence; #1988/master register organizes CUBI ownership and implementation sequencing.
 4. #1928/#1929 and #1927 own the Enterprise task/workflow/form design track. CUBI should reuse one Enterprise identity, task and workflow foundation.
 5. Product requirements in #1605/#1888/#1887 and the client architecture gate #1670 must be reconciled before those shared/platform rows are treated as implementation-ready.
+
+
+## 9. Full-program feasibility blueprint
+
+The row-by-row delivery feasibility, dependency graph, single-owner technical boundaries, persistence/API/UI/security/offline/job considerations and implementation acceptance gates for **all ENG-01–14, ENT-01–12 and SH-01–10** are maintained in:
+
+`docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md`
+
+This blueprint is subordinate to this register and Issue #1990. It is a feasibility/planning artifact only; it grants no implementation credit and does not replace exact topic-level EPPM V26 / Team Member / Primavera Cloud source verification or exact-head implementation evidence.
