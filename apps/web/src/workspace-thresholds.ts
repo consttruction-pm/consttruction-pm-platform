@@ -88,6 +88,7 @@ export type ThresholdInput = {
   warningLevel: string | null;
   issueLevel: string | null;
   responsibleManager: string | null;
+  responsibleObsId?: string | null;
   status: string;
 };
 
