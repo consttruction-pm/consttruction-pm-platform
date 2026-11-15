@@ -488,12 +488,6 @@ def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
         connection.rollback()
 
     with _connect() as connection:
-        identity = PostgresIdentityStore(connection)
-        identity.upsert_user(IdentityUser(
-            user_id=first_id, tenant_id=tenant, email=f"{first_id}@example.invalid",
-            display_name=first_id, roles=frozenset({"project_admin"}),
-            password_hash=hash_password("correct-horse-battery-staple"), active=False,
-        ))
         access_repository = PostgresEnterpriseOrganizationAccessRepository(connection)
         access_repository.initialize()
         with pytest.raises(Exception, match="LAST_P6_ADMIN_SUPERUSER_CANNOT_BE_DEACTIVATED"):
@@ -501,6 +495,17 @@ def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
                 tenant, first_id, second_id, False, now,
             )
         connection.rollback()
+
+    # Simulate an out-of-band account loss; the operator recovery path may
+    # appoint a replacement only when no active Admin Superuser remains.
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.upsert_user(IdentityUser(
+            user_id=first_id, tenant_id=tenant, email=f"{first_id}@example.invalid",
+            display_name=first_id, roles=frozenset({"project_admin"}),
+            password_hash=hash_password("correct-horse-battery-staple"), active=False,
+        ))
+        connection.commit()
 
     with _connect() as connection:
         profile = bootstrap_first_admin_superuser(
