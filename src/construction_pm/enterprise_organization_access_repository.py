@@ -196,6 +196,24 @@ class PostgresEnterpriseOrganizationAccessRepository:
         ).fetchall()
         return tuple(self._team(row) for row in rows)
 
+    def list_memberships(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
+        rows = self._connection.execute(
+            "SELECT tenant_id,team_id,user_id,role,status,scope_project_ids,revision,created_at,revoked_at "
+            "FROM enterprise_team_memberships WHERE tenant_id=%s AND team_id=%s "
+            "ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, role, user_id",
+            (tenant_id, team_id),
+        ).fetchall()
+        return tuple(self._membership(row) for row in rows)
+
+    def list_active_users(self, tenant_id: str) -> tuple[dict[str, str], ...]:
+        rows = self._connection.execute(
+            "SELECT user_id,email,display_name FROM identity_users "
+            "WHERE tenant_id=%s AND active=TRUE ORDER BY lower(display_name),lower(email),user_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple({"user_id": str(row[0]), "email": str(row[1]),
+                      "display_name": str(row[2] or "")} for row in rows)
+
     def _insert_membership(self, membership: EnterpriseTeamMembership) -> None:
         self._connection.execute(
             "INSERT INTO enterprise_team_memberships "
