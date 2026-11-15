@@ -437,6 +437,27 @@ class PostgresSecurityProfileRepository:
         ).fetchall()
         return tuple(self.get_profile(tenant_id, str(row[0])) for row in rows)
 
+    def list_assignments(self, tenant_id: str, profile_id: str) -> tuple[dict[str, Any], ...]:
+        exists = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if exists is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        rows = self._connection.execute(
+            "SELECT a.user_id,u.email,u.display_name,a.obs_id,a.revision,a.assigned_by,a.assigned_at "
+            "FROM p6_security_profile_assignments a "
+            "JOIN identity_users u ON u.user_id=a.user_id "
+            "WHERE a.tenant_id=%s AND a.profile_id=%s ORDER BY u.email,a.obs_id",
+            (tenant_id, profile_id),
+        ).fetchall()
+        return tuple({
+            "user_id": str(row[0]), "email": str(row[1]),
+            "display_name": str(row[2]), "obs_id": str(row[3]),
+            "revision": int(row[4]), "assigned_by": str(row[5]),
+            "assigned_at": row[6].isoformat(),
+        } for row in rows)
+
     def _audit(self, tenant_id: str, actor_id: str, profile_id: str,
                action: str, before: Any, after: Any, occurred_at: Any) -> None:
         import uuid
