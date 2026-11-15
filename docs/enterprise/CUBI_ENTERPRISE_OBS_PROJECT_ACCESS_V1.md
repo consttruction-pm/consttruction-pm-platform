@@ -107,7 +107,7 @@ Tests added for activity view vs write separation and issue/expense operation-sp
 ### Additional Project Data enforcement (risk and threshold registers)
 
 - **Risks:** list/read/history use `risk.view`; create uses `risk.add_edit`; update uses `risk.edit`; delete uses `risk.delete`. Responsible WBS authorization remains independently checked.
-- **Thresholds:** list/read/history/runs use `threshold.view`; create uses `threshold.add_edit`; update uses `threshold.edit`; delete uses `threshold.delete`. OBS responsibility checks remain independent. The monitor operation is intentionally still behind the legacy project-write gate pending an explicit V26 Tools privilege mapping; it is not silently equated with threshold editing.
+- **Thresholds:** list/read/history/runs use `threshold.view`; create uses `threshold.add_edit`; update uses `threshold.edit`; delete uses `threshold.delete`. OBS responsibility checks remain independent. The monitor operation now has its own `threshold.monitor` Tools privilege, mapped to Oracle's documented **Monitor Project Thresholds** option; it is not treated as threshold editing.
 
 These are route/service-boundary mappings, not a claim that all Project Data privileges are complete. In particular, threshold monitoring must be mapped to the exact V26 tool privilege before granular-only profiles can run it. The project privilege catalogue, resource assignment operations, baseline/document permissions, global/module/resource security and full acceptance matrix remain outstanding.
 
@@ -118,3 +118,14 @@ These are route/service-boundary mappings, not a claim that all Project Data pri
 - Baseline get/list use `baseline.view`.
 
 The current baseline application surface has no delete/restore/assign operations; those rights are not claimed as implemented. Project-level profile grants and application-role grants are both checked. Legacy project read/write profile permissions remain compatibility fallbacks.
+
+
+### WBS and Responsible OBS privilege alignment (2026-11-15)
+
+- WBS create/update/copy/milestone replacement use the WBS management operation grant; delete uses the WBS delete grant; get/list use the WBS view grant. These are separately checked from the OBS responsibility scope.
+- Activity OBS checks now evaluate the corresponding activity privilege (`activity.view`, `activity.add_edit`, or `activity.edit`) rather than requiring the unrelated broad `project.read` / `project.write` profile keys.
+- Expense, Issue, Risk, and Threshold Responsible OBS checks likewise use the operation's own granular privilege. This closes the granular-only profile failure where the route accepted an activity/issue/etc. privilege but the second OBS gate incorrectly demanded `project.read` or `project.write`.
+- The WBS operation keys are CUBI route-level keys. They still require reconciliation against Oracle's full privilege-detail matrix, including the V26 combined WBS hierarchy privilege and WBS financial/cost restrictions; do not treat this increment as complete WBS privilege parity.
+- **Threshold monitoring** now uses the separate `threshold.monitor` key in the Tools group, matching the V26 Help option "Monitor Project Thresholds". A profile with only `threshold.add_edit` or `threshold.edit` cannot run the monitor.
+
+Tests added for granular WBS view/manage/delete boundaries and dedicated threshold monitor authorization. Exact-head Python and PostgreSQL CI remain the required verification gates.
