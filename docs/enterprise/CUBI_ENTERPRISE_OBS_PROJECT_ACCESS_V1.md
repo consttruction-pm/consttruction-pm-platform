@@ -144,3 +144,12 @@ Regression tests assert the V26 option-label inventory, unique stable keys, know
 Primary source: https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm
 
 - The catalogue also exposes pure group-header semantics: selecting a V26 detail-window group selects all options in that group; clearing it clears that group while preserving other groups and re-expanding only explicitly inherited grants. Unknown group names and privilege keys fail closed. This is domain support for the editor; the administrative UI wiring remains open.
+
+
+### V26 profile checkbox → route privilege enforcement (2026-11-15)
+
+A second authorization mismatch was found during the catalogue review: storing the Oracle checkbox keys alone was not enough because several API gates use CUBI operation keys. The PostgreSQL authorization resolver now maps those operation keys explicitly to the V26 checkbox options (for example, wbs.add_edit to wbs.add_edit_delete_except_costs_financials, and issue/threshold operations to issue_threshold.add_edit_delete). The WBS Responsible OBS path uses the same resolver rather than comparing raw permission strings.
+
+The mapping is intentionally narrow: WBS structural privileges do not grant wbs.edit_costs_financials; threshold monitoring does not grant threshold CRUD; activity structural editing does not grant relationship management. The resolver is installed by both the project-access and WBS repository initializers so the WBS gate does not depend on initialization order.
+
+The live PostgreSQL acceptance test now uses an Oracle project.view profile to authorize the CUBI project-read operation, and an OBS-scoped profile containing only wbs.add_edit_delete_except_costs_financials to prove WBS view/add-edit/delete access, deny financial edits, and revoke the WBS grant immediately. Exact-head CI is still required before this increment is accepted.
