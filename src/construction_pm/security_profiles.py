@@ -838,7 +838,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         p6_project_permissions = {
             Permission.PROJECT_READ, Permission.PROJECT_WRITE,
             Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
-            Permission.P6_WBS_ADMIN,
+            Permission.P6_WBS_ADMIN, Permission.P6_ACTIVITY_ADMIN,
         }
         if permission not in p6_project_permissions:
             return self.is_allowed(context, permission)
