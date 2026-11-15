@@ -113,7 +113,11 @@ class P6WBSMasterAPI:
             checker = getattr(self.repository, "has_responsible_obs_permission", None)
             if not callable(checker):
                 return
-            allowed = checker(scope, auth_context.user_id, responsible_obs_id, permission)
+            effective_obs_id = responsible_obs_id
+            if wbs_id is not None and responsible_obs_id is _WBS_OBS_UNSET:
+                current = self.repository.get(scope, wbs_id)
+                effective_obs_id = None if current is None else current.responsible_obs_id
+            allowed = checker(scope, auth_context.user_id, effective_obs_id, permission)
         if not allowed:
             raise AuthorizationError("WBS_OBS_ACCESS_DENIED")
 
