@@ -11,6 +11,8 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | Method | Route | Behavior |
 |---|---|---|
 | GET | `/api/enterprise/teams` | List active teams for the authenticated user in the session tenant |
+| GET | `/api/enterprise/teams/{team_id}/members` | List membership and revision state for an active team member; tenant-scoped |
+| GET | `/api/enterprise/teams/{team_id}/eligible-users` | List active same-tenant accounts not yet active members; owner/admin only |
 | POST | `/api/enterprise/teams` | Create a tenant team; atomically creates owner membership |
 | POST | `/api/enterprise/teams/{team_id}/members` | Add an active same-tenant account with a team role and optional project-scope metadata |
 | DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |
@@ -20,7 +22,7 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 ## Security and data invariants
 
 - Team creation requires both server-side `enterprise_admin` and `pro_monthly_active` claims. Until entitlement provisioning is authoritative, creation fails closed.
-- Membership management requires an active owner/admin membership in the target team.
+- Membership changes and eligible-user directory access require an active owner/admin membership in the target team. Roster visibility requires an active membership in that team.
 - Member accounts must exist, be active and belong to the same tenant.
 - The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.
 - Revocation increments membership revision and writes an append-only actor-bound audit event.
@@ -29,7 +31,17 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 
 ## V26 Help traceability
 
-This is the first concrete Organization & Access service slice supporting the EPPM administration/security capability family. It does not claim full parity for users, security profiles, granular privileges, project access, invitations, effective-access previews or access reports. Each of those requires its own V26 topic-to-contract-to-test trace row and server-side authorization evidence.
+This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation. It remains partial against V26. It does not claim full parity for user-account lifecycle/invitations, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, copy-user-settings, effective-access previews or access reports.
+
+| V26 Help topic / observable behavior | CUBI contract or surface | Evidence / state |
+|---|---|---|
+| [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/nl/6187.htm) — create accounts; configure security profiles and access privileges; active/inactive state; module access; project/resource access; Team Member and Timesheet access | Identity account administration + Organization & Access | Partial: authenticated same-tenant eligible-user directory and team membership lifecycle are live. Account creation/deactivation, password administration, module access and project/resource access controls are not implemented in this slice. |
+| [Copy User Settings Dialog Box](https://docs.oracle.com/cd/G48897_01/p6help/es/98209.htm) — copy module, resource, UI view, global profile, project access and preferences | Access profile templates / controlled bulk assignment | Planned; do not infer copy semantics from team roles. |
+| [Team Member Tab of Project Preferences](https://docs.oracle.com/cd/G48897_01/p6help/en/91692.htm) — allowed update fields, assignment/activity status, step permissions, out-of-sequence warnings and review settings | Engineering-owned Team Member project preferences and status update policy | Planned; Enterprise teams are not schedule resources or activity assignment grants. |
+| [Configuring P6 Team Member Status Update Reviews](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/50915.htm) — enable reviews, Anyone/Everyone review type, project/WBS reviewers and per-activity review requirement | Engineering Activity Status + Feedback & Approval Center | Planned; requires Engineering-owned status update records and approval transactions. |
+| [Team Member Web V26 contents](https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm) — My Activities, filters, status updates, steps, discussions, documents, notebooks and timesheets | Team Member workspace | Planned; generic Enterprise Tasks remain a separate concept. |
+
+These sources are topic-level requirements, not claims that every underlying P6 feature is already implemented. Continue to record exact V26 HTML topic, Getting Here path, fields, permission rules and tests per delivered feature.
 
 Normative source: https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
 
