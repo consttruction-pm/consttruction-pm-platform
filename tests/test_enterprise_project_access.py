@@ -223,11 +223,6 @@ def test_project_security_profile_inheritance_targets_are_present_for_all_crud_d
 
 
 def test_granular_wbs_profile_is_checked_without_legacy_project_read_write():
-    repository = FakeRepository()
-    repository.assignments[("tenant-a", "member-1", "root", "wbs_only")] = UserOBSAssignment(
-        "tenant-a", "member-1", "root", "wbs_only", True, 1, "admin-1", NOW
-    )
-
     class GranularRepository(FakeRepository):
         def project_permission(self, tenant_id, user_id, project_id, permission):
             return permission == "wbs.view" and (
