@@ -318,6 +318,98 @@ def initialize_security_profile_schema(connection: Any) -> None:
         connection.execute(statement)
 
 
+def bootstrap_first_admin_superuser(
+    connection: Any, *, tenant_id: str, user_id: str,
+    supplied_token: str, configured_token: str, occurred_at: Any,
+) -> SecurityProfile:
+    """Provision or recover the tenant's first active P6 Admin Superuser.
+
+    This is deliberately not an HTTP/API operation. A deployment operator must
+    invoke it out-of-band with the one-time bootstrap secret. It is safe to
+    retry only while the tenant has no active Admin Superuser assignment.
+    """
+    import hmac
+    import uuid
+
+    if (not isinstance(supplied_token, str) or not supplied_token
+            or not isinstance(configured_token, str) or len(configured_token) < 32
+            or not hmac.compare_digest(supplied_token, configured_token)):
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_TOKEN_INVALID")
+    if not isinstance(tenant_id, str) or not tenant_id.strip() or not isinstance(user_id, str) or not user_id.strip():
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_TARGET_INVALID")
+
+    # Serialize first-time provisioning/recovery per tenant to avoid two
+    # concurrent operators creating different first administrators.
+    connection.execute(
+        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (tenant_id,)
+    )
+    active_admin = connection.execute(
+        "SELECT 1 FROM p6_security_profile_assignments a "
+        "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+        "JOIN identity_users u ON u.user_id=a.user_id "
+        "WHERE a.tenant_id=%s AND a.profile_id=%s AND a.obs_id='' "
+        "AND p.scope='global' AND p.active=TRUE AND u.active=TRUE LIMIT 1",
+        (tenant_id, ADMIN_SUPERUSER_PROFILE_ID),
+    ).fetchone()
+    if active_admin is not None:
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_ALREADY_INITIALIZED")
+
+    target = connection.execute(
+        "SELECT tenant_id,active FROM identity_users WHERE user_id=%s FOR UPDATE",
+        (user_id,),
+    ).fetchone()
+    if target is None or str(target[0]) != tenant_id or not bool(target[1]):
+        raise SecurityProfileError("SECURITY_PROFILE_USER_NOT_ELIGIBLE")
+    occupied = connection.execute(
+        "SELECT profile_id FROM p6_security_profile_assignments "
+        "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
+        (tenant_id, user_id),
+    ).fetchone()
+    if occupied is not None:
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
+
+    profile = connection.execute(
+        "SELECT name,scope,active,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+        (tenant_id, ADMIN_SUPERUSER_PROFILE_ID),
+    ).fetchone()
+    if profile is None:
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,%s,'Admin Superuser','global',TRUE,1,%s,%s,%s,%s)",
+            (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at, occurred_at),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_created',NULL,%s::jsonb,%s)",
+            (str(uuid.uuid4()), tenant_id, user_id, ADMIN_SUPERUSER_PROFILE_ID,
+             json.dumps({"name": "Admin Superuser", "scope": "global", "active": True, "revision": 1}),
+             occurred_at),
+        )
+    elif str(profile[0]) != "Admin Superuser" or str(profile[1]) != "global" or not bool(profile[2]):
+        raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
+
+    connection.execute(
+        "INSERT INTO p6_security_profile_assignments "
+        "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
+        "VALUES (%s,%s,%s,'',1,%s,%s)",
+        (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at),
+    )
+    connection.execute(
+        "INSERT INTO p6_security_profile_audit "
+        "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+        "VALUES (%s,%s,%s,%s,'profile_assigned',NULL,%s::jsonb,%s)",
+        (str(uuid.uuid4()), tenant_id, user_id, ADMIN_SUPERUSER_PROFILE_ID,
+         json.dumps({"user_id": user_id, "obs_id": "", "revision": 1}), occurred_at),
+    )
+    return SecurityProfile(
+        tenant_id, ADMIN_SUPERUSER_PROFILE_ID, "Admin Superuser",
+        "global", True, 1, frozenset(),
+    )
+
+
 class PostgresSecurityProfileRepository:
     """Tenant-isolated, revision-guarded profile persistence."""
 
