@@ -43,16 +43,15 @@ Canonical documentation index: https://docs.oracle.com/cd/E80480_01/toc.htm
 User Guides index: https://docs.oracle.com/cd/E80480_01/87731.htm
 Help system: https://docs.oracle.com/cd/E80480_01/help/en/user/173189.htm
 Application Administration Guide: https://docs.oracle.com/cd/E80480_01/English/admin/app_admin_guide/index.html
-Security Guide: https://docs.oracle.com/cd/E80480_01/English/admin/security_guide/index.html
+Security Guide: use the Security Guide entry under Administration in the canonical documentation index (the direct URL is intentionally not hard-coded until verified).
 API Documentation index: https://docs.oracle.com/cd/E80480_01/87749.htm
-Integration Overview: https://docs.oracle.com/cd/E80480_01/English/Integration/overview/index.html
-Data Service Reference Guide: https://docs.oracle.com/cd/E80480_01/English/Integration/data_service/index.html
+Integration Overview and Data Service Reference Guide: open from the Integration section of the canonical documentation index; use the live HTML entries there.
 Mobile app documentation is linked from the canonical documentation index.
 
 Direct HTML guide entry points:
 - Ideas: https://docs.oracle.com/cd/E80480_01/English/user_guides/ideas_user_guide/index.html
 - Portfolio Management: https://docs.oracle.com/cd/E80480_01/English/user_guides/portfolio_management_user_guide/index.html
-- Progress: https://docs.oracle.com/cd/E80480_01/English/user_guides/progress_user_guide/index.html
+- Progress: open Progress User Guide from the canonical User Guides index (Oracle's current HTML entry path must be followed from that index).
 - Risk Management: https://docs.oracle.com/cd/E80480_01/English/user_guides/risk_management_user_guide/index.html
 - Schedule Management: https://docs.oracle.com/cd/E80480_01/English/user_guides/schedule_management_user_guide/index.html
 - Scope Management: https://docs.oracle.com/cd/E80480_01/English/user_guides/scope_management_user_guide/index.html
