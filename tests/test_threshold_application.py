@@ -303,3 +303,30 @@ def test_threshold_crud_uses_independent_granular_privileges(parts):
             expected_revision=2, context=actor("threshold_editor"), actor_id="threshold_editor", occurred_at=NOW)
     service.delete_threshold(tenant_id="T-1", project_id="P-1", threshold_id="TH-1",
         expected_revision=2, context=actor("threshold_deleter"), actor_id="threshold_deleter", occurred_at=NOW)
+
+
+
+def test_threshold_monitor_requires_its_own_tools_privilege(parts):
+    _, metrics, writer = parts
+    connection = sqlite3.connect(":memory:")
+    store = SQLiteThresholdStore(connection)
+    store.initialize()
+    policy = RoleBasedAuthorizationPolicy({
+        "threshold_creator": frozenset({Permission.THRESHOLD_ADD_EDIT}),
+        "threshold_monitor": frozenset({Permission.THRESHOLD_MONITOR}),
+    })
+    service = ThresholdApplicationService(
+        store, policy, SQLiteTransactionManager(connection), metrics, writer
+    )
+    created = service.create_threshold(
+        threshold(), idempotency_key="threshold-monitor-privilege",
+        context=context("threshold_creator", user="creator"),
+        actor_id="creator", occurred_at=NOW,
+    )
+    assert created.revision == 1
+    with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+        service.monitor_threshold(
+            tenant_id="T-1", project_id="P-1", project_revision=7,
+            threshold_id="TH-1", context=context("threshold_creator", user="creator"),
+            actor_id="creator", occurred_at=NOW,
+        )
