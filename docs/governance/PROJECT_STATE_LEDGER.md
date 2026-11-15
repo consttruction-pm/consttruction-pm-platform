@@ -1247,3 +1247,15 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Cross-referenced existing workstreams: EPPM-vs-Professional source audit (#1925/#1926); canonical workspace (#1691/#1716); Scenario Lab (#1989); Engineering Intelligence/knowledge (#1706/#1540/#1724/#1729); Organization/security/identity (#1984/#1971/#1974/#1980/#1983); Enterprise tasks (#1928/#1929); workflow/forms (#1927); subscriptions/owner CMS (#1605/#1888/#1887); offline clients (#1670); localization (#1531); takeoff/resource/risk planning (#1617); future personal-dashboard reporting (#1924).
 - These links prevent duplicate issue/model/service creation but do not assert implementation completion. Exact PR heads, changed paths, checks and merge state remain mandatory before any source edit or acceptance.
 - #1990 is the full-program parent; #1989 is the Scenario Lab child. Existing issues retain their own scope.
+
+
+## 2026-11-15 — Issue #1990 full-program feasibility continuation
+
+- Product-owner correction applied: the scope is the complete CUBI capability expansion, not only the Schedule Scenario / Reflection child slice.
+- Added `docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md` covering all 36 master-register rows (ENG-01–14, ENT-01–12, SH-01–10), including authoritative ownership, reuse direction, API/persistence/UI boundaries, authorization, concurrency/idempotency, offline/jobs, dependencies, delivery order and acceptance gates.
+- Linked the blueprint from `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`.
+- Exact branch: `docs/cubi-cloud-gap-environment-ownership-v1`; latest content commits: `bc189b29174f4309f5254093b5446bd500b0bf79` (blueprint), `e25f1a5a51045dac74563d9c3499182b71b78b4f` (register pointer).
+- Read-back verification: blueprint SHA `85a585bfcad38b7c205db49c784b005c33ccff1e`; register SHA `6733d42f2fc47949518abecb614e10305a5a1359`; all 36 IDs present; register pointer confirmed.
+- Branch comparison against main: 26 commits ahead, 0 behind; eight changed paths (seven architecture/engineering documents plus this ledger). The branch remains documentation-only. No code, schema, runtime, CI, browser or product behavior was changed or tested; no implementation credit is claimed.
+- Open evidence gaps: row-level exact EPPM V26 / Team Member / Cloud topic crosswalk is incomplete; root/nested `AGENTS.md` and active-writer ownership must be resolved from canonical checkout; Jalal 5 weights remain unchanged; no exact-head code verification.
+- Next: finish exact Help topic crosswalk and current issue/PR/path ownership across the full 36-row register, then issue a non-overlapping Engineering P1 implementation queue to Qoder. Enterprise P2 planning remains dependent on stable Engineering contracts. Issue #1989 is one child slice, not the program scope.
