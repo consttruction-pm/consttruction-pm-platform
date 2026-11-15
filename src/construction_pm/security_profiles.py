@@ -437,17 +437,14 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if not self._role_policy.is_allowed(context, permission):
             return False
         rows = self._connection.execute(
-            "SELECT p.scope,p.active,g.permission,a.obs_id FROM p6_security_profile_assignments a "
+            "SELECT p.scope,p.active,a.obs_id FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
-            "LEFT JOIN p6_security_profile_privileges g "
-            "ON g.tenant_id=p.tenant_id AND g.profile_id=p.profile_id "
-            "AND g.permission=%s "
             "LEFT JOIN project_lifecycle_projects project "
             "ON project.tenant_id=a.tenant_id AND project.project_id=%s "
             "WHERE a.tenant_id=%s AND a.user_id=%s "
             "AND ((p.scope='global' AND a.obs_id='') "
             "OR (p.scope='project' AND a.obs_id=project.obs_id AND project.obs_id<>''))",
-            (permission.value, context.project_id, context.tenant_id, context.user_id),
+            (context.project_id, context.tenant_id, context.user_id),
         ).fetchall()
         global_rows = [row for row in rows if str(row[0]) == "global"]
         project_rows = [row for row in rows if str(row[0]) == "project"]
@@ -466,7 +463,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if required is None:
             return False
         return any(bool(row[1]) and required in self._profile_privileges(
-            context.tenant_id, str(row[3])
+            context.tenant_id, str(row[2])
         ) for row in project_rows)
 
     def _profile_privileges(self, tenant_id: str, profile_id: str) -> frozenset[str]:
