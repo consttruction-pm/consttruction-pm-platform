@@ -400,6 +400,8 @@ class EnterpriseProjectAuthorizationPolicy:
             Permission.ISSUE_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.ISSUE_EDIT: Permission.PROJECT_WRITE,
             Permission.ISSUE_DELETE: Permission.PROJECT_WRITE,
+            Permission.EXPENSE_VIEW: Permission.PROJECT_READ,
+            Permission.EXPENSE_ADD_EDIT: Permission.PROJECT_WRITE,
         }.get(permission)
         return False if legacy is None else self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, legacy.value
