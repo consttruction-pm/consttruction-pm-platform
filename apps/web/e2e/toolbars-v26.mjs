@@ -87,7 +87,9 @@ const measure = `(() => {
   };
   const style = (element) => element ? getComputedStyle(element) : null;
   const iconBox = (element) => {
-    const icon = element?.querySelector?.(".cp-icon");
+    // A rail button carries a 9px drag grip before its command icon; the
+    // command icon (not the grip) is what the acceptance contract measures.
+    const icon = [...(element?.querySelectorAll?.(".cp-icon") ?? [])].find((node) => !node.closest(".cp-tool-grip"));
     return icon ? rect(icon) : null;
   };
   const triggers = [...document.querySelectorAll("[data-desktop-menu]")];
@@ -115,7 +117,9 @@ const measure = `(() => {
   const ganttToolbar = document.querySelector(".cp-gantt-toolbar");
   const navRail = document.querySelector(".cp-navigation-tree");
   const contextRail = document.querySelector(".cp-context-command-rail");
-  const railButtons = (rail) => [...(rail?.querySelectorAll("button") ?? [])].filter((b) => b.getClientRects().length).map((button) => ({ rect: rect(button), icon: iconBox(button), label: button.getAttribute("aria-label") }));
+  // Command buttons only: family drag handles and "Add or Remove Buttons" are
+  // affordances with deliberately smaller glyphs, not rail commands.
+  const railButtons = (rail) => [...(rail?.querySelectorAll("[data-tool-rail-button]") ?? [])].filter((b) => b.getClientRects().length).map((button) => ({ rect: rect(button), icon: iconBox(button), label: button.getAttribute("aria-label") }));
   return {
     viewport: { width: window.innerWidth, height: window.innerHeight },
     lang: document.documentElement.lang,

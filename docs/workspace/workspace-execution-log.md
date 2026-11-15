@@ -90,3 +90,23 @@ Do not start Unit B before Unit A is merged and its E2E is green on main.
 - The same default-route correction was mirrored to the visual-audit branch. The independent Tracking Details-tab gap found by its CI run was also implemented with page-specific Projects, Layout, Data, Profiles, Variance and History tabs.
 
 **Required verification:** GitHub Pages deployment and hosted browser journey must be checked after the main-branch workflow completes. Do not claim the hosted page is fixed until Home → Login → visual shell and Sign out → Home are confirmed in the deployed site.
+
+## 2026-11-15 — Activity window acceptance and V26 traceability
+
+Audited against the real `main` head `bbacdaa0` and the bundle the preview
+actually serves, not the TypeScript sources. 28 browser suites, 351/351 numeric
+checks, 249 screenshots, zero uncaught exceptions and zero API 5xx; the only
+console line is the deliberate `WBS_HIERARCHY_CYCLE` refusal. Evidence bundle:
+`docs/workspace/evidence/activity-window-v26-2026-11-15/`, with per-surface
+Version 26 topic titles, live Help URLs and real 303-page guide pages in
+`v26-traceability.md`; the 815-page PDF remains **MISSING / VERIFY**.
+
+One product defect fixed: `positionMenu` sent a tall context menu to the
+top-left corner instead of clamping next to the pointer. Two test scopes were
+corrected without weakening a threshold: the toolbar suite now measures the
+command icon instead of a grip glyph, and the relationship-drawing gesture
+scrolls both endpoint rows into the Gantt pane before dragging.
+
+Continuation point: the Activity window is accepted; the next units are WBS,
+toolbars, project windows, calendars, resources, Baseline and the remaining
+main-environment sections. The Activity window evidence is not merged yet.

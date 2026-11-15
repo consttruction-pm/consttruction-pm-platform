@@ -178,17 +178,48 @@ async function dragState(page) {
 /**
  * Draws one relationship from a source bar edge to a target bar edge with
  * native pointer events, reading the live hint before release.
+ *
+ * The Gantt pane scrolls vertically (`.cp-gantt-chart`); at 1280x720 a bar can
+ * sit half outside the clip, where native hit testing legitimately ignores it.
+ * Bring both ends into the visible band before measuring, and fail loudly if a
+ * gesture point still lands outside the pane.
  */
 async function drawRelationship(page, { from, fromEdge, to, toEdge }) {
+  const ensureVisible = () => page.evaluate(`(() => {
+    const rows = ${JSON.stringify([from, to])};
+    const chart = document.querySelector(".cp-gantt-chart");
+    const visible = (row) => {
+      if (!row || !chart) return false;
+      const r = row.getBoundingClientRect();
+      const c = chart.getBoundingClientRect();
+      return r.top >= c.top - 1 && r.bottom <= c.bottom + 1;
+    };
+    for (const id of rows) {
+      const row = document.querySelector('#cp-gantt [data-gantt-activity-id="' + id + '"]');
+      if (!visible(row)) row?.scrollIntoView({ block: "center" });
+    }
+    return rows.every((id) => visible(document.querySelector('#cp-gantt [data-gantt-activity-id="' + id + '"]')));
+  })()`);
+  let bothVisible = await ensureVisible();
+  if (!bothVisible) {
+    // Rows farther apart than one viewport: centre the target, the drag still
+    // starts on the source edge that remains inside the band.
+    await page.evaluate(`document.querySelector('#cp-gantt [data-gantt-activity-id=${JSON.stringify(to)}]')?.scrollIntoView({ block: "center" })`);
+    bothVisible = await ensureVisible();
+  }
+  await sleep(250);
   const rects = await barRects(page, [from, to]);
   assert(rects[from], `source bar ${from} is missing`);
   assert(rects[to], `target bar ${to} is missing`);
+  const pane = await page.evaluate(`(() => { const c = document.querySelector(".cp-gantt-chart").getBoundingClientRect(); return { top: c.top, bottom: c.bottom }; })()`);
   const source = rects[from];
   const target = rects[to];
   const sx = Math.round((fromEdge === "start" ? source.left + 2 : source.right - 2) * 10) / 10;
   const sy = Math.round(((source.top + source.bottom) / 2) * 10) / 10;
   const tx = Math.round((toEdge === "start" ? target.left + 2 : target.right - 2) * 10) / 10;
   const ty = Math.round(((target.top + target.bottom) / 2) * 10) / 10;
+  assert(sy > pane.top && sy < pane.bottom, `source edge y=${sy} is outside the Gantt pane ${JSON.stringify(pane)}`);
+  assert(ty > pane.top && ty < pane.bottom, `target edge y=${ty} is outside the Gantt pane ${JSON.stringify(pane)}`);
   await page.cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: sx, y: sy, button: "none", buttons: 0 });
   await page.cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: sx, y: sy, button: "left", buttons: 1, clickCount: 1 });
   await sleep(60);
