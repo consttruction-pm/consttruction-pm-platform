@@ -77,6 +77,8 @@ class EnterpriseOrganizationAccessRepository(Protocol):
     def add_member(self, membership: EnterpriseTeamMembership, *, actor_id: str) -> EnterpriseTeamMembership: ...
     def remove_member(self, tenant_id: str, team_id: str, user_id: str, *, actor_id: str, expected_revision: int, occurred_at: datetime) -> EnterpriseTeamMembership: ...
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]: ...
+    def list_memberships(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]: ...
+    def list_active_users(self, tenant_id: str) -> tuple[dict[str, str], ...]: ...
 
 
 class EnterpriseOrganizationAccessService:
@@ -155,6 +157,21 @@ class EnterpriseOrganizationAccessService:
     def list_my_teams(self, session_id: str) -> tuple[EnterpriseTeam, ...]:
         session = self._session(session_id)
         return self._repository.list_teams_for_user(session.tenant_id, session.user_id)
+
+    def list_team_members(self, session_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        self._require_manager(session, team)
+        return self._repository.list_memberships(session.tenant_id, team_id)
+
+    def list_eligible_users(self, session_id: str, team_id: str) -> tuple[dict[str, str], ...]:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        self._require_manager(session, team)
+        members = {item.user_id for item in self._repository.list_memberships(session.tenant_id, team_id)
+                   if item.status == "active"}
+        return tuple(user for user in self._repository.list_active_users(session.tenant_id)
+                     if user["user_id"] not in members and user["user_id"] != session.user_id)
 
     def require_active_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership:
         membership = self._repository.get_membership(tenant_id, team_id, user_id)
