@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 from .authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
