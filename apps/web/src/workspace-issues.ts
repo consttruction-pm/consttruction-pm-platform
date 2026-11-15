@@ -27,7 +27,7 @@ export type IssueRecord = {
   status: string;
   priority: string;
   owner: string;
-  responsibleManager: string | null;
+  responsibleManager: string |  responsibleObsId?: string | null;
   responsibleObsId: string | null;
   dateIdentified: string;
   dueDate: string | null;
