@@ -149,7 +149,13 @@ def test_team_member_directory_requires_manager_and_is_tenant_scoped():
     assert {item.user_id for item in listed} == {"owner", "member-1"}
     eligible = app.list_eligible_users("owner-session", team.team_id)
     assert eligible == ()
-    with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
-        app.list_team_members("viewer-session", team.team_id)
+    viewer = EnterpriseTeamMembership(
+        tenant_id="tenant-a", team_id=team.team_id, user_id="viewer",
+        role="viewer", status="active", scope_project_ids=(), revision=1, created_at=NOW,
+    )
+    repository.members[("tenant-a", team.team_id, "viewer")] = viewer
+    assert {item.user_id for item in app.list_team_members("viewer-session", team.team_id)} == {
+        "owner", "member-1", "viewer"
+    }
     with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
         app.list_eligible_users("viewer-session", team.team_id)
