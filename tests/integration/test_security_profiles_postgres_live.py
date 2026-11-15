@@ -25,6 +25,7 @@ from construction_pm.identity_session import (
 )
 from construction_pm.p6_obs_repository import P6OBSNode, PostgresP6OBSRepository
 from construction_pm.p6_eps_repository import P6EPSNode, P6EPSError, PostgresP6EPSRepository
+from construction_pm.wbs_master_repository import PostgresWBSMasterRepository
 from construction_pm.postgres_project_lifecycle import (
     PostgresProjectRepository,
     initialize_project_lifecycle_schema,
@@ -572,12 +573,32 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         PostgresProjectRepository(connection).create_for_user(
             tenant, user_id, project_id, "EPS inherited project"
         )
+        PostgresWBSMasterRepository(connection).initialize()
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+            "VALUES (%s,%s,0,%s,'project',NULL,'ROOT','Root WBS',0,1,'active','activities')",
+            (tenant, project_id, f"eps-wbs-{suffix}"),
+        )
         eps = PostgresP6EPSRepository(connection)
         eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id))
         eps.save_node(P6EPSNode(tenant, child_id, "Child EPS", parent_eps_id=root_id))
         eps.assign_project(
             tenant, project_id, child_id, actor_user_id=user_id, occurred_at=now,
         )
+        assert eps.assign_wbs_responsibility(
+            tenant, project_id, f"eps-wbs-{suffix}", obs_id,
+            actor_user_id=user_id, occurred_at=now,
+        ) == 1
+        assert eps.get_wbs_responsibility(
+            tenant, project_id, f"eps-wbs-{suffix}"
+        ) == (obs_id, 1)
+        with pytest.raises(P6EPSError, match="P6_WBS_RESPONSIBILITY_REVISION_CONFLICT"):
+            eps.assign_wbs_responsibility(
+                tenant, project_id, f"eps-wbs-{suffix}", obs_id,
+                actor_user_id=user_id, occurred_at=now, expected_revision=0,
+            )
         connection.commit()
 
     with _connect() as connection:
