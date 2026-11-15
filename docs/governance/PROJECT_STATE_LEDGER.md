@@ -1395,3 +1395,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Code commits:** `46beaaa9` (EPS admin authorization), `7d97e6ea` (session-bound EPS service), `9d3b3147` (protocol cleanup), `c58b9b4f` (API), `2b874b50` (placement read repository), `4cf1ecda` (authorized placement read service), `0bf0cc28` (API placement read), `49c315bb` (HTTP routes), `7715374b`/`b0b4c281` (EPS API integration tests), `797a2cb2` (parity ledger).
 - **Still open:** EPS delete/reparent UI and dedicated management UI, full audit review surface, and end-to-end authorization coverage for all P6 project data surfaces. No full parity claim.
 
+### EPS administration authorization hardening — 2026-11-15
+
+- EPS create/update authorization now checks both the old and new parent branches when reparenting; moving a root EPS or promoting a child to root is restricted to Admin Superuser. PATCH merges omitted fields from the persisted node rather than silently resetting parent, OBS or sequence.
+- Added integration coverage for Planner-scoped child EPS creation and update, plus project EPS assignment read/update. Project creation continues to auto-select the first eligible branch only when no explicit EPS was provided.
+- **Code commits:** `9f29bced` (old/new branch reparent guard), `2574e53c` (PATCH merge semantics), `38758db7` (EPS branch administration integration coverage).
+- **Verification:** exact-head Actions remain queued; no test pass is claimed.
+
