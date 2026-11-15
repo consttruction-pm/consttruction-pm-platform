@@ -104,6 +104,7 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("global_change.execute", ProjectPrivilegeGroup.TOOLS, "Run Global Change", "Execute global change."),
     ProjectPrivilegeDefinition("project.summarize", ProjectPrivilegeGroup.TOOLS, "Summarize Projects", "Summarize project data."),
     ProjectPrivilegeDefinition("baseline.update", ProjectPrivilegeGroup.TOOLS, "Update Baseline", "Update project baselines."),
+    ProjectPrivilegeDefinition("threshold.monitor", ProjectPrivilegeGroup.TOOLS, "Monitor Project Thresholds", "Run the threshold monitor for projects in P6 Professional."),
     ProjectPrivilegeDefinition("layout.save", ProjectPrivilegeGroup.VIEWS_REPORTS, "Save Layouts", "Save project layouts."),
     ProjectPrivilegeDefinition("report.run", ProjectPrivilegeGroup.VIEWS_REPORTS, "Run Reports", "Run project reports."),
     ProjectPrivilegeDefinition("project.export", ProjectPrivilegeGroup.VIEWS_REPORTS, "Export Project Data", "Export project data."),
