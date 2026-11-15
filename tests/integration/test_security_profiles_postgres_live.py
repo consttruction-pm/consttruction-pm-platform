@@ -17,6 +17,7 @@ from construction_pm.activity_master_repository import (
     ActivityMaster, PostgresActivityMasterRepository, SQLiteActivityMasterRepository,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment, P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue,
