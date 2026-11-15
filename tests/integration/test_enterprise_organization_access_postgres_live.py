@@ -17,6 +17,7 @@ from construction_pm.enterprise_organization_access_repository import (
 from construction_pm.identity_session import (
     IdentityUser, PostgresIdentityStore, StoredSession, token_hash,
 )
+from construction_pm.security_profiles import initialize_security_profile_schema
 
 DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="CONSTRUCTION_PM_POSTGRES_DSN is required")
@@ -133,6 +134,7 @@ def test_postgres_account_deactivation_is_tenant_scoped_audited_and_revokes_sess
             display_name="Target", roles=frozenset(), password_hash="unused-integration-hash",
             active=True,
         ))
+        initialize_security_profile_schema(connection)
         repository = PostgresEnterpriseOrganizationAccessRepository(connection)
         repository.initialize()
         issued_token = "session-token-for-account-deactivation-test"
