@@ -2230,6 +2230,31 @@ class ProjectLifecycleHttpRoutes:
                             201,
                             self._p6_wbs_master_api.create(build_wbs(wbs_id), auth_context=auth),
                         )
+                    if len(parts) == 2 and parts[0] and parts[1] == "responsibility":
+                        wbs_id = parts[0]
+                        if method == "GET":
+                            result = self._p6_wbs_master_api.get_responsible_obs(
+                                scope, wbs_id, auth_context=auth
+                            )
+                            if result is None:
+                                return self._error(404, "P6_WBS_RESPONSIBILITY_NOT_FOUND", "error.resource.not_found")
+                            return self._json(200, result)
+                        if method in ("PUT", "PATCH"):
+                            responsible_obs_id = payload.get("responsible_obs_id")
+                            if not isinstance(responsible_obs_id, str) or not responsible_obs_id.strip():
+                                raise ValueError("P6_WBS_RESPONSIBLE_OBS_REQUIRED")
+                            expected_revision = payload.get("expected_revision")
+                            if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                                raise ValueError("EXPECTED_REVISION_REQUIRED")
+                            return self._json(
+                                200,
+                                self._p6_wbs_master_api.assign_responsible_obs(
+                                    scope, wbs_id, responsible_obs_id,
+                                    expected_revision=expected_revision,
+                                    occurred_at=now, auth_context=auth,
+                                ),
+                            )
+                        return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
                     if len(parts) == 2 and parts[0] and parts[1] == "milestones":
                         wbs_id = parts[0]
                         if method == "GET":
@@ -2369,6 +2394,11 @@ class ProjectLifecycleHttpRoutes:
                         409, exc.code, "error.project.checkout_conflict"
                     )
                 except ValueError as exc:
+                    code = str(exc)
+                    if code == "P6_WBS_RESPONSIBILITY_REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    if code == "P6_WBS_NOT_FOUND":
+                        return self._error(404, code, "error.resource.not_found")
                     return self._error(
                         400,
                         _stable_error_code(exc, "P6_WBS_MASTER_REQUEST_INVALID"),
