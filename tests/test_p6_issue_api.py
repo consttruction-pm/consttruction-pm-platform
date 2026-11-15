@@ -7,6 +7,7 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     AuthorizationError,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -102,3 +103,56 @@ def test_update_and_history_payloads_keep_identity_and_revision() -> None:
     assert [item["event"]["event_type"] for item in history] == ["created", "updated"]
     assert history[-1]["event"]["detail"]["fields"] == ["priority", "responsible_manager"]
     assert history[-1]["event"]["actor_id"] == "planner-1"
+
+
+class WbsScopedPolicy:
+    def __init__(self):
+        self.base = default_project_policy()
+
+    def is_allowed(self, context, permission):
+        return self.base.is_allowed(context, permission)
+
+    def is_allowed_for_wbs(self, context, permission, wbs_id):
+        return wbs_id != "wbs-restricted" and self.base.is_allowed(context, permission)
+
+
+def test_issue_api_enforces_wbs_scope_for_reads_writes_and_wbs_moves() -> None:
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6IssueRepository(connection)
+    service = P6IssueAPI(repository, WbsScopedPolicy())
+    visible = issue(issue_id="VISIBLE-ISSUE", wbs_id="wbs-visible")
+    restricted = issue(issue_id="RESTRICTED-ISSUE", wbs_id="wbs-restricted")
+
+    service.create(visible, auth_context=planner(), occurred_at=AT)
+    # Seed an existing record through the repository to prove that read and
+    # write checks are enforced on records that predate the API request.
+    repository.create(restricted, actor_id="seed", occurred_at=AT)
+
+    assert service.get(SCOPE, "RESTRICTED-ISSUE", auth_context=planner()) is None
+    assert [item["issue"]["issue_id"] for item in service.list(SCOPE, auth_context=planner())] == [
+        "VISIBLE-ISSUE"
+    ]
+    with pytest.raises(AuthorizationError):
+        service.create(restricted, auth_context=planner(), occurred_at=AT)
+    with pytest.raises(AuthorizationError):
+        service.update(
+            restricted, expected_revision=1, auth_context=planner(), occurred_at=AT
+        )
+    with pytest.raises(AuthorizationError):
+        service.update(
+            issue(issue_id="VISIBLE-ISSUE", wbs_id="wbs-restricted"),
+            expected_revision=1, auth_context=planner(), occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError):
+        service.delete(
+            SCOPE, "RESTRICTED-ISSUE", expected_revision=1,
+            auth_context=planner(), occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError):
+        service.add_comment(
+            SCOPE, "RESTRICTED-ISSUE", comment="unauthorized",
+            expected_revision=1, auth_context=planner(), occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError):
+        service.history(SCOPE, "RESTRICTED-ISSUE", auth_context=planner())
+    connection.close()
