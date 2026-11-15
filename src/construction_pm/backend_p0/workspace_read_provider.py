@@ -461,6 +461,7 @@ def _wbs_node_payload(
         "record_revision": node.record_revision,
         "status": node.status.value,
         "percent_complete_technique": node.percent_complete_technique.value,
+        "responsible_obs_id": node.responsible_obs_id,
         "percent_complete": percent,
         "milestones": [
             {
