@@ -153,7 +153,13 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
             obs_id=f"obs-root-{suffix}", actor_user_id=user_id, occurred_at=now,
         )
 
-        # OBS responsibility inherits to descendant OBS nodes and their projects.
+        # OBS user assignments are exact. EPS responsibility inherits down
+        # the EPS branch; it does not imply membership in child OBS elements.
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        profiles.assign(
+            tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
+            obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
+        )
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         assert policy.is_allowed(context, Permission.PROJECT_SCHEDULE)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
