@@ -1239,3 +1239,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Verified Primavera Cloud HTML topics include Schedule Scenarios/Manage Scenario, Risk Analysis prerequisites and execution/iteration results, Work Plan/hand-offs/commitments/Pull Plans, Portfolio Resource Planning scenarios, and Workflow Design/Inbox.
 - Exact official HTML page URLs and feature-level dispositions are in the master register appendix. This is a first tranche only; remaining topic-level crosswalk is still open and no unverified topic is marked absent.
 - Program issue #1990 tracks the complete inventory and delivery. Scenario issue #1989 is a child Engineering slice. No code, runtime, test, merge or deployment completion is claimed by this documentation work.
+
+
+## Existing CUBI workstream deduplication checkpoint — 2026-11-15
+
+- Master register dedupe appendix commit: `696d9c9ee91f11dc36f60d24d810efcb5d41a074`.
+- Cross-referenced existing workstreams: EPPM-vs-Professional source audit (#1925/#1926); canonical workspace (#1691/#1716); Scenario Lab (#1989); Engineering Intelligence/knowledge (#1706/#1540/#1724/#1729); Organization/security/identity (#1984/#1971/#1974/#1980/#1983); Enterprise tasks (#1928/#1929); workflow/forms (#1927); subscriptions/owner CMS (#1605/#1888/#1887); offline clients (#1670); localization (#1531); takeoff/resource/risk planning (#1617); future personal-dashboard reporting (#1924).
+- These links prevent duplicate issue/model/service creation but do not assert implementation completion. Exact PR heads, changed paths, checks and merge state remain mandatory before any source edit or acceptance.
+- #1990 is the full-program parent; #1989 is the Scenario Lab child. Existing issues retain their own scope.
