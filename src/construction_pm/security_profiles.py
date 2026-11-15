@@ -88,12 +88,17 @@ SECURITY_PROFILE_SCHEMA = (
         PRIMARY KEY (tenant_id, profile_id, user_id, obs_id),
         FOREIGN KEY (tenant_id, profile_id)
             REFERENCES p6_security_profiles(tenant_id, profile_id) ON DELETE RESTRICT,
-        CHECK (project_id IS NOT NULL)
+        CHECK (obs_id IS NOT NULL)
     )
     """,
     """
     CREATE INDEX IF NOT EXISTS p6_security_profile_assignments_user
     ON p6_security_profile_assignments (tenant_id, user_id, obs_id)
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_global_per_user
+    ON p6_security_profile_assignments (tenant_id, user_id)
+    WHERE obs_id=''
     """,
     """
     CREATE TABLE IF NOT EXISTS p6_security_profile_audit (
