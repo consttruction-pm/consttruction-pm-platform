@@ -1245,3 +1245,15 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Live PostgreSQL Integration run #3105 passed with the new end-to-end case. Client Typecheck #8458 passed for all four client targets. ConstructionPM CI #8760 and ConstructionPM Web CI #2713 were still running at the time of this checkpoint.
 - Oracle V26 trace was expanded with the exact Users Page, Global Security Profile privileges, Project Security Profile creation/privileges and About User Access topics. The profile model remains a distinct future work package; no parity claim is inferred from `enterprise_admin` role tokens.
 - Code/test head `c981824fa3a33e547d28a31c2781241677a25909`; latest documentation head `fe50176334406a839dc313792c9a0e0fd33ff560`. PR #1974 remains open Draft; no merge/deployment.
+
+
+## Organization & Access — guarded team ownership transfer — 2026-11-15
+
+- **API:** Added `PUT /api/enterprise/teams/{team_id}/owner` with contract `cubi-enterprise-team-owner-transfer.v1`. The request carries the target active member ID plus expected team and target-membership revisions.
+- **Authorization:** Only the current team owner may transfer ownership; team administrators cannot do so. Target must be an active same-tenant account with an active membership in the team. Tenant and actor remain session-derived.
+- **Atomic persistence:** PostgreSQL locks the team row as the serialization point, validates both revisions, promotes the target to `owner`, demotes the previous owner to `admin`, increments team and membership revisions, and appends an immutable before/after audit event in the same transaction. Existing target project-scope metadata is preserved and is not an access grant.
+- **Account lifecycle:** The owner pointer is updated by the same transaction, so the existing account deactivation guard no longer blocks deactivation of a former owner after successful transfer.
+- **UI:** Added bilingual transfer form and confirmation to Organization & Access; candidates are existing active members. Server-side owner-only authorization remains authoritative.
+- **Tests:** Added service-level authorization/state-transition coverage and live PostgreSQL integration coverage for revision conflict, owner/member role changes, retained metadata and audit before/after state. These tests have been committed but have not yet been run on the current exact head.
+- **V26 parity boundary:** This closes an account-administration lifecycle dependency, but does not implement Global/Project Security Profiles, privilege catalogs, module access, OBS/resource/project grants, UI Views, Copy User Settings, effective-access reporting or Team Member activity/timesheet/review workflows. Full P6 EPPM V26 parity is not yet achieved.
+- **Release gate:** Exact-head CI, live PostgreSQL execution and browser acceptance remain required. PR #1974 remains open Draft; no merge or deployment performed.
