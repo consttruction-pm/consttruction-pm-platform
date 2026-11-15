@@ -835,6 +835,11 @@ class PostgresSecurityProfileAuthorizationPolicy:
         context.validate()
         if not isinstance(wbs_id, str) or not wbs_id.strip():
             return False
+        if self._connection.execute(
+            "SELECT 1 FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+            (context.tenant_id,context.project_id,wbs_id),
+        ).fetchone() is None:
+            return False
         p6_project_permissions = {
             Permission.PROJECT_READ, Permission.PROJECT_WRITE,
             Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
