@@ -153,6 +153,11 @@ class ProjectLifecycleAPI:
     ) -> ProjectSummary:
         return self._service.get_project(session_id, project_id, now=now)
 
+    def get_project_eps(
+        self, session_id: str, project_id: str, *, now: datetime,
+    ) -> tuple[str, int] | None:
+        return self._service.get_project_eps(session_id, project_id, now=now)
+
     def update_project(
         self,
         session_id: str,
