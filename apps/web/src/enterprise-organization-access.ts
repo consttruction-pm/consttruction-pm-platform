@@ -162,9 +162,10 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   };
   const loadMembers=async():Promise<void>=>{
     if(!selected){members.replaceChildren(el("p","oa-muted",t.noTeams));transferSelect.replaceChildren();inviteForm.hidden=true;transferRow.hidden=true;return;}
+    const activeTeam=selected;
     let result: {memberships:Membership[]};
     try {
-      result=await api<{memberships:Membership[]}>(`/api/enterprise/teams/${encodeURIComponent(selected.team_id)}/members`);
+      result=await api<{memberships:Membership[]}>(`/api/enterprise/teams/${encodeURIComponent(activeTeam.team_id)}/members`);
     } catch {
       members.replaceChildren(el("p","oa-muted",t.noManager));
       inviteForm.hidden=true; transferRow.hidden=true;
@@ -207,7 +208,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   createForm.addEventListener("submit",async(event)=>{event.preventDefault();try{await api("/api/enterprise/teams","POST",{contract_version:"cubi-enterprise-organization-access.v1",name:teamName.value.trim()});teamName.value="";showStatus(t.created);await loadTeams();}catch(e){showError(e);}});
   inviteForm.addEventListener("submit",async(event)=>{event.preventDefault();if(!foundIdentity){showError(new Error("LOOKUP_REQUIRED"));return;}try{await api(`/api/enterprise/teams/${encodeURIComponent(selected?.team_id ?? "")}/invitations`,"POST",{contract_version:"cubi-team-invitation.v1",cubi_id:foundIdentity.cubi_id,role:role.value});cubiInput.value="";foundIdentity=null;identityResult.hidden=true;showStatus(t.invited);}catch(e){showError(e);}});
   teamSelect.addEventListener("change",async()=>{selected=teams.find(item=>item.team_id===teamSelect.value)??null;try{await loadMembers();}catch(e){showError(e);}});
-  transferButton.addEventListener("click",async()=>{if(!selected||!transferSelect.value||!window.confirm(t.confirmTransfer))return;try{await api(`/api/enterprise/teams/${encodeURIComponent(selected.team_id)}/transfer-ownership`,"POST",{contract_version:"cubi-enterprise-organization-access.v1",new_owner_user_id:transferSelect.value,expected_team_revision:selected.revision});showStatus(t.transferred);await loadTeams();}catch(e){showError(e);}});
+  transferButton.addEventListener("click",async()=>{if(!selected||!transferSelect.value||!window.confirm(t.confirmTransfer))return;const activeTeam=selected;try{await api(`/api/enterprise/teams/${encodeURIComponent(activeTeam.team_id)}/transfer-ownership`,"POST",{contract_version:"cubi-enterprise-organization-access.v1",new_owner_user_id:transferSelect.value,expected_team_revision:selected.revision});showStatus(t.transferred);await loadTeams();}catch(e){showError(e);}});
   copyId.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(myId.textContent??"");showStatus(t.copied);}catch(e){showError(e);}});
   refresh.addEventListener("click",()=>{void loadAll().catch(showError);});
 
