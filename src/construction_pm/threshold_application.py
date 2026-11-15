@@ -145,6 +145,8 @@ class ThresholdApplicationService:
         occurred_at: datetime,
     ) -> StoredThreshold:
         self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id)
+        if self.responsible_obs_access is not None and not threshold.responsible_obs_id:
+            raise ThresholdAuthorizationError("THRESHOLD_RESPONSIBLE_OBS_REQUIRED")
         self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
         with self.transaction_manager.transaction():
             return self.store.create_threshold(
