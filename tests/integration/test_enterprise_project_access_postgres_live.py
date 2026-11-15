@@ -163,8 +163,8 @@ def test_postgres_wbs_obs_requires_matching_responsible_obs_profile():
 
         access.revoke_user_obs(tenant, member_id, wbs_obs_id, "wbs-write", admin_id, 1, NOW)
         connection.commit()
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is False
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is False
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.view") is False
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.add_edit") is False
 
         connection.execute(
             "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s", (tenant, project_id)
