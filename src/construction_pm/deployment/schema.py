@@ -14,6 +14,7 @@ from ..enterprise_organization_access_repository import PostgresEnterpriseOrgani
 from ..identity_session import PostgresIdentityStore
 from ..p6_cost_account_repository import PostgresP6CostAccountRepository
 from ..p6_obs_repository import PostgresP6OBSRepository
+from ..p6_eps_repository import PostgresP6EPSRepository
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
 from ..p6_user_defined_field_values_repository import (
@@ -41,6 +42,7 @@ def initialize_production_schema(connection: Any) -> None:
     PostgresActivityMasterRepository(connection).initialize()
     PostgresP6CostAccountRepository(connection).initialize()
     PostgresP6OBSRepository(connection).initialize()
+    PostgresP6EPSRepository(connection).initialize()
     initialize_security_profile_schema(connection)
     PostgresWBSMasterRepository(connection).initialize()
     PostgresRelationshipMasterRepository(connection).initialize()
