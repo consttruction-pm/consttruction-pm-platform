@@ -483,7 +483,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if not self._role_policy.is_allowed(context, permission):
             return False
         rows = self._connection.execute(
-            "SELECT p.scope,p.active,a.obs_id FROM p6_security_profile_assignments a "
+            "SELECT p.scope,p.active,a.obs_id,p.profile_id FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
             "LEFT JOIN project_lifecycle_projects project "
             "ON project.tenant_id=a.tenant_id AND project.project_id=%s "
