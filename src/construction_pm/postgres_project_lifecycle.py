@@ -211,7 +211,7 @@ class PostgresProjectRepository(ProjectRepository):
             row = self._connection.execute(
                 "SELECT to_regprocedure('cubi_user_has_project_access(text,text,text,text)') IS NOT NULL"
             ).fetchone()
-            self._obs_access_enabled = bool(row and row[0])
+            self._obs_access_enabled = bool(row and row[0] is True)
         return self._obs_access_enabled
 
     def _project_access_guard(self, permission: str, alias: str = "") -> str:
