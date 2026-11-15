@@ -45,6 +45,7 @@ def _threshold(**overrides):
         "warning_level": "10",
         "issue_level": "50",
         "responsible_manager": "preview-planner",
+        "responsible_obs_id": "OBS-OPERATIONS",
         "status": "active",
         "idempotency_key": "idem-threshold-1",
     }
