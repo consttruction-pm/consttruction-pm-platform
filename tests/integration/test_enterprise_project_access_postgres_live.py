@@ -54,7 +54,7 @@ def test_postgres_obs_assignment_inherits_to_descendant_projects_and_revokes_imm
         )
         repository = PostgresProjectAccessRepository(connection)
         repository.initialize()
-        profile = ProjectSecurityProfile(tenant,"read_only","Read only",("project.read",),True,1,NOW)
+        profile = ProjectSecurityProfile(tenant,"read_only","Read only",("project.view",),True,1,NOW)
         repository.create_profile(profile, admin_id)
         assignment = UserOBSAssignment(tenant,member_id,root_id,"read_only",True,1,admin_id,NOW)
         repository.assign_user_obs(assignment)
@@ -133,7 +133,7 @@ def test_postgres_wbs_obs_requires_matching_responsible_obs_profile():
         )
         wbs_profile = ProjectSecurityProfile(
             tenant, "wbs-write", "WBS write",
-            ("project.read", "project.write"), True, 1, NOW,
+            ("wbs.add_edit_delete_except_costs_financials",), True, 1, NOW,
         )
         access.create_profile(project_profile, admin_id)
         access.create_profile(wbs_profile, admin_id)
@@ -149,15 +149,17 @@ def test_postgres_wbs_obs_requires_matching_responsible_obs_profile():
         ))
         connection.commit()
 
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is False
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is False
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.view") is False
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.add_edit") is False
 
         access.assign_user_obs(UserOBSAssignment(
             tenant, member_id, wbs_obs_id, "wbs-write", True, 1, admin_id, NOW
         ))
         connection.commit()
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.read") is True
-        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "project.write") is True
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.view") is True
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.add_edit") is True
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.delete") is True
+        assert wbs_repo.has_wbs_permission(scope, member_id, wbs_id, "wbs.edit_costs_financials") is False
 
         access.revoke_user_obs(tenant, member_id, wbs_obs_id, "wbs-write", admin_id, 1, NOW)
         connection.commit()
