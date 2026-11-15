@@ -132,6 +132,10 @@ GLOBAL_PERMISSION_PRIVILEGE_MAP = {
     Permission.P6_OBS_ADMIN: "add_edit_delete_obs",
     Permission.P6_COST_ACCOUNT_ADMIN: "add_edit_delete_cost_accounts",
     Permission.P6_FINANCIAL_PERIOD_ADMIN: "add_edit_delete_financial_period_calendars",
+    Permission.P6_ROLE_ADMIN: "add_edit_delete_roles",
+    Permission.P6_RESOURCE_ADD: "add_resources",
+    Permission.P6_RESOURCE_EDIT: "edit_resources",
+    Permission.P6_RESOURCE_DELETE: "delete_resources",
 }
 
 GLOBAL_PRIVILEGE_IMPLICATIONS = {
@@ -796,6 +800,8 @@ class PostgresSecurityProfileAuthorizationPolicy:
         p6_permissions = p6_project_permissions | {
             Permission.P6_UDF_ADMIN, Permission.P6_OBS_ADMIN,
             Permission.P6_COST_ACCOUNT_ADMIN, Permission.P6_FINANCIAL_PERIOD_ADMIN,
+            Permission.P6_ROLE_ADMIN, Permission.P6_RESOURCE_ADD,
+            Permission.P6_RESOURCE_EDIT, Permission.P6_RESOURCE_DELETE,
         }
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
