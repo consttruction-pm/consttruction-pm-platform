@@ -3096,14 +3096,17 @@ test("WBS editor exposes the responsible OBS field in both locales", () => {
     querySelectorAll: () => [],
     addEventListener: () => {},
   };
-  const state = withWbsNodes(
-    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
-    [{
-      id: "WBS-OPS", parentKind: "project", parentWbsId: null,
-      localCode: "1", name: "Operations", sequenceNumber: 0,
-      recordRevision: 2, responsibleObsId: "OBS-OPERATIONS",
-    }],
-  );
+  const state = {
+    ...withWbsNodes(
+      createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+      [{
+        id: "WBS-OPS", parentKind: "project", parentWbsId: null,
+        localCode: "1", name: "Operations", sequenceNumber: 0,
+        recordRevision: 2, responsibleObsId: "OBS-OPERATIONS",
+      }],
+    ),
+    selectedWbsId: "WBS-OPS",
+  };
   renderMainWorkspace(container as unknown as HTMLElement, state, {});
   assert.match(container.innerHTML, /name="responsible_obs_id"/);
   assert.match(container.innerHTML, /value="OBS-OPERATIONS"/);
