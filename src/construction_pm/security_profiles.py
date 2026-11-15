@@ -742,8 +742,11 @@ class PostgresSecurityProfileAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
-        if not self._role_policy.is_allowed(context, permission):
-            return False
+        p6_project_permissions = {
+            Permission.PROJECT_READ, Permission.PROJECT_WRITE,
+            Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
+        }
+        p6_permissions = p6_project_permissions | {Permission.P6_UDF_ADMIN}
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
@@ -751,10 +754,13 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id, context.user_id, ADMIN_SUPERUSER_PROFILE_ID),
         ).fetchone()
-        # Oracle's Admin Superuser bypasses Global/Project profile scope and
-        # privilege checks. The legacy role policy remains a hard ceiling.
-        if admin_superuser is not None:
+        # Oracle V26 Admin Superuser has complete P6 global and project access.
+        # CUBI's separate role policy remains in force only for non-P6 surfaces;
+        # it must not silently revoke the built-in's documented P6 authority.
+        if admin_superuser is not None and permission in p6_permissions:
             return True
+        if not self._role_policy.is_allowed(context, permission):
+            return False
         rows = self._connection.execute(
             "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id) AS ("
             "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id "
@@ -806,8 +812,12 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # operations with a verified V26 privilege mapping are enabled here;
         # generic write and CUBI-only permissions fail closed until each API
         # endpoint is mapped to its precise P6 privilege.
-        if any(bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
-               for row in project_rows):
+        if (permission in p6_project_permissions and any(
+            bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
+            for row in project_rows
+        )):
+            # Project Superuser grants complete P6 project access, but only
+            # within the OBS responsibility assigned to this project.
             return True
         if permission == Permission.PROJECT_READ:
             return any(bool(row[1]) for row in project_rows)
