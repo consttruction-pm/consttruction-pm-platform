@@ -83,6 +83,22 @@ class PostgresP6EPSRepository:
                     REFERENCES p6_eps_node(tenant_id, eps_id) ON DELETE RESTRICT
             )"""
         )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS p6_wbs_obs_responsibility (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                wbs_id TEXT NOT NULL,
+                responsible_obs_id TEXT NOT NULL,
+                revision BIGINT NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                updated_by TEXT NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, wbs_id),
+                FOREIGN KEY (tenant_id, project_id)
+                    REFERENCES project_lifecycle_projects(tenant_id, project_id) ON DELETE CASCADE,
+                FOREIGN KEY (tenant_id, responsible_obs_id)
+                    REFERENCES p6_obs_node(tenant_id, obs_id) ON DELETE RESTRICT
+            )"""
+        )
 
     def save_node(self, node: P6EPSNode, *, expected_revision: int | None = None) -> P6EPSNode:
         node.validate()
@@ -181,3 +197,53 @@ class PostgresP6EPSRepository:
         ).fetchall()
         return tuple(P6EPSNode(tenant_id,str(r[0]),str(r[1]),None if r[2] is None else str(r[2]),
                                str(r[3]),int(r[4])) for r in rows)
+
+    def assign_wbs_responsibility(
+        self, tenant_id: str, project_id: str, wbs_id: str, responsible_obs_id: str, *,
+        actor_user_id: str, occurred_at: Any, expected_revision: int | None = None,
+    ) -> int:
+        if self.connection.execute(
+            "SELECT 1 FROM p6_obs_node WHERE tenant_id=%s AND obs_id=%s",
+            (tenant_id, responsible_obs_id),
+        ).fetchone() is None:
+            raise P6EPSError("P6_WBS_RESPONSIBLE_OBS_NOT_FOUND")
+        if self.connection.execute(
+            "SELECT 1 FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+            (tenant_id, project_id, wbs_id),
+        ).fetchone() is None:
+            raise P6EPSError("P6_WBS_NOT_FOUND")
+        row = self.connection.execute(
+            "SELECT revision FROM p6_wbs_obs_responsibility "
+            "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s FOR UPDATE",
+            (tenant_id, project_id, wbs_id),
+        ).fetchone()
+        if row is None:
+            if expected_revision not in (None, 0):
+                raise P6EPSError("P6_WBS_RESPONSIBILITY_REVISION_CONFLICT")
+            revision = 1
+            self.connection.execute(
+                "INSERT INTO p6_wbs_obs_responsibility "
+                "(tenant_id,project_id,wbs_id,responsible_obs_id,revision,updated_by,updated_at) "
+                "VALUES (%s,%s,%s,%s,1,%s,%s)",
+                (tenant_id,project_id,wbs_id,responsible_obs_id,actor_user_id,occurred_at),
+            )
+        else:
+            if expected_revision is None or int(row[0]) != expected_revision:
+                raise P6EPSError("P6_WBS_RESPONSIBILITY_REVISION_CONFLICT")
+            revision = expected_revision + 1
+            self.connection.execute(
+                "UPDATE p6_wbs_obs_responsibility SET responsible_obs_id=%s,revision=%s,"
+                "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+                (responsible_obs_id,revision,actor_user_id,occurred_at,tenant_id,project_id,wbs_id),
+            )
+        return revision
+
+    def get_wbs_responsibility(
+        self, tenant_id: str, project_id: str, wbs_id: str,
+    ) -> tuple[str, int] | None:
+        row = self.connection.execute(
+            "SELECT responsible_obs_id,revision FROM p6_wbs_obs_responsibility "
+            "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+            (tenant_id,project_id,wbs_id),
+        ).fetchone()
+        return None if row is None else (str(row[0]),int(row[1]))
