@@ -104,6 +104,14 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.ASSISTANT_ACTION,
             }
         ),
+        "admin_superuser": frozenset(
+            {
+                Permission.PROJECT_READ,
+                Permission.PROJECT_WRITE,
+                Permission.PROJECT_SCHEDULE,
+                Permission.PROJECT_ADMIN,
+            }
+        ),
         "project_admin": frozenset(
             {
                 Permission.PROJECT_READ,
