@@ -293,7 +293,7 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        policy = PostgresSecurityProfileAuthorizationPolicy(\n            connection, RoleBasedAuthorizationPolicy(default_role_permissions())\n        )
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
