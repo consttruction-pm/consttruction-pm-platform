@@ -170,3 +170,61 @@ def test_postgres_account_deactivation_is_tenant_scoped_audited_and_revokes_sess
                 (tenant,),
             )
         connection.rollback()
+
+
+
+def test_postgres_team_ownership_transfer_is_atomic_revision_guarded_and_audited():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = f"org-owner-transfer-{uuid.uuid4().hex}"
+    with psycopg.connect(DSN) as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        old_owner_id = _user(connection, tenant, "old-owner")
+        new_owner_id = _user(connection, tenant, "new-owner")
+        repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        repository.initialize()
+        team = EnterpriseTeam(
+            tenant_id=tenant, team_id=f"team-{uuid.uuid4().hex}",
+            name="Ownership transfer", owner_user_id=old_owner_id, status="active",
+            revision=1, created_at=NOW,
+        )
+        repository.create_team(team, actor_id=old_owner_id)
+        target_membership = EnterpriseTeamMembership(
+            tenant_id=tenant, team_id=team.team_id, user_id=new_owner_id,
+            role="admin", status="active", scope_project_ids=("project-9",),
+            revision=1, created_at=NOW,
+        )
+        repository.add_member(target_membership, actor_id=old_owner_id)
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        with pytest.raises(OrganizationAccessError, match="TEAM_REVISION_CONFLICT"):
+            repository.transfer_team_ownership(
+                tenant, team.team_id, new_owner_id, actor_id=old_owner_id,
+                expected_team_revision=2, expected_membership_revision=1,
+                occurred_at=NOW,
+            )
+        updated = repository.transfer_team_ownership(
+            tenant, team.team_id, new_owner_id, actor_id=old_owner_id,
+            expected_team_revision=1, expected_membership_revision=1,
+            occurred_at=NOW,
+        )
+        assert updated.owner_user_id == new_owner_id
+        assert updated.revision == 2
+        old_membership = repository.get_membership(tenant, team.team_id, old_owner_id)
+        new_membership = repository.get_membership(tenant, team.team_id, new_owner_id)
+        assert old_membership is not None and old_membership.role == "admin"
+        assert old_membership.revision == 2
+        assert new_membership is not None and new_membership.role == "owner"
+        assert new_membership.revision == 2
+        assert new_membership.scope_project_ids == ("project-9",)
+        audit = connection.execute(
+            "SELECT action,before_state,after_state FROM enterprise_access_audit "
+            "WHERE tenant_id=%s AND team_id=%s ORDER BY occurred_at,audit_id",
+            (tenant, team.team_id),
+        ).fetchall()
+        assert [row[0] for row in audit][-1] == "team_owner_transferred"
+        assert audit[-1][1]["team"]["owner_user_id"] == old_owner_id
+        assert audit[-1][2]["team"]["owner_user_id"] == new_owner_id
+        connection.commit()
