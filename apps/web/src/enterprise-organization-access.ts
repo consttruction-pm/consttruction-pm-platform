@@ -91,7 +91,9 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   const refresh = button(t.refresh,true);
   const projectAccess = el("a","ce-button ce-button-secondary",locale === "fa" ? "دسترسی پروژه" : "Project Access");
   projectAccess.href = "/enterprise/project-access";
-  hero.append(copy,el("div","ce-hero-actions").append(projectAccess,refresh));
+  const actions = el("div","ce-hero-actions");
+  actions.append(projectAccess,refresh);
+  hero.append(copy,actions);
   const status = el("p","ce-notice"); status.hidden=true; status.setAttribute("role","status");
   const error = el("p","ce-error"); error.hidden=true; error.setAttribute("role","alert");
 
