@@ -224,7 +224,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       if (!name) { failure = t.teamRequired; render(); return; }
       void run(async () => {
         const result = await api<{ team: Team }>("/api/enterprise/teams", "POST", { contract_version: "cubi-enterprise-team.v1", name });
-        notice = t.created; selectedTeamId = result.team.team_id; await load();
+        notice = t.created; selectedTeamId = result.team.team_id; await load(true);
       });
     });
     container.querySelector<HTMLFormElement>("#cubi-oa-add")?.addEventListener("submit", (event) => {
@@ -250,7 +250,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           contract_version: "cubi-enterprise-user-admin.v1", active: !wasActive,
         });
         notice = wasActive ? t.accountDeactivated : t.accountActivated;
-        await load();
+        await load(true);
       });
     }));
     container.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach((button) => button.addEventListener("click", () => {
@@ -296,8 +296,10 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     render();
   };
 
-  const load = async () => {
-    failure = ""; notice = ""; render();
+  const load = async (preserveNotice = false) => {
+    failure = "";
+    if (!preserveNotice) notice = "";
+    render();
     try {
       teams = teamList(await api<unknown>("/api/enterprise/teams"));
       if (!teams.some(team => team.team_id === selectedTeamId)) selectedTeamId = teams[0]?.team_id ?? "";
