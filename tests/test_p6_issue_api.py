@@ -156,3 +156,18 @@ def test_issue_own_responsible_obs_overrides_project_scope_for_write():
             SCOPE, "ISSUE-API-1", comment="Unauthorized", expected_revision=1,
             auth_context=planner(), occurred_at=AT,
         )
+
+
+def test_issue_responsible_obs_does_not_inherit_project_only_read():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(issue(responsible_obs_id="OBS-LEGAL"), auth_context=planner(), occurred_at=AT)
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return False
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=OBSAccess())
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())
+    assert scoped.list(SCOPE, auth_context=planner()) == ()
