@@ -33,7 +33,11 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             status, payload = 403, {"code": str(exc) or "ORGANIZATION_ACCESS_DENIED"}
         except OrganizationAccessError as exc:
             code = str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"
-            status = 409 if code in {"TEAM_MEMBERSHIP_REVISION_CONFLICT"} else 400
+            status = 409 if code in {
+                "TEAM_MEMBERSHIP_REVISION_CONFLICT",
+                "LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED",
+                "TEAM_OWNER_TRANSFER_REQUIRED",
+            } else 400
             payload = {"code": code}
         except (ValueError, TypeError, KeyError) as exc:
             status, payload = 400, {"code": str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"}
@@ -50,13 +54,41 @@ class EnterpriseOrganizationAccessHttpMiddleware:
 
     @staticmethod
     def _owns(path: str) -> bool:
-        return path == "/api/enterprise/teams" or path.startswith("/api/enterprise/teams/")
+        return (
+            path == "/api/enterprise/teams" or path.startswith("/api/enterprise/teams/")
+            or path == "/api/enterprise/users" or path.startswith("/api/enterprise/users/")
+        )
 
     def _handle(self, method: str, path: str, environ: Mapping[str, object]):
         session_id = self._session_id(environ)
         if not session_id:
             return 401, {"code": "SESSION_REQUIRED"}
         parts = [unquote(part) for part in path.strip("/").split("/")]
+        if parts == ["api", "enterprise", "users"]:
+            if method == "GET":
+                users = self._service.list_accounts(session_id)
+                return 200, {
+                    "contract_version": "cubi-enterprise-user-list.v1",
+                    "users": list(users),
+                }
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
+        if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
+                and parts[4] == "status"):
+            if method == "PATCH":
+                payload = self._body(environ, "cubi-enterprise-user-admin.v1")
+                active = payload.get("active")
+                if not isinstance(active, bool):
+                    raise OrganizationAccessError("ACCOUNT_ACTIVE_FLAG_INVALID")
+                result = self._service.set_account_active(
+                    session_id, parts[3], active=active,
+                )
+                return 200, {
+                    "contract_version": "cubi-enterprise-user-status.v1",
+                    "account": result,
+                }
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
         if parts == ["api", "enterprise", "teams"]:
             if method == "GET":
                 teams = self._service.list_my_teams(session_id)
@@ -115,7 +147,9 @@ class EnterpriseOrganizationAccessHttpMiddleware:
         return None if morsel is None else morsel.value
 
     @staticmethod
-    def _body(environ: Mapping[str, object]) -> dict[str, object]:
+    def _body(
+        environ: Mapping[str, object], contract_version: str = "cubi-enterprise-team.v1"
+    ) -> dict[str, object]:
         try:
             length = int(str(environ.get("CONTENT_LENGTH", "0") or "0"))
         except ValueError as exc:
@@ -130,7 +164,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             payload = json.loads(raw.decode("utf-8") or "{}")
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise OrganizationAccessError("ORGANIZATION_ACCESS_REQUEST_INVALID") from exc
-        if not isinstance(payload, dict) or payload.get("contract_version") != "cubi-enterprise-team.v1":
+        if not isinstance(payload, dict) or payload.get("contract_version") != contract_version:
             raise OrganizationAccessError("UNSUPPORTED_ENTERPRISE_TEAM_CONTRACT")
         return payload
 
