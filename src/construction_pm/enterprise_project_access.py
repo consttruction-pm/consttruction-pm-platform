@@ -41,9 +41,19 @@ PROJECT_PROFILE_ROUTE_ALIASES: dict[str, frozenset[str]] = {
     "threshold.edit": frozenset({"issue_threshold.add_edit_delete"}),
     "threshold.delete": frozenset({"issue_threshold.add_edit_delete"}),
     "baseline.create_update": frozenset({"project_baseline.add_edit_delete"}),
+    "baseline.update": frozenset({"baseline.update"}),
     "wbs.add_edit": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
     "wbs.edit": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
     "wbs.delete": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
+}
+
+PROJECT_PROFILE_ROUTE_REQUIRED_ALL: dict[str, frozenset[str]] = {
+    # V26 explicitly requires both Assign Project Baselines and
+    # Edit Project Details Except Costs/Financials.
+    "baseline.assign": frozenset({
+        "project_baseline.assign",
+        "project.edit_details_except_costs_financials",
+    }),
 }
 
 
@@ -53,6 +63,9 @@ def project_profile_has_permission(
 ) -> bool:
     """Resolve one CUBI route grant against explicit Oracle V26 profile options."""
     grants = frozenset(permissions)
+    required_all = PROJECT_PROFILE_ROUTE_REQUIRED_ALL.get(permission)
+    if required_all is not None:
+        return required_all <= grants
     return permission in grants or bool(
         PROJECT_PROFILE_ROUTE_ALIASES.get(permission, frozenset()) & grants
     )
@@ -174,6 +187,7 @@ class PostgresProjectAccessRepository:
                     WHEN 'threshold.edit' THEN p_permissions ?| ARRAY['threshold.edit','issue_threshold.add_edit_delete']
                     WHEN 'threshold.delete' THEN p_permissions ?| ARRAY['threshold.delete','issue_threshold.add_edit_delete']
                     WHEN 'baseline.create_update' THEN p_permissions ?| ARRAY['baseline.create_update','project_baseline.add_edit_delete']
+                    WHEN 'baseline.assign' THEN p_permissions ? 'project_baseline.assign' AND p_permissions ? 'project.edit_details_except_costs_financials'
                     WHEN 'wbs.add_edit' THEN p_permissions ?| ARRAY['wbs.add_edit','wbs.add_edit_delete_except_costs_financials']
                     WHEN 'wbs.edit' THEN p_permissions ?| ARRAY['wbs.edit','wbs.add_edit_delete_except_costs_financials']
                     WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
