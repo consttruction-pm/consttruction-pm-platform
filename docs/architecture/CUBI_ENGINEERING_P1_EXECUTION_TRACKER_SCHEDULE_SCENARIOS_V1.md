@@ -200,3 +200,11 @@ No design approval, code merge or acceptance sign-off until the phase artifact i
 - Binding source hierarchy is EPPM V26 HTML Help first; Primavera Cloud HTML Help for genuinely EPPM-absent functionality; shared behavior reconciled without duplication; Team Member V26 is a distinct normative source; Professional Help supplementary only.
 - Execution order: P1 Engineering via Qoder; P2 Enterprise architecture/integration coordinated here after stable Engineering contracts; P0 shared security/data/locale boundaries kept minimal and non-blocking.
 - This register is an architecture and feasibility inventory, **not implementation evidence**. Every row still needs exact topic-level source crosswalk, repo/issue/PR collision audit, feasibility and acceptance criteria. No weights/progress changed; no code/tests/merge/deploy are claimed by this documentation step.
+
+
+## 16. First verified dual-Help crosswalk tranche — 2026-11-15
+
+- The full-scope register appendix now contains verified official HTML topics for EPPM V26 Activities/WBS/Gantt/Baselines/Scheduling/Float/Critical Path/Resource Leveling/Progress/Resources/Constraints/Relationships/Risks/Steps/Budgets/Earned Value; Dashboards/Portlets/Portfolios/Capacity Planning/Timesheets/User Access/OBS/Security Profiles/Audit; and Cloud Schedule Scenarios, Monte Carlo risk analysis, Work Plan/hand-offs/commitments/Pull Plans, portfolio resource planning and workflow design/inbox.
+- Master register source-crosswalk commit: `83a2b91185fb6400b6dee1834fbec7d87a07b1e3`.
+- This is a verified first tranche, not a complete topic-level crosswalk for all register rows. Remaining rows stay open; do not infer absent topics.
+- The master register and program issue #1990 now define the full CUBI program. Issue #1989 remains the Scenario Lab child slice only.
