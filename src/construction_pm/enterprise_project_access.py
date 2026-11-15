@@ -77,6 +77,7 @@ class UserOBSAssignment:
 class ProjectAccessRepository(Protocol):
     def create_profile(self, profile: ProjectSecurityProfile, actor_id: str) -> ProjectSecurityProfile: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> ProjectSecurityProfile | None: ...
+    def list_profiles(self, tenant_id: str) -> tuple[ProjectSecurityProfile, ...]: ...
     def assign_user_obs(self, assignment: UserOBSAssignment) -> UserOBSAssignment: ...
     def revoke_user_obs(self, tenant_id: str, user_id: str, obs_id: str, profile_id: str,
                         actor_id: str, expected_revision: int, at: datetime) -> UserOBSAssignment: ...
@@ -180,6 +181,21 @@ class PostgresProjectAccessRepository:
             tuple(permissions or ()), bool(row[4]), int(row[5]), row[6])
         profile.validate()
         return profile
+
+    def list_profiles(self, tenant_id: str) -> tuple[ProjectSecurityProfile, ...]:
+        rows = self.connection.execute(
+            """SELECT tenant_id,profile_id,name,permissions,active,revision,created_at
+               FROM enterprise_project_security_profiles WHERE tenant_id=%s
+               ORDER BY name,profile_id""", (tenant_id,)
+        ).fetchall()
+        profiles=[]
+        for row in rows:
+            permissions = row[3] if not isinstance(row[3], str) else json.loads(row[3])
+            profile = ProjectSecurityProfile(str(row[0]),str(row[1]),str(row[2]),
+                tuple(permissions or ()),bool(row[4]),int(row[5]),row[6])
+            profile.validate()
+            profiles.append(profile)
+        return tuple(profiles)
 
     def assign_user_obs(self, assignment: UserOBSAssignment) -> UserOBSAssignment:
         assignment.validate()
@@ -293,6 +309,14 @@ class EnterpriseProjectAccessService:
             tuple(dict.fromkeys(permissions)), True, 1, self._now())
         profile.validate()
         return self.repository.create_profile(profile, session.user_id)
+
+    def list_profiles(self, session_id: str) -> tuple[ProjectSecurityProfile, ...]:
+        session = self._admin_session(session_id)
+        return self.repository.list_profiles(session.tenant_id)
+
+    def list_obs_nodes(self, session_id: str):
+        session = self._admin_session(session_id)
+        return self.obs_lookup.list(session.tenant_id)
 
     def assign_user_obs(self, session_id: str, user_id: str, obs_id: str,
                         profile_id: str) -> UserOBSAssignment:
