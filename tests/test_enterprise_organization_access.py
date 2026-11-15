@@ -70,6 +70,15 @@ class Repository:
             and m.status == "active" and team.status == "active"
         )
 
+    def list_memberships(self, tenant_id, team_id):
+        return tuple(item for (tenant, team, _), item in self.members.items()
+                     if tenant == tenant_id and team == team_id)
+
+    def list_active_users(self, tenant_id):
+        return ({"user_id": "member-1", "email": "member@example.test", "display_name": "Member"},
+                {"user_id": "owner", "email": "owner@example.test", "display_name": "Owner"},
+                {"user_id": "other-tenant", "email": "other@example.test", "display_name": "Other"})
+
 
 def service(roles=frozenset({"enterprise_admin", "pro_monthly_active"})):
     repository = Repository()
@@ -131,3 +140,17 @@ def test_revoked_membership_fails_closed_on_next_authorization_check():
     assert removed.revision == 2
     with pytest.raises(OrganizationAccessDenied, match="ACTIVE_TEAM_MEMBERSHIP_REQUIRED"):
         app.require_active_membership("tenant-a", team.team_id, "member-1")
+
+
+def test_team_member_directory_requires_manager_and_is_tenant_scoped():
+    app, repository = service()
+    team = app.create_team("owner-session", "Team A")
+    member = app.add_member("owner-session", team.team_id, "member-1", "field_worker")
+    listed = app.list_team_members("owner-session", team.team_id)
+    assert {item.user_id for item in listed} == {"owner", "member-1"}
+    eligible = app.list_eligible_users("owner-session", team.team_id)
+    assert eligible == ()
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
+        app.list_team_members("viewer-session", team.team_id)
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
+        app.list_eligible_users("viewer-session", team.team_id)
