@@ -408,5 +408,35 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
                 tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
                 actor_user_id=admin_id, occurred_at=now, expected_revision=1,
             )
+
+        # No Global Privileges still permits OBS-scoped Project Superuser access.
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,'p6-no-global-privileges','No Global Privileges','global',TRUE,1,%s,%s,%s,%s)",
+            (tenant, admin_id, admin_id, now, now),
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id="p6-no-global-privileges", user_id=target_id,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,'p6-project-superuser','Project Superuser','project',TRUE,1,%s,%s,%s,%s)",
+            (tenant, admin_id, admin_id, now, now),
+        )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="p6-project-superuser", user_id=target_id,
+                obs_id=obs_id, actor_user_id=target_id, occurred_at=now,
+            )
+        profiles.assign(
+            tenant_id=tenant, profile_id="p6-project-superuser", user_id=target_id,
+            obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
+        )
+        target_context = AuthorizationContext(tenant, project_id, target_id, frozenset({"planner"}))
+        assert policy.is_allowed(target_context, Permission.PROJECT_SCHEDULE)
+        assert policy.is_allowed(target_context, Permission.PROJECT_WRITE)
         connection.rollback()
 
