@@ -223,6 +223,47 @@ SECURITY_PROFILE_SCHEMA = (
     WHERE obs_id=''
     """,
     """
+    CREATE OR REPLACE FUNCTION cubi_p6_security_profile_assignment_guard()
+    RETURNS trigger LANGUAGE plpgsql AS $
+    DECLARE profile_scope TEXT; profile_active BOOLEAN;
+            account_tenant TEXT; account_active BOOLEAN;
+    BEGIN
+        SELECT scope,active INTO profile_scope,profile_active
+        FROM p6_security_profiles
+        WHERE tenant_id=NEW.tenant_id AND profile_id=NEW.profile_id;
+        IF profile_scope IS NULL OR NOT profile_active THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_INACTIVE_OR_MISSING';
+        END IF;
+        SELECT tenant_id,active INTO account_tenant,account_active
+        FROM identity_users WHERE user_id=NEW.user_id;
+        IF account_tenant IS DISTINCT FROM NEW.tenant_id OR NOT COALESCE(account_active,FALSE) THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_USER_NOT_ELIGIBLE';
+        END IF;
+        IF profile_scope='global' AND NEW.obs_id<>'' THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_ASSIGNMENT_SCOPE_MISMATCH';
+        END IF;
+        IF profile_scope='project' AND NEW.obs_id='' THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_ASSIGNMENT_SCOPE_MISMATCH';
+        END IF;
+        IF NEW.obs_id<>'' AND NOT EXISTS (
+            SELECT 1 FROM p6_obs_node WHERE tenant_id=NEW.tenant_id AND obs_id=NEW.obs_id
+        ) THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_OBS_NOT_FOUND';
+        END IF;
+        RETURN NEW;
+    END;
+    $
+    """,
+    """
+    DROP TRIGGER IF EXISTS p6_security_profile_assignment_guard
+    ON p6_security_profile_assignments
+    """,
+    """
+    CREATE TRIGGER p6_security_profile_assignment_guard
+    BEFORE INSERT OR UPDATE ON p6_security_profile_assignments
+    FOR EACH ROW EXECUTE FUNCTION cubi_p6_security_profile_assignment_guard()
+    """,
+    """
     CREATE TABLE IF NOT EXISTS p6_security_profile_audit (
         audit_id TEXT PRIMARY KEY,
         tenant_id TEXT NOT NULL,
