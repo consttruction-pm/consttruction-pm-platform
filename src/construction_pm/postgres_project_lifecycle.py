@@ -204,23 +204,54 @@ class PostgresProjectRepository(ProjectRepository):
 
     def __init__(self, connection: ProjectLifecyclePostgresConnection) -> None:
         self._connection = connection
+        self._obs_access_enabled: bool | None = None
+
+    def _has_obs_access_function(self) -> bool:
+        if self._obs_access_enabled is None:
+            row = self._connection.execute(
+                "SELECT to_regprocedure('cubi_user_has_project_access(text,text,text,text)') IS NOT NULL"
+            ).fetchone()
+            self._obs_access_enabled = bool(row and row[0] is True)
+        return self._obs_access_enabled
+
+    def _project_access_guard(self, permission: str, alias: str = "") -> str:
+        if self._has_obs_access_function():
+            return (
+                f"AND cubi_user_has_project_access({alias}tenant_id,%s::text,"
+                f"{alias}project_id,%s::text) "
+            )
+        return (
+            f"AND EXISTS (SELECT 1 FROM project_lifecycle_memberships m "
+            f"WHERE m.tenant_id={alias}tenant_id AND m.project_id={alias}project_id "
+            "AND m.user_id=%s) "
+        )
 
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
-        rows = self._connection.execute(
-            self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND m.user_id=%s ORDER BY p.project_id",
-            (tenant_id, user_id),
-        ).fetchall()
+        if self._has_obs_access_function():
+            query = self._SELECT + (
+                "WHERE p.tenant_id=%s AND cubi_user_has_project_access("
+                "p.tenant_id,%s::text,p.project_id,'project.read'::text) ORDER BY p.project_id"
+            )
+        else:
+            query = self._SELECT + (
+                "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+                "WHERE p.tenant_id=%s AND m.user_id=%s ORDER BY p.project_id"
+            )
+        rows = self._connection.execute(query, (tenant_id, user_id)).fetchall()
         return tuple(_summary(r) for r in rows)
 
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None:
-        row = self._connection.execute(
-            self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND m.user_id=%s",
-            (tenant_id, project_id, user_id),
-        ).fetchone()
+        if self._has_obs_access_function():
+            query = self._SELECT + (
+                "WHERE p.tenant_id=%s AND p.project_id=%s AND cubi_user_has_project_access("
+                "p.tenant_id,%s::text,p.project_id,'project.read'::text)"
+            )
+        else:
+            query = self._SELECT + (
+                "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+                "WHERE p.tenant_id=%s AND p.project_id=%s AND m.user_id=%s"
+            )
+        row = self._connection.execute(query, (tenant_id, project_id, user_id)).fetchone()
         return None if row is None else _summary(row)
 
     def create_for_user(
@@ -347,10 +378,8 @@ class PostgresProjectRepository(ProjectRepository):
             "activity_id_increment=COALESCE(%s, activity_id_increment), "
             "increment_activity_id=COALESCE(%s, increment_activity_id), "
             "settings_revision=settings_revision+1 "
-            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
-            "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
-            "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -380,6 +409,7 @@ class PostgresProjectRepository(ProjectRepository):
                 project_id,
                 expected_revision,
                 user_id,
+                *(("project.admin",) if self._has_obs_access_function() else ()),
             ),
         ).fetchone()
         return None if row is None else _summary(row)
@@ -400,11 +430,10 @@ class PostgresProjectRepository(ProjectRepository):
             raise ValueError("PROJECT_STATUS_INVALID")
         current = self._connection.execute(
             "SELECT p.status, p.settings_revision FROM project_lifecycle_projects p "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
-            "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "AND m.user_id=%s)",
-            (tenant_id, project_id, user_id),
+            "WHERE p.tenant_id=%s AND p.project_id=%s "
+            + self._project_access_guard("project.admin", "p."),
+            (tenant_id, project_id, user_id, "project.admin") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchone()
         if current is None:
             return None
@@ -417,10 +446,8 @@ class PostgresProjectRepository(ProjectRepository):
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET status=%s, "
             "settings_revision=settings_revision+1 "
-            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
-            "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
-            "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -428,7 +455,10 @@ class PostgresProjectRepository(ProjectRepository):
             "activity_id_prefix, activity_id_suffix, activity_id_increment, "
             "increment_activity_id, checkout_state, checked_out_by, checked_out_at, "
             "default_duration_type, default_cost_account_id, obs_id",
-            (status, tenant_id, project_id, expected_revision, user_id),
+            (
+                status, tenant_id, project_id, expected_revision, user_id,
+                *(("project.admin",) if self._has_obs_access_function() else ()),
+            ),
         ).fetchone()
         if row is None:
             return None
@@ -484,10 +514,8 @@ class PostgresProjectRepository(ProjectRepository):
             "checked_out_by=%s, checked_out_at=%s, "
             "settings_revision=settings_revision+1 "
             "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s "
-            "AND " + lease_condition + " AND EXISTS ("
-            "SELECT 1 FROM project_lifecycle_memberships m "
-            "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
-            "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
+            "AND " + lease_condition + " "
+            + self._project_access_guard("project.admin") +
             "RETURNING project_id, tenant_id, name, revision, description, "
             "start_date, date_system, primary_calendar_id, settings_revision, status, "
             "business_domain, obs_responsible_manager, website_url, "
@@ -504,6 +532,7 @@ class PostgresProjectRepository(ProjectRepository):
                 expected_revision,
                 *lease_values,
                 user_id,
+                *(("project.admin",) if self._has_obs_access_function() else ()),
             ),
         ).fetchone()
         return None if row is None else _summary(row)
@@ -515,11 +544,11 @@ class PostgresProjectRepository(ProjectRepository):
             "SELECT e.event_id, e.from_status, e.to_status, e.actor_user_id, "
             "e.recorded_at, e.settings_revision "
             "FROM project_lifecycle_status_event e "
-            "JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
-            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
-            "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
-            (tenant_id, project_id, user_id),
+            "WHERE e.tenant_id=%s AND e.project_id=%s "
+            + self._project_access_guard("project.read", "e.")
+            + "ORDER BY e.settings_revision ASC, e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id, "project.read") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchall()
         return tuple(
             ProjectStatusEvent(
@@ -603,11 +632,11 @@ class PostgresProjectRepository(ProjectRepository):
             "e.applied_percent_complete_type, e.applied_duration_type, "
             "e.applied_cost_account_id, e.actor_user_id, e.recorded_at "
             "FROM project_lifecycle_defaults_event e "
-            "JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id "
-            "WHERE e.tenant_id=%s AND e.project_id=%s AND m.user_id=%s "
-            "ORDER BY e.recorded_at ASC, e.event_id ASC",
-            (tenant_id, project_id, user_id),
+            "WHERE e.tenant_id=%s AND e.project_id=%s "
+            + self._project_access_guard("project.read", "e.")
+            + "ORDER BY e.recorded_at ASC, e.event_id ASC",
+            (tenant_id, project_id, user_id, "project.read") if self._has_obs_access_function()
+            else (tenant_id, project_id, user_id),
         ).fetchall()
         return tuple(
             ProjectDefaultsApplicationEvent(
