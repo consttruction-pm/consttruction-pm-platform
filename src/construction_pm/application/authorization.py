@@ -14,6 +14,7 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    PROJECT_COSTS_VIEW = "project.view_costs_financials"
     # P6 V26 project-security capabilities used at operation boundaries.
     ACTIVITY_VIEW = "activity.view"
     ACTIVITY_ADD_EDIT = "activity.add_edit"
@@ -127,6 +128,7 @@ class RoleBasedAuthorizationPolicy:
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
             Permission.BASELINE_ASSIGN: Permission.PROJECT_WRITE,
             Permission.BASELINE_UPDATE: Permission.PROJECT_WRITE,
+            Permission.PROJECT_COSTS_VIEW: Permission.PROJECT_READ,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
             Permission.WBS_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_ADD_EDIT: Permission.PROJECT_WRITE,
