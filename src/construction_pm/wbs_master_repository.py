@@ -944,6 +944,7 @@ class PostgresWBSMasterRepository:
                     WHEN 'threshold.edit' THEN p_permissions ?| ARRAY['threshold.edit','issue_threshold.add_edit_delete']
                     WHEN 'threshold.delete' THEN p_permissions ?| ARRAY['threshold.delete','issue_threshold.add_edit_delete']
                     WHEN 'baseline.create_update' THEN p_permissions ?| ARRAY['baseline.create_update','project_baseline.add_edit_delete']
+                    WHEN 'baseline.assign' THEN p_permissions ? 'project_baseline.assign' AND p_permissions ? 'project.edit_details_except_costs_financials'
                     WHEN 'wbs.add_edit' THEN p_permissions ?| ARRAY['wbs.add_edit','wbs.add_edit_delete_except_costs_financials']
                     WHEN 'wbs.edit' THEN p_permissions ?| ARRAY['wbs.edit','wbs.add_edit_delete_except_costs_financials']
                     WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
