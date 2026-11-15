@@ -260,7 +260,7 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_VIEW):
             raise AuthorizationError("authorization denied for permission=project.read")
         return tuple(
             _dto(item, self.repository.list_milestones(scope, item.wbs_id))
