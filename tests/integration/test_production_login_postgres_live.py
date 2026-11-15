@@ -103,15 +103,26 @@ def runtime() -> ProductionRuntime:
         store = PostgresIdentityStore(connection)
         for user in users.values():
             store.upsert_user(user)
-        for tenant, project, name in (
-            (tenant_a, project_a, "Authorized Project"),
-            (tenant_b, project_b, "Other Tenant Project"),
+        obs_a = f"obs-a-{suffix}"
+        obs_b = f"obs-b-{suffix}"
+        for tenant, obs_id, name in (
+            (tenant_a, obs_a, "Tenant A OBS"),
+            (tenant_b, obs_b, "Tenant B OBS"),
+        ):
+            connection.execute(
+                "INSERT INTO p6_obs_node (tenant_id,obs_id,name) VALUES (%s,%s,%s) "
+                "ON CONFLICT (tenant_id,obs_id) DO NOTHING",
+                (tenant, obs_id, name),
+            )
+        for tenant, project, name, obs_id in (
+            (tenant_a, project_a, "Authorized Project", obs_a),
+            (tenant_b, project_b, "Other Tenant Project", obs_b),
         ):
             connection.execute(
                 "INSERT INTO project_lifecycle_projects "
-                "(tenant_id, project_id, name) VALUES (%s, %s, %s) "
+                "(tenant_id, project_id, name, obs_id) VALUES (%s, %s, %s, %s) "
                 "ON CONFLICT (tenant_id, project_id) DO NOTHING",
-                (tenant, project, name),
+                (tenant, project, name, obs_id),
             )
         for user in users.values():
             connection.execute(
@@ -124,6 +135,39 @@ def runtime() -> ProductionRuntime:
                     user.user_id,
                 ),
             )
+
+        # The live production fixture mirrors P6 V26 security assignments:
+        # every user under test gets a Global profile; project readers get an
+        # OBS-assigned Project profile. Admin Superuser is seeded explicitly
+        # as an installation-level built-in, never via enterprise_admin.
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        profile_specs = [
+            (tenant_a, "p6-admin-superuser", "Admin Superuser", "global", users["admin"].user_id, ""),
+            (tenant_b, "p6-admin-superuser", "Admin Superuser", "global", users["outsider"].user_id, ""),
+            (tenant_a, f"global-viewer-{suffix}", "Viewer Global", "global", users["viewer"].user_id, ""),
+            (tenant_a, f"project-viewer-{suffix}", "Viewer Project", "project", users["viewer"].user_id, obs_a),
+            (tenant_a, f"global-planner-{suffix}", "Planner Global", "global", users["planner"].user_id, ""),
+            (tenant_a, f"project-planner-{suffix}", "Planner Project", "project", users["planner"].user_id, obs_a),
+        ]
+        for tenant, profile_id, name, scope, user_id, assigned_obs in profile_specs:
+            connection.execute(
+                "INSERT INTO p6_security_profiles "
+                "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+                "VALUES (%s,%s,%s,%s,TRUE,1,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (tenant, profile_id, name, scope, user_id, user_id, now, now),
+            )
+            connection.execute(
+                "INSERT INTO p6_security_profile_assignments "
+                "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
+                "VALUES (%s,%s,%s,%s,1,%s,%s) ON CONFLICT DO NOTHING",
+                (tenant, profile_id, user_id, assigned_obs, user_id, now),
+            )
+        connection.execute(
+            "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+            "VALUES (%s,%s,'add_edit_delete_user_defined_fields') ON CONFLICT DO NOTHING",
+            (tenant_a, f"global-planner-{suffix}"),
+        )
         connection.commit()
     finally:
         instance.pool.release(connection, healthy=True)
