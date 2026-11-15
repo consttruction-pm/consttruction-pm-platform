@@ -24,3 +24,85 @@ def test_delete_privilege_inherits_edit_assign_and_view():
 def test_unknown_privilege_fails_closed():
     with pytest.raises(ValueError, match="UNKNOWN_PROJECT_PRIVILEGE"):
         expand_project_privileges({"project.superuser"})
+
+
+
+def test_v26_oracle_checkbox_catalogue_covers_all_nine_detail_categories():
+    labels = {item.label for item in PROJECT_PRIVILEGES}
+    required = {
+        "Add/Edit Activities Except Relationships",
+        "Delete Activities",
+        "Add/Edit/Delete Activity Relationships",
+        "Add/Edit/Delete Expenses",
+        "Add/Edit/Delete EPS Except Costs/Financials",
+        "Edit EPS Costs/Financials",
+        "Add Projects",
+        "Delete Projects",
+        "Edit Project Details Except Costs/Financials",
+        "Add/Edit/Delete WBS Except Costs/Financials",
+        "Edit WBS Costs/Financials",
+        "View Project Costs/Financials",
+        "Delete Project Data with Timesheet Actuals",
+        "Delete Published Project Data",
+        "Export Project Data",
+        "Add/Edit/Delete Issues and Issue Thresholds",
+        "Add/Edit/Delete Project Baselines",
+        "Add/Edit/Delete Project Calendars",
+        "Add/Edit/Delete Risks",
+        "Add/Edit/Delete Template Documents",
+        "Add/Edit/Delete Work Products and Documents",
+        "Assign Project Baselines",
+        "Approve Timesheets as Project Manager",
+        "Administer Project External Applications",
+        "Exchange Project Data with Primavera Unifier",
+        "Exchange Project Data with Oracle Primavera Cloud",
+        "Exchange Project Data with Gateway",
+        "Add/Edit Activity Resource Requests",
+        "Add/Edit/Delete Resource Assignments for Resource Planning",
+        "Add/Edit/Delete Role Assignments for Resource Planning",
+        "Edit Committed Flag for Resource Planning",
+        "Edit Future Periods",
+        "Edit Period Performance",
+        "Apply Actuals",
+        "Check In/Check Out Projects and Open Projects Exclusively",
+        "Level Resources",
+        "Schedule Projects",
+        "Monitor Project Thresholds",
+        "Store Period Performance",
+        "Summarize Projects",
+        "Edit Publication Priority",
+        "Run Baseline Update",
+        "Run Global Change",
+        "Allow Integration with Primavera Unifier",
+        "Perform Global Search & Replace",
+        "Add/Edit Project Level Layouts",
+        "Edit Project Reports",
+        "Publish Project Website",
+        "Add/Edit/Delete Project Visualizer Layouts",
+    }
+    assert required <= labels
+
+
+def test_v26_combined_privileges_expand_only_to_documented_domain_targets():
+    expanded = expand_project_privileges({
+        "wbs.add_edit_delete_except_costs_financials",
+        "issue_threshold.add_edit_delete",
+        "project_activity_code.delete",
+        "risk.add_edit_delete",
+    })
+    assert {
+        "wbs.edit", "wbs.assign", "wbs.view",
+        "issue.edit", "issue.assign", "issue.view",
+        "threshold.edit", "threshold.assign", "threshold.view",
+        "project_activity_code.add", "project_activity_code.edit",
+        "project_activity_code.assign", "project_activity_code.view",
+        "risk.edit", "risk.assign", "risk.view",
+    } <= expanded
+    assert "wbs.edit_costs_financials" not in expanded
+    assert "project.view_costs_financials" not in expanded
+
+
+def test_v26_template_document_requires_separate_work_product_document_grant():
+    expanded = expand_project_privileges({"template_document.add_edit_delete"})
+    assert "work_product_document.add_edit_delete" not in expanded
+    assert "document.add_edit_delete" not in expanded
