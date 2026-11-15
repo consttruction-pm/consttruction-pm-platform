@@ -226,10 +226,10 @@ class P6WBSMasterAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
-        self._require_obs_permission(scope, auth_context, Permission.PROJECT_READ.value, wbs_id=wbs_id)
         item = self.repository.get(scope, wbs_id)
         if item is None:
             return None
+        self._require_obs_permission(scope, auth_context, Permission.PROJECT_READ.value, wbs_id=wbs_id)
         return _dto(item, self.repository.list_milestones(scope, wbs_id))
 
     def _can_read_wbs(self, scope: BackendScope, auth_context: AuthorizationContext, wbs_id: str) -> bool:
