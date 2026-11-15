@@ -572,6 +572,10 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         PostgresP6OBSRepository(connection).upsert(
             P6OBSNode(tenant, obs_id, name="EPS Responsible OBS")
         )
+        other_obs_id = f"eps-other-obs-{suffix}"
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, other_obs_id, name="WBS Override OBS")
+        )
         PostgresProjectRepository(connection).create_for_user(
             tenant, user_id, project_id, "EPS inherited project"
         )
@@ -582,6 +586,13 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
             "code,name,sequence_number,record_revision,status,percent_complete_technique) "
             "VALUES (%s,%s,0,%s,'project',NULL,'ROOT','Root WBS',0,1,'active','activities')",
             (tenant, project_id, f"eps-wbs-{suffix}"),
+        )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+            "VALUES (%s,%s,0,%s,'wbs',%s,'OVERRIDE','WBS OBS Override',1,1,'active','activities')",
+            (tenant, project_id, f"eps-wbs-override-{suffix}", f"eps-wbs-{suffix}"),
         )
         eps = PostgresP6EPSRepository(connection)
         eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id))
@@ -596,6 +607,10 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert eps.get_wbs_responsibility(
             tenant, project_id, f"eps-wbs-{suffix}"
         ) == (obs_id, 1)
+        eps.assign_wbs_responsibility(
+            tenant, project_id, f"eps-wbs-override-{suffix}", other_obs_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
         with pytest.raises(P6EPSError, match="P6_WBS_RESPONSIBILITY_REVISION_CONFLICT"):
             eps.assign_wbs_responsibility(
                 tenant, project_id, f"eps-wbs-{suffix}", obs_id,
@@ -631,6 +646,12 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         )
         context = AuthorizationContext(tenant, project_id, user_id, frozenset({"project_admin"}))
         assert policy.is_allowed(context, Permission.PROJECT_READ)
+        assert policy.is_allowed_for_wbs(
+            context, Permission.PROJECT_READ, f"eps-wbs-override-{suffix}"
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.PROJECT_WRITE, f"eps-wbs-override-{suffix}"
+        )
         wbs_api = P6WBSMasterAPI(
             PostgresWBSMasterRepository(connection), policy,
             responsibility_repository=eps,
@@ -639,6 +660,10 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert wbs_api.get_responsible_obs(
             wbs_scope, f"eps-wbs-{suffix}", auth_context=context
         )["responsible_obs_id"] == obs_id
+        visible_wbs = wbs_api.list(wbs_scope, auth_context=context)
+        assert {item["wbs"]["wbs_id"] for item in visible_wbs} == {
+            f"eps-wbs-{suffix}", f"eps-wbs-override-{suffix}"
+        }
         changed = wbs_api.assign_responsible_obs(
             wbs_scope, f"eps-wbs-{suffix}", obs_id,
             expected_revision=1, occurred_at=now, auth_context=context,
