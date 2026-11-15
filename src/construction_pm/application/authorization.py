@@ -14,6 +14,43 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    P6_UDF_ADMIN = "p6.udf.admin"
+    P6_WBS_ADMIN = "p6.wbs.admin"
+    P6_ACTIVITY_ADMIN = "p6.activity.admin"
+    P6_ACTIVITY_RELATIONSHIP_ADMIN = "p6.activity.relationship.admin"
+    P6_ACTIVITY_ID_ADMIN = "p6.activity.id.admin"
+    P6_EXPENSE_ADMIN = "p6.expense.admin"
+    P6_DISCUSSION_DELETE = "p6.discussion.delete"
+    P6_ISSUE_ADMIN = "p6.issue.admin"
+    P6_BASELINE_ADMIN = "p6.baseline.admin"
+    P6_PROJECT_CALENDAR_ADMIN = "p6.project.calendar.admin"
+    P6_RISK_ADMIN = "p6.risk.admin"
+    P6_PROJECT_DOCUMENT_ADMIN = "p6.project.document.admin"
+    P6_ASSIGN_PROJECT_BASELINE = "p6.project.baseline.assign"
+    P6_APPLY_ACTUALS = "p6.actuals.apply"
+    P6_STORE_PERIOD_PERFORMANCE = "p6.period.performance.store"
+    P6_MONITOR_THRESHOLDS = "p6.thresholds.monitor"
+    P6_COSTS_VIEW = "p6.costs.view"
+    P6_RESOURCE_REQUEST_ADMIN = "p6.resource.request.admin"
+    P6_PROJECT_CHECKOUT_ADMIN = "p6.project.checkout.admin"
+    P6_LEVEL_RESOURCES = "p6.resources.level"
+    P6_BASELINE_UPDATE = "p6.baseline.update"
+    P6_GLOBAL_CHANGE = "p6.global.change"
+    P6_EPS_ADMIN = "p6.eps.admin"
+    P6_PROJECT_CREATE = "p6.project.create"
+    P6_PROJECT_DELETE = "p6.project.delete"
+    P6_EPS_COSTS_ADMIN = "p6.eps.costs.admin"
+    P6_WBS_COSTS_ADMIN = "p6.wbs.costs.admin"
+    P6_EXPORT_PROJECT_DATA = "p6.project.export"
+    P6_PROJECT_LEVEL_LAYOUT_ADMIN = "p6.project.layout.admin"
+    P6_REPORT_ADMIN = "p6.project.report.admin"
+    P6_OBS_ADMIN = "p6.obs.admin"
+    P6_COST_ACCOUNT_ADMIN = "p6.cost.account.admin"
+    P6_FINANCIAL_PERIOD_ADMIN = "p6.financial.period.admin"
+    P6_ROLE_ADMIN = "p6.role.admin"
+    P6_RESOURCE_ADD = "p6.resource.add"
+    P6_RESOURCE_EDIT = "p6.resource.edit"
+    P6_RESOURCE_DELETE = "p6.resource.delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -65,8 +102,41 @@ class RoleBasedAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
+        p6_project_write_permissions = {
+            Permission.P6_UDF_ADMIN, Permission.P6_OBS_ADMIN,
+            Permission.P6_COST_ACCOUNT_ADMIN, Permission.P6_FINANCIAL_PERIOD_ADMIN,
+            Permission.P6_ROLE_ADMIN, Permission.P6_RESOURCE_ADD,
+            Permission.P6_RESOURCE_EDIT, Permission.P6_RESOURCE_DELETE,
+            Permission.P6_WBS_ADMIN, Permission.P6_ACTIVITY_ADMIN,
+            Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN, Permission.P6_ACTIVITY_ID_ADMIN,
+            Permission.P6_EXPENSE_ADMIN, Permission.P6_DISCUSSION_DELETE,
+            Permission.P6_ISSUE_ADMIN, Permission.P6_BASELINE_ADMIN,
+            Permission.P6_PROJECT_CALENDAR_ADMIN, Permission.P6_RISK_ADMIN,
+            Permission.P6_PROJECT_DOCUMENT_ADMIN, Permission.P6_ASSIGN_PROJECT_BASELINE,
+            Permission.P6_APPLY_ACTUALS, Permission.P6_STORE_PERIOD_PERFORMANCE,
+            Permission.P6_MONITOR_THRESHOLDS, Permission.P6_COSTS_VIEW,
+            Permission.P6_RESOURCE_REQUEST_ADMIN, Permission.P6_PROJECT_CHECKOUT_ADMIN,
+            Permission.P6_LEVEL_RESOURCES, Permission.P6_BASELINE_UPDATE,
+            Permission.P6_GLOBAL_CHANGE, Permission.P6_EPS_ADMIN,
+            Permission.P6_PROJECT_CREATE, Permission.P6_PROJECT_DELETE,
+            Permission.P6_EPS_COSTS_ADMIN, Permission.P6_WBS_COSTS_ADMIN,
+            Permission.P6_EXPORT_PROJECT_DATA, Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
+            Permission.P6_REPORT_ADMIN,
+        }
+        p6_project_admin_permissions = {
+            Permission.P6_PROJECT_CREATE, Permission.P6_PROJECT_DELETE,
+            Permission.P6_EPS_ADMIN,
+        }
         return any(
             permission in self._role_permissions.get(role, frozenset())
+            or (
+                permission in p6_project_admin_permissions
+                and Permission.PROJECT_ADMIN in self._role_permissions.get(role, frozenset())
+            )
+            or (
+                permission in p6_project_write_permissions
+                and Permission.PROJECT_WRITE in self._role_permissions.get(role, frozenset())
+            )
             for role in context.roles
         )
 
@@ -92,6 +162,42 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_READ,
                 Permission.PROJECT_WRITE,
                 Permission.PROJECT_SCHEDULE,
+                Permission.P6_UDF_ADMIN,
+                Permission.P6_ACTIVITY_ADMIN,
+                Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+                Permission.P6_ACTIVITY_ID_ADMIN,
+                Permission.P6_EXPENSE_ADMIN,
+                Permission.P6_DISCUSSION_DELETE,
+                Permission.P6_ISSUE_ADMIN,
+                Permission.P6_BASELINE_ADMIN,
+                Permission.P6_PROJECT_CALENDAR_ADMIN,
+                Permission.P6_RISK_ADMIN,
+                Permission.P6_PROJECT_DOCUMENT_ADMIN,
+                Permission.P6_ASSIGN_PROJECT_BASELINE,
+                Permission.P6_APPLY_ACTUALS,
+                Permission.P6_STORE_PERIOD_PERFORMANCE,
+                Permission.P6_MONITOR_THRESHOLDS,
+                Permission.P6_COSTS_VIEW,
+                Permission.P6_RESOURCE_REQUEST_ADMIN,
+                Permission.P6_PROJECT_CHECKOUT_ADMIN,
+                Permission.P6_LEVEL_RESOURCES,
+                Permission.P6_BASELINE_UPDATE,
+                Permission.P6_GLOBAL_CHANGE,
+                Permission.P6_EPS_ADMIN,
+                Permission.P6_PROJECT_CREATE,
+                Permission.P6_PROJECT_DELETE,
+                Permission.P6_EPS_COSTS_ADMIN,
+                Permission.P6_WBS_COSTS_ADMIN,
+                Permission.P6_EXPORT_PROJECT_DATA,
+                Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
+                Permission.P6_REPORT_ADMIN,
+                Permission.P6_OBS_ADMIN,
+                Permission.P6_COST_ACCOUNT_ADMIN,
+                Permission.P6_FINANCIAL_PERIOD_ADMIN,
+                Permission.P6_ROLE_ADMIN,
+                Permission.P6_RESOURCE_ADD,
+                Permission.P6_RESOURCE_EDIT,
+                Permission.P6_RESOURCE_DELETE,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
@@ -110,6 +216,9 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_WRITE,
                 Permission.PROJECT_SCHEDULE,
                 Permission.PROJECT_ADMIN,
+                Permission.P6_UDF_ADMIN,
+                Permission.P6_WBS_ADMIN,
+                Permission.P6_ACTIVITY_ADMIN,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,

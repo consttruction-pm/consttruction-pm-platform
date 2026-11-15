@@ -26,12 +26,16 @@ from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_application import EnterpriseTaskApplicationService
+from ..enterprise_organization_access import EnterpriseOrganizationAccessService
+from ..enterprise_organization_access_http import EnterpriseOrganizationAccessHttpMiddleware
+from ..enterprise_organization_access_repository import PostgresEnterpriseOrganizationAccessRepository
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
 )
+from ..security_profiles import PostgresSecurityProfileAuthorizationPolicy, PostgresSecurityProfileRepository
 from ..application.project_lifecycle import ProjectLifecycleService
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.models import BackendScope
@@ -47,6 +51,7 @@ from ..identity_session import (
 from ..p6_cost_account_api import P6CostAccountAPI
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
+from ..p6_eps_repository import PostgresP6EPSRepository
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -290,10 +295,13 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
+        eps_repository = PostgresP6EPSRepository(connection)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
@@ -301,11 +309,13 @@ class ProductionRuntime:
                 policy,
                 cost_accounts=cost_account_repository,
                 obs_nodes=obs_node_repository,
+                eps_nodes=eps_repository,
             )
         )
         checkout_lease = PostgresProjectCheckoutLease(connection)
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
+        wbs_responsibility_repository = eps_repository
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
@@ -341,6 +351,7 @@ class ProductionRuntime:
             authorization_policy=policy,
             activity_master_repository=activity_repository,
             wbs_master_repository=wbs_repository,
+            wbs_responsibility_repository=wbs_responsibility_repository,
             relationship_master_repository=relationship_repository,
             checkout_lease=checkout_lease,
             workspace_read_v2_service=workspace_read_service,
@@ -366,6 +377,14 @@ class ProductionRuntime:
             EnterpriseTaskApplicationService(
                 PostgresEnterpriseTaskRepository(connection),
                 lifecycle_api,
+            ),
+        )
+        self.api_app = EnterpriseOrganizationAccessHttpMiddleware(
+            self.api_app,
+            EnterpriseOrganizationAccessService(
+                PostgresEnterpriseOrganizationAccessRepository(connection),
+                lifecycle_api,
+                security_profiles=PostgresSecurityProfileRepository(connection),
             ),
         )
         self.web_app = ProductionWebApp(

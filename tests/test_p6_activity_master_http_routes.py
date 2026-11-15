@@ -161,6 +161,31 @@ class CostAccounts:
         return account_id in self.account_ids
 
 
+class WbsResponsibilityStore:
+    def __init__(self):
+        self.items = {}
+
+    def get_wbs_responsibility(self, tenant_id, project_id, wbs_id):
+        return self.items.get((tenant_id, project_id, wbs_id))
+
+    def assign_wbs_responsibility(
+        self, tenant_id, project_id, wbs_id, responsible_obs_id, *,
+        actor_user_id, occurred_at, expected_revision=None,
+    ):
+        key = (tenant_id, project_id, wbs_id)
+        current = self.items.get(key)
+        if current is None:
+            if expected_revision not in (None, 0):
+                raise ValueError("P6_WBS_RESPONSIBILITY_REVISION_CONFLICT")
+            revision = 1
+        else:
+            if expected_revision != current[1]:
+                raise ValueError("P6_WBS_RESPONSIBILITY_REVISION_CONFLICT")
+            revision = expected_revision + 1
+        self.items[key] = (responsible_obs_id, revision)
+        return revision
+
+
 def _app(
     *,
     role: str = "project_admin",
@@ -191,6 +216,7 @@ def _app(
     connection = sqlite3.connect(db_path)
     repository = SQLiteActivityMasterRepository(connection)
     wbs_repository = SQLiteWBSMasterRepository(connection)
+    wbs_responsibility_repository = WbsResponsibilityStore()
     routes = ProjectLifecycleHttpRoutes(
         lifecycle,
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -198,7 +224,8 @@ def _app(
             repository, policy, checkout_lease=Lease(checkout_holder)
         ),
         p6_wbs_master_api=P6WBSMasterAPI(
-            wbs_repository, policy, checkout_lease=Lease(checkout_holder)
+            wbs_repository, policy, checkout_lease=Lease(checkout_holder),
+            responsibility_repository=wbs_responsibility_repository,
         ),
         p6_cost_account_api=accounts,
     )
@@ -1103,3 +1130,43 @@ def test_checkout_holder_blocks_activity_and_wbs_writes_with_409(tmp_path):
     )
     assert status == "409 Conflict"
     assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
+
+
+def test_wbs_responsible_obs_route_is_revision_guarded_and_authenticated():
+    app, _repository, connection = _app()
+    created, _ = _request(
+        app, "POST", "/api/projects/p1/p6/wbs",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-RESP",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Responsibility WBS",
+            "sequence_number": 0,
+        },
+    )
+    assert created.startswith("201")
+
+    updated, body = _request(
+        app, "PUT", "/api/projects/p1/p6/wbs/W-RESP/responsibility",
+        {"responsible_obs_id": "OBS-OPERATIONS", "expected_revision": 0},
+    )
+    assert updated.startswith("200")
+    assert body["responsible_obs_id"] == "OBS-OPERATIONS"
+    assert body["revision"] == 1
+
+    read, body = _request(
+        app, "GET", "/api/projects/p1/p6/wbs/W-RESP/responsibility"
+    )
+    assert read.startswith("200")
+    assert body["responsible_obs_id"] == "OBS-OPERATIONS"
+
+    stale, body = _request(
+        app, "PUT", "/api/projects/p1/p6/wbs/W-RESP/responsibility",
+        {"responsible_obs_id": "OBS-OPERATIONS", "expected_revision": 0},
+    )
+    assert stale.startswith("409")
+    assert body["code"] == "P6_WBS_RESPONSIBILITY_REVISION_CONFLICT"
+    connection.close()
+

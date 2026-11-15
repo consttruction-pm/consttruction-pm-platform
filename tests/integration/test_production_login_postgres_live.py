@@ -103,16 +103,43 @@ def runtime() -> ProductionRuntime:
         store = PostgresIdentityStore(connection)
         for user in users.values():
             store.upsert_user(user)
-        for tenant, project, name in (
-            (tenant_a, project_a, "Authorized Project"),
-            (tenant_b, project_b, "Other Tenant Project"),
+        obs_a = f"obs-a-{suffix}"
+        obs_b = f"obs-b-{suffix}"
+        eps_a = f"eps-a-{suffix}"
+        eps_b = f"eps-b-{suffix}"
+        for tenant, obs_id, name in (
+            (tenant_a, obs_a, "Tenant A OBS"),
+            (tenant_b, obs_b, "Tenant B OBS"),
+        ):
+            connection.execute(
+                "INSERT INTO p6_obs_node (tenant_id,obs_id,name) VALUES (%s,%s,%s) "
+                "ON CONFLICT (tenant_id,obs_id) DO NOTHING",
+                (tenant, obs_id, name),
+            )
+        for tenant, project, name, obs_id in (
+            (tenant_a, project_a, "Authorized Project", obs_a),
+            (tenant_b, project_b, "Other Tenant Project", obs_b),
         ):
             connection.execute(
                 "INSERT INTO project_lifecycle_projects "
-                "(tenant_id, project_id, name) VALUES (%s, %s, %s) "
+                "(tenant_id, project_id, name, obs_id) VALUES (%s, %s, %s, %s) "
                 "ON CONFLICT (tenant_id, project_id) DO NOTHING",
-                (tenant, project, name),
+                (tenant, project, name, obs_id),
             )
+        from datetime import datetime, timezone
+        from construction_pm.p6_eps_repository import P6EPSNode, PostgresP6EPSRepository
+        now = datetime.now(timezone.utc)
+        eps_repository = PostgresP6EPSRepository(connection)
+        eps_repository.save_node(P6EPSNode(tenant_a, eps_a, "Tenant A EPS", responsible_obs_id=obs_a), actor_user_id=users["admin"].user_id, occurred_at=now)
+        eps_repository.save_node(P6EPSNode(tenant_b, eps_b, "Tenant B EPS", responsible_obs_id=obs_b), actor_user_id=users["outsider"].user_id, occurred_at=now)
+        eps_repository.assign_project(
+            tenant_a, project_a, eps_a, actor_user_id=users["admin"].user_id,
+            occurred_at=now, expected_revision=0,
+        )
+        eps_repository.assign_project(
+            tenant_b, project_b, eps_b, actor_user_id=users["outsider"].user_id,
+            occurred_at=now, expected_revision=0,
+        )
         for user in users.values():
             connection.execute(
                 "INSERT INTO project_lifecycle_memberships "
@@ -124,6 +151,42 @@ def runtime() -> ProductionRuntime:
                     user.user_id,
                 ),
             )
+
+        # The live production fixture mirrors P6 V26 security assignments:
+        # every user under test gets a Global profile; project readers get an
+        # OBS-assigned Project profile. Admin Superuser is seeded explicitly
+        # as an installation-level built-in, never via enterprise_admin.
+        profile_specs = [
+            (tenant_a, "p6-admin-superuser", "Admin Superuser", "global", users["admin"].user_id, ""),
+            (tenant_b, "p6-admin-superuser", "Admin Superuser", "global", users["outsider"].user_id, ""),
+            (tenant_a, f"global-viewer-{suffix}", "Viewer Global", "global", users["viewer"].user_id, ""),
+            (tenant_a, f"project-viewer-{suffix}", "Viewer Project", "project", users["viewer"].user_id, obs_a),
+            (tenant_a, f"global-planner-{suffix}", "Planner Global", "global", users["planner"].user_id, ""),
+            (tenant_a, f"project-planner-{suffix}", "Planner Project", "project", users["planner"].user_id, obs_a),
+        ]
+        for tenant, profile_id, name, scope, user_id, assigned_obs in profile_specs:
+            connection.execute(
+                "INSERT INTO p6_security_profiles "
+                "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
+                "VALUES (%s,%s,%s,%s,TRUE,1,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (tenant, profile_id, name, scope, user_id, user_id, now, now),
+            )
+            connection.execute(
+                "INSERT INTO p6_security_profile_assignments "
+                "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
+                "VALUES (%s,%s,%s,%s,1,%s,%s) ON CONFLICT DO NOTHING",
+                (tenant, profile_id, user_id, assigned_obs, user_id, now),
+            )
+        connection.execute(
+            "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+            "VALUES (%s,%s,'add_edit_delete_user_defined_fields') ON CONFLICT DO NOTHING",
+            (tenant_a, f"global-planner-{suffix}"),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+            "VALUES (%s,%s,'add_projects') ON CONFLICT DO NOTHING",
+            (tenant_a, f"project-planner-{suffix}"),
+        )
         connection.commit()
     finally:
         instance.pool.release(connection, healthy=True)
@@ -134,6 +197,10 @@ def runtime() -> ProductionRuntime:
         "tenant_b": tenant_b,
         "project_a": project_a,
         "project_b": project_b,
+        "eps_a": eps_a,
+        "eps_b": eps_b,
+        "obs_a": obs_a,
+        "obs_b": obs_b,
         # Failed logins are throttled per source IP for 15 minutes and the
         # throttle state is durable. A per-run address keeps the module
         # repeatable against a long-lived database.
@@ -196,6 +263,23 @@ def login(runtime, user_key: str, password: str = PASSWORD) -> tuple[str, str]:
         unquote(csrf.split(";", 1)[0].split("=", 1)[1]),
     )
 
+
+
+def login_for_identity(runtime, user: IdentityUser) -> tuple[str, str]:
+    from urllib.parse import unquote
+
+    status, headers, body = call(
+        runtime, "POST", "/api/session",
+        body={"email": user.email, "password": PASSWORD},
+    )
+    assert status == 200, body
+    cookies = headers["set-cookie"]
+    session = next(value for value in cookies if value.startswith("cp_session="))
+    csrf = next(value for value in cookies if value.startswith("cubi_csrf="))
+    return (
+        session.split(";", 1)[0],
+        unquote(csrf.split(";", 1)[0].split("=", 1)[1]),
+    )
 
 def test_health_readiness_uses_the_database(runtime):
     status, _, body = call(runtime, "GET", "/api/health/live")
@@ -374,9 +458,61 @@ def test_planner_can_write_project_but_not_administer(runtime):
     assert status == 403
 
 
+def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
+    ids = runtime.test_ids
+    cookie, csrf = login(runtime, "planner")
+    eps_status, _, eps_body = call(runtime, "GET", "/api/p6/eps", cookie=cookie)
+    assert eps_status == 200
+    assert [node["eps_id"] for node in json.loads(eps_body)["eps_nodes"]] == [ids["eps_a"]]
+    project_id = f"planner-created-{uuid.uuid4().hex[:8]}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        cookie=cookie,
+        csrf=csrf,
+        body={"project_id": project_id, "name": "Planner EPS Project"},
+    )
+    assert status == 201, body
+    connection = runtime.pool.acquire()
+    try:
+        row = connection.execute(
+            "SELECT eps_id FROM p6_project_eps_assignment "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (ids["tenant_a"],project_id),
+        ).fetchone()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+    assert row is not None and row[0] == ids["eps_a"]
+    assignment_status, _, assignment_body = call(
+        runtime, "GET", f"/api/projects/{project_id}/p6/eps-assignment", cookie=cookie
+    )
+    assert assignment_status == 200
+    assert json.loads(assignment_body)["eps_id"] == ids["eps_a"]
+    moved_status, _, moved_body = call(
+        runtime, "PUT", f"/api/projects/{project_id}/p6/eps-assignment",
+        cookie=cookie, csrf=csrf,
+        body={"eps_id": ids["eps_a"], "expected_revision": 1},
+    )
+    assert moved_status == 200
+    assert json.loads(moved_body)["revision"] == 2
+
+
 def test_admin_can_create_a_project(runtime):
     ids = runtime.test_ids
     cookie, csrf = login(runtime, "admin")
+    new_eps_id = f"admin-eps-{uuid.uuid4().hex[:8]}"
+    eps_status, _, eps_body = call(
+        runtime, "POST", "/api/p6/eps",
+        cookie=cookie, csrf=csrf,
+        body={
+            "eps_id": new_eps_id,
+            "name": "Admin Created EPS",
+            "responsible_obs_id": ids["obs_a"],
+            "sequence_number": 9,
+        },
+    )
+    assert eps_status == 201, eps_body
     project_id = f"admin-created-{uuid.uuid4().hex[:8]}"
     status, _, body = call(
         runtime,
@@ -384,7 +520,7 @@ def test_admin_can_create_a_project(runtime):
         "/api/projects",
         cookie=cookie,
         csrf=csrf,
-        body={"project_id": project_id, "name": "New Project"},
+        body={"project_id": project_id, "name": "New Project", "eps_id": ids["eps_a"]},
     )
     assert status == 201, body
     created = json.loads(body)["context"]
@@ -596,3 +732,100 @@ def test_enterprise_task_api_requires_an_explicit_environment_role(runtime):
     )
     assert status == 403
     assert json.loads(body)["code"] == "ENTERPRISE_ACCESS_DENIED"
+
+
+
+def test_account_deactivation_revokes_existing_session_immediately(runtime):
+    # Use a dedicated identity as well as a dedicated source address: the
+    # throttle is intentionally durable and keyed by both normalized email
+    # and pseudonymous client IP across the shared PostgreSQL test database.
+    suffix = uuid.uuid4().hex
+    user = IdentityUser(
+        user_id=f"user-deactivation-{suffix}",
+        tenant_id=runtime.test_ids["tenant_a"],
+        email=f"deactivation-{suffix}@example.test",
+        display_name="Deactivation Regression",
+        roles=frozenset({"planner", "enterprise_user"}),
+        password_hash=hash_password(PASSWORD),
+    )
+    connection = runtime.pool.acquire()
+    try:
+        PostgresIdentityStore(connection).upsert_user(user)
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+    runtime.test_ids["users"]["deactivation"] = user
+    runtime.test_ids["client_ip"] = f"198.18.{int(suffix[:2], 16)}.{int(suffix[2:4], 16)}"
+    cookie, _ = login(runtime, "deactivation")
+
+    connection = runtime.pool.acquire()
+    try:
+        PostgresIdentityStore(connection).upsert_user(
+            IdentityUser(
+                user_id=user.user_id,
+                tenant_id=user.tenant_id,
+                email=user.email,
+                display_name=user.display_name,
+                roles=user.roles,
+                password_hash=user.password_hash,
+                active=False,
+            )
+        )
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+
+    status, _, body = call(runtime, "GET", "/api/session", cookie=cookie)
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_NOT_FOUND"
+
+
+def test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end(runtime):
+    suffix = uuid.uuid4().hex
+    tenant = runtime.test_ids["tenant_a"]
+    admin = IdentityUser(
+        user_id=f"user-access-admin-{suffix}", tenant_id=tenant,
+        email=f"access-admin-{suffix}@example.test", display_name="Access Admin",
+        roles=frozenset({"enterprise_admin", "enterprise_user"}),
+        password_hash=hash_password(PASSWORD),
+    )
+    target = IdentityUser(
+        user_id=f"user-access-target-{suffix}", tenant_id=tenant,
+        email=f"access-target-{suffix}@example.test", display_name="Access Target",
+        roles=frozenset({"enterprise_user"}), password_hash=hash_password(PASSWORD),
+    )
+    outsider = IdentityUser(
+        user_id=f"user-access-outsider-{suffix}", tenant_id=runtime.test_ids["tenant_b"],
+        email=f"access-outsider-{suffix}@example.test", display_name="Other Tenant",
+        roles=frozenset({"enterprise_admin"}), password_hash=hash_password(PASSWORD),
+    )
+    connection = runtime.pool.acquire()
+    try:
+        store = PostgresIdentityStore(connection)
+        for account in (admin, target, outsider):
+            store.upsert_user(account)
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+
+    runtime.test_ids["client_ip"] = f"198.18.{int(suffix[:2], 16)}.{int(suffix[2:4], 16)}"
+    target_cookie, _ = login_for_identity(runtime, target)
+    admin_cookie, admin_csrf = login_for_identity(runtime, admin)
+
+    status, _, body = call(runtime, "GET", "/api/enterprise/users", cookie=admin_cookie)
+    assert status == 200
+    users = json.loads(body)["users"]
+    assert any(item["user_id"] == target.user_id and item["active"] for item in users)
+    assert all(item["user_id"] != outsider.user_id for item in users)
+
+    status, _, body = call(
+        runtime, "PATCH", f"/api/enterprise/users/{target.user_id}/status",
+        body={"contract_version": "cubi-enterprise-user-admin.v1", "active": False},
+        cookie=admin_cookie, csrf=admin_csrf,
+    )
+    assert status == 200
+    assert json.loads(body)["account"]["changed"] is True
+
+    status, _, body = call(runtime, "GET", "/api/session", cookie=target_cookie)
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_NOT_FOUND"

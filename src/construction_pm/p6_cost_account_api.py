@@ -68,7 +68,7 @@ class P6CostAccountAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(account.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_COST_ACCOUNT_ADMIN)
         require_project_write_ownership(self.checkout_lease, account.scope, auth_context)
         return _dto(self.service.save(account))
 

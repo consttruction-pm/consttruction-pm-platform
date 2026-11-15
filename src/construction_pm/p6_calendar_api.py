@@ -69,7 +69,7 @@ class P6CalendarAPI:
 
     def create(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         base: CalendarMaster | None = None
         if request.base_calendar_id is not None or request.base_calendar_version is not None:
             if not request.base_calendar_id or not request.base_calendar_version:
@@ -110,7 +110,7 @@ class P6CalendarAPI:
 
     def update(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         if request.expected_revision is None or request.expected_revision < 1:
             raise P6CalendarAPIError("EXPECTED_REVISION_REQUIRED_FOR_UPDATE")
         existing = self.calendar_repository.get(scope, request.calendar_id, request.calendar_version)
@@ -140,7 +140,7 @@ class P6CalendarAPI:
         )
 
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int, auth_context: AuthorizationContext) -> bool:
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         # Calendar deletion clears the master and all associated rows. Keep
         # those mutations in the same application-owned transaction, just like
         # copy/replace, so any failure rolls the complete deletion back.
@@ -151,7 +151,7 @@ class P6CalendarAPI:
             return bool(deleter(scope, calendar_id, calendar_version, expected_revision=expected_revision))
 
     def copy(self, scope: BackendScope, source_calendar_id: str, source_calendar_version: str, target_calendar_id: str, target_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         with self._transaction():
             source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
             if source is None:
@@ -168,7 +168,7 @@ class P6CalendarAPI:
             return self._calendar_dto(stored)
 
     def replace(self, scope: BackendScope, target_calendar_id: str, target_calendar_version: str, source_calendar_id: str, source_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         with self._transaction():
             source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
             if source is None:
@@ -204,7 +204,7 @@ class P6CalendarAPI:
             return self._calendar_dto(stored)
 
     def save_exception(self, exception: CalendarException, *, auth_context: AuthorizationContext) -> dict[str, Any]:
-        self._authorize(exception.scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(exception.scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         stored = self.exception_repository.save(exception)
         return _exception_dto(stored)
 
@@ -226,7 +226,7 @@ class P6CalendarAPI:
         The system is taken from the stored row: a Jalali calendar keeps Jalali
         entry semantics, while the canonical date stays ISO Gregorian.
         """
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise P6CalendarAPIError("EXPECTED_EXCEPTION_REVISION_REQUIRED")
         existing = self.exception_repository.get(scope, calendar_id, calendar_version, exception_date)
@@ -288,7 +288,7 @@ class P6CalendarAPI:
                     ))
 
     def delete_exception(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: Any, *, auth_context: AuthorizationContext) -> bool:
-        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         return bool(self.exception_repository.delete(scope, calendar_id, calendar_version, exception_date))
 
     def _transaction(self):
@@ -302,7 +302,7 @@ class P6CalendarAPI:
         return self.work_hours_repository
 
     def save_work_hours(self, rule: CalendarWorkHourRule, *, auth_context: AuthorizationContext) -> dict[str, object]:
-        self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(rule.scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         existing = [
             item for item in self._work_hours().list(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind)
             if item.weekday == rule.weekday
@@ -339,7 +339,7 @@ class P6CalendarAPI:
         a workweek edit is rejected by the same stale-write rule as any other
         calendar update and the resolver's definition hash changes with it.
         """
-        self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        self._authorize(rule.scope, auth_context, Permission.P6_PROJECT_CALENDAR_ADMIN)
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise P6CalendarAPIError("INVALID_EXPECTED_REVISION")
         master = self.calendar_repository.get(rule.scope, rule.calendar_id, rule.calendar_version)

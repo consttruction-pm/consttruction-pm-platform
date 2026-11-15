@@ -70,7 +70,7 @@ class P6RoleAPI:
 
     def create(self, role: P6Role, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _scope(role, auth_context)
-        _permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _permission(self.authorization_policy, auth_context, Permission.P6_ROLE_ADMIN)
         role.validate()
         existing = self.repository.get(
             role.tenant_id, role.project_id, role.project_revision, role.role_id
@@ -84,7 +84,7 @@ class P6RoleAPI:
 
     def update(self, role: P6Role, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _scope(role, auth_context)
-        _permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _permission(self.authorization_policy, auth_context, Permission.P6_ROLE_ADMIN)
         if expected_revision < 1:
             raise ValueError("ROLE_REVISION_REQUIRED")
         role.validate()

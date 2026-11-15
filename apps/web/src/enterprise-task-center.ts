@@ -30,7 +30,7 @@ type Filter = "all" | "active" | "blocked" | "due" | "completed" | "overdue";
 
 const COPY = {
   en: {
-    title: "Task Center", eyebrow: "CUBI ENTERPRISE", subtitle: "Coordinate work across your projects and personal workspace.",
+    title: "Task Center", organization: "Organization & Access", eyebrow: "CUBI ENTERPRISE", subtitle: "Coordinate work across your projects and personal workspace.",
     back: "Personal workbench", refresh: "Refresh", create: "New task", createTitle: "Create a task",
     taskTitle: "Task title", description: "Description", project: "Project scope", personal: "Personal tasks",
     due: "Due date", priority: "Priority", low: "Low", normal: "Normal", high: "High", urgent: "Urgent",
@@ -46,7 +46,7 @@ const COPY = {
     workspace: "Enterprise workspace", securityNote: "Access is checked by the server. Project tasks appear only when you have project permission.",
   },
   fa: {
-    title: "مرکز وظایف", eyebrow: "کوبی سازمانی", subtitle: "هماهنگی کارها در پروژه‌ها و فضای کاری شخصی.",
+    title: "مرکز وظایف", organization: "سازمان و دسترسی", eyebrow: "کوبی سازمانی", subtitle: "هماهنگی کارها در پروژه‌ها و فضای کاری شخصی.",
     back: "میزکار شخصی", refresh: "تازه‌سازی", create: "وظیفه جدید", createTitle: "ایجاد وظیفه",
     taskTitle: "عنوان وظیفه", description: "شرح", project: "محدوده پروژه", personal: "وظایف شخصی",
     due: "سررسید", priority: "اولویت", low: "کم", normal: "عادی", high: "زیاد", urgent: "فوری",
@@ -151,7 +151,9 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   identity.append(element("span", "ce-eyebrow", t.eyebrow), element("strong", "", t.workspace));
   const back = element("a", "ce-back", `← ${t.back}`);
   back.href = "/app";
-  header.append(brand, identity, back);
+  const organizationLink = element("a", "ce-back", t.organization);
+  organizationLink.href = "/enterprise/organization";
+  header.append(brand, identity, organizationLink, back);
 
   const hero = element("section", "ce-hero");
   const heroCopy = element("div");

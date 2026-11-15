@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 from construction_pm.calendar_exception_repository import CalendarExceptionRepository
@@ -119,6 +119,7 @@ def build_project_lifecycle_wsgi_app(
     activity_progress_history_repository: ActivityProgressHistoryRepository | None = None,
     activity_progress_transaction_manager: TransactionManager | None = None,
     wbs_master_repository: WBSMasterRepository | None = None,
+    wbs_responsibility_repository: Any | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
     constraint_master_repository: ConstraintMasterRepository | None = None,
@@ -333,6 +334,7 @@ def build_project_lifecycle_wsgi_app(
             wbs_master_repository,
             authorization_policy,
             checkout_lease=checkout_lease,
+            responsibility_repository=wbs_responsibility_repository,
         )
     )
     relationship_api = (

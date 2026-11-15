@@ -64,7 +64,7 @@ class P6OBSNodeAPI:
         self, node: P6OBSNode, *, auth_context: AuthorizationContext
     ) -> dict[str, Any]:
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.P6_OBS_ADMIN
         )
         if node.tenant_id != auth_context.tenant_id:
             raise AuthorizationError("CROSS_SCOPE_ACCESS")

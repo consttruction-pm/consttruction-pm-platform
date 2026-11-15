@@ -44,7 +44,7 @@ The list response returns `next_cursor` when another page exists. Cursor fields 
 
 ## Current limitations
 
-- Team assignment is intentionally disabled until Organization & Access membership persistence is implemented and tested.
+- Team assignment remains intentionally disabled until the Task API consumes the active-membership authorization adapter and adds task-level permission, revocation, tenant-isolation and PostgreSQL integration coverage.
 - Cross-environment Activity/WBS/Document/Risk references are intentionally disabled until an authorized, revision-pinned Engineering reference resolver exists.
 - No UI is included in this backend vertical slice.
 

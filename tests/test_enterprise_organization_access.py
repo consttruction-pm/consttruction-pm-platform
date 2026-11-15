@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -62,6 +63,26 @@ class Repository:
         self.members[(tenant_id, team_id, user_id)] = removed
         return removed
 
+    def transfer_team_ownership(
+        self, tenant_id, team_id, new_owner_user_id, *, actor_id,
+        expected_team_revision, expected_membership_revision, occurred_at,
+    ):
+        team = self.teams[(tenant_id, team_id)]
+        if team.revision != expected_team_revision:
+            raise ValueError("TEAM_REVISION_CONFLICT")
+        target_key = (tenant_id, team_id, new_owner_user_id)
+        target = self.members[target_key]
+        if target.revision != expected_membership_revision:
+            raise ValueError("TEAM_MEMBERSHIP_REVISION_CONFLICT")
+        old_key = (tenant_id, team_id, actor_id)
+        self.members[old_key] = replace(self.members[old_key], role="admin",
+                                         revision=self.members[old_key].revision + 1)
+        self.members[target_key] = replace(target, role="owner", revision=target.revision + 1)
+        updated = replace(team, owner_user_id=new_owner_user_id,
+                           revision=team.revision + 1, updated_at=occurred_at)
+        self.teams[(tenant_id, team_id)] = updated
+        return updated
+
     def list_teams_for_user(self, tenant_id, user_id):
         return tuple(
             team for team in self.teams.values()
@@ -69,6 +90,24 @@ class Repository:
             and (m := self.get_membership(tenant_id, team.team_id, user_id)) is not None
             and m.status == "active" and team.status == "active"
         )
+
+    def list_memberships(self, tenant_id, team_id):
+        return tuple(item for (tenant, team, _), item in self.members.items()
+                     if tenant == tenant_id and team == team_id)
+
+    def list_active_users(self, tenant_id):
+        return ({"user_id": "member-1", "email": "member@example.test", "display_name": "Member"},
+                {"user_id": "owner", "email": "owner@example.test", "display_name": "Owner"})
+
+    def list_tenant_users(self, tenant_id):
+        return ({"user_id": "owner", "email": "owner@example.test",
+                 "display_name": "Owner", "active": True},)
+
+    def has_active_role(self, tenant_id, user_id, role):
+        return tenant_id == "tenant-a" and user_id == "owner" and role == "enterprise_admin"
+
+    def set_account_active(self, tenant_id, target_user_id, actor_user_id, active, occurred_at):
+        return {"user_id": target_user_id, "active": active, "changed": True}
 
 
 def service(roles=frozenset({"enterprise_admin", "pro_monthly_active"})):
@@ -120,6 +159,29 @@ def test_non_manager_cannot_add_members_and_owner_cannot_be_removed():
         app.remove_member("owner-session", team.team_id, "owner", expected_revision=1)
 
 
+def test_only_current_owner_can_transfer_ownership_and_old_owner_becomes_admin():
+    app, repository = service()
+    team = app.create_team("owner-session", "Team A")
+    member = app.add_member("owner-session", team.team_id, "member-1", "member")
+
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_OWNER_PERMISSION_REQUIRED"):
+        app.transfer_team_ownership(
+            "viewer-session", team.team_id, "member-1",
+            expected_team_revision=team.revision,
+            expected_membership_revision=member.revision,
+        )
+
+    updated = app.transfer_team_ownership(
+        "owner-session", team.team_id, "member-1",
+        expected_team_revision=team.revision,
+        expected_membership_revision=member.revision,
+    )
+    assert updated.owner_user_id == "member-1"
+    assert updated.revision == team.revision + 1
+    assert repository.get_membership("tenant-a", team.team_id, "owner").role == "admin"
+    assert repository.get_membership("tenant-a", team.team_id, "member-1").role == "owner"
+
+
 def test_revoked_membership_fails_closed_on_next_authorization_check():
     app, _ = service()
     team = app.create_team("owner-session", "Team A")
@@ -131,3 +193,41 @@ def test_revoked_membership_fails_closed_on_next_authorization_check():
     assert removed.revision == 2
     with pytest.raises(OrganizationAccessDenied, match="ACTIVE_TEAM_MEMBERSHIP_REQUIRED"):
         app.require_active_membership("tenant-a", team.team_id, "member-1")
+
+
+def test_team_member_directory_requires_manager_and_is_tenant_scoped():
+    app, repository = service()
+    team = app.create_team("owner-session", "Team A")
+    member = app.add_member("owner-session", team.team_id, "member-1", "field_worker")
+    listed = app.list_team_members("owner-session", team.team_id)
+    assert {item.user_id for item in listed} == {"owner", "member-1"}
+    eligible = app.list_eligible_users("owner-session", team.team_id)
+    assert eligible == ()
+    viewer = EnterpriseTeamMembership(
+        tenant_id="tenant-a", team_id=team.team_id, user_id="viewer",
+        role="viewer", status="active", scope_project_ids=(), revision=1, created_at=NOW,
+    )
+    repository.members[("tenant-a", team.team_id, "viewer")] = viewer
+    assert {item.user_id for item in app.list_team_members("viewer-session", team.team_id)} == {
+        "owner", "member-1", "viewer"
+    }
+    with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
+        app.list_eligible_users("viewer-session", team.team_id)
+
+
+def test_account_administration_requires_live_enterprise_admin_role_and_prevents_self_deactivation():
+    app, _ = service()
+    accounts = app.list_accounts("owner-session")
+    assert accounts[0]["user_id"] == "owner"
+
+    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
+        app.list_accounts("viewer-session")
+
+    with pytest.raises(OrganizationAccessDenied, match="SELF_DEACTIVATION_NOT_ALLOWED"):
+        app.set_account_active("owner-session", "owner", active=False)
+
+    changed = app.set_account_active("owner-session", "member-1", active=False)
+    assert changed == {"user_id": "member-1", "active": False, "changed": True}
+
+    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
+        app.set_account_active("viewer-session", "member-1", active=False)

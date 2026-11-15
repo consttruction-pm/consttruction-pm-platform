@@ -10,6 +10,11 @@
 Use the versioned HTML topics below as the primary reference. Do not substitute a PDF, a P6 Professional Help set, Primavera Cloud Help, Unifier Help, or an older P6 EPPM release without explicitly recording the reason.
 
 - P6 EPPM Help V26 — HTML table of contents: https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
+- P6 EPPM V26 — Users Page: https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm
+- P6 EPPM V26 — Creating Project Security Profiles: https://docs.oracle.com/cd/G48897_01/p6help/en/35278.htm
+- P6 EPPM V26 — Project Security Profile Privileges: https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm
+- P6 EPPM V26 — Global Security Profile Privileges: https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm
+- P6 EPPM V26 — About User Access (Application Administration Guide): https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/6597.htm
 - P6 EPPM Version 26 — User Guides library: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/user.html
 - P6 EPPM Version 26 — All Guides: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/books.html
 - P6 Team Member Help V26 — HTML table of contents: https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm
@@ -41,11 +46,23 @@ The V26 HTML topic “Working with P6” explicitly lists seven main sections: D
 | Team Member Web, My Activities, status updates and timesheets | Team & Task Center plus future Engineering Activity Status surface | Separate concepts: current Enterprise Task is an organizational task, not a P6 schedule Activity or a timesheet |
 | Risks and issues | Project Portal / Risk & Issue Management | Partial in Engineering; Enterprise must consume authorized, revision-pinned records rather than duplicate authoritative risk/schedule data |
 | Reports and performance status | Portfolio & Executive Center / Reporting | Existing reporting capabilities require end-to-end parity verification |
-| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; authenticated task API exists, full organization/team membership and administration are not complete |
+| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; tenant teams/memberships, account lifecycle, protected V26 built-ins and operator bootstrap, persisted Global/Project profiles, EPS hierarchy/project placement, WBS responsible-OBS overrides, audited WBS assignment, WBS/activity object scoping, and selected Global/Project privilege mappings are implemented on PR #1974. EPS administration UI and delete lifecycle, remaining WBS-linked APIs, full resource/module/UI-view access, invitations/password lifecycle, Copy User Settings, effective-access preview/reporting, and Team Member/timesheet/review workflows remain open. |
 | Project documents and information | Project Portal / Document & Information Management | Partial; use existing document service and access rules where verified |
 | Workflow, notifications and approvals | Workflow Studio / Feedback & Approval Center | Planned; status updates/approval semantics from Team Member V26 are a specific acceptance input |
 
-## 4. Team Member V26 — workflow-specific acceptance requirements
+## 4. Administration V26 — user and access administration requirements
+
+The V26 Users Page is the authoritative reference for account administration. It includes account creation, status, associated resource, Team Member/Timesheet module access, global security profile, project access, resource access, and User Interface View assignment. Copy User Settings covers copying selected combinations of module access, resource access, UI views, global security profile, project access and user preferences. CUBI must model these as separate, auditable access dimensions; a team role must never be treated as a substitute for any of them. The Global Security Profile privilege catalog includes administration privileges such as Add/Edit/Delete OBS, Security Profiles, Users and User Interface Views; the Project Security Profile privilege catalog is grouped into Activities, Codes, Project Data, Related Applications, Resource Assignments, Tools, and Views/Reports. Project profile access is assigned in the context of OBS responsibility and project structure. These are separate permission dimensions, not a single role string.
+
+Current Organization & Access includes tenant teams/memberships, account status administration, current-owner-only team transfer, and a persisted P6 V26 Global/Project Security Profile engine. The schema stores separate Global and Project privilege catalogs; profile and assignment changes are revision-guarded and append-only audited. Every user must have a Global profile. The three Oracle built-ins are reserved and protected: **Admin Superuser**, **No Global Privileges**, and **Project Superuser**. The operator-only bootstrap provisions all three built-ins and the first Admin Superuser; assignment of Admin Superuser and Project Superuser requires an existing Admin Superuser, and the last active Admin Superuser cannot be deactivated or replaced through normal administration. Admin Superuser bypasses CUBI role checks for mapped P6 global/project operations; Project Superuser bypasses mapped project privileges only within its assigned OBS scope. No Global Privileges remains compatible with project access through an OBS-assigned Project Profile.
+
+EPS responsibility is persisted in a tenant-scoped EPS hierarchy with project-to-EPS placement; node and project-placement mutations are append-only audited in `p6_eps_audit`. Authenticated EPS APIs now list authorized branches, create/update nodes, and read/change a project's EPS placement under the V26 Add/Edit/Delete EPS and Add Projects privileges; a dedicated EPS management UI and delete lifecycle remain open. Project creation requires an eligible EPS branch and the V26 `add_projects` privilege; when the caller omits `eps_id`, the service selects the first branch on which that caller has the privilege. Project access resolves the direct project OBS and responsible OBS values along the assigned EPS ancestor chain. OBS membership itself is exact: assignment to a parent OBS does not implicitly assign the user to a child OBS.
+
+WBS-level responsible OBS overrides are stored in `p6_wbs_obs_responsibility`, revision-guarded and append-only audited. The authenticated WBS responsibility GET/PUT/PATCH API is wired into production. WBS list/read/write/delete/copy/milestone operations use WBS-scoped authorization. Activity Master create/read/list/update is also scoped to the activity's WBS. A project/EPS OBS assignee can retain read-only visibility when a WBS overrides responsibility to another OBS; write access requires the matching WBS OBS assignment. Project membership remains a separate prerequisite.
+
+Mapped P6 permissions are now profile-authoritative rather than being vetoed by the generic CUBI role map. Implemented mappings include UDF definitions, OBS administration, cost accounts, financial-period calendars, roles, resource add/edit, activities, activity relationships, expenses, issues/issue thresholds, baselines, project calendars, WBS administration, project creation and selected project operations. The remaining P6 surfaces are not yet fully mapped or wired. In particular, EPS administration UI/API/audit, risk and issue WBS-level filtering, all other WBS-linked resource/expense/document/threshold APIs, resource access and role/resource assignment security, module access, UI Views, Copy User Settings, invitation/password lifecycle, profile copy/delete/default, effective-access preview/reporting, and Team Member/timesheet/status-review workflows remain open. Therefore this is meaningful implementation progress, not a claim of complete Oracle P6 EPPM V26 parity. See `CUBI_ENTERPRISE_ORGANIZATION_ACCESS_API_V1.md` for API contracts and test boundaries.
+
+## 5. Team Member V26 — workflow-specific acceptance requirements
 
 The Team Member Help V26 is a distinct reference set. Its My Activities workflow must be assessed independently from the Enterprise task list.
 
@@ -64,7 +81,7 @@ At minimum, the reference review must cover:
 
 **Important distinction:** the current CUBI Enterprise Task API supports generic personal/project tasks with lifecycle status, priority and due date. It does not yet implement P6 activity assignment, schedule status fields, step progress, timesheets, Team Member approval, or CPM/schedule update semantics. Do not present the Task Center as a replacement for P6 Team Member or as complete V26 Team Member parity.
 
-## 5. Task Center V1 — parity-informed acceptance
+## 6. Task Center V1 — parity-informed acceptance
 
 The initial Task Center is a narrow, truthful slice of the Enterprise Team & Task Center, not a complete Team Member module.
 
@@ -79,7 +96,7 @@ The initial Task Center is a narrow, truthful slice of the Enterprise Team & Tas
 | Scope and security | Same-origin credentials, CSRF, explicit server-side Enterprise environment roles, no client-supplied tenant/actor authority, and separate project permissions | Production WSGI integration coverage; exact-head CI pending |
 | Responsive and RTL | Narrow-screen layout and Persian RTL direction | Browser QA required before acceptance |
 
-Not included in V1: team assignment (disabled server-side until membership persistence), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
+Not included in V1: team assignment (disabled server-side until the Task API consumes the active-membership authorization adapter), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
 
 ## 6. Mandatory design and QA workflow
 

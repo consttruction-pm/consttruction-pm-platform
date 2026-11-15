@@ -86,7 +86,7 @@ class P6BaselineAssignmentAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.P6_ASSIGN_PROJECT_BASELINE
         )
         _require_revision(scope, expected_revision)
         role = require_baseline_role(role)

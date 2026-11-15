@@ -6,6 +6,11 @@ from typing import Protocol, Sequence
 from uuid import uuid4
 
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
+from .security_profiles import (
+    ADMIN_SUPERUSER_PROFILE_ID,
+    PROJECT_SUPERUSER_PROFILE_ID,
+    PostgresSecurityProfileRepository,
+)
 
 TEAM_ROLES = frozenset({"owner", "admin", "project_manager", "approver", "field_worker", "member", "viewer"})
 TEAM_STATUSES = frozenset({"active", "suspended", "archived"})
@@ -76,15 +81,31 @@ class EnterpriseOrganizationAccessRepository(Protocol):
     def get_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership | None: ...
     def add_member(self, membership: EnterpriseTeamMembership, *, actor_id: str) -> EnterpriseTeamMembership: ...
     def remove_member(self, tenant_id: str, team_id: str, user_id: str, *, actor_id: str, expected_revision: int, occurred_at: datetime) -> EnterpriseTeamMembership: ...
+    def transfer_team_ownership(
+        self, tenant_id: str, team_id: str, new_owner_user_id: str, *, actor_id: str,
+        expected_team_revision: int, expected_membership_revision: int, occurred_at: datetime,
+    ) -> EnterpriseTeam: ...
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]: ...
+    def list_memberships(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]: ...
+    def list_active_users(self, tenant_id: str) -> tuple[dict[str, str], ...]: ...
+    def list_tenant_users(self, tenant_id: str) -> tuple[dict[str, object], ...]: ...
+    def has_active_role(self, tenant_id: str, user_id: str, role: str) -> bool: ...
+    def set_account_active(
+        self, tenant_id: str, target_user_id: str, actor_user_id: str,
+        active: bool, occurred_at: datetime,
+    ) -> dict[str, object]: ...
 
 
 class EnterpriseOrganizationAccessService:
     """Tenant-bound team membership service; it never grants project access implicitly."""
 
-    def __init__(self, repository: EnterpriseOrganizationAccessRepository, lifecycle_api: object, *, clock=None) -> None:
+    def __init__(
+        self, repository: EnterpriseOrganizationAccessRepository, lifecycle_api: object,
+        *, security_profiles: PostgresSecurityProfileRepository | None = None, clock=None,
+    ) -> None:
         self._repository = repository
         self._lifecycle = lifecycle_api
+        self._security_profiles = security_profiles
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def create_team(self, session_id: str, name: str) -> EnterpriseTeam:
@@ -152,9 +173,162 @@ class EnterpriseOrganizationAccessService:
             expected_revision=expected_revision, occurred_at=self._now(),
         )
 
+    def transfer_team_ownership(
+        self, session_id: str, team_id: str, new_owner_user_id: str, *,
+        expected_team_revision: int, expected_membership_revision: int,
+    ) -> EnterpriseTeam:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        # Ownership is a distinct authority: even team administrators cannot
+        # silently replace the owner. Only the current owner may transfer it.
+        if session.user_id != team.owner_user_id:
+            raise OrganizationAccessDenied("TEAM_OWNER_PERMISSION_REQUIRED")
+        if not isinstance(new_owner_user_id, str) or not new_owner_user_id.strip():
+            raise OrganizationAccessError("TEAM_OWNER_TARGET_INVALID")
+        if new_owner_user_id == team.owner_user_id:
+            raise OrganizationAccessError("TEAM_OWNER_TARGET_UNCHANGED")
+        for value in (expected_team_revision, expected_membership_revision):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise OrganizationAccessError("TEAM_OWNER_REVISION_REQUIRED")
+        return self._repository.transfer_team_ownership(
+            session.tenant_id, team_id, new_owner_user_id, actor_id=session.user_id,
+            expected_team_revision=expected_team_revision,
+            expected_membership_revision=expected_membership_revision,
+            occurred_at=self._now(),
+        )
+
     def list_my_teams(self, session_id: str) -> tuple[EnterpriseTeam, ...]:
         session = self._session(session_id)
         return self._repository.list_teams_for_user(session.tenant_id, session.user_id)
+
+    def list_team_members(self, session_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        self.require_active_membership(session.tenant_id, team_id, session.user_id)
+        return self._repository.list_memberships(session.tenant_id, team_id)
+
+    def list_eligible_users(self, session_id: str, team_id: str) -> tuple[dict[str, str], ...]:
+        session = self._session(session_id)
+        team = self._team(team_id, session.tenant_id)
+        self._require_manager(session, team)
+        members = {item.user_id for item in self._repository.list_memberships(session.tenant_id, team_id)
+                   if item.status == "active"}
+        return tuple(user for user in self._repository.list_active_users(session.tenant_id)
+                     if user["user_id"] not in members and user["user_id"] != session.user_id)
+
+    def list_accounts(self, session_id: str) -> tuple[dict[str, object], ...]:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        return self._repository.list_tenant_users(session.tenant_id)
+
+    def set_account_active(
+        self, session_id: str, target_user_id: str, *, active: bool,
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if not isinstance(active, bool):
+            raise OrganizationAccessError("ACCOUNT_ACTIVE_FLAG_INVALID")
+        if not isinstance(target_user_id, str) or not target_user_id.strip():
+            raise OrganizationAccessError("ACCOUNT_USER_ID_INVALID")
+        if target_user_id == session.user_id and not active:
+            raise OrganizationAccessDenied("SELF_DEACTIVATION_NOT_ALLOWED")
+        return self._repository.set_account_active(
+            session.tenant_id, target_user_id, session.user_id, active, self._now()
+        )
+
+    def _require_enterprise_admin(self, session: object) -> None:
+        # Re-read the current identity role, rather than trusting a role snapshot
+        # captured when the administrator's browser session was first issued.
+        if not self._repository.has_active_role(
+            session.tenant_id, session.user_id, "enterprise_admin"
+        ):
+            raise OrganizationAccessDenied("ENTERPRISE_ADMIN_REQUIRED")
+
+    def list_security_profiles(self, session_id: str, *, scope: str | None = None):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.list_profiles(session.tenant_id, scope)
+
+    def list_security_profile_assignments(self, session_id: str, profile_id: str):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.list_assignments(session.tenant_id, profile_id)
+
+    def create_security_profile(self, session_id: str, *, profile_id: str, name: str, scope: str):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.create_profile(
+            tenant_id=session.tenant_id, profile_id=profile_id, name=name, scope=scope,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def set_security_profile_privileges(
+        self, session_id: str, profile_id: str, *, privileges: Sequence[str],
+        expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.set_privileges(
+            tenant_id=session.tenant_id, profile_id=profile_id, privileges=privileges,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def set_security_profile_active(
+        self, session_id: str, profile_id: str, *, active: bool, expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.set_active(
+            tenant_id=session.tenant_id, profile_id=profile_id, active=active,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def assign_security_profile(
+        self, session_id: str, profile_id: str, *, user_id: str,
+        obs_id: str = "", expected_revision: int | None = None,
+    ) -> int:
+        session = self._session(session_id)
+        # Oracle V26 permits only an existing Admin Superuser to assign the
+        # Admin Superuser and Project Superuser built-ins. The repository
+        # enforces that authority against persisted assignments; do not
+        # incorrectly require the separate CUBI enterprise_admin role here.
+        if profile_id not in {ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID}:
+            self._require_enterprise_admin(session)
+        if user_id == session.user_id:
+            raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.assign(
+            tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
+            obs_id=obs_id, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def unassign_security_profile(
+        self, session_id: str, profile_id: str, *, user_id: str,
+        obs_id: str = "", expected_revision: int,
+    ) -> None:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._security_profiles.unassign(
+            tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
+            obs_id=obs_id, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
 
     def require_active_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership:
         membership = self._repository.get_membership(tenant_id, team_id, user_id)

@@ -71,7 +71,7 @@ class P6FinancialPeriodAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(period.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_FINANCIAL_PERIOD_ADMIN)
         return _dto(self.service.save(period))
 
     def get(
