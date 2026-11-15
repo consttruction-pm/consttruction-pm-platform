@@ -126,12 +126,12 @@ def runtime() -> ProductionRuntime:
                 "ON CONFLICT (tenant_id, project_id) DO NOTHING",
                 (tenant, project, name, obs_id),
             )
+        from datetime import datetime, timezone
         from construction_pm.p6_eps_repository import P6EPSNode, PostgresP6EPSRepository
+        now = datetime.now(timezone.utc)
         eps_repository = PostgresP6EPSRepository(connection)
         eps_repository.save_node(P6EPSNode(tenant_a, eps_a, "Tenant A EPS", responsible_obs_id=obs_a), actor_user_id=users["admin"].user_id, occurred_at=now)
         eps_repository.save_node(P6EPSNode(tenant_b, eps_b, "Tenant B EPS", responsible_obs_id=obs_b), actor_user_id=users["outsider"].user_id, occurred_at=now)
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
         eps_repository.assign_project(
             tenant_a, project_a, eps_a, actor_user_id=users["admin"].user_id,
             occurred_at=now, expected_revision=0,
