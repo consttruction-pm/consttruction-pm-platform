@@ -247,6 +247,13 @@ class EnterpriseOrganizationAccessService:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.list_profiles(session.tenant_id, scope)
 
+    def list_security_profile_assignments(self, session_id: str, profile_id: str):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.list_assignments(session.tenant_id, profile_id)
+
     def create_security_profile(self, session_id: str, *, profile_id: str, name: str, scope: str):
         session = self._session(session_id)
         self._require_enterprise_admin(session)
