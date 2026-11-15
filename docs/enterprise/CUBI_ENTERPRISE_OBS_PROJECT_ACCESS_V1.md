@@ -38,7 +38,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 - Project security profile permissions are limited to project-level read/write/schedule/admin actions in this slice. Module access remains controlled by the existing global role policy.
 - The project record currently has one OBS reference and WBS-level Responsible Manager overrides are now persisted and enforced at the WBS-master boundary. A missing WBS override inherits the project's OBS as an effective scope; it is not yet materialized as an explicit per-WBS assignment. Activity, risk, issue, threshold, baseline, expense, and document queries/writes are not yet consistently filtered by the effective WBS OBS, so data-domain security parity is not complete. WBS-level UI selection/validation against the OBS tree is also pending.
 - User/resource access, module access administration, global security profiles, UI view assignment and copy-user-settings are not part of this slice.
-- The Organization & Access browser UI and received invitation inbox are tracked in PR #1971; notification delivery remains a separate task.
+- The Organization & Access browser UI and received invitation inbox are tracked in PR #1971; notification delivery remains a separate task. The project-access administration browser surface is tracked in PR #1982 and mounted at `/enterprise/project-access`.
 - No Admin Superuser bypass is implemented. Enterprise administration remains an explicit tenant-scoped role; do not imply it is equivalent to Oracle's special global Admin Superuser profile.
 
 ## Verification
