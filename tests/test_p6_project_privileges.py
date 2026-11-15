@@ -16,6 +16,10 @@ def test_v26_privilege_catalogue_has_unique_keys_and_all_expected_groups():
     keys = [item.key for item in PROJECT_PRIVILEGES]
     assert len(keys) == len(set(keys)) == len(PRIVILEGE_BY_KEY)
     assert {item.group for item in PROJECT_PRIVILEGES} == set(ProjectPrivilegeGroup)
+    assert {group.value for group in ProjectPrivilegeGroup} == {
+        "activities", "codes", "eps_projects", "project_data",
+        "related_applications", "resource_assignments", "tools", "views_reports",
+    }
 
 
 def test_delete_privilege_inherits_edit_assign_and_view():
