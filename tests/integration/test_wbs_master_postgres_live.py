@@ -28,10 +28,12 @@ def test_postgres_wbs_master_round_trip_revision_and_parent_scope():
     suffix = uuid4().hex
     scope = BackendScope(f"tenant-wbs-{suffix}", f"project-wbs-{suffix}", 7)
     root = WBSMaster(
-        scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0
+        scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0,
+        responsible_obs_id="OBS-PROJECT",
     )
     child = WBSMaster(
-        scope, "W-CHILD", WBSParentKind.WBS, "W-ROOT", "1", "Child", 10
+        scope, "W-CHILD", WBSParentKind.WBS, "W-ROOT", "1", "Child", 10,
+        responsible_obs_id="OBS-CHILD",
     )
 
     with connect() as connection:
@@ -45,6 +47,8 @@ def test_postgres_wbs_master_round_trip_revision_and_parent_scope():
 
             assert repo.get(scope, "W-ROOT") == stored_root
             assert repo.get(scope, "W-CHILD") == stored_child
+            assert stored_root.responsible_obs_id == "OBS-PROJECT"
+            assert stored_child.responsible_obs_id == "OBS-CHILD"
             assert repo.list(scope) == (stored_root, stored_child)
 
             updated_child = repo.save(
