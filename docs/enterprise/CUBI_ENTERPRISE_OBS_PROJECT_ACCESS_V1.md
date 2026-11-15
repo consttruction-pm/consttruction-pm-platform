@@ -142,3 +142,5 @@ Privilege inheritance is now an explicit Help-reviewed mapping rather than suffi
 Regression tests assert the V26 option-label inventory, unique stable keys, known inheritance targets, combined privilege expansion, and non-inheritance of WBS costs and template-document prerequisites. The registry is still a catalogue, not proof that every option is persisted in a user-editable profile or enforced by every endpoint. Full route/UI/profile persistence parity remains open.
 
 Primary source: https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm
+
+- The catalogue also exposes pure group-header semantics: selecting a V26 detail-window group selects all options in that group; clearing it clears that group while preserving other groups and re-expanding only explicitly inherited grants. Unknown group names and privilege keys fail closed. This is domain support for the editor; the administrative UI wiring remains open.
