@@ -509,7 +509,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if required is None:
             return False
         return any(bool(row[1]) and required in self._profile_privileges(
-            context.tenant_id, str(row[2])
+            context.tenant_id, str(row[3])
         ) for row in project_rows)
 
     def _profile_privileges(self, tenant_id: str, profile_id: str) -> frozenset[str]:
