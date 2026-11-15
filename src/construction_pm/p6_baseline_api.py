@@ -56,7 +56,7 @@ class P6BaselineAPI:
 
     def create(self, baseline: P6Baseline, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(baseline.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_BASELINE_ADMIN)
         return _dto(self.service.save(baseline))
 
     def get(self, scope: BackendScope, baseline_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
