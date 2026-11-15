@@ -110,7 +110,7 @@ class P6ResourceAPI:
     def create(self, resource: P6Resource, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(resource.tenant_id, resource.project_id, auth_context)
         _permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.P6_RESOURCE_ADD
         )
         resource.validate()
         existing = self.repository.get(
@@ -136,7 +136,7 @@ class P6ResourceAPI:
     ) -> dict[str, Any]:
         _require_scope(resource.tenant_id, resource.project_id, auth_context)
         _permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.P6_RESOURCE_EDIT
         )
         if expected_revision < 1:
             raise ValueError("RESOURCE_REVISION_REQUIRED")
