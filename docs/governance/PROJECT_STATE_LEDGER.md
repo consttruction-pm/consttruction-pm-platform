@@ -1491,3 +1491,9 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Exact-head Actions workflow-run query and commit check-run query returned no runs for `f02f447b5f74909aa725c165ac66cef641bb22ef`. The combined commit status currently reports Vercel Preview failure `build-rate-limit`; no exact-head Python/PostgreSQL test pass is established.
 - The latest available older run is on `2574e...`, not this head: ConstructionPM CI reported 4,407 passed, 141 skipped and 17 failures; PostgreSQL Integration reported 170 passed, 1 failed and 16 errors. These are historical baseline evidence only and must not be represented as results for this commit. No local test execution was available from the repository connector environment.
 - CI configuration now exposes `CONSTRUCTION_PM_POSTGRES_DSN` to the full test job and includes the security-profile/resource API paths in the PostgreSQL Integration pull-request filter. Verify that the next exact-head workflow run actually executes the live suite; do not mark this slice verified until then.
+
+### Follow-up verification note — 2026-11-15
+
+- Follow-up code/test commit: `5d290bb6d590ad85ceb1fc63856caffe57ca7871`. It makes the new Edit Period Performance grant explicit in the default planner permission matrix and adds the matrix assertion; the live PostgreSQL test imports were consolidated.
+- A fresh exact-head query for `5d290bb6d590ad85ceb1fc63856caffe57ca7871` still returns no GitHub Actions workflow runs or check runs. The only status is Vercel Preview `failure: build-rate-limit`.
+- The new API tests and live PostgreSQL test remain unexecuted by an exact-head runner. The new CI DSN and PR path-filter wiring is committed, but the provider has not emitted a workflow result. Do not mark this work verified or release-ready until those workflows execute.
