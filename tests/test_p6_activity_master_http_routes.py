@@ -1227,3 +1227,37 @@ def test_activity_cannot_be_moved_out_of_wbs_without_source_scope_write():
     with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
         api.update(moved, expected_revision=stored.record_revision, auth_context=auth)
     connection.close()
+
+
+def test_wbs_responsible_obs_cannot_be_reassigned_without_source_scope_write():
+    import pytest
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    repository = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repository.has_responsible_obs_permission = lambda *args: True
+    repository.has_wbs_permission = (
+        lambda scope, user_id, wbs_id, permission, **kwargs:
+            wbs_id == "W-OWN" and permission == "project.write"
+    )
+    api = P6WBSMasterAPI(repository, default_project_policy())
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    repository.save(
+        WBSMaster(
+            scope, "W-FOREIGN", WBSParentKind.PROJECT, None,
+            "1", "Foreign scope", 0, responsible_obs_id="OBS-FOREIGN",
+        ),
+        expected_revision=0,
+    )
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.update(
+            WBSMaster(
+                scope, "W-FOREIGN", WBSParentKind.PROJECT, None,
+                "1", "Reassigned", 0, record_revision=1,
+                responsible_obs_id="OBS-OWN",
+            ),
+            expected_revision=1,
+            auth_context=auth,
+        )
