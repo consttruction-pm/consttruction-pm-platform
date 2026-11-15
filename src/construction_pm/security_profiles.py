@@ -1,8 +1,8 @@
-"""Persisted P6-style global/project security profiles and authorization evaluator.
+"""Persisted Oracle P6 V26 global/project security profiles and authorization evaluator.
 
-The evaluator is intentionally restrictive: legacy role grants remain a ceiling;
-an assigned global profile and/or project profile can only narrow those grants.
-Missing Global or Project assignments fail closed for project authorization.
+Mapped P6 permissions are authorized by the assigned Global and Project Security
+Profiles and OBS/EPS/WBS responsibility. The injected role policy handles only
+non-P6 CUBI surfaces; it does not replace or veto a P6 profile grant.
 """
 from __future__ import annotations
 
@@ -811,10 +811,11 @@ class PostgresSecurityProfileAuthorizationPolicy:
             (context.tenant_id, context.user_id, ADMIN_SUPERUSER_PROFILE_ID),
         ).fetchone()
         # Oracle V26 Admin Superuser has complete P6 global and project access.
-        # CUBI's separate role policy remains in force only for non-P6 surfaces;
-        # it must not silently revoke the built-in's documented P6 authority.
+        # Non-P6 CUBI surfaces continue through the injected role policy.
         if admin_superuser is not None and permission in p6_permissions:
             return True
+        if permission not in p6_permissions:
+            return self._role_policy.is_allowed(context, permission)
         rows = self._connection.execute(
             "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id) AS ("
             "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id "
