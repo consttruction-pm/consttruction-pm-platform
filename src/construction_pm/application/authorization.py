@@ -103,6 +103,10 @@ class RoleBasedAuthorizationPolicy:
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
         p6_project_write_permissions = {
+            Permission.P6_UDF_ADMIN, Permission.P6_OBS_ADMIN,
+            Permission.P6_COST_ACCOUNT_ADMIN, Permission.P6_FINANCIAL_PERIOD_ADMIN,
+            Permission.P6_ROLE_ADMIN, Permission.P6_RESOURCE_ADD,
+            Permission.P6_RESOURCE_EDIT, Permission.P6_RESOURCE_DELETE,
             Permission.P6_WBS_ADMIN, Permission.P6_ACTIVITY_ADMIN,
             Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN, Permission.P6_ACTIVITY_ID_ADMIN,
             Permission.P6_EXPENSE_ADMIN, Permission.P6_DISCUSSION_DELETE,
