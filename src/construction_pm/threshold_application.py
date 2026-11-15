@@ -87,7 +87,7 @@ class ThresholdApplicationService:
         status: str | None = None,
         search: str | None = None,
     ) -> tuple[StoredThreshold, ...]:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self._check(context, tenant_id, project_id, Permission.THRESHOLD_VIEW)
         return tuple(
             item for item in self.store.list_thresholds(
                 tenant_id, project_id, monitoring_subject=monitoring_subject,
@@ -103,7 +103,7 @@ class ThresholdApplicationService:
         threshold_id: str,
         context: AuthorizationContext,
     ) -> StoredThreshold:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self._check(context, tenant_id, project_id, Permission.THRESHOLD_VIEW)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
         self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_READ)
         return stored
@@ -116,7 +116,7 @@ class ThresholdApplicationService:
         threshold_id: str,
         context: AuthorizationContext,
     ) -> tuple[ThresholdAuditEvent, ...]:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self._check(context, tenant_id, project_id, Permission.THRESHOLD_VIEW)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
         self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_READ)
         return self.store.threshold_history(tenant_id, project_id, threshold_id)
@@ -129,7 +129,7 @@ class ThresholdApplicationService:
         threshold_id: str,
         context: AuthorizationContext,
     ) -> tuple[ThresholdRun, ...]:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self._check(context, tenant_id, project_id, Permission.THRESHOLD_VIEW)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
         self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_READ)
         return self.store.runs(tenant_id, project_id, threshold_id)
@@ -144,7 +144,7 @@ class ThresholdApplicationService:
         actor_id: str,
         occurred_at: datetime,
     ) -> StoredThreshold:
-        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id)
+        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id, Permission.THRESHOLD_ADD_EDIT)
         if self.responsible_obs_access is not None and not threshold.responsible_obs_id:
             raise ThresholdAuthorizationError("THRESHOLD_RESPONSIBLE_OBS_REQUIRED")
         self._require_obs_access(threshold.tenant_id, threshold.project_id, threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
@@ -165,7 +165,7 @@ class ThresholdApplicationService:
         actor_id: str,
         occurred_at: datetime,
     ) -> StoredThreshold:
-        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id)
+        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id, Permission.THRESHOLD_EDIT)
         current = self.store.get_threshold(threshold.tenant_id, threshold.project_id, threshold.threshold_id)
         if self.responsible_obs_access is not None and not threshold.responsible_obs_id:
             raise ThresholdAuthorizationError("THRESHOLD_RESPONSIBLE_OBS_REQUIRED")
@@ -191,7 +191,7 @@ class ThresholdApplicationService:
         occurred_at: datetime,
         reason: str = "",
     ) -> None:
-        self._authorize_write(tenant_id, project_id, context, actor_id)
+        self._authorize_write(tenant_id, project_id, context, actor_id, Permission.THRESHOLD_DELETE)
         current = self.store.get_threshold(tenant_id, project_id, threshold_id)
         self._require_obs_access(tenant_id, project_id, current.threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
         with self.transaction_manager.transaction():
@@ -217,7 +217,7 @@ class ThresholdApplicationService:
         occurred_at: datetime,
     ) -> MonitoringResult:
         """Read the authoritative metric, evaluate and append one immutable run."""
-        self._authorize_write(tenant_id, project_id, context, actor_id)
+        self._authorize_write(tenant_id, project_id, context, actor_id, Permission.PROJECT_WRITE)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
         self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
         with self.transaction_manager.transaction():
@@ -341,10 +341,11 @@ class ThresholdApplicationService:
         project_id: str,
         context: AuthorizationContext,
         actor_id: str,
+        permission: Permission,
     ) -> None:
         if actor_id != context.user_id:
             raise ThresholdAuthorizationError("THRESHOLD_ACTOR_MISMATCH")
-        self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        self._check(context, tenant_id, project_id, permission)
 
     @staticmethod
     def error_dto(exc: Exception) -> APIError:
