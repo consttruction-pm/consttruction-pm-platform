@@ -76,8 +76,7 @@ class Repository:
 
     def list_active_users(self, tenant_id):
         return ({"user_id": "member-1", "email": "member@example.test", "display_name": "Member"},
-                {"user_id": "owner", "email": "owner@example.test", "display_name": "Owner"},
-                {"user_id": "other-tenant", "email": "other@example.test", "display_name": "Other"})
+                {"user_id": "owner", "email": "owner@example.test", "display_name": "Owner"})
 
 
 def service(roles=frozenset({"enterprise_admin", "pro_monthly_active"})):
