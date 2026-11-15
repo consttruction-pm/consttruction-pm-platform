@@ -164,6 +164,11 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let accounts: Account[] = [];
   let canManage = false;
   let canAdminAccounts = false;
+  let profiles: SecurityProfile[] = [];
+  let profileAssignments: ProfileAssignment[] = [];
+  let privilegeCatalogs: PrivilegeCatalogs = { global: [], project: [] };
+  let selectedProfileId = "";
+  let canManageSecurityProfiles = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
