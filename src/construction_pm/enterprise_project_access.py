@@ -131,9 +131,7 @@ class PostgresProjectAccessRepository:
                     JOIN p6_obs_node parent ON parent.obs_id=po.parent_obs_id
                     WHERE parent.tenant_id=p_tenant_id AND NOT parent.obs_id=ANY(po.path)
                 )
-                SELECT EXISTS(SELECT 1 FROM project_lifecycle_memberships m
-                    WHERE m.tenant_id=p_tenant_id AND m.project_id=p_project_id AND m.user_id=p_user_id)
-                OR EXISTS(SELECT 1 FROM project_obs po
+                SELECT EXISTS(SELECT 1 FROM project_obs po
                     JOIN enterprise_user_obs_assignments a ON a.tenant_id=p_tenant_id
                         AND a.user_id=p_user_id AND a.obs_id=po.obs_id AND a.active=TRUE
                     JOIN enterprise_project_security_profiles sp ON sp.tenant_id=a.tenant_id
@@ -367,13 +365,6 @@ class EnterpriseProjectAuthorizationPolicy:
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         if not self.role_policy.is_allowed(context, permission):
             return False
-        direct = self.connection.execute(
-            """SELECT 1 FROM project_lifecycle_memberships
-               WHERE tenant_id=%s AND project_id=%s AND user_id=%s""",
-            (context.tenant_id, context.project_id, context.user_id),
-        ).fetchone()
-        if direct is not None:
-            return True
         exists = self.connection.execute(
             "SELECT 1 FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
             (context.tenant_id, context.project_id),
