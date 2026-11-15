@@ -24,7 +24,9 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 5. Project list/read resolution includes explicit OBS profile assignments. Project lifecycle metadata, checkout and status writes use project-admin profile checks.
 6. Append-only project-access audit for profile creation, OBS assignment and revocation.
 7. Production schema bootstrap and WSGI routes:
+   - GET /api/enterprise/project-security-profiles
    - POST /api/enterprise/project-security-profiles
+   - GET /api/enterprise/obs
    - POST /api/enterprise/user-obs-access
    - GET /api/enterprise/user-obs-access/{user_id}
    - DELETE /api/enterprise/user-obs-access/{user_id}/{obs_id} with profile_id and expected_revision JSON body
