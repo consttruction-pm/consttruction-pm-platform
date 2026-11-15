@@ -173,6 +173,23 @@ def test_inactive_user_cannot_login(store):
     assert store.connection.execute("SELECT COUNT(*) FROM identity_sessions").fetchone()[0] == 0
 
 
+def test_deactivating_user_revokes_existing_session_on_next_resolution(store):
+    store.upsert_user(_user())
+    service = _service(store)
+    issued = service.login("engineer@example.test", PASSWORD)
+
+    # Simulate an administrator deactivating the account after the user has
+    # already authenticated. The next request must fail closed immediately.
+    store.upsert_user(_user(active=False))
+
+    assert service.resolve(issued.token) is None
+    row = store.connection.execute(
+        "SELECT revoked_at FROM identity_sessions WHERE token_hash=?",
+        (token_hash(issued.token),),
+    ).fetchone()
+    assert row[0] is not None
+
+
 def test_login_is_throttled_after_repeated_failures(store):
     store.upsert_user(_user())
     service = _service(store, max_email_failures=3)
