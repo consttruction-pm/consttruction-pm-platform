@@ -29,7 +29,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 7. PostgreSQL WBS-master authorization resolves the effective WBS responsible OBS (explicit WBS assignment, falling back to the project OBS for legacy rows), inherits user grants through OBS ancestors, allows project-scope read-only access to a WBS owned by a different OBS, and requires the WBS OBS's project profile for writes to that WBS. New WBS records require an explicit responsible OBS. The WBS API applies this check to create, read/list, update, delete, copy and milestone replacement.
 8. Project issue records persist an independent `responsible_obs_id`; issue read/list/history/comment/create/update/delete operations enforce that OBS scope, with WBS scope retained as the fallback for legacy issues.
 9. Threshold definitions persist an independent `responsible_obs_id`; threshold read/list/history/runs/monitor/create/update/delete operations enforce that OBS scope. Threshold-triggered issues inherit the threshold OBS.
-10. Risk records carry a WBS reference and the risk register filters reads and enforces writes through that WBS responsible OBS.
+10. Risk records carry a WBS reference and the risk register filters reads and enforces writes through that WBS responsible OBS. New Activity and Expense writes require WBS association; new Risk writes require WBS association; new Issue and Threshold writes require their own Responsible OBS.
 6. Append-only project-access audit for profile creation, OBS assignment and revocation.
 7. Production schema bootstrap and WSGI routes:
    - GET /api/enterprise/project-security-profiles
