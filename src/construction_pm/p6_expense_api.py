@@ -93,7 +93,7 @@ class P6ExpenseAPI:
 
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.EXPENSE_ADD_EDIT)
         if self.wbs_access_repository is not None and not expense.wbs_id:
             raise AuthorizationError("EXPENSE_WBS_REQUIRED")
         self._require_wbs_permission(expense.scope, auth_context, expense.wbs_id, Permission.PROJECT_WRITE.value)
@@ -107,7 +107,7 @@ class P6ExpenseAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.EXPENSE_VIEW)
         result = self.service.read(scope, expense_id)
         if result is None:
             return None
@@ -123,7 +123,7 @@ class P6ExpenseAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.EXPENSE_VIEW)
         return tuple(
             _dto(item)
             for item in self.service.list(scope, activity_id=activity_id, wbs_id=wbs_id)
