@@ -7,6 +7,7 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     AuthorizationError,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -181,3 +182,74 @@ def test_resource_write_api_preserves_revision_conflict_from_repository():
 
     with pytest.raises(ValueError, match="REVISION_CONFLICT"):
         api.save_assignment_period(value(stale_scope), auth_context=auth())
+
+class _ActivityLookup:
+    def __init__(self, activities):
+        self.activities = activities
+
+    def get(self, scope, activity_id):
+        return self.activities.get(activity_id)
+
+
+class _WbsScopedWritePolicy:
+    def is_allowed(self, context, permission):
+        # A broad project grant must not override a WBS-scoped denial.
+        return True
+
+    def is_allowed_for_wbs(self, context, permission, wbs_id):
+        return (
+            wbs_id == "wbs-authorized"
+            and permission in {
+                Permission.P6_ACTIVITY_ADMIN,
+                Permission.P6_EDIT_PERIOD_PERFORMANCE,
+            }
+        )
+
+
+def test_resource_write_api_uses_activity_wbs_and_v26_privilege_per_operation():
+    connection, _, legacy_api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+    policy = _WbsScopedWritePolicy()
+    activity_repository = _ActivityLookup({
+        "act-authorized": type("Activity", (), {"wbs_id": "wbs-authorized"})(),
+        "act-restricted": type("Activity", (), {"wbs_id": "wbs-restricted"})(),
+    })
+    api = P6ResourceWriteAPI(
+        legacy_api.period_service,
+        policy,
+        assignment_service=legacy_api.assignment_service,
+        activity_repository=activity_repository,
+    )
+
+    allowed_assignment = P6ResourceAssignment(
+        scope, "ra-authorized", "act-authorized", "resource-1"
+    )
+    assert api.save_assignment(allowed_assignment, auth_context=auth())["kind"] == "resource_assignment"
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        api.save_assignment(
+            P6ResourceAssignment(scope, "ra-restricted", "act-restricted", "resource-1"),
+            auth_context=auth(),
+        )
+
+    allowed_period = P6ResourceAssignmentPeriodValue(
+        scope, "ra-authorized", "act-authorized", "resource-1",
+        "2026-10-01", Decimal("4.25"), Decimal("425.50"),
+    )
+    assert api.save_assignment_period(allowed_period, auth_context=auth())["kind"] == "resource_assignment_period"
+    denied_period = P6ResourceAssignmentPeriodValue(
+        scope, "ra-restricted", "act-restricted", "resource-1",
+        "2026-10-01", Decimal("4.25"), Decimal("425.50"),
+    )
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        api.save_assignment_period(denied_period, auth_context=auth())
+
+    # Profile-backed WBS authorization must fail closed when activity lookup
+    # was not wired; it cannot silently degrade to project-wide authorization.
+    unscoped_api = P6ResourceWriteAPI(
+        legacy_api.period_service, policy,
+        assignment_service=legacy_api.assignment_service,
+    )
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        unscoped_api.save_assignment(allowed_assignment, auth_context=auth())
+    connection.close()
+

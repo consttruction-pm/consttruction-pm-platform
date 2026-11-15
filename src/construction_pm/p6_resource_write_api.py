@@ -75,7 +75,8 @@ class P6ResourceWriteAPI:
 
     period_service: P6ResourceAssignmentPeriodApplicationService
     authorization_policy: AuthorizationPolicy
-    # Optional so existing deployments stay read/period-write compatible.
+    # Legacy role policies can omit Activity Master lookup; profile-backed
+    # policies fail closed without it so WBS scope cannot be skipped.
     assignment_service: P6ResourceAssignmentApplicationService | None = None
     activity_repository: Any | None = None
 

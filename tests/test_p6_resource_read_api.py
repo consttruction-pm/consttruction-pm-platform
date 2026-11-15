@@ -1,11 +1,14 @@
 import sqlite3
 from contextlib import contextmanager
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
 from construction_pm.application.authorization import (
+    AuthorizationContext,
     AuthorizationError,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -141,3 +144,90 @@ def test_resource_read_api_rejects_cross_scope_and_non_reader():
             scope,
             auth_context=AuthorizationContext("tenant-a", "project-a", "writer", frozenset()),
         )
+
+class _ActivityLookup:
+    def __init__(self, activities):
+        self.activities = activities
+
+    def get(self, scope, activity_id):
+        return self.activities.get(activity_id)
+
+
+class _WbsScopedReadPolicy:
+    def is_allowed(self, context, permission):
+        # No project-wide grant exists; each user has one responsible WBS.
+        return False
+
+    def is_allowed_for_wbs(self, context, permission, wbs_id):
+        if permission != Permission.PROJECT_READ:
+            return False
+        return (
+            context.user_id == "root-reader" and wbs_id == "wbs-root"
+        ) or (
+            context.user_id == "restricted-reader" and wbs_id == "wbs-restricted"
+        )
+
+
+def test_resource_read_api_filters_assignments_and_periods_by_activity_wbs():
+    connection = sqlite3.connect(":memory:")
+    manager = TransactionManager(connection)
+    assignment_repo = SQLiteP6ResourceAssignmentRepository(connection)
+    period_repo = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    spread_repo = SQLiteP6ResourceSpreadRepository(connection)
+    scope = BackendScope("tenant-a", "project-a", 1)
+    assignment_repo.upsert(
+        P6ResourceAssignment(scope, "ra-root", "act-root", "resource-1")
+    )
+    assignment_repo.upsert(
+        P6ResourceAssignment(scope, "ra-restricted", "act-restricted", "resource-1")
+    )
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "ra-root", "act-root", "resource-1",
+        "2026-10-01", Decimal("1"), Decimal("10"),
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "ra-restricted", "act-restricted", "resource-1",
+        "2026-10-01", Decimal("2"), Decimal("20"),
+    ))
+    activity_repository = _ActivityLookup({
+        "act-root": SimpleNamespace(wbs_id="wbs-root"),
+        "act-restricted": SimpleNamespace(wbs_id="wbs-restricted"),
+    })
+    api = P6ResourceReadAPI(
+        P6ResourceAssignmentApplicationService(assignment_repo, manager),
+        P6ResourceAssignmentPeriodApplicationService(period_repo, manager),
+        P6ResourceSpreadApplicationService(spread_repo, manager),
+        _WbsScopedReadPolicy(),
+        activity_repository=activity_repository,
+    )
+    root_reader = AuthorizationContext("tenant-a", "project-a", "root-reader", frozenset())
+    restricted_reader = AuthorizationContext(
+        "tenant-a", "project-a", "restricted-reader", frozenset()
+    )
+
+    assert api.get_assignment(scope, "ra-root", auth_context=root_reader) is not None
+    assert api.get_assignment(scope, "ra-restricted", auth_context=root_reader) is None
+    assert [
+        item["assignment"]["assignment_id"]
+        for item in api.list_assignments(scope, auth_context=root_reader)
+    ] == ["ra-root"]
+    assert [
+        item["period"]["assignment_id"]
+        for item in api.list_assignment_periods(scope, auth_context=root_reader)
+    ] == ["ra-root"]
+    assert api.get_assignment_period(
+        scope, "ra-restricted", "2026-10-01", auth_context=root_reader
+    ) is None
+
+    assert api.get_assignment(scope, "ra-restricted", auth_context=restricted_reader) is not None
+    assert api.get_assignment(scope, "ra-root", auth_context=restricted_reader) is None
+    assert [
+        item["assignment"]["assignment_id"]
+        for item in api.list_assignments(scope, auth_context=restricted_reader)
+    ] == ["ra-restricted"]
+    assert [
+        item["period"]["assignment_id"]
+        for item in api.list_assignment_periods(scope, auth_context=restricted_reader)
+    ] == ["ra-restricted"]
+    connection.close()
+

@@ -47,4 +47,5 @@ jobs:
       - name: Run test suite
         env:
           P6_TEST_POSTGRES_DSN: postgresql://construction_pm:construction_pm@127.0.0.1:5432/construction_pm_test
+          CONSTRUCTION_PM_POSTGRES_DSN: postgresql://construction_pm:construction_pm@127.0.0.1:5432/construction_pm_test
         run: python -m pytest -q

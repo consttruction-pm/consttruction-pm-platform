@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
 import uuid
 from decimal import Decimal
 from io import BytesIO
@@ -12,6 +13,16 @@ from datetime import datetime, timezone
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.activity_master_repository import (
+    ActivityMaster, PostgresActivityMasterRepository,
+)
+from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment, P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue,
+    PostgresP6ResourceAssignmentRepository, PostgresP6ResourceAssignmentPeriodRepository,
+)
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
@@ -1309,3 +1320,206 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
         assert "profile_default_changed" in {str(row[0]) for row in audit}
         assert "profile_status_changed" in {str(row[0]) for row in audit}
         connection.rollback()
+
+class _PostgresTransactionManager:
+    def __init__(self, connection):
+        self.connection = connection
+
+    @contextmanager
+    def transaction(self):
+        with self.connection.transaction():
+            yield
+
+
+def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_privileges():
+    suffix = uuid.uuid4().hex
+    tenant = f"resource-profile-{suffix}"
+    user_id = f"resource-profile-user-{suffix}"
+    unassigned_user_id = f"resource-profile-unassigned-{suffix}"
+    restricted_user_id = f"resource-profile-restricted-{suffix}"
+    project_id = f"resource-profile-project-{suffix}"
+    project_obs = f"resource-profile-project-obs-{suffix}"
+    restricted_obs = f"resource-profile-restricted-obs-{suffix}"
+    root_wbs = f"resource-profile-root-{suffix}"
+    restricted_wbs = f"resource-profile-wbs-{suffix}"
+    root_activity = f"resource-profile-act-root-{suffix}"
+    restricted_activity = f"resource-profile-act-restricted-{suffix}"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        obs = PostgresP6OBSRepository(connection)
+        obs.initialize()
+        eps = PostgresP6EPSRepository(connection)
+        eps.initialize()
+        wbs = PostgresWBSMasterRepository(connection)
+        wbs.initialize()
+        initialize_security_profile_schema(connection)
+
+        identity.upsert_user(_identity_user(user_id, tenant, "planner"))
+        identity.upsert_user(_identity_user(unassigned_user_id, tenant, "planner"))
+        identity.upsert_user(_identity_user(restricted_user_id, tenant, "planner"))
+        obs.upsert(P6OBSNode(tenant, project_obs, name="Project Responsible"))
+        obs.upsert(P6OBSNode(tenant, restricted_obs, name="Restricted WBS Responsible"))
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, user_id, project_id, "Resource Security Project", obs_id=project_obs
+        )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+            "VALUES (%s,%s,0,%s,'project',NULL,'ROOT','Root WBS',0,1,'active','activities')",
+            (tenant, project_id, root_wbs),
+        )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+            "VALUES (%s,%s,0,%s,'wbs',%s,'RESTRICTED','Restricted WBS',1,1,'active','activities')",
+            (tenant, project_id, restricted_wbs, root_wbs),
+        )
+        eps.assign_wbs_responsibility(
+            tenant, project_id, restricted_wbs, restricted_obs,
+            actor_user_id=user_id, occurred_at=now,
+        )
+
+        scope = BackendScope(tenant, project_id, 0)
+        activities = PostgresActivityMasterRepository(connection)
+        activities.initialize()
+        activities.save(ActivityMaster(
+            scope, root_activity, Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Root WBS activity", wbs_id=root_wbs,
+        ))
+        activities.save(ActivityMaster(
+            scope, restricted_activity, Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Restricted WBS activity", wbs_id=restricted_wbs,
+        ))
+
+        profiles = PostgresSecurityProfileRepository(connection)
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"resource-global-{suffix}",
+            name="Resource Global", scope="global",
+            actor_user_id=user_id, occurred_at=now,
+        )
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"resource-project-{suffix}",
+            name="Resource Activity Editor", scope="project",
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={"add_edit_activities_except_relationships"},
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        for target_user in (user_id, unassigned_user_id, restricted_user_id):
+            profiles.assign(
+                tenant_id=tenant, profile_id=global_profile.profile_id,
+                user_id=target_user, actor_user_id=user_id, occurred_at=now,
+            )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            user_id=user_id, obs_id=project_obs,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            user_id=restricted_user_id, obs_id=restricted_obs,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        connection.commit()
+
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        assignment_repository = PostgresP6ResourceAssignmentRepository(connection)
+        assignment_repository.initialize()
+        period_repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
+        period_repository.initialize()
+        transactions = _PostgresTransactionManager(connection)
+        write_api = P6ResourceWriteAPI(
+            P6ResourceAssignmentPeriodApplicationService(period_repository, transactions),
+            policy,
+            assignment_service=P6ResourceAssignmentApplicationService(
+                assignment_repository, transactions
+            ),
+            activity_repository=activities,
+        )
+        context = AuthorizationContext(
+            tenant, project_id, user_id, frozenset({"planner"})
+        )
+        unassigned_context = AuthorizationContext(
+            tenant, project_id, unassigned_user_id, frozenset({"planner"})
+        )
+        restricted_context = AuthorizationContext(
+            tenant, project_id, restricted_user_id, frozenset({"planner"})
+        )
+
+        assert policy.is_allowed(context, Permission.P6_ACTIVITY_ADMIN)
+        assert not policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
+        assert not policy.is_allowed(
+            unassigned_context, Permission.P6_ACTIVITY_ADMIN
+        ), "a planner/team role without an OBS-assigned Project Profile must not grant project writes"
+
+        root_assignment = P6ResourceAssignment(
+            scope, f"resource-assignment-root-{suffix}", root_activity, "resource-1"
+        )
+        restricted_assignment = P6ResourceAssignment(
+            scope, f"resource-assignment-restricted-{suffix}",
+            restricted_activity, "resource-1",
+        )
+        write_api.save_assignment(root_assignment, auth_context=context)
+        with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+            write_api.save_assignment(restricted_assignment, auth_context=context)
+
+        root_period = P6ResourceAssignmentPeriodValue(
+            scope, root_assignment.assignment_id, root_activity, "resource-1",
+            "2026-11-15", Decimal("4"), Decimal("40"),
+        )
+        with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+            write_api.save_assignment_period(root_period, auth_context=context)
+
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_activities_except_relationships",
+                "edit_period_performance",
+                "view_project_costs_financials",
+            },
+            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_PERIOD_PERFORMANCE, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_PERIOD_PERFORMANCE, restricted_wbs
+        )
+        write_api.save_assignment_period(root_period, auth_context=context)
+        restricted_period = P6ResourceAssignmentPeriodValue(
+            scope, restricted_assignment.assignment_id, restricted_activity,
+            "resource-1", "2026-11-15", Decimal("2"), Decimal("20"),
+        )
+        with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+            write_api.save_assignment_period(
+                restricted_period, auth_context=context
+            )
+
+        # A user assigned to the restricted OBS can write that WBS only, not
+        # the project OBS WBS; this is not inferred from team membership.
+        assert policy.is_allowed_for_wbs(
+            restricted_context, Permission.P6_ACTIVITY_ADMIN, restricted_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            restricted_context, Permission.P6_ACTIVITY_ADMIN, root_wbs
+        )
+        with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+            write_api.save_assignment(root_assignment, auth_context=restricted_context)
+
+        foreign_context = AuthorizationContext(
+            f"{tenant}-foreign", project_id, user_id, frozenset({"planner"})
+        )
+        assert not policy.is_allowed(foreign_context, Permission.P6_ACTIVITY_ADMIN)
+        connection.rollback()
+
