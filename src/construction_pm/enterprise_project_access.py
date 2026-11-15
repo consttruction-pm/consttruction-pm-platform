@@ -396,6 +396,10 @@ class EnterpriseProjectAuthorizationPolicy:
             Permission.ACTIVITY_EDIT: Permission.PROJECT_WRITE,
             Permission.ACTIVITY_DELETE: Permission.PROJECT_WRITE,
             Permission.ACTIVITY_RELATIONSHIP_MANAGE: Permission.PROJECT_WRITE,
+            Permission.ISSUE_VIEW: Permission.PROJECT_READ,
+            Permission.ISSUE_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_DELETE: Permission.PROJECT_WRITE,
         }.get(permission)
         return False if legacy is None else self.project_access.project_permission(
             context.tenant_id, context.user_id, context.project_id, legacy.value
