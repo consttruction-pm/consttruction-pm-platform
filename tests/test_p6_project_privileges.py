@@ -7,6 +7,8 @@ from construction_pm.p6_project_privileges import (
     PROJECT_PRIVILEGES,
     ProjectPrivilegeGroup,
     expand_project_privileges,
+    privilege_keys_for_group,
+    set_privilege_group,
 )
 
 
@@ -106,3 +108,28 @@ def test_v26_template_document_requires_separate_work_product_document_grant():
     expanded = expand_project_privileges({"template_document.add_edit_delete"})
     assert "work_product_document.add_edit_delete" not in expanded
     assert "document.add_edit_delete" not in expanded
+
+
+
+def test_v26_group_header_selects_and_clears_only_its_detail_window_group():
+    selected = {"schedule.run", "activity.view"}
+    with_activities = set_privilege_group(
+        selected, ProjectPrivilegeGroup.ACTIVITIES, True
+    )
+    assert privilege_keys_for_group(ProjectPrivilegeGroup.ACTIVITIES) <= with_activities
+    assert "schedule.run" in with_activities
+
+    cleared = set_privilege_group(
+        with_activities, ProjectPrivilegeGroup.ACTIVITIES, False
+    )
+    assert not (
+        privilege_keys_for_group(ProjectPrivilegeGroup.ACTIVITIES) & cleared
+    )
+    assert "schedule.run" in cleared
+
+
+def test_v26_group_header_rejects_unknown_privileges_and_group_names():
+    with pytest.raises(ValueError, match="UNKNOWN_PROJECT_PRIVILEGE"):
+        set_privilege_group({"made.up"}, ProjectPrivilegeGroup.ACTIVITIES, True)
+    with pytest.raises(ValueError, match="UNKNOWN_PROJECT_PRIVILEGE_GROUP"):
+        privilege_keys_for_group("not-a-v26-group")
