@@ -372,6 +372,79 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         notice = t.added; await loadTeam();
       });
     });
+    container.querySelector<HTMLFormElement>("#cubi-oa-profile-create")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const profileId = String(form.get("profile_id") ?? "").trim();
+      const name = String(form.get("name") ?? "").trim();
+      const scope = String(form.get("scope") ?? "");
+      if (!profileId || !name || (scope !== "global" && scope !== "project")) return;
+      void run(async () => {
+        await api("/api/enterprise/security-profiles", "POST", {
+          contract_version: "cubi-p6-security-profile.v1", profile_id: profileId, name, scope,
+        });
+        notice = t.profileCreated; selectedProfileId = profileId; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-profile-selected")?.addEventListener("change", (event) => {
+      selectedProfileId = (event.currentTarget as HTMLSelectElement).value;
+      void run(async () => { await loadProfileAssignments(); });
+    });
+    container.querySelector<HTMLButtonElement>("[data-profile-status]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      if (!selectedProfile) return;
+      const active = button.dataset.active === "true";
+      void run(async () => {
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/status`, "PATCH", {
+          contract_version: "cubi-p6-security-profile-status.v1",
+          active: !active, expected_revision: selectedProfile.revision,
+        });
+        notice = t.profileStatusSaved; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-profile-privileges")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedProfile) return;
+      const select = container.querySelector<HTMLSelectElement>("#cubi-oa-profile-privileges-list");
+      const privileges = select ? Array.from(select.selectedOptions).map((option) => option.value) : [];
+      void run(async () => {
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/privileges`, "PATCH", {
+          contract_version: "cubi-p6-security-profile-privileges.v1",
+          expected_revision: selectedProfile.revision, privileges,
+        });
+        notice = t.profileSaved; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-profile-assign")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedProfile) return;
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const userId = String(form.get("user_id") ?? "");
+      const obsId = String(form.get("obs_id") ?? "").trim();
+      const rawRevision = String(form.get("expected_revision") ?? "").trim();
+      const expectedRevision = rawRevision ? Number(rawRevision) : undefined;
+      if (!userId || (selectedProfile.scope === "project" && !obsId)
+          || (expectedRevision !== undefined && (!Number.isInteger(expectedRevision) || expectedRevision < 1))) return;
+      void run(async () => {
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/assignments`, "PUT", {
+          contract_version: "cubi-p6-security-profile-assignment.v1",
+          user_id: userId, obs_id: obsId, ...(expectedRevision === undefined ? {} : { expected_revision: expectedRevision }),
+        });
+        notice = t.profileAssigned; await loadProfileAssignments();
+      });
+    });
+    container.querySelectorAll<HTMLButtonElement>("[data-profile-unassign]").forEach((button) => button.addEventListener("click", () => {
+      if (!selectedProfile) return;
+      const userId = button.dataset.profileUnassign ?? "";
+      const obsId = button.dataset.obs ?? "";
+      const revision = Number(button.dataset.revision);
+      if (!userId || !Number.isInteger(revision) || !window.confirm(t.removeAssignment + "?")) return;
+      void run(async () => {
+        const query = new URLSearchParams({ obs_id: obsId, expected_revision: String(revision) });
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/assignments/${encodeURIComponent(userId)}?${query.toString()}`, "DELETE");
+        notice = t.removeAssignment; await loadProfileAssignments();
+      });
+    }));
     container.querySelectorAll<HTMLButtonElement>("[data-account-status]").forEach((button) => button.addEventListener("click", () => {
       const userId = button.dataset.accountStatus ?? "";
       const wasActive = button.dataset.active === "true";
