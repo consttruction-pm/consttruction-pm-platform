@@ -1378,3 +1378,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Verification:** Actions have been triggered, but the newest PostgreSQL Integration, ConstructionPM CI, Web CI and Client Typecheck runs remain queued at the latest inspection. No green result is claimed for the newest code SHA.
 - **Remaining release blockers:** EPS administration UI/API and audit lifecycle; full resource access and resource/role assignment scope; WBS-level filtering for risk, issue, threshold, expense, document and all other WBS-linked APIs; module access, UI Views, Copy User Settings, user invitation/password lifecycle, effective-access previews/reports and Team Member/timesheet/status-review workflows. Full Oracle V26 parity is not yet achieved.
 
+### EPS and WBS audit hardening — 2026-11-15
+
+- EPS node creation/updates and project-to-EPS placement now emit immutable audit rows in `p6_eps_audit`; the table has an append-only database trigger. EPS writes require an explicit actor and timestamp at the repository boundary.
+- The WBS responsibility override table now has a composite foreign key to the canonical PostgreSQL `wbs_master` row. The EPS repository initializes the WBS master schema before creating this FK. WBS responsibility changes continue to emit immutable before/after audit rows.
+- Effective WBS responsibility reads now resolve in order: nearest WBS override/ancestor override, direct project OBS, then nearest responsible OBS on the EPS branch. This makes the API return inherited defaults rather than falsely reporting an unassigned WBS.
+- Added tests for EPS audit event creation, inherited EPS defaults, WBS override/read-only behavior, append-only audit trigger behavior and savepoint-isolated trigger checks.
+- **Code commits:** `befc94dc` (EPS audit schema and writes), `6a1440da`/`87842e97` (audited fixture mutations), `0ac213e9` (EPS audit test), `1ed91be3` (audit-trigger savepoint), `c65f4b9e` (parity doc).
+- **Verification:** latest Actions remain queued; no CI pass is claimed for this audit hardening until exact-head runs execute.
+
