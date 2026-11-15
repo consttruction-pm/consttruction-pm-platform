@@ -1219,3 +1219,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - It specifies the immediate implementation vertical slice: isolated scenario create/read/edit/run using the existing Shared Scheduling Core, immutable pinned source and run records, tenant/project authorization, revision/idempotency, SQLite/PostgreSQL tests, then wire the existing Scenario Lab; comparison follows; promotion is a separate release gate.
 - Status distinction: documentation handoff is committed; **Qoder source implementation has not been executed by this ChatGPT GitHub connector**. This session cannot launch the desktop Qoder agent or run the canonical checkout's tests/browser runtime. Do not misreport code/test progress. The immediate next action is Qoder executing the packet in the canonical checkout.
 - PR #1988 remains Draft/open/unmerged. No merge/deploy authorized. Jalal 5 weights unchanged and no earned progress claimed.
+
+
+## Master CUBI capability program — full-scope register — 2026-11-15
+
+- Product-owner scope is the complete CUBI capability expansion and parity program, not only Scenario Lab.
+- Canonical register: `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`, commit `b4f66fe79434c674ec95e9fcc2995bf6abe5b430`.
+- Program issue: #1990. Scenario-specific issue #1989 is a child execution slice, not the overall program.
+- Register spans Engineering P1 (ENG-01..ENG-14), Enterprise P2 (ENT-01..ENT-12), and shared Workbench/platform boundaries (SH-01..SH-10), including schedule/activity/resource/cost/progress/risk/Monte Carlo/field work/Team Member/timesheets, organization/security/portfolio/capacity/workflows/dashboards/portal/integrations, and shared auth/audit/search/notifications/localization/storage/offline/forms/Super Admin.
+- Normative source hierarchy: P6 EPPM V26 HTML Help primary for parity; Primavera Cloud HTML Help supplies genuinely new capabilities absent from EPPM; shared capabilities are reconciled without duplicate records, APIs, menus, owners, workflows or calculations; Team Member V26 is a separate normative source; Professional Help supplementary only.
+- Engineering P1 is handed to Qoder for actual implementation. Enterprise P2 architecture and integration are coordinated here after Engineering contracts stabilize. Workbench remains non-owning.
+- PR #1988 includes the master register and tracker link; remains documentation-only until review/merge. Issue #1990 tracks the program. This checkpoint records documentation and scope only: no source code implementation, runtime tests, merge, deployment, Jalal 5 weight change or earned progress is claimed.
