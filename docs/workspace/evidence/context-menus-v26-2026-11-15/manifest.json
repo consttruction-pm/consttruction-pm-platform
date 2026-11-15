@@ -1,0 +1,15 @@
+{
+  "bundle": "context-menus-v26",
+  "suite": "apps/web/e2e/context-menus-v26.mjs",
+  "contract": "cubi-activity-context-menus-v26.v1",
+  "evidence_date": "2026-11-15",
+  "tested_code_sha": "bbacdaa0094d8dccc647ff08c1cf75db59875901",
+  "runtime": "managed Python preview, fresh SQLite, port 4499",
+  "checks_passed": 92,
+  "checks_total": 92,
+  "exceptions": 0,
+  "console_errors": 0,
+  "api_5xx": 0,
+  "placement_fix": "apps/web/src/workspace-context-menu.ts positionMenu: flip only when the flipped box stays inside the viewport; otherwise clamp at the near edge",
+  "screenshots_copied_from": "apps/web/e2e/artifacts/menu-*.png"
+}

@@ -4240,3 +4240,41 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   check renders inside the Schedule window rather than a separate docked
   window, and negative float stays a WARNING while genuine infeasibility still
   raises `ScheduleInfeasibilityError`.
+
+## Activity window full acceptance — 2026-11-15 (`bbacdaa0`)
+
+- **Scope.** Priority zero of the governing order: the Activity window's 16
+  desktop tabs (plus the CUBI Calendar tab), menus, toolbars, filters, columns,
+  context menus, WBS and Gantt. The audit ran against the built bundle
+  `apps/web/dist/web/src/main.bundle.js` served by the managed Python preview,
+  one fresh SQLite database and one port per suite, so no suite inherited
+  another's state.
+- **Result.** 28 browser suites, 351/351 numeric checks, 249 screenshots, zero
+  uncaught exceptions and zero API 5xx at `bbacdaa0`. The single console line is
+  the expected `WBS_HIERARCHY_CYCLE` refusal from the deliberate cycle-rejection
+  scenario. Evidence:
+  `docs/workspace/evidence/activity-window-v26-2026-11-15/` (`evidence.json`,
+  `summary.md`, `v26-traceability.md`).
+- **Product fix.** `positionMenu` in `apps/web/src/workspace-context-menu.ts`
+  always flipped a menu that overflowed the viewport and then clamped, so a tall
+  menu opened at the top-left corner (`top=4`) for a pointer at `y=324`. It now
+  flips only when the flipped box still fits and otherwise clamps at the near
+  edge. The context-menu suite moved from 91/92 to 92/92 after a rebuild.
+- **Test-scope corrections, no threshold relaxed.** `toolbars-v26.mjs` measures
+  the command `.cp-icon` inside `[data-tool-rail-button]` rather than a 12px
+  family-handle or 9px drag-grip glyph; `activity-relationships-v26.mjs` scrolls
+  both endpoint rows into `.cp-gantt-chart` and asserts both edge y-coordinates
+  are inside the pane before dragging, because a bar centre one pixel below the
+  pane was hitting the splitter.
+- **Documentation mapping.** `v26-traceability.md` gives, per surface, the
+  Version 26 HTML Help topic title, its live URL and a real page in the retrieved
+  303-page Professional guide. The 815-page PDF named in the instruction is not
+  mounted anywhere and is recorded as **MISSING / VERIFY**; no page number is
+  attributed to it.
+- **Honest limits.** Feedback is deferred because CUBI has no EPPM collaboration
+  service; Issues and Calendar are CUBI extensions beyond the Oracle tab list;
+  Summary and UDFs have no standalone Help topic; Update History has no guide
+  section. Suites that linger after writing evidence are reaped by the watchdog,
+  so a tail exit 137 is a successful run's process being closed.
+- **Next.** Continue automatically per the order: WBS, toolbars, project windows,
+  calendars, resources, Baseline and the remaining main-environment sections.

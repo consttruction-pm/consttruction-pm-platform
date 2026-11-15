@@ -1,0 +1,205 @@
+{
+  "contract": "cubi-activity-scope-v26.v1",
+  "baseUrl": "http://127.0.0.1:4403",
+  "gitHead": "bbacdaa0094d8dccc647ff08c1cf75db59875901",
+  "testedCodeSha": "bbacdaa0094d8dccc647ff08c1cf75db59875901",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-15T02:59:38.744Z",
+  "expected": {
+    "afterSeed": {
+      "total": 254,
+      "seeded": 240
+    }
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "Read model, table, Gantt and counters agree before any selection",
+      "status": "pass",
+      "at": "2026-11-15T02:59:44.165Z",
+      "total": 254,
+      "rows": 254,
+      "bars": 254
+    },
+    {
+      "id": "02",
+      "name": "Select All selects the full 250+ project, not just painted rows",
+      "status": "pass",
+      "at": "2026-11-15T02:59:45.216Z",
+      "selected": 254,
+      "rows": 254,
+      "bars": 254,
+      "scope": 254
+    },
+    {
+      "id": "03",
+      "name": "A Shift range selects the inclusive displayed interval and sets one primary row",
+      "status": "pass",
+      "at": "2026-11-15T02:59:47.013Z",
+      "anchor": "A210",
+      "target": "A145",
+      "selected": 5
+    },
+    {
+      "id": "04",
+      "name": "Ctrl subtracts one activity without clearing the rest of the selection",
+      "status": "pass",
+      "at": "2026-11-15T02:59:49.575Z",
+      "removed": "A130",
+      "afterRemoval": 4,
+      "restored": 5
+    },
+    {
+      "id": "05",
+      "name": "Search after Select All keeps the selection but narrows the scope count",
+      "status": "pass",
+      "at": "2026-11-15T02:59:53.475Z",
+      "full": 254,
+      "search": 240,
+      "narrow": 10,
+      "selected": 240,
+      "inScope": 10
+    },
+    {
+      "id": "06",
+      "name": "A Filters-dialog change after selection keeps it and recomputes the in-scope count",
+      "status": "pass",
+      "at": "2026-11-15T02:59:59.764Z",
+      "expected": 1,
+      "selectedBefore": 240,
+      "selectedAfter": 1,
+      "inScope": 1
+    },
+    {
+      "id": "07",
+      "name": "Collapse and expand during Select All never narrows the selection",
+      "status": "pass",
+      "at": "2026-11-15T03:00:02.606Z",
+      "collapsedVisible": 0,
+      "selected": 254,
+      "restored": 254
+    },
+    {
+      "id": "08",
+      "name": "Table and Gantt counts match under search and collapse",
+      "status": "pass",
+      "at": "2026-11-15T03:00:06.856Z",
+      "searchCount": 240,
+      "collapsedVisible": 240
+    },
+    {
+      "id": "09",
+      "name": "Export All writes the complete read model with an API-derived id set",
+      "status": "pass",
+      "at": "2026-11-15T03:00:07.680Z",
+      "rows": 254,
+      "fileName": "preview-rps-01-activities-all.csv"
+    },
+    {
+      "id": "10",
+      "name": "Export scopes include rows that grouping keeps out of the DOM",
+      "status": "pass",
+      "at": "2026-11-15T03:00:12.756Z",
+      "collapsedVisible": 0,
+      "allRows": 254,
+      "filteredRows": 240
+    },
+    {
+      "id": "11",
+      "name": "Export Selected writes exactly the retained selection from the read model",
+      "status": "pass",
+      "at": "2026-11-15T03:00:16.301Z",
+      "selected": 240,
+      "exported": 240
+    },
+    {
+      "id": "12",
+      "name": "A larger seeded project keeps Select All and Export Selected exact",
+      "status": "pass",
+      "at": "2026-11-15T03:00:21.783Z",
+      "total": 554,
+      "seeded": 300,
+      "exported": 554
+    },
+    {
+      "id": "13",
+      "name": "Selection, search, filter and export never mutate schedule input",
+      "status": "pass",
+      "at": "2026-11-15T03:00:28.658Z",
+      "activities": 554,
+      "snapshot": 554,
+      "mutations": 0
+    },
+    {
+      "id": "14",
+      "name": "An empty scope cannot be selected or exported as if it had rows",
+      "status": "pass",
+      "at": "2026-11-15T03:00:34.391Z",
+      "search": 0,
+      "filteredDisabled": true,
+      "selectedDisabled": true
+    },
+    {
+      "id": "15",
+      "name": "The new controls localize and fit a Persian RTL cell",
+      "status": "pass",
+      "at": "2026-11-15T03:00:38.016Z",
+      "dir": "rtl",
+      "overflow": 0,
+      "total": 554
+    }
+  ],
+  "screenshots": [
+    "01-baseline-counts.png",
+    "02-select-all-full-project.png",
+    "03-range-selection.png",
+    "04-search-after-selection.png",
+    "05-filter-after-selection.png",
+    "06-collapse-during-selection.png",
+    "07-export-all.png",
+    "08-export-all-collapsed.png",
+    "09-export-filtered.png",
+    "09-export-selected.png",
+    "10-large-population.png",
+    "11-rtl-export.png"
+  ],
+  "downloads": [
+    {
+      "scope": "all",
+      "fileName": "preview-rps-01-activities-all.csv",
+      "dataRows": 254,
+      "dialogCount": 254
+    },
+    {
+      "scope": "all",
+      "fileName": "preview-rps-01-activities-all.csv",
+      "dataRows": 254,
+      "dialogCount": 254
+    },
+    {
+      "scope": "filtered",
+      "fileName": "preview-rps-01-activities-filtered.csv",
+      "dataRows": 240,
+      "dialogCount": 240
+    },
+    {
+      "scope": "selected",
+      "fileName": "preview-rps-01-activities-selected.csv",
+      "dataRows": 240,
+      "dialogCount": 240
+    },
+    {
+      "scope": "selected",
+      "fileName": "preview-rps-01-activities-selected.csv",
+      "dataRows": 554,
+      "dialogCount": 554
+    }
+  ],
+  "scheduleMutations": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-15T03:00:38.016Z",
+  "passed": 15,
+  "failed": 0
+}

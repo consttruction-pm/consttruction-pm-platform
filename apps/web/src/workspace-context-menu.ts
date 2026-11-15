@@ -84,8 +84,17 @@ function positionMenu(menu: HTMLElement, x: number, y: number): void {
   const height = Math.min(Math.max(1, bounds.height || 200), viewport.height - margin * 2);
   let left = x + 2;
   let top = y + 2;
-  if (left + width > viewport.width - margin) left = x - width - 2;
-  if (top + height > viewport.height - margin) top = y - height - 2;
+  // Flip only when the flipped box still fits. A tall menu that fits neither
+  // above nor below must clamp at the near viewport edge, keeping its edge
+  // adjacent to the pointer instead of jumping to the opposite corner.
+  if (left + width > viewport.width - margin) {
+    const flipped = x - width - 2;
+    if (flipped >= margin) left = flipped;
+  }
+  if (top + height > viewport.height - margin) {
+    const flipped = y - height - 2;
+    if (flipped >= margin) top = flipped;
+  }
   left = clamp(left, margin, Math.max(margin, viewport.width - width - margin));
   top = clamp(top, margin, Math.max(margin, viewport.height - height - margin));
   menu.style.left = `${Math.round(left)}px`;
