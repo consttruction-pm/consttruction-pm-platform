@@ -14,7 +14,9 @@ from construction_pm.enterprise_organization_access import (
 from construction_pm.enterprise_organization_access_repository import (
     PostgresEnterpriseOrganizationAccessRepository,
 )
-from construction_pm.identity_session import IdentityUser, PostgresIdentityStore
+from construction_pm.identity_session import (
+    IdentityUser, PostgresIdentityStore, StoredSession, token_hash,
+)
 
 DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="CONSTRUCTION_PM_POSTGRES_DSN is required")
@@ -133,6 +135,12 @@ def test_postgres_account_deactivation_is_tenant_scoped_audited_and_revokes_sess
         ))
         repository = PostgresEnterpriseOrganizationAccessRepository(connection)
         repository.initialize()
+        issued_token = "session-token-for-account-deactivation-test"
+        identity.save_session(StoredSession(
+            token_hash=token_hash(issued_token), user_id=target_id, tenant_id=tenant,
+            roles=frozenset(), created_at=NOW, last_seen_at=NOW,
+            expires_at=NOW.replace(year=NOW.year + 1),
+        ))
         assert repository.has_active_role(tenant, admin_id, "enterprise_admin")
         accounts = repository.list_tenant_users(tenant)
         assert {item["user_id"] for item in accounts} == {admin_id, target_id}
@@ -142,6 +150,11 @@ def test_postgres_account_deactivation_is_tenant_scoped_audited_and_revokes_sess
         )
         assert changed == {"user_id": target_id, "active": False, "changed": True}
         assert not identity.is_user_active(target_id, tenant)
+        revoked = connection.execute(
+            "SELECT revoked_at FROM identity_sessions WHERE token_hash=%s",
+            (token_hash(issued_token),),
+        ).fetchone()
+        assert revoked is not None and revoked[0] is not None
 
         with pytest.raises(OrganizationAccessError, match="LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED"):
             repository.set_account_active(tenant, admin_id, admin_id, False, NOW)
