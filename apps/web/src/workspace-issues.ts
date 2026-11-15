@@ -530,7 +530,7 @@ export function mountWorkspaceIssuesPage(host: HTMLElement, options: IssuePageOp
       ${inputRow(say("Priority", "اولویت"), item.priority)}
       ${inputRow(say("Owner", "مسئول"), item.owner)}
       ${inputRow(say("Responsible Manager", "مدیر مسئول"), item.responsibleManager)}
-      ${inputRow(say("Responsible OBS ID", "شناسه OBS مسئول"), item.responsibleObsId)}
+      ${inputRow(say("Responsible OBS ID", "شناسه OBS مسئول"), item.responsibleObsId ?? null)}
       ${inputRow(say("Date Identified", "تاریخ شناسایی"), item.dateIdentified)}
       ${inputRow(say("Due Date", "موعد"), item.dueDate)}
       ${inputRow(say("Record revision", "نسخه رکورد"), String(item.recordRevision))}
