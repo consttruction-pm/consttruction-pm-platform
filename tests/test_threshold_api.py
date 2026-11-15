@@ -246,3 +246,29 @@ def test_threshold_responsible_obs_is_enforced_and_round_tripped(api):
         expected_revision=1, context=context(), actor_id="u-1", occurred_at=NOW,
     )
     assert denied["code"] == "THRESHOLD_OBS_ACCESS_DENIED"
+
+
+def test_threshold_responsible_obs_does_not_inherit_project_only_read(api):
+    from dataclasses import replace
+
+    api.create_threshold(
+        threshold(responsible_obs_id="OBS-LEGAL"),
+        idempotency_key="k-legal",
+        context=context(),
+        actor_id="u-1",
+        occurred_at=NOW,
+    )
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return False
+
+    scoped = ThresholdAPI(replace(api.service, responsible_obs_access=OBSAccess()))
+    listed = scoped.list_thresholds(
+        tenant_id="T-1", project_id="P-1", context=context("viewer", user="v-1")
+    )
+    assert listed["thresholds"] == []
+    denied = scoped.read_threshold(
+        tenant_id="T-1", project_id="P-1", threshold_id="TH-1", context=context()
+    )
+    assert denied["code"] == "THRESHOLD_OBS_ACCESS_DENIED"
