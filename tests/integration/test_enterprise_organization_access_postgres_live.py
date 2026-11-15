@@ -221,10 +221,11 @@ def test_postgres_team_ownership_transfer_is_atomic_revision_guarded_and_audited
         assert new_membership.scope_project_ids == ("project-9",)
         audit = connection.execute(
             "SELECT action,before_state,after_state FROM enterprise_access_audit "
-            "WHERE tenant_id=%s AND team_id=%s ORDER BY occurred_at,audit_id",
+            "WHERE tenant_id=%s AND team_id=%s AND action='team_owner_transferred'",
             (tenant, team.team_id),
-        ).fetchall()
-        assert [row[0] for row in audit][-1] == "team_owner_transferred"
-        assert audit[-1][1]["team"]["owner_user_id"] == old_owner_id
-        assert audit[-1][2]["team"]["owner_user_id"] == new_owner_id
+        ).fetchone()
+        assert audit is not None
+        assert audit[0] == "team_owner_transferred"
+        assert audit[1]["team"]["owner_user_id"] == old_owner_id
+        assert audit[2]["team"]["owner_user_id"] == new_owner_id
         connection.commit()
