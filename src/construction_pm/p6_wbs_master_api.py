@@ -24,6 +24,7 @@ from .wbs_master_repository import (
 
 
 P6_WBS_MASTER_API_VERSION = "p6-wbs-master-api.v1"
+_WBS_OBS_UNSET = object()
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -97,14 +98,17 @@ class P6WBSMasterAPI:
         permission: str,
         *,
         wbs_id: str | None = None,
-        responsible_obs_id: str | None = None,
+        responsible_obs_id: object = _WBS_OBS_UNSET,
     ) -> None:
         checker = getattr(self.repository, "has_wbs_permission", None)
         if wbs_id is not None and callable(checker):
-            allowed = checker(
-                scope, auth_context.user_id, wbs_id, permission,
-                responsible_obs_id_override=responsible_obs_id,
-            )
+            if responsible_obs_id is _WBS_OBS_UNSET:
+                allowed = checker(scope, auth_context.user_id, wbs_id, permission)
+            else:
+                allowed = checker(
+                    scope, auth_context.user_id, wbs_id, permission,
+                    responsible_obs_id_override=responsible_obs_id,
+                )
         else:
             checker = getattr(self.repository, "has_responsible_obs_permission", None)
             if not callable(checker):
