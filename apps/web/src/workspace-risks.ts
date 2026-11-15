@@ -43,7 +43,7 @@ export type RiskRecord = {
   score: number;
   exposureLevel: string;
   responseStrategy: string;
-  responseOwner: string;
+  responseOwner: string | null;
   responseDueDate: string | null;
   owner: string;
   responsibleManager: string | null;
@@ -372,7 +372,7 @@ export function buildRiskPayload(input: RiskInput): Record<string, unknown> {
     probability: input.probability,
     impact: input.impact,
     response_strategy: strategy,
-    response_owner: trimmedOrNull(input.responseOwner),
+    response_owner: trimmedOrNull(input.responseOwner ?? null),
     response_due_date: due,
     owner,
     responsible_manager: trimmedOrNull(input.responsibleManager),
