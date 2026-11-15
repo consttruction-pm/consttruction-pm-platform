@@ -72,3 +72,10 @@ Additional normative V26 topics reviewed:
 - PostgreSQL live: CONSTRUCTION_PM_POSTGRES_DSN=... pytest -q tests/integration/test_enterprise_project_access_postgres_live.py
 - Added SQLite repository migration/round-trip tests, WBS HTTP DTO coverage, and WBS OBS authorization tests.
 - Exact-head GitHub Actions, live PostgreSQL authorization scenarios, and a browser journey remain required before promotion.
+
+
+## Privilege catalogue implementation slice (2026-11-15)
+
+A versioned internal catalogue has now been added at `src/construction_pm/p6_project_privileges.py`, with category metadata and a fail-closed expansion helper for the documented Add/Delete → Edit/Assign/View hierarchy. The accompanying tests assert unique keys, group coverage, inheritance and rejection of unknown keys.
+
+This is deliberately a catalogue foundation, **not** a claim of complete V26 catalogue parity or endpoint enforcement. The production `ProjectSecurityProfile` validator still accepts only the four compatibility permissions listed above; no granular catalogue key is accepted by production profile persistence until the endpoint-to-privilege matrix and API enforcement are implemented. The catalogue currently covers a bounded first set of V26 concepts and must be reconciled line-by-line against the complete Oracle Project Privilege Definitions help before being called exhaustive.
