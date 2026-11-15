@@ -540,6 +540,16 @@ def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
             supplied_token=secret, configured_token=secret, occurred_at=now,
         )
         assert profile.profile_id == "p6-admin-superuser"
+        builtins = connection.execute(
+            "SELECT profile_id,scope FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id IN "
+            "('p6-admin-superuser','p6-no-global-privileges','p6-project-superuser')",
+            (tenant,),
+        ).fetchall()
+        assert {row[0] for row in builtins} == {
+            "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser"
+        }
+        assert {row[1] for row in builtins} == {"global", "project"}
         connection.commit()
 
     with _connect() as connection:
