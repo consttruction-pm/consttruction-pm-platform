@@ -607,6 +607,10 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         eps.assign_project(
             tenant, project_id, child_id, actor_user_id=user_id, occurred_at=now,
         )
+        assert connection.execute(
+            "SELECT count(*) FROM p6_eps_audit WHERE tenant_id=%s",
+            (tenant,),
+        ).fetchone()[0] == 3
         assert eps.assign_wbs_responsibility(
             tenant, project_id, f"eps-wbs-{suffix}", obs_id,
             actor_user_id=user_id, occurred_at=now,
