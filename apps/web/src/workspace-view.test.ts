@@ -164,6 +164,9 @@ test("WBS register exposes connected add, delete and view controls", () => {
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
+  assert.match(html, /data-wbs-delete-guidance/);
+  assert.match(html, /data-wbs-delete-reassign hidden/);
+  assert.match(html, /Reassign activities to parent and delete/);
   assert.match(html, /data-wbs-view="table"/);
   assert.match(html, /data-wbs-view="chart"/);
   assert.doesNotMatch(html, /WBS chart view is not connected yet/);

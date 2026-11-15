@@ -5,8 +5,10 @@
  * Every assertion runs against the real full-stack preview. The WBS window
  * clipboard copies a subtree through POST /p6/wbs/{id}/copy, a cut pastes by
  * moving the same record through PATCH (so activity assignments stay attached),
- * a paste into a descendant is rejected as a hierarchy cycle, and a delete of a
- * node in use states the V26 precondition instead of the persistence code.
+ * a paste into a descendant is rejected as a hierarchy cycle, a delete of a node
+ * in use states the V26 precondition instead of the persistence code, and the
+ * V26 reassignment branch moves a leaf's activity assignments to its parent and
+ * deletes the leaf in one transaction.
  *
  * Usage:
  *   CUBI_PREVIEW_URL=http://127.0.0.1:4231 node e2e/wbs-cut-copy-paste-v26.mjs
@@ -483,6 +485,74 @@ async function main() {
       );
       await capture(page, "05-wbs-delete-guidance");
       return { guidance };
+    });
+
+    await scenario("05b", "Reassigning a leaf's activities to its parent deletes the element", async () => {
+      const leafId = "WBS-RPS-DEL-LEAF";
+      const activityId = "A-WBS3-DEL";
+      const parent = await nodeState(page, PM);
+      const created = await api(page, "POST", WBS_PATH, {
+        contract_version: "p6-wbs-master-api.v1",
+        wbs_id: leafId,
+        parent_kind: "wbs",
+        parent_wbs_id: PM,
+        code: "DEL-1",
+        name: "Delete reassignment fixture",
+        sequence_number: 999,
+      });
+      check(
+        "wbs3-reassign-fixture-wbs",
+        "a leaf WBS element is created under the parent",
+        created.status === 201 && created.body?.wbs?.parent_wbs_id === PM,
+        created,
+      );
+      const activity = await api(page, "POST", ACTIVITY_PATH, {
+        contract_version: "p6-activity-master-api.v1",
+        activity_id: activityId,
+        name: "Reassignment fixture activity",
+        duration_value: "1",
+        duration_unit: "working-day",
+        wbs_id: leafId,
+      });
+      check(
+        "wbs3-reassign-fixture-activity",
+        "an activity is assigned to the leaf",
+        activity.status === 201 && activity.body?.activity?.wbs_id === leafId,
+        activity,
+      );
+      await reloadWorkspace(page);
+      await openWbs(page);
+      await selectNode(page, leafId);
+      await clickToolbar(page, "data-wbs-delete");
+      await sleep(1200);
+      const offered = await page.evaluate(
+        `(() => { const button = document.querySelector('.cp-wbs-window [data-wbs-delete-reassign]'); return button ? !button.hidden : false; })()`,
+      );
+      check(
+        "wbs3-reassign-offered",
+        "the delete refusal offers reassignment to the parent for a leaf element",
+        offered === true,
+        offered,
+      );
+      await capture(page, "05b-wbs-reassign-offered");
+      await clickToolbar(page, "data-wbs-delete-reassign");
+      await sleep(1800);
+      const remaining = await wbsList(page);
+      check(
+        "wbs3-reassign-deleted",
+        "the leaf WBS element is deleted after reassignment",
+        !remaining.some((node) => node.wbs_id === leafId),
+        remaining.map((node) => node.wbs_id),
+      );
+      const moved = await api(page, "GET", `${ACTIVITY_PATH}/${activityId}`);
+      check(
+        "wbs3-reassign-moved",
+        "the activity assignment now points at the parent WBS element",
+        moved.status === 200 && moved.body?.activity?.wbs_id === PM,
+        moved.body?.activity?.wbs_id,
+      );
+      await capture(page, "05c-wbs-reassigned");
+      return { leafId, activityId, parentRevision: parent.wbs.record_revision };
     });
 
     await scenario("06", "Persian RTL shows the WBS clipboard commands without overflow", async () => {

@@ -230,6 +230,70 @@ def test_wbs_master_delete_requires_current_revision_and_removes_leaf():
     assert [item.wbs_id for item in repo.list(scope())] == ["W-ROOT"]
 
 
+def _seed_wbs_assignments(connection, pairs):
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS activity_wbs_assignment ("
+        "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, activity_id TEXT NOT NULL, "
+        "wbs_id TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, activity_id))"
+    )
+    for activity_id, wbs_id in pairs:
+        connection.execute(
+            "INSERT INTO activity_wbs_assignment (tenant_id, project_id, activity_id, wbs_id) "
+            "VALUES (?, ?, ?, ?)",
+            ("T-1", "P-1", activity_id, wbs_id),
+        )
+    connection.commit()
+
+
+def test_wbs_master_delete_reassigns_activity_assignments_to_parent():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteWBSMasterRepository(connection)
+    repo.save(root())
+    repo.save(child("W-PARENT", "W-ROOT", code="2"))
+    leaf = repo.save(child("W-LEAF", "W-PARENT", code="3"))
+    _seed_wbs_assignments(connection, [("A100", "W-LEAF"), ("A110", "W-LEAF")])
+
+    with pytest.raises(WBSPersistenceError, match="WBS_IN_USE"):
+        repo.delete(scope(), "W-LEAF", expected_revision=leaf.record_revision)
+    assert repo.get(scope(), "W-LEAF") == leaf
+    assert connection.execute(
+        "SELECT wbs_id FROM activity_wbs_assignment ORDER BY activity_id"
+    ).fetchall() == [("W-LEAF",), ("W-LEAF",)]
+
+    reassigned = repo.delete(
+        scope(),
+        "W-LEAF",
+        expected_revision=leaf.record_revision,
+        reassign_activities_to_parent=True,
+    )
+
+    assert reassigned == 2
+    assert repo.get(scope(), "W-LEAF") is None
+    assert connection.execute(
+        "SELECT activity_id, wbs_id FROM activity_wbs_assignment ORDER BY activity_id"
+    ).fetchall() == [("A100", "W-PARENT"), ("A110", "W-PARENT")]
+
+
+def test_wbs_master_reassign_delete_requires_a_wbs_parent():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteWBSMasterRepository(connection)
+    stored_root = repo.save(root())
+    _seed_wbs_assignments(connection, [("A100", "W-ROOT")])
+
+    with pytest.raises(WBSPersistenceError, match="WBS_REASSIGN_PARENT_REQUIRED"):
+        repo.delete(
+            scope(),
+            "W-ROOT",
+            expected_revision=stored_root.record_revision,
+            reassign_activities_to_parent=True,
+        )
+
+    assert repo.get(scope(), "W-ROOT") is not None
+    assert connection.execute(
+        "SELECT wbs_id FROM activity_wbs_assignment WHERE activity_id='A100'"
+    ).fetchone() == ("W-ROOT",)
+
+
 def test_wbs_master_delete_rejects_nodes_with_children():
     repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
     repo.save(root())

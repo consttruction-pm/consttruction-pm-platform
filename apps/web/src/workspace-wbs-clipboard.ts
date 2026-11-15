@@ -75,7 +75,7 @@ export function wbsClipboardLabels(locale: string): {
       selectTarget: "ابتدا عنصر هدف را انتخاب کنید و سپس بچسبانید.",
       cannotPasteIntoSelf: "یک عنصر ساختار شکست را نمی‌توان در خودش چسباند.",
       deleteGuidance:
-        "این عنصر ساختار شکست هنوز زیرعنصر یا تخصیص فعالیت دارد. پیش از حذف، زیرعنصرها را جابه‌جا یا حذف کنید و فعالیت‌های آن را به عنصر والد منتقل کنید.",
+        "این عنصر ساختار شکست هنوز زیرعنصر یا تخصیص فعالیت دارد. زیرعنصرها باید ابتدا جابه‌جا یا حذف شوند. اگر عنصر والد داشته باشد، می‌توانید تخصیص فعالیت‌ها را به والد منتقل کرده و همین عنصر را حذف کنید.",
     };
   }
   return {
@@ -85,6 +85,6 @@ export function wbsClipboardLabels(locale: string): {
     selectTarget: "Select the target WBS element, then paste.",
     cannotPasteIntoSelf: "A WBS element cannot be pasted into itself.",
     deleteGuidance:
-      "This WBS element still has child elements or activity assignments. Move or delete its children and reassign its activities to the parent element before deleting it.",
+      "This WBS element still has child elements or activity assignments. Child elements must be moved or deleted first. If the element has a WBS parent, you can move its activity assignments to that parent and delete the element.",
   };
 }
