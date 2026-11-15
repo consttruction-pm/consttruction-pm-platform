@@ -33,6 +33,16 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
         raise AuthorizationError("CROSS_SCOPE_ACCESS")
 
 
+def _is_allowed_for_wbs(
+    policy: AuthorizationPolicy, auth_context: AuthorizationContext,
+    permission: Permission, wbs_id: str,
+) -> bool:
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if callable(scoped):
+        return bool(scoped(auth_context, permission, wbs_id))
+    return policy.is_allowed(auth_context, permission)
+
+
 def _scope_dto(scope: BackendScope) -> dict[str, Any]:
     return {
         "tenant_id": scope.tenant_id,
@@ -111,7 +121,7 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, item.wbs_id):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
         stored = self.repository.save(item, expected_revision=expected_revision)
@@ -133,7 +143,7 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, wbs_id):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
@@ -163,7 +173,9 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, wbs_id):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        if target_parent_wbs_id and not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, target_parent_wbs_id):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         nodes = self.repository.copy_subtree(
@@ -194,7 +206,7 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_READ, wbs_id):
             raise AuthorizationError("authorization denied for permission=project.read")
         item = self.repository.get(scope, wbs_id)
         if item is None:
@@ -208,11 +220,11 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
-            raise AuthorizationError("authorization denied for permission=project.read")
+        nodes = self.repository.list(scope)
         return tuple(
             _dto(item, self.repository.list_milestones(scope, item.wbs_id))
-            for item in self.repository.list(scope)
+            for item in nodes
+            if _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_READ, item.wbs_id)
         )
 
     def get_responsible_obs(
@@ -220,7 +232,7 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_READ, wbs_id):
             raise AuthorizationError("authorization denied for permission=project.read")
         if self.responsibility_repository is None:
             raise RuntimeError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
@@ -249,7 +261,7 @@ class P6WBSMasterAPI:
             or expected_revision < 0
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.P6_WBS_ADMIN):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.P6_WBS_ADMIN, wbs_id):
             raise AuthorizationError("authorization denied for permission=p6.wbs.admin")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         if self.responsibility_repository is None:
@@ -283,7 +295,7 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, wbs_id):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         item, stored = self.repository.replace_milestones(
