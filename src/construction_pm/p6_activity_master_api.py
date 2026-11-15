@@ -37,6 +37,17 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
         raise AuthorizationError("CROSS_SCOPE_ACCESS")
 
 
+def _is_allowed_for_activity(
+    policy: AuthorizationPolicy, auth_context: AuthorizationContext,
+    permission: Permission, wbs_id: str,
+) -> bool:
+    if wbs_id:
+        scoped = getattr(policy, "is_allowed_for_wbs", None)
+        if callable(scoped):
+            return bool(scoped(auth_context, permission, wbs_id))
+    return policy.is_allowed(auth_context, permission)
+
+
 def _optional_iso(value: date | datetime | None) -> str | None:
     return None if value is None else value.isoformat()
 
@@ -96,7 +107,7 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(activity.scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not _is_allowed_for_activity(self.authorization_policy, auth_context, Permission.PROJECT_WRITE, activity.wbs_id):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=0))
@@ -131,7 +142,11 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
         item = self.repository.get(scope, activity_id)
-        return None if item is None else _dto(item)
+        if item is None:
+            return None
+        if not _is_allowed_for_activity(self.authorization_policy, auth_context, Permission.PROJECT_READ, item.wbs_id):
+            raise AuthorizationError("authorization denied for permission=project.read")
+        return _dto(item)
 
     def list(
         self,
@@ -142,7 +157,10 @@ class P6ActivityMasterAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("authorization denied for permission=project.read")
-        return tuple(_dto(item) for item in self.repository.list(scope))
+        return tuple(
+            _dto(item) for item in self.repository.list(scope)
+            if _is_allowed_for_activity(self.authorization_policy, auth_context, Permission.PROJECT_READ, item.wbs_id)
+        )
 
 
 __all__ = ["P6_ACTIVITY_MASTER_API_VERSION", "P6ActivityMasterAPI"]
