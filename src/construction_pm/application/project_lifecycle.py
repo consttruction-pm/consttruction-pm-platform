@@ -5,6 +5,8 @@ from datetime import date, datetime
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
+from ..p6_eps_repository import P6EPSNode
+
 from .authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 
 
@@ -491,7 +493,12 @@ class ProjectEPSAssignmentPort(Protocol):
 
     def eps_node_exists(self, tenant_id: str, eps_id: str) -> bool: ...
 
-    def list_nodes(self, tenant_id: str) -> tuple[Any, ...]: ...
+    def list_nodes(self, tenant_id: str) -> tuple[P6EPSNode, ...]: ...
+
+    def save_node(
+        self, node: P6EPSNode, *, actor_user_id: str, occurred_at: datetime,
+        expected_revision: int | None = None,
+    ) -> P6EPSNode: ...
 
     def assign_project(
         self, tenant_id: str, project_id: str, eps_id: str, *,
@@ -827,6 +834,83 @@ class ProjectLifecycleService:
             project_id=project.project_id,
             revision=project.revision,
             user_id=session.user_id,
+        )
+
+    def list_eps_nodes(
+        self, session_id: str, *, now: datetime,
+    ) -> tuple[P6EPSNode, ...]:
+        session = self.session(session_id, now=now)
+        if self._eps_nodes is None:
+            raise ProjectLifecycleError("PROJECT_EPS_UNAVAILABLE")
+        context = AuthorizationContext(
+            tenant_id=session.tenant_id, project_id="__eps_catalog__",
+            user_id=session.user_id, roles=session.roles,
+        )
+        if getattr(self._policy, "is_admin_superuser", lambda _context: False)(context):
+            return self._eps_nodes.list_nodes(session.tenant_id)
+        checker = getattr(self._policy, "is_allowed_for_eps", None)
+        if not callable(checker):
+            return ()
+        return tuple(
+            node for node in self._eps_nodes.list_nodes(session.tenant_id)
+            if checker(context, Permission.P6_PROJECT_CREATE, node.eps_id)
+            or checker(context, Permission.P6_EPS_ADMIN, node.eps_id)
+        )
+
+    def save_eps_node(
+        self, session_id: str, node: P6EPSNode, *,
+        expected_revision: int | None, now: datetime,
+    ) -> P6EPSNode:
+        session = self.session(session_id, now=now)
+        if self._eps_nodes is None:
+            raise ProjectLifecycleError("PROJECT_EPS_UNAVAILABLE")
+        if node.tenant_id != session.tenant_id:
+            raise ProjectLifecycleError("CROSS_TENANT_EPS_ACCESS")
+        context = AuthorizationContext(
+            tenant_id=session.tenant_id, project_id="__eps_catalog__",
+            user_id=session.user_id, roles=session.roles,
+        )
+        if node.parent_eps_id:
+            checker = getattr(self._policy, "is_allowed_for_eps", None)
+            allowed = callable(checker) and checker(
+                context, Permission.P6_EPS_ADMIN, node.parent_eps_id
+            )
+        else:
+            allowed = bool(
+                getattr(self._policy, "is_admin_superuser", lambda _context: False)(context)
+            )
+        if not allowed:
+            raise AuthorizationError("authorization denied for permission=p6.eps.admin")
+        return self._eps_nodes.save_node(
+            node, actor_user_id=session.user_id, occurred_at=now,
+            expected_revision=expected_revision,
+        )
+
+    def assign_project_eps(
+        self, session_id: str, project_id: str, eps_id: str, *,
+        expected_revision: int | None, now: datetime,
+    ) -> int:
+        session = self.session(session_id, now=now)
+        if self._eps_nodes is None:
+            raise ProjectLifecycleError("PROJECT_EPS_UNAVAILABLE")
+        project = self._projects.get_for_user(
+            session.tenant_id, project_id, session.user_id
+        )
+        if project is None:
+            raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        context = AuthorizationContext(
+            tenant_id=session.tenant_id, project_id=project_id,
+            user_id=session.user_id, roles=session.roles,
+        )
+        checker = getattr(self._policy, "is_allowed_for_eps", None)
+        if not callable(checker) or not checker(
+            context, Permission.P6_PROJECT_CREATE, eps_id
+        ):
+            raise AuthorizationError("authorization denied for permission=p6.project.create")
+        return self._eps_nodes.assign_project(
+            session.tenant_id, project_id, eps_id,
+            actor_user_id=session.user_id, occurred_at=now,
+            expected_revision=expected_revision,
         )
 
     def get_project(
