@@ -79,6 +79,12 @@ class EnterpriseOrganizationAccessRepository(Protocol):
     def list_teams_for_user(self, tenant_id: str, user_id: str) -> tuple[EnterpriseTeam, ...]: ...
     def list_memberships(self, tenant_id: str, team_id: str) -> tuple[EnterpriseTeamMembership, ...]: ...
     def list_active_users(self, tenant_id: str) -> tuple[dict[str, str], ...]: ...
+    def list_tenant_users(self, tenant_id: str) -> tuple[dict[str, object], ...]: ...
+    def has_active_role(self, tenant_id: str, user_id: str, role: str) -> bool: ...
+    def set_account_active(
+        self, tenant_id: str, target_user_id: str, actor_user_id: str,
+        active: bool, occurred_at: datetime,
+    ) -> dict[str, object]: ...
 
 
 class EnterpriseOrganizationAccessService:
@@ -172,6 +178,34 @@ class EnterpriseOrganizationAccessService:
                    if item.status == "active"}
         return tuple(user for user in self._repository.list_active_users(session.tenant_id)
                      if user["user_id"] not in members and user["user_id"] != session.user_id)
+
+    def list_accounts(self, session_id: str) -> tuple[dict[str, object], ...]:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        return self._repository.list_tenant_users(session.tenant_id)
+
+    def set_account_active(
+        self, session_id: str, target_user_id: str, *, active: bool,
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if not isinstance(active, bool):
+            raise OrganizationAccessError("ACCOUNT_ACTIVE_FLAG_INVALID")
+        if not isinstance(target_user_id, str) or not target_user_id.strip():
+            raise OrganizationAccessError("ACCOUNT_USER_ID_INVALID")
+        if target_user_id == session.user_id and not active:
+            raise OrganizationAccessDenied("SELF_DEACTIVATION_NOT_ALLOWED")
+        return self._repository.set_account_active(
+            session.tenant_id, target_user_id, session.user_id, active, self._now()
+        )
+
+    def _require_enterprise_admin(self, session: object) -> None:
+        # Re-read the current identity role, rather than trusting a role snapshot
+        # captured when the administrator's browser session was first issued.
+        if not self._repository.has_active_role(
+            session.tenant_id, session.user_id, "enterprise_admin"
+        ):
+            raise OrganizationAccessDenied("ENTERPRISE_ADMIN_REQUIRED")
 
     def require_active_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership:
         membership = self._repository.get_membership(tenant_id, team_id, user_id)
