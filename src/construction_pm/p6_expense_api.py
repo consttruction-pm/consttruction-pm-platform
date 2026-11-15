@@ -69,10 +69,32 @@ class P6ExpenseAPI:
 
     service: P6ExpenseApplicationService
     authorization_policy: AuthorizationPolicy
+    wbs_access_repository: object | None = None
+
+    def _require_wbs_permission(
+        self, scope: BackendScope, auth_context: AuthorizationContext,
+        wbs_id: str | None, permission: str,
+    ) -> None:
+        if wbs_id is None or self.wbs_access_repository is None:
+            return
+        checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
+        if callable(checker) and not checker(scope, auth_context.user_id, wbs_id, permission):
+            raise AuthorizationError("WBS_OBS_ACCESS_DENIED")
+
+    def _can_read_wbs(
+        self, scope: BackendScope, auth_context: AuthorizationContext, wbs_id: str | None
+    ) -> bool:
+        if wbs_id is None or self.wbs_access_repository is None:
+            return True
+        checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
+        return True if not callable(checker) else bool(
+            checker(scope, auth_context.user_id, wbs_id, Permission.PROJECT_READ.value)
+        )
 
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        self._require_wbs_permission(expense.scope, auth_context, expense.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.service.save(expense))
 
     def get(
@@ -85,7 +107,10 @@ class P6ExpenseAPI:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         result = self.service.read(scope, expense_id)
-        return None if result is None else _dto(result)
+        if result is None:
+            return None
+        self._require_wbs_permission(scope, auth_context, result.wbs_id, Permission.PROJECT_READ.value)
+        return _dto(result)
 
     def list(
         self,
@@ -100,6 +125,7 @@ class P6ExpenseAPI:
         return tuple(
             _dto(item)
             for item in self.service.list(scope, activity_id=activity_id, wbs_id=wbs_id)
+            if self._can_read_wbs(scope, auth_context, item.wbs_id)
         )
 
 
