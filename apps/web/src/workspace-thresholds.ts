@@ -45,7 +45,7 @@ export type ThresholdRecord = {
   name: string;
   monitoringSubject: string;
   parameter: string;
-  currency: string |  responsibleObsId?: string | null;
+  currency: string | null;
   lowerThreshold: string | null;
   upperThreshold: string | null;
   warningLevel: string | null;
