@@ -22,7 +22,15 @@ _PROFILE_SCOPES = frozenset({"global", "project"})
 # Reserved Oracle P6 V26 built-in. It is provisioned only by a controlled
 # installation bootstrap; tenant administrators cannot create or edit it.
 ADMIN_SUPERUSER_PROFILE_ID = "p6-admin-superuser"
-_RESERVED_PROFILE_IDS = frozenset({ADMIN_SUPERUSER_PROFILE_ID})
+NO_GLOBAL_PRIVILEGES_PROFILE_ID = "p6-no-global-privileges"
+PROJECT_SUPERUSER_PROFILE_ID = "p6-project-superuser"
+_RESERVED_PROFILE_IDS = frozenset({
+    ADMIN_SUPERUSER_PROFILE_ID, NO_GLOBAL_PRIVILEGES_PROFILE_ID,
+    PROJECT_SUPERUSER_PROFILE_ID,
+})
+_ADMIN_ONLY_PROFILE_IDS = frozenset({
+    ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID,
+})
 
 # Oracle P6 EPPM Help V26, Privileges Detail Window of the Global Security Profiles Page.
 GLOBAL_PRIVILEGES = frozenset({
@@ -421,7 +429,7 @@ class PostgresSecurityProfileRepository:
         if profile is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         scope, active = str(profile[0]), bool(profile[1])
-        if profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+        if profile_id in _ADMIN_ONLY_PROFILE_IDS:
             actor_is_admin_superuser = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
@@ -651,6 +659,9 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # operations with a verified V26 privilege mapping are enabled here;
         # generic write and CUBI-only permissions fail closed until each API
         # endpoint is mapped to its precise P6 privilege.
+        if any(bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
+               for row in project_rows):
+            return True
         if permission == Permission.PROJECT_READ:
             return any(bool(row[1]) for row in project_rows)
         required = PROJECT_PERMISSION_PRIVILEGE_MAP.get(permission)
