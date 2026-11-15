@@ -641,4 +641,4 @@ def test_account_deactivation_revokes_existing_session_immediately(runtime):
 
     status, _, body = call(runtime, "GET", "/api/session", cookie=cookie)
     assert status == 401
-    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+    assert json.loads(body)["code"] == "SESSION_NOT_FOUND"
