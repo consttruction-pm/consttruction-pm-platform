@@ -199,6 +199,8 @@ def runtime() -> ProductionRuntime:
         "project_b": project_b,
         "eps_a": eps_a,
         "eps_b": eps_b,
+        "obs_a": obs_a,
+        "obs_b": obs_b,
         # Failed logins are throttled per source IP for 15 minutes and the
         # throttle state is durable. A per-run address keeps the module
         # repeatable against a long-lived database.
@@ -506,7 +508,7 @@ def test_admin_can_create_a_project(runtime):
         body={
             "eps_id": new_eps_id,
             "name": "Admin Created EPS",
-            "responsible_obs_id": f"obs-a-{ids['tenant_a'].split('-')[-1]}",
+            "responsible_obs_id": ids["obs_a"],
             "sequence_number": 9,
         },
     )
