@@ -137,19 +137,17 @@ def runtime() -> ProductionRuntime:
             "outsider": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
             "unentitled": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
         }
+        created_profiles: set[tuple[str, str]] = set()
         for key, (profile_id, permissions) in profiles.items():
             user = users[key]
-            profile = ProjectSecurityProfile(
-                user.tenant_id, profile_id, profile_id.replace("-", " ").title(),
-                permissions, True, 1, now,
-            )
-            try:
+            profile_key = (user.tenant_id, profile_id)
+            if profile_key not in created_profiles:
+                profile = ProjectSecurityProfile(
+                    user.tenant_id, profile_id, profile_id.replace("-", " ").title(),
+                    permissions, True, 1, now,
+                )
                 access.create_profile(profile, user.user_id)
-            except Exception:
-                # The same profile is shared by all users in a tenant; it is
-                # created once, then reused for the remaining assignments.
-                if access.get_profile(user.tenant_id, profile_id) is None:
-                    raise
+                created_profiles.add(profile_key)
             access.assign_user_obs(UserOBSAssignment(
                 user.tenant_id, user.user_id,
                 obs_a if user.tenant_id == tenant_a else obs_b,
