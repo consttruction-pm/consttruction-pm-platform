@@ -194,3 +194,16 @@ def test_actor_is_required_on_create() -> None:
     repository = repo()
     with pytest.raises(P6IssuePersistenceError, match="ISSUE_ACTOR_REQUIRED"):
         repository.create(issue(), actor_id=" ", occurred_at=AT)
+
+
+def test_issue_responsible_obs_round_trips_through_repository():
+    repository = repo()
+    stored = repository.create(
+        issue(responsible_obs_id="OBS-QUALITY"),
+        actor_id="u1",
+        occurred_at=AT,
+    )
+    assert stored.responsible_obs_id == "OBS-QUALITY"
+    loaded = repository.get(SCOPE, "ISSUE-1")
+    assert loaded is not None
+    assert loaded.responsible_obs_id == "OBS-QUALITY"
