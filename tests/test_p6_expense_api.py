@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from construction_pm.application.authorization import (
-    AuthorizationError, AuthorizationContext, Permission, default_project_policy,
+    AuthorizationError, AuthorizationContext, default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
