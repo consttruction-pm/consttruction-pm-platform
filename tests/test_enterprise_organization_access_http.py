@@ -30,6 +30,14 @@ class Service:
         self.calls.append(("create", session_id, name))
         return self.team
 
+    def list_team_members(self, session_id, team_id):
+        self.calls.append(("members", session_id, team_id))
+        return (self.membership,)
+
+    def list_eligible_users(self, session_id, team_id):
+        self.calls.append(("eligible", session_id, team_id))
+        return ({"user_id": "worker-1", "email": "worker@example.test", "display_name": "Worker"},)
+
     def add_member(self, session_id, team_id, user_id, role, *, scope_project_ids=()):
         self.calls.append(("add", session_id, team_id, user_id, role, scope_project_ids))
         return EnterpriseTeamMembership(
@@ -110,3 +118,17 @@ def test_unowned_routes_are_delegated():
         lambda *_: [b"delegated"], Service()
     )
     assert app({"PATH_INFO": "/api/enterprise/tasks"}, lambda *_: None) == [b"delegated"]
+
+
+def test_team_member_and_eligible_user_reads_are_manager_scoped_and_versioned():
+    service = Service()
+    app = EnterpriseOrganizationAccessHttpMiddleware(lambda *_: [b"fallback"], service)
+    status, body = request(app, "GET", "/api/enterprise/teams/team-1/members")
+    assert status == "200 OK"
+    assert body["contract_version"] == "cubi-enterprise-team-membership-list.v1"
+    assert body["memberships"][0]["role"] == "owner"
+
+    status, body = request(app, "GET", "/api/enterprise/teams/team-1/eligible-users")
+    assert status == "200 OK"
+    assert body["contract_version"] == "cubi-enterprise-eligible-users.v1"
+    assert body["users"][0]["email"] == "worker@example.test"
