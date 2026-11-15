@@ -82,6 +82,7 @@ class P6Issue:
     record_revision: int = 1
     created_at: str = ""
     updated_at: str = ""
+    responsible_obs_id: str | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -106,6 +107,7 @@ class P6Issue:
             raise P6IssuePersistenceError("INVALID_PRIORITY")
         for value, code in (
             (self.responsible_manager, "RESPONSIBLE_MANAGER"),
+            (self.responsible_obs_id, "RESPONSIBLE_OBS_ID"),
             (self.wbs_id, "WBS_ID"),
             (self.activity_id, "ACTIVITY_ID"),
             (self.resolution_note, "RESOLUTION_NOTE"),
@@ -181,6 +183,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6Issue:
             record_revision=int(row[14]),
             created_at=str(row[15]),
             updated_at=str(row[16]),
+            responsible_obs_id=None if len(row) <= 17 or row[17] is None else str(row[17]),
         )
         result.validate()
         return result
@@ -191,7 +194,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6Issue:
 _SELECT = (
     "SELECT issue_id,title,description,issue_type,status,priority,owner,"
     "responsible_manager,date_identified,due_date,wbs_id,activity_id,"
-    "document_refs_json,resolution_note,record_revision,created_at,updated_at "
+    "document_refs_json,resolution_note,record_revision,created_at,updated_at,responsible_obs_id "
     "FROM p6_issue"
 )
 
@@ -259,9 +262,12 @@ class SQLiteP6IssueRepository:
             "responsible_manager TEXT, date_identified TEXT NOT NULL, due_date TEXT, "
             "wbs_id TEXT, activity_id TEXT, document_refs_json TEXT NOT NULL, "
             "resolution_note TEXT, record_revision INTEGER NOT NULL, "
-            "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+            "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, responsible_obs_id TEXT, "
             "PRIMARY KEY (tenant_id, project_id, issue_id))"
         )
+        columns = {str(row[1]) for row in self.connection.execute("PRAGMA table_info(p6_issue)").fetchall()}
+        if "responsible_obs_id" not in columns:
+            self.connection.execute("ALTER TABLE p6_issue ADD COLUMN responsible_obs_id TEXT")
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_p6_issue_scope "
             "ON p6_issue(tenant_id, project_id, status, priority, owner)"
@@ -308,8 +314,8 @@ class SQLiteP6IssueRepository:
         self.connection.execute(
             "INSERT INTO p6_issue (tenant_id,project_id,issue_id,title,description,issue_type,"
             "status,priority,owner,responsible_manager,date_identified,due_date,wbs_id,"
-            "activity_id,document_refs_json,resolution_note,record_revision,created_at,updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "activity_id,document_refs_json,resolution_note,record_revision,created_at,updated_at,responsible_obs_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 stored.scope.tenant_id, stored.scope.project_id, stored.issue_id,
                 stored.title, stored.description, stored.issue_type, stored.status,
@@ -317,7 +323,7 @@ class SQLiteP6IssueRepository:
                 stored.date_identified, stored.due_date, stored.wbs_id,
                 stored.activity_id, json.dumps(list(stored.document_refs)),
                 stored.resolution_note, stored.record_revision, stored.created_at,
-                stored.updated_at,
+                stored.updated_at, stored.responsible_obs_id,
             ),
         )
         self._event(stored.scope, stored.issue_id, ISSUE_EVENT_CREATED, actor_id, occurred_at, {
@@ -517,6 +523,7 @@ class PostgresP6IssueRepository:
             "actor_id TEXT NOT NULL, occurred_at TEXT NOT NULL, detail_json TEXT NOT NULL, "
             "PRIMARY KEY (tenant_id, project_id, issue_id, event_sequence))"
         )
+        self.connection.execute("ALTER TABLE p6_issue ADD COLUMN IF NOT EXISTS responsible_obs_id TEXT")
 
     def create(self, issue: P6Issue, *, actor_id: str, occurred_at: str) -> P6Issue:
         issue.validate()
