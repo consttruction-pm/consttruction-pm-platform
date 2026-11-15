@@ -295,6 +295,34 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.accountStatus}</th><th></th></tr></thead>
           <tbody>${accountRows || `<tr><td colspan="3">${t.noEligible}</td></tr>`}</tbody></table></div>
         </section>` : ""}
+        ${canManageSecurityProfiles ? `<section class="cubi-oa-card" style="margin-top:18px">
+          <h2>${t.securityProfiles}</h2><p class="cubi-oa-note">${t.profileHelp}</p>
+          <form class="cubi-oa-form" id="cubi-oa-profile-create">
+            <div class="cubi-oa-field"><label for="cubi-oa-profile-id">${t.profileId}</label><input id="cubi-oa-profile-id" name="profile_id" maxlength="100" required></div>
+            <div class="cubi-oa-field"><label for="cubi-oa-profile-name">${t.profileName}</label><input id="cubi-oa-profile-name" name="name" maxlength="120" required></div>
+            <div class="cubi-oa-field"><label for="cubi-oa-profile-scope">${t.profileScope}</label><select id="cubi-oa-profile-scope" name="scope"><option value="global">${t.globalProfile}</option><option value="project">${t.projectProfile}</option></select></div>
+            <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy ? "disabled" : ""}>${t.createProfile}</button>
+          </form>
+          ${profiles.length ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-selected">${t.selectProfile}</label>
+            <select id="cubi-oa-profile-selected">${profileOptions}</select></div>
+            <p><strong>${escapeHtml(selectedProfile?.name ?? "")}</strong> · ${selectedProfile?.active ? t.profileActive : t.profileInactive} · Revision ${selectedProfile?.revision ?? 0}</p>
+            <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>
+            <form class="cubi-oa-form" id="cubi-oa-profile-privileges">
+              <div class="cubi-oa-field"><label for="cubi-oa-profile-privileges-list">${t.privileges} (${selectedProfile?.scope === "global" ? t.globalProfile : t.projectProfile})</label>
+                <select id="cubi-oa-profile-privileges-list" name="privileges" multiple size="12">${privilegeOptions}</select></div>
+              <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy ? "disabled" : ""}>${t.savePrivileges}</button>
+            </form>
+            <h3>${t.assignedUsers}</h3>
+            <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
+              <tbody>${profileAssignmentRows || `<tr><td colspan="4">${t.noEligible}</td></tr>`}</tbody></table></div>
+            <form class="cubi-oa-form" id="cubi-oa-profile-assign">
+              <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
+              ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><input id="cubi-oa-profile-obs" name="obs_id" required></div>` : ""}
+              <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
+              <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
+            </form>
+          ` : `<div class="cubi-oa-muted">${t.noProfiles}</div>`}
+        </section>` : ""}
       </div></main>`;
     container.querySelector<HTMLButtonElement>("#cubi-oa-refresh")?.addEventListener("click", () => void load());
     container.querySelectorAll<HTMLButtonElement>("[data-team]").forEach((button) => button.addEventListener("click", () => {
