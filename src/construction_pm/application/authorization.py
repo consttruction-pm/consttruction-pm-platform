@@ -95,8 +95,29 @@ class RoleBasedAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
+        p6_project_write_permissions = {
+            Permission.P6_WBS_ADMIN, Permission.P6_ACTIVITY_ADMIN,
+            Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN, Permission.P6_ACTIVITY_ID_ADMIN,
+            Permission.P6_EXPENSE_ADMIN, Permission.P6_DISCUSSION_DELETE,
+            Permission.P6_ISSUE_ADMIN, Permission.P6_BASELINE_ADMIN,
+            Permission.P6_PROJECT_CALENDAR_ADMIN, Permission.P6_RISK_ADMIN,
+            Permission.P6_PROJECT_DOCUMENT_ADMIN, Permission.P6_ASSIGN_PROJECT_BASELINE,
+            Permission.P6_APPLY_ACTUALS, Permission.P6_STORE_PERIOD_PERFORMANCE,
+            Permission.P6_MONITOR_THRESHOLDS, Permission.P6_COSTS_VIEW,
+            Permission.P6_RESOURCE_REQUEST_ADMIN, Permission.P6_PROJECT_CHECKOUT_ADMIN,
+            Permission.P6_LEVEL_RESOURCES, Permission.P6_BASELINE_UPDATE,
+            Permission.P6_GLOBAL_CHANGE, Permission.P6_EPS_ADMIN,
+            Permission.P6_PROJECT_CREATE, Permission.P6_PROJECT_DELETE,
+            Permission.P6_EPS_COSTS_ADMIN, Permission.P6_WBS_COSTS_ADMIN,
+            Permission.P6_EXPORT_PROJECT_DATA, Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
+            Permission.P6_REPORT_ADMIN,
+        }
         return any(
             permission in self._role_permissions.get(role, frozenset())
+            or (
+                permission in p6_project_write_permissions
+                and Permission.PROJECT_WRITE in self._role_permissions.get(role, frozenset())
+            )
             for role in context.roles
         )
 
