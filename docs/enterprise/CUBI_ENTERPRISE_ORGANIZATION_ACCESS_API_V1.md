@@ -16,8 +16,10 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | POST | `/api/enterprise/teams` | Create a tenant team; atomically creates owner membership |
 | POST | `/api/enterprise/teams/{team_id}/members` | Add an active same-tenant account with a team role and optional project-scope metadata |
 | DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |
+| GET | `/api/enterprise/users` | List safe account identity/status fields for the authenticated tenant; Enterprise administrator only |
+| PATCH | `/api/enterprise/users/{user_id}/status` | Activate/deactivate an account; deactivation revokes every persisted session for that tenant/user |
 
-Create and membership mutation bodies use `contract_version: cubi-enterprise-team.v1`. The API never accepts tenant or actor identity from the client. Tenant and actor are derived from the authenticated session by `EnterpriseOrganizationAccessService`.
+Create and membership mutation bodies use `contract_version: cubi-enterprise-team.v1`. Account status mutation uses `contract_version: cubi-enterprise-user-admin.v1` and a strict boolean `active` field. The API never accepts tenant or actor identity from the client. Tenant and actor are derived from the authenticated session by `EnterpriseOrganizationAccessService`.
 
 ## Security and data invariants
 
@@ -26,12 +28,15 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 - Member accounts must exist, be active and belong to the same tenant.
 - The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.
 - Revocation increments membership revision and writes an append-only actor-bound audit event.
+- Account directory and status changes require a currently active `enterprise_admin` role re-read from the tenant-bound identity row; the browser/session role snapshot is not the sole authorization source.
+- Account deactivation is tenant-scoped, prevents self-deactivation, prevents disabling the last active Enterprise administrator, and prevents deactivating an owner of an active team before ownership transfer.
+- Deactivation atomically changes account state, revokes all existing sessions, and appends an immutable actor/target audit event. Session resolution independently rechecks account state as defense in depth.
 - Team membership and `scope_project_ids` are not project authorization grants. They do not grant access to projects, forms, documents, files, reports or Engineering records.
 - Team assignment in Task API remains disabled until that API explicitly consumes the active-membership authorization adapter and adds its own cross-scope tests.
 
 ## V26 Help traceability
 
-This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation. It remains partial against V26. It does not claim full parity for user-account lifecycle/invitations, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, copy-user-settings, effective-access previews or access reports.
+This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation. It also includes tenant-scoped account directory/status controls for active Enterprise administrators, audited activation/deactivation, last-admin/team-owner protections and immediate session revocation. It remains partial against V26: account invitation/creation and password lifecycle, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, Copy User Settings, effective-access previews and access reports are not yet implemented.
 
 | V26 Help topic / observable behavior | CUBI contract or surface | Evidence / state |
 |---|---|---|
