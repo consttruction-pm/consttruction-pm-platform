@@ -57,7 +57,7 @@ class RiskApplicationService:
             item for item in self.store.list_risks(
                 tenant_id, project_id, category=category, status=status,
                 response_strategy=response_strategy, exposure=exposure, search=search,
-            ) if self._can_access_wbs(tenant_id, project_id, item.risk.wbs_id, context, Permission.PROJECT_READ)
+            ) if self._can_access_wbs(tenant_id, project_id, item.risk.wbs_id, context, Permission.RISK_VIEW)
         )
 
     def read_risk(
@@ -70,7 +70,7 @@ class RiskApplicationService:
     ) -> StoredRisk:
         self._check(context, tenant_id, project_id, Permission.RISK_VIEW)
         stored = self.store.get_risk(tenant_id, project_id, risk_id)
-        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.PROJECT_READ)
+        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.RISK_VIEW)
         return stored
 
     def risk_history(
@@ -99,7 +99,7 @@ class RiskApplicationService:
         self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id, Permission.RISK_ADD_EDIT)
         if self.wbs_access_repository is not None and not risk.wbs_id:
             raise RiskAuthorizationError("RISK_WBS_REQUIRED")
-        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.PROJECT_WRITE)
+        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_ADD_EDIT)
         with self.transaction_manager.transaction():
             return self.store.create_risk(
                 risk,
@@ -122,8 +122,8 @@ class RiskApplicationService:
         current = self.store.get_risk(risk.tenant_id, risk.project_id, risk.risk_id)
         if self.wbs_access_repository is not None and not risk.wbs_id:
             raise RiskAuthorizationError("RISK_WBS_REQUIRED")
-        self._require_wbs_access(risk.tenant_id, risk.project_id, current.risk.wbs_id, context, Permission.PROJECT_WRITE)
-        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.PROJECT_WRITE)
+        self._require_wbs_access(risk.tenant_id, risk.project_id, current.risk.wbs_id, context, Permission.RISK_EDIT)
+        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_DELETE)
         with self.transaction_manager.transaction():
             return self.store.update_risk(
                 risk,
