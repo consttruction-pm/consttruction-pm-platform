@@ -111,8 +111,6 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
 
     # Oracle P6 EPPM Help V26 checkbox-level privileges. These retain the
     # actual Help concepts; the shorter keys above remain CUBI route adapters.
-    ProjectPrivilegeDefinition("activity.add_edit_except_relationships", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit Activities Except Relationships", "Create and modify activity information other than relationships; also enables activity ownership and status-reviewer workflows."),
-    ProjectPrivilegeDefinition("activity.relationship.add_edit_delete", ProjectPrivilegeGroup.ACTIVITIES, "Add/Edit/Delete Activity Relationships", "Create, modify, and remove activity relationships."),
     ProjectPrivilegeDefinition("discussion_comment.delete", ProjectPrivilegeGroup.ACTIVITIES, "Delete Discussion Comments", "Delete discussion comments assigned to activities."),
     ProjectPrivilegeDefinition("project_activity_code.add", ProjectPrivilegeGroup.CODES, "Add Project Activity Codes", "Create project activity codes and values."),
     ProjectPrivilegeDefinition("project_activity_code.edit", ProjectPrivilegeGroup.CODES, "Edit Project Activity Codes", "Modify project activity codes and create, modify, or remove their values."),
@@ -123,7 +121,6 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("eps.add_edit_delete_except_costs_financials", ProjectPrivilegeGroup.EPS_PROJECTS, "Add/Edit/Delete EPS Except Costs/Financials", "Manage EPS nodes and non-financial EPS data."),
     ProjectPrivilegeDefinition("eps.edit_costs_financials", ProjectPrivilegeGroup.EPS_PROJECTS, "Edit EPS Costs/Financials", "Modify EPS budget logs, funding sources, and spending plans."),
     ProjectPrivilegeDefinition("project.add", ProjectPrivilegeGroup.EPS_PROJECTS, "Add Projects", "Create, copy, and paste projects within an EPS node."),
-    ProjectPrivilegeDefinition("project.delete", ProjectPrivilegeGroup.EPS_PROJECTS, "Delete Projects", "Delete, cut, and paste projects within an EPS node."),
     ProjectPrivilegeDefinition("project.edit_details_except_costs_financials", ProjectPrivilegeGroup.EPS_PROJECTS, "Edit Project Details Except Costs/Financials", "Edit project preferences and project-level data excluding financial information."),
     ProjectPrivilegeDefinition("wbs.add_edit_delete_except_costs_financials", ProjectPrivilegeGroup.EPS_PROJECTS, "Add/Edit/Delete WBS Except Costs/Financials", "Manage WBS hierarchy and non-financial WBS data, including notebooks, earned-value settings, milestones, and dates."),
     ProjectPrivilegeDefinition("wbs.edit_costs_financials", ProjectPrivilegeGroup.EPS_PROJECTS, "Edit WBS Costs/Financials", "Modify project or WBS budget logs, funding sources, spending plans, and financial data."),
@@ -138,7 +135,6 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("template_document.add_edit_delete", ProjectPrivilegeGroup.PROJECT_DATA, "Add/Edit/Delete Template Documents", "Manage project template documents and, when configured, check out and start document reviews."),
     ProjectPrivilegeDefinition("work_product_document.add_edit_delete", ProjectPrivilegeGroup.PROJECT_DATA, "Add/Edit/Delete Work Products and Documents", "Manage project documents without a security policy and create document folders when the content repository is configured."),
     ProjectPrivilegeDefinition("project_baseline.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Project Baselines", "Assign project baselines; requires Edit Project Details Except Costs/Financials."),
-    ProjectPrivilegeDefinition("timesheet.approve", ProjectPrivilegeGroup.PROJECT_DATA, "Approve Timesheets as Project Manager", "Approve or reject submitted timesheets as a project manager."),
     ProjectPrivilegeDefinition("external_application.administer", ProjectPrivilegeGroup.RELATED_APPLICATIONS, "Administer Project External Applications", "Modify entries in the External Applications feature."),
     ProjectPrivilegeDefinition("unifier.project_data.exchange", ProjectPrivilegeGroup.RELATED_APPLICATIONS, "Exchange Project Data with Primavera Unifier", "Exchange data with linked Primavera Unifier projects."),
     ProjectPrivilegeDefinition("opc.project_data.exchange", ProjectPrivilegeGroup.RELATED_APPLICATIONS, "Exchange Project Data with Oracle Primavera Cloud", "Exchange data with linked Oracle Primavera Cloud projects."),
