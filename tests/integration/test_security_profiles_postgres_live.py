@@ -72,7 +72,11 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         PostgresIdentityStore(connection).upsert_user(_identity_user(user_id, tenant))
-        PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile OBS"))
+        obs_repository = PostgresP6OBSRepository(connection)
+        obs_repository.upsert(P6OBSNode(tenant, f"obs-root-{suffix}", name="Profile OBS Root"))
+        obs_repository.upsert(P6OBSNode(
+            tenant, f"obs-{suffix}", parent_obs_id=f"obs-root-{suffix}", name="Profile OBS Child"
+        ))
         PostgresProjectRepository(connection).create_for_user(
             tenant, user_id, project_id, "Profile protected project", obs_id=f"obs-{suffix}"
         )
@@ -135,9 +139,10 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
             )
         profiles.assign(
             tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
-            obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
+            obs_id=f"obs-root-{suffix}", actor_user_id=user_id, occurred_at=now,
         )
 
+        # OBS responsibility inherits to descendant OBS nodes and their projects.
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         assert policy.is_allowed(context, Permission.PROJECT_SCHEDULE)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
