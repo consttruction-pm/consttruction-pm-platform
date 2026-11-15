@@ -73,6 +73,35 @@ class PostgresP6EPSRepository:
             "ON p6_eps_node(tenant_id,parent_eps_id,sequence_number,eps_id)"
         )
         self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS p6_eps_audit (
+                audit_id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                actor_user_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL CHECK (entity_type IN ('eps_node','project_eps_assignment')),
+                entity_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                before_state JSONB,
+                after_state JSONB NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL
+            )"""
+        )
+        self.connection.execute(
+            """CREATE OR REPLACE FUNCTION cubi_p6_eps_audit_immutable()
+            RETURNS trigger LANGUAGE plpgsql AS $
+            BEGIN
+                RAISE EXCEPTION 'P6_EPS_AUDIT_APPEND_ONLY';
+            END;
+            $"""
+        )
+        self.connection.execute(
+            "DROP TRIGGER IF EXISTS p6_eps_audit_immutable ON p6_eps_audit"
+        )
+        self.connection.execute(
+            """CREATE TRIGGER p6_eps_audit_immutable
+            BEFORE UPDATE OR DELETE ON p6_eps_audit
+            FOR EACH ROW EXECUTE FUNCTION cubi_p6_eps_audit_immutable()"""
+        )
+        self.connection.execute(
             """CREATE TABLE IF NOT EXISTS p6_project_eps_assignment (
                 tenant_id TEXT NOT NULL,
                 project_id TEXT NOT NULL,
@@ -142,7 +171,10 @@ class PostgresP6EPSRepository:
             (tenant_id,eps_id),
         ).fetchone() is not None
 
-    def save_node(self, node: P6EPSNode, *, expected_revision: int | None = None) -> P6EPSNode:
+    def save_node(
+        self, node: P6EPSNode, *, actor_user_id: str, occurred_at: Any,
+        expected_revision: int | None = None,
+    ) -> P6EPSNode:
         node.validate()
         if node.responsible_obs_id and self.connection.execute(
             "SELECT 1 FROM p6_obs_node WHERE tenant_id=%s AND obs_id=%s",
@@ -169,7 +201,8 @@ class PostgresP6EPSRepository:
                     raise P6EPSError("P6_EPS_PARENT_NOT_FOUND")
                 current = None if row[0] is None else str(row[0])
         row = self.connection.execute(
-            "SELECT revision FROM p6_eps_node WHERE tenant_id=%s AND eps_id=%s FOR UPDATE",
+            "SELECT parent_eps_id,name,responsible_obs_id,sequence_number,revision "
+            "FROM p6_eps_node WHERE tenant_id=%s AND eps_id=%s FOR UPDATE",
             (node.tenant_id, node.eps_id),
         ).fetchone()
         if row is None:
@@ -184,7 +217,7 @@ class PostgresP6EPSRepository:
                  node.responsible_obs_id,node.sequence_number,revision),
             )
         else:
-            if expected_revision is None or int(row[0]) != expected_revision:
+            if expected_revision is None or int(row[4]) != expected_revision:
                 raise P6EPSError("P6_EPS_REVISION_CONFLICT")
             revision = expected_revision + 1
             self.connection.execute(
@@ -193,6 +226,26 @@ class PostgresP6EPSRepository:
                 (node.parent_eps_id,node.name,node.responsible_obs_id,node.sequence_number,
                  revision,node.tenant_id,node.eps_id),
             )
+        self.connection.execute(
+            "INSERT INTO p6_eps_audit "
+            "(audit_id,tenant_id,actor_user_id,entity_type,entity_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,'eps_node',%s,%s,%s::jsonb,%s::jsonb,%s)",
+            (
+                str(uuid.uuid4()),node.tenant_id,actor_user_id,node.eps_id,
+                "eps_node_created" if row is None else "eps_node_updated",
+                None if row is None else json.dumps({
+                    "parent_eps_id":row[0],"name":str(row[1]),
+                    "responsible_obs_id":str(row[2]),"sequence_number":int(row[3]),
+                    "revision":int(row[4]),
+                }),
+                json.dumps({
+                    "parent_eps_id":node.parent_eps_id,"name":node.name,
+                    "responsible_obs_id":node.responsible_obs_id,
+                    "sequence_number":node.sequence_number,"revision":revision,
+                }),
+                occurred_at,
+            ),
+        )
         return P6EPSNode(node.tenant_id,node.eps_id,node.name,node.parent_eps_id,
                          node.responsible_obs_id,node.sequence_number)
 
@@ -206,7 +259,7 @@ class PostgresP6EPSRepository:
         ).fetchone() is None:
             raise P6EPSError("P6_EPS_NOT_FOUND")
         row = self.connection.execute(
-            "SELECT revision FROM p6_project_eps_assignment "
+            "SELECT eps_id,revision FROM p6_project_eps_assignment "
             "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
             (tenant_id, project_id),
         ).fetchone()
@@ -221,7 +274,7 @@ class PostgresP6EPSRepository:
                 (tenant_id,project_id,eps_id,revision,actor_user_id,occurred_at),
             )
         else:
-            if expected_revision is None or int(row[0]) != expected_revision:
+            if expected_revision is None or int(row[1]) != expected_revision:
                 raise P6EPSError("P6_EPS_REVISION_CONFLICT")
             revision = expected_revision + 1
             self.connection.execute(
@@ -229,6 +282,17 @@ class PostgresP6EPSRepository:
                 "WHERE tenant_id=%s AND project_id=%s",
                 (eps_id,revision,actor_user_id,occurred_at,tenant_id,project_id),
             )
+        self.connection.execute(
+            "INSERT INTO p6_eps_audit "
+            "(audit_id,tenant_id,actor_user_id,entity_type,entity_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,'project_eps_assignment',%s,'project_eps_assigned',%s::jsonb,%s::jsonb,%s)",
+            (
+                str(uuid.uuid4()),tenant_id,actor_user_id,project_id,
+                None if row is None else json.dumps({"eps_id":str(row[0]),"revision":int(row[1])}),
+                json.dumps({"eps_id":eps_id,"revision":revision}),
+                occurred_at,
+            ),
+        )
         return revision
 
     def list_nodes(self, tenant_id: str) -> tuple[P6EPSNode, ...]:
