@@ -78,6 +78,10 @@ def test_postgres_team_membership_persists_and_revocation_is_immediate():
         assert persisted.status == "active"
         assert persisted.scope_project_ids == ("project-a",)
         assert [item.team_id for item in repository.list_teams_for_user(tenant, member_id)] == [team.team_id]
+        listed_members = repository.list_memberships(tenant, team.team_id)
+        assert {item.user_id for item in listed_members} == {owner_id, member_id}
+        active_users = repository.list_active_users(tenant)
+        assert {item["user_id"] for item in active_users} == {owner_id, member_id}
         with pytest.raises(OrganizationAccessError, match="TEAM_LAST_OWNER_CANNOT_BE_REMOVED"):
             repository.remove_member(
                 tenant, team.team_id, owner_id, actor_id=owner_id,
