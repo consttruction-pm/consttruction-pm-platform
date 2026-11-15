@@ -6,6 +6,8 @@ responsible OBS. This repository keeps EPS and OBS as separate hierarchies.
 """
 from __future__ import annotations
 
+import json
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -98,6 +100,36 @@ class PostgresP6EPSRepository:
                 FOREIGN KEY (tenant_id, responsible_obs_id)
                     REFERENCES p6_obs_node(tenant_id, obs_id) ON DELETE RESTRICT
             )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS p6_wbs_obs_responsibility_audit (
+                audit_id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                wbs_id TEXT NOT NULL,
+                actor_user_id TEXT NOT NULL,
+                action TEXT NOT NULL CHECK (action='responsible_obs_changed'),
+                before_state JSONB,
+                after_state JSONB NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL
+            )"""
+        )
+        self.connection.execute(
+            """CREATE OR REPLACE FUNCTION cubi_p6_wbs_obs_audit_immutable()
+            RETURNS trigger LANGUAGE plpgsql AS $
+            BEGIN
+                RAISE EXCEPTION 'P6_WBS_OBS_AUDIT_APPEND_ONLY';
+            END;
+            $"""
+        )
+        self.connection.execute(
+            "DROP TRIGGER IF EXISTS p6_wbs_obs_audit_immutable "
+            "ON p6_wbs_obs_responsibility_audit"
+        )
+        self.connection.execute(
+            """CREATE TRIGGER p6_wbs_obs_audit_immutable
+            BEFORE UPDATE OR DELETE ON p6_wbs_obs_responsibility_audit
+            FOR EACH ROW EXECUTE FUNCTION cubi_p6_wbs_obs_audit_immutable()"""
         )
 
     def save_node(self, node: P6EPSNode, *, expected_revision: int | None = None) -> P6EPSNode:
@@ -213,7 +245,7 @@ class PostgresP6EPSRepository:
         ).fetchone() is None:
             raise P6EPSError("P6_WBS_NOT_FOUND")
         row = self.connection.execute(
-            "SELECT revision FROM p6_wbs_obs_responsibility "
+            "SELECT responsible_obs_id,revision FROM p6_wbs_obs_responsibility "
             "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s FOR UPDATE",
             (tenant_id, project_id, wbs_id),
         ).fetchone()
@@ -228,7 +260,7 @@ class PostgresP6EPSRepository:
                 (tenant_id,project_id,wbs_id,responsible_obs_id,actor_user_id,occurred_at),
             )
         else:
-            if expected_revision is None or int(row[0]) != expected_revision:
+            if expected_revision is None or int(row[1]) != expected_revision:
                 raise P6EPSError("P6_WBS_RESPONSIBILITY_REVISION_CONFLICT")
             revision = expected_revision + 1
             self.connection.execute(
@@ -236,6 +268,19 @@ class PostgresP6EPSRepository:
                 "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
                 (responsible_obs_id,revision,actor_user_id,occurred_at,tenant_id,project_id,wbs_id),
             )
+        self.connection.execute(
+            "INSERT INTO p6_wbs_obs_responsibility_audit "
+            "(audit_id,tenant_id,project_id,wbs_id,actor_user_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,%s,'responsible_obs_changed',%s::jsonb,%s::jsonb,%s)",
+            (
+                str(uuid.uuid4()),tenant_id,project_id,wbs_id,actor_user_id,
+                None if row is None else json.dumps({
+                    "responsible_obs_id":str(row[0]),"revision":int(row[1])
+                }),
+                json.dumps({"responsible_obs_id":responsible_obs_id,"revision":revision}),
+                occurred_at,
+            ),
+        )
         return revision
 
     def get_wbs_responsibility(
