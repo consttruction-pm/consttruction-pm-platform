@@ -6866,6 +6866,7 @@ class ProjectLifecycleHttpRoutes:
                     ),
                     default_cost_account_id=payload.get("default_cost_account_id", ""),
                     obs_id=payload.get("obs_id", ""),
+                    eps_id=payload.get("eps_id", ""),
                     activity_id_prefix=payload.get("activity_id_prefix", ""),
                     activity_id_suffix=payload.get("activity_id_suffix", ""),
                     activity_id_increment=payload.get("activity_id_increment", 10),
