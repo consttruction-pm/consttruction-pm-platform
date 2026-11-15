@@ -106,6 +106,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let teams: Team[] = [];
   let memberships: Membership[] = [];
   let eligibleUsers: EligibleUser[] = [];
+  let canManage = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
@@ -119,7 +120,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       <td>${escapeHtml(roleNames[item.role] ?? item.role)}</td>
       <td><span class="cubi-oa-status cubi-oa-${escapeHtml(item.status)}">${escapeHtml(item.status === "active" ? t.active : item.status === "removed" ? t.removed : t.suspended)}</span></td>
       <td>${item.revision}</td>
-      <td>${item.status === "active" && item.role !== "owner" ? `<button class="cubi-oa-button cubi-oa-danger" data-remove="${escapeHtml(item.user_id)}" data-revision="${item.revision}" type="button">${escapeHtml(t.remove)}</button>` : "—"}</td>
+      <td>${canManage && item.status === "active" && item.role !== "owner" ? `<button class="cubi-oa-button cubi-oa-danger" data-remove="${escapeHtml(item.user_id)}" data-revision="${item.revision}" type="button">${escapeHtml(t.remove)}</button>` : "—"}</td>
     </tr>`).join("");
     const usersOptions = eligibleUsers.map((user) => `<option value="${escapeHtml(user.user_id)}">${escapeHtml(user.display_name || user.email)} · ${escapeHtml(user.email)}</option>`).join("");
     container.innerHTML = `
@@ -164,14 +165,14 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           <section class="cubi-oa-card"><h2>${t.members}</h2>
             ${selected ? `<div class="cubi-oa-field"><label for="cubi-oa-selected">${t.selectTeam}</label><select id="cubi-oa-selected">${teamOptions}</select></div>
               <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.role}</th><th>Status</th><th>Revision</th><th></th></tr></thead><tbody>${memberRows || `<tr><td colspan="5">${t.noMembers}</td></tr>`}</tbody></table></div>
-              <form class="cubi-oa-form" id="cubi-oa-add">
+              ${canManage ? `<form class="cubi-oa-form" id="cubi-oa-add">
                 <h2>${t.addMember}</h2>
                 <div class="cubi-oa-field"><label for="cubi-oa-user">${t.user}</label><select id="cubi-oa-user" name="user_id" required><option value="">${t.selectAccount}</option>${usersOptions}</select></div>
                 <div class="cubi-oa-field"><label for="cubi-oa-role">${t.role}</label><select id="cubi-oa-role" name="role" required><option value="">—</option>${["admin","project_manager","approver","field_worker","member","viewer"].map(role => `<option value="${role}">${escapeHtml(roleNames[role])}</option>`).join("")}</select></div>
                 <div class="cubi-oa-field"><label for="cubi-oa-scope">${t.scope}</label><input id="cubi-oa-scope" name="scope" placeholder="PROJECT-001, PROJECT-002"></div>
                 <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy || !eligibleUsers.length ? "disabled" : ""}>${t.add}</button>
                 <small>${eligibleUsers.length ? t.scopeHint : t.noEligible}</small>
-              </form>` : `<div class="cubi-oa-muted">${t.chooseTeam}</div>`}
+              </form>` : ""}` : `<div class="cubi-oa-muted">${t.chooseTeam}</div>`}
           </section>
         </section>
         <p class="cubi-oa-note">${t.security}</p>
@@ -232,13 +233,18 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   const loadTeam = async () => {
     if (!selectedTeamId) { memberships = []; eligibleUsers = []; render(); return; }
     try {
-      const [members, users] = await Promise.all([
-        api<unknown>(`/api/enterprise/teams/${encodeURIComponent(selectedTeamId)}/members`),
-        api<unknown>(`/api/enterprise/teams/${encodeURIComponent(selectedTeamId)}/eligible-users`),
-      ]);
-      memberships = memberList(members); eligibleUsers = eligibleList(users); failure = "";
+      const members = await api<unknown>(`/api/enterprise/teams/${encodeURIComponent(selectedTeamId)}/members`);
+      memberships = memberList(members);
+      try {
+        const users = await api<unknown>(`/api/enterprise/teams/${encodeURIComponent(selectedTeamId)}/eligible-users`);
+        eligibleUsers = eligibleList(users); canManage = true;
+      } catch (error) {
+        eligibleUsers = []; canManage = false;
+        if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
+      }
+      failure = "";
     } catch (error) {
-      memberships = []; eligibleUsers = [];
+      memberships = []; eligibleUsers = []; canManage = false;
       failure = error instanceof Error && error.message === "SESSION_REQUIRED" ? t.session
         : error instanceof Error ? error.message : t.error;
     }
