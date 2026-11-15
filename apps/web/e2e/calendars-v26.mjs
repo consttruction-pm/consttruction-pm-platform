@@ -115,6 +115,17 @@ const calendarState = `(() => {
     baseDisabled: Boolean(page?.querySelector("[data-calendar-base]")?.disabled),
     baseHint: page?.querySelector("[data-calendar-base-hint]")?.textContent?.trim() ?? null,
     baseOptions: [...document.querySelectorAll("[data-calendar-base] option")].map((option) => option.value),
+    monthTitle: page?.querySelector("[data-calendar-month-title]")?.textContent?.trim() ?? null,
+    monthSelected: page?.querySelector("[data-calendar-month-selected]")?.textContent?.trim() ?? null,
+    monthDays: [...document.querySelectorAll("[data-calendar-month-day]")].map((button) => ({
+      date: button.dataset.calendarMonthDay,
+      state: button.dataset.calendarMonthState,
+      selected: button.getAttribute("aria-pressed") === "true",
+    })),
+    monthActions: [...document.querySelectorAll("[data-calendar-month-action]")].map((button) => ({
+      action: button.dataset.calendarMonthAction,
+      disabled: Boolean(button.disabled),
+    })),
     tabs: [...document.querySelectorAll("[data-calendar-tab]")].map((button) => button.dataset.calendarTab),
   };
 })()`;
@@ -306,7 +317,7 @@ async function main() {
       await selectCalendar(page, BASE_ID);
       state = await page.evaluate(calendarState);
       assert(state.caption === `${BASE_ID} / 1`, `selected caption ${state.caption}`);
-      assert(state.tabs.join(",") === "general,workweek,exceptions,usage", `tabs ${state.tabs}`);
+      assert(state.tabs.join(",") === "general,workweek,month,exceptions,usage", `tabs ${state.tabs}`);
       const snapshot = await readSnapshot(page, BASE_ID);
       assert(snapshot.status === 200 && snapshot.body.kind === "calendar_snapshot", `snapshot ${snapshot.status}`);
       await capture(page, "01-calendar-register");
@@ -463,6 +474,70 @@ async function main() {
       assert(state.notice?.kind === "ok", `remove notice ${JSON.stringify(state.notice)}`);
       await capture(page, "06-exception-removed");
       return { remaining: listed.body.exceptions.map((item) => item.date) };
+    });
+
+    await scenario("06b", "شبکهٔ ماه، اقدام غیرکاری/استاندارد و اعمال ستونی روز هفته را روی داده ذخیره‌شده اجرا می‌کند", async () => {
+      await selectCalendar(page, newId);
+      await selectTab(page, "month");
+      const tuesdays = ["2026-11-03", "2026-11-10", "2026-11-17", "2026-11-24"];
+      const readDays = () => page.evaluate(calendarState);
+      const dayState = async (iso) => (await readDays()).monthDays.find((item) => item.date === iso)?.state ?? null;
+      const tuesdayStates = async () => {
+        const state = await readDays();
+        return tuesdays.map((iso) => state.monthDays.find((item) => item.date === iso)?.state ?? null);
+      };
+
+      let state = await readDays();
+      assert(/November\s+2026/.test(state.monthTitle ?? ""), `month title ${state.monthTitle}`);
+      assert(state.monthDays.length === 30, `November day cells ${state.monthDays.length}`);
+      assert(await dayState("2026-11-01") === "nonwork", "Sunday is not marked nonwork");
+      assert(await dayState("2026-11-02") === "workday", "Monday is not marked as a workday");
+      assert(state.monthActions.every((item) => item.disabled), `actions start enabled ${JSON.stringify(state.monthActions)}`);
+
+      await page.click('[data-calendar-month-day="2026-11-03"]');
+      state = await readDays();
+      assert(state.monthSelected === "2026-11-03", `selected date ${state.monthSelected}`);
+      assert(state.monthActions.every((item) => item.disabled === false), "actions stay disabled after selecting a date");
+
+      await page.click('[data-calendar-month-action="nonwork"]');
+      await page.waitFor(`document.querySelector('[data-calendar-month-day="2026-11-03"]')?.dataset.calendarMonthState === "nonwork"`, "nonwork cell");
+      let listed = await readExceptions(page, newId);
+      assert(listed.body.exceptions.some((item) => item.date === "2026-11-03" && item.mode === "nonwork"), `stored nonwork ${JSON.stringify(listed.body.exceptions)}`);
+      await capture(page, "06b-month-nonwork");
+
+      await page.click('[data-calendar-month-day="2026-11-03"]');
+      await page.click('[data-calendar-month-action="standard"]');
+      await page.waitFor(`document.querySelector('[data-calendar-month-day="2026-11-03"]')?.dataset.calendarMonthState === "workday"`, "standard cell");
+      listed = await readExceptions(page, newId);
+      assert(!listed.body.exceptions.some((item) => item.date === "2026-11-03"), "the standard action did not remove the exception");
+
+      await page.click('[data-calendar-month-day="2026-11-10"]');
+      await page.click('[data-calendar-month-action="nonwork"]');
+      await page.waitFor(`document.querySelector('[data-calendar-month-day="2026-11-10"]')?.dataset.calendarMonthState === "nonwork"`, "seed Tuesday before bulk");
+      await page.click('[data-calendar-month-weekday="1"]');
+      await page.waitFor(`${JSON.stringify(tuesdays)}.every((iso) => document.querySelector('[data-calendar-month-day="' + iso + '"]')?.dataset.calendarMonthState === "nonwork")`, "bulk Tuesday nonwork");
+      listed = await readExceptions(page, newId);
+      const storedTuesdays = tuesdays.filter((iso) => listed.body.exceptions.some((item) => item.date === iso && item.mode === "nonwork"));
+      assert(storedTuesdays.length === tuesdays.length, `bulk stored Tuesdays ${JSON.stringify(storedTuesdays)}`);
+      await capture(page, "06c-month-bulk-tuesdays");
+
+      await page.click('[data-calendar-month-day="2026-11-03"]');
+      await page.click('[data-calendar-month-action="standard"]');
+      await page.waitFor(`document.querySelector('[data-calendar-month-day="2026-11-03"]')?.dataset.calendarMonthState === "workday"`, "first Tuesday reset");
+      await page.click('[data-calendar-month-weekday="1"]');
+      await page.waitFor(`${JSON.stringify(tuesdays)}.every((iso) => document.querySelector('[data-calendar-month-day="' + iso + '"]')?.dataset.calendarMonthState !== "nonwork")`, "bulk Tuesday reset");
+      listed = await readExceptions(page, newId);
+      assert(!listed.body.exceptions.some((item) => tuesdays.includes(item.date)), `bulk reset left ${JSON.stringify(listed.body.exceptions)}`);
+
+      await page.click('[data-calendar-month-nav="next"]');
+      await page.waitFor(`(document.querySelector("[data-calendar-month-title]")?.textContent ?? "").includes("December 2026")`, "next month title");
+      await page.click('[data-calendar-month-nav="prev"]');
+      await page.click('[data-calendar-month-nav="prev"]');
+      await page.waitFor(`(document.querySelector("[data-calendar-month-title]")?.textContent ?? "").includes("October 2026")`, "previous month title");
+      const october = await readDays();
+      assert(october.monthDays.length === 31, `October day cells ${october.monthDays.length}`);
+      await capture(page, "06d-month-previous");
+      return { monthDays: state.monthDays.length, tuesdays, octoberDays: october.monthDays.length };
     });
 
     await scenario("07", "پس از بارگذاری کامل صفحه، تقویم جدید، شیفت‌ها و اثر قاعدهٔ هفته کاری باقی می‌مانند", async () => {
