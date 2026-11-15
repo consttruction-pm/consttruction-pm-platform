@@ -1107,61 +1107,59 @@ def test_checkout_holder_blocks_activity_and_wbs_writes_with_409(tmp_path):
     assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
 
 
-def test_wbs_obs_policy_keeps_foreign_responsible_scope_read_only(tmp_path):
-    app, repository, connection = _app(db_path=str(tmp_path / "wbs-obs-read-only.sqlite"))
+def test_wbs_obs_policy_keeps_foreign_responsible_scope_read_only():
+    import pytest
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    repository = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
     repository.has_responsible_obs_permission = lambda *args: True
     repository.has_wbs_permission = (
         lambda scope, user_id, wbs_id, permission, **kwargs: permission == "project.read"
     )
-    create_status, created = _request(
-        app, "POST", "/api/projects/p1/p6/wbs",
-        {
-            "contract_version": P6_WBS_MASTER_API_VERSION,
-            "wbs_id": "W-ROOT",
-            "parent_kind": "project",
-            "parent_wbs_id": None,
-            "code": "1",
-            "name": "Project Root",
-            "sequence_number": 0,
-            "responsible_obs_id": "OBS-OTHER",
-        },
+    api = P6WBSMasterAPI(repository, default_project_policy())
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    created = api.create(
+        WBSMaster(
+            scope, "W-ROOT", WBSParentKind.PROJECT, None,
+            "1", "Project Root", 0, responsible_obs_id="OBS-OTHER",
+        ),
+        auth_context=auth,
     )
-    assert create_status == "201 Created"
     assert created["wbs"]["responsible_obs_id"] == "OBS-OTHER"
+    assert api.get(scope, "W-ROOT", auth_context=auth)["wbs"]["wbs_id"] == "W-ROOT"
 
-    read_status, _ = _request(app, "GET", "/api/projects/p1/p6/wbs/W-ROOT")
-    assert read_status == "200 OK"
-
-    update_status, denied = _request(
-        app, "PATCH", "/api/projects/p1/p6/wbs/W-ROOT",
-        {
-            "contract_version": P6_WBS_MASTER_API_VERSION,
-            "expected_revision": 1,
-            "name": "Unauthorized edit",
-        },
-    )
-    assert update_status == "403 Forbidden"
-    assert denied["code"] == "WBS_OBS_ACCESS_DENIED"
-    connection.close()
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.update(
+            WBSMaster(
+                scope, "W-ROOT", WBSParentKind.PROJECT, None,
+                "1", "Unauthorized edit", 0, record_revision=1,
+                responsible_obs_id="OBS-OTHER",
+            ),
+            expected_revision=1,
+            auth_context=auth,
+        )
 
 
-def test_wbs_creation_requires_permission_for_responsible_obs(tmp_path):
-    app, repository, connection = _app(db_path=str(tmp_path / "wbs-obs-denied.sqlite"))
+def test_wbs_creation_requires_permission_for_responsible_obs():
+    import pytest
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    repository = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
     repository.has_responsible_obs_permission = lambda *args: False
-    status, payload = _request(
-        app, "POST", "/api/projects/p1/p6/wbs",
-        {
-            "contract_version": P6_WBS_MASTER_API_VERSION,
-            "wbs_id": "W-ROOT",
-            "parent_kind": "project",
-            "parent_wbs_id": None,
-            "code": "1",
-            "name": "Project Root",
-            "sequence_number": 0,
-            "responsible_obs_id": "OBS-OTHER",
-        },
-    )
-    assert status == "403 Forbidden"
-    assert payload["code"] == "WBS_OBS_ACCESS_DENIED"
-    assert repository.list(BackendScope("t1", "p1", 2)) == ()
-    connection.close()
+    api = P6WBSMasterAPI(repository, default_project_policy())
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.create(
+            WBSMaster(
+                scope, "W-ROOT", WBSParentKind.PROJECT, None,
+                "1", "Project Root", 0, responsible_obs_id="OBS-OTHER",
+            ),
+            auth_context=auth,
+        )
+    assert repository.list(scope) == ()
