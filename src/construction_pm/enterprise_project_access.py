@@ -410,6 +410,7 @@ class EnterpriseProjectAuthorizationPolicy:
             Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_MONITOR: Permission.PROJECT_WRITE,
             Permission.BASELINE_VIEW: Permission.PROJECT_READ,
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
