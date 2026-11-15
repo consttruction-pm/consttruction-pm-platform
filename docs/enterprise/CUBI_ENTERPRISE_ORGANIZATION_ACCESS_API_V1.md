@@ -19,7 +19,7 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | PUT | `/api/enterprise/teams/{team_id}/owner` | Transfer ownership to an existing active team member using expected team and target-membership revisions |
 | GET | `/api/enterprise/users` | List safe account identity/status fields for the authenticated tenant; Enterprise administrator only |
 | PATCH | `/api/enterprise/users/{user_id}/status` | Activate/deactivate an account; deactivation revokes every persisted session for that tenant/user |
-| GET | `/api/enterprise/security-profiles?scope=global|project` | List tenant-owned profiles and supported operation permissions; Enterprise administrator only |
+| GET | `/api/enterprise/security-profiles?scope=global|project` | List tenant-owned profiles and the distinct V26 Global/Project privilege catalogs; Enterprise administrator only |
 | POST | `/api/enterprise/security-profiles` | Create a Global or Project profile |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/privileges` | Replace the profile's operation grants with expected revision |
 | PATCH | `/api/enterprise/security-profiles/{profile_id}/status` | Activate/deactivate a profile with expected revision |
@@ -51,7 +51,7 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 
 ## V26 Help traceability
 
-This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation, plus a current-owner-only, revision-guarded ownership transfer workflow. It also includes tenant-scoped account directory/status controls and a first persisted Global/Project Security Profile engine. The profile API is wired to the production authorization policy, uses role grants as a non-escalation ceiling, supports tenant-safe assignment, revision-guarded privilege updates and immutable audit. This is partial against V26: account invitation/creation and password lifecycle, full Oracle global/project privilege catalogs, module access, OBS responsibility/resource access, User Interface Views, Copy User Settings, assignment/effective-access previews and access reports remain outstanding.
+This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation, plus a current-owner-only, revision-guarded ownership transfer workflow. It also includes tenant-scoped account directory/status controls and a bilingual Global/Project Security Profile editor. The profile API is wired to the production authorization policy, requires a Global profile and OBS-assigned Project profile, keeps role grants as a non-escalation ceiling, and supports the separate V26 privilege catalogs, revision-guarded changes, assignment inventory and immutable audit. Enforcement is partial: only project visibility, Schedule Projects and Edit Project Details are mapped to API permissions; generic writes fail closed. This is partial against V26: account invitation/creation and password lifecycle, full Oracle global/project privilege catalogs, module access, OBS responsibility/resource access, User Interface Views, Copy User Settings, assignment/effective-access previews and access reports remain outstanding.
 
 | V26 Help topic / observable behavior | CUBI contract or surface | Evidence / state |
 |---|---|---|
