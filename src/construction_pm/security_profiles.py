@@ -759,8 +759,6 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # it must not silently revoke the built-in's documented P6 authority.
         if admin_superuser is not None and permission in p6_permissions:
             return True
-        if not self._role_policy.is_allowed(context, permission):
-            return False
         rows = self._connection.execute(
             "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id) AS ("
             "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id "
@@ -803,6 +801,15 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # OBS. A project profile does not create project membership.
         if not any(bool(row[1]) for row in global_rows):
             return False
+        if (permission in p6_project_permissions and any(
+            bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
+            for row in project_rows
+        )):
+            # Project Superuser grants complete P6 project access, but only
+            # within the OBS responsibility assigned to this project.
+            return True
+        if not self._role_policy.is_allowed(context, permission):
+            return False
         global_required = GLOBAL_PERMISSION_PRIVILEGE_MAP.get(permission)
         if global_required is not None:
             return any(bool(row[1]) and global_required in self._profile_privileges(
@@ -812,13 +819,6 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # operations with a verified V26 privilege mapping are enabled here;
         # generic write and CUBI-only permissions fail closed until each API
         # endpoint is mapped to its precise P6 privilege.
-        if (permission in p6_project_permissions and any(
-            bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
-            for row in project_rows
-        )):
-            # Project Superuser grants complete P6 project access, but only
-            # within the OBS responsibility assigned to this project.
-            return True
         if permission == Permission.PROJECT_READ:
             return any(bool(row[1]) for row in project_rows)
         required = PROJECT_PERMISSION_PRIVILEGE_MAP.get(permission)
