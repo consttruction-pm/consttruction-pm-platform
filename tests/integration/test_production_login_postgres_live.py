@@ -600,11 +600,27 @@ def test_enterprise_task_api_requires_an_explicit_environment_role(runtime):
 
 
 def test_account_deactivation_revokes_existing_session_immediately(runtime):
-    user = runtime.test_ids["users"]["planner"]
-    # Keep this authentication flow independent from the durable per-IP
-    # throttle state left by other integration tests in a shared database.
-    runtime.test_ids["client_ip"] = f"198.18.{int(uuid.uuid4().hex[:2], 16)}.{int(uuid.uuid4().hex[2:4], 16)}"
-    cookie, _ = login(runtime, "planner")
+    # Use a dedicated identity as well as a dedicated source address: the
+    # throttle is intentionally durable and keyed by both normalized email
+    # and pseudonymous client IP across the shared PostgreSQL test database.
+    suffix = uuid.uuid4().hex
+    user = IdentityUser(
+        user_id=f"user-deactivation-{suffix}",
+        tenant_id=runtime.test_ids["tenant_a"],
+        email=f"deactivation-{suffix}@example.test",
+        display_name="Deactivation Regression",
+        roles=frozenset({"planner", "enterprise_user"}),
+        password_hash=hash_password(PASSWORD),
+    )
+    connection = runtime.pool.acquire()
+    try:
+        PostgresIdentityStore(connection).upsert_user(user)
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+    runtime.test_ids["users"]["deactivation"] = user
+    runtime.test_ids["client_ip"] = f"198.18.{int(suffix[:2], 16)}.{int(suffix[2:4], 16)}"
+    cookie, _ = login(runtime, "deactivation")
 
     connection = runtime.pool.acquire()
     try:
