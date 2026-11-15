@@ -131,7 +131,7 @@ class ThresholdApplicationService:
     ) -> tuple[ThresholdRun, ...]:
         self._check(context, tenant_id, project_id, Permission.THRESHOLD_VIEW)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
-        self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_READ)
+        self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.THRESHOLD_VIEW)
         return self.store.runs(tenant_id, project_id, threshold_id)
 
     # -- writes -----------------------------------------------------------
