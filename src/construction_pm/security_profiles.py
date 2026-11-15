@@ -81,11 +81,11 @@ SECURITY_PROFILE_SCHEMA = (
         tenant_id TEXT NOT NULL,
         profile_id TEXT NOT NULL,
         user_id TEXT NOT NULL REFERENCES identity_users(user_id) ON DELETE RESTRICT,
-        project_id TEXT NOT NULL DEFAULT '',
+        obs_id TEXT NOT NULL DEFAULT '',
         revision BIGINT NOT NULL CHECK (revision >= 1),
         assigned_by TEXT NOT NULL,
         assigned_at TIMESTAMPTZ NOT NULL,
-        PRIMARY KEY (tenant_id, profile_id, user_id, project_id),
+        PRIMARY KEY (tenant_id, profile_id, user_id, obs_id),
         FOREIGN KEY (tenant_id, profile_id)
             REFERENCES p6_security_profiles(tenant_id, profile_id) ON DELETE RESTRICT,
         CHECK (project_id IS NOT NULL)
@@ -93,7 +93,7 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     CREATE INDEX IF NOT EXISTS p6_security_profile_assignments_user
-    ON p6_security_profile_assignments (tenant_id, user_id, project_id)
+    ON p6_security_profile_assignments (tenant_id, user_id, obs_id)
     """,
     """
     CREATE TABLE IF NOT EXISTS p6_security_profile_audit (
@@ -233,17 +233,19 @@ class PostgresSecurityProfileRepository:
 
     def assign(
         self, *, tenant_id: str, profile_id: str, user_id: str,
-        actor_user_id: str, occurred_at: Any, project_id: str = "",
+        actor_user_id: str, occurred_at: Any, obs_id: str = "",
         expected_revision: int | None = None,
     ) -> int:
         profile = self._connection.execute(
-            "SELECT scope FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            "SELECT scope,active FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
             (tenant_id, profile_id),
         ).fetchone()
         if profile is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
-        scope = str(profile[0])
-        if (scope == "global" and project_id) or (scope == "project" and not project_id):
+        scope, active = str(profile[0]), bool(profile[1])
+        if not active:
+            raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
+        if (scope == "global" and obs_id) or (scope == "project" and not obs_id):
             raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_SCOPE_MISMATCH")
         user = self._connection.execute(
             "SELECT tenant_id,active FROM identity_users WHERE user_id=%s",
@@ -251,17 +253,17 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if user is None or str(user[0]) != tenant_id or not bool(user[1]):
             raise SecurityProfileError("SECURITY_PROFILE_USER_NOT_ELIGIBLE")
-        if project_id:
-            project = self._connection.execute(
-                "SELECT 1 FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
-                (tenant_id, project_id),
+        if obs_id:
+            node = self._connection.execute(
+                "SELECT 1 FROM p6_obs_node WHERE tenant_id=%s AND obs_id=%s",
+                (tenant_id, obs_id),
             ).fetchone()
-            if project is None:
-                raise SecurityProfileError("SECURITY_PROFILE_PROJECT_NOT_FOUND")
+            if node is None:
+                raise SecurityProfileError("SECURITY_PROFILE_OBS_NOT_FOUND")
         existing = self._connection.execute(
             "SELECT revision FROM p6_security_profile_assignments "
-            "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND project_id=%s FOR UPDATE",
-            (tenant_id, profile_id, user_id, project_id),
+            "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s FOR UPDATE",
+            (tenant_id, profile_id, user_id, obs_id),
         ).fetchone()
         if existing is not None:
             if expected_revision is None or int(existing[0]) != expected_revision:
@@ -269,39 +271,48 @@ class PostgresSecurityProfileRepository:
             revision = expected_revision + 1
             self._connection.execute(
                 "UPDATE p6_security_profile_assignments SET revision=%s,assigned_by=%s,assigned_at=%s "
-                "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND project_id=%s",
-                (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, project_id),
+                "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s",
+                (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
             )
         else:
             if expected_revision not in (None, 0):
                 raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+            if scope == "global":
+                occupied = self._connection.execute(
+                    "SELECT 1 FROM p6_security_profile_assignments a "
+                    "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                    "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global'",
+                    (tenant_id, user_id),
+                ).fetchone()
+                if occupied is not None:
+                    raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ALREADY_ASSIGNED")
             revision = 1
             self._connection.execute(
                 "INSERT INTO p6_security_profile_assignments "
-                "(tenant_id,profile_id,user_id,project_id,revision,assigned_by,assigned_at) "
+                "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
                 "VALUES (%s,%s,%s,%s,1,%s,%s)",
-                (tenant_id, profile_id, user_id, project_id, actor_user_id, occurred_at),
+                (tenant_id, profile_id, user_id, obs_id, actor_user_id, occurred_at),
             )
         self._audit(tenant_id, actor_user_id, profile_id, "profile_assigned", None,
-                    {"user_id": user_id, "project_id": project_id, "revision": revision},
+                    {"user_id": user_id, "obs_id": obs_id, "revision": revision},
                     occurred_at)
         return revision
 
     def unassign(
         self, *, tenant_id: str, profile_id: str, user_id: str,
-        project_id: str = "", expected_revision: int,
+        obs_id: str = "", expected_revision: int,
         actor_user_id: str, occurred_at: Any,
     ) -> None:
         result = self._connection.execute(
             "DELETE FROM p6_security_profile_assignments "
-            "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND project_id=%s AND revision=%s "
+            "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s AND revision=%s "
             "RETURNING revision",
-            (tenant_id, profile_id, user_id, project_id, expected_revision),
+            (tenant_id, profile_id, user_id, obs_id, expected_revision),
         ).fetchone()
         if result is None:
             raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
         self._audit(tenant_id, actor_user_id, profile_id, "profile_unassigned",
-                    {"user_id": user_id, "project_id": project_id, "revision": expected_revision},
+                    {"user_id": user_id, "obs_id": obs_id, "revision": expected_revision},
                     {"unassigned": True}, occurred_at)
 
     def get_profile(self, tenant_id: str, profile_id: str) -> SecurityProfile:
@@ -345,7 +356,7 @@ class PostgresSecurityProfileRepository:
 
 
 class PostgresSecurityProfileAuthorizationPolicy:
-    """Role ceiling plus assigned global/project profile intersections."""
+    """Role ceiling plus required Global and OBS-assigned Project profiles."""
 
     def __init__(self, connection: Any, role_policy: RoleBasedAuthorizationPolicy) -> None:
         self._connection = connection
@@ -356,21 +367,26 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if not self._role_policy.is_allowed(context, permission):
             return False
         rows = self._connection.execute(
-            "SELECT p.scope,p.active,g.permission FROM p6_security_profile_assignments a "
+            "SELECT p.scope,p.active,g.permission,a.obs_id FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
             "LEFT JOIN p6_security_profile_privileges g "
             "ON g.tenant_id=p.tenant_id AND g.profile_id=p.profile_id "
             "AND g.permission=%s "
+            "LEFT JOIN project_lifecycle_projects project "
+            "ON project.tenant_id=a.tenant_id AND project.project_id=%s "
             "WHERE a.tenant_id=%s AND a.user_id=%s "
-            "AND ((p.scope='global' AND a.project_id='') "
-            "OR (p.scope='project' AND a.project_id=%s))",
-            (permission.value, context.tenant_id, context.user_id, context.project_id),
+            "AND ((p.scope='global' AND a.obs_id='') "
+            "OR (p.scope='project' AND a.obs_id=project.obs_id AND project.obs_id<>''))",
+            (permission.value, context.project_id, context.tenant_id, context.user_id),
         ).fetchall()
         global_rows = [row for row in rows if str(row[0]) == "global"]
         project_rows = [row for row in rows if str(row[0]) == "project"]
-        if global_rows and not any(bool(row[1]) and row[2] == permission.value for row in global_rows):
+        # P6 requires a Global Security Profile for every user. Project access
+        # requires an active Project profile assigned to the project's responsible
+        # OBS. A project profile does not create project membership.
+        if not any(bool(row[1]) for row in global_rows):
             return False
-        if project_rows and not any(bool(row[1]) and row[2] == permission.value for row in project_rows):
+        if not any(bool(row[1]) and row[2] == permission.value for row in project_rows):
             return False
         return True
 
