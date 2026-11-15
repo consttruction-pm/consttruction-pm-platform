@@ -822,6 +822,156 @@ class PostgresSecurityProfileAuthorizationPolicy:
             context.tenant_id, str(row[3])
         ) for row in project_rows)
 
+    def is_allowed_for_wbs(
+        self, context: AuthorizationContext, permission: Permission, wbs_id: str,
+    ) -> bool:
+        """Evaluate project privileges against the responsible OBS of one WBS.
+
+        A WBS-level OBS override is the write boundary. A user assigned only
+        to the project/EPS responsible OBS retains read-only visibility of a
+        WBS whose responsible OBS differs, matching the V26 security model.
+        """
+        context.validate()
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            return False
+        p6_project_permissions = {
+            Permission.PROJECT_READ, Permission.PROJECT_WRITE,
+            Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
+            Permission.P6_WBS_ADMIN,
+        }
+        p6_permissions = p6_project_permissions | {Permission.P6_UDF_ADMIN}
+        if permission not in p6_project_permissions:
+            return self.is_allowed(context, permission)
+
+        admin = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+            (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
+        ).fetchone()
+        if admin is not None:
+            return True
+
+        global_profile = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
+            "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
+            (context.tenant_id,context.user_id),
+        ).fetchone()
+        if global_profile is None:
+            return False
+
+        project_obs_rows = self._connection.execute(
+            "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth) AS ("
+            "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0 "
+            "FROM p6_project_eps_assignment assignment "
+            "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
+            "AND eps.eps_id=assignment.eps_id "
+            "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
+            "UNION ALL "
+            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1 "
+            "FROM p6_eps_node parent JOIN project_eps child "
+            "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s), "
+            "responsible_obs(obs_id) AS ("
+            "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
+            "WHERE project.tenant_id=%s AND project.project_id=%s "
+            "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps) "
+            "SELECT DISTINCT obs_id FROM responsible_obs WHERE obs_id IS NOT NULL",
+            (context.tenant_id,context.project_id,context.tenant_id,
+             context.tenant_id,context.project_id),
+        ).fetchall()
+        project_obs_ids = {str(row[0]) for row in project_obs_rows}
+
+        wbs_obs_row = self._connection.execute(
+            "WITH RECURSIVE wbs_path(wbs_id,parent_kind,parent_wbs_id,depth) AS ("
+            "SELECT wbs_id,parent_kind,parent_wbs_id,0 FROM wbs_master "
+            "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s "
+            "UNION ALL "
+            "SELECT parent.wbs_id,parent.parent_kind,parent.parent_wbs_id,child.depth+1 "
+            "FROM wbs_master parent JOIN wbs_path child "
+            "ON child.parent_kind='wbs' AND child.parent_wbs_id=parent.wbs_id "
+            "WHERE parent.tenant_id=%s AND parent.project_id=%s) "
+            "SELECT responsibility.responsible_obs_id FROM p6_wbs_obs_responsibility responsibility "
+            "JOIN wbs_path path ON path.wbs_id=responsibility.wbs_id "
+            "WHERE responsibility.tenant_id=%s AND responsibility.project_id=%s "
+            "ORDER BY path.depth LIMIT 1",
+            (context.tenant_id,context.project_id,wbs_id,
+             context.tenant_id,context.project_id,context.tenant_id,context.project_id),
+        ).fetchone()
+        if wbs_obs_row is not None:
+            effective_obs_id = str(wbs_obs_row[0])
+        else:
+            # No WBS override: the project OBS takes precedence; otherwise
+            # inherit the nearest responsible OBS on the project's EPS branch.
+            project_obs = self._connection.execute(
+                "SELECT NULLIF(obs_id,'') FROM project_lifecycle_projects "
+                "WHERE tenant_id=%s AND project_id=%s",
+                (context.tenant_id,context.project_id),
+            ).fetchone()
+            if project_obs is not None and project_obs[0]:
+                effective_obs_id = str(project_obs[0])
+            else:
+                eps_obs = self._connection.execute(
+                    "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth) AS ("
+                    "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0 "
+                    "FROM p6_project_eps_assignment assignment "
+                    "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
+                    "AND eps.eps_id=assignment.eps_id "
+                    "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
+                    "UNION ALL "
+                    "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1 "
+                    "FROM p6_eps_node parent JOIN project_eps child "
+                    "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s) "
+                    "SELECT NULLIF(responsible_obs_id,'') FROM project_eps "
+                    "WHERE responsible_obs_id<>'' ORDER BY depth LIMIT 1",
+                    (context.tenant_id,context.project_id,context.tenant_id),
+                ).fetchone()
+                effective_obs_id = "" if eps_obs is None or eps_obs[0] is None else str(eps_obs[0])
+        if not effective_obs_id:
+            return False
+
+        profile_rows = self._connection.execute(
+            "SELECT p.profile_id,p.active FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
+            "AND a.obs_id=%s",
+            (context.tenant_id,context.user_id,effective_obs_id),
+        ).fetchall()
+        active_profiles = [str(row[0]) for row in profile_rows if bool(row[1])]
+        if not active_profiles:
+            # Project/EPS responsible OBS grants read-only access to a WBS
+            # overridden by another OBS, but never write access.
+            if permission != Permission.PROJECT_READ or effective_obs_id in project_obs_ids:
+                return False
+            if not project_obs_ids:
+                return False
+            readonly = self._connection.execute(
+                "SELECT 1 FROM p6_security_profile_assignments a "
+                "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
+                "AND p.active=TRUE AND a.obs_id = ANY(%s) LIMIT 1",
+                (context.tenant_id,context.user_id,sorted(project_obs_ids)),
+            ).fetchone()
+            return readonly is not None and self._role_policy.is_allowed(context, permission)
+
+        if permission in p6_project_permissions and any(
+            profile_id == PROJECT_SUPERUSER_PROFILE_ID for profile_id in active_profiles
+        ):
+            return True
+        if not self._role_policy.is_allowed(context, permission):
+            return False
+        if permission == Permission.PROJECT_READ:
+            return True
+        required = PROJECT_PERMISSION_PRIVILEGE_MAP.get(permission)
+        if required is None:
+            return False
+        return any(
+            required in self._profile_privileges(context.tenant_id, profile_id)
+            for profile_id in active_profiles
+        )
+
     def _profile_privileges(self, tenant_id: str, profile_id: str) -> frozenset[str]:
         rows = self._connection.execute(
             "SELECT permission FROM p6_security_profile_privileges "
