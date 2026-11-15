@@ -469,12 +469,15 @@ def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
         body={"project_id": project_id, "name": "Planner EPS Project"},
     )
     assert status == 201, body
-    with runtime.connection.cursor() as cursor:
-        row = cursor.execute(
+    connection = runtime.pool.acquire()
+    try:
+        row = connection.execute(
             "SELECT eps_id FROM p6_project_eps_assignment "
             "WHERE tenant_id=%s AND project_id=%s",
             (ids["tenant_a"],project_id),
         ).fetchone()
+    finally:
+        runtime.pool.release(connection, healthy=True)
     assert row is not None and row[0] == ids["eps_a"]
 
 
