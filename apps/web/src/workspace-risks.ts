@@ -375,7 +375,7 @@ export function buildRiskPayload(input: RiskInput): Record<string, unknown> {
     response_owner: trimmedOrNull(input.responseOwner ?? null),
     response_due_date: due,
     owner,
-    responsible_manager: trimmedOrNull(input.responsibleManager),
+    responsible_manager: trimmedOrNull(input.responsibleManager ?? null),
     wbs_id: trimmedOrNull(input.wbsId),
     date_identified: dateIdentified,
     closure_note: closureNote,
