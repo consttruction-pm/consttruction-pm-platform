@@ -310,3 +310,13 @@ def test_v26_baseline_assignment_requires_both_documented_profile_privileges():
     assert not project_profile_has_permission(
         {"project.edit_details_except_costs_financials"}, "baseline.assign"
     )
+
+
+
+def test_project_costs_financials_visibility_is_never_inferred_from_project_view():
+    assert project_profile_has_permission(
+        {"project.view_costs_financials"}, "project.view_costs_financials"
+    )
+    assert not project_profile_has_permission(
+        {"project.view"}, "project.view_costs_financials"
+    )
