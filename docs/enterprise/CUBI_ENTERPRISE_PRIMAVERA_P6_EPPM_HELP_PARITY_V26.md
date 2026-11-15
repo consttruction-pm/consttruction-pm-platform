@@ -41,7 +41,7 @@ The V26 HTML topic “Working with P6” explicitly lists seven main sections: D
 | Team Member Web, My Activities, status updates and timesheets | Team & Task Center plus future Engineering Activity Status surface | Separate concepts: current Enterprise Task is an organizational task, not a P6 schedule Activity or a timesheet |
 | Risks and issues | Project Portal / Risk & Issue Management | Partial in Engineering; Enterprise must consume authorized, revision-pinned records rather than duplicate authoritative risk/schedule data |
 | Reports and performance status | Portfolio & Executive Center / Reporting | Existing reporting capabilities require end-to-end parity verification |
-| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; authenticated task API exists, full organization/team membership and administration are not complete |
+| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; tenant-scoped team/membership persistence, owner creation, manager-controlled add/revoke and append-only access audit exist; authenticated HTTP API is implemented on an open branch. User invitations, security profiles, granular project grants and effective-access reports remain open |
 | Project documents and information | Project Portal / Document & Information Management | Partial; use existing document service and access rules where verified |
 | Workflow, notifications and approvals | Workflow Studio / Feedback & Approval Center | Planned; status updates/approval semantics from Team Member V26 are a specific acceptance input |
 
@@ -79,7 +79,7 @@ The initial Task Center is a narrow, truthful slice of the Enterprise Team & Tas
 | Scope and security | Same-origin credentials, CSRF, explicit server-side Enterprise environment roles, no client-supplied tenant/actor authority, and separate project permissions | Production WSGI integration coverage; exact-head CI pending |
 | Responsive and RTL | Narrow-screen layout and Persian RTL direction | Browser QA required before acceptance |
 
-Not included in V1: team assignment (disabled server-side until membership persistence), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
+Not included in V1: team assignment (disabled server-side until the Task API consumes the active-membership authorization adapter), Engineering references (disabled until the authorized resolver), starred tasks (no persisted star field yet), schedule activity status, time entry/timesheets, approvals, notifications, dependency editing, offline work, and mobile-native features. Each must be separately scoped against the V26 Help topics.
 
 ## 6. Mandatory design and QA workflow
 
