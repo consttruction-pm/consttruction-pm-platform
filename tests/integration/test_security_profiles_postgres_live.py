@@ -23,6 +23,7 @@ from construction_pm.identity_session import (
     PostgresIdentityStore,
     hash_password,
 )
+from construction_pm.p6_obs_repository import P6OBSNode, PostgresP6OBSRepository
 from construction_pm.postgres_project_lifecycle import (
     PostgresProjectRepository,
     initialize_project_lifecycle_schema,
@@ -68,10 +69,12 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
     with _connect() as connection:
         PostgresIdentityStore(connection).initialize()
         initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         PostgresIdentityStore(connection).upsert_user(_identity_user(user_id, tenant))
+        PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile OBS"))
         PostgresProjectRepository(connection).create_for_user(
-            tenant, user_id, project_id, "Profile protected project"
+            tenant, user_id, project_id, "Profile protected project", obs_id=f"obs-{suffix}"
         )
         connection.commit()
 
@@ -82,7 +85,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
 
         # Compatibility window: no assigned profiles preserves existing role behavior.
-        assert policy.is_allowed(context, Permission.PROJECT_WRITE)
+        assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
 
         global_profile = profiles.create_profile(
             tenant_id=tenant, profile_id="global-limited", name="Global Limited",
@@ -109,7 +112,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         )
         profiles.assign(
             tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
-            project_id=project_id, actor_user_id=user_id, occurred_at=now,
+            obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
         )
 
         assert policy.is_allowed(context, Permission.PROJECT_READ)
@@ -121,7 +124,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
 
         # A profile in another tenant cannot affect this user's effective access.
         foreign = AuthorizationContext(other_tenant, project_id, user_id, frozenset({"planner"}))
-        assert policy.is_allowed(foreign, Permission.PROJECT_WRITE)
+        assert not policy.is_allowed(foreign, Permission.PROJECT_WRITE)
 
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_REVISION_CONFLICT"):
             profiles.set_privileges(
@@ -183,11 +186,13 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
         identity = PostgresIdentityStore(connection)
         identity.initialize()
         initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
         identity.upsert_user(_identity_user(target_id, tenant, "planner"))
+        PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile HTTP OBS"))
         PostgresProjectRepository(connection).create_for_user(
-            tenant, target_id, project_id, "Profile HTTP project"
+            tenant, target_id, project_id, "Profile HTTP project", obs_id=f"obs-{suffix}"
         )
         connection.commit()
 
@@ -206,6 +211,24 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             security_profiles=PostgresSecurityProfileRepository(connection),
         )
         app = EnterpriseOrganizationAccessHttpMiddleware(lambda environ, start: [], service)
+
+        status, global_created = _http_request(
+            app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile.v1",
+                "profile_id": "http-global", "name": "HTTP Global", "scope": "global",
+            },
+        )
+        assert status == 201, global_created
+        status, global_assigned = _http_request(
+            app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-assignment.v1",
+                "user_id": target_id,
+            },
+        )
+        assert status == 200 and global_assigned["revision"] == 1
 
         status, created = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
@@ -233,7 +256,7 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-assignment.v1",
-                "user_id": target_id, "project_id": project_id,
+                "user_id": target_id, "obs_id": f"obs-{suffix}",
             },
         )
         assert status == 200 and assigned["revision"] == 1
