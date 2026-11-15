@@ -81,11 +81,11 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 profiles = self._service.list_security_profiles(
                     session_id, scope=scope_values[0] if scope_values else None,
                 )
-                from .application.authorization import Permission
+                from .security_profiles import GLOBAL_PRIVILEGES, PROJECT_PRIVILEGES
                 return 200, {
                     "contract_version": "cubi-p6-security-profile-list.v1",
                     "profiles": [self._profile(item) for item in profiles],
-                    "permissions": sorted(permission.value for permission in Permission),
+                    "privilege_catalogs": {\n                        "global": sorted(GLOBAL_PRIVILEGES),\n                        "project": sorted(PROJECT_PRIVILEGES),\n                    },
                 }
             if method == "POST":
                 payload = self._body(environ, "cubi-p6-security-profile.v1")
