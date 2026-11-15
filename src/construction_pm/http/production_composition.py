@@ -303,6 +303,7 @@ def build_project_lifecycle_wsgi_app(
             activity_master_repository,
             authorization_policy,
             checkout_lease=checkout_lease,
+            wbs_access_repository=wbs_master_repository,
         )
     )
     if (
