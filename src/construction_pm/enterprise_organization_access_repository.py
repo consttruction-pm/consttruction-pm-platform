@@ -364,6 +364,25 @@ class PostgresEnterpriseOrganizationAccessRepository:
                 ).fetchone()
                 if int(admins[0]) <= 1:
                     raise OrganizationAccessError("LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED")
+            p6_admin = self._connection.execute(
+                "SELECT 1 FROM p6_security_profile_assignments a "
+                "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id='p6-admin-superuser' "
+                "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+                (tenant_id, target_user_id),
+            ).fetchone()
+            if p6_admin is not None:
+                remaining_p6_admins = self._connection.execute(
+                    "SELECT count(*) FROM p6_security_profile_assignments a "
+                    "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                    "JOIN identity_users u ON u.user_id=a.user_id "
+                    "WHERE a.tenant_id=%s AND a.profile_id='p6-admin-superuser' "
+                    "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE "
+                    "AND u.active=TRUE AND a.user_id<>%s",
+                    (tenant_id, target_user_id),
+                ).fetchone()
+                if int(remaining_p6_admins[0]) < 1:
+                    raise OrganizationAccessError("LAST_P6_ADMIN_SUPERUSER_CANNOT_BE_DEACTIVATED")
             owned = self._connection.execute(
                 "SELECT count(*) FROM enterprise_teams WHERE tenant_id=%s "
                 "AND owner_user_id=%s AND status='active'",
