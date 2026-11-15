@@ -15,7 +15,7 @@ All routes are same-origin and require the existing `cp_session` authenticated s
 | GET | `/api/enterprise/teams/{team_id}/eligible-users` | List active same-tenant accounts not yet active members; owner/admin only |
 | POST | `/api/enterprise/teams` | Create a tenant team; atomically creates owner membership |
 | POST | `/api/enterprise/teams/{team_id}/members` | Add an active same-tenant account with a team role and optional project-scope metadata |
-| DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |
+| DELETE | `/api/enterprise/teams/{team_id}/members/{user_id}` | Revoke membership using body `expected_revision` |\n| PUT | `/api/enterprise/teams/{team_id}/owner` | Transfer ownership to an existing active team member using expected team and target-membership revisions |
 | GET | `/api/enterprise/users` | List safe account identity/status fields for the authenticated tenant; Enterprise administrator only |
 | PATCH | `/api/enterprise/users/{user_id}/status` | Activate/deactivate an account; deactivation revokes every persisted session for that tenant/user |
 
@@ -26,7 +26,7 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 - Team creation requires both server-side `enterprise_admin` and `pro_monthly_active` claims. Until entitlement provisioning is authoritative, creation fails closed.
 - Membership changes and eligible-user directory access require an active owner/admin membership in the target team. Roster visibility requires an active membership in that team.
 - Member accounts must exist, be active and belong to the same tenant.
-- The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.
+- The owning account cannot be removed through the member-revocation endpoint; last-owner protection is enforced transactionally in PostgreSQL.\n- Ownership transfer is allowed only to the current owner, only to an existing active same-tenant member, and requires both current team revision and target membership revision. PostgreSQL serializes the transition on the team row, promotes the target to `owner`, demotes the previous owner to `admin`, increments all affected revisions, and appends one immutable before/after audit event in the same transaction. The target retains their existing project-scope metadata; it still grants no project access.
 - Revocation increments membership revision and writes an append-only actor-bound audit event.
 - Account directory and status changes require a currently active `enterprise_admin` role re-read from the tenant-bound identity row; the browser/session role snapshot is not the sole authorization source.
 - Account deactivation is tenant-scoped, prevents self-deactivation, prevents disabling the last active Enterprise administrator, and prevents deactivating an owner of an active team before ownership transfer.
@@ -36,7 +36,7 @@ Create and membership mutation bodies use `contract_version: cubi-enterprise-tea
 
 ## V26 Help traceability
 
-This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation. It also includes tenant-scoped account directory/status controls for active Enterprise administrators, audited activation/deactivation, last-admin/team-owner protections and immediate session revocation. It remains partial against V26: account invitation/creation and password lifecycle, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, Copy User Settings, effective-access previews and access reports are not yet implemented.
+This slice now includes a live Organization & Access page at `/enterprise/organization`, active team roster visibility, manager-only same-tenant eligible-user lookup, member addition and revision-guarded revocation, plus a current-owner-only, revision-guarded ownership transfer workflow. It also includes tenant-scoped account directory/status controls for active Enterprise administrators, audited activation/deactivation, last-admin/team-owner protections and immediate session revocation. It remains partial against V26: account invitation/creation and password lifecycle, global and project security profiles, granular privilege matrices, module access, OBS/project/resource access, User Interface Views, Copy User Settings, effective-access previews and access reports are not yet implemented.
 
 | V26 Help topic / observable behavior | CUBI contract or surface | Evidence / state |
 |---|---|---|
