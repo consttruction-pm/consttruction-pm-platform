@@ -710,9 +710,9 @@ class ProjectLifecycleService:
                 user_id=session.user_id,
                 roles=session.roles,
             ),
-            Permission.PROJECT_ADMIN,
+            Permission.P6_PROJECT_CREATE,
         ):
-            raise AuthorizationError("authorization denied for permission=project.admin")
+            raise AuthorizationError("authorization denied for permission=p6.project.create")
         if not isinstance(project_id, str) or not project_id.strip():
             raise ProjectLifecycleError("PROJECT_ID_REQUIRED")
         if not isinstance(name, str) or not name.strip():
