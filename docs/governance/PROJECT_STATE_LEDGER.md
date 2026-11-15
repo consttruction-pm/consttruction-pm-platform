@@ -1330,3 +1330,11 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - Register update commit: `452321349de923dc888b67f9abeeeea87cefdc0b`; resulting file blob SHA: `ffd25c05bacbdf7f4b0c3a749202471ba1ef80b1`.
 - Blueprint update commit: `60f1f41e30d4b6311f1b6ec66b48f6c62b277db1`; resulting file blob SHA: `264346521b5d9b61cb471d22d332f40ec23d9fc2`.
 - This is a documentation/governance correction, not evidence that Cloud Help topics have already been exhaustively audited or that any product capability is implemented or parity-complete.
+
+
+## Non-subtractive Cloud integration and dual-environment uplift — 2026-11-15
+
+- Product-owner decision: Cloud functionality must never be reduced, removed, weakened or simplified during CUBI integration. The complete Cloud Help-defined scope—including Cloud-only capabilities—must be added to CUBI.
+- Both CUBI environments must be upgraded: shared capabilities improve both the Professional-aligned and Cloud-aligned environments; Cloud-specific additions remain fully available in the Cloud-aligned environment and are surfaced in the Professional-aligned environment wherever semantically compatible.
+- Professional parity is not a ceiling or reason to reduce Cloud. Preserve source-specific distinctions, reconcile overlap as a full union/superset, maintain singular canonical domain/data/calculation ownership, and test both environments for regressions.
+- Binding rules added to capability register section 2C and master feasibility/execution blueprint. This records acceptance criteria, not completed feature implementation or test evidence.
