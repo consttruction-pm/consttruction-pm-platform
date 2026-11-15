@@ -31,6 +31,32 @@ def _require_permission(
         raise AuthorizationError(f"authorization denied for permission={permission.value}")
 
 
+def _is_allowed_for_wbs(
+    policy: AuthorizationPolicy,
+    auth_context: AuthorizationContext,
+    permission: Permission,
+    wbs_id: str | None,
+) -> bool:
+    if not wbs_id:
+        return policy.is_allowed(auth_context, permission)
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if callable(scoped):
+        return bool(scoped(auth_context, permission, wbs_id))
+    # Production always uses the persisted P6 evaluator; this fallback keeps
+    # the provider-neutral local policy compatible with non-production tests.
+    return policy.is_allowed(auth_context, permission)
+
+
+def _require_wbs_permission(
+    policy: AuthorizationPolicy,
+    auth_context: AuthorizationContext,
+    permission: Permission,
+    wbs_id: str | None,
+) -> None:
+    if not _is_allowed_for_wbs(policy, auth_context, permission, wbs_id):
+        raise AuthorizationError(f"authorization denied for permission={permission.value}")
+
+
 def _scope_dto(scope: BackendScope) -> dict[str, Any]:
     return {
         "tenant_id": scope.tenant_id,
@@ -72,7 +98,9 @@ class P6ExpenseAPI:
 
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_EXPENSE_ADMIN)
+        _require_wbs_permission(
+            self.authorization_policy, auth_context, Permission.P6_EXPENSE_ADMIN, expense.wbs_id
+        )
         return _dto(self.service.save(expense))
 
     def get(
@@ -83,9 +111,12 @@ class P6ExpenseAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         result = self.service.read(scope, expense_id)
-        return None if result is None else _dto(result)
+        if result is None or not _is_allowed_for_wbs(
+            self.authorization_policy, auth_context, Permission.PROJECT_READ, result.wbs_id
+        ):
+            return None
+        return _dto(result)
 
     def list(
         self,
@@ -96,10 +127,13 @@ class P6ExpenseAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        items = self.service.list(scope, activity_id=activity_id, wbs_id=wbs_id)
         return tuple(
             _dto(item)
-            for item in self.service.list(scope, activity_id=activity_id, wbs_id=wbs_id)
+            for item in items
+            if _is_allowed_for_wbs(
+                self.authorization_policy, auth_context, Permission.PROJECT_READ, item.wbs_id
+            )
         )
 
 
