@@ -50,6 +50,8 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("expense.add_edit", ProjectPrivilegeGroup.PROJECT_DATA, "Add/Edit Expenses", "Create and edit project expenses."),
     ProjectPrivilegeDefinition("expense.delete", ProjectPrivilegeGroup.PROJECT_DATA, "Delete Expenses", "Delete project expenses."),
     ProjectPrivilegeDefinition("issue.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Issues", "View project issues."),
+    ProjectPrivilegeDefinition("issue.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Issues", "Edit existing project issues."),
+    ProjectPrivilegeDefinition("issue.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Issues", "Assign project issues."),
     ProjectPrivilegeDefinition("issue.add_edit", ProjectPrivilegeGroup.PROJECT_DATA, "Add/Edit Issues", "Create and edit project issues."),
     ProjectPrivilegeDefinition("issue.delete", ProjectPrivilegeGroup.PROJECT_DATA, "Delete Issues", "Delete project issues."),
     ProjectPrivilegeDefinition("threshold.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Thresholds", "View project thresholds."),
