@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from ..p6_eps_repository import P6EPSNode
+
 from .authorization import Permission
 
 from .project_lifecycle import (
@@ -122,6 +124,28 @@ class ProjectLifecycleAPI:
                 increment_activity_id=increment_activity_id,
                 now=now,
             )
+        )
+
+    def list_eps_nodes(
+        self, session_id: str, *, now: datetime,
+    ) -> tuple[P6EPSNode, ...]:
+        return self._service.list_eps_nodes(session_id, now=now)
+
+    def save_eps_node(
+        self, session_id: str, node: P6EPSNode, *,
+        expected_revision: int | None, now: datetime,
+    ) -> P6EPSNode:
+        return self._service.save_eps_node(
+            session_id, node, expected_revision=expected_revision, now=now
+        )
+
+    def assign_project_eps(
+        self, session_id: str, project_id: str, eps_id: str, *,
+        expected_revision: int | None, now: datetime,
+    ) -> int:
+        return self._service.assign_project_eps(
+            session_id, project_id, eps_id,
+            expected_revision=expected_revision, now=now,
         )
 
     def get_project(
