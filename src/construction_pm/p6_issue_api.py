@@ -136,7 +136,7 @@ class P6IssueAPI:
         self, issue: P6Issue, *, auth_context: AuthorizationContext, occurred_at: str
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_ADD_EDIT)
         if self.wbs_access_repository is not None and not issue.responsible_obs_id:
             raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
         self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value, issue.responsible_obs_id)
@@ -150,7 +150,7 @@ class P6IssueAPI:
         self, scope: BackendScope, issue_id: str, *, auth_context: AuthorizationContext
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_VIEW)
         stored = self.repository.get(scope, issue_id)
         if stored is None:
             return None
@@ -171,7 +171,7 @@ class P6IssueAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_VIEW)
         return tuple(
             _dto(item)
             for item in self.repository.list(
@@ -196,7 +196,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_EDIT)
         if self.wbs_access_repository is not None and not issue.responsible_obs_id:
             raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
         existing = self.repository.get(issue.scope, issue.issue_id)
@@ -222,7 +222,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_DELETE)
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
@@ -255,7 +255,7 @@ class P6IssueAPI:
         occurred_at: str,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_EDIT)
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
@@ -275,7 +275,7 @@ class P6IssueAPI:
         self, scope: BackendScope, issue_id: str, *, auth_context: AuthorizationContext
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_VIEW)
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
