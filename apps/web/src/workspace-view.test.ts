@@ -128,6 +128,7 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
     name: "Structure",
     sequenceNumber: 4,
     parentWbsId: "WBS-ROOT",
+    responsibleObsId: null,
   });
 });
 
