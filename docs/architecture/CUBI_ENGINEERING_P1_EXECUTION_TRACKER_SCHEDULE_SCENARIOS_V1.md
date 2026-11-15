@@ -130,3 +130,14 @@ For each phase update, record:
 - One concrete next action.
 
 **Do not mark a phase complete from a document, PR, branch, test assertion without execution, or a worker summary alone.**
+
+
+## 11. Documentation-branch verification checkpoint — 2026-11-15
+
+- Documentation branch at checkpoint: `docs/cubi-cloud-gap-environment-ownership-v1`.
+- Prior branch head: `882e605a3daf37188946cd79f0bab3e4623f4934`; the tracker and continuity-ledger writes are committed separately and are visible in PR #1988.
+- PR #1988 compare against main: documentation-only; 5 commits ahead, 0 behind at the latest check. Changed paths are the three architecture documents and `docs/governance/PROJECT_STATE_LEDGER.md`; no source code, schema, API, route or runtime changed.
+- Exact combined status for the then-current docs head reported **Vercel – cubi-web-preview: failure**, target URL indicating **build-rate-limit / upgrade required**. This is a preview-provider quota failure, not a passing test and not evidence of an application defect. No test suite ran from this ChatGPT GitHub-connector operation.
+- Tracker was fetched back from GitHub after creation; continuity-ledger entry was fetched back and its appended issue/status/next-action text was confirmed.
+- PR #1988 remains Draft/open/unmerged. Issue #1989 remains open. No merge, deployment or source implementation occurred.
+- **Next required action:** execute Phase 1 in the repository's canonical GitHub/Codex environment after resolving the missing `AGENTS.md` and current schedule PR ownership; do not treat the Vercel check as green.
