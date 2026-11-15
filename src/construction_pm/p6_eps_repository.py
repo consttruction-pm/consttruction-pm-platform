@@ -295,6 +295,16 @@ class PostgresP6EPSRepository:
         )
         return revision
 
+    def get_project_eps_assignment(
+        self, tenant_id: str, project_id: str,
+    ) -> tuple[str, int] | None:
+        row = self.connection.execute(
+            "SELECT eps_id,revision FROM p6_project_eps_assignment "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id,project_id),
+        ).fetchone()
+        return None if row is None else (str(row[0]),int(row[1]))
+
     def list_nodes(self, tenant_id: str) -> tuple[P6EPSNode, ...]:
         rows = self.connection.execute(
             "SELECT eps_id,name,parent_eps_id,responsible_obs_id,sequence_number "
