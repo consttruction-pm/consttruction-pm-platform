@@ -1124,7 +1124,7 @@ class PostgresWBSMasterRepository:
         cursor = self.connection.execute(
             "UPDATE wbs_master SET project_revision=%s,parent_kind=%s,parent_wbs_id=%s,"
             "code=%s,name=%s,sequence_number=%s,record_revision=%s,status=%s,"
-            "percent_complete_technique=%s "
+            "percent_complete_technique=%s,responsible_obs_id=%s "
             "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s AND record_revision=%s",
             (
                 stored.scope.project_revision,
