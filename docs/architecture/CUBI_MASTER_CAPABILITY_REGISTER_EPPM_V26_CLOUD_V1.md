@@ -161,3 +161,43 @@ This is the first source-verified tranche, not yet the complete crosswalk for ev
 - Cloud Monte Carlo requires current schedule inputs, risk/uncertainty distributions, iterations, convergence controls, reproducibility seed, distributions and sensitivity/tornado outputs. It is not equivalent to a deterministic risk score.
 - Cloud Work Plan includes task planning boards, hand-offs, constraints, commitments, due-date proposals and missed-commitment history. CUBI should link these to Engineering activity/WBS without turning them into schedule activities or Enterprise generic tasks.
 - Cloud portfolio resource planning is time-phased, scenario-based and includes review/negotiation/approval before committing role allocations. CUBI must keep that portfolio envelope in Enterprise and let Engineering own project assignment/leveling calculations.
+
+
+## 8. Existing repository workstream cross-reference — deduplication checkpoint (2026-11-15)
+
+This is an initial issue/PR collision map from the current open GitHub search. It is not proof that every referenced item is complete or that its latest files do not overlap. Before any source edit, refresh each issue/PR head, changed paths, review state and exact-head checks.
+
+| Register area | Existing issue / PR references | Required handling |
+|---|---|---|
+| Full EPPM V26 feature-difference/source audit | Issues #1925; PR #1926 | Reuse as source inventory. Reconcile EPPM vs Professional distinctions and do not duplicate the audit. Feed confirmed EPPM V26 topics into this register. |
+| Canonical Activity/Schedule visual workspace and parity | Issue #1691; PR #1716 and other active workspace PRs | Continue the canonical workspace only. Refresh exact path ownership before changes to Activity/Gantt/shell files. |
+| Scenario lifecycle | Issue #1989; architecture PR #1988 | #1989 is one ENG-04 child slice, not the whole CUBI roadmap. |
+| Engineering Intelligence and knowledge | Issue #1706; Issue #1540; PRs #1724 and #1729 | Preserve the CUBI-owned/model-free assistant principles and knowledge privacy boundaries; deduplicate learning-memory and knowledge-base work. |
+| Organization, security, identity and OBS | Issue #1984; PRs #1971, #1974, #1980, #1983 | These are existing Enterprise/security workstreams. Audit each exact head and merge/CI status; do not create another identity, team, profile or OBS model. |
+| Enterprise organization and collaboration | Issue #1928; PR #1929 | Use as the Enterprise parent workstream; generic tasks remain separate from Engineering activities and Field Work Plan. |
+| Workflow, approval and shared Form Builder | Issue #1927 | Treat as the design gate for ENT-08/SH-09; do not create a second form/workflow engine. |
+| Subscription, payment and owner CMS | Issue #1605; Issue #1888; PR #1887 | Reuse approved Free/Pro/Team/Enterprise requirements and owner-controlled payment/CMS decisions; verify current plan decisions before implementation. |
+| Offline Flutter/Windows clients | Issue #1670 | Use as the architecture gate for SH-08; shared core and local persistence are required without forcing web offline. |
+| Localization | Issue #1531 | Reuse extensible localization resources; complete the agreed language/RTL/timezone matrix rather than add one-off maps. |
+| Takeoff, estimating, resource/equipment planning and risk mitigation | Issue #1617 | Reconcile this broad engineering backlog against ENG-06/08/09 and existing core before splitting work. |
+| Personal dashboard hidden reporting menu | Issue #1924 | Keep this future personal-dashboard scope separate from the current canonical Engineering workspace; no duplicate visible menu in the Activity shell. |
+
+### Current open PRs with likely ownership relevance (must refresh before code edits)
+
+- #1974 — Organization & Access team management.
+- #1983 and #1980 — OBS/WBS responsible access.
+- #1971 — CUBI-ID and team invitation lifecycle.
+- #1929 — Enterprise Team & Task domain foundation.
+- #1926 — EPPM vs Professional V26 difference audit.
+- #1887 — subscription/payment/owner CMS requirements.
+- #1988 — architecture and master register documentation package.
+
+The open-PR search also returned unrelated public-site and legacy workspace PRs; do not assume they are safe to merge or edit from title/body alone. Exact changed-path and exact-head CI inspection is a mandatory precondition.
+
+### Dedupe decisions
+
+1. #1990 is the program-level parent issue. Existing issues above remain their own bounded workstreams; do not replace or close them.
+2. #1989 remains the Scenario Lab child issue.
+3. #1925/#1926 provide source-difference evidence; #1988/master register organizes CUBI ownership and implementation sequencing.
+4. #1928/#1929 and #1927 own the Enterprise task/workflow/form design track. CUBI should reuse one Enterprise identity, task and workflow foundation.
+5. Product requirements in #1605/#1888/#1887 and the client architecture gate #1670 must be reconciled before those shared/platform rows are treated as implementation-ready.
