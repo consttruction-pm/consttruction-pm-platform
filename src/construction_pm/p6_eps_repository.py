@@ -287,6 +287,58 @@ class PostgresP6EPSRepository:
         )
         return revision
 
+    def get_effective_wbs_responsibility(
+        self, tenant_id: str, project_id: str, wbs_id: str,
+    ) -> tuple[str, int, str] | None:
+        """Resolve the nearest WBS override, then project, then EPS default."""
+        wbs = self.connection.execute(
+            "WITH RECURSIVE wbs_path(wbs_id,parent_kind,parent_wbs_id,depth,path) AS ("
+            "SELECT wbs_id,parent_kind,parent_wbs_id,0,ARRAY[wbs_id]::text[] FROM wbs_master "
+            "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s "
+            "UNION ALL "
+            "SELECT parent.wbs_id,parent.parent_kind,parent.parent_wbs_id,child.depth+1,child.path || parent.wbs_id "
+            "FROM wbs_master parent JOIN wbs_path child "
+            "ON child.parent_kind='wbs' AND child.parent_wbs_id=parent.wbs_id "
+            "WHERE parent.tenant_id=%s AND parent.project_id=%s "
+            "AND NOT parent.wbs_id=ANY(child.path)) "
+            "SELECT responsibility.responsible_obs_id,responsibility.revision,path.depth "
+            "FROM p6_wbs_obs_responsibility responsibility "
+            "JOIN wbs_path path ON path.wbs_id=responsibility.wbs_id "
+            "WHERE responsibility.tenant_id=%s AND responsibility.project_id=%s "
+            "ORDER BY path.depth LIMIT 1",
+            (tenant_id,project_id,wbs_id,tenant_id,project_id,tenant_id,project_id),
+        ).fetchone()
+        if wbs is not None:
+            return str(wbs[0]),int(wbs[1]),"wbs" if int(wbs[2]) == 0 else "wbs_parent"
+
+        project = self.connection.execute(
+            "SELECT NULLIF(obs_id,'') FROM project_lifecycle_projects "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id,project_id),
+        ).fetchone()
+        if project is None:
+            raise P6EPSError("P6_WBS_NOT_FOUND")
+        if project[0]:
+            return str(project[0]),0,"project"
+
+        eps = self.connection.execute(
+            "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth,path) AS ("
+            "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0,ARRAY[eps.eps_id]::text[] "
+            "FROM p6_project_eps_assignment assignment "
+            "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
+            "AND eps.eps_id=assignment.eps_id "
+            "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
+            "UNION ALL "
+            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1,child.path || parent.eps_id "
+            "FROM p6_eps_node parent JOIN project_eps child "
+            "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s "
+            "AND NOT parent.eps_id=ANY(child.path)) "
+            "SELECT NULLIF(responsible_obs_id,'') FROM project_eps "
+            "WHERE responsible_obs_id<>'' ORDER BY depth LIMIT 1",
+            (tenant_id,project_id,tenant_id),
+        ).fetchone()
+        return None if eps is None or eps[0] is None else (str(eps[0]),0,"eps")
+
     def get_wbs_responsibility(
         self, tenant_id: str, project_id: str, wbs_id: str,
     ) -> tuple[str, int] | None:
