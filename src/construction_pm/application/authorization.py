@@ -34,6 +34,7 @@ class Permission(str, Enum):
     THRESHOLD_ADD_EDIT = "threshold.add_edit"
     THRESHOLD_EDIT = "threshold.edit"
     THRESHOLD_DELETE = "threshold.delete"
+    THRESHOLD_MONITOR = "threshold.monitor"
     BASELINE_VIEW = "baseline.view"
     BASELINE_CREATE_UPDATE = "baseline.create_update"
     WBS_VIEW = "wbs.view"
@@ -118,6 +119,7 @@ class RoleBasedAuthorizationPolicy:
             Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_MONITOR: Permission.PROJECT_WRITE,
             Permission.BASELINE_VIEW: Permission.PROJECT_READ,
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
