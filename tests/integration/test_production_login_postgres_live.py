@@ -135,6 +135,7 @@ def runtime() -> ProductionRuntime:
             "viewer": ("viewer-profile", ("project.read",)),
             "planner": ("planner-profile", ("project.read", "project.write", "project.schedule")),
             "outsider": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
+            "unentitled": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
         }
         for key, (profile_id, permissions) in profiles.items():
             user = users[key]
