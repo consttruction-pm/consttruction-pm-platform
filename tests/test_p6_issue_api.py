@@ -7,7 +7,6 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     AuthorizationError,
-    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
