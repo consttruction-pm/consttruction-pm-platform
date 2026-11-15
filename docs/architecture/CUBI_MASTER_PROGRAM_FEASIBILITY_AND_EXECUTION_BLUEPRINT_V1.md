@@ -207,3 +207,18 @@ Run the comparison in both directions:
 - Professional safety: cross-map each item to Professional V26 and EPPM V26 Help. Reuse and extend the existing canonical CUBI capability where overlap exists; never create duplicate menus, windows, routes, forms, controls, reports, tables, records or calculation engines, and never regress Professional-aligned Activity/Schedule behavior.
 
 **Release gate: 100% of applicable Help rows must be dispositioned, all documented procedures replayed, and all corresponding visual/functional evidence attached before claiming parity-complete.** Every unresolved item remains MISSING / VERIFY and blocks that claim. CUBI branding and localization remain CUBI-native, but may not alter the Help-defined functional structure or omit documented behavior.
+
+
+### Non-subtractive Cloud integration and dual-environment uplift
+
+Cloud-derived work must **add the complete Cloud Help capability to CUBI; it must never subtract, trim, weaken or simplify Cloud functionality** to make it resemble the Professional feature set. Professional parity is not a ceiling. Preserve every Cloud-documented workflow, field, option, permission, report, chart, table, output and behavior, including Cloud-only capabilities.
+
+The objective is to upgrade both CUBI environments:
+1. Shared semantics and improvements strengthen one canonical CUBI capability and are available in both the Professional-aligned and Cloud-aligned environments.
+2. Cloud-specific additions remain fully usable in the Cloud-aligned environment and are also exposed in the Professional-aligned environment wherever semantically compatible.
+3. Preserve materially different source workflows through context-aware presentation, permissions or adapters; do not force incompatible Cloud-only controls into a Professional workflow.
+4. Reconcile overlaps as a complete union/superset of valid capabilities, not the smaller common denominator. Record and resolve every semantic conflict; never silently discard either source's documented behavior.
+5. Keep canonical domain ownership, data records and calculation engines singular. Dual-environment uplift means both environments benefit from the same coherent capability, not duplicate data stores or competing engines.
+6. Test both environments for every relevant change: prove the Cloud feature set remains complete and prove Professional-aligned behavior is not regressed.
+
+**Acceptance:** full Cloud Help scope preserved, applicable shared improvements demonstrated in both environments, Cloud-only additions working in the Cloud-aligned environment, and cross-environment regression tests passing. Parity means faithful preservation plus additive CUBI integration and dual-environment uplift—not reduction to the smaller source feature set.
