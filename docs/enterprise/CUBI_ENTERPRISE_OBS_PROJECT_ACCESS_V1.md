@@ -155,3 +155,14 @@ The mapping is intentionally narrow: WBS structural privileges do not grant wbs.
 The live PostgreSQL acceptance test now uses an Oracle project.view profile to authorize the CUBI project-read operation, and an OBS-scoped profile containing only wbs.add_edit_delete_except_costs_financials to prove WBS view/add-edit/delete access, deny financial edits, and revoke the WBS grant immediately. Exact-head CI is still required before this increment is accepted.
 
 Baseline operations now distinguish `baseline.view`, `baseline.assign`, and `baseline.update`. The assign route requires both Oracle V26 options **Assign Project Baselines** and **Edit Project Details Except Costs/Financials**; selective baseline update uses the separate Tools privilege **Run Baseline Update**. Baseline activity-window reads use `baseline.view`.
+
+
+### Baseline and financial-read privileges (2026-11-15)
+
+- Baseline summary/history and baseline activity-window reads now require baseline.view.
+- Assigning a baseline uses the distinct baseline.assign route grant and is checked against both V26 options: project_baseline.assign (Assign Project Baselines) and project.edit_details_except_costs_financials (Edit Project Details Except Costs/Financials). Either one alone is insufficient.
+- Selective baseline update preview requires baseline.view; applying the update requires the separate Tools privilege baseline.update (Run Baseline Update).
+- Activity read-model and Earned Value read routes now require activity/baseline view as applicable plus the separate project.view_costs_financials grant before returning monetary actuals, costs or EVM values. Project view alone is not treated as financial visibility.
+- Added unit tests for the two-part baseline assignment prerequisite and denial of financial read-model data without the explicit costs/financials grant.
+
+The live PostgreSQL test fixture for combined WBS privileges now normalizes the inherited grants before persisting the profile, matching the repository's canonical profile validation contract. The earlier PostgreSQL failure was caused by a non-normalized test fixture; the corrected fixture is being re-run on the current head.
