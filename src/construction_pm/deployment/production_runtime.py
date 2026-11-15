@@ -301,6 +301,7 @@ class ProductionRuntime:
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
+        eps_repository = PostgresP6EPSRepository(connection)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
@@ -308,12 +309,13 @@ class ProductionRuntime:
                 policy,
                 cost_accounts=cost_account_repository,
                 obs_nodes=obs_node_repository,
+                eps_nodes=eps_repository,
             )
         )
         checkout_lease = PostgresProjectCheckoutLease(connection)
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
-        wbs_responsibility_repository = PostgresP6EPSRepository(connection)
+        wbs_responsibility_repository = eps_repository
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
