@@ -863,16 +863,17 @@ class PostgresSecurityProfileAuthorizationPolicy:
             return False
 
         project_obs_rows = self._connection.execute(
-            "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth) AS ("
-            "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0 "
+            "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth,path) AS ("
+            "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id,0,ARRAY[eps.eps_id]::text[] "
             "FROM p6_project_eps_assignment assignment "
             "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
             "AND eps.eps_id=assignment.eps_id "
             "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
             "UNION ALL "
-            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1 "
+            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,child.depth+1,child.path || parent.eps_id "
             "FROM p6_eps_node parent JOIN project_eps child "
-            "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s), "
+            "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s "
+            "AND NOT parent.eps_id=ANY(child.path)), "
             "responsible_obs(obs_id) AS ("
             "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
@@ -884,14 +885,15 @@ class PostgresSecurityProfileAuthorizationPolicy:
         project_obs_ids = {str(row[0]) for row in project_obs_rows}
 
         wbs_obs_row = self._connection.execute(
-            "WITH RECURSIVE wbs_path(wbs_id,parent_kind,parent_wbs_id,depth) AS ("
-            "SELECT wbs_id,parent_kind,parent_wbs_id,0 FROM wbs_master "
+            "WITH RECURSIVE wbs_path(wbs_id,parent_kind,parent_wbs_id,depth,path) AS ("
+            "SELECT wbs_id,parent_kind,parent_wbs_id,0,ARRAY[wbs_id]::text[] FROM wbs_master "
             "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s "
             "UNION ALL "
-            "SELECT parent.wbs_id,parent.parent_kind,parent.parent_wbs_id,child.depth+1 "
+            "SELECT parent.wbs_id,parent.parent_kind,parent.parent_wbs_id,child.depth+1,child.path || parent.wbs_id "
             "FROM wbs_master parent JOIN wbs_path child "
             "ON child.parent_kind='wbs' AND child.parent_wbs_id=parent.wbs_id "
-            "WHERE parent.tenant_id=%s AND parent.project_id=%s) "
+            "WHERE parent.tenant_id=%s AND parent.project_id=%s "
+            "AND NOT parent.wbs_id=ANY(child.path)) "
             "SELECT responsibility.responsible_obs_id FROM p6_wbs_obs_responsibility responsibility "
             "JOIN wbs_path path ON path.wbs_id=responsibility.wbs_id "
             "WHERE responsibility.tenant_id=%s AND responsibility.project_id=%s "
