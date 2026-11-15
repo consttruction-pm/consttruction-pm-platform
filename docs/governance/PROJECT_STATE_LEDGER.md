@@ -1497,3 +1497,8 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Follow-up code/test commit: `5d290bb6d590ad85ceb1fc63856caffe57ca7871`. It makes the new Edit Period Performance grant explicit in the default planner permission matrix and adds the matrix assertion; the live PostgreSQL test imports were consolidated.
 - A fresh exact-head query for `5d290bb6d590ad85ceb1fc63856caffe57ca7871` still returns no GitHub Actions workflow runs or check runs. The only status is Vercel Preview `failure: build-rate-limit`.
 - The new API tests and live PostgreSQL test remain unexecuted by an exact-head runner. The new CI DSN and PR path-filter wiring is committed, but the provider has not emitted a workflow result. Do not mark this work verified or release-ready until those workflows execute.
+
+### WBS-local positive-path coverage — 2026-11-15
+
+- Test follow-up commit: `6bb43b97c49bcc107a36051722ac7fefbfe0d47a`. The live PostgreSQL scenario now also proves that a user assigned to the restricted WBS OBS can write that WBS's resource assignment and period performance, while the project-OBS-only user cannot write the overridden WBS and the restricted-WBS user cannot write the project WBS.
+- This remains test code awaiting an exact-head GitHub Actions execution; no pass is inferred from the test being committed.
