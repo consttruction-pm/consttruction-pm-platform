@@ -42,6 +42,7 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
     ProjectPrivilegeDefinition("project.assign", ProjectPrivilegeGroup.EPS_PROJECTS, "Assign Projects", "Assign project responsibility."),
     ProjectPrivilegeDefinition("wbs.edit", ProjectPrivilegeGroup.EPS_PROJECTS, "Edit WBS", "Edit existing WBS elements."),
     ProjectPrivilegeDefinition("wbs.assign", ProjectPrivilegeGroup.EPS_PROJECTS, "Assign WBS", "Assign WBS responsibility."),
+    ProjectPrivilegeDefinition("expense.view", ProjectPrivilegeGroup.PROJECT_DATA, "View Expenses", "View project expenses."),
     ProjectPrivilegeDefinition("expense.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Expenses", "Edit existing expenses."),
     ProjectPrivilegeDefinition("expense.assign", ProjectPrivilegeGroup.PROJECT_DATA, "Assign Expenses", "Assign expenses."),
     ProjectPrivilegeDefinition("threshold.edit", ProjectPrivilegeGroup.PROJECT_DATA, "Edit Thresholds", "Edit existing thresholds."),
