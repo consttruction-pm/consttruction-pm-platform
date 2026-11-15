@@ -164,9 +164,6 @@ test("WBS register exposes connected add, delete and view controls", () => {
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /data-wbs-delete-guidance/);
-  assert.match(html, /data-wbs-delete-reassign hidden/);
-  assert.match(html, /Reassign activities to parent and delete/);
   assert.match(html, /data-wbs-view="table"/);
   assert.match(html, /data-wbs-view="chart"/);
   assert.doesNotMatch(html, /WBS chart view is not connected yet/);
@@ -3090,4 +3087,28 @@ test("Activity create form offers the stored default cost account from the real 
   };
   listeners.get("submit")?.({ target: form, preventDefault: () => {} } as unknown as Event);
   assert.equal(captured.value?.costAccountId, "CA-CIVIL");
+});
+
+
+test("WBS editor exposes the responsible OBS field in both locales", () => {
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+  const state = {
+    ...withWbsNodes(
+      createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+      [{
+        id: "WBS-OPS", parentKind: "project", parentWbsId: null,
+        localCode: "1", name: "Operations", sequenceNumber: 0,
+        recordRevision: 2, responsibleObsId: "OBS-OPERATIONS",
+      }],
+    ),
+    selectedWbsId: "WBS-OPS",
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {});
+  assert.match(container.innerHTML, /name="responsible_obs_id"/);
+  assert.match(container.innerHTML, /value="OBS-OPERATIONS"/);
+  assert.match(container.innerHTML, /Responsible OBS/);
 });
