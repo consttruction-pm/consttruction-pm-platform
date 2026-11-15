@@ -236,9 +236,15 @@ class P6WBSMasterAPI:
             raise AuthorizationError("authorization denied for permission=project.read")
         if self.responsibility_repository is None:
             raise ValueError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
-        result = self.responsibility_repository.get_wbs_responsibility(
-            scope.tenant_id, scope.project_id, wbs_id
+        effective_reader = getattr(
+            self.responsibility_repository, "get_effective_wbs_responsibility", None
         )
+        if callable(effective_reader):
+            result = effective_reader(scope.tenant_id, scope.project_id, wbs_id)
+        else:
+            result = self.responsibility_repository.get_wbs_responsibility(
+                scope.tenant_id, scope.project_id, wbs_id
+            )
         if result is None:
             return None
         return {
@@ -247,6 +253,7 @@ class P6WBSMasterAPI:
             "wbs_id": wbs_id,
             "responsible_obs_id": result[0],
             "revision": result[1],
+            "source": result[2] if len(result) > 2 else "wbs",
         }
 
     def assign_responsible_obs(
