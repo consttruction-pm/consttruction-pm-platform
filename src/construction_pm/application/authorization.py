@@ -34,6 +34,8 @@ class Permission(str, Enum):
     THRESHOLD_ADD_EDIT = "threshold.add_edit"
     THRESHOLD_EDIT = "threshold.edit"
     THRESHOLD_DELETE = "threshold.delete"
+    BASELINE_VIEW = "baseline.view"
+    BASELINE_CREATE_UPDATE = "baseline.create_update"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -113,6 +115,8 @@ class RoleBasedAuthorizationPolicy:
             Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
             Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
+            Permission.BASELINE_VIEW: Permission.PROJECT_READ,
+            Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
         }.get(permission)
         return legacy_guardrail in role_grants if legacy_guardrail is not None else False
 
