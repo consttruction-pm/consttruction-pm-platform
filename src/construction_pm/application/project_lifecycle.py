@@ -721,6 +721,7 @@ class ProjectLifecycleService:
         default_duration_type: str = "Fixed Duration & Units",
         default_cost_account_id: str = "",
         obs_id: str = "",
+        eps_id: str = "",
         activity_id_prefix: str = "",
         activity_id_suffix: str = "",
         activity_id_increment: int = 10,
