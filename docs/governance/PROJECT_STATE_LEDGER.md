@@ -1172,3 +1172,111 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Tests at the same code:** new `tests/scheduling/test_schedule_checks.py` (6 tests: open-end exclusions, constraint classification, negative lag/float, time-aware negative float, zero-count payload consistency, stable empty input), extended `tests/test_authoritative_schedule_query.py` (contract, counts, per-rule counts and finding order), and 3 new `apps/web/src/schedule-cycle.test.ts` cases (parse/scope, absent vs malformed, rendered counts/rules/findings/focus). Python `4329 passed / 204 skipped`, Web `1165 + 15`, `tsc` and esbuild clean.
 - **Evidence:** `docs/workspace/evidence/sch-004-schedule-check-2026-11-14/` (`evidence.json` `git_head` = `8948bff4dec014dcab18fcdc859b4e15ffeaf3b7`, with the `schedule_check` block).
 - **Remaining:** the rule catalogue is bounded to the six conditions the core can evaluate today; the external V26 rule-catalogue comparison is `BLOCKED_EXTERNAL` (no licensed V26 schedule export or rule fixture). There is no separate docked Schedule Check window, and negative float remains a WARNING in the check layer while genuine infeasibility still raises `ScheduleInfeasibilityError`.
+
+
+## Engineering P1 Scenario / Reflection — Issue #1989 — 2026-11-15 (Phase 0 audit)
+
+- **Parent architecture:** PR #1988 (open Draft, unmerged). Execution issue: https://github.com/consttruction-pm/consttruction-pm-platform/issues/1989.
+- **Tracker:** `docs/architecture/CUBI_ENGINEERING_P1_EXECUTION_TRACKER_SCHEDULE_SCENARIOS_V1.md` on branch `docs/cubi-cloud-gap-environment-ownership-v1`.
+- **Baseline:** main `376af9e2751ea1260ea3b4ed9be050eb1722afbf`; docs branch after tracker commit `882e605a3daf37188946cd79f0bab3e4623f4934`.
+- **Audit:** the existing `scenario-lab` shell in `apps/web/src/workspace-engineering-shells.ts` is not mapped to a verified live service per `docs/workspace/CANONICAL_VISUAL_WORKSPACE_MIGRATION_LEDGER.md`. The P6 code reference and generated catalog do not prove a complete reflection entity, difference report or controlled merge.
+- **Schedule of record:** inspected `Jalal5_Weighted_Master_Schedule_2026-10-18_EXECUTION-BASELINE.xlsx`; no dedicated weighted activity for standalone Scenario Lab/Reflection was found. No weight or earned progress changed; backlog remains unweighted pending approved rebaseline.
+- **Continuity blockers:** root `AGENTS.md` lookup returned 404 (**MISSING / VERIFY**); supplied 815-page V26 PDF not available (**MISSING / VERIFY**). The repository protocol says GitHub/Codex is the canonical code execution/test environment; no source code or runtime test is claimed in this ChatGPT coordination step.
+- **Non-interference:** many active schedule branches/PRs exist. Before source writes, refresh current main, exact open PR heads/changed paths and active ownership. Avoid overlapping scheduler, resource-leveling, Activity Master and global shell paths.
+- **Normative Help:** P6 Professional V26 HTML TOC and Reflection topics are recorded in Issue #1989 and the execution tracker; EPPM-only semantics must be traced to P6 EPPM V26 Help separately.
+- **Status:** Phase 0 discovery recorded; Phase 1 contract not started; Phases 2–4 blocked on Phase 1 and the named continuity/collision gates; Phase 5 promotion is a separate future release gate. No merge/deploy authorized.
+- **Next action:** resolve/verify `AGENTS.md`, refresh active schedule ownership, then define the typed scenario/reflection contract (pinned source snapshot, project revision, calculation-context hash, isolated fork, immutable runs, typed comparison, authorization/revision/idempotency). Only then start the backend vertical slice in the canonical execution environment.
+
+- **Documentation verification checkpoint:** tracker update commit `ca45fbccb2f4a8e01c3e18ef414e1481e1cfa45b`; PR #1988 remains documentation-only, Draft/open/unmerged. Latest exact status on the then-current head was Vercel preview **failure: build-rate-limit / upgrade required**; no runtime/test suite was executed by the ChatGPT GitHub connector. This is not a green gate. See the tracker §11 and issue #1989.
+
+## Primavera Help authority clarification — 2026-11-15
+
+- Product-owner rule: **P6 EPPM V26 HTML Help is the universal primary parity authority for all capabilities and topics.**
+- Capabilities newly added in Primavera Cloud and absent from EPPM Help must be functionally sourced from the corresponding Primavera Cloud HTML Help.
+- If a Cloud capability has an EPPM counterpart, reconcile and integrate it without semantic, menu, API, data-owner or calculation duplication. Preserve EPPM baseline behavior and add Cloud extensions explicitly where justified.
+- Cloud-only capabilities remain clearly classified as Cloud-origin extensions; never label them as EPPM parity.
+- Every feature/phase requires a dual-source disposition: exact EPPM HTML topic(s) or “not present”; exact Cloud HTML topic(s) or “not applicable”; classification; differences/resolution; CUBI owner/menu/API/data boundary; tests/evidence.
+- Professional Help is supplementary cross-reference only, not a substitute for EPPM Help. This corrects the earlier Scenario Tracker emphasis on Professional Reflection topics.
+- Any inaccessible or ambiguous source is marked **MISSING / VERIFY** or **OPEN — OWNER DECISION REQUIRED**; no inferred parity.
+- This hierarchy applies to Engineering, Enterprise and Workbench, all existing and new features. See tracker §12 and execution issue #1989.
+
+
+## Engineering P1 Scenario / Cloud Schedule Scenario — Phase 1 contract checkpoint — 2026-11-15
+
+- Product-owner delivery responsibility clarified: Engineering-owned capabilities are feasibility-assessed and handed to Qoder for implementation (Priority 1). Enterprise-owned capabilities are Priority 2; ChatGPT owns their architecture/integration and implementation planning after Engineering contracts stabilize. Workbench remains a non-owning entry/notification surface.
+- Phase 1 contract draft: `docs/architecture/CUBI_ENGINEERING_P1_SCHEDULE_SCENARIOS_PHASE1_CONTRACT_V1.md`; tracker §13 and Issue #1989 were updated. Contract includes scenario aggregate/provenance, typed changes, immutable scheduler runs, pinned comparisons, permission/concurrency/idempotency boundaries, and guarded promotion as a separate release gate.
+- Direct inspection of P6 EPPM V26 HTML TOC (`https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm`) found Portfolio Views > About What-if Analysis but no Reflection or Schedule Comparison topic. Portfolio what-if is not project schedule scenarios. Official Primavera Cloud Help supplies the project scenario lifecycle, comparison and merge workflow; P6 Professional V26 Reflection topics are supplementary only.
+- Scenario classification: Cloud-origin Engineering extension integrated with EPPM project/activity/WBS/relationship/calendar/baseline/scheduling/security primitives. Enterprise portfolio/resource scenarios remain a separate P2 portfolio capability and consume authorized Engineering facts only.
+- Exact active-writer/path ownership and root AGENTS.md remain unresolved; full topic-level crosswalk and independent contract review are pending. Therefore Phase 1 is **DRAFTED / IN REVIEW**, not complete; no source code or runtime changes; no merge/deploy; Jalal 5 weights unchanged and earned progress remains zero.
+- PR #1988 remains Draft/open/unmerged. New contract and tracker commits are documentation-only. Current Vercel status is build-rate-limit failure (not a test result); GitHub Actions checks were still in progress at the checkpoint.
+
+
+## Qoder execution handoff packet — Issue #1989 — 2026-11-15
+
+- Published executable handoff: `docs/engineering/QODER_HANDOFF_ISSUE_1989_SCHEDULE_SCENARIOS_PHASE1_EXECUTION_PACKET.md` (commit `0852bb8bf8ce439120276698546b45290f0772a4`).
+- Tracker §14 links the packet. Issue #1989 has an explicit Qoder execution comment.
+- The packet makes the user's delivery hierarchy binding: EPPM V26 HTML primary; Primavera Cloud HTML for genuinely Cloud-only capabilities; reconcile shared capabilities without duplication; Engineering P1/Qoder; Enterprise P2/ChatGPT after Engineering contracts stabilize.
+- It specifies the immediate implementation vertical slice: isolated scenario create/read/edit/run using the existing Shared Scheduling Core, immutable pinned source and run records, tenant/project authorization, revision/idempotency, SQLite/PostgreSQL tests, then wire the existing Scenario Lab; comparison follows; promotion is a separate release gate.
+- Status distinction: documentation handoff is committed; **Qoder source implementation has not been executed by this ChatGPT GitHub connector**. This session cannot launch the desktop Qoder agent or run the canonical checkout's tests/browser runtime. Do not misreport code/test progress. The immediate next action is Qoder executing the packet in the canonical checkout.
+- PR #1988 remains Draft/open/unmerged. No merge/deploy authorized. Jalal 5 weights unchanged and no earned progress claimed.
+
+
+## Master CUBI capability program — full-scope register — 2026-11-15
+
+- Product-owner scope is the complete CUBI capability expansion and parity program, not only Scenario Lab.
+- Canonical register: `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`, commit `b4f66fe79434c674ec95e9fcc2995bf6abe5b430`.
+- Program issue: #1990. Scenario-specific issue #1989 is a child execution slice, not the overall program.
+- Register spans Engineering P1 (ENG-01..ENG-14), Enterprise P2 (ENT-01..ENT-12), and shared Workbench/platform boundaries (SH-01..SH-10), including schedule/activity/resource/cost/progress/risk/Monte Carlo/field work/Team Member/timesheets, organization/security/portfolio/capacity/workflows/dashboards/portal/integrations, and shared auth/audit/search/notifications/localization/storage/offline/forms/Super Admin.
+- Normative source hierarchy: P6 EPPM V26 HTML Help primary for parity; Primavera Cloud HTML Help supplies genuinely new capabilities absent from EPPM; shared capabilities are reconciled without duplicate records, APIs, menus, owners, workflows or calculations; Team Member V26 is a separate normative source; Professional Help supplementary only.
+- Engineering P1 is handed to Qoder for actual implementation. Enterprise P2 architecture and integration are coordinated here after Engineering contracts stabilize. Workbench remains non-owning.
+- PR #1988 includes the master register and tracker link; remains documentation-only until review/merge. Issue #1990 tracks the program. This checkpoint records documentation and scope only: no source code implementation, runtime tests, merge, deployment, Jalal 5 weight change or earned progress is claimed.
+
+
+## First verified dual-Help crosswalk tranche — 2026-11-15
+
+- Master register crosswalk appendix commit: `83a2b91185fb6400b6dee1834fbec7d87a07b1e3`.
+- Verified EPPM V26 HTML topic families include Activities, WBS, Gantt, baselines, scheduling, float, critical path, resource leveling, progress, resources, constraints, relationships, risks, steps, budgets, earned value, Dashboards/Portlets, Portfolios/Portfolio Analysis, Capacity Planning, Timesheets, User Access, OBS, Security Profiles and audit.
+- Verified Primavera Cloud HTML topics include Schedule Scenarios/Manage Scenario, Risk Analysis prerequisites and execution/iteration results, Work Plan/hand-offs/commitments/Pull Plans, Portfolio Resource Planning scenarios, and Workflow Design/Inbox.
+- Exact official HTML page URLs and feature-level dispositions are in the master register appendix. This is a first tranche only; remaining topic-level crosswalk is still open and no unverified topic is marked absent.
+- Program issue #1990 tracks the complete inventory and delivery. Scenario issue #1989 is a child Engineering slice. No code, runtime, test, merge or deployment completion is claimed by this documentation work.
+
+
+## Existing CUBI workstream deduplication checkpoint — 2026-11-15
+
+- Master register dedupe appendix commit: `696d9c9ee91f11dc36f60d24d810efcb5d41a074`.
+- Cross-referenced existing workstreams: EPPM-vs-Professional source audit (#1925/#1926); canonical workspace (#1691/#1716); Scenario Lab (#1989); Engineering Intelligence/knowledge (#1706/#1540/#1724/#1729); Organization/security/identity (#1984/#1971/#1974/#1980/#1983); Enterprise tasks (#1928/#1929); workflow/forms (#1927); subscriptions/owner CMS (#1605/#1888/#1887); offline clients (#1670); localization (#1531); takeoff/resource/risk planning (#1617); future personal-dashboard reporting (#1924).
+- These links prevent duplicate issue/model/service creation but do not assert implementation completion. Exact PR heads, changed paths, checks and merge state remain mandatory before any source edit or acceptance.
+- #1990 is the full-program parent; #1989 is the Scenario Lab child. Existing issues retain their own scope.
+
+
+## 2026-11-15 — Issue #1990 full-program feasibility continuation
+
+- Product-owner correction applied: the scope is the complete CUBI capability expansion, not only the Schedule Scenario / Reflection child slice.
+- Added `docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md` covering all 36 master-register rows (ENG-01–14, ENT-01–12, SH-01–10), including authoritative ownership, reuse direction, API/persistence/UI boundaries, authorization, concurrency/idempotency, offline/jobs, dependencies, delivery order and acceptance gates.
+- Linked the blueprint from `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`.
+- Exact branch: `docs/cubi-cloud-gap-environment-ownership-v1`; latest content commits: `bc189b29174f4309f5254093b5446bd500b0bf79` (blueprint), `e25f1a5a51045dac74563d9c3499182b71b78b4f` (register pointer).
+- Read-back verification: blueprint SHA `85a585bfcad38b7c205db49c784b005c33ccff1e`; register SHA `6733d42f2fc47949518abecb614e10305a5a1359`; all 36 IDs present; register pointer confirmed.
+- Branch comparison against main: 26 commits ahead, 0 behind; eight changed paths (seven architecture/engineering documents plus this ledger). The branch remains documentation-only. No code, schema, runtime, CI, browser or product behavior was changed or tested; no implementation credit is claimed.
+- Open evidence gaps: row-level exact EPPM V26 / Team Member / Cloud topic crosswalk is incomplete; root/nested `AGENTS.md` and active-writer ownership must be resolved from canonical checkout; Jalal 5 weights remain unchanged; no exact-head code verification.
+- Next: finish exact Help topic crosswalk and current issue/PR/path ownership across the full 36-row register, then issue a non-overlapping Engineering P1 implementation queue to Qoder. Enterprise P2 planning remains dependent on stable Engineering contracts. Issue #1989 is one child slice, not the program scope.
+
+
+## 2026-11-15 — Full-program Help crosswalk tranche 2
+
+- Expanded the full-program feasibility blueprint with exact official HTML topic evidence for EPPM Activities, Activity Views, Filters, Grouping, Resource Leveling, User Access, Dashboards and REST Activity; separate P6 Team Member Web V26 TOC and Timesheets; and Primavera Cloud Risk Analysis, Risk Iteration Analysis and Portfolio Resource Planning.
+- Semantic consequences recorded: Team Member assigned activity updates and timesheets remain distinct; Monte Carlo requires a fresh authoritative schedule run; Enterprise portfolio resource planning remains distinct from Engineering project assignment/leveling.
+- Blueprint latest verified SHA at this checkpoint: `f3c09dfd9f328aeb533758070035a37d1bbf9bd0`. This is source research/feasibility evidence only, not runtime or implementation evidence.
+- Still open: exact topic-level mapping for every row in the 36-row register, especially integrations/webhooks, portal/document grants, benefits, workflow details, Workbench search/notifications, Super Admin and offline synchronization. These remain MISSING / VERIFY pending direct topic extraction.
+
+
+## 2026-11-15 — GitHub + Vercel cross-check continuation
+
+- Confirmed product-owner workflow: GitHub is the source of truth for repository state, PR/issue/commit/CI evidence; Vercel is the deployment/build/preview verification surface. Do not describe a documentation branch as a product checkout or treat a READY build as runtime acceptance.
+- Current `main` deployment inspected in Vercel: `dpl_75Ct8tDaXHcV6QGmvGYuuDqAG7sn`, READY, target production, commit `e8c4e5bd0bceb5a155ae0b00feca459a50f1b502`; aliases include `cubi-web-preview-foroughichamshir-7811.vercel.app` and `cubi-web-preview-git-main-foroughichamshir-7811.vercel.app`. Build log confirms Python 3.12, web bundle build, runtime staging and validation of 15 HTML pages, then Deployment completed.
+- Current feasibility branch deployment inspected: `dpl_83RwS7Fs2xnf4Xf6r2Bv3nBrWTL7`, READY, preview target, commit `23aeaed6a27324a1b2070710e77a26d4944d0467`; it builds the same monorepo web artifact and validates 15 HTML pages. This is a documentation-branch preview, not a replacement for main.
+- Vercel project is `cubi-web-preview` (`prj_E1psnPyPs9doA82oZ4OcmiIqarle`), connected to `consttruction-pm/consttruction-pm-platform`. Main's `apps/web/vercel.json` defines the current build/runtime and rewrites; root `vercel.json` is a separate legacy configuration and must not be confused with the project's apps/web root-directory configuration.
+- Historical failed Vercel previews on `feat/web-personal-workbench-role-routing-20261115` are diagnosed: commit `c5b18abafcda2511329051e4ecdd87c4e7b3392d` failed because `functions.api/enterprise.py` did not match a serverless function; earlier commit `2b532d94beeb6744ba951a026eff030d26cce645` had invalid `vercel.json`. The later main deployment is READY; do not reopen/fix those historical commits unless their branch is still intended for release.
+- Runtime logs for the inspected main deployment returned no entries in the latest 50-minute window. HTTP/browser route verification was not available through this Vercel inspection; build READY is not a claim that login, /app, /enterprise or database-backed journeys passed.
+- Repository current main SHA was read from the Vercel main deployment as `e8c4e5bd0bceb5a155ae0b00feca459a50f1b502`. GitHub fetch of root/apps/apps-web `AGENTS.md` returned 404 for those exact paths; this is not proof no nested instruction files exist. Resolve by repository tree/checkout before any code edit.
+- Full-program feasibility branch now compares 29 commits ahead / 0 behind main with 8 changed paths; all changes are architecture/governance documents. Do not merge solely on this status; verify PR #1988 head, review, checks and changed paths first.
+- Next actionable code queue must be drawn from current main/open PR evidence, not from the docs branch: inspect #1974/#1983/#1980 security scope and exact-head CI, then select the first Engineering P1 dependency-ready implementation slice under #1990. Do not merge a PR with stale or absent CI, unreviewed scope, or an unverified 395-commit comparison.

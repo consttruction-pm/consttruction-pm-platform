@@ -1,0 +1,218 @@
+# CUBI Engineering P1 — Execution Tracker: Schedule Scenarios / Reflections
+
+**Status:** Phase 0 discovery recorded; implementation not started.  
+**Parent architecture PR:** #1988 (Draft, unmerged).  
+**Execution issue:** #1989 — https://github.com/consttruction-pm/consttruction-pm-platform/issues/1989  
+**Audit baseline:** `main` = `376af9e2751ea1260ea3b4ed9be050eb1722afbf` (2026-11-15).  
+**Jalal 5 schedule:** `Jalal5_Weighted_Master_Schedule_2026-10-18_EXECUTION-BASELINE.xlsx` (Library artifact inspected; no dedicated weighted activity for standalone Scenario Lab/Reflection was found).  
+**Progress credit:** 0 until merged implementation and accepted exact-head/runtime evidence. This tracker does not rebaseline or alter workbook weights.
+
+## 1. Why this is the next Engineering P1 slice
+
+The existing Engineering shell already contains a `scenario-lab` window with a scenario register, source revision, changed variables, run state, comparison and history. However, the canonical visual migration ledger explicitly says this shell is **not mapped to a verified live service**. The current shell is therefore a presentation placeholder, not a shipped scenario capability.
+
+The current Schedule workspace is wired to authoritative schedule and baseline routes, but numerical Version 26 parity is not fully proven. The generated P6 code reference also records reflection creation/comparison/controlled merge as inventory-required; no complete reflection entity, difference report or merge-conflict implementation was verified at the audit SHA.
+
+**Decision:** build on the existing Engineering Scenario Lab and the existing authoritative schedule snapshot/scheduler. Do not create a second schedule engine, new top-level navigation, or a replacement shell.
+
+## 2. Phase register
+
+| Phase | Scope | Status | Exit evidence |
+|---|---|---|---|
+| 0 | Current-main, continuity, schedule, UI/service gap and collision audit | **Recorded** | Exact SHA, code/docs findings, PR #1989 |
+| 1 | Contract and domain boundary | **Not started** | Approved typed contract, lifecycle/state model, invariants and threat/concurrency review |
+| 2 | Backend vertical slice | **Blocked pending Phase 1** | Persistence/API tests, PostgreSQL integration, immutable run read-back |
+| 3 | Existing Engineering UI wiring | **Blocked pending Phase 2** | Real API wiring, truthful states, Web tests and browser evidence |
+| 4 | V26 conformance and regression gate | **Not started** | HTML Help trace matrix, exact-head CI, numeric fixtures, en/fa browser evidence |
+| 5 | Controlled promotion/merge | **Separate future release gate** | Conflict preview, explicit approval, atomic apply, audit and fresh read-back |
+
+## 3. Phase 0 — discovery findings (2026-11-15)
+
+### 3.1 Repository and continuity
+- Main SHA: `376af9e2751ea1260ea3b4ed9be050eb1722afbf`.
+- PR #1988 is open, Draft, unmerged; head SHA at audit: `6c4c5f1c8c8d92f665891bd3c297511e643b0c4b`.
+- README and `docs/governance/PROJECT_CONTINUITY_PROTOCOL.md` require the repository's GitHub/Codex environment for code execution and tests. ChatGPT may coordinate and record state, but cannot substitute its GitHub connector for runtime verification.
+- Root `AGENTS.md` lookup returned 404: **MISSING / VERIFY**. Resolve before code changes.
+- The supplied 815-page V26 PDF was not available in the reviewed artifacts: **MISSING / VERIFY**. Do not claim full parity without it.
+- Jalal 5 execution baseline inspected. No separate weighted activity for standalone Schedule Scenarios/Reflection exists. Keep this work unweighted and at zero earned progress until an approved schedule rebaseline maps it. Do not silently alter the workbook.
+
+### 3.2 Current implementation evidence
+- `apps/web/src/workspace-engineering-shells.ts`: `scenario-lab` shell defines scenario register, source revision, changed variables, run state, comparison and history.
+- `docs/workspace/CANONICAL_VISUAL_WORKSPACE_MIGRATION_LEDGER.md`: `scenario-lab` explicitly marked “Not yet mapped to a verified live service”.
+- `docs/engineering/WEB_SURFACE_TRACEABILITY_MATRIX.md`: Schedule page is wired to current schedule/baseline routes; numeric V26 parity remains unproven.
+- `src/construction_pm/p6_code_reference.py` and `apps/web/src/scheduling-reference-catalog.generated.ts`: reflection creation, comparison and controlled merge are not fully implemented/verified; no complete reflection entity, difference report or merge-conflict implementation was verified.
+- Multiple active scheduling branches/PRs exist across schedule snapshots, resource leveling, schedule query, Activity Master and workspace UI. This is a high-collision area. Re-fetch exact main, open PRs, changed paths, head SHAs and active writer ownership immediately before any source write. Do not touch shared scheduling/leveling files or `apps/web/src/main.ts` until collision is resolved.
+
+### 3.3 Normative Version 26 HTML references
+- P6 Professional Help V26 TOC: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+- P6 Professional User Guide V26 HTML: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html
+- Create a Reflection: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/create_a_reflection.htm
+- Creating and using reflections: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/creating_and_using_reflections.htm
+- Reflection FAQ: https://docs.oracle.com/cd/G48902_01/client_help/en_US/frequently_asked_questions_about_reflections.htm
+- Required V26 topics from the TOC: What is a reflection; Creating and using reflections; Create a Reflection; Printing a reflection difference report; Merging a Reflection with the Source project; Using Reflection projects and Activity Owner features (P6 EPPM Only).
+- P6 EPPM V26 Help HTML remains the authority for EPPM-only semantics. Do not infer EPPM behavior from Professional-only topics. Keep the P6 EPPM Help V26 TOC and Team Member Help in the acceptance crosswalk where relevant.
+
+## 4. Phase 1 — contract and domain boundary (next execution phase)
+
+Before backend coding, write and review the contract for:
+
+1. **Scenario identity and scope:** tenant, project, scenario ID, creator/owner, source project revision, immutable source schedule snapshot ID/hash, calculation-context hash, selected baseline references, lifecycle state and optimistic scenario revision.
+2. **Fork isolation:** scenario records and edits are isolated from the live project. No scenario mutation may write to source activity, relationship, resource assignment, baseline, progress or cost records.
+3. **Typed change set:** only explicitly supported fields and entities; field units, null semantics, validation and unsupported-field behavior are explicit. No arbitrary JSON patch or browser-side scheduler.
+4. **Authoritative run:** execute through the existing Shared Domain/Calculation Core using a pinned snapshot and context. Persist immutable run ID, engine/version, input/output hashes, run parameters, seed if applicable, timestamps and terminal state.
+5. **Comparison:** compare supported typed source/scenario entities and fields from persisted authoritative read models; show added/changed/deleted and non-comparable items with reasons.
+6. **Concurrency and security:** reauthorize every request; enforce tenant/project/object scope; expected revisions, idempotency keys, audit correlation IDs; fail closed on stale source, missing snapshot or revoked grant.
+7. **Promotion boundary:** separate command, separate permission and separate release gate. Require pinned source revision, explicit selected-change scope, conflict preview, all-or-nothing semantics and append-only audit. Never silently merge or last-write-wins.
+
+Phase 1 deliverables: versioned API contract, state-transition table, data ownership diagram, error taxonomy, concurrency/idempotency table, security test matrix and V26 traceability rows.
+
+## 5. Phase 2 — backend vertical slice
+
+- Add scenario persistence/repository and application service through existing API/Application/Repository boundaries.
+- Implement create/list/read and run/read-run operations first; no promotion endpoint in this slice.
+- Reuse existing authoritative schedule snapshot composer and scheduler; never create a second CPM calculation implementation.
+- Persist scenario input and output revisions immutably; read-back after writes.
+- Required tests: create and duplicate; source unchanged after scenario edit/run; source snapshot missing; stale project/scenario revision; idempotent replay and key reuse; cross-tenant/project isolation; permission revoked between requests; invalid/unsupported change set; scheduler failure; deterministic replay; transaction rollback.
+- Add PostgreSQL integration tests in the canonical GitHub/Codex environment.
+
+## 6. Phase 3 — Engineering UI wiring
+
+- Wire the existing `scenario-lab` window to the versioned real service.
+- No new top-level menu, no second Schedule/Activities/Gantt editor, no new shell and no global `main.ts` replacement.
+- Scenario creation should be contextual to the active project/schedule; display exact source revision, source snapshot and baseline references.
+- Show truthful loading, empty, error, unauthorized, stale and completed states. Unsupported actions remain disabled with a reason.
+- Provide create, inspect, edit supported assumptions, run, compare and history only when each action has a real backend contract.
+- Preserve existing window layout, route state, keyboard/focus behavior, RTL/LTR, Persian/Jalali/Gregorian, locale and permission conventions.
+
+## 7. Phase 4 — V26 conformance and regression
+
+- Map every user action and state to exact V26 HTML Help topic and paragraph/step.
+- Validate reflection creation privilege and project context; selected baseline copy; multiple reflections; source-project link; difference report; merge availability restrictions; checked-out/exclusive project restrictions; resource duplicate behavior; scheduling date changes; merge failure handling.
+- Add reference-derived numeric fixtures and independent expected values. If no licensed P6 V26 reference run/PDF is available, label those cases **MISSING / VERIFY** and do not mark parity complete.
+- Run focused backend and Web tests, full proportionate CI, PostgreSQL integration, typecheck/build and real-browser E2E at exact final SHA.
+- Capture English and Persian RTL browser evidence; verify no API 5xx, browser exceptions or console errors.
+- Re-run affected existing schedule, Gantt, resource-leveling and project portability regression suites.
+
+## 8. Phase 5 — controlled promotion (not part of the first vertical slice)
+
+Promotion may begin only after Phase 1 contract review and dedicated authorization. Require:
+- source project and scenario permissions checked at execution time;
+- source project not checked out/exclusively locked by another actor;
+- source revision still exactly matches the pinned revision;
+- selected entities/fields and conflicts shown before apply;
+- no duplicate resource identity or unsupported update is silently accepted;
+- atomic apply, one source revision advance, idempotency and immutable audit;
+- fresh authoritative read-back proves the intended changes and no others.
+
+Any stale revision, unresolved conflict or revoked permission blocks the operation.
+
+## 9. Non-interference rules
+
+- Engineering owns project schedule, CPM, baselines, resource assignments/leveling, progress and project risk calculations.
+- Enterprise may consume authorized versioned scenario summaries later; it must not run or duplicate CPM or edit Engineering scenarios.
+- Workbench is an entry/notification surface only.
+- Typed cross-environment references do not grant permission.
+- No cross-database joins, direct module imports, shared ORM entities, circular dependencies or silent last-write-wins.
+- Do not mix Monte Carlo into this first slice. Quantitative risk is a later Engineering P1 capability that depends on stable scenario/snapshot and risk-input contracts.
+- Enterprise portfolio resource scenarios remain P2 and consume Engineering snapshots only.
+
+## 10. Handoff template — update after every phase
+
+For each phase update, record:
+- Phase and status (Not started / In progress / Blocked / Verified on main).
+- Exact main SHA, branch, head SHA and changed paths.
+- Linked issue/PR and current merge state.
+- Contract/code changes and observable behavior.
+- Exact commands, check URLs, exit status and test counts.
+- PostgreSQL/read-back/security/browser evidence as applicable.
+- V26 HTML topic mapping and missing evidence.
+- Remaining risks/blockers.
+- One concrete next action.
+
+**Do not mark a phase complete from a document, PR, branch, test assertion without execution, or a worker summary alone.**
+
+
+## 11. Documentation-branch verification checkpoint — 2026-11-15
+
+- Documentation branch at checkpoint: `docs/cubi-cloud-gap-environment-ownership-v1`.
+- Prior branch head: `882e605a3daf37188946cd79f0bab3e4623f4934`; the tracker and continuity-ledger writes are committed separately and are visible in PR #1988.
+- PR #1988 compare against main: documentation-only; 5 commits ahead, 0 behind at the latest check. Changed paths are the three architecture documents and `docs/governance/PROJECT_STATE_LEDGER.md`; no source code, schema, API, route or runtime changed.
+- Exact combined status for the then-current docs head reported **Vercel – cubi-web-preview: failure**, target URL indicating **build-rate-limit / upgrade required**. This is a preview-provider quota failure, not a passing test and not evidence of an application defect. No test suite ran from this ChatGPT GitHub-connector operation.
+- Tracker was fetched back from GitHub after creation; continuity-ledger entry was fetched back and its appended issue/status/next-action text was confirmed.
+- PR #1988 remains Draft/open/unmerged. Issue #1989 remains open. No merge, deployment or source implementation occurred.
+- **Next required action:** execute Phase 1 in the repository's canonical GitHub/Codex environment after resolving the missing `AGENTS.md` and current schedule PR ownership; do not treat the Vercel check as green.
+
+
+## 12. Normative Help hierarchy — owner clarification (2026-11-15; supersedes any conflicting wording above)
+
+This rule applies to **all existing and newly added product capabilities**, not only Schedule Scenarios:
+
+1. **Primary and universal parity authority is P6 EPPM V26 HTML Help (the EPPM Help HTML / HDML source designated by the product owner).** Every feature, workflow, permission, field, state, calculation, integration and UI behavior that exists in the EPPM Help must be inventoried and traced. Do not substitute P6 Professional Help, PDFs, marketing pages, or assumptions for this primary source.
+2. **For a capability/topic newly introduced in Primavera Cloud and not present in P6 EPPM Help, use the corresponding official Primavera Cloud HTML Help as the source specification.** Copy the complete relevant functional behavior and workflow conceptually into CUBI's capability inventory and acceptance criteria, while implementing it in CUBI's architecture and ownership boundaries. “Copy” means faithful functional coverage, not copying Oracle source text, branding, proprietary assets or implementation code.
+3. **Where a Cloud capability has a corresponding P6 EPPM capability, reconcile and integrate the two logically.** EPPM behavior remains the baseline for the existing EPPM capability; Cloud additions may extend it where useful. Preserve semantic distinctions, permissions, lifecycle, calculations and object ownership. Do not duplicate menus, entities, APIs, calculations or workflows, and do not overwrite a proven EPPM behavior with a conflicting Cloud convention.
+4. **Where no EPPM counterpart exists, retain the Cloud-origin capability as a clearly identified Cloud extension**, with its own source trace, scope, owner, dependencies, permissions, acceptance tests and explicit integration points. Do not pretend it is an EPPM feature.
+5. **Every feature must have a dual-source disposition record:** (a) exact EPPM V26 HTML topic(s), including “not present” when absent; (b) exact Cloud HTML topic(s), including “not applicable” when absent; (c) classification: EPPM baseline / Cloud-only extension / reconciled extension / not applicable; (d) behavior differences and the resolution; (e) CUBI owner/menu/API/data boundary; and (f) test evidence and unresolved gaps.
+6. **Conflict-resolution order:** preserve mandatory EPPM parity for the existing EPPM capability; adopt Cloud-origin functionality for genuinely new Cloud capabilities; integrate shared concepts only after an explicit semantic and data-ownership review. If the sources conflict and the correct behavior cannot be established, mark **OPEN — OWNER DECISION REQUIRED**; do not silently choose one.
+7. **No feature is “complete” or “fully Primavera-aligned” until both source inventories have been checked and the disposition is recorded.** Missing access to a Help page is a blocker marked **MISSING / VERIFY**, not an excuse to infer behavior.
+
+### Correction to the Scenario / Reflection references above
+
+The P6 Professional V26 HTML links listed in §3.3 are **supplementary only**, useful for cross-checking desktop-client concepts. They are not the universal primary authority and must not be used to establish EPPM parity. For Scenario/Reflection specifically:
+- First inspect the exact P6 EPPM V26 HTML Help topic(s) and record whether EPPM supports the behavior in question.
+- Then inspect Primavera Cloud HTML Help for the corresponding scenario/what-if/reflection behavior.
+- Where both products support the concept, reconcile object model, lifecycle, permissions, calculations, comparison and promotion semantics without duplication.
+- Where the Cloud Help documents a capability absent from EPPM Help, implement it as a Cloud-origin extension under Engineering ownership if it is project-schedule execution behavior.
+- The current issue's V26 Reflection topic links must therefore be supplemented by the exact EPPM Help HTML and Cloud Help topic crosswalk before Phase 1 contract approval.
+
+### Required implementation gate added to every future phase
+
+No design approval, code merge or acceptance sign-off until the phase artifact includes the dual-source disposition matrix above. This requirement applies across Engineering, Enterprise and shared Workbench surfaces.
+
+
+## 13. Phase 1 contract draft and owner clarification — 2026-11-15
+
+- Product-owner decisions for the universal EPPM-first / Cloud-origin extension source hierarchy and Engineering P1 → Enterprise P2 delivery sequence are recorded in PR #1988 and the dedicated Phase 1 contract.
+- Phase 1 contract: `docs/architecture/CUBI_ENGINEERING_P1_SCHEDULE_SCENARIOS_PHASE1_CONTRACT_V1.md`.
+- Important source correction: P6 EPPM V26 HTML TOC is `https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm`; its inspected TOC includes Portfolio Views > About What-if Analysis but has no Reflection or Schedule Comparison topic. Do not conflate portfolio what-if with project schedule scenarios. P6 Professional V26 Reflection Help is supplementary only.
+- Primavera Cloud HTML topics establish the project schedule scenario workflow: Schedule Scenarios Overview, Add/Open/Manage Scenario, Set Scenario as Current Schedule, Schedule Comparison, Compare Two Versions, Merge Overview and Schedule permissions. See the Phase 1 contract for exact URLs and dispositions.
+- Engineering owns project schedule scenarios, scenario runs, comparisons and guarded promotion. Enterprise P2 owns portfolio-level capacity/resource planning and may consume authorized Engineering summaries only. Workbench owns no scenario records or calculations.
+- Phase 1 contract is DRAFTED / IN REVIEW, not approved or complete. No source code or runtime was changed. The missing root `AGENTS.md`, exact active-writer/path ownership, complete topic-level review and independent contract review remain blockers before Qoder source edits.
+- Jalal 5 weights remain unchanged; no earned progress is claimed.
+
+
+## 14. Qoder implementation handoff packet published — 2026-11-15
+
+- Executable packet: `docs/engineering/QODER_HANDOFF_ISSUE_1989_SCHEDULE_SCENARIOS_PHASE1_EXECUTION_PACKET.md`.
+- Packet commit: `0852bb8bf8ce439120276698546b45290f0772a4`.
+- Issue #1989 received a direct handoff comment with the immediate Qoder execution request.
+- Scope: resolve actual-checkout instructions and path ownership, finish exact source-topic mapping, then deliver isolated scenario create/read/edit/run using the authoritative Shared Scheduling Core, immutable source/run provenance, auth, revision/idempotency, SQLite/PostgreSQL tests, and only then wire the existing Scenario Lab. Comparison follows on pinned snapshots; promotion remains a separate release gate.
+- This is an executable handoff artifact, not evidence that Qoder has started or that code is implemented. The GitHub coordination connector cannot launch the user's Qoder desktop agent or execute the canonical repository test/browser environment. Backend implementation, tests, runtime evidence and merge remain pending Qoder execution.
+- PR #1988 remains Draft/open/unmerged; no merge/deploy authorized. Jalal 5 weights unchanged; no earned progress claimed.
+
+
+## 15. Master CUBI capability program — scope expanded beyond Scenario Lab — 2026-11-15
+
+- The product-owner mandate covers **all** new and parity capabilities across Engineering, Enterprise and Workbench; Scenario Lab is one Engineering P1 slice only.
+- Canonical full-scope register: `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`.
+- Register commit: `b4f66fe79434c674ec95e9fcc2995bf6abe5b430`.
+- Program-level tracking issue: #1990. Scenario-specific execution remains #1989 under this wider program.
+- Scope includes ENG-01..ENG-14 (project/EPS/WBS, activities, CPM/calendars, baselines/scenarios, diagnostics, project resources, cost/progress/EVM, project risk/Monte Carlo, Field Work Plan/Last Planner, Team Member updates, timesheets, documents, layouts/reports); ENT-01..ENT-12 (organization/security, portfolio/intake, enterprise capacity, portfolio scenarios/risk, dashboards, generic tasks, workflows/approvals, portal/documents, reporting, integrations, benefits/PMO knowledge); SH-01..SH-10 (Workbench, inbox/notifications, global search, tenant/auth, audit/jobs, localization/Jalali-Gregorian, storage/subscriptions, offline mobile/desktop, forms, Super Admin).
+- Binding source hierarchy is EPPM V26 HTML Help first; Primavera Cloud HTML Help for genuinely EPPM-absent functionality; shared behavior reconciled without duplication; Team Member V26 is a distinct normative source; Professional Help supplementary only.
+- Execution order: P1 Engineering via Qoder; P2 Enterprise architecture/integration coordinated here after stable Engineering contracts; P0 shared security/data/locale boundaries kept minimal and non-blocking.
+- This register is an architecture and feasibility inventory, **not implementation evidence**. Every row still needs exact topic-level source crosswalk, repo/issue/PR collision audit, feasibility and acceptance criteria. No weights/progress changed; no code/tests/merge/deploy are claimed by this documentation step.
+
+
+## 16. First verified dual-Help crosswalk tranche — 2026-11-15
+
+- The full-scope register appendix now contains verified official HTML topics for EPPM V26 Activities/WBS/Gantt/Baselines/Scheduling/Float/Critical Path/Resource Leveling/Progress/Resources/Constraints/Relationships/Risks/Steps/Budgets/Earned Value; Dashboards/Portlets/Portfolios/Capacity Planning/Timesheets/User Access/OBS/Security Profiles/Audit; and Cloud Schedule Scenarios, Monte Carlo risk analysis, Work Plan/hand-offs/commitments/Pull Plans, portfolio resource planning and workflow design/inbox.
+- Master register source-crosswalk commit: `83a2b91185fb6400b6dee1834fbec7d87a07b1e3`.
+- This is a verified first tranche, not a complete topic-level crosswalk for all register rows. Remaining rows stay open; do not infer absent topics.
+- The master register and program issue #1990 now define the full CUBI program. Issue #1989 remains the Scenario Lab child slice only.
+
+
+## 17. Existing workstream deduplication map — 2026-11-15
+
+- Master register deduplication appendix commit: `696d9c9ee91f11dc36f60d24d810efcb5d41a074`.
+- The register maps current issue/PR families for Activity workspace (#1691/#1716), source difference audit (#1925/#1926), Scenario Lab (#1989), Engineering Intelligence/knowledge (#1706/#1540/#1724/#1729), Organization/Security (#1984/#1971/#1974/#1980/#1983), Enterprise tasks (#1928/#1929), Workflow/Form Builder (#1927), subscription/owner CMS (#1605/#1888/#1887), offline clients (#1670), localization (#1531), takeoff/resource/risk planning (#1617), and personal dashboard reporting (#1924).
+- These are deduplication references, not completion claims. Exact PR changed paths, head SHA, checks and merge status must be refreshed before any source write.
+- #1990 is the program parent; #1989 remains a Scenario Lab child slice. Existing issues remain open in their own scopes.
