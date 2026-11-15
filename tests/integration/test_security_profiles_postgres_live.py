@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 
 import pytest
 
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.application.authorization import (
     AuthorizationContext,
     Permission,
@@ -619,11 +621,34 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
             tenant_id=tenant, profile_id=project_profile.profile_id, user_id=user_id,
             obs_id=obs_id, actor_user_id=user_id, occurred_at=now,
         )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={"add_edit_delete_wbs_except_costs_financials"},
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
         )
-        context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
+        context = AuthorizationContext(tenant, project_id, user_id, frozenset({"project_admin"}))
         assert policy.is_allowed(context, Permission.PROJECT_READ)
+        wbs_api = P6WBSMasterAPI(
+            PostgresWBSMasterRepository(connection), policy,
+            responsibility_repository=eps,
+        )
+        wbs_scope = BackendScope(tenant, project_id, 0)
+        assert wbs_api.get_responsible_obs(
+            wbs_scope, f"eps-wbs-{suffix}", auth_context=context
+        )["responsible_obs_id"] == obs_id
+        changed = wbs_api.assign_responsible_obs(
+            wbs_scope, f"eps-wbs-{suffix}", obs_id,
+            expected_revision=1, occurred_at=now, auth_context=context,
+        )
+        assert changed["revision"] == 2
+        with pytest.raises(P6EPSError, match="P6_WBS_RESPONSIBILITY_REVISION_CONFLICT"):
+            wbs_api.assign_responsible_obs(
+                wbs_scope, f"eps-wbs-{suffix}", obs_id,
+                expected_revision=1, occurred_at=now, auth_context=context,
+            )
 
         # Re-parenting an EPS node below its descendant must fail atomically.
         eps = PostgresP6EPSRepository(connection)
