@@ -136,6 +136,12 @@ class PostgresP6EPSRepository:
             FOR EACH ROW EXECUTE FUNCTION cubi_p6_wbs_obs_audit_immutable()"""
         )
 
+    def eps_node_exists(self, tenant_id: str, eps_id: str) -> bool:
+        return self.connection.execute(
+            "SELECT 1 FROM p6_eps_node WHERE tenant_id=%s AND eps_id=%s",
+            (tenant_id,eps_id),
+        ).fetchone() is not None
+
     def save_node(self, node: P6EPSNode, *, expected_revision: int | None = None) -> P6EPSNode:
         node.validate()
         if node.responsible_obs_id and self.connection.execute(
