@@ -46,6 +46,8 @@ class Service:
 
     def remove_member(self, session_id, team_id, user_id, *, expected_revision):
         self.calls.append(("remove", session_id, team_id, user_id, expected_revision))
+        if expected_revision != 1:
+            raise OrganizationAccessError("TEAM_MEMBERSHIP_REVISION_CONFLICT")
         return EnterpriseTeamMembership(
             "tenant", team_id, user_id, "member", "removed", (), expected_revision + 1, NOW, NOW
         )
@@ -132,3 +134,14 @@ def test_team_member_and_eligible_user_reads_are_manager_scoped_and_versioned():
     assert status == "200 OK"
     assert body["contract_version"] == "cubi-enterprise-eligible-users.v1"
     assert body["users"][0]["email"] == "worker@example.test"
+
+
+def test_stale_membership_revision_returns_http_conflict():
+    service = Service()
+    app = EnterpriseOrganizationAccessHttpMiddleware(lambda *_: [b"fallback"], service)
+    status, body = request(
+        app, "DELETE", "/api/enterprise/teams/team-1/members/worker-1",
+        payload(expected_revision=7),
+    )
+    assert status == "409 Conflict"
+    assert body["code"] == "TEAM_MEMBERSHIP_REVISION_CONFLICT"
