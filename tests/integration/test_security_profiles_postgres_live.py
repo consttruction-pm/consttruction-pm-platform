@@ -277,6 +277,24 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
         )
         assert status == 200 and assigned["revision"] == 1
 
+        status, assignment_list = _http_request(
+            app, "GET", "/api/enterprise/security-profiles/http-project-reader/assignments",
+            session_id="admin-session",
+        )
+        assert status == 200
+        assert assignment_list["assignments"][0]["obs_id"] == f"obs-{suffix}"
+
+        status, self_assign = _http_request(
+            app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-assignment.v1",
+                "user_id": admin_id,
+            },
+        )
+        assert status == 403
+        assert self_assign["code"] == "SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED"
+
         status, denied = _http_request(
             app, "POST", "/api/enterprise/security-profiles",
             session_id="planner-session",
