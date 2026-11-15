@@ -85,6 +85,63 @@ PROJECT_PERMISSION_PRIVILEGE_MAP = {
     Permission.PROJECT_ADMIN: "edit_project_details_except_costs_financials",
 }
 
+GLOBAL_PRIVILEGE_IMPLICATIONS = {
+    "delete_global_activity_codes": {"add_global_activity_codes", "edit_global_activity_codes"},
+    "add_global_activity_codes": {"edit_global_activity_codes"},
+    "delete_global_issue_codes": {"add_global_issue_codes", "edit_global_issue_codes"},
+    "add_global_issue_codes": {"edit_global_issue_codes"},
+    "delete_project_codes": {"add_project_codes", "edit_project_codes"},
+    "add_project_codes": {"edit_project_codes"},
+    "delete_resource_codes": {"add_resource_codes", "edit_resource_codes"},
+    "add_resource_codes": {"edit_resource_codes"},
+    "delete_role_codes": {"add_role_codes", "edit_role_codes"},
+    "add_role_codes": {"edit_role_codes"},
+    "delete_assignment_codes": {"add_assignment_codes", "edit_assignment_codes"},
+    "add_assignment_codes": {"edit_assignment_codes"},
+    "add_delete_secure_codes": {"edit_secure_codes", "assign_secure_codes", "view_secure_codes"},
+    "edit_secure_codes": {"assign_secure_codes", "view_secure_codes"},
+    "assign_secure_codes": {"view_secure_codes"},
+    "delete_resources": {"add_resources", "edit_resources"},
+    "add_resources": {"edit_resources"},
+}
+
+PROJECT_PRIVILEGE_IMPLICATIONS = {
+    "delete_activities": {"add_edit_activities_except_relationships"},
+    "delete_project_activity_codes": {"add_project_activity_codes", "edit_project_activity_codes"},
+    "add_project_activity_codes": {"edit_project_activity_codes"},
+    "delete_eps_activity_codes": {"add_eps_activity_codes", "edit_eps_activity_codes"},
+    "add_eps_activity_codes": {"edit_eps_activity_codes"},
+    "level_resources": {"schedule_projects"},
+    "edit_wbs_costs_financials": {"view_project_costs_financials"},
+}
+
+PROJECT_PRIVILEGE_PREREQUISITES = {
+    "edit_activity_id": {"add_edit_activities_except_relationships"},
+    "add_edit_delete_template_documents": {"add_edit_delete_work_products_documents"},
+    "assign_project_baselines": {"edit_project_details_except_costs_financials"},
+    "edit_future_periods": {"add_edit_activities_except_relationships"},
+    "edit_period_performance": {"add_edit_activities_except_relationships", "view_project_costs_financials"},
+    "store_period_performance": {"add_edit_activities_except_relationships"},
+}
+
+
+def _normalize_profile_privileges(scope: str, privileges: frozenset[str]) -> frozenset[str]:
+    implications = GLOBAL_PRIVILEGE_IMPLICATIONS if scope == "global" else PROJECT_PRIVILEGE_IMPLICATIONS
+    expanded = set(privileges)
+    changed = True
+    while changed:
+        changed = False
+        for privilege in tuple(expanded):
+            implied = implications.get(privilege, set())
+            before = len(expanded)
+            expanded.update(implied)
+            changed = changed or len(expanded) != before
+    if scope == "project":
+        for privilege, prerequisites in PROJECT_PRIVILEGE_PREREQUISITES.items():
+            if privilege in expanded and not prerequisites.issubset(expanded):
+                raise SecurityProfileError("SECURITY_PROFILE_PRIVILEGE_DEPENDENCY_REQUIRED")
+    return frozenset(expanded)
+
 
 class SecurityProfileError(ValueError):
     def __init__(self, code: str) -> None:
@@ -237,7 +294,7 @@ class PostgresSecurityProfileRepository:
         self, *, tenant_id: str, profile_id: str, privileges: Iterable[str],
         expected_revision: int, actor_user_id: str, occurred_at: Any,
     ) -> SecurityProfile:
-        normalized = frozenset(privileges)
+        requested = frozenset(privileges)
         row = self._connection.execute(
             "SELECT name,scope,active,revision FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
@@ -248,8 +305,9 @@ class PostgresSecurityProfileRepository:
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         valid = GLOBAL_PRIVILEGES if str(row[1]) == "global" else PROJECT_PRIVILEGES
-        if not normalized.issubset(valid):
+        if not requested.issubset(valid):
             raise SecurityProfileError("SECURITY_PROFILE_PRIVILEGE_INVALID")
+        normalized = _normalize_profile_privileges(str(row[1]), requested)
         before = self.get_profile(tenant_id, profile_id)
         self._connection.execute(
             "DELETE FROM p6_security_profile_privileges WHERE tenant_id=%s AND profile_id=%s",
