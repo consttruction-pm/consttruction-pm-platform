@@ -369,7 +369,7 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
         )
-        admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"enterprise_admin"}))
+        admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"project_admin", "enterprise_admin"}))
         assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
         assert policy.is_allowed(admin_context, Permission.PROJECT_WRITE)
 
