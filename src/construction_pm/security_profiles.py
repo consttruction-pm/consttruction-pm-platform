@@ -727,11 +727,24 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if admin_superuser is not None:
             return True
         rows = self._connection.execute(
-            "WITH RECURSIVE project_obs(obs_id,parent_obs_id) AS ("
-            "SELECT obs.obs_id,obs.parent_obs_id FROM project_lifecycle_projects project "
-            "JOIN p6_obs_node obs ON obs.tenant_id=project.tenant_id "
-            "AND obs.obs_id=project.obs_id "
+            "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id) AS ("
+            "SELECT eps.eps_id,eps.parent_eps_id,eps.responsible_obs_id "
+            "FROM p6_project_eps_assignment assignment "
+            "JOIN p6_eps_node eps ON eps.tenant_id=assignment.tenant_id "
+            "AND eps.eps_id=assignment.eps_id "
+            "WHERE assignment.tenant_id=%s AND assignment.project_id=%s "
+            "UNION "
+            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id "
+            "FROM p6_eps_node parent JOIN project_eps child "
+            "ON child.parent_eps_id=parent.eps_id WHERE parent.tenant_id=%s), "
+            "responsible_obs(obs_id) AS ("
+            "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
+            "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps), "
+            "project_obs(obs_id,parent_obs_id) AS ("
+            "SELECT obs.obs_id,obs.parent_obs_id FROM p6_obs_node obs "
+            "JOIN responsible_obs responsible ON responsible.obs_id=obs.obs_id "
+            "WHERE obs.tenant_id=%s "
             "UNION "
             "SELECT parent.obs_id,parent.parent_obs_id FROM p6_obs_node parent "
             "JOIN project_obs child ON child.parent_obs_id=parent.obs_id "
@@ -745,6 +758,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "OR (p.scope='project' AND a.obs_id IN "
             "(SELECT obs_id FROM project_obs)))",
             (context.tenant_id, context.project_id, context.tenant_id,
+             context.tenant_id, context.project_id, context.tenant_id,
              context.tenant_id, context.user_id),
         ).fetchall()
         global_rows = [row for row in rows if str(row[0]) == "global"]
