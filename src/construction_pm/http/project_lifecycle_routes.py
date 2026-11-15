@@ -2399,6 +2399,8 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(409, code, "error.revision.conflict")
                     if code == "P6_WBS_NOT_FOUND":
                         return self._error(404, code, "error.resource.not_found")
+                    if code == "P6_WBS_RESPONSIBILITY_UNAVAILABLE":
+                        return self._error(503, code, "error.service.unavailable")
                     return self._error(
                         400,
                         _stable_error_code(exc, "P6_WBS_MASTER_REQUEST_INVALID"),
