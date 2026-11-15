@@ -4,6 +4,7 @@ import { withCsrfHeader } from "./csrf.js";
 type Profile = { profile_id: string; name: string; permissions: string[]; active: boolean; revision: number };
 type OBSNode = { obs_id: string; parent_obs_id: string | null; code: string; name: string; manager_user_id: string | null; sequence_number: number };
 type Assignment = { user_id: string; obs_id: string; profile_id: string; active: boolean; revision: number; assigned_by: string; assigned_at: string };
+type Privilege = { key: string; group: string; label: string; description: string };
 type Locale = "en" | "fa";
 const VERSION = "cubi-enterprise-project-access.v1";
 const COPY = {
@@ -87,14 +88,14 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
   const profileForm = el("form","oa-form");
   const profileId = el("input","ce-search") as HTMLInputElement; profileId.required=true; profileId.maxLength=120; profileId.placeholder=t.profileId;
   const profileName = el("input","ce-search") as HTMLInputElement; profileName.required=true; profileName.maxLength=160; profileName.placeholder=t.profileName;
-  const permissionWrap = el("div","oa-inline");
-  const permissionDefs = [["project.read",t.read],["project.write",t.write],["project.schedule",t.schedule],["project.admin",t.admin]] as const;
+  const permissionWrap = el("div","oa-list");
   const permissionInputs: HTMLInputElement[]=[];
-  for (const [value,label] of permissionDefs) {
-    const labelNode=el("label","oa-inline"); const input=el("input") as HTMLInputElement;
-    input.type="checkbox"; input.value=value; input.checked=value==="project.read";
-    permissionInputs.push(input); labelNode.append(input,el("span","",label)); permissionWrap.append(labelNode);
-  }
+  const legacyDefinitions: Privilege[]=[
+    {key:"project.read",group:"legacy",label:locale==="fa"?"خواندن پروژه (سازگاری)":"Project read (compatibility)",description:"Legacy compatibility grant."},
+    {key:"project.write",group:"legacy",label:locale==="fa"?"ویرایش پروژه (سازگاری)":"Project write (compatibility)",description:"Legacy compatibility grant."},
+    {key:"project.schedule",group:"legacy",label:locale==="fa"?"زمان‌بندی (سازگاری)":"Project schedule (compatibility)",description:"Legacy compatibility grant."},
+    {key:"project.admin",group:"legacy",label:locale==="fa"?"مدیریت پروژه (سازگاری)":"Project administration (compatibility)",description:"Legacy compatibility grant."},
+  ];
   const createProfile=button(t.createProfile); createProfile.type="submit";
   profileForm.append(profileId,profileName,el("h3","",t.permissions),permissionWrap,createProfile);
   profileCard.append(profileForm);
@@ -145,11 +146,36 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
     }catch(reason){fail(reason);}
   };
   const load=async()=>{
-    const [p,o]=await Promise.all([
+    const [p,o,g]=await Promise.all([
       api<{profiles:Profile[]}>(`/api/enterprise/project-security-profiles`),
       api<{obs_nodes:OBSNode[]}>(`/api/enterprise/obs`),
+      api<{privileges:Privilege[]}>(`/api/enterprise/project-security-privileges`),
     ]);
     profiles=p.profiles;nodes=o.obs_nodes;
+    permissionWrap.replaceChildren();permissionInputs.length=0;
+    const grouped=new Map<string,Privilege[]>();
+    for(const item of [...legacyDefinitions,...g.privileges]){
+      const bucket=grouped.get(item.group)??[];bucket.push(item);grouped.set(item.group,bucket);
+    }
+    for(const [group,items] of grouped){
+      const section=el("section","oa-privilege-group");
+      section.append(el("h3","",group.replaceAll("_"," ").toUpperCase()));
+      const actions=el("div","oa-inline");
+      const selectAll=button(locale==="fa"?"انتخاب همه":"Select all",true);
+      const clearAll=button(locale==="fa"?"پاک‌کردن":"Clear",true);
+      const groupInputs:HTMLInputElement[]=[];
+      actions.append(selectAll,clearAll);section.append(actions);
+      const choices=el("div","oa-inline");
+      for(const item of items){
+        const labelNode=el("label","oa-inline");const input=el("input") as HTMLInputElement;
+        input.type="checkbox";input.value=item.key;input.checked=item.key==="project.read";
+        groupInputs.push(input);permissionInputs.push(input);
+        labelNode.append(input,el("span","",item.label));choices.append(labelNode);
+      }
+      selectAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=true));
+      clearAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=false));
+      section.append(choices);permissionWrap.append(section);
+    }
     profileList.replaceChildren();profileSelect.replaceChildren();
     for(const item of profiles.filter(value=>value.active)){
       const row=el("article","oa-row");
