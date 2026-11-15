@@ -32,12 +32,14 @@ class EnterpriseOrganizationAccessHttpMiddleware:
         except OrganizationAccessDenied as exc:
             status, payload = 403, {"code": str(exc) or "ORGANIZATION_ACCESS_DENIED"}
         except OrganizationAccessError as exc:
-            status, payload = 400, {"code": str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"}
+            code = str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"
+            status = 409 if code in {"TEAM_MEMBERSHIP_REVISION_CONFLICT"} else 400
+            payload = {"code": code}
         except (ValueError, TypeError, KeyError) as exc:
             status, payload = 400, {"code": str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"}
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized",
-                  403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed"}.get(status, "Internal Server Error")
+                  403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict"}.get(status, "Internal Server Error")
         start_response(f"{status} {reason}", [
             ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
