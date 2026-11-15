@@ -219,3 +219,40 @@ def test_project_security_profile_inheritance_targets_are_present_for_all_crud_d
         expanded = expand_project_privileges({key})
         assert expanded <= PRIVILEGE_BY_KEY.keys()
         assert any(item.endswith(".view") for item in expanded)
+
+
+
+def test_granular_wbs_profile_is_checked_without_legacy_project_read_write():
+    repository = FakeRepository()
+    repository.assignments[("tenant-a", "member-1", "root", "wbs_only")] = UserOBSAssignment(
+        "tenant-a", "member-1", "root", "wbs_only", True, 1, "admin-1", NOW
+    )
+
+    class GranularRepository(FakeRepository):
+        def project_permission(self, tenant_id, user_id, project_id, permission):
+            return permission == "wbs.view" and (
+                tenant_id, user_id, "root", "wbs_only"
+            ) in self.assignments
+
+    repository = GranularRepository()
+    repository.assignments[("tenant-a", "member-1", "root", "wbs_only")] = UserOBSAssignment(
+        "tenant-a", "member-1", "root", "wbs_only", True, 1, "admin-1", NOW
+    )
+
+    class ExistingProjectConnection:
+        def execute(self, sql, params):
+            class Result:
+                def fetchone(self):
+                    return (1,)
+            return Result()
+
+    policy = EnterpriseProjectAuthorizationPolicy(
+        RoleBasedAuthorizationPolicy(default_role_permissions()),
+        repository,
+        ExistingProjectConnection(),
+    )
+    planner = AuthorizationContext(
+        "tenant-a", "project-1", "member-1", frozenset({"planner"})
+    )
+    assert policy.is_allowed(planner, Permission.WBS_VIEW)
+    assert not policy.is_allowed(planner, Permission.WBS_DELETE)
