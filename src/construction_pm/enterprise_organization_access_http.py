@@ -132,6 +132,12 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                                  "profile": self._profile(profile)}
                 return 405, {"code": "METHOD_NOT_ALLOWED"}
             if parts[4] == "assignments":
+                if method == "GET":
+                    assignments = self._service.list_security_profile_assignments(session_id, profile_id)
+                    return 200, {
+                        "contract_version": "cubi-p6-security-profile-assignment-list.v1",
+                        "assignments": list(assignments),
+                    }
                 if method == "PUT":
                     payload = self._body(environ, "cubi-p6-security-profile-assignment.v1")
                     user_id = self._text(payload, "user_id")
