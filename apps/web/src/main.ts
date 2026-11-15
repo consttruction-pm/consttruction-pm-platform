@@ -81,6 +81,7 @@ import {
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 import { mountEnterpriseTaskCenter } from "./enterprise-task-center.js";
+import { mountEnterpriseProjectAccess } from "./enterprise-project-access.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { createWorkspaceLanguageSelect } from "./workspace-language-switch.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
@@ -4868,6 +4869,10 @@ async function boot(): Promise<void> {
 
   if (window.location.pathname === "/enterprise" || window.location.pathname === "/enterprise/") {
     await mountEnterpriseTaskCenter(container);
+    return;
+  }
+  if (window.location.pathname === "/enterprise/project-access" || window.location.pathname === "/enterprise/project-access/") {
+    await mountEnterpriseProjectAccess(container);
     return;
   }
 
