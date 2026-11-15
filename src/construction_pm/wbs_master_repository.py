@@ -927,7 +927,7 @@ class PostgresWBSMasterRepository:
         self.connection.execute(
             """CREATE OR REPLACE FUNCTION cubi_project_profile_has_privilege(
                     p_permissions JSONB,p_permission TEXT)
-                RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE AS $
+                RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE AS $cubi$
                 SELECT CASE p_permission
                     WHEN 'project.read' THEN p_permissions ?| ARRAY['project.read','project.view']
                     WHEN 'project.write' THEN p_permissions ?| ARRAY['project.write','project.edit_details_except_costs_financials']
