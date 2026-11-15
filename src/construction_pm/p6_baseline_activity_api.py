@@ -83,7 +83,7 @@ class P6BaselineActivityAPI:
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_READ
+            self.authorization_policy, auth_context, Permission.BASELINE_VIEW
         )
         identifier = _identifier(baseline_id)
         if self.baseline_repository.get(scope, identifier) is None:
