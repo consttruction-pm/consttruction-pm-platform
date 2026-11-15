@@ -990,131 +990,7 @@ class PostgresWBSMasterRepository:
     def has_responsible_obs_permission(
         self, scope: BackendScope, user_id: str, responsible_obs_id: str | None, permission: str
     ) -> bool:
-        """Resolve a proposed WBS OBS against project scope and its OBS ancestors."""
-        row = self.connection.execute(
-            """WITH RECURSIVE target AS (
-                   SELECT p.obs_id AS project_obs_id,
-                          COALESCE(%s,p.obs_id) AS responsible_obs_id
-                   FROM project_lifecycle_projects p
-                   WHERE p.tenant_id=%s AND p.project_id=%s
-               ), obs_scope(obs_id,parent_obs_id,path) AS (
-                   SELECT o.obs_id,o.parent_obs_id,ARRAY[o.obs_id]::text[]
-                   FROM p6_obs_node o JOIN target t ON t.responsible_obs_id=o.obs_id
-                   WHERE o.tenant_id=%s
-                   UNION ALL
-                   SELECT parent.obs_id,parent.parent_obs_id,scope.path || parent.obs_id
-                   FROM obs_scope scope
-                   JOIN p6_obs_node parent ON parent.tenant_id=%s
-                       AND parent.obs_id=scope.parent_obs_id
-                   WHERE NOT parent.obs_id=ANY(scope.path)
-               )
-               SELECT CASE
-                 WHEN target.responsible_obs_id=target.project_obs_id
-                   THEN cubi_user_has_project_access(%s,%s,%s,%s)
-                 WHEN %s='project.read'
-                   THEN cubi_user_has_project_access(%s,%s,%s,'project.read')
-                     OR EXISTS (
-                       SELECT 1 FROM obs_scope scope
-                       JOIN enterprise_user_obs_assignments assignment
-                         ON assignment.tenant_id=%s AND assignment.user_id=%s
-                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
-                       JOIN enterprise_project_security_profiles profile
-                         ON profile.tenant_id=assignment.tenant_id
-                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
-                     )
-                 ELSE EXISTS (
-                       SELECT 1 FROM obs_scope scope
-                       JOIN enterprise_user_obs_assignments assignment
-                         ON assignment.tenant_id=%s AND assignment.user_id=%s
-                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
-                       JOIN enterprise_project_security_profiles profile
-                         ON profile.tenant_id=assignment.tenant_id
-                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
-                 )
-               END
-               FROM target""",
-            (
-                responsible_obs_id, scope.tenant_id, scope.project_id,
-                scope.tenant_id, scope.tenant_id,
-                scope.tenant_id, user_id, scope.project_id, permission,
-                permission, scope.tenant_id, user_id, scope.project_id,
-                scope.tenant_id, user_id, permission,
-                scope.tenant_id, user_id, permission,
-            ),
-        ).fetchone()
-        return bool(row and row[0])
-
-    def has_wbs_permission(
-        self, scope: BackendScope, user_id: str, wbs_id: str, permission: str,
-        responsible_obs_id_override: object = _WBS_OBS_UNSET,
-    ) -> bool:
-        """Apply project inheritance plus WBS-specific read-only/OBS override rules."""
-        row = self.connection.execute(
-            """WITH RECURSIVE target AS (
-                   SELECT p.obs_id AS project_obs_id,
-                          CASE WHEN %s THEN COALESCE(%s,p.obs_id) ELSE COALESCE(w.responsible_obs_id,p.obs_id) END AS responsible_obs_id
-                   FROM wbs_master w
-                   JOIN project_lifecycle_projects p
-                     ON p.tenant_id=w.tenant_id AND p.project_id=w.project_id
-                   WHERE w.tenant_id=%s AND w.project_id=%s AND w.wbs_id=%s
-               ), obs_scope(obs_id,parent_obs_id,path) AS (
-                   SELECT o.obs_id,o.parent_obs_id,ARRAY[o.obs_id]::text[]
-                   FROM p6_obs_node o JOIN target t ON t.responsible_obs_id=o.obs_id
-                   WHERE o.tenant_id=%s
-                   UNION ALL
-                   SELECT parent.obs_id,parent.parent_obs_id,scope.path || parent.obs_id
-                   FROM obs_scope scope
-                   JOIN p6_obs_node parent ON parent.tenant_id=%s
-                       AND parent.obs_id=scope.parent_obs_id
-                   WHERE NOT parent.obs_id=ANY(scope.path)
-               )
-               SELECT CASE
-                 WHEN target.responsible_obs_id=target.project_obs_id
-                   THEN cubi_user_has_project_access(%s,%s,%s,%s)
-                 WHEN %s='project.read'
-                   THEN cubi_user_has_project_access(%s,%s,%s,'project.read')
-                     OR EXISTS (
-                       SELECT 1 FROM obs_scope scope
-                       JOIN enterprise_user_obs_assignments assignment
-                         ON assignment.tenant_id=%s AND assignment.user_id=%s
-                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
-                       JOIN enterprise_project_security_profiles profile
-                         ON profile.tenant_id=assignment.tenant_id
-                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
-                     )
-                 ELSE EXISTS (
-                       SELECT 1 FROM obs_scope scope
-                       JOIN enterprise_user_obs_assignments assignment
-                         ON assignment.tenant_id=%s AND assignment.user_id=%s
-                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
-                       JOIN enterprise_project_security_profiles profile
-                         ON profile.tenant_id=assignment.tenant_id
-                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
-                 )
-               END
-               FROM target""",
-            (
-                responsible_obs_id_override is not _WBS_OBS_UNSET,
-                None if responsible_obs_id_override is _WBS_OBS_UNSET else responsible_obs_id_override,
-                scope.tenant_id, scope.project_id, wbs_id,
-                scope.tenant_id, scope.tenant_id,
-                scope.tenant_id, user_id, scope.project_id, permission,
-                permission, scope.tenant_id, user_id, scope.project_id,
-                scope.tenant_id, user_id, permission,
-                scope.tenant_id, user_id, permission,
-            ),
-        ).fetchone()
-        return bool(row and row[0])
-
-
-    def has_responsible_obs_permission(
-        self, scope: BackendScope, user_id: str, responsible_obs_id: str | None, permission: str
-    ) -> bool:
-        """Authorize records with their own Responsible OBS (for example project issues/thresholds)."""
+        """Authorize a record against its own Responsible OBS, without project-level read leakage."""
         if not responsible_obs_id:
             return False
         row = self.connection.execute(
@@ -1138,18 +1014,6 @@ class PostgresWBSMasterRepository:
                SELECT CASE
                  WHEN target.responsible_obs_id=target.project_obs_id
                    THEN cubi_user_has_project_access(%s,%s,%s,%s)
-                 WHEN %s='project.read'
-                   THEN cubi_user_has_project_access(%s,%s,%s,'project.read')
-                     OR EXISTS (
-                       SELECT 1 FROM obs_scope scope
-                       JOIN enterprise_user_obs_assignments assignment
-                         ON assignment.tenant_id=%s AND assignment.user_id=%s
-                        AND assignment.obs_id=scope.obs_id AND assignment.active=TRUE
-                       JOIN enterprise_project_security_profiles profile
-                         ON profile.tenant_id=assignment.tenant_id
-                        AND profile.profile_id=assignment.profile_id AND profile.active=TRUE
-                       WHERE profile.permissions ? %s
-                     )
                  ELSE EXISTS (
                        SELECT 1 FROM obs_scope scope
                        JOIN enterprise_user_obs_assignments assignment
@@ -1166,8 +1030,6 @@ class PostgresWBSMasterRepository:
                 responsible_obs_id, scope.tenant_id, scope.project_id,
                 scope.tenant_id, scope.tenant_id,
                 scope.tenant_id, user_id, scope.project_id, permission,
-                permission, scope.tenant_id, user_id, scope.project_id,
-                scope.tenant_id, user_id, permission,
                 scope.tenant_id, user_id, permission,
             ),
         ).fetchone()
