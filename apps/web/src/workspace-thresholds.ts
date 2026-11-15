@@ -45,12 +45,13 @@ export type ThresholdRecord = {
   name: string;
   monitoringSubject: string;
   parameter: string;
-  currency: string | null;
+  currency: string |  responsibleObsId?: string | null;
   lowerThreshold: string | null;
   upperThreshold: string | null;
   warningLevel: string | null;
   issueLevel: string | null;
   responsibleManager: string | null;
+  responsibleObsId: string | null;
   status: string;
   revision: number;
 };
@@ -87,6 +88,7 @@ export type ThresholdInput = {
   warningLevel: string | null;
   issueLevel: string | null;
   responsibleManager: string | null;
+  responsibleObsId?: string | null;
   status: string;
 };
 
@@ -222,6 +224,7 @@ export function parseThreshold(value: unknown): ThresholdRecord {
     warningLevel: warning,
     issueLevel: issue,
     responsibleManager: optionalText(value.responsible_manager, "INVALID_THRESHOLD_RECORD"),
+    responsibleObsId: optionalText(value.responsible_obs_id, "INVALID_THRESHOLD_RECORD"),
     status,
     revision: revision(value.revision, "INVALID_THRESHOLD_RECORD"),
   };
@@ -426,6 +429,7 @@ export function buildThresholdPayload(input: ThresholdInput): Record<string, unk
     warning_level: warning,
     issue_level: issue,
     responsible_manager: trimmedOrNull(input.responsibleManager),
+    responsible_obs_id: trimmedOrNull(input.responsibleObsId),
     status,
   };
 }
@@ -547,6 +551,7 @@ function emptyDraft(): ThresholdInput {
     warningLevel: "10",
     issueLevel: "50",
     responsibleManager: null,
+    responsibleObsId: null,
     status: "active",
   };
 }
@@ -563,6 +568,7 @@ function draftFromThreshold(item: ThresholdRecord): ThresholdInput {
     warningLevel: item.warningLevel,
     issueLevel: item.issueLevel,
     responsibleManager: item.responsibleManager,
+    responsibleObsId: item.responsibleObsId,
     status: item.status,
   };
 }
@@ -675,7 +681,7 @@ export function mountWorkspaceThresholdsPage(
       <label>${escapeHtml(say("Upper Threshold", "حد بالا"))}<input name="threshold-upper" value="${escapeHtml(draft.upperThreshold ?? "")}" inputmode="decimal"></label>
       <label>${escapeHtml(say("Warning Level", "سطح هشدار"))}<input name="threshold-warning" value="${escapeHtml(draft.warningLevel ?? "")}" inputmode="decimal"></label>
       <label>${escapeHtml(say("Issue Level", "سطح مسئله"))}<input name="threshold-issue" value="${escapeHtml(draft.issueLevel ?? "")}" inputmode="decimal"></label>
-      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="threshold-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>
+      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="threshold-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>\n      <label>${escapeHtml(say("Responsible OBS ID", "شناسه OBS مسئول"))}<input name="threshold-obs" value="${escapeHtml(draft.responsibleObsId ?? "")}"></label>
       <label>${escapeHtml(say("Status", "وضعیت"))}<select name="threshold-status">${THRESHOLD_STATUSES.map((value) => `<option value="${value}" ${draft.status === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
       <div class="cp-calendar-panel-actions"><button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(editing ? say("Save threshold", "ذخیره آستانه") : say("Create threshold", "ایجاد آستانه"))}</button><button type="button" data-threshold-action="cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
     </form>`;
@@ -729,6 +735,7 @@ export function mountWorkspaceThresholdsPage(
       ${row(say("Warning Level", "سطح هشدار"), item.warningLevel)}
       ${row(say("Issue Level", "سطح مسئله"), item.issueLevel)}
       ${row(say("Responsible Manager", "مدیر مسئول"), item.responsibleManager)}
+      ${row(say("Responsible OBS ID", "شناسه OBS مسئول"), item.responsibleObsId)}
       ${row(say("Status", "وضعیت"), item.status)}
       ${row(say("Revision", "نسخه"), String(item.revision))}
     </div>
@@ -921,6 +928,7 @@ export function mountWorkspaceThresholdsPage(
       case "threshold-warning": state.draft.warningLevel = target.value; break;
       case "threshold-issue": state.draft.issueLevel = target.value; break;
       case "threshold-manager": state.draft.responsibleManager = target.value; break;
+      case "threshold-obs": state.draft.responsibleObsId = target.value; break;
       default: break;
     }
   });
