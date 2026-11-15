@@ -242,7 +242,7 @@ def _changed_fields(before: P6Issue, after: P6Issue) -> list[str]:
     for name in (
         "title", "description", "issue_type", "status", "priority", "owner",
         "responsible_manager", "date_identified", "due_date", "wbs_id",
-        "activity_id", "document_refs", "resolution_note",
+        "activity_id", "document_refs", "resolution_note", "responsible_obs_id",
     ):
         if getattr(before, name) != getattr(after, name):
             names.append(name)
