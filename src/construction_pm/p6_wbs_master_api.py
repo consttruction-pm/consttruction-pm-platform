@@ -235,7 +235,7 @@ class P6WBSMasterAPI:
         if not _is_allowed_for_wbs(self.authorization_policy, auth_context, Permission.PROJECT_READ, wbs_id):
             raise AuthorizationError("authorization denied for permission=project.read")
         if self.responsibility_repository is None:
-            raise RuntimeError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
+            raise ValueError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
         result = self.responsibility_repository.get_wbs_responsibility(
             scope.tenant_id, scope.project_id, wbs_id
         )
@@ -265,7 +265,7 @@ class P6WBSMasterAPI:
             raise AuthorizationError("authorization denied for permission=p6.wbs.admin")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         if self.responsibility_repository is None:
-            raise RuntimeError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
+            raise ValueError("P6_WBS_RESPONSIBILITY_UNAVAILABLE")
         revision = self.responsibility_repository.assign_wbs_responsibility(
             scope.tenant_id, scope.project_id, wbs_id, responsible_obs_id,
             actor_user_id=auth_context.user_id, occurred_at=occurred_at,
