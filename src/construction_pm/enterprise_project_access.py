@@ -13,7 +13,7 @@ from .application.authorization import (
     RoleBasedAuthorizationPolicy,
 )
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
-from .p6_project_privileges import normalize_project_privileges
+from .p6_project_privileges import PROJECT_PRIVILEGES, normalize_project_privileges
 
 PROJECT_PERMISSION_CODES = frozenset({
     Permission.PROJECT_READ.value,
@@ -318,6 +318,10 @@ class EnterpriseProjectAccessService:
     def list_profiles(self, session_id: str) -> tuple[ProjectSecurityProfile, ...]:
         session = self._admin_session(session_id)
         return self.repository.list_profiles(session.tenant_id)
+
+    def list_privilege_definitions(self, session_id: str):
+        self._admin_session(session_id)
+        return PROJECT_PRIVILEGES
 
     def list_obs_nodes(self, session_id: str):
         session = self._admin_session(session_id)
