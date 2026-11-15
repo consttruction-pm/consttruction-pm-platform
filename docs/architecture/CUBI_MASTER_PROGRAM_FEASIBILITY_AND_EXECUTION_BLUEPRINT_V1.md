@@ -137,3 +137,46 @@ The Jalal 5 workbook remains unchanged. The new capability scope has no approved
 3. Reconcile all existing issue/PR work against the feasibility rows and publish a non-overlapping Qoder handoff queue for every Engineering P1 slice.
 4. Begin the first dependency-ready Engineering slice in Qoder with write access, run tests and exact-head CI, commit/push, open/update PR and continue to the next slice.
 5. In parallel, prepare Enterprise P2 contracts only where Engineering data contracts are stable; do not start duplicate business-data ownership.
+
+
+## 9. Source-verification tranche 2 — exact HTML topics checked on 2026-11-15
+
+The following are exact V26 HTML topic pages or official Help TOCs retrieved during the current continuation. These strengthen the crosswalk but do not complete every row.
+
+### P6 EPPM V26 — verified topic evidence
+
+- Activities feature-family TOC (ENG-01/02/03/05/06/07/08/13/14): https://docs.oracle.com/cd/G48897_01/p6help/en/44475.htm. Its listed topics include Activity Views, Gantt, WBS, Baselines, Scheduling Projects, Float, Critical Path, Resource Leveling, Activity Progress, Team Member Status Updates, Resources, Roles, Documents, Expenses, Constraints, Issues, Relationships, Risks, Steps, Budgets and Earned Value.
+- Activity Views behavior (ENG-14): https://docs.oracle.com/cd/G48897_01/p6help/en/6686.htm. Views persist the configured presentation and can be session-only or saved; columns can be rearranged by drag-and-drop.
+- Activity View Filters (ENG-14): https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/38085.htm. Filters are configured in the view's Filtering tab and may be reused across activity views.
+- Activity View Grouping (ENG-14): https://docs.oracle.com/cd/G48897_01/p6help/en/38084.htm. Hierarchical grouping supports levels; group bands and summary Gantt bars have defined behavior.
+- Resource Leveling Options (ENG-06): https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/7974.htm. Resource leveling is a project scheduler action with options, priorities, resources, and constraints when projects are checked out/open exclusively.
+- Activity Resource Assignment (ENG-06): https://docs.oracle.com/cd/G48897_01/p6help/en/44019.htm. Assignment details expose Planned Units/Time, Proficiency and Rate Type and automatically save changes when selection changes; this has implications for CUBI's explicit save/undo design and must be reconciled deliberately.
+- EPPM User Access (ENT-01 / SH-04): https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/6597.htm. The topic explicitly separates Users, OBS, Global Security Profiles and Project Security Profiles.
+- EPPM Dashboards (ENT-06): https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm. Dashboards can contain multiple portlets and can be private, global or multi-user, with module/security privileges determining available data.
+- EPPM V26 global TOC (multiple rows): https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm. The TOC explicitly contains dashboard/portlet, portfolio/what-if, capacity planning, user access, OBS, security profiles, module access, resource access, UI views and timesheet topics.
+- EPPM Activity page actions (ENG-02/03/06/07/14): https://docs.oracle.com/cd/G48897_01/p6help/nl/89935.htm. The page lists Schedule, Apply Actuals, Define Baselines, Leveler, Publish Projects, Recalculate Assignment Costs and Store Period Performance. The localized path is an official V26 Help page; verify the canonical English counterpart before using it in a final traceability row.
+- EPPM REST Activity resource (ENG-02/03/07): https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html. The API documents scheduler-computed early dates and earned-value fields; API presence does not itself prove CUBI workflow parity.
+
+### P6 Team Member Web Help V26 — separate normative contributor evidence
+
+- Team Member Web V26 TOC (ENG-11/12): https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm. The TOC explicitly separates assigned Activities, Updating Activities, resubmitting status updates, related activities, Steps, Codes/UDFs and Timesheets.
+- Working with Timesheets (ENG-12): https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/88358.htm. A designated timesheet user records actual time, submits for approval and may withdraw before approval; admin settings can enable auto-submission/approval, and approved/submitted hours affect activities. Timesheet access is not universal.
+- This establishes a separate contributor workflow and permission gate. It does not justify collapsing Team Member activity status, generic Enterprise tasks, Field Work Plan commitments and time-entry records into one task entity.
+
+### Primavera Cloud — verified extension evidence
+
+- Cloud Help TOC (ENG-04/05/09/10, ENT-03/04/08 and related): https://docs.oracle.com/cd/E80480_01/help/en/user/toc.htm. The TOC exposes Schedule Scenarios, Schedule Health Score, Risk Analysis, Resource Planning Scenarios and approval, Work Plan, Timesheets and Workflow topics.
+- Schedule scenario lifecycle: the master register already records the exact Schedule Scenarios Overview and Manage a Scenario topic URLs; the Help TOC confirms Add/Open/Manage/Set as Current actions. Treat as Cloud-origin project-schedule extension, not EPPM parity.
+- Risk analysis prerequisites (ENG-09): https://docs.oracle.com/cd/E80480_01/English/user_guides/risk_management_user_guide/93538.htm. A current project schedule and activity uncertainty inputs are prerequisites; CUBI must run the authoritative scheduler before risk simulation.
+- Run a Risk Analysis (ENG-09): https://docs.oracle.com/cd/E80480_01/English/user_guides/risk_management_user_guide/88298.htm. Risk analysis estimates likelihood of meeting schedule/cost objectives and requires scheduling after activity changes.
+- Risk Iteration Analysis Results (ENG-09): https://docs.oracle.com/cd/E80480_01/English/user_guides/risk_management_user_guide/236375.htm. Results expose the first fifty iterations; rerunning pre/post-response clears the corresponding prior iteration data, a behavior CUBI must not copy as destructive overwrite without explicit version history.
+- Build a Portfolio Resource Plan (ENT-04): https://docs.oracle.com/cd/E80480_01/English/user_guides/portfolio_management_user_guide/109147.htm. Portfolio planning uses workspace-level role demand, time-phased allocation scenarios, project inclusion/exclusion and optimization; it is not project-level resource assignment or leveling.
+- Cloud documentation TOC (source navigation): https://docs.oracle.com/cd/E80480_01/toc.htm. It lists separate User Guides, Integration, API Documentation, Data Services, Mobile Apps and Data Dictionary.
+
+### Semantic findings and remaining gaps
+
+1. EPPM V26 contains a substantial native project scheduling, resource leveling, activity, portfolio, dashboard, security and timesheet feature set. Those are parity-first work, not Cloud-origin inventions.
+2. The Team Member Web V26 surface is a separate contributor workflow with explicit assignment and timesheet gates. ENG-11/12 must preserve those distinctions.
+3. Project schedule scenarios and Monte Carlo risk analysis have explicit Cloud Help lifecycle/topics; where EPPM V26 has no corresponding project-scenario or quantitative-analysis topic, classify them as Cloud-origin extensions integrated with Engineering-owned schedule/cost inputs.
+4. Enterprise portfolio resource planning is a time-phased portfolio allocation/approval process, distinct from Engineering project resource assignments and leveling.
+5. Exact row-level topic extraction is still incomplete for all 36 rows, particularly Enterprise portal/document grants, Integration Hub/webhooks, workflow, benefits, Workbench search/notifications, Super Admin, and offline synchronization. Mark those MISSING / VERIFY until exact topic pages and relevant data/API references are inspected.
