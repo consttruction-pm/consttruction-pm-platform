@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 from http.cookies import SimpleCookie
 from typing import Callable, Mapping
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote
 
 from .enterprise_organization_access import (
     EnterpriseOrganizationAccessService,
     OrganizationAccessDenied,
     OrganizationAccessError,
 )
+from .security_profiles import SecurityProfileError
 
 _SESSION_COOKIE = "cp_session"
 _MAX_BODY = 65_536
@@ -31,6 +32,10 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             status, payload = self._handle(method, path, environ)
         except OrganizationAccessDenied as exc:
             status, payload = 403, {"code": str(exc) or "ORGANIZATION_ACCESS_DENIED"}
+        except SecurityProfileError as exc:
+            code = exc.code
+            status = 404 if code in {"SECURITY_PROFILE_NOT_FOUND", "SECURITY_PROFILE_PROJECT_NOT_FOUND"} else (409 if "REVISION_CONFLICT" in code else 400)
+            payload = {"code": code}
         except OrganizationAccessError as exc:
             code = str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"
             status = 409 if code in {
@@ -58,6 +63,8 @@ class EnterpriseOrganizationAccessHttpMiddleware:
         return (
             path == "/api/enterprise/teams" or path.startswith("/api/enterprise/teams/")
             or path == "/api/enterprise/users" or path.startswith("/api/enterprise/users/")
+            or path == "/api/enterprise/security-profiles"
+            or path.startswith("/api/enterprise/security-profiles/")
         )
 
     def _handle(self, method: str, path: str, environ: Mapping[str, object]):
