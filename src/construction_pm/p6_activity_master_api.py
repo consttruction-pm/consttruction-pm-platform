@@ -110,8 +110,8 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(activity.scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
-            raise AuthorizationError("authorization denied for permission=project.write")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_ADD_EDIT):
+            raise AuthorizationError("authorization denied for permission=activity.add_edit")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         self._require_wbs_permission(activity.scope, auth_context, activity.wbs_id, Permission.PROJECT_WRITE.value)
         return _dto(self.repository.save(activity, expected_revision=0))
@@ -130,8 +130,8 @@ class P6ActivityMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
-            raise AuthorizationError("authorization denied for permission=project.write")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_EDIT):
+            raise AuthorizationError("authorization denied for permission=activity.edit")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         if self.wbs_access_repository is not None and not activity.wbs_id:
             raise AuthorizationError("ACTIVITY_WBS_REQUIRED")
@@ -151,8 +151,8 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
-            raise AuthorizationError("authorization denied for permission=project.read")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_VIEW):
+            raise AuthorizationError("authorization denied for permission=activity.view")
         item = self.repository.get(scope, activity_id)
         if item is None:
             return None
