@@ -4,6 +4,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 
+from construction_pm.application.authorization import Permission
 from construction_pm.preview.runtime import open_preview_runtime
 from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
 
@@ -87,7 +88,9 @@ def test_administration_defaults_matrix_and_viewer_read(tmp_path: Path) -> None:
         assert "project.admin" not in roles["planner"]
         assert "form.approve" in roles["project_admin"]
         assert matrix["permissions"] == sorted(matrix["permissions"])
-        assert len(matrix["permissions"]) == 19
+        assert matrix["permissions"] == sorted(permission.value for permission in Permission)
+        assert "p6.activity.admin" in matrix["permissions"]
+        assert "p6.project.create" in matrix["permissions"]
     finally:
         runtime.close()
 
