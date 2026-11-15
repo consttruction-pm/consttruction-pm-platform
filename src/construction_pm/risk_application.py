@@ -83,7 +83,7 @@ class RiskApplicationService:
     ) -> tuple[RiskAuditEvent, ...]:
         self._check(context, tenant_id, project_id, Permission.RISK_VIEW)
         stored = self.store.get_risk(tenant_id, project_id, risk_id)
-        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.PROJECT_READ)
+        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.RISK_VIEW)
         return self.store.risk_history(tenant_id, project_id, risk_id)
 
     # -- writes -----------------------------------------------------------
@@ -123,7 +123,7 @@ class RiskApplicationService:
         if self.wbs_access_repository is not None and not risk.wbs_id:
             raise RiskAuthorizationError("RISK_WBS_REQUIRED")
         self._require_wbs_access(risk.tenant_id, risk.project_id, current.risk.wbs_id, context, Permission.RISK_EDIT)
-        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_DELETE)
+        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_EDIT)
         with self.transaction_manager.transaction():
             return self.store.update_risk(
                 risk,
@@ -147,7 +147,7 @@ class RiskApplicationService:
     ) -> None:
         self._authorize_write(tenant_id, project_id, context, actor_id, Permission.RISK_DELETE)
         current = self.store.get_risk(tenant_id, project_id, risk_id)
-        self._require_wbs_access(tenant_id, project_id, current.risk.wbs_id, context, Permission.PROJECT_WRITE)
+        self._require_wbs_access(tenant_id, project_id, current.risk.wbs_id, context, Permission.RISK_DELETE)
         with self.transaction_manager.transaction():
             self.store.delete_risk(
                 tenant_id=tenant_id,
