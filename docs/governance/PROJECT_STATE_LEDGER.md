@@ -1387,3 +1387,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Code commits:** `befc94dc` (EPS audit schema and writes), `6a1440da`/`87842e97` (audited fixture mutations), `0ac213e9` (EPS audit test), `1ed91be3` (audit-trigger savepoint), `c65f4b9e` (parity doc).
 - **Verification:** latest Actions remain queued; no CI pass is claimed for this audit hardening until exact-head runs execute.
 
+### EPS administration and project placement API — 2026-11-15
+
+- Added session-bound EPS catalog and management methods to Project Lifecycle: list authorized EPS branches, create root EPS nodes only as Admin Superuser, create/update child EPS nodes only when the actor has V26 `add_edit_delete_eps_except_costs_financials` in the parent branch, and read/change a project's EPS placement only with `add_projects` on the target branch.
+- Added authenticated routes: `GET /api/p6/eps`, `POST /api/p6/eps`, `PATCH /api/p6/eps/{eps_id}`, and `GET/PUT /api/projects/{project_id}/p6/eps-assignment`. Node and project-placement writes use revision guards and append-only EPS audit.
+- Added production integration coverage for Planner branch visibility, Add Projects-gated project creation and placement reads/updates, and Admin Superuser root EPS creation.
+- **Code commits:** `46beaaa9` (EPS admin authorization), `7d97e6ea` (session-bound EPS service), `9d3b3147` (protocol cleanup), `c58b9b4f` (API), `2b874b50` (placement read repository), `4cf1ecda` (authorized placement read service), `0bf0cc28` (API placement read), `49c315bb` (HTTP routes), `7715374b`/`b0b4c281` (EPS API integration tests), `797a2cb2` (parity ledger).
+- **Still open:** EPS delete/reparent UI and dedicated management UI, full audit review surface, and end-to-end authorization coverage for all P6 project data surfaces. No full parity claim.
+
