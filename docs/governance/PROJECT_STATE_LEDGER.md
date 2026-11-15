@@ -1199,3 +1199,13 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Professional Help is supplementary cross-reference only, not a substitute for EPPM Help. This corrects the earlier Scenario Tracker emphasis on Professional Reflection topics.
 - Any inaccessible or ambiguous source is marked **MISSING / VERIFY** or **OPEN — OWNER DECISION REQUIRED**; no inferred parity.
 - This hierarchy applies to Engineering, Enterprise and Workbench, all existing and new features. See tracker §12 and execution issue #1989.
+
+
+## Engineering P1 Scenario / Cloud Schedule Scenario — Phase 1 contract checkpoint — 2026-11-15
+
+- Product-owner delivery responsibility clarified: Engineering-owned capabilities are feasibility-assessed and handed to Qoder for implementation (Priority 1). Enterprise-owned capabilities are Priority 2; ChatGPT owns their architecture/integration and implementation planning after Engineering contracts stabilize. Workbench remains a non-owning entry/notification surface.
+- Phase 1 contract draft: `docs/architecture/CUBI_ENGINEERING_P1_SCHEDULE_SCENARIOS_PHASE1_CONTRACT_V1.md`; tracker §13 and Issue #1989 were updated. Contract includes scenario aggregate/provenance, typed changes, immutable scheduler runs, pinned comparisons, permission/concurrency/idempotency boundaries, and guarded promotion as a separate release gate.
+- Direct inspection of P6 EPPM V26 HTML TOC (`https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm`) found Portfolio Views > About What-if Analysis but no Reflection or Schedule Comparison topic. Portfolio what-if is not project schedule scenarios. Official Primavera Cloud Help supplies the project scenario lifecycle, comparison and merge workflow; P6 Professional V26 Reflection topics are supplementary only.
+- Scenario classification: Cloud-origin Engineering extension integrated with EPPM project/activity/WBS/relationship/calendar/baseline/scheduling/security primitives. Enterprise portfolio/resource scenarios remain a separate P2 portfolio capability and consume authorized Engineering facts only.
+- Exact active-writer/path ownership and root AGENTS.md remain unresolved; full topic-level crosswalk and independent contract review are pending. Therefore Phase 1 is **DRAFTED / IN REVIEW**, not complete; no source code or runtime changes; no merge/deploy; Jalal 5 weights unchanged and earned progress remains zero.
+- PR #1988 remains Draft/open/unmerged. New contract and tracker commits are documentation-only. Current Vercel status is build-rate-limit failure (not a test result); GitHub Actions checks were still in progress at the checkpoint.
