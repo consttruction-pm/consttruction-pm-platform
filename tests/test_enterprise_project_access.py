@@ -153,7 +153,7 @@ def test_user_can_hold_multiple_obs_profile_pairs_without_collapsing_scope():
         repository, FakeLifecycle(), FakeOBS(), clock=lambda: NOW
     )
     service.create_profile("valid-session", "read_only", "Read only", ("project.read",))
-    service.create_profile("planner", "schedule", "Schedule", ("project.read", "project.schedule"))
+    service.create_profile("valid-session", "schedule", "Schedule", ("project.read", "project.schedule"))
     root = service.assign_user_obs("valid-session", "member-1", "root", "read_only")
     child = service.assign_user_obs("valid-session", "member-1", "child", "schedule")
     assignments = service.list_user_obs("valid-session", "member-1")
