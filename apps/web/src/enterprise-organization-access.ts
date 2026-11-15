@@ -24,6 +24,7 @@ const COPY = {
     teamRequired: "Enter a team name.", scopeHint: "Optional project IDs are recorded as scope metadata only; they do not grant access.",
     accounts: "User accounts", accountStatus: "Account status", deactivate: "Deactivate", activate: "Reactivate",
     confirmDeactivate: "Deactivate this account and revoke all active sessions?", confirmActivate: "Reactivate this account?",
+    accountDeactivated: "Account deactivated; existing sessions revoked.", accountActivated: "Account reactivated.",
   },
   fa: {
     title: "سازمان و دسترسی", eyebrow: "کوبی سازمانی", subtitle: "مدیریت تیم‌های سازمان و عضویت اعضا.",
@@ -42,6 +43,7 @@ const COPY = {
     teamRequired: "نام تیم را وارد کنید.", scopeHint: "شناسه پروژه اختیاری صرفاً فراداده محدوده است و مجوز دسترسی ایجاد نمی‌کند.",
     accounts: "حساب‌های کاربری", accountStatus: "وضعیت حساب", deactivate: "غیرفعال‌سازی", activate: "فعال‌سازی مجدد",
     confirmDeactivate: "این حساب غیرفعال و تمام نشست‌های فعال آن لغو شود؟", confirmActivate: "این حساب دوباره فعال شود؟",
+    accountDeactivated: "حساب غیرفعال شد و نشست‌های قبلی لغو شدند.", accountActivated: "حساب دوباره فعال شد.",
   },
 } as const;
 
@@ -247,7 +249,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         await api(`/api/enterprise/users/${encodeURIComponent(userId)}/status`, "PATCH", {
           contract_version: "cubi-enterprise-user-admin.v1", active: !wasActive,
         });
-        notice = wasActive ? t.removedOk : t.added;
+        notice = wasActive ? t.accountDeactivated : t.accountActivated;
         await load();
       });
     }));
