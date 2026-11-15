@@ -40,6 +40,7 @@ def issue(**overrides) -> P6Issue:
         "priority": "normal",
         "owner": "u-owner",
         "date_identified": "2026-11-05",
+        "responsible_obs_id": "OBS-OPERATIONS",
     }
     payload.update(overrides)
     return P6Issue(**payload)  # type: ignore[arg-type]
