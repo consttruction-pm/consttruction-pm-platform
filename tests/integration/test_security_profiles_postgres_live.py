@@ -649,6 +649,20 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
                 wbs_scope, f"eps-wbs-{suffix}", obs_id,
                 expected_revision=1, occurred_at=now, auth_context=context,
             )
+        audit_rows = connection.execute(
+            "SELECT before_state,after_state FROM p6_wbs_obs_responsibility_audit "
+            "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+            (tenant,project_id,f"eps-wbs-{suffix}"),
+        ).fetchall()
+        assert len(audit_rows) == 2
+        assert audit_rows[0][0] is None
+        assert audit_rows[1][0]["revision"] == 1
+        with pytest.raises(Exception, match="P6_WBS_OBS_AUDIT_APPEND_ONLY"):
+            connection.execute(
+                "DELETE FROM p6_wbs_obs_responsibility_audit "
+                "WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+                (tenant,project_id,f"eps-wbs-{suffix}"),
+            )
 
         # Re-parenting an EPS node below its descendant must fail atomically.
         eps = PostgresP6EPSRepository(connection)
