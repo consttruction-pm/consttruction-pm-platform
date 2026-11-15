@@ -84,7 +84,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         policy = PostgresSecurityProfileAuthorizationPolicy(connection, role_policy)
         context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
 
-        # Compatibility window: no assigned profiles preserves existing role behavior.
+        # P6 requires both a Global profile and an OBS-assigned Project profile.
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
 
         global_profile = profiles.create_profile(
@@ -93,7 +93,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         )
         global_profile = profiles.set_privileges(
             tenant_id=tenant, profile_id=global_profile.profile_id,
-            privileges={Permission.PROJECT_READ.value, Permission.PROJECT_WRITE.value},
+            privileges=set(),
             expected_revision=1, actor_user_id=user_id, occurred_at=now,
         )
         project_profile = profiles.create_profile(
@@ -102,7 +102,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         )
         project_profile = profiles.set_privileges(
             tenant_id=tenant, profile_id=project_profile.profile_id,
-            privileges={Permission.PROJECT_READ.value},
+            privileges={"add_edit_activities_except_relationships"},
             expected_revision=1, actor_user_id=user_id, occurred_at=now,
         )
 
@@ -146,7 +146,7 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         ).fetchone()
         assert event is not None
         assert event[1]["privileges"] == []
-        assert event[2]["privileges"] == [Permission.PROJECT_READ.value]
+        assert event[2]["privileges"] == ["add_edit_activities_except_relationships"]
 
         with pytest.raises(Exception, match="P6_SECURITY_PROFILE_AUDIT_APPEND_ONLY"):
             connection.execute(
@@ -245,7 +245,7 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-privileges.v1",
-                "expected_revision": 1, "privileges": [Permission.PROJECT_READ.value],
+                "expected_revision": 1, "privileges": ["add_edit_activities_except_relationships"],
             },
         )
         assert status == 200, changed
