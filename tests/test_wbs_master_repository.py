@@ -545,3 +545,38 @@ def test_copy_subtree_validates_its_arguments():
             root_code="1.2.1",
             expected_revision=0,
         )
+
+
+def test_wbs_responsible_obs_round_trips_and_updates_with_revision():
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    assigned = replace(root(), responsible_obs_id="OBS-OPERATIONS")
+    stored = repo.save(assigned)
+    assert stored.responsible_obs_id == "OBS-OPERATIONS"
+    assert repo.get(scope(), "W-ROOT").responsible_obs_id == "OBS-OPERATIONS"
+
+    revised = replace(stored, responsible_obs_id="OBS-COMMERCIAL")
+    updated = repo.save(revised, expected_revision=stored.record_revision)
+    assert updated.responsible_obs_id == "OBS-COMMERCIAL"
+    assert updated.record_revision == stored.record_revision + 1
+    assert repo.list(scope())[0].responsible_obs_id == "OBS-COMMERCIAL"
+
+
+def test_existing_wbs_database_gains_nullable_responsible_obs_column():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE wbs_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL, wbs_id TEXT NOT NULL,
+            parent_kind TEXT NOT NULL, parent_wbs_id TEXT, code TEXT NOT NULL,
+            name TEXT NOT NULL, sequence_number INTEGER NOT NULL,
+            record_revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, project_id, wbs_id)
+        )"""
+    )
+    connection.execute(
+        "INSERT INTO wbs_master VALUES ('T-1','P-1',7,'W-OLD','project',NULL,'1','Old',0,1)"
+    )
+    repo = SQLiteWBSMasterRepository(connection)
+    loaded = repo.get(scope(), "W-OLD")
+    assert loaded is not None
+    assert loaded.responsible_obs_id is None
