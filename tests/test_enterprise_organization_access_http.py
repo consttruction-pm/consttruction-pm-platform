@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from construction_pm.enterprise_organization_access import (
+    OrganizationAccessError,
     EnterpriseTeam,
     EnterpriseTeamMembership,
 )
