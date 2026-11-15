@@ -51,6 +51,7 @@ from ..identity_session import (
 from ..p6_cost_account_api import P6CostAccountAPI
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
+from ..p6_eps_repository import PostgresP6EPSRepository
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -312,6 +313,7 @@ class ProductionRuntime:
         checkout_lease = PostgresProjectCheckoutLease(connection)
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
+        wbs_responsibility_repository = PostgresP6EPSRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
@@ -347,6 +349,7 @@ class ProductionRuntime:
             authorization_policy=policy,
             activity_master_repository=activity_repository,
             wbs_master_repository=wbs_repository,
+            wbs_responsibility_repository=wbs_responsibility_repository,
             relationship_master_repository=relationship_repository,
             checkout_lease=checkout_lease,
             workspace_read_v2_service=workspace_read_service,
