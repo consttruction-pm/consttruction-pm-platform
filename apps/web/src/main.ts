@@ -3166,7 +3166,7 @@ function renderApp(
       try {
         const parent = input.parentWbsId && input.parentWbsId !== "__project__" ? state.wbsNodes.find((node) => node.id === input.parentWbsId) : null;
         const response = await aiTransport.post<
-          { wbs_id: string; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
+          { wbs_id: string; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number; responsible_obs_id?: string | null },
           { wbs: { wbs_id: string } }
         >(projectWbsPath(), {
           wbs_id: `WBS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
@@ -3175,6 +3175,7 @@ function renderApp(
           code: input.code,
           name: input.name,
           sequence_number: input.sequenceNumber,
+          ...(input.responsibleObsId ? { responsible_obs_id: input.responsibleObsId } : {}),
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(response.data.wbs.wbs_id);
@@ -3188,7 +3189,7 @@ function renderApp(
         if (!node) throw new Error("WBS_NOT_FOUND");
         if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
         const response = await aiTransport.patch<
-          { expected_revision: number; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
+          { expected_revision: number; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number; responsible_obs_id?: string | null },
           unknown
         >(projectWbsPath(wbsId), {
           expected_revision: node.recordRevision,
@@ -3199,6 +3200,7 @@ function renderApp(
           sequence_number: input.sequenceNumber,
           ...(input.status ? { status: input.status } : {}),
           ...(input.percentCompleteTechnique ? { percent_complete_technique: input.percentCompleteTechnique } : {}),
+          ...(input.responsibleObsId !== undefined ? { responsible_obs_id: input.responsibleObsId } : {}),
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(wbsId);
