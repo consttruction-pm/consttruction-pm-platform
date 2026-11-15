@@ -231,6 +231,8 @@ class IdentityStore(Protocol):
 
     def find_user_by_email(self, email: str) -> IdentityUser | None: ...
 
+    def is_user_active(self, user_id: str, tenant_id: str) -> bool: ...
+
     def record_attempt(
         self,
         *,
@@ -372,6 +374,12 @@ class IdentityService:
         if stored.revoked_at is not None or now >= stored.expires_at:
             self._store.revoke_session(hashed, when=now)
             return None
+        # Account deactivation is an immediate security boundary, not merely
+        # a login-time check. Existing cookies must stop authorizing requests
+        # as soon as the tenant-scoped identity record becomes inactive.
+        if not self._store.is_user_active(stored.user_id, stored.tenant_id):
+            self._store.revoke_session(hashed, when=now)
+            return None
         if now - stored.last_seen_at >= self._idle_timeout:
             self._store.revoke_session(hashed, when=now)
             return None
@@ -428,6 +436,14 @@ class _SqlIdentityStore:
 
     def _all(self, sql: str, params: tuple[Any, ...]) -> list[Any]:
         return list(self.connection.execute(sql, params).fetchall())
+
+    def is_user_active(self, user_id: str, tenant_id: str) -> bool:
+        row = self._one(
+            "SELECT active FROM identity_users "
+            f"WHERE user_id={self.placeholder} AND tenant_id={self.placeholder}",
+            (user_id, tenant_id),
+        )
+        return row is not None and bool(row[0])
 
     def find_user_by_email(self, email: str) -> IdentityUser | None:
         row = self._one(
