@@ -14,6 +14,12 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    # P6 V26 project-security capabilities used at operation boundaries.
+    ACTIVITY_VIEW = "activity.view"
+    ACTIVITY_ADD_EDIT = "activity.add_edit"
+    ACTIVITY_EDIT = "activity.edit"
+    ACTIVITY_DELETE = "activity.delete"
+    ACTIVITY_RELATIONSHIP_MANAGE = "activity.relationship.add_edit_delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -65,10 +71,22 @@ class RoleBasedAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
-        return any(
-            permission in self._role_permissions.get(role, frozenset())
-            for role in context.roles
-        )
+        # Application roles remain coarse organizational guardrails. The
+        # EnterpriseProjectAuthorizationPolicy separately requires the exact
+        # granular P6 project-profile grant (or an explicit legacy grant).
+        role_grants = frozenset().union(*(
+            self._role_permissions.get(role, frozenset()) for role in context.roles
+        ))
+        if permission in role_grants:
+            return True
+        legacy_guardrail = {
+            Permission.ACTIVITY_VIEW: Permission.PROJECT_READ,
+            Permission.ACTIVITY_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_DELETE: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_RELATIONSHIP_MANAGE: Permission.PROJECT_WRITE,
+        }.get(permission)
+        return legacy_guardrail in role_grants if legacy_guardrail is not None else False
 
     def require(self, context: AuthorizationContext, permission: Permission) -> None:
         if not self.is_allowed(context, permission):
