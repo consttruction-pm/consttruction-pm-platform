@@ -24,6 +24,7 @@ from construction_pm.identity_session import (
     hash_password,
 )
 from construction_pm.p6_obs_repository import P6OBSNode, PostgresP6OBSRepository
+from construction_pm.p6_eps_repository import P6EPSNode, P6EPSError, PostgresP6EPSRepository
 from construction_pm.postgres_project_lifecycle import (
     PostgresProjectRepository,
     initialize_project_lifecycle_schema,
@@ -522,5 +523,72 @@ def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
             tenant, first_id, second_id, False, now,
         )
         assert result["changed"] is False
+        connection.rollback()
+
+def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestors():
+    suffix = uuid.uuid4().hex
+    tenant = f"eps-security-{suffix}"
+    user_id = f"eps-user-{suffix}"
+    project_id = f"eps-project-{suffix}"
+    obs_id = f"eps-obs-{suffix}"
+    root_id = f"eps-root-{suffix}"
+    child_id = f"eps-child-{suffix}"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        PostgresP6EPSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant, "planner"))
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, obs_id, name="EPS Responsible OBS")
+        )
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, user_id, project_id, "EPS inherited project"
+        )
+        eps = PostgresP6EPSRepository(connection)
+        eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id))
+        eps.save_node(P6EPSNode(tenant, child_id, "Child EPS", parent_eps_id=root_id))
+        eps.assign_project(
+            tenant, project_id, child_id, actor_user_id=user_id, occurred_at=now,
+        )
+        connection.commit()
+
+    with _connect() as connection:
+        profiles = PostgresSecurityProfileRepository(connection)
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"eps-global-{suffix}", name="EPS Global",
+            scope="global", actor_user_id=user_id, occurred_at=now,
+        )
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"eps-project-{suffix}", name="EPS Project",
+            scope="project", actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=global_profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id, user_id=user_id,
+            obs_id=obs_id, actor_user_id=user_id, occurred_at=now,
+        )
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
+        assert policy.is_allowed(context, Permission.PROJECT_READ)
+
+        # Re-parenting an EPS node below its descendant must fail atomically.
+        eps = PostgresP6EPSRepository(connection)
+        with pytest.raises(P6EPSError, match="P6_EPS_HIERARCHY_CYCLE"):
+            eps.save_node(
+                P6EPSNode(tenant, root_id, "Root EPS", parent_eps_id=child_id,
+                          responsible_obs_id=obs_id),
+                expected_revision=1,
+            )
+        assert policy.is_allowed(context, Permission.PROJECT_READ)
         connection.rollback()
 
