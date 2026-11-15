@@ -38,4 +38,83 @@ export function resolveRequestFile(requestPath) {
   // Reject traversal syntax before normalization so "/../x" cannot be
   // silently normalized back inside the web root.
   if (pathname.split("/").some((segment) => segment === "..")) return null;
-  const publicRoot = join(¶»§q«^
+  const publicRoot = join(root, "public");
+  const distRoot = join(root, "dist");
+  const distWebEntry = join(distRoot, "web", "src");
+  const distClientSyncEntry = join(distRoot, "client-sync", "src");
+
+  let candidate;
+
+  if (pathname === "/") {
+    candidate = join(root, "index.html");
+  } else if (pathname === "/enterprise" || pathname === "/enterprise/") {
+    candidate = join(root, "app.html");
+  } else if (pathname === "/app" || pathname === "/app/" || pathname === "/app/index.html") {
+    // The workspace entry is a real application shell, not the marketing
+    // landing page. It uses absolute asset URLs so it also works at /app/.
+    candidate = join(root, "app.html");
+  } else if (pathname.startsWith("/dist/")) {
+    const rest = pathname.slice("/dist/".length);
+    candidate = rest.startsWith("web/") || rest.startsWith("client-sync/")
+      ? join(distRoot, rest)
+      : join(distWebEntry, rest);
+  } else if (pathname.startsWith("/client-sync/src/")) {
+    candidate = join(distClientSyncEntry, pathname.slice("/client-sync/src/".length));
+  } else {
+    const relativePath = pathname.replace(/^\/+/, "");
+    candidate = join(root, relativePath);
+    if (!existsSync(candidate) || !statSync(candidate).isFile()) {
+      candidate = join(publicRoot, relativePath);
+    }
+  }
+
+  // Resolve static public routes such as /platform/ to their index.html file.
+  if (existsSync(candidate) && statSync(candidate).isDirectory()) {
+    candidate = join(candidate, "index.html");
+  }
+
+  const normalized = normalize(candidate);
+  if (!within(root, normalized) && !within(distRoot, normalized) && !within(publicRoot, normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+export function startPreviewServer() {
+const server = http.createServer((req, res) => {
+  try {
+    const file = resolveRequestFile(req.url || "/");
+    if (!file) {
+      res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Forbidden");
+      return;
+    }
+
+    if (!existsSync(file) || !statSync(file).isFile()) {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Not Found");
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Type": contentType(file),
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+
+    createReadStream(file).pipe(res);
+  } catch {
+    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Preview server error");
+  }
+});
+
+server.listen(port, host, () => {
+  console.log(`CUBI Web Preview listening on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
+});
+
+return server;
+}
+
+const entry = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (entry === import.meta.url) startPreviewServer();

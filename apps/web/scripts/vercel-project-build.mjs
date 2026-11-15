@@ -38,4 +38,18 @@ run(process.execPath, ["scripts/assemble-pages-site.mjs", site], {
   SITE_BASE_URL: baseUrl,
   // The workspace is served from this origin now. Never keep the retired
   // Render preview as the /app destination.
-  CUBI_WORKSPACE_URL: ""¶»§q«^
+  CUBI_WORKSPACE_URL: "",
+});
+
+// ``/app`` and ``/app/`` belong to the session-gated function; leaving the
+// static mirror in place would make routing order decide whether the gate
+// runs.
+rmSync(join(site, "app"), { recursive: true, force: true });
+
+// The login document is static: it contains no user data and must load
+// without a session.
+cpSync(join(webRoot, "login.html"), join(site, "login.html"));
+
+run(process.execPath, ["scripts/prepare-vercel-runtime.mjs"]);
+
+console.log("cubi: assembled " + site + " for " + baseUrl);
