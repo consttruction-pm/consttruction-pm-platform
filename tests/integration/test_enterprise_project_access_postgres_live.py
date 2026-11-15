@@ -13,6 +13,7 @@ from construction_pm.enterprise_project_access import (
 )
 from construction_pm.identity_session import IdentityUser, PostgresIdentityStore
 from construction_pm.p6_obs_repository import P6OBSNode, P6OBSApplicationService, PostgresP6OBSRepository
+from construction_pm.p6_project_privileges import normalize_project_privileges
 from construction_pm.postgres_project_lifecycle import PostgresProjectRepository, initialize_project_lifecycle_schema
 
 DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
@@ -133,7 +134,7 @@ def test_postgres_wbs_obs_requires_matching_responsible_obs_profile():
         )
         wbs_profile = ProjectSecurityProfile(
             tenant, "wbs-write", "WBS write",
-            ("wbs.add_edit_delete_except_costs_financials",), True, 1, NOW,
+            normalize_project_privileges(("wbs.add_edit_delete_except_costs_financials",)), True, 1, NOW,
         )
         access.create_profile(project_profile, admin_id)
         access.create_profile(wbs_profile, admin_id)
