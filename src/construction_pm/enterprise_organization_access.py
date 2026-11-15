@@ -6,6 +6,7 @@ from typing import Protocol, Sequence
 from uuid import uuid4
 
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
+from .security_profiles import PostgresSecurityProfileRepository
 
 TEAM_ROLES = frozenset({"owner", "admin", "project_manager", "approver", "field_worker", "member", "viewer"})
 TEAM_STATUSES = frozenset({"active", "suspended", "archived"})
@@ -94,9 +95,13 @@ class EnterpriseOrganizationAccessRepository(Protocol):
 class EnterpriseOrganizationAccessService:
     """Tenant-bound team membership service; it never grants project access implicitly."""
 
-    def __init__(self, repository: EnterpriseOrganizationAccessRepository, lifecycle_api: object, *, clock=None) -> None:
+    def __init__(
+        self, repository: EnterpriseOrganizationAccessRepository, lifecycle_api: object,
+        *, security_profiles: PostgresSecurityProfileRepository | None = None, clock=None,
+    ) -> None:
         self._repository = repository
         self._lifecycle = lifecycle_api
+        self._security_profiles = security_profiles
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def create_team(self, session_id: str, name: str) -> EnterpriseTeam:
@@ -234,6 +239,80 @@ class EnterpriseOrganizationAccessService:
             session.tenant_id, session.user_id, "enterprise_admin"
         ):
             raise OrganizationAccessDenied("ENTERPRISE_ADMIN_REQUIRED")
+
+    def list_security_profiles(self, session_id: str, *, scope: str | None = None):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.list_profiles(session.tenant_id, scope)
+
+    def create_security_profile(self, session_id: str, *, profile_id: str, name: str, scope: str):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.create_profile(
+            tenant_id=session.tenant_id, profile_id=profile_id, name=name, scope=scope,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def set_security_profile_privileges(
+        self, session_id: str, profile_id: str, *, privileges: Sequence[str],
+        expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.set_privileges(
+            tenant_id=session.tenant_id, profile_id=profile_id, privileges=privileges,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def set_security_profile_active(
+        self, session_id: str, profile_id: str, *, active: bool, expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.set_active(
+            tenant_id=session.tenant_id, profile_id=profile_id, active=active,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def assign_security_profile(
+        self, session_id: str, profile_id: str, *, user_id: str,
+        project_id: str = "", expected_revision: int | None = None,
+    ) -> int:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if user_id == session.user_id:
+            raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.assign(
+            tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
+            project_id=project_id, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def unassign_security_profile(
+        self, session_id: str, profile_id: str, *, user_id: str,
+        project_id: str = "", expected_revision: int,
+    ) -> None:
+        session = self._session(session_id)
+        self._require_enterprise_admin(session)
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._security_profiles.unassign(
+            tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
+            project_id=project_id, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
 
     def require_active_membership(self, tenant_id: str, team_id: str, user_id: str) -> EnterpriseTeamMembership:
         membership = self._repository.get_membership(tenant_id, team_id, user_id)
