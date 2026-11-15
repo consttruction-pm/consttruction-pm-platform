@@ -85,7 +85,10 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 return 200, {
                     "contract_version": "cubi-p6-security-profile-list.v1",
                     "profiles": [self._profile(item) for item in profiles],
-                    "privilege_catalogs": {\n                        "global": sorted(GLOBAL_PRIVILEGES),\n                        "project": sorted(PROJECT_PRIVILEGES),\n                    },
+                    "privilege_catalogs": {
+                        "global": sorted(GLOBAL_PRIVILEGES),
+                        "project": sorted(PROJECT_PRIVILEGES),
+                    },
                 }
             if method == "POST":
                 payload = self._body(environ, "cubi-p6-security-profile.v1")
