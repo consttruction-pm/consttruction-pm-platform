@@ -46,3 +46,37 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 - Unit: pytest -q tests/test_enterprise_project_access.py
 - PostgreSQL live: CONSTRUCTION_PM_POSTGRES_DSN=... pytest -q tests/integration/test_enterprise_project_access_postgres_live.py
 - Exact-head GitHub Actions and a browser journey remain required before promotion.
+
+
+## Browser administration surface — follow-on implementation
+
+The authenticated route `/enterprise/project-access` is mounted from the Enterprise Task Center. It consumes the production project-access API rather than maintaining a browser-side permission store.
+
+- Lists active Project Security Profiles and their project-level permission set.
+- Creates named profiles with the supported `project.read`, `project.write`, `project.schedule`, and `project.admin` permissions.
+- Renders the tenant OBS hierarchy as an indented tree using the authoritative OBS API.
+- Assigns a user to an OBS element with a selected Project Security Profile.
+- Lists the target user's active OBS assignments and revokes a selected assignment with its expected revision.
+- Warns explicitly when the root OBS is selected because Oracle documents that root assignment grants access to all projects beneath it.
+- Uses the authenticated session, enterprise_admin gate, same-origin credentials, CSRF header, server-side authorization, and bilingual Persian/English responsive UI.
+
+The UI accepts the internal CUBI user ID for an assignment because the current V1 access API is keyed by user_id. It does not silently treat a team member or a CUBI-ID string as a project grant. A dedicated user picker / CUBI-ID-to-internal-user resolution endpoint remains a UX/API follow-up.
+
+## V26 responsibility and WBS security acceptance
+
+Oracle V26 Help establishes more than a user-to-OBS assignment:
+- Users can receive multiple OBS + Project Security Profile pairs (Users Page / Project Access detail window).
+- OBS is hierarchical; assigning the root OBS grants access throughout the root EPS tree.
+- Projects/EPS nodes have a Responsible Manager (OBS) which controls the branch's responsible scope.
+- WBS elements can have their own Responsible Manager / OBS. A WBS-level OBS different from the project-level OBS makes that WBS data read-only to users who are not assigned to that WBS OBS; assigning the matching OBS plus an appropriate Project Security Profile grants the additional rights.
+- Project Security Profiles are privilege sets, not the same thing as team roles or global/module access. Oracle's generated Project Superuser profile and Admin Superuser global profile have special semantics and must not be emulated by silently granting broad access.
+
+Official V26 references:
+- [Project Access Detail Window of the Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6186.htm)
+- [Assigning OBS Elements to Users](https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm)
+- [Assigning OBS Elements to the EPS](https://docs.oracle.com/cd/G48897_01/p6help/en/11735.htm)
+- [About Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/6595.htm)
+- [Creating Project Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/35278.htm)
+- [Creating an OBS](https://docs.oracle.com/cd/G48897_01/p6help/en/7795.htm)
+
+**Parity status remains PARTIAL, not complete.** V1 currently enforces project-level OBS inheritance and project-level permissions. It does not yet persist Responsible Manager on EPS nodes or WBS nodes, does not implement WBS-specific OBS overrides/read-only fallback, does not filter WBS activities/risks/issues by their responsible OBS, and does not implement Oracle's full project-profile privilege catalog, global/module profiles, Resource Access, or UI Views. These are explicit release gates; the current UI must not be described as full P6 V26 access-administration parity.
