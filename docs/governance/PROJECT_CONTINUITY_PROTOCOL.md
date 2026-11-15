@@ -21,9 +21,9 @@ If a required artifact is missing or unreadable, record **MISSING / VERIFY** and
 - The authoritative desktop-workspace reference is the **official P6 Professional Help, Version 26**. Its complete HTML Help table of contents is: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
 - The supporting Version 26 Professional User Guide (HTML) is: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html
 - **Every Qoder instruction prepared for CUBI workspace, Activity, WBS, Gantt, menus, dialogs, layouts or scheduling UI must include the complete HTML Help URL above** (and the supporting User Guide URL when useful). Do not send a task instruction with an implicit or unspecified reference version.
-- When the instruction is sent to Qoder, the product owner will attach the supplied **815-page Version 26 PDF**. The instruction must explicitly tell Qoder to read both the HTML Help and the attached PDF, inspect the relevant topics in detail, and record the exact topic/page evidence used.
+- **HTML Help is the sole normative Oracle reference.** Use the relevant official Version 26 HTML topics directly; cite exact topic titles and URLs in requirements, implementation notes and acceptance evidence. A PDF attachment, PDF page number or PDF availability is not required.
 - Version 26 Help governs behavior, menu structure, controls, options, terminology mapping, and acceptance. Older manuals or screenshots (including Version 22 captures) are supplementary visual evidence only; they must not override or define Version 26 behavior. Resolve differences in favor of Version 26 and record the discrepancy.
-- If the 815-page PDF is not attached or cannot be read, record **MISSING / VERIFY** for that evidence and do not claim Version 26 parity or close the related acceptance gate.
+- Do not create PDF-related blockers or acceptance gates. If an HTML Help topic is unavailable, record the exact URL and **MISSING / VERIFY** for that HTML topic only.
 - Preserve CUBI branding in customer-facing UI. Third-party source names and links belong only in internal engineering traceability records.
 
 ## 1.2 CUBI – Complete Visual and Functional Parity Standard
@@ -32,9 +32,10 @@ This standard is binding for the Activities workspace and for every statement of
 parity across the CUBI workspace programme.
 
 1. **Reference.** Version 26 official Help
-   (https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm) plus the
-   supplied 815-page Version 26 PDF govern behavior, controls, order, wording and
-   acceptance. Older screenshots may inform appearance only.
+   (https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm) and the
+   relevant official Version 26 HTML topics govern behavior, controls, order,
+   terminology and acceptance. HTML Help is sufficient and authoritative; no
+   PDF is required. Older screenshots may inform appearance only.
 2. **Real services only.** A capability that has no authoritative service must
    be shown as unavailable with a stated reason. Fabricated records, invented
    dates, fake progress, placeholder charts and enabled-looking controls without
@@ -122,3 +123,12 @@ Never claim work continues in the background. Continue only while tools and curr
 - #680 — weighted progress must be evidence-based and denominator-consistent.
 
 These are open work unless current GitHub state and exact-main evidence says otherwise.
+
+
+## 1.3 Canonical execution and checkout environment
+
+- GitHub is the canonical source of truth for repository state, branches, commits, pull requests, reviews, issues and CI evidence. GitHub/Codex is the canonical environment for code checkout, implementation, command execution, tests and runtime verification.
+- Do not treat ChatGPT's conversational context or a narrative report as a checkout, working tree, test run or code change. Use the connected GitHub/Codex workflow and report exact repository, branch, base SHA, head SHA, changed paths and check-run URLs.
+- Do not claim a test, build, browser run, database migration or deployment succeeded unless its actual GitHub/Codex execution result is available and tied to the relevant code SHA.
+- ChatGPT may coordinate, inspect GitHub artifacts, prepare scoped work and review evidence. It is not a substitute local checkout/runtime when those capabilities are not connected.
+- This execution rule applies equally to CUBI Engineering and CUBI Enterprise. Enterprise approval gates are based on official Oracle V26 HTML Help and verifiable GitHub evidence; PDF attachment/page evidence is explicitly excluded.
