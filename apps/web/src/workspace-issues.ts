@@ -28,6 +28,7 @@ export type IssueRecord = {
   priority: string;
   owner: string;
   responsibleManager: string | null;
+  responsibleObsId: string | null;
   dateIdentified: string;
   dueDate: string | null;
   wbsId: string | null;
@@ -144,6 +145,7 @@ export function parseIssue(value: unknown): IssueRecord {
     priority: requiredText(payload.priority, "INVALID_ISSUE_RECORD"),
     owner: requiredText(payload.owner, "INVALID_ISSUE_RECORD"),
     responsibleManager: optionalText(payload.responsible_manager, "INVALID_ISSUE_RECORD"),
+    responsibleObsId: optionalText(payload.responsible_obs_id, "INVALID_ISSUE_RECORD"),
     dateIdentified: requiredText(payload.date_identified, "INVALID_ISSUE_RECORD"),
     dueDate: optionalText(payload.due_date, "INVALID_ISSUE_RECORD"),
     wbsId: optionalText(payload.wbs_id, "INVALID_ISSUE_RECORD"),
@@ -244,6 +246,7 @@ export function buildIssuePayload(input: IssueInput): Record<string, unknown> {
     priority: input.priority,
     owner,
     responsible_manager: input.responsibleManager?.trim() || null,
+    responsible_obs_id: input.responsibleObsId?.trim() || null,
     date_identified: input.dateIdentified,
     due_date: input.dueDate,
     wbs_id: input.wbsId?.trim() || null,
@@ -373,6 +376,7 @@ function emptyDraft(): IssueInput {
     priority: "normal",
     owner: "",
     responsibleManager: null,
+    responsibleObsId: null,
     dateIdentified: new Date().toISOString().slice(0, 10),
     dueDate: null,
     wbsId: null,
@@ -392,6 +396,7 @@ function draftFrom(record: IssueRecord): IssueInput {
     priority: record.priority,
     owner: record.owner,
     responsibleManager: record.responsibleManager,
+    responsibleObsId: record.responsibleObsId,
     dateIdentified: record.dateIdentified,
     dueDate: record.dueDate,
     wbsId: record.wbsId,
@@ -503,7 +508,7 @@ export function mountWorkspaceIssuesPage(host: HTMLElement, options: IssuePageOp
       <label>${escapeHtml(say("Status", "وضعیت"))}<select name="issue-status">${optionList(ISSUE_STATUSES, draft.status)}</select></label>
       <label>${escapeHtml(say("Priority", "اولویت"))}<select name="issue-priority">${optionList(ISSUE_PRIORITIES, draft.priority)}</select></label>
       <label>${escapeHtml(say("Owner", "مسئول"))}<input name="issue-owner" value="${escapeHtml(draft.owner)}" required></label>
-      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="issue-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>
+      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="issue-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>\n      <label>${escapeHtml(say("Responsible OBS ID", "شناسه OBS مسئول"))}<input name="issue-obs" value="${escapeHtml(draft.responsibleObsId ?? "")}"></label>
       <label>${escapeHtml(say("Date Identified", "تاریخ شناسایی"))}<input name="issue-identified" type="date" value="${escapeHtml(draft.dateIdentified)}" required></label>
       <label>${escapeHtml(say("Due Date", "موعد"))}<input name="issue-due" type="date" value="${escapeHtml(draft.dueDate ?? "")}"></label>
       <label>${escapeHtml(say("WBS", "ساختار شکست"))}<select name="issue-wbs">${referenceOptions(draft.wbsId, wbsNodes.map((item) => ({ id: item.id, label: `${item.code} ${item.name}` })), say("No WBS reference", "بدون ارجاع ساختار شکست"))}</select></label>
@@ -524,6 +529,7 @@ export function mountWorkspaceIssuesPage(host: HTMLElement, options: IssuePageOp
       ${inputRow(say("Priority", "اولویت"), item.priority)}
       ${inputRow(say("Owner", "مسئول"), item.owner)}
       ${inputRow(say("Responsible Manager", "مدیر مسئول"), item.responsibleManager)}
+      ${inputRow(say("Responsible OBS ID", "شناسه OBS مسئول"), item.responsibleObsId)}
       ${inputRow(say("Date Identified", "تاریخ شناسایی"), item.dateIdentified)}
       ${inputRow(say("Due Date", "موعد"), item.dueDate)}
       ${inputRow(say("Record revision", "نسخه رکورد"), String(item.recordRevision))}
@@ -732,6 +738,7 @@ export function mountWorkspaceIssuesPage(host: HTMLElement, options: IssuePageOp
       case "issue-title": state.draft.title = target.value; break;
       case "issue-owner": state.draft.owner = target.value; break;
       case "issue-manager": state.draft.responsibleManager = target.value; break;
+      case "issue-obs": state.draft.responsibleObsId = target.value; break;
       case "issue-identified": state.draft.dateIdentified = target.value; break;
       case "issue-due": state.draft.dueDate = target.value || null; break;
       case "issue-description": state.draft.description = target.value; break;
