@@ -58,6 +58,7 @@ export type IssueInput = {
   priority: string;
   owner: string;
   responsibleManager: string | null;
+  responsibleObsId?: string | null;
   dateIdentified: string;
   dueDate: string | null;
   wbsId: string | null;
