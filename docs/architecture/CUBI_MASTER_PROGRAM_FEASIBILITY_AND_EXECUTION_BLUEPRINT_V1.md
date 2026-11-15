@@ -192,3 +192,18 @@ The following are exact V26 HTML topic pages or official Help TOCs retrieved dur
 3. Project schedule scenarios and Monte Carlo risk analysis have explicit Cloud Help lifecycle/topics; where EPPM V26 has no corresponding project-scenario or quantitative-analysis topic, classify them as Cloud-origin extensions integrated with Engineering-owned schedule/cost inputs.
 4. Enterprise portfolio resource planning is a time-phased portfolio allocation/approval process, distinct from Engineering project resource assignments and leveling.
 5. Exact row-level topic extraction is still incomplete for all 36 rows, particularly Enterprise portal/document grants, Integration Hub/webhooks, workflow, benefits, Workbench search/notifications, Super Admin, and offline synchronization. Mark those MISSING / VERIFY until exact topic pages and relevant data/API references are inspected.
+
+
+### Mandatory one-to-one Cloud Help execution and acceptance rule
+
+The Cloud Help is the specification for every Cloud-derived capability. CUBI must conform **one-to-one, item by item**; approximate similarity, selective adoption or a reduced interpretation is not acceptable. The delivery owner must read the complete applicable HTML Help topic-by-topic, page-by-page, section-by-section and procedure-step-by-procedure-step, then create a traceability matrix with a row for every documented requirement, UI element, option and output.
+
+For each Help row record the exact canonical topic URL and heading, page/section/procedure step, prerequisites and role, expected action/result, screen or surface, menu/icon/button/tab/dialog, field/control/default/validation, every selectable value and dependency, state transition, chart/report/table output, corresponding CUBI component, status and test/evidence. Replay each documented procedure in its specified order, using the documented prerequisites, inputs, selections, confirmations and expected resulting state; include documented validation and failure paths.
+
+Run the comparison in both directions:
+- Help-to-CUBI: every documented screen, menu item, icon, form field, choice, default, rule, chart, report, table, color meaning, dimension, interaction and procedure step must map to an implemented CUBI equivalent or a justified NOT APPLICABLE / NOT PRESENT disposition. No silent omission, placeholder, simplification or unapproved deferral.
+- CUBI-to-Help: every Cloud-derived CUBI behavior must cite its exact Help source. Undocumented additions must be marked CUBI-native, not represented as Help parity.
+- Visual/output parity: compare equivalent states side by side and evidence component hierarchy, icon intent, field order, complete option inventories, chart/report/table schemas and configuration, semantic colors, sizing, spacing, density, resizing, responsive behavior, export/print and empty/error states.
+- Professional safety: cross-map each item to Professional V26 and EPPM V26 Help. Reuse and extend the existing canonical CUBI capability where overlap exists; never create duplicate menus, windows, routes, forms, controls, reports, tables, records or calculation engines, and never regress Professional-aligned Activity/Schedule behavior.
+
+**Release gate: 100% of applicable Help rows must be dispositioned, all documented procedures replayed, and all corresponding visual/functional evidence attached before claiming parity-complete.** Every unresolved item remains MISSING / VERIFY and blocks that claim. CUBI branding and localization remain CUBI-native, but may not alter the Help-defined functional structure or omit documented behavior.
