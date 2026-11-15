@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Protocol
+from typing import Protocol
 from urllib.parse import urlsplit
 
 from ..p6_eps_repository import P6EPSNode
