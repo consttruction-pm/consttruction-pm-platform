@@ -20,6 +20,43 @@
 
 Every implementation slice must record: exact P6 EPPM V26 HTML topic(s) and canonical URL or NOT PRESENT after searching TOC, relevant guide and applicable API/data dictionary; exact P6 Team Member V26 topic(s) or NOT APPLICABLE; exact Primavera Cloud HTML topic(s) and URL or NOT APPLICABLE; classification (EPPM parity, Cloud-origin extension, shared/reconciled, CUBI-native, open/source verification); behavior differences and chosen CUBI resolution; authoritative environment, record/calculation owner, menu/context placement, API and persistence boundary; dependencies, migrations, authorization, audit, concurrency/idempotency and negative-security tests; acceptance journeys and evidence tied to exact commit SHA. Unavailable/ambiguous references remain MISSING / VERIFY.
 
+
+
+## 2A. Mandatory Cloud Help UI/visual parity and Professional non-interference gate (binding)
+
+This gate applies to **every Cloud-origin or Cloud-informed user-facing capability**, including existing and newly proposed capabilities. A feature is not accepted merely because its data model, API, calculation or basic screen exists.
+
+### A. Source-first visual and interaction inventory
+
+Before implementation, inspect the exact feature-specific Primavera Cloud HTML Help topics (not only the general TOC or guide landing page). Record each canonical topic URL, Help revision/version, prerequisites, roles/privileges, workflow states and every user-visible surface. Extract a complete inventory of:
+
+- every page, workspace, panel, tab, subtab, dialog, wizard, popover, context menu, toolbar/menu item, empty/error/loading state and navigation/return path;
+- visual hierarchy, layout, spacing, alignment, density, field order, labels, icon meaning/shape, button type/state, badges, status indicators, colors and semantic color rules;
+- every form field, control type, default, required/optional rule, validation, read-only/disabled/hidden condition, dependent field, value format, unit, date/time behavior and save/cancel/reset behavior;
+- every user-selectable option, dropdown value, toggle, checkbox, radio group, multi-select, filter, grouping, sort, view/layout setting, personalization choice, permission-dependent choice and its default/impact;
+- every chart and graph type, series, axes, scales, legends, labels, units, thresholds, colors, markers, tooltips, drill-through, zoom/filter behavior and export/print form;
+- every report, table, grid and list: columns, order, widths, row height, grouping bands, totals/subtotals, sorting/filtering, pagination/virtualization, selection, row actions, export/print and empty/overflow behavior;
+- sizing and responsive behavior: page/dialog/panel dimensions, split ratios, min/max sizes, resize behavior, scroll regions, density and supported viewport breakpoints;
+- interaction semantics and state transitions, including create/edit/duplicate/open/close/submit/approve/reject/reopen/archive/delete, undo/cancel, confirmation and failure handling.
+
+If Help screenshots or diagrams are available, preserve them as source evidence and record the corresponding Help topic/page. Where Help is silent on a visual detail, mark it **NOT SPECIFIED** and verify through the official Cloud application/reference evidence; do not invent a purported Help rule.
+
+### B. CUBI implementation parity requirement
+
+Implement the complete documented functional and visual behavior for the Cloud-derived scope, not a reduced mock. Reproduce the information architecture, control inventory, form semantics, table/report/chart configuration, selectable options, state transitions and meaningful visual language faithfully. Translate labels and use CUBI's approved identity (Deep Navy / Engineering Blue / Copper Orange / Brushed Titanium; Inter + Vazirmatn); do **not** copy Oracle/Primavera names, logos, proprietary branding or external product chrome into CUBI. A CUBI skin is allowed; omission or simplification of documented controls, chart/report content, form fields, choices or workflows is not.
+
+For each slice attach: source-to-CUBI component mapping; source screenshots/Help references; CUBI screenshots at equivalent states; field/option inventory; chart/report/table schema mapping; visual-diff review; interaction/browser tests; and exact tested commit SHA. Test all supported CUBI locales and RTL/LTR where the surface is localized. Any documented item not implemented must be listed as an explicit gap and blocks claiming full parity.
+
+### C. Mandatory P6 Professional V26 and EPPM collision audit
+
+Before designing or merging a Cloud-derived feature, search the full applicable **P6 Professional V26 HTML Help** (including the supplied 815-page reference only as supplementary desktop evidence) and **P6 EPPM V26 HTML Help**, plus Team Member Help where contributor behavior is involved. Compare semantics, UI surfaces, icons, forms, fields, options, charts, reports, tables, permissions, lifecycle, calculations, keyboard/context-menu actions and data ownership. Record exact topic URLs or **NOT PRESENT after TOC + guide search** for each source.
+
+Classify every behavior as (1) existing Professional/EPPM parity, (2) genuinely Cloud-origin extension, (3) shared behavior requiring one reconciled implementation, or (4) CUBI-native. If Professional/EPPM already provides the behavior, CUBI must implement/complete it in the existing canonical Engineering/Enterprise context; do not create a second Cloud-looking menu, window, route, form, table, report, calculation engine or record store. Where Cloud has extra fields/options/workflow, extend the single existing CUBI capability with clearly scoped additions and preserve backward compatibility. Never let a Cloud extension change the established Professional V26-aligned Activity/Schedule behavior or duplicate its controls.
+
+### D. Release gate / evidence
+
+A Cloud-derived slice is **NOT ACCEPTED** until the PR contains: exact Cloud Help topic crosswalk; exact Professional V26 + EPPM V26 overlap matrix; source-to-CUBI visual inventory; screenshot comparison for all major states; complete forms/options/chart/report/table inventory; responsive sizing evidence; interaction and permission tests; duplicate-route/menu/data-owner scan; regression evidence proving existing Professional V26-aligned workflows remain unchanged; and exact-head CI plus a fresh Vercel Preview for the same SHA. Stale previews, API-only tests or a green build alone do not satisfy this gate. If a source or environment cannot be inspected, mark **MISSING / VERIFY** and keep the feature blocked from full-parity acceptance.
+
 ## 3. Master capability register
 
 Status below is a planning disposition, not a claim of full implementation. Existing foundations must be re-audited at the actual implementation head before extension.
