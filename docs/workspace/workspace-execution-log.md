@@ -125,3 +125,23 @@ reads the activity on the parent. Tested code `e820a008`; evidence in
 
 Continuation point after merge: toolbars, project windows, calendars, resources,
 Baseline and the remaining main-environment sections.
+
+### 2026-11-15 — Calendars base-calendar inheritance (CAL-003, `fd3ff6e9`)
+
+The V26 project-calendar dialog exposes "Inherit Holidays and Exceptions from
+Global Calendar". `P6CalendarAPI.update` stored whatever reference the client
+sent without validation while `create` checked the base inline. One
+`_resolve_base_calendar` helper now validates both: complete pair, stored
+master, matching kind, stored snapshot, no self-reference and no cycle back to
+the edited calendar. The General tab renders `data-calendar-base` over
+same-kind stored calendars with an explicit "Do not inherit" option; the
+payload keeps the stored pair when omitted and clears it on `null`.
+
+Evidence: `docs/workspace/evidence/calendars-v26-2026-11-15/` — 9/9 + 5/5 +
+6/6 scenarios (calendars, jalali, usage), 20 screenshots, zero
+exceptions/console errors/API 5xx at `fd3ff6e9`. Full gates: 4335 Python
+passed (204 skipped), 1166 + 15 web tests, clean typecheck/build.
+
+Continuation point after merge: the same Help topic's month-year grid,
+recurring exceptions and weekday-column bulk change; then resources, Baseline
+and the remaining main-environment sections.

@@ -4312,3 +4312,42 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - **Remaining.** The cascade branch is not offered because no audited
   activity-delete path exists; deleting a parent with children is still refused
   instead of cascading; the V26 copy-options dialogs remain absent.
+
+## Calendars base-calendar inheritance — 2026-11-15 (`fd3ff6e9`)
+
+- **Help.** [Edit a project calendar](https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_a_project_calendar.htm),
+  step 3: "To base the calendar on another calendar, select a new global
+  calendar in the Inherit Holidays and Exceptions from Global Calendar field."
+  The topic also documents the month-year grid, Nonwork/Standard, the weekday
+  column bulk change and Used By; Used By is served by
+  `p6-calendar-usage-api.v1`, the rest stays open.
+- **Audit.** `P6CalendarAPI.update` rebuilt the master from the request and
+  saved it without validating `base_calendar_id`/`base_calendar_version`.
+  `create` checked completeness, existence, kind and snapshot; `update` checked
+  none of them, so a PATCH could self-reference, create a loop the resource
+  resolver later rejects with `CALENDAR_INHERITANCE_CYCLE`, mix kinds, or point
+  at a base without a definition. The General tab rendered no control for the
+  field and `CalendarUpdateInput` carried only `name` and `calendarType`.
+- **API/persistence.** One `_resolve_base_calendar` helper now validates both
+  paths: complete pair, stored master, matching kind, stored snapshot, no
+  self-reference, and a cycle walk over stored base links. The edited calendar
+  is rejected before any write, so a failed update leaves the stored reference
+  untouched.
+- **UI.** The General tab renders `data-calendar-base` with every same-kind
+  stored calendar, an explicit "Do not inherit" option and a hint that reports
+  the current inheritance. Omitting `baseCalendarId` keeps the stored pair;
+  `null` clears it. Edit and cancel reset the draft.
+- **Acceptance.** `apps/web/e2e/calendars-v26.mjs` 9/9 with the new `05b`
+  (clear through the UI, API `null`, restore, stored pair and select back);
+  `calendars-jalali-v26.mjs` 5/5; `calendars-usage-v26.mjs` 6/6; zero
+  exceptions, console errors and API 5xx at `fd3ff6e9`. Scenario `01` now
+  asserts the shipped `general,workweek,exceptions,usage` tab order.
+- **Tests at the same code.** `tests/test_p6_calendar_api.py` adds
+  preserve/change/clear, self-reference, cycle, missing base, kind mismatch and
+  missing snapshot cases (34 passed in the file); `workspace-calendars.test.ts`
+  adds the three payload cases; full gates: 4335 Python passed (204 skipped),
+  1166 + 15 web tests, clean typecheck and build.
+- **Remaining.** No `calendar_type` filter in the selector; inherited
+  exceptions are layered by the resolver rather than copied into the Exceptions
+  tab; the month-year grid, recurring exceptions and weekday-column bulk change
+  are the next Calendars unit.

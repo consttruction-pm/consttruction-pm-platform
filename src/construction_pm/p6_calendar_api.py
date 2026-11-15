@@ -67,22 +67,55 @@ class P6CalendarAPI:
         calendar = self.calendar_repository.get(scope, calendar_id, calendar_version)
         return None if calendar is None else self._calendar_dto(calendar)
 
+    def _resolve_base_calendar(
+        self,
+        scope: BackendScope,
+        request: P6CalendarCreateRequest,
+        *,
+        target: tuple[str, str] | None = None,
+    ) -> CalendarMaster | None:
+        """Validate an inheritance reference; ``target`` enables self/cycle checks.
+
+        The V26 edit flow lets a calendar inherit holidays and exceptions from a
+        global calendar. The reference must name a stored calendar of the same
+        kind with a stored definition, and an update must not point at itself or
+        close a chain back onto the edited calendar.
+        """
+        if request.base_calendar_id is None and request.base_calendar_version is None:
+            return None
+        if not request.base_calendar_id or not request.base_calendar_version:
+            raise P6CalendarAPIError("INCOMPLETE_BASE_CALENDAR_REFERENCE")
+        base = self.calendar_repository.get(
+            scope, request.base_calendar_id, request.base_calendar_version
+        )
+        if base is None:
+            raise CalendarPersistenceError("BASE_CALENDAR_NOT_FOUND")
+        if base.kind != request.kind:
+            raise P6CalendarAPIError("BASE_CALENDAR_KIND_MISMATCH")
+        if self.snapshot_repository.get(base) is None:
+            raise CalendarPersistenceError("BASE_CALENDAR_SNAPSHOT_NOT_FOUND")
+        if target is not None:
+            if (base.calendar_id, base.calendar_version) == target:
+                raise P6CalendarAPIError("CALENDAR_BASE_SELF_REFERENCE")
+            seen = {target}
+            cursor: CalendarMaster | None = base
+            while cursor is not None:
+                key = (cursor.calendar_id, cursor.calendar_version)
+                if key in seen:
+                    raise P6CalendarAPIError("CALENDAR_BASE_CYCLE")
+                seen.add(key)
+                if cursor.base_calendar_id and cursor.base_calendar_version:
+                    cursor = self.calendar_repository.get(
+                        scope, cursor.base_calendar_id, cursor.base_calendar_version
+                    )
+                else:
+                    cursor = None
+        return base
+
     def create(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
-        base: CalendarMaster | None = None
-        if request.base_calendar_id is not None or request.base_calendar_version is not None:
-            if not request.base_calendar_id or not request.base_calendar_version:
-                raise P6CalendarAPIError("INCOMPLETE_BASE_CALENDAR_REFERENCE")
-            base = self.calendar_repository.get(
-                scope, request.base_calendar_id, request.base_calendar_version
-            )
-            if base is None:
-                raise CalendarPersistenceError("BASE_CALENDAR_NOT_FOUND")
-            if base.kind != request.kind:
-                raise P6CalendarAPIError("BASE_CALENDAR_KIND_MISMATCH")
-            if self.snapshot_repository.get(base) is None:
-                raise CalendarPersistenceError("BASE_CALENDAR_SNAPSHOT_NOT_FOUND")
+        base = self._resolve_base_calendar(scope, request)
         calendar = CalendarMaster(
             scope=scope,
             calendar_id=request.calendar_id,
@@ -125,6 +158,11 @@ class P6CalendarAPI:
                 # The date system changes how typed dates are interpreted, so a
                 # stored definition cannot silently switch it during a rename.
                 raise P6CalendarAPIError("CALENDAR_SYSTEM_IMMUTABLE")
+        self._resolve_base_calendar(
+            scope,
+            request,
+            target=(request.calendar_id, request.calendar_version),
+        )
         calendar = CalendarMaster(
             scope=scope,
             calendar_id=request.calendar_id,
