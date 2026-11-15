@@ -38,4 +38,26 @@ def _unavailable(start_response, message: str = "CUBI Enterprise is not configur
         [
             ("Content-Type", "text/html; charset=utf-8"),
             ("Content-Length", str(len(body))),
-            ("Cache-Control", "no-store¶»§q«^
+            ("Cache-Control", "no-store"),
+            ("X-Content-Type-Options", "nosniff"),
+            ("X-Frame-Options", "DENY"),
+            ("Referrer-Policy", "no-referrer"),
+        ],
+    )
+    return [body]
+
+
+def app(environ, start_response):
+    scoped = dict(environ)
+    scoped["PATH_INFO"] = "/enterprise"
+    if _preview_selected():
+        return _unavailable(start_response, "CUBI Enterprise is not available in this preview.")
+    if get_runtime is None:
+        print(f"cubi: enterprise runtime import failed ({_IMPORT_FAILURE})", file=sys.stderr)
+        return _unavailable(start_response)
+    try:
+        runtime = get_runtime()
+    except Exception as error:  # noqa: BLE001 - configuration is optional input
+        print(f"cubi: enterprise runtime configuration failed ({type(error).__name__})", file=sys.stderr)
+        return _unavailable(start_response)
+    return runtime(scoped, start_response)
