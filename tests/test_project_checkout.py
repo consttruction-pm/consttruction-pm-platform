@@ -318,6 +318,18 @@ def test_wbs_operations_use_wbs_specific_profile_privileges():
     assert created["wbs"]["wbs_id"] == "W-1"
     assert reader.get(scope(), "W-1", auth_context=reader_context)["wbs"]["wbs_id"] == "W-1"
 
+    editor_policy = RoleBasedAuthorizationPolicy({
+        "wbs_editor": frozenset({Permission.WBS_EDIT}),
+    })
+    editor = P6WBSMasterAPI(repository, editor_policy)
+    editor_context = AuthorizationContext(
+        TENANT, PROJECT, OTHER, frozenset({"wbs_editor"})
+    )
+    revised = editor.update(
+        wbs(revision=1), expected_revision=1, auth_context=editor_context
+    )
+    assert revised["wbs"]["record_revision"] == 2
+
     with pytest.raises(PermissionError, match="wbs.delete"):
         reader.delete(
             scope(), "W-1", expected_revision=1, auth_context=reader_context
