@@ -141,3 +141,29 @@ For each phase update, record:
 - Tracker was fetched back from GitHub after creation; continuity-ledger entry was fetched back and its appended issue/status/next-action text was confirmed.
 - PR #1988 remains Draft/open/unmerged. Issue #1989 remains open. No merge, deployment or source implementation occurred.
 - **Next required action:** execute Phase 1 in the repository's canonical GitHub/Codex environment after resolving the missing `AGENTS.md` and current schedule PR ownership; do not treat the Vercel check as green.
+
+
+## 12. Normative Help hierarchy — owner clarification (2026-11-15; supersedes any conflicting wording above)
+
+This rule applies to **all existing and newly added product capabilities**, not only Schedule Scenarios:
+
+1. **Primary and universal parity authority is P6 EPPM V26 HTML Help (the EPPM Help HTML / HDML source designated by the product owner).** Every feature, workflow, permission, field, state, calculation, integration and UI behavior that exists in the EPPM Help must be inventoried and traced. Do not substitute P6 Professional Help, PDFs, marketing pages, or assumptions for this primary source.
+2. **For a capability/topic newly introduced in Primavera Cloud and not present in P6 EPPM Help, use the corresponding official Primavera Cloud HTML Help as the source specification.** Copy the complete relevant functional behavior and workflow conceptually into CUBI's capability inventory and acceptance criteria, while implementing it in CUBI's architecture and ownership boundaries. “Copy” means faithful functional coverage, not copying Oracle source text, branding, proprietary assets or implementation code.
+3. **Where a Cloud capability has a corresponding P6 EPPM capability, reconcile and integrate the two logically.** EPPM behavior remains the baseline for the existing EPPM capability; Cloud additions may extend it where useful. Preserve semantic distinctions, permissions, lifecycle, calculations and object ownership. Do not duplicate menus, entities, APIs, calculations or workflows, and do not overwrite a proven EPPM behavior with a conflicting Cloud convention.
+4. **Where no EPPM counterpart exists, retain the Cloud-origin capability as a clearly identified Cloud extension**, with its own source trace, scope, owner, dependencies, permissions, acceptance tests and explicit integration points. Do not pretend it is an EPPM feature.
+5. **Every feature must have a dual-source disposition record:** (a) exact EPPM V26 HTML topic(s), including “not present” when absent; (b) exact Cloud HTML topic(s), including “not applicable” when absent; (c) classification: EPPM baseline / Cloud-only extension / reconciled extension / not applicable; (d) behavior differences and the resolution; (e) CUBI owner/menu/API/data boundary; and (f) test evidence and unresolved gaps.
+6. **Conflict-resolution order:** preserve mandatory EPPM parity for the existing EPPM capability; adopt Cloud-origin functionality for genuinely new Cloud capabilities; integrate shared concepts only after an explicit semantic and data-ownership review. If the sources conflict and the correct behavior cannot be established, mark **OPEN — OWNER DECISION REQUIRED**; do not silently choose one.
+7. **No feature is “complete” or “fully Primavera-aligned” until both source inventories have been checked and the disposition is recorded.** Missing access to a Help page is a blocker marked **MISSING / VERIFY**, not an excuse to infer behavior.
+
+### Correction to the Scenario / Reflection references above
+
+The P6 Professional V26 HTML links listed in §3.3 are **supplementary only**, useful for cross-checking desktop-client concepts. They are not the universal primary authority and must not be used to establish EPPM parity. For Scenario/Reflection specifically:
+- First inspect the exact P6 EPPM V26 HTML Help topic(s) and record whether EPPM supports the behavior in question.
+- Then inspect Primavera Cloud HTML Help for the corresponding scenario/what-if/reflection behavior.
+- Where both products support the concept, reconcile object model, lifecycle, permissions, calculations, comparison and promotion semantics without duplication.
+- Where the Cloud Help documents a capability absent from EPPM Help, implement it as a Cloud-origin extension under Engineering ownership if it is project-schedule execution behavior.
+- The current issue's V26 Reflection topic links must therefore be supplemented by the exact EPPM Help HTML and Cloud Help topic crosswalk before Phase 1 contract approval.
+
+### Required implementation gate added to every future phase
+
+No design approval, code merge or acceptance sign-off until the phase artifact includes the dual-source disposition matrix above. This requirement applies across Engineering, Enterprise and shared Workbench surfaces.
