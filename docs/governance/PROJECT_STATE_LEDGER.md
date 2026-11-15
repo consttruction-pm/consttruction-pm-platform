@@ -1259,3 +1259,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Branch comparison against main: 26 commits ahead, 0 behind; eight changed paths (seven architecture/engineering documents plus this ledger). The branch remains documentation-only. No code, schema, runtime, CI, browser or product behavior was changed or tested; no implementation credit is claimed.
 - Open evidence gaps: row-level exact EPPM V26 / Team Member / Cloud topic crosswalk is incomplete; root/nested `AGENTS.md` and active-writer ownership must be resolved from canonical checkout; Jalal 5 weights remain unchanged; no exact-head code verification.
 - Next: finish exact Help topic crosswalk and current issue/PR/path ownership across the full 36-row register, then issue a non-overlapping Engineering P1 implementation queue to Qoder. Enterprise P2 planning remains dependent on stable Engineering contracts. Issue #1989 is one child slice, not the program scope.
+
+
+## 2026-11-15 — Full-program Help crosswalk tranche 2
+
+- Expanded the full-program feasibility blueprint with exact official HTML topic evidence for EPPM Activities, Activity Views, Filters, Grouping, Resource Leveling, User Access, Dashboards and REST Activity; separate P6 Team Member Web V26 TOC and Timesheets; and Primavera Cloud Risk Analysis, Risk Iteration Analysis and Portfolio Resource Planning.
+- Semantic consequences recorded: Team Member assigned activity updates and timesheets remain distinct; Monte Carlo requires a fresh authoritative schedule run; Enterprise portfolio resource planning remains distinct from Engineering project assignment/leveling.
+- Blueprint latest verified SHA at this checkpoint: `f3c09dfd9f328aeb533758070035a37d1bbf9bd0`. This is source research/feasibility evidence only, not runtime or implementation evidence.
+- Still open: exact topic-level mapping for every row in the 36-row register, especially integrations/webhooks, portal/document grants, benefits, workflow details, Workbench search/notifications, Super Admin and offline synchronization. These remain MISSING / VERIFY pending direct topic extraction.
