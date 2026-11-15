@@ -239,10 +239,12 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
             "code": "1",
             "name": "Project Root",
             "sequence_number": 0,
+            "responsible_obs_id": "OBS-OPERATIONS",
         },
     )
     assert wbs_status == "201 Created"
     assert wbs_root["wbs"]["wbs_id"] == "W-ROOT"
+    assert wbs_root["wbs"]["responsible_obs_id"] == "OBS-OPERATIONS"
     path = "/api/projects/p1/p6/activities"
     actual_start = "2026-10-01T09:15:30.123456+00:00"
     create_payload = {
