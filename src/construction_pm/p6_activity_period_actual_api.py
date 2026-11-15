@@ -74,7 +74,7 @@ class P6ActivityPeriodActualAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(actual.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_STORE_PERIOD_PERFORMANCE)
         return _dto(self.service.save(actual))
 
     def get(
