@@ -31,6 +31,7 @@ from construction_pm.postgres_project_lifecycle import (
 from construction_pm.security_profiles import (
     PostgresSecurityProfileAuthorizationPolicy,
     PostgresSecurityProfileRepository,
+    bootstrap_first_admin_superuser,
     SecurityProfileError,
     initialize_security_profile_schema,
 )
@@ -447,5 +448,74 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         target_context = AuthorizationContext(tenant, project_id, target_id, frozenset({"planner"}))
         assert policy.is_allowed(target_context, Permission.PROJECT_SCHEDULE)
         assert policy.is_allowed(target_context, Permission.PROJECT_WRITE)
+        connection.rollback()
+
+def test_operator_bootstrap_and_recovery_preserve_one_active_admin_superuser():
+    suffix = uuid.uuid4().hex
+    tenant = f"p6-bootstrap-{suffix}"
+    first_id = f"p6-bootstrap-first-{suffix}"
+    second_id = f"p6-bootstrap-second-{suffix}"
+    now = datetime.now(timezone.utc)
+    secret = "one-time-installation-bootstrap-secret-0123456789"
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(first_id, tenant, "project_admin"))
+        identity.upsert_user(_identity_user(second_id, tenant, "project_admin"))
+        connection.commit()
+
+    with _connect() as connection:
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BOOTSTRAP_TOKEN_INVALID"):
+            bootstrap_first_admin_superuser(
+                connection, tenant_id=tenant, user_id=first_id,
+                supplied_token="wrong-token", configured_token=secret, occurred_at=now,
+            )
+        profile = bootstrap_first_admin_superuser(
+            connection, tenant_id=tenant, user_id=first_id,
+            supplied_token=secret, configured_token=secret, occurred_at=now,
+        )
+        assert profile.profile_id == "p6-admin-superuser"
+        connection.commit()
+
+    with _connect() as connection:
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BOOTSTRAP_ALREADY_INITIALIZED"):
+            bootstrap_first_admin_superuser(
+                connection, tenant_id=tenant, user_id=second_id,
+                supplied_token=secret, configured_token=secret, occurred_at=now,
+            )
+        connection.rollback()
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.upsert_user(IdentityUser(
+            user_id=first_id, tenant_id=tenant, email=f"{first_id}@example.invalid",
+            display_name=first_id, roles=frozenset({"project_admin"}),
+            password_hash=hash_password("correct-horse-battery-staple"), active=False,
+        ))
+        access_repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        access_repository.initialize()
+        with pytest.raises(Exception, match="LAST_P6_ADMIN_SUPERUSER_CANNOT_BE_DEACTIVATED"):
+            access_repository.set_account_active(
+                tenant, first_id, second_id, False, now,
+            )
+        connection.rollback()
+
+    with _connect() as connection:
+        profile = bootstrap_first_admin_superuser(
+            connection, tenant_id=tenant, user_id=second_id,
+            supplied_token=secret, configured_token=secret, occurred_at=now,
+        )
+        assert profile.profile_id == "p6-admin-superuser"
+        connection.commit()
+
+    with _connect() as connection:
+        access_repository = PostgresEnterpriseOrganizationAccessRepository(connection)
+        access_repository.initialize()
+        result = access_repository.set_account_active(
+            tenant, first_id, second_id, False, now,
+        )
+        assert result["changed"] is False
         connection.rollback()
 
