@@ -1,6 +1,6 @@
 # CUBI Enterprise Organization & Access — Team API V1
 
-**Status:** Implemented on an isolated branch; exact-head CI and live PostgreSQL verification pending.  
+**Status:** Implemented on PR #1974 branch; expanded CI and live PostgreSQL verification are queued/pending. Do not merge until the exact final code head is green.  
 **Reference:** Oracle P6 EPPM Help V26, Administration / user security and team-related workflows.  
 **Ownership:** Enterprise; tenant and authenticated identity remain owned by the existing identity/session layer.
 
