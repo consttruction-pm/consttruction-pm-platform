@@ -3088,3 +3088,24 @@ test("Activity create form offers the stored default cost account from the real 
   listeners.get("submit")?.({ target: form, preventDefault: () => {} } as unknown as Event);
   assert.equal(captured.value?.costAccountId, "CA-CIVIL");
 });
+
+
+test("WBS editor exposes the responsible OBS field in both locales", () => {
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+  const state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [{
+      id: "WBS-OPS", parentKind: "project", parentWbsId: null,
+      localCode: "1", name: "Operations", sequenceNumber: 0,
+      recordRevision: 2, responsibleObsId: "OBS-OPERATIONS",
+    }],
+  );
+  renderMainWorkspace(container as unknown as HTMLElement, state, {});
+  assert.match(container.innerHTML, /name="responsible_obs_id"/);
+  assert.match(container.innerHTML, /value="OBS-OPERATIONS"/);
+  assert.match(container.innerHTML, /Responsible OBS/);
+});
