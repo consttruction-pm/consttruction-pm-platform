@@ -132,13 +132,13 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 if method == "PUT":
                     payload = self._body(environ, "cubi-p6-security-profile-assignment.v1")
                     user_id = self._text(payload, "user_id")
-                    project_id = payload.get("project_id", "")
+                    obs_id = payload.get("obs_id", "")
                     expected = payload.get("expected_revision")
-                    if (not isinstance(project_id, str)
+                    if (not isinstance(obs_id, str)
                             or (expected is not None and (isinstance(expected, bool) or not isinstance(expected, int)))):
                         raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REQUEST_INVALID")
                     revision = self._service.assign_security_profile(
-                        session_id, profile_id, user_id=user_id, project_id=project_id,
+                        session_id, profile_id, user_id=user_id, obs_id=obs_id,
                         expected_revision=expected,
                     )
                     return 200, {"contract_version": "cubi-p6-security-profile-assignment.v1",
@@ -149,16 +149,16 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 and parts[4] == "assignments"):
             if method == "DELETE":
                 query = parse_qs(str(environ.get("QUERY_STRING", "") or ""))
-                project_values = query.get("project_id", [""])
+                obs_values = query.get("obs_id", [""])
                 revision_values = query.get("expected_revision", [])
-                if len(project_values) != 1 or len(revision_values) != 1:
+                if len(obs_values) != 1 or len(revision_values) != 1:
                     raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED")
                 try:
                     expected = int(revision_values[0])
                 except ValueError as exc:
                     raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED") from exc
                 self._service.unassign_security_profile(
-                    session_id, parts[3], user_id=parts[5], project_id=project_values[0],
+                    session_id, parts[3], user_id=parts[5], obs_id=obs_values[0],
                     expected_revision=expected,
                 )
                 return 200, {"contract_version": "cubi-p6-security-profile-assignment.v1",
