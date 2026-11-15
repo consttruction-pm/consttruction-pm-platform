@@ -178,3 +178,13 @@ No design approval, code merge or acceptance sign-off until the phase artifact i
 - Engineering owns project schedule scenarios, scenario runs, comparisons and guarded promotion. Enterprise P2 owns portfolio-level capacity/resource planning and may consume authorized Engineering summaries only. Workbench owns no scenario records or calculations.
 - Phase 1 contract is DRAFTED / IN REVIEW, not approved or complete. No source code or runtime was changed. The missing root `AGENTS.md`, exact active-writer/path ownership, complete topic-level review and independent contract review remain blockers before Qoder source edits.
 - Jalal 5 weights remain unchanged; no earned progress is claimed.
+
+
+## 14. Qoder implementation handoff packet published — 2026-11-15
+
+- Executable packet: `docs/engineering/QODER_HANDOFF_ISSUE_1989_SCHEDULE_SCENARIOS_PHASE1_EXECUTION_PACKET.md`.
+- Packet commit: `0852bb8bf8ce439120276698546b45290f0772a4`.
+- Issue #1989 received a direct handoff comment with the immediate Qoder execution request.
+- Scope: resolve actual-checkout instructions and path ownership, finish exact source-topic mapping, then deliver isolated scenario create/read/edit/run using the authoritative Shared Scheduling Core, immutable source/run provenance, auth, revision/idempotency, SQLite/PostgreSQL tests, and only then wire the existing Scenario Lab. Comparison follows on pinned snapshots; promotion remains a separate release gate.
+- This is an executable handoff artifact, not evidence that Qoder has started or that code is implemented. The GitHub coordination connector cannot launch the user's Qoder desktop agent or execute the canonical repository test/browser environment. Backend implementation, tests, runtime evidence and merge remain pending Qoder execution.
+- PR #1988 remains Draft/open/unmerged; no merge/deploy authorized. Jalal 5 weights unchanged; no earned progress claimed.
