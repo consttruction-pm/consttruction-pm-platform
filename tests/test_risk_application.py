@@ -8,6 +8,8 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     default_project_policy,
+    Permission,
+    RoleBasedAuthorizationPolicy,
 )
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.risk_application import (
@@ -251,3 +253,38 @@ def test_error_dto_maps_failures_to_stable_categories() -> None:
     assert error.category.value == "authorization"
     error = RiskApplicationService.error_dto(ValueError("INVALID_RISK_TITLE"))
     assert error.category.value == "validation"
+
+
+def test_risk_register_uses_independent_granular_privileges():
+    connection = sqlite3.connect(":memory:")
+    store = SQLiteRiskStore(connection)
+    store.initialize()
+    policy = RoleBasedAuthorizationPolicy({
+        "risk_creator": frozenset({Permission.RISK_ADD_EDIT}),
+        "risk_reader": frozenset({Permission.RISK_VIEW}),
+        "risk_editor": frozenset({Permission.RISK_EDIT}),
+        "risk_deleter": frozenset({Permission.RISK_DELETE}),
+    })
+    service = RiskApplicationService(store, policy, SQLiteTransactionManager(connection))
+    def actor(role: str) -> AuthorizationContext:
+        return context(role, user=role)
+
+    created = service.create_risk(
+        risk(), idempotency_key="granular-risk", context=actor("risk_creator"),
+        actor_id="risk_creator", occurred_at=NOW,
+    )
+    assert created.revision == 1
+    with pytest.raises(RiskAuthorizationError, match="RISK_PERMISSION_DENIED"):
+        service.read_risk(tenant_id="T-1", project_id="P-1", risk_id="RK-1", context=actor("risk_creator"))
+    assert service.read_risk(tenant_id="T-1", project_id="P-1", risk_id="RK-1", context=actor("risk_reader")).revision == 1
+
+    updated = service.update_risk(
+        risk(status="mitigating"), expected_revision=1, context=actor("risk_editor"),
+        actor_id="risk_editor", occurred_at=NOW,
+    )
+    assert updated.revision == 2
+    with pytest.raises(RiskAuthorizationError, match="RISK_PERMISSION_DENIED"):
+        service.delete_risk(tenant_id="T-1", project_id="P-1", risk_id="RK-1",
+            expected_revision=2, context=actor("risk_editor"), actor_id="risk_editor", occurred_at=NOW)
+    service.delete_risk(tenant_id="T-1", project_id="P-1", risk_id="RK-1",
+        expected_revision=2, context=actor("risk_deleter"), actor_id="risk_deleter", occurred_at=NOW)
