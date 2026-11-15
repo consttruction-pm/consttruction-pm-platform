@@ -596,3 +596,30 @@ def test_enterprise_task_api_requires_an_explicit_environment_role(runtime):
     )
     assert status == 403
     assert json.loads(body)["code"] == "ENTERPRISE_ACCESS_DENIED"
+
+
+
+def test_account_deactivation_revokes_existing_session_immediately(runtime):
+    user = runtime.test_ids["users"]["planner"]
+    cookie, _ = login(runtime, "planner")
+
+    connection = runtime.pool.acquire()
+    try:
+        PostgresIdentityStore(connection).upsert_user(
+            IdentityUser(
+                user_id=user.user_id,
+                tenant_id=user.tenant_id,
+                email=user.email,
+                display_name=user.display_name,
+                roles=user.roles,
+                password_hash=user.password_hash,
+                active=False,
+            )
+        )
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+
+    status, _, body = call(runtime, "GET", "/api/session", cookie=cookie)
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
