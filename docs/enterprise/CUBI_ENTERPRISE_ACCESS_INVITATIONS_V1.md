@@ -64,3 +64,17 @@ Oracle Help V26 reference: [Users Page](https://docs.oracle.com/cd/G48897_01/p6h
 - POST /api/enterprise/invitations/{invitation_id}/decline-from-inbox — decline after the same target-account verification.
 
 The inbox actions do not require a token in the browser because the invitation ID is high-entropy and the server also checks tenant, pending state, expiry and exact authenticated target user. External token-based accept/decline routes remain available for secure invitation links. Expired invitations are transitioned and audited when the recipient attempts acceptance; the inbox exposes expires_at so the UI can label them before action.
+
+
+## Organization & Access browser surface
+
+The authenticated browser surface is mounted at /enterprise/organization and linked from the Enterprise Task Center. It includes:
+- Current user's CUBI ID and copy action.
+- Team creation for enterprise administrators with the active Pro entitlement.
+- Team selection and manager-scoped member listing.
+- CUBI ID lookup and role-scoped team invitation.
+- Received invitation inbox with authenticated accept/decline actions.
+- Owner-only transfer control to an active team member and manager removal control.
+- English/Persian copy, RTL direction, responsive layout and CSRF-protected mutation requests.
+
+The UI intentionally does not display raw invitation tokens or email addresses. It uses the authenticated CUBI identity and the invitation inbox rather than asking the recipient to copy a token manually.
