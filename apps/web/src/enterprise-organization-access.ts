@@ -264,7 +264,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         });
         notice = t.transferred; await load(true);
       });
-    }));
+    });
     container.querySelector<HTMLFormElement>("#cubi-oa-add")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget as HTMLFormElement);
