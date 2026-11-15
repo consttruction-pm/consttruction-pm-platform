@@ -872,14 +872,26 @@ class ProjectLifecycleService:
             tenant_id=session.tenant_id, project_id="__eps_catalog__",
             user_id=session.user_id, roles=session.roles,
         )
-        if node.parent_eps_id:
-            checker = getattr(self._policy, "is_allowed_for_eps", None)
-            allowed = callable(checker) and checker(
-                context, Permission.P6_EPS_ADMIN, node.parent_eps_id
+        admin_check = getattr(self._policy, "is_admin_superuser", lambda _context: False)
+        checker = getattr(self._policy, "is_allowed_for_eps", None)
+        existing = next(
+            (candidate for candidate in self._eps_nodes.list_nodes(session.tenant_id)
+             if candidate.eps_id == node.eps_id),
+            None,
+        )
+        if existing is None:
+            allowed = (
+                bool(admin_check(context)) if node.parent_eps_id is None
+                else callable(checker) and checker(context, Permission.P6_EPS_ADMIN, node.parent_eps_id)
             )
+        elif existing.parent_eps_id is None or node.parent_eps_id is None:
+            # Root EPS creation/reparenting is an installation-level action.
+            allowed = bool(admin_check(context))
         else:
             allowed = bool(
-                getattr(self._policy, "is_admin_superuser", lambda _context: False)(context)
+                callable(checker)
+                and checker(context, Permission.P6_EPS_ADMIN, existing.parent_eps_id)
+                and checker(context, Permission.P6_EPS_ADMIN, node.parent_eps_id)
             )
         if not allowed:
             raise AuthorizationError("authorization denied for permission=p6.eps.admin")
