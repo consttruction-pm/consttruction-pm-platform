@@ -182,6 +182,11 @@ def runtime() -> ProductionRuntime:
             "VALUES (%s,%s,'add_edit_delete_user_defined_fields') ON CONFLICT DO NOTHING",
             (tenant_a, f"global-planner-{suffix}"),
         )
+        connection.execute(
+            "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+            "VALUES (%s,%s,'add_projects') ON CONFLICT DO NOTHING",
+            (tenant_a, f"project-planner-{suffix}"),
+        )
         connection.commit()
     finally:
         instance.pool.release(connection, healthy=True)
@@ -449,6 +454,28 @@ def test_planner_can_write_project_but_not_administer(runtime):
         body={"project_id": f"planner-created-{uuid.uuid4().hex[:6]}", "name": "Nope"},
     )
     assert status == 403
+
+
+def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
+    ids = runtime.test_ids
+    cookie, csrf = login(runtime, "planner")
+    project_id = f"planner-created-{uuid.uuid4().hex[:8]}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        cookie=cookie,
+        csrf=csrf,
+        body={"project_id": project_id, "name": "Planner EPS Project"},
+    )
+    assert status == 201, body
+    with runtime.connection.cursor() as cursor:
+        row = cursor.execute(
+            "SELECT eps_id FROM p6_project_eps_assignment "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (ids["tenant_a"],project_id),
+        ).fetchone()
+    assert row is not None and row[0] == ids["eps_a"]
 
 
 def test_admin_can_create_a_project(runtime):
