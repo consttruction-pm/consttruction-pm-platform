@@ -167,3 +167,14 @@ The P6 Professional V26 HTML links listed in §3.3 are **supplementary only**, u
 ### Required implementation gate added to every future phase
 
 No design approval, code merge or acceptance sign-off until the phase artifact includes the dual-source disposition matrix above. This requirement applies across Engineering, Enterprise and shared Workbench surfaces.
+
+
+## 13. Phase 1 contract draft and owner clarification — 2026-11-15
+
+- Product-owner decisions for the universal EPPM-first / Cloud-origin extension source hierarchy and Engineering P1 → Enterprise P2 delivery sequence are recorded in PR #1988 and the dedicated Phase 1 contract.
+- Phase 1 contract: `docs/architecture/CUBI_ENGINEERING_P1_SCHEDULE_SCENARIOS_PHASE1_CONTRACT_V1.md`.
+- Important source correction: P6 EPPM V26 HTML TOC is `https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm`; its inspected TOC includes Portfolio Views > About What-if Analysis but has no Reflection or Schedule Comparison topic. Do not conflate portfolio what-if with project schedule scenarios. P6 Professional V26 Reflection Help is supplementary only.
+- Primavera Cloud HTML topics establish the project schedule scenario workflow: Schedule Scenarios Overview, Add/Open/Manage Scenario, Set Scenario as Current Schedule, Schedule Comparison, Compare Two Versions, Merge Overview and Schedule permissions. See the Phase 1 contract for exact URLs and dispositions.
+- Engineering owns project schedule scenarios, scenario runs, comparisons and guarded promotion. Enterprise P2 owns portfolio-level capacity/resource planning and may consume authorized Engineering summaries only. Workbench owns no scenario records or calculations.
+- Phase 1 contract is DRAFTED / IN REVIEW, not approved or complete. No source code or runtime was changed. The missing root `AGENTS.md`, exact active-writer/path ownership, complete topic-level review and independent contract review remain blockers before Qoder source edits.
+- Jalal 5 weights remain unchanged; no earned progress is claimed.
