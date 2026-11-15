@@ -217,9 +217,9 @@ class ThresholdApplicationService:
         occurred_at: datetime,
     ) -> MonitoringResult:
         """Read the authoritative metric, evaluate and append one immutable run."""
-        self._authorize_write(tenant_id, project_id, context, actor_id, Permission.PROJECT_WRITE)
+        self._authorize_write(tenant_id, project_id, context, actor_id, Permission.THRESHOLD_MONITOR)
         stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
-        self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.PROJECT_WRITE)
+        self._require_obs_access(tenant_id, project_id, stored.threshold.responsible_obs_id, context, Permission.THRESHOLD_MONITOR)
         with self.transaction_manager.transaction():
             threshold = stored.threshold
             if threshold.status != "active":
