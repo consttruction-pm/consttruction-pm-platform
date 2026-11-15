@@ -1,18 +1,18 @@
 {
   "contract": "cubi-calendars-usage-v26.v1",
-  "baseUrl": "http://127.0.0.1:4514",
-  "gitHead": "fd3ff6e990c0b459d8469fa6f60bba100df1f946",
-  "testedCodeSha": "fd3ff6e9",
+  "baseUrl": "http://127.0.0.1:4522",
+  "gitHead": "244d7aed15ad9d5ab6458802598cadff3977b3af",
+  "testedCodeSha": "244d7aed",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-15T04:00:35.623Z",
+  "capturedAt": "2026-11-15T04:36:12.738Z",
   "calendarId": "CUBI-RPS-CAL",
-  "assignmentId": "RPS-E2E-CAL-MWHB42F1",
+  "assignmentId": "RPS-E2E-CAL-MWHCDVFQ",
   "scenarios": [
     {
       "id": "01",
       "name": "فهرست استفاده‌کنندگان تقویم، منبع ذخیره‌شده را نشان می‌دهد",
       "status": "pass",
-      "at": "2026-11-15T04:00:39.971Z",
+      "at": "2026-11-15T04:36:17.099Z",
       "total": 1,
       "counts": {
         "resource_calendar_assignment": 1
@@ -22,15 +22,15 @@
       "id": "02",
       "name": "تخصیص منبع با مرجع تقویم ذخیره می‌شود",
       "status": "pass",
-      "at": "2026-11-15T04:00:41.552Z",
-      "assignmentId": "RPS-E2E-CAL-MWHB42F1",
+      "at": "2026-11-15T04:36:18.665Z",
+      "assignmentId": "RPS-E2E-CAL-MWHCDVFQ",
       "calendarId": "CUBI-RPS-CAL"
     },
     {
       "id": "03",
       "name": "استفاده‌کنندگان تقویم پس از تخصیص دو مرجع را می‌شمارند",
       "status": "pass",
-      "at": "2026-11-15T04:00:42.698Z",
+      "at": "2026-11-15T04:36:19.844Z",
       "total": 2,
       "kinds": [
         "resource_assignment_calendar",
@@ -41,7 +41,7 @@
       "id": "04",
       "name": "تقویم ناشناخته و نسخهٔ ناشناخته ۴۰۴ می‌دهند",
       "status": "pass",
-      "at": "2026-11-15T04:00:42.705Z",
+      "at": "2026-11-15T04:36:19.851Z",
       "missing": 404,
       "staleVersion": 404
     },
@@ -49,7 +49,7 @@
       "id": "05",
       "name": "نقش Viewer فهرست استفاده را می‌خواند اما تخصیص نمی‌سازد",
       "status": "pass",
-      "at": "2026-11-15T04:00:47.444Z",
+      "at": "2026-11-15T04:36:24.575Z",
       "readTotal": "2",
       "createStatus": 403
     },
@@ -57,7 +57,7 @@
       "id": "06",
       "name": "زبانهٔ استفاده‌کنندگان در 1280×720 فارسی راست‌به‌چپ بدون بریدگی رندر می‌شود",
       "status": "pass",
-      "at": "2026-11-15T04:00:52.303Z",
+      "at": "2026-11-15T04:36:29.412Z",
       "innerWidth": 1280,
       "direction": "rtl",
       "heading": "جزئیات تقویم",
@@ -86,5 +86,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-15T04:00:52.303Z"
+  "finishedAt": "2026-11-15T04:36:29.412Z"
 }

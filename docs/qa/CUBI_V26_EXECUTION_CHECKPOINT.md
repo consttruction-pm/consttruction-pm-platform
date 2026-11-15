@@ -4351,3 +4351,32 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   exceptions are layered by the resolver rather than copied into the Exceptions
   tab; the month-year grid, recurring exceptions and weekday-column bulk change
   are the next Calendars unit.
+
+## Calendars month grid — 2026-11-15 (`244d7aed`)
+
+- **Help.** [Edit a project calendar](https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_a_project_calendar.htm)
+  steps 4, 5, 7 and the tip: month-year arrows, click a date then Nonwork,
+  click an exception then Standard, and click a weekday's column label to
+  apply the change to every instance in the displayed month.
+- **Gap.** The window had a workweek table and an exceptions list only. A
+  planner could not see the month, could not make or reset a single date, and
+  had no weekday bulk action; a Jalali calendar never rendered a month.
+- **Change.** `calendarWeekday`, `calendarMonthAnchor`, `shiftCalendarMonth`
+  and `buildCalendarMonth` in `apps/web/src/workspace-calendars.ts` are pure
+  helpers over the stored snapshot and exceptions. A new Calendar Month tab
+  renders the localized month-year title (Intl `persian`/`gregory`), prev/next
+  navigation, a Monday-first grid with `data-calendar-month-day` and
+  `data-calendar-month-state`, a disabled-until-selected Nonwork/Standard pair,
+  and weekday heading buttons. Nonwork saves a nonwork exception; Standard
+  deletes a stored exception; the heading applies the last chosen action to
+  every visible instance; every path re-reads stored exceptions.
+- **Acceptance.** `06b` in `calendars-v26.mjs` covers single Nonwork, Standard,
+  bulk Tuesdays both ways and month navigation; `04b` in the Jalali suite
+  covers Aban 1405 over ISO dates. 10/10 + 6/6 + 6/6 scenarios, 24 screenshots,
+  zero exceptions/console errors/API 5xx at `244d7aed`.
+- **Tests at the same code.** Grid shape and offsets for November 2026 and
+  Aban 1405, anchor and shift across year boundaries, plus the CSS parity test.
+  `npm test` = 1168 + 15 passed; typecheck and build clean.
+- **Remaining.** One month only, Monday week start in both locales, one write
+  per date with no bulk endpoint, hours are reset but not edited in the grid,
+  and recurring exceptions plus the Time Periods dialog are still absent.
