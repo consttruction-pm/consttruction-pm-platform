@@ -335,7 +335,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <button class="cubi-oa-button" type="submit" ${busy ? "disabled" : ""}>${t.saveProfileDetails}</button>
             </form>`}
             <div class="cubi-oa-actions">
-              ${selectedProfile?.scope === "project" && !selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile?.is_default === true}" ${busy ? "disabled" : ""}>${selectedProfile?.is_default ? t.profileClearDefault : t.profileSetDefault}</button>` : ""}
+              ${selectedProfile?.scope === "project" && !selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile?.is_default === true}" ${busy || selectedProfile?.active !== true ? "disabled" : ""}>${selectedProfile?.is_default ? t.profileClearDefault : t.profileSetDefault}</button>` : ""}
               ${!selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-duplicate="true" ${busy ? "disabled" : ""}>${t.profileDuplicate}</button>
               <button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-delete="true" ${busy || profileAssignments.length > 0 ? "disabled" : ""}>${t.profileDelete}</button>` : ""}
               <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy || selectedProfileIsBuiltIn ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>

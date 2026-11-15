@@ -617,6 +617,29 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
                 expected_revision=1, actor_user_id=admin_id, occurred_at=now,
             )
 
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.update_details(
+                tenant_id=tenant, profile_id="p6-admin-superuser",
+                name="Forged Admin", description="not editable", expected_revision=1,
+                actor_user_id=admin_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.set_default(
+                tenant_id=tenant, profile_id="p6-admin-superuser", is_default=True,
+                expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.duplicate_profile(
+                tenant_id=tenant, source_profile_id="p6-admin-superuser",
+                profile_id="admin-superuser-copy", name="Forged Admin Copy",
+                actor_user_id=admin_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
+            profiles.delete_profile(
+                tenant_id=tenant, profile_id="p6-admin-superuser", expected_revision=1,
+                actor_user_id=admin_id, occurred_at=now,
+            )
+
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED"):
             profiles.assign(
                 tenant_id=tenant, profile_id="p6-admin-superuser", user_id=target_id,
