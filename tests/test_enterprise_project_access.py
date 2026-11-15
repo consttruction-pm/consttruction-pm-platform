@@ -181,3 +181,41 @@ def test_user_can_hold_multiple_obs_profile_pairs_without_collapsing_scope():
         ("root", "read_only"), ("child", "schedule")
     }
     assert root.active and child.active
+
+
+
+def test_project_security_profile_accepts_and_normalizes_granular_v26_privileges():
+    repository = FakeRepository()
+    service = EnterpriseProjectAccessService(
+        repository, FakeLifecycle(), FakeOBS(), clock=lambda: NOW
+    )
+    profile = service.create_profile(
+        "valid-session", "issue-manager", "Issue manager", ("issue.delete",)
+    )
+    assert set(profile.permissions) == {
+        "issue.delete", "issue.edit", "issue.assign", "issue.view"
+    }
+
+
+def test_project_security_profile_rejects_unknown_granular_privileges():
+    repository = FakeRepository()
+    service = EnterpriseProjectAccessService(
+        repository, FakeLifecycle(), FakeOBS(), clock=lambda: NOW
+    )
+    with pytest.raises(ProjectAccessError, match="PROJECT_SECURITY_PROFILE_PERMISSION_INVALID"):
+        service.create_profile(
+            "valid-session", "invalid", "Invalid", ("project.superuser",)
+        )
+
+
+def test_project_security_profile_inheritance_targets_are_present_for_all_crud_domains():
+    from construction_pm.p6_project_privileges import (
+        PRIVILEGE_BY_KEY, expand_project_privileges,
+    )
+    for key in ("activity.delete", "project.delete", "wbs.delete",
+                "expense.delete", "issue.delete", "threshold.delete",
+                "risk.delete", "baseline.create_update",
+                "resource_assignment.add_edit"):
+        expanded = expand_project_privileges({key})
+        assert expanded <= PRIVILEGE_BY_KEY.keys()
+        assert any(item.endswith(".view") for item in expanded)
