@@ -594,6 +594,13 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
             "VALUES (%s,%s,0,%s,'wbs',%s,'OVERRIDE','WBS OBS Override',1,1,'active','activities')",
             (tenant, project_id, f"eps-wbs-override-{suffix}", f"eps-wbs-{suffix}"),
         )
+        connection.execute(
+            "INSERT INTO wbs_master "
+            "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
+            "VALUES (%s,%s,0,%s,'wbs',%s,'INHERIT','WBS Inherited OBS',2,1,'active','activities')",
+            (tenant, project_id, f"eps-wbs-inherit-{suffix}", f"eps-wbs-{suffix}"),
+        )
         eps = PostgresP6EPSRepository(connection)
         eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id))
         eps.save_node(P6EPSNode(tenant, child_id, "Child EPS", parent_eps_id=root_id))
@@ -607,6 +614,9 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert eps.get_wbs_responsibility(
             tenant, project_id, f"eps-wbs-{suffix}"
         ) == (obs_id, 1)
+        assert eps.get_effective_wbs_responsibility(
+            tenant, project_id, f"eps-wbs-inherit-{suffix}"
+        ) == (obs_id, 0, "eps")
         eps.assign_wbs_responsibility(
             tenant, project_id, f"eps-wbs-override-{suffix}", other_obs_id,
             actor_user_id=user_id, occurred_at=now,
