@@ -35,6 +35,7 @@ from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
 )
+from ..security_profiles import PostgresSecurityProfileAuthorizationPolicy, PostgresSecurityProfileRepository
 from ..application.project_lifecycle import ProjectLifecycleService
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.models import BackendScope
@@ -293,7 +294,9 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = PostgresSecurityProfileAuthorizationPolicy(\n            connection, RoleBasedAuthorizationPolicy(default_role_permissions())\n        )
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
