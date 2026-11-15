@@ -197,6 +197,23 @@ def login(runtime, user_key: str, password: str = PASSWORD) -> tuple[str, str]:
     )
 
 
+
+def login_for_identity(runtime, user: IdentityUser) -> tuple[str, str]:
+    from urllib.parse import unquote
+
+    status, headers, body = call(
+        runtime, "POST", "/api/session",
+        body={"email": user.email, "password": PASSWORD},
+    )
+    assert status == 200, body
+    cookies = headers["set-cookie"]
+    session = next(value for value in cookies if value.startswith("cp_session="))
+    csrf = next(value for value in cookies if value.startswith("cubi_csrf="))
+    return (
+        session.split(";", 1)[0],
+        unquote(csrf.split(";", 1)[0].split("=", 1)[1]),
+    )
+
 def test_health_readiness_uses_the_database(runtime):
     status, _, body = call(runtime, "GET", "/api/health/live")
     assert status == 200
@@ -640,5 +657,56 @@ def test_account_deactivation_revokes_existing_session_immediately(runtime):
         runtime.pool.release(connection, healthy=True)
 
     status, _, body = call(runtime, "GET", "/api/session", cookie=cookie)
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_NOT_FOUND"
+
+
+def test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end(runtime):
+    suffix = uuid.uuid4().hex
+    tenant = runtime.test_ids["tenant_a"]
+    admin = IdentityUser(
+        user_id=f"user-access-admin-{suffix}", tenant_id=tenant,
+        email=f"access-admin-{suffix}@example.test", display_name="Access Admin",
+        roles=frozenset({"enterprise_admin", "enterprise_user"}),
+        password_hash=hash_password(PASSWORD),
+    )
+    target = IdentityUser(
+        user_id=f"user-access-target-{suffix}", tenant_id=tenant,
+        email=f"access-target-{suffix}@example.test", display_name="Access Target",
+        roles=frozenset({"enterprise_user"}), password_hash=hash_password(PASSWORD),
+    )
+    outsider = IdentityUser(
+        user_id=f"user-access-outsider-{suffix}", tenant_id=runtime.test_ids["tenant_b"],
+        email=f"access-outsider-{suffix}@example.test", display_name="Other Tenant",
+        roles=frozenset({"enterprise_admin"}), password_hash=hash_password(PASSWORD),
+    )
+    connection = runtime.pool.acquire()
+    try:
+        store = PostgresIdentityStore(connection)
+        for account in (admin, target, outsider):
+            store.upsert_user(account)
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+
+    runtime.test_ids["client_ip"] = f"198.18.{int(suffix[:2], 16)}.{int(suffix[2:4], 16)}"
+    target_cookie, _ = login_for_identity(runtime, target)
+    admin_cookie, admin_csrf = login_for_identity(runtime, admin)
+
+    status, _, body = call(runtime, "GET", "/api/enterprise/users", cookie=admin_cookie)
+    assert status == 200
+    users = json.loads(body)["users"]
+    assert any(item["user_id"] == target.user_id and item["active"] for item in users)
+    assert all(item["user_id"] != outsider.user_id for item in users)
+
+    status, _, body = call(
+        runtime, "PATCH", f"/api/enterprise/users/{target.user_id}/status",
+        body={"contract_version": "cubi-enterprise-user-admin.v1", "active": False},
+        cookie=admin_cookie, csrf=admin_csrf,
+    )
+    assert status == 200
+    assert json.loads(body)["account"]["changed"] is True
+
+    status, _, body = call(runtime, "GET", "/api/session", cookie=target_cookie)
     assert status == 401
     assert json.loads(body)["code"] == "SESSION_NOT_FOUND"
