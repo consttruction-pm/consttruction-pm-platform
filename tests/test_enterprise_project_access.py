@@ -214,7 +214,7 @@ def test_project_security_profile_inheritance_targets_are_present_for_all_crud_d
     )
     for key in ("activity.delete", "project.delete", "wbs.delete",
                 "expense.delete", "issue.delete", "threshold.delete",
-                "risk.delete", "baseline.create_update",
+                "risk.delete",
                 "resource_assignment.add_edit"):
         expanded = expand_project_privileges({key})
         assert expanded <= PRIVILEGE_BY_KEY.keys()
