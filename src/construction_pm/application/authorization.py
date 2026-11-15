@@ -37,6 +37,8 @@ class Permission(str, Enum):
     THRESHOLD_MONITOR = "threshold.monitor"
     BASELINE_VIEW = "baseline.view"
     BASELINE_CREATE_UPDATE = "baseline.create_update"
+    BASELINE_ASSIGN = "baseline.assign"
+    BASELINE_UPDATE = "baseline.update"
     WBS_VIEW = "wbs.view"
     WBS_EDIT = "wbs.edit"
     WBS_ADD_EDIT = "wbs.add_edit"
@@ -123,6 +125,8 @@ class RoleBasedAuthorizationPolicy:
             Permission.THRESHOLD_MONITOR: Permission.PROJECT_WRITE,
             Permission.BASELINE_VIEW: Permission.PROJECT_READ,
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
+            Permission.BASELINE_ASSIGN: Permission.PROJECT_WRITE,
+            Permission.BASELINE_UPDATE: Permission.PROJECT_WRITE,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
             Permission.WBS_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_ADD_EDIT: Permission.PROJECT_WRITE,
