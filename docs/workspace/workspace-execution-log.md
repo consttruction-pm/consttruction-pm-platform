@@ -145,3 +145,25 @@ passed (204 skipped), 1166 + 15 web tests, clean typecheck/build.
 Continuation point after merge: the same Help topic's month-year grid,
 recurring exceptions and weekday-column bulk change; then resources, Baseline
 and the remaining main-environment sections.
+
+### 2026-11-15 — Calendars month grid (CAL-002, `244d7aed`)
+
+The V26 project calendar dialog is a month-year grid: click a date then
+Nonwork or Standard, click a weekday's column label to apply the change to
+every instance in the month. CUBI only had a workweek table and an exception
+list. A new Calendar Month tab now renders the month in Gregorian or Jalali
+over the stored snapshot and exceptions, writes a nonwork exception for
+Nonwork, deletes a stored exception for Standard, and applies the last chosen
+action to every visible instance of a weekday from its heading. The pure
+helpers (`calendarWeekday`, `calendarMonthAnchor`, `shiftCalendarMonth`,
+`buildCalendarMonth`) are unit tested, including Aban 1405 and year-boundary
+navigation.
+
+Evidence: `docs/workspace/evidence/calendars-v26-2026-11-15/summary-month-grid.md`
+— 10/10 + 6/6 + 6/6 scenarios, 24 screenshots, zero exceptions/console
+errors/API 5xx at `244d7aed`. Gates: 1168 + 15 web tests, clean typecheck and
+build.
+
+Continuation point after merge: recurring exceptions and the Time Periods
+dialog from the same Help topic; then resources, Baseline and the remaining
+main-environment sections.

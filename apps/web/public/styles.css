@@ -7701,6 +7701,22 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-calendar-workweek input[type=text]{width:72px}
 .cp-p6 .cp-calendar-workweek td:nth-child(4) input[type=text]{width:100%;min-width:160px}
 .cp-p6 .cp-calendar-workweek td:last-child button{min-height:24px;padding:2px 8px}
+.cp-p6 .cp-calendar-month-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.cp-p6 .cp-calendar-month-toolbar strong{color:#173d68;font-size:11px;min-width:120px}
+.cp-p6 .cp-calendar-month-toolbar button{min-height:24px;padding:2px 8px}
+.cp-p6 .cp-calendar-month-selected{margin-inline-start:auto;color:#52657a;font-size:9px}
+.cp-p6 .cp-calendar-month-wrap table{min-width:0;table-layout:fixed}
+.cp-p6 .cp-calendar-month-wrap th{padding:0;text-align:center}
+.cp-p6 .cp-calendar-month-wrap th button{width:100%;border:0;background:transparent;color:#38536f;font:inherit;font-size:9px;padding:4px 2px;cursor:pointer}
+.cp-p6 .cp-calendar-month-wrap th button:hover{background:#e8f0fa;color:#173d68}
+.cp-p6 .cp-calendar-month-grid td{padding:2px;text-align:center}
+.cp-p6 .cp-calendar-month-day{width:100%;min-height:26px;border:1px solid #e1e7ee;border-radius:2px;background:#fff;color:#244463;font:inherit;font-size:9px;cursor:pointer}
+.cp-p6 .cp-calendar-month-day:hover{border-color:#9bb4d0;background:#f4f8fd}
+.cp-p6 .cp-calendar-month-day.is-nonwork{background:#f3f4f6;color:#8a94a3;border-color:#e6e8ec}
+.cp-p6 .cp-calendar-month-day[data-calendar-month-state="total-work-hours"],
+.cp-p6 .cp-calendar-month-day[data-calendar-month-state="detailed-work-hours"]{background:#fdf6e8;border-color:#e6d3a8;color:#7a5a1c}
+.cp-p6 .cp-calendar-month-day.is-selected{outline:2px solid #173d68;outline-offset:-1px;font-weight:700}
+.cp-p6 .cp-calendar-month-blank{background:#f7f9fc}
 .cp-p6 .cp-calendar-holiday-list li button{margin-inline-start:auto;min-height:24px;padding:2px 8px;border:1px solid #d4dce6;background:#fff;color:#7a2c2c;font-size:9px;cursor:pointer}
 .cp-p6 .cp-calendar-holiday-list li button:hover{background:#fff5f5;border-color:#e3bcbc}
 @media(max-width:900px){.cp-p6 .cp-calendar-window-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-calendar-register{min-height:130px}}

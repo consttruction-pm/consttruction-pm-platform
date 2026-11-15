@@ -391,6 +391,97 @@ export function calendarBaseValue(calendar: WorkspaceCalendarRecord): string {
     : "";
 }
 
+export type CalendarMonthDay = {
+  date: string;
+  label: string;
+  weekday: number;
+  working: boolean;
+  exception: CalendarException | null;
+};
+
+export type CalendarMonthGrid = {
+  system: "gregorian" | "jalali";
+  year: number;
+  month: number;
+  leading: number;
+  days: readonly CalendarMonthDay[];
+};
+
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Monday-based weekday index (0 = Monday) used by the calendar window. */
+export function calendarWeekday(date: string): number {
+  const match = ISO_DAY.exec(date);
+  if (!match) return 0;
+  return (new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay() + 6) % 7;
+}
+
+/** First day of the month that contains ``anchor`` in the requested system. */
+export function calendarMonthAnchor(system: "gregorian" | "jalali", anchor: string): string {
+  if (system === "jalali") {
+    const parts = formatJalaliDateInput(anchor).split("/");
+    return parseJalaliDateInput(`${parts[0]}/${parts[1]}/01`) ?? anchor;
+  }
+  const [year, month] = anchor.split("-").map(Number);
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-01`;
+}
+
+/** Move the visible month by ``delta``; the result is the first of that month. */
+export function shiftCalendarMonth(system: "gregorian" | "jalali", anchor: string, delta: number): string {
+  const first = calendarMonthAnchor(system, anchor);
+  if (system === "jalali") {
+    const match = /^(\d{4})\/(\d{2})\/01$/.exec(formatJalaliDateInput(first));
+    if (!match) return first;
+    const total = Number(match[1]) * 12 + (Number(match[2]) - 1) + delta;
+    const year = Math.floor(total / 12);
+    const month = (total % 12) + 1;
+    return parseJalaliDateInput(`${year}/${month}/01`) ?? first;
+  }
+  const [year, month] = first.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * Build the visible month for the calendar month grid. Working days come from
+ * the stored snapshot, non-working markers and hours from stored exceptions.
+ * Invalid input returns null so the grid never invents a date.
+ */
+export function buildCalendarMonth(
+  system: string | null,
+  anchor: string,
+  workingWeekdays: readonly number[],
+  exceptions: readonly CalendarException[],
+): CalendarMonthGrid | null {
+  if (!isValidCanonicalIsoDate(anchor)) return null;
+  const resolved: "gregorian" | "jalali" = system === "jalali" ? "jalali" : "gregorian";
+  const working = new Set(workingWeekdays);
+  const byDate = new Map(exceptions.map((item) => [item.date, item]));
+  const make = (date: string, label: string): CalendarMonthDay => {
+    const weekday = calendarWeekday(date);
+    return { date, label, weekday, working: working.has(weekday), exception: byDate.get(date) ?? null };
+  };
+  const first = calendarMonthAnchor(resolved, anchor);
+  if (resolved === "jalali") {
+    const [year, month] = formatJalaliDateInput(first).split("/").map(Number);
+    const days: CalendarMonthDay[] = [];
+    for (let day = 1; day <= 31; day += 1) {
+      const date = parseJalaliDateInput(`${year}/${month}/${day}`);
+      if (!date) break;
+      days.push(make(date, String(day)));
+    }
+    if (!days.length) return null;
+    return { system: resolved, year, month, leading: days[0].weekday, days };
+  }
+  const [year, month] = first.split("-").map(Number);
+  const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const days: CalendarMonthDay[] = [];
+  for (let day = 1; day <= count; day += 1) {
+    days.push(make(`${first.slice(0, 8)}${String(day).padStart(2, "0")}`, String(day)));
+  }
+  return { system: resolved, year, month, leading: days[0].weekday, days };
+}
+
 export async function updateCalendar(
   transport: ApiTransport,
   context: ProjectContext,
@@ -776,13 +867,16 @@ type PageState = {
   usage: CalendarUsage | null;
   usageError: string | null;
   usageLoading: boolean;
-  tab: "general" | "workweek" | "exceptions" | "usage";
+  tab: "general" | "workweek" | "month" | "exceptions" | "usage";
   dialog: "none" | "copy" | "delete" | "new";
   busy: boolean;
   notice: { kind: "ok" | "error"; message: string } | null;
   draftName: string | null;
   draftType: string | null;
   draftBase: string | null;
+  monthAnchor: string | null;
+  monthSelected: string | null;
+  monthAction: "nonwork" | "standard";
 };
 
 function selectedRecord(state: PageState): WorkspaceCalendarRecord | null {
@@ -818,6 +912,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     draftName: null,
     draftType: null,
     draftBase: null,
+    monthAnchor: null,
+    monthSelected: null,
+    monthAction: "nonwork",
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -933,6 +1030,52 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     return item.system === "jalali" ? formatJalaliDateInput(item.date) : item.date;
   }
 
+  function monthTitle(grid: CalendarMonthGrid): string {
+    const [year, month, day] = grid.days[0].date.split("-").map(Number);
+    const formatter = new Intl.DateTimeFormat(locale === "fa" ? "fa-IR" : "en-US", {
+      calendar: grid.system === "jalali" ? "persian" : "gregory",
+      year: "numeric",
+      month: "long",
+      timeZone: "UTC",
+    });
+    return formatter.format(new Date(Date.UTC(year, month - 1, day)));
+  }
+
+  function renderMonth(record: WorkspaceCalendarRecord): string {
+    const snapshot = state.snapshot;
+    if (!snapshot) {
+      return `<div class="cp-calendar-empty">${escapeHtml(say("Select a calendar to read its working time.", "برای خواندن ساعات کاری، یک تقویم انتخاب کنید."))}</div>`;
+    }
+    const anchor = state.monthAnchor ?? new Date().toISOString().slice(0, 10);
+    const grid = buildCalendarMonth(snapshot.system, anchor, snapshot.workingWeekdays, state.exceptions);
+    if (!grid) {
+      return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("The calendar month could not be built from the stored definition.", "ماه تقویم از تعریف ذخیره‌شده ساخته نشد."))}</div>`;
+    }
+    const head = WEEKDAYS.map((day) => `<th><button type="button" data-calendar-month-weekday="${day.index}" title="${escapeAttribute(say("Apply the last chosen action to every " + day.en + " in this month", "اعمال آخرین اقدام انتخاب‌شده روی همهٔ " + day.fa + "‌های این ماه"))}">${escapeHtml(text(locale, day.en, day.fa))}</button></th>`).join("");
+    const blanks = Array.from({ length: grid.leading }, () => "<td class=\"cp-calendar-month-blank\"></td>").join("");
+    const cells = grid.days.map((day) => {
+      const nonwork = !day.working || day.exception?.mode === "nonwork";
+      const kind = day.exception ? day.exception.mode : nonwork ? "nonwork" : "workday";
+      const selected = state.monthSelected === day.date;
+      return `<td><button type="button" data-calendar-month-day="${escapeAttribute(day.date)}" data-calendar-month-state="${escapeAttribute(kind)}" aria-pressed="${selected}" class="cp-calendar-month-day${nonwork ? " is-nonwork" : ""}${selected ? " is-selected" : ""}" title="${escapeAttribute(day.date)}">${escapeHtml(day.label)}</button></td>`;
+    }).join("");
+    const selected = state.monthSelected;
+    return `<section class="cp-calendar-editor-panel cp-calendar-month" data-calendar-panel="month" data-calendar-month>
+      <div class="cp-calendar-month-toolbar">
+        <button type="button" data-calendar-month-nav="prev" aria-label="${escapeAttribute(say("Previous month", "ماه قبل"))}">&#8249;</button>
+        <strong data-calendar-month-title>${escapeHtml(monthTitle(grid))}</strong>
+        <button type="button" data-calendar-month-nav="next" aria-label="${escapeAttribute(say("Next month", "ماه بعد"))}">&#8250;</button>
+        <span class="cp-calendar-month-selected" data-calendar-month-selected>${escapeHtml(selected ?? say("No date selected", "تاریخی انتخاب نشده است"))}</span>
+        <button type="button" data-calendar-month-action="nonwork" ${selected && !state.busy ? "" : "disabled"}>${escapeHtml(say("Nonwork", "غیرکاری"))}</button>
+        <button type="button" data-calendar-month-action="standard" ${selected && !state.busy ? "" : "disabled"}>${escapeHtml(say("Standard", "استاندارد"))}</button>
+      </div>
+      <div class="cp-calendar-table-wrap cp-calendar-month-wrap">
+        <table class="cp-calendar-month-grid"><thead><tr>${head}</tr></thead><tbody><tr>${blanks}${cells}</tr></tbody></table>
+      </div>
+      <p class="cp-calendar-hint">${escapeHtml(say("Click a date, then Nonwork or Standard – the same language as the Version 26 project calendar dialog. Click a weekday heading to apply the last chosen action to every instance in the displayed month.", "یک تاریخ را انتخاب کنید و سپس غیرکاری یا استاندارد را بزنید؛ همان زبان پنجرهٔ تقویم پروژه در نسخهٔ ۲۶. برای اعمال آخرین اقدام روی همهٔ نمونه‌های یک روز هفته در ماه نمایش‌داده‌شده، عنوان ستون آن روز را بزنید."))}</p>
+    </section>`;
+  }
+
   function renderExceptions(record: WorkspaceCalendarRecord): string {
     if (state.exceptionsError) {
       return `<div class="cp-calendar-empty" role="alert">${escapeHtml(say("Calendar exceptions could not be read", "خواندن استثناهای تقویم ناموفق بود"))} (${escapeHtml(state.exceptionsError)})</div>`;
@@ -1027,10 +1170,11 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     const tabs = [
       ["general", say("General", "عمومی")],
       ["workweek", say("Workweek", "هفته کاری")],
+      ["month", say("Calendar Month", "ماه تقویم")],
       ["exceptions", say("Exceptions", "استثناها")],
       ["usage", say("Used By", "استفاده‌کنندگان")],
     ].map(([key, label]) => `<button type="button" role="tab" data-calendar-tab="${key}" aria-selected="${state.tab === key}" class="${state.tab === key ? "is-active" : ""}">${escapeHtml(label)}</button>`).join("");
-    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek(record) : state.tab === "exceptions" ? renderExceptions(record) : renderUsage();
+    const panel = state.tab === "general" ? renderGeneral(record) : state.tab === "workweek" ? renderWorkweek(record) : state.tab === "month" ? renderMonth(record) : state.tab === "exceptions" ? renderExceptions(record) : renderUsage();
     const snapshotFailure = state.snapshotError
       ? `<p class="cp-calendar-notice" role="alert">${escapeHtml(say("Calendar snapshot could not be read", "خواندن نسخه تقویم ناموفق بود"))} (${escapeHtml(state.snapshotError)}). ${escapeHtml(say("Dates and durations must not be inferred without it.", "بدون آن، تاریخ و مدت نباید استنتاج شود."))}</p>`
       : "";
@@ -1101,6 +1245,57 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       </div>`;
   }
 
+  async function applyMonthMode(
+    record: WorkspaceCalendarRecord,
+    dates: readonly string[],
+    mode: "nonwork" | "standard",
+  ): Promise<void> {
+    const unique = [...new Set(dates)];
+    if (!unique.length || state.busy) return;
+    state.monthAction = mode;
+    state.busy = true;
+    render();
+    let changed = 0;
+    for (const date of unique) {
+      if (mode === "nonwork") {
+        const result = await saveCalendarException(
+          transport,
+          context,
+          record,
+          state.snapshot?.system ?? null,
+          { date, mode: "nonwork", totalWorkHours: null, start: null, end: null },
+        );
+        if (!result.ok) {
+          state.busy = false;
+          state.notice = { kind: "error", message: `${say("Calendar month change failed", "تغییر ماه تقویم ناموفق بود")} (${result.error.code})` };
+          render();
+          return;
+        }
+        changed += 1;
+      } else {
+        if (!state.exceptions.some((item) => item.date === date)) continue;
+        const result = await deleteCalendarException(transport, context, record, date);
+        if (!result.ok) {
+          state.busy = false;
+          state.notice = { kind: "error", message: `${say("Calendar month change failed", "تغییر ماه تقویم ناموفق بود")} (${result.error.code})` };
+          render();
+          return;
+        }
+        changed += 1;
+      }
+    }
+    const refreshed = await loadCalendarExceptions(transport, context, record.calendarId, record.calendarVersion);
+    if (refreshed.ok) state.exceptions = refreshed.data;
+    state.busy = false;
+    state.notice = {
+      kind: "ok",
+      message: mode === "nonwork"
+        ? say(`${changed} date(s) marked nonwork.`, `${changed} تاریخ غیرکاری شد.`)
+        : say(`${changed} date(s) reset to standard.`, `${changed} تاریخ به استاندارد بازگشت.`),
+    };
+    render();
+  }
+
   async function selectCalendar(id: string, version: string, tab: PageState["tab"] = "general"): Promise<void> {
     state.selected = { id, version };
     state.snapshot = null;
@@ -1117,6 +1312,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     state.draftName = null;
     state.draftType = null;
     state.draftBase = null;
+    state.monthAnchor = null;
+    state.monthSelected = null;
+    state.monthAction = "nonwork";
     state.notice = null;
     state.snapshotLoading = true;
     state.workHoursLoading = true;
@@ -1289,6 +1487,43 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     if (exceptionDelete?.dataset.calendarExceptionDelete) {
       const record = selectedRecord(state);
       if (record && !state.busy) void removeException(record, exceptionDelete.dataset.calendarExceptionDelete);
+      return;
+    }
+    const monthDay = target.closest<HTMLElement>("[data-calendar-month-day]");
+    if (monthDay?.dataset.calendarMonthDay) {
+      state.monthSelected = monthDay.dataset.calendarMonthDay;
+      render();
+      return;
+    }
+    const monthNav = target.closest<HTMLElement>("[data-calendar-month-nav]");
+    if (monthNav?.dataset.calendarMonthNav && state.snapshot) {
+      const system = state.snapshot.system === "jalali" ? "jalali" : "gregorian";
+      const anchor = state.monthAnchor ?? new Date().toISOString().slice(0, 10);
+      state.monthAnchor = shiftCalendarMonth(system, anchor, monthNav.dataset.calendarMonthNav === "prev" ? -1 : 1);
+      state.monthSelected = null;
+      render();
+      return;
+    }
+    const monthWeekday = target.closest<HTMLElement>("[data-calendar-month-weekday]");
+    if (monthWeekday?.dataset.calendarMonthWeekday && state.snapshot) {
+      const record = selectedRecord(state);
+      const weekday = Number(monthWeekday.dataset.calendarMonthWeekday);
+      const anchor = state.monthAnchor ?? new Date().toISOString().slice(0, 10);
+      const grid = buildCalendarMonth(state.snapshot.system, anchor, state.snapshot.workingWeekdays, state.exceptions);
+      if (record && grid && Number.isInteger(weekday)) {
+        void applyMonthMode(
+          record,
+          grid.days.filter((day) => day.weekday === weekday).map((day) => day.date),
+          state.monthAction,
+        );
+      }
+      return;
+    }
+    const monthAction = target.closest<HTMLElement>("[data-calendar-month-action]");
+    if (monthAction?.dataset.calendarMonthAction) {
+      const record = selectedRecord(state);
+      const mode = monthAction.dataset.calendarMonthAction === "standard" ? "standard" : "nonwork";
+      if (record && state.monthSelected) void applyMonthMode(record, [state.monthSelected], mode);
       return;
     }
     const row = target.closest<HTMLElement>("[data-calendar-row]");
