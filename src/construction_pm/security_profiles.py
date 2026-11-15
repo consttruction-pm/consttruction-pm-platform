@@ -876,6 +876,65 @@ class PostgresSecurityProfileAuthorizationPolicy:
             context.tenant_id, str(row[3])
         ) for row in project_rows)
 
+    def is_allowed_for_eps(
+        self, context: AuthorizationContext, permission: Permission, eps_id: str,
+    ) -> bool:
+        """Authorize project creation against the responsible OBS of an EPS branch."""
+        context.validate()
+        if permission != Permission.P6_PROJECT_CREATE or not isinstance(eps_id,str) or not eps_id.strip():
+            return False
+        admin = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+            (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
+        ).fetchone()
+        if admin is not None:
+            return True
+        global_profile = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
+            "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
+            (context.tenant_id,context.user_id),
+        ).fetchone()
+        if global_profile is None:
+            return False
+        obs_rows = self._connection.execute(
+            "WITH RECURSIVE eps_path(eps_id,parent_eps_id,responsible_obs_id,path) AS ("
+            "SELECT eps_id,parent_eps_id,responsible_obs_id,ARRAY[eps_id]::text[] "
+            "FROM p6_eps_node WHERE tenant_id=%s AND eps_id=%s "
+            "UNION ALL "
+            "SELECT parent.eps_id,parent.parent_eps_id,parent.responsible_obs_id,path.path || parent.eps_id "
+            "FROM p6_eps_node parent JOIN eps_path path ON path.parent_eps_id=parent.eps_id "
+            "WHERE parent.tenant_id=%s AND NOT parent.eps_id=ANY(path.path)) "
+            "SELECT DISTINCT NULLIF(responsible_obs_id,'') FROM eps_path "
+            "WHERE responsible_obs_id<>''",
+            (context.tenant_id,eps_id,context.tenant_id),
+        ).fetchall()
+        obs_ids = sorted({str(row[0]) for row in obs_rows if row[0]})
+        if not obs_ids:
+            return False
+        profiles = self._connection.execute(
+            "SELECT p.profile_id FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
+            "AND p.active=TRUE AND a.obs_id=ANY(%s)",
+            (context.tenant_id,context.user_id,obs_ids),
+        ).fetchall()
+        profile_ids = [str(row[0]) for row in profiles]
+        if not profile_ids:
+            return False
+        if PROJECT_SUPERUSER_PROFILE_ID in profile_ids:
+            return True
+        if not self._role_policy.is_allowed(context, permission):
+            return False
+        return any(
+            "add_projects" in self._profile_privileges(context.tenant_id, profile_id)
+            for profile_id in profile_ids
+        )
+
     def is_allowed_for_wbs(
         self, context: AuthorizationContext, permission: Permission, wbs_id: str,
     ) -> bool:
