@@ -4,7 +4,7 @@ type Team = { team_id: string; name: string; owner_user_id: string; status: stri
 type Membership = { team_id: string; user_id: string; role: string; status: string; scope_project_ids: string[]; revision: number; created_at: string; revoked_at: string | null };
 type EligibleUser = { user_id: string; email: string; display_name: string };
 type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
-type SecurityProfile = { profile_id: string; name: string; scope: "global" | "project"; active: boolean; revision: number; privileges: string[] };
+type SecurityProfile = { profile_id: string; name: string; description: string; scope: "global" | "project"; active: boolean; is_default: boolean; revision: number; privileges: string[] };
 type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string };
 type PrivilegeCatalogs = { global: string[]; project: string[] };
 type Locale = "en" | "fa";
@@ -32,7 +32,13 @@ const COPY = {
     ownerTransferError: "Transfer active team ownership before deactivating this account.",
     transferOwner: "Transfer ownership", newOwner: "New owner", confirmTransfer: "Transfer team ownership? Your role will become Administrator.",
     transferred: "Team ownership transferred.",
-    securityProfiles: "Security profiles", profileId: "Profile ID", profileName: "Profile name",
+    securityProfiles: "Security profiles", profileId: "Profile ID", profileName: "Profile name", profileDescription: "Description",
+    saveProfileDetails: "Save details", profileDetailsSaved: "Profile details saved.", profileDefault: "Default", profileSetDefault: "Set as default",
+    profileClearDefault: "Clear default", profileDefaultSaved: "Default project profile updated.",
+    profileDuplicate: "Duplicate", profileDuplicateId: "New profile ID", profileDuplicateName: "New profile name",
+    profileDuplicated: "Profile duplicated with its privileges.", profileDelete: "Delete profile",
+    profileDeleteConfirm: "Delete this profile? Profiles with current assignments cannot be deleted.",
+    profileDeleted: "Profile deleted.", profileDeleteAssigned: "This profile still has assignments and cannot be deleted.",
     profileScope: "Profile scope", globalProfile: "Global", projectProfile: "Project",
     createProfile: "Create profile", selectProfile: "Select a profile", privileges: "Privileges",
     savePrivileges: "Save privileges", assignProfile: "Assign profile", obsId: "Responsible OBS ID",
@@ -69,6 +75,13 @@ const COPY = {
     transferOwner: "انتقال مالکیت", newOwner: "مالک جدید", confirmTransfer: "مالکیت تیم منتقل شود؟ نقش شما به مدیر تغییر می‌کند.",
     transferred: "مالکیت تیم منتقل شد.",
     securityProfiles: "پروفایل‌های امنیتی", profileId: "شناسه پروفایل", profileName: "نام پروفایل",
+    profileDescription: "توضیحات", saveProfileDetails: "ذخیره جزئیات", profileDetailsSaved: "جزئیات پروفایل ذخیره شد.", profileDefault: "پیش‌فرض",
+    profileSetDefault: "تنظیم به‌عنوان پیش‌فرض", profileClearDefault: "حذف حالت پیش‌فرض",
+    profileDefaultSaved: "پروفایل پیش‌فرض پروژه به‌روزرسانی شد.", profileDuplicate: "تکثیر",
+    profileDuplicateId: "شناسه پروفایل جدید", profileDuplicateName: "نام پروفایل جدید",
+    profileDuplicated: "پروفایل همراه با مجوزهایش تکثیر شد.", profileDelete: "حذف پروفایل",
+    profileDeleteConfirm: "این پروفایل حذف شود؟ پروفایل دارای تخصیص فعلی قابل حذف نیست.",
+    profileDeleted: "پروفایل حذف شد.", profileDeleteAssigned: "این پروفایل هنوز تخصیص دارد و قابل حذف نیست.",
     profileScope: "دامنه پروفایل", globalProfile: "سراسری", projectProfile: "پروژه‌ای",
     createProfile: "ایجاد پروفایل", selectProfile: "انتخاب پروفایل", privileges: "مجوزها",
     savePrivileges: "ذخیره مجوزها", assignProfile: "اختصاص پروفایل", obsId: "شناسه مسئولیت OBS",
@@ -217,8 +230,11 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       return `<option value="${escapeHtml(item.user_id)}" data-revision="${item.revision}">${escapeHtml(label)}</option>`;
     }).join("");
     const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
+    const selectedProfileIsBuiltIn = selectedProfile !== null && [
+      "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser",
+    ].includes(selectedProfile.profile_id);
     const profileOptions = profiles.map((profile) =>
-      `<option value="${escapeHtml(profile.profile_id)}" ${profile.profile_id === selectedProfileId ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(profile.scope)}</option>`
+      `<option value="${escapeHtml(profile.profile_id)}" ${profile.profile_id === selectedProfileId ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(profile.scope)}${profile.is_default ? " · " + escapeHtml(t.profileDefault) : ""}</option>`
     ).join("");
     const profileCatalog = selectedProfile ? privilegeCatalogs[selectedProfile.scope] : [];
     const privilegeOptions = profileCatalog.map((privilege) =>
@@ -251,8 +267,9 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         .cubi-oa-team{width:100%;text-align:left;border:1px solid #e0e7ef;background:#fff;border-radius:8px;padding:11px;cursor:pointer}
         .cubi-oa-team[aria-pressed=true]{border-color:#356b9e;background:#eff6fc}.cubi-oa-team small,.cubi-oa small{display:block;color:#718198;font-size:11px}
         .cubi-oa-field{display:grid;gap:5px;margin:10px 0}.cubi-oa-field label{font-weight:650;font-size:12px;color:#42566e}
-        .cubi-oa-field input,.cubi-oa-field select{width:100%;min-height:38px;border:1px solid #ccd7e3;border-radius:7px;padding:8px;background:#fff;color:#172b43}
+        .cubi-oa-field input,.cubi-oa-field select,.cubi-oa-field textarea{width:100%;min-height:38px;border:1px solid #ccd7e3;border-radius:7px;padding:8px;background:#fff;color:#172b43}
         .cubi-oa-form{border-top:1px solid #e6ebf1;margin-top:16px;padding-top:14px}.cubi-oa-tablewrap{overflow:auto}
+        .cubi-oa-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
         .cubi-oa table{width:100%;border-collapse:collapse;min-width:650px}.cubi-oa th,.cubi-oa td{text-align:left;padding:10px;border-bottom:1px solid #e9eef3;vertical-align:middle}
         .cubi-oa th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7b8f}.cubi-oa-status{font-size:11px;border-radius:20px;padding:3px 8px;background:#e7f5ed;color:#23643f}
         .cubi-oa-removed{background:#f1f2f4;color:#6a7481}.cubi-oa-suspended{background:#fff3d8;color:#805a11}
@@ -304,17 +321,29 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           <form class="cubi-oa-form" id="cubi-oa-profile-create">
             <div class="cubi-oa-field"><label for="cubi-oa-profile-id">${t.profileId}</label><input id="cubi-oa-profile-id" name="profile_id" maxlength="100" required></div>
             <div class="cubi-oa-field"><label for="cubi-oa-profile-name">${t.profileName}</label><input id="cubi-oa-profile-name" name="name" maxlength="120" required></div>
+            <div class="cubi-oa-field"><label for="cubi-oa-profile-description">${t.profileDescription}</label><textarea id="cubi-oa-profile-description" name="description" maxlength="2000" rows="3"></textarea></div>
             <div class="cubi-oa-field"><label for="cubi-oa-profile-scope">${t.profileScope}</label><select id="cubi-oa-profile-scope" name="scope"><option value="global">${t.globalProfile}</option><option value="project">${t.projectProfile}</option></select></div>
             <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy ? "disabled" : ""}>${t.createProfile}</button>
           </form>
           ${profiles.length ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-selected">${t.selectProfile}</label>
             <select id="cubi-oa-profile-selected">${profileOptions}</select></div>
-            <p><strong>${escapeHtml(selectedProfile?.name ?? "")}</strong> · ${selectedProfile?.active ? t.profileActive : t.profileInactive} · Revision ${selectedProfile?.revision ?? 0}</p>
-            <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>
+            <p><strong>${escapeHtml(selectedProfile?.name ?? "")}</strong> · ${selectedProfile?.active ? t.profileActive : t.profileInactive}${selectedProfile?.is_default ? " · " + escapeHtml(t.profileDefault) : ""} · Revision ${selectedProfile?.revision ?? 0}</p>
+            <p>${escapeHtml(selectedProfile?.description ?? "")}</p>
+            ${selectedProfileIsBuiltIn ? "" : `<form class="cubi-oa-form" id="cubi-oa-profile-details">
+              <div class="cubi-oa-field"><label for="cubi-oa-profile-edit-name">${t.profileName}</label><input id="cubi-oa-profile-edit-name" name="name" maxlength="120" required value="${escapeHtml(selectedProfile?.name ?? "")}"></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-profile-edit-description">${t.profileDescription}</label><textarea id="cubi-oa-profile-edit-description" name="description" maxlength="2000" rows="3">${escapeHtml(selectedProfile?.description ?? "")}</textarea></div>
+              <button class="cubi-oa-button" type="submit" ${busy ? "disabled" : ""}>${t.saveProfileDetails}</button>
+            </form>`}
+            <div class="cubi-oa-actions">
+              ${selectedProfile?.scope === "project" && !selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile?.is_default === true}" ${busy ? "disabled" : ""}>${selectedProfile?.is_default ? t.profileClearDefault : t.profileSetDefault}</button>` : ""}
+              ${!selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-duplicate="true" ${busy ? "disabled" : ""}>${t.profileDuplicate}</button>
+              <button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-delete="true" ${busy || profileAssignments.length > 0 ? "disabled" : ""}>${t.profileDelete}</button>` : ""}
+              <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy || selectedProfileIsBuiltIn ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>
+            </div>
             <form class="cubi-oa-form" id="cubi-oa-profile-privileges">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-privileges-list">${t.privileges} (${selectedProfile?.scope === "global" ? t.globalProfile : t.projectProfile})</label>
-                <select id="cubi-oa-profile-privileges-list" name="privileges" multiple size="12">${privilegeOptions}</select></div>
-              <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy ? "disabled" : ""}>${t.savePrivileges}</button>
+                <select id="cubi-oa-profile-privileges-list" name="privileges" multiple size="12" ${selectedProfileIsBuiltIn ? "disabled" : ""}>${privilegeOptions}</select></div>
+              <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy || selectedProfileIsBuiltIn ? "disabled" : ""}>${t.savePrivileges}</button>
             </form>
             <h3>${t.assignedUsers}</h3>
             <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
@@ -382,12 +411,63 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       const profileId = String(form.get("profile_id") ?? "").trim();
       const name = String(form.get("name") ?? "").trim();
       const scope = String(form.get("scope") ?? "");
+      const description = String(form.get("description") ?? "");
       if (!profileId || !name || (scope !== "global" && scope !== "project")) return;
       void run(async () => {
         await api("/api/enterprise/security-profiles", "POST", {
-          contract_version: "cubi-p6-security-profile.v1", profile_id: profileId, name, scope,
+          contract_version: "cubi-p6-security-profile.v1", profile_id: profileId, name, scope, description,
         });
         notice = t.profileCreated; selectedProfileId = profileId; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-profile-details")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedProfile) return;
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const name = String(form.get("name") ?? "").trim();
+      const description = String(form.get("description") ?? "");
+      if (!name) return;
+      void run(async () => {
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/details`, "PATCH", {
+          contract_version: "cubi-p6-security-profile-details.v1",
+          name, description, expected_revision: selectedProfile.revision,
+        });
+        notice = t.profileDetailsSaved; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLButtonElement>("[data-profile-default]")?.addEventListener("click", (event) => {
+      if (!selectedProfile) return;
+      const button = event.currentTarget as HTMLButtonElement;
+      const isDefault = button.dataset.default === "true";
+      void run(async () => {
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/default`, "PATCH", {
+          contract_version: "cubi-p6-security-profile-default.v1",
+          is_default: !isDefault, expected_revision: selectedProfile.revision,
+        });
+        notice = t.profileDefaultSaved; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLButtonElement>("[data-profile-duplicate]")?.addEventListener("click", () => {
+      if (!selectedProfile) return;
+      const newProfileId = window.prompt(t.profileDuplicateId, `${selectedProfile.profile_id}-copy`)?.trim();
+      const name = window.prompt(t.profileDuplicateName, `${selectedProfile.name} copy`)?.trim();
+      if (!newProfileId || !name) return;
+      void run(async () => {
+        const result = await api<{ profile: SecurityProfile }>(
+          `/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}/duplicate`, "POST", {
+            contract_version: "cubi-p6-security-profile-duplicate.v1", profile_id: newProfileId, name,
+          },
+        );
+        selectedProfileId = result.profile.profile_id;
+        notice = t.profileDuplicated; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLButtonElement>("[data-profile-delete]")?.addEventListener("click", () => {
+      if (!selectedProfile || profileAssignments.length > 0 || !window.confirm(t.profileDeleteConfirm)) return;
+      void run(async () => {
+        const query = new URLSearchParams({ expected_revision: String(selectedProfile.revision) });
+        await api(`/api/enterprise/security-profiles/${encodeURIComponent(selectedProfile.profile_id)}?${query.toString()}`, "DELETE");
+        selectedProfileId = ""; notice = t.profileDeleted; await loadProfiles();
       });
     });
     container.querySelector<HTMLSelectElement>("#cubi-oa-profile-selected")?.addEventListener("change", (event) => {
@@ -484,6 +564,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         TEAM_OWNER_TRANSFER_REQUIRED: t.ownerTransferError,
         SELF_DEACTIVATION_NOT_ALLOWED: t.selfDeactivateError,
         P6_GLOBAL_PRIVILEGE_REQUIRED: t.privilegeRequired,
+        SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE: t.profileDeleteAssigned,
       };
       failure = code === "SESSION_REQUIRED" ? t.session : messages[code] ?? (code || t.error);
     } finally { busy = false; render(); }

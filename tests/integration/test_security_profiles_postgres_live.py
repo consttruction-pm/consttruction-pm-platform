@@ -217,12 +217,15 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
         connection.rollback()
 
 
-def _http_request(app, method: str, path: str, *, session_id: str, payload: dict | None = None):
+def _http_request(
+    app, method: str, path: str, *, session_id: str,
+    payload: dict | None = None, query_string: str = "",
+):
     raw = b"" if payload is None else json.dumps(payload).encode("utf-8")
     environ = {
         "REQUEST_METHOD": method,
         "PATH_INFO": path,
-        "QUERY_STRING": "",
+        "QUERY_STRING": query_string,
         "CONTENT_LENGTH": str(len(raw)),
         "wsgi.input": BytesIO(raw),
         "HTTP_COOKIE": f"cp_session={session_id}",
@@ -298,6 +301,10 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         profiles.assign(
             tenant_id=tenant, profile_id=profile_admin_only.profile_id, user_id=profile_admin_only_id,
             actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.create_profile(
+            tenant_id=other_tenant, profile_id="foreign-only", name="Foreign Only",
+            scope="project", actor_user_id=admin_id, occurred_at=now,
         )
         PostgresProjectRepository(connection).create_for_user(
             tenant, target_id, project_id, "Profile HTTP project", obs_id=f"obs-{suffix}"
@@ -395,22 +402,89 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile.v1",
-                "profile_id": "http-project-reader", "name": "HTTP Project Reader", "scope": "project",
+                "profile_id": "http-project-reader", "name": "HTTP Project Reader",
+                "description": "A scoped project reader profile.", "scope": "project",
             },
         )
         assert status == 201, created
         assert created["profile"]["revision"] == 1
+        assert created["profile"]["description"] == "A scoped project reader profile."
+        assert created["profile"]["is_default"] is False
+
+        status, details = _http_request(
+            app, "PATCH", "/api/enterprise/security-profiles/http-project-reader/details",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-details.v1",
+                "expected_revision": 1, "name": "HTTP Project Reader Updated",
+                "description": "Updated description with a revision guard.",
+            },
+        )
+        assert status == 200, details
+        assert details["profile"]["revision"] == 2
+        assert details["profile"]["description"] == "Updated description with a revision guard."
+        status, stale_details = _http_request(
+            app, "PATCH", "/api/enterprise/security-profiles/http-project-reader/details",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-details.v1",
+                "expected_revision": 1, "name": "Stale Update", "description": "",
+            },
+        )
+        assert status == 409 and stale_details["code"] == "SECURITY_PROFILE_REVISION_CONFLICT"
 
         status, changed = _http_request(
             app, "PATCH", "/api/enterprise/security-profiles/http-project-reader/privileges",
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-privileges.v1",
-                "expected_revision": 1, "privileges": ["add_edit_activities_except_relationships", "delete_project_activity_codes", "schedule_projects"],
+                "expected_revision": 2, "privileges": ["add_edit_activities_except_relationships", "delete_project_activity_codes", "schedule_projects"],
             },
         )
         assert status == 200, changed
-        assert changed["profile"]["revision"] == 2
+        assert changed["profile"]["revision"] == 3
+
+        status, defaulted = _http_request(
+            app, "PATCH", "/api/enterprise/security-profiles/http-project-reader/default",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-default.v1",
+                "expected_revision": 3, "is_default": True,
+            },
+        )
+        assert status == 200, defaulted
+        assert defaulted["profile"]["revision"] == 4
+        assert defaulted["profile"]["is_default"] is True
+
+        status, role_only_details = _http_request(
+            app, "PATCH", "/api/enterprise/security-profiles/http-project-reader/details",
+            session_id="role-only-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-details.v1",
+                "expected_revision": 4, "name": "Unauthorized", "description": "",
+            },
+        )
+        assert status == 403 and role_only_details["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+
+        status, foreign_profile = _http_request(
+            app, "GET", "/api/enterprise/security-profiles/foreign-only/assignments",
+            session_id="admin-session",
+        )
+        assert status == 404 and foreign_profile["code"] == "SECURITY_PROFILE_NOT_FOUND"
+
+        status, duplicated = _http_request(
+            app, "POST", "/api/enterprise/security-profiles/http-project-reader/duplicate",
+            session_id="admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-duplicate.v1",
+                "profile_id": "http-project-reader-copy", "name": "HTTP Project Reader Copy",
+            },
+        )
+        assert status == 201, duplicated
+        assert duplicated["profile"]["revision"] == 1
+        assert duplicated["profile"]["description"] == "Updated description with a revision guard."
+        assert duplicated["profile"]["is_default"] is False
+        assert set(duplicated["profile"]["privileges"]) == set(changed["profile"]["privileges"])
 
         status, assigned = _http_request(
             app, "PUT", "/api/enterprise/security-profiles/http-project-reader/assignments",
@@ -421,6 +495,24 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             },
         )
         assert status == 200 and assigned["revision"] == 1
+
+        status, assigned_delete = _http_request(
+            app, "DELETE", "/api/enterprise/security-profiles/http-project-reader",
+            session_id="admin-session", query_string="expected_revision=4",
+        )
+        assert status == 409 and assigned_delete["code"] == "SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE"
+
+        status, duplicate_delete = _http_request(
+            app, "DELETE", "/api/enterprise/security-profiles/http-project-reader-copy",
+            session_id="admin-session", query_string="expected_revision=1",
+        )
+        assert status == 200 and duplicate_delete["deleted"] is True
+        deleted_audit = connection.execute(
+            "SELECT action FROM p6_security_profile_audit WHERE tenant_id=%s "
+            "AND profile_id='http-project-reader-copy' ORDER BY occurred_at DESC LIMIT 1",
+            (tenant,),
+        ).fetchone()
+        assert deleted_audit is not None and deleted_audit[0] == "profile_deleted"
 
         status, assignment_list = _http_request(
             app, "GET", "/api/enterprise/security-profiles/http-project-reader/assignments",
@@ -1025,3 +1117,88 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         connection.rollback()
     issue_connection.close()
     expense_connection.close()
+
+
+def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolation():
+    suffix = uuid.uuid4().hex
+    tenant = f"profile-default-{suffix}"
+    user_id = f"profile-default-user-{suffix}"
+    obs_id = f"profile-default-obs-{suffix}"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant))
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, obs_id, name="Default Profile OBS")
+        )
+        profiles = PostgresSecurityProfileRepository(connection)
+
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"default-global-{suffix}", name="Default Global",
+            scope="global", actor_user_id=user_id, occurred_at=now,
+        )
+        first = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"default-project-a-{suffix}", name="Default Project A",
+            scope="project", description="First project profile",
+            actor_user_id=user_id, occurred_at=now,
+        )
+        second = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"default-project-b-{suffix}", name="Default Project B",
+            scope="project", description="Second project profile",
+            actor_user_id=user_id, occurred_at=now,
+        )
+
+        first = profiles.set_default(
+            tenant_id=tenant, profile_id=first.profile_id, is_default=True,
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        assert first.is_default and first.revision == 2
+        second = profiles.set_default(
+            tenant_id=tenant, profile_id=second.profile_id, is_default=True,
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        assert second.is_default and second.revision == 2
+        first_after = profiles.get_profile(tenant, first.profile_id)
+        assert not first_after.is_default and first_after.revision == 3
+        assert profiles.get_default_project_profile(tenant).profile_id == second.profile_id
+
+        profiles.assign(
+            tenant_id=tenant, profile_id=global_profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=second.profile_id, user_id=user_id,
+            obs_id=obs_id, actor_user_id=user_id, occurred_at=now,
+        )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE"):
+            profiles.delete_profile(
+                tenant_id=tenant, profile_id=second.profile_id, expected_revision=2,
+                actor_user_id=user_id, occurred_at=now,
+            )
+
+        second = profiles.set_active(
+            tenant_id=tenant, profile_id=second.profile_id, active=False,
+            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+        )
+        assert not second.active and not second.is_default
+        assert profiles.get_default_project_profile(tenant) is None
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_PROJECT_ONLY"):
+            profiles.set_default(
+                tenant_id=tenant, profile_id=global_profile.profile_id, is_default=True,
+                expected_revision=1, actor_user_id=user_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_NOT_FOUND"):
+            profiles.get_profile(f"{tenant}-other", first.profile_id)
+
+        audit = connection.execute(
+            "SELECT action FROM p6_security_profile_audit "
+            "WHERE tenant_id=%s AND profile_id=%s ORDER BY occurred_at,audit_id",
+            (tenant, second.profile_id),
+        ).fetchall()
+        assert "profile_default_changed" in {str(row[0]) for row in audit}
+        assert "profile_status_changed" in {str(row[0]) for row in audit}
+        connection.rollback()

@@ -211,14 +211,18 @@ class SecurityProfile:
     active: bool
     revision: int
     privileges: frozenset[str]
+    description: str = ""
+    is_default: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "tenant_id": self.tenant_id,
             "profile_id": self.profile_id,
             "name": self.name,
+            "description": self.description,
             "scope": self.scope,
             "active": self.active,
+            "is_default": self.is_default,
             "revision": self.revision,
             "privileges": sorted(self.privileges),
         }
@@ -230,8 +234,10 @@ SECURITY_PROFILE_SCHEMA = (
         tenant_id TEXT NOT NULL,
         profile_id TEXT NOT NULL,
         name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+        description TEXT NOT NULL DEFAULT '',
         scope TEXT NOT NULL CHECK (scope IN ('global','project')),
         active BOOLEAN NOT NULL DEFAULT TRUE,
+        is_default BOOLEAN NOT NULL DEFAULT FALSE,
         revision BIGINT NOT NULL CHECK (revision >= 1),
         created_by TEXT NOT NULL,
         updated_by TEXT NOT NULL,
@@ -240,6 +246,36 @@ SECURITY_PROFILE_SCHEMA = (
         PRIMARY KEY (tenant_id, profile_id),
         UNIQUE (tenant_id, scope, name)
     )
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    DROP CONSTRAINT IF EXISTS p6_security_profiles_default_scope_check
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    ADD CONSTRAINT p6_security_profiles_default_scope_check
+    CHECK (NOT is_default OR scope='project')
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    DROP CONSTRAINT IF EXISTS p6_security_profiles_description_check
+    """,
+    """
+    ALTER TABLE p6_security_profiles
+    ADD CONSTRAINT p6_security_profiles_description_check
+    CHECK (length(description) <= 2000)
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profiles_one_default_project
+    ON p6_security_profiles (tenant_id) WHERE scope='project' AND is_default=TRUE
     """,
     """
     CREATE TABLE IF NOT EXISTS p6_security_profile_privileges (
@@ -323,11 +359,22 @@ SECURITY_PROFILE_SCHEMA = (
         profile_id TEXT NOT NULL,
         action TEXT NOT NULL CHECK (action IN
             ('profile_created','privileges_changed','profile_status_changed',
-             'profile_assigned','profile_unassigned')),
+             'profile_assigned','profile_unassigned','profile_updated','profile_default_changed','profile_deleted')),
         before_state JSONB,
         after_state JSONB NOT NULL,
         occurred_at TIMESTAMPTZ NOT NULL
     )
+    """,
+    """
+    ALTER TABLE p6_security_profile_audit
+    DROP CONSTRAINT IF EXISTS p6_security_profile_audit_action_check
+    """,
+    """
+    ALTER TABLE p6_security_profile_audit
+    ADD CONSTRAINT p6_security_profile_audit_action_check
+    CHECK (action IN ('profile_created','privileges_changed','profile_status_changed',
+                      'profile_assigned','profile_unassigned','profile_updated',
+                      'profile_default_changed','profile_deleted'))
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_audit_immutable()
@@ -536,7 +583,7 @@ class PostgresSecurityProfileRepository:
 
     def create_profile(
         self, *, tenant_id: str, profile_id: str, name: str, scope: str,
-        actor_user_id: str, occurred_at: Any,
+        actor_user_id: str, occurred_at: Any, description: str = "",
     ) -> SecurityProfile:
         if not tenant_id.strip() or not _PROFILE_ID.fullmatch(profile_id):
             raise SecurityProfileError("SECURITY_PROFILE_ID_INVALID")
@@ -547,17 +594,265 @@ class PostgresSecurityProfileRepository:
         normalized = name.strip() if isinstance(name, str) else ""
         if not normalized or len(normalized) > 120:
             raise SecurityProfileError("SECURITY_PROFILE_NAME_INVALID")
+        normalized_description = self._description(description)
+        existing_id = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if existing_id is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_ID_ALREADY_EXISTS")
+        duplicate = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND scope=%s AND name=%s LIMIT 1",
+            (tenant_id, scope, normalized),
+        ).fetchone()
+        if duplicate is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_NAME_ALREADY_EXISTS")
         self._connection.execute(
             "INSERT INTO p6_security_profiles "
-            "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
-            "VALUES (%s,%s,%s,%s,TRUE,1,%s,%s,%s,%s)",
-            (tenant_id, profile_id, normalized, scope, actor_user_id,
+            "(tenant_id,profile_id,name,description,scope,active,is_default,revision,created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,TRUE,FALSE,1,%s,%s,%s,%s)",
+            (tenant_id, profile_id, normalized, normalized_description, scope, actor_user_id,
              actor_user_id, occurred_at, occurred_at),
         )
         self._audit(tenant_id, actor_user_id, profile_id, "profile_created",
-                    None, {"name": normalized, "scope": scope, "active": True, "revision": 1},
+                    None, {"name": normalized, "description": normalized_description,
+                           "scope": scope, "active": True, "is_default": False, "revision": 1},
                     occurred_at)
-        return SecurityProfile(tenant_id, profile_id, normalized, scope, True, 1, frozenset())
+        return SecurityProfile(tenant_id, profile_id, normalized, scope, True, 1,
+                               frozenset(), normalized_description, False)
+
+    def update_details(
+        self, *, tenant_id: str, profile_id: str, name: str, description: str,
+        expected_revision: int, actor_user_id: str, occurred_at: Any,
+    ) -> SecurityProfile:
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        normalized_name = name.strip() if isinstance(name, str) else ""
+        if not normalized_name or len(normalized_name) > 120:
+            raise SecurityProfileError("SECURITY_PROFILE_NAME_INVALID")
+        normalized_description = self._description(description)
+        row = self._connection.execute(
+            "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if int(row[3]) != expected_revision:
+            raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        duplicate = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND scope=%s "
+            "AND name=%s AND profile_id<>%s LIMIT 1",
+            (tenant_id, str(row[1]), normalized_name, profile_id),
+        ).fetchone()
+        if duplicate is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_NAME_ALREADY_EXISTS")
+        before = self.get_profile(tenant_id, profile_id)
+        revision = expected_revision + 1
+        self._connection.execute(
+            "UPDATE p6_security_profiles SET name=%s,description=%s,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (normalized_name, normalized_description, revision, actor_user_id,
+             occurred_at, tenant_id, profile_id),
+        )
+        after = {**before.as_dict(), "name": normalized_name,
+                 "description": normalized_description, "revision": revision}
+        self._audit(tenant_id, actor_user_id, profile_id, "profile_updated",
+                    before.as_dict(), after, occurred_at)
+        return SecurityProfile(
+            tenant_id, profile_id, normalized_name, str(row[1]), bool(row[2]),
+            revision, before.privileges, normalized_description, bool(row[5]),
+        )
+
+    def set_default(
+        self, *, tenant_id: str, profile_id: str, is_default: bool,
+        expected_revision: int, actor_user_id: str, occurred_at: Any,
+    ) -> SecurityProfile:
+        if not isinstance(is_default, bool):
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_FLAG_INVALID")
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-project-profile-default:{tenant_id}",),
+        )
+        row = self._connection.execute(
+            "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        if str(row[1]) != "project":
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_ONLY")
+        if not bool(row[2]) and is_default:
+            raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
+        if int(row[3]) != expected_revision:
+            raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        before = self.get_profile(tenant_id, profile_id)
+        if bool(row[5]) == is_default:
+            return before
+        if is_default:
+            previous_rows = self._connection.execute(
+                "SELECT profile_id,revision FROM p6_security_profiles "
+                "WHERE tenant_id=%s AND scope='project' AND is_default=TRUE "
+                "AND profile_id<>%s FOR UPDATE",
+                (tenant_id, profile_id),
+            ).fetchall()
+            for previous in previous_rows:
+                previous_id, previous_revision = str(previous[0]), int(previous[1])
+                previous_before = self.get_profile(tenant_id, previous_id)
+                next_revision = previous_revision + 1
+                self._connection.execute(
+                    "UPDATE p6_security_profiles SET is_default=FALSE,revision=%s,"
+                    "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+                    (next_revision, actor_user_id, occurred_at, tenant_id, previous_id),
+                )
+                previous_after = {**previous_before.as_dict(),
+                                  "is_default": False, "revision": next_revision}
+                self._audit(
+                    tenant_id, actor_user_id, previous_id, "profile_default_changed",
+                    previous_before.as_dict(), previous_after, occurred_at,
+                )
+        revision = expected_revision + 1
+        self._connection.execute(
+            "UPDATE p6_security_profiles SET is_default=%s,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (is_default, revision, actor_user_id, occurred_at, tenant_id, profile_id),
+        )
+        after = {**before.as_dict(), "is_default": is_default, "revision": revision}
+        self._audit(tenant_id, actor_user_id, profile_id, "profile_default_changed",
+                    before.as_dict(), after, occurred_at)
+        return SecurityProfile(
+            tenant_id, profile_id, row[0], row[1], bool(row[2]), revision,
+            before.privileges, str(row[4]), is_default,
+        )
+
+    def duplicate_profile(
+        self, *, tenant_id: str, source_profile_id: str, profile_id: str,
+        actor_user_id: str, occurred_at: Any, name: str | None = None,
+        description: str | None = None,
+    ) -> SecurityProfile:
+        if not tenant_id.strip() or not _PROFILE_ID.fullmatch(profile_id):
+            raise SecurityProfileError("SECURITY_PROFILE_ID_INVALID")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        if profile_id == source_profile_id:
+            raise SecurityProfileError("SECURITY_PROFILE_ID_INVALID")
+        target_exists = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if target_exists is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_ID_ALREADY_EXISTS")
+        source = self._connection.execute(
+            "SELECT name,scope,description FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR SHARE",
+            (tenant_id, source_profile_id),
+        ).fetchone()
+        if source is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if source_profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        normalized_name = name.strip() if isinstance(name, str) else ""
+        if not normalized_name:
+            base = str(source[0])
+            for suffix in range(1, 1000):
+                candidate = f"{base}-{suffix}"
+                exists = self._connection.execute(
+                    "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND scope=%s AND name=%s LIMIT 1",
+                    (tenant_id, str(source[1]), candidate),
+                ).fetchone()
+                if exists is None:
+                    normalized_name = candidate
+                    break
+        if not normalized_name or len(normalized_name) > 120:
+            raise SecurityProfileError("SECURITY_PROFILE_NAME_INVALID")
+        normalized_description = self._description(
+            str(source[2]) if description is None else description
+        )
+        exists = self._connection.execute(
+            "SELECT 1 FROM p6_security_profiles WHERE tenant_id=%s AND scope=%s AND name=%s LIMIT 1",
+            (tenant_id, str(source[1]), normalized_name),
+        ).fetchone()
+        if exists is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_NAME_ALREADY_EXISTS")
+        privileges = self._connection.execute(
+            "SELECT permission FROM p6_security_profile_privileges "
+            "WHERE tenant_id=%s AND profile_id=%s ORDER BY permission",
+            (tenant_id, source_profile_id),
+        ).fetchall()
+        copied = tuple(str(item[0]) for item in privileges)
+        self._connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,description,scope,active,is_default,revision,"
+            "created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,TRUE,FALSE,1,%s,%s,%s,%s)",
+            (tenant_id, profile_id, normalized_name, normalized_description,
+             str(source[1]), actor_user_id, actor_user_id, occurred_at, occurred_at),
+        )
+        for permission in copied:
+            self._connection.execute(
+                "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+                "VALUES (%s,%s,%s)", (tenant_id, profile_id, permission),
+            )
+        after = {
+            "name": normalized_name, "description": normalized_description,
+            "scope": str(source[1]), "active": True, "is_default": False,
+            "revision": 1, "privileges": list(copied),
+            "duplicated_from": source_profile_id,
+        }
+        self._audit(tenant_id, actor_user_id, profile_id, "profile_created",
+                    None, after, occurred_at)
+        return self.get_profile(tenant_id, profile_id)
+
+    def delete_profile(
+        self, *, tenant_id: str, profile_id: str, expected_revision: int,
+        actor_user_id: str, occurred_at: Any,
+    ) -> None:
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        row = self._connection.execute(
+            "SELECT revision FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if int(row[0]) != expected_revision:
+            raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        assigned = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments "
+            "WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if assigned is not None:
+            raise SecurityProfileError("SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE")
+        before = self.get_profile(tenant_id, profile_id)
+        self._connection.execute(
+            "DELETE FROM p6_security_profile_privileges WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        )
+        deleted = self._connection.execute(
+            "DELETE FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s "
+            "AND revision=%s RETURNING profile_id",
+            (tenant_id, profile_id, expected_revision),
+        ).fetchone()
+        if deleted is None:
+            raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        self._audit(
+            tenant_id, actor_user_id, profile_id, "profile_deleted",
+            before.as_dict(), {"profile_id": profile_id, "deleted": True,
+                               "revision": expected_revision}, occurred_at,
+        )
+
+    def get_default_project_profile(self, tenant_id: str) -> SecurityProfile | None:
+        row = self._connection.execute(
+            "SELECT profile_id FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND scope='project' AND active=TRUE AND is_default=TRUE",
+            (tenant_id,),
+        ).fetchone()
+        return None if row is None else self.get_profile(tenant_id, str(row[0]))
 
     def set_privileges(
         self, *, tenant_id: str, profile_id: str, privileges: Iterable[str],
@@ -565,7 +860,7 @@ class PostgresSecurityProfileRepository:
     ) -> SecurityProfile:
         requested = frozenset(privileges)
         row = self._connection.execute(
-            "SELECT name,scope,active,revision FROM p6_security_profiles "
+            "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
             (tenant_id, profile_id),
         ).fetchone()
@@ -596,11 +891,12 @@ class PostgresSecurityProfileRepository:
             (revision, actor_user_id, occurred_at, tenant_id, profile_id),
         )
         after = {"name": row[0], "scope": row[1], "active": bool(row[2]),
+                 "description": str(row[4]), "is_default": bool(row[5]),
                  "revision": revision, "privileges": sorted(normalized)}
         self._audit(tenant_id, actor_user_id, profile_id, "privileges_changed",
                     before.as_dict(), after, occurred_at)
         return SecurityProfile(tenant_id, profile_id, row[0], row[1], bool(row[2]),
-                               revision, normalized)
+                               revision, normalized, str(row[4]), bool(row[5]))
 
     def set_active(
         self, *, tenant_id: str, profile_id: str, active: bool,
@@ -609,7 +905,7 @@ class PostgresSecurityProfileRepository:
         if not isinstance(active, bool):
             raise SecurityProfileError("SECURITY_PROFILE_STATUS_INVALID")
         row = self._connection.execute(
-            "SELECT name,scope,active,revision FROM p6_security_profiles "
+            "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
             (tenant_id, profile_id),
         ).fetchone()
@@ -621,16 +917,17 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         before = self.get_profile(tenant_id, profile_id)
         revision = expected_revision + 1
+        is_default = bool(row[5]) and active
         self._connection.execute(
-            "UPDATE p6_security_profiles SET active=%s,revision=%s,updated_by=%s,updated_at=%s "
+            "UPDATE p6_security_profiles SET active=%s,is_default=%s,revision=%s,updated_by=%s,updated_at=%s "
             "WHERE tenant_id=%s AND profile_id=%s",
-            (active, revision, actor_user_id, occurred_at, tenant_id, profile_id),
+            (active, is_default, revision, actor_user_id, occurred_at, tenant_id, profile_id),
         )
-        after = {**before.as_dict(), "active": active, "revision": revision}
+        after = {**before.as_dict(), "active": active, "is_default": is_default, "revision": revision}
         self._audit(tenant_id, actor_user_id, profile_id, "profile_status_changed",
                     before.as_dict(), after, occurred_at)
         return SecurityProfile(tenant_id, profile_id, row[0], row[1], active,
-                               revision, before.privileges)
+                               revision, before.privileges, str(row[4]), is_default)
 
     def assign(
         self, *, tenant_id: str, profile_id: str, user_id: str,
@@ -773,7 +1070,7 @@ class PostgresSecurityProfileRepository:
 
     def get_profile(self, tenant_id: str, profile_id: str) -> SecurityProfile:
         row = self._connection.execute(
-            "SELECT name,scope,active,revision FROM p6_security_profiles "
+            "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s",
             (tenant_id, profile_id),
         ).fetchone()
@@ -785,7 +1082,8 @@ class PostgresSecurityProfileRepository:
             (tenant_id, profile_id),
         ).fetchall()
         return SecurityProfile(tenant_id, profile_id, row[0], row[1], bool(row[2]),
-                               int(row[3]), frozenset(str(item[0]) for item in grants))
+                               int(row[3]), frozenset(str(item[0]) for item in grants),
+                               str(row[4]), bool(row[5]))
 
     def list_profiles(self, tenant_id: str, scope: str | None = None) -> tuple[SecurityProfile, ...]:
         if scope is not None and scope not in _PROFILE_SCOPES:
@@ -818,6 +1116,14 @@ class PostgresSecurityProfileRepository:
             "revision": int(row[4]), "assigned_by": str(row[5]),
             "assigned_at": row[6].isoformat(),
         } for row in rows)
+
+    def _description(self, value: Any) -> str:
+        if not isinstance(value, str):
+            raise SecurityProfileError("SECURITY_PROFILE_DESCRIPTION_INVALID")
+        normalized = value.strip()
+        if len(normalized) > 2000:
+            raise SecurityProfileError("SECURITY_PROFILE_DESCRIPTION_INVALID")
+        return normalized
 
     def _audit(self, tenant_id: str, actor_id: str, profile_id: str,
                action: str, before: Any, after: Any, occurred_at: Any) -> None:

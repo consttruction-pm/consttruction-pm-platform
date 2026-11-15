@@ -254,12 +254,15 @@ class EnterpriseOrganizationAccessService:
         self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.list_assignments(session.tenant_id, profile_id)
 
-    def create_security_profile(self, session_id: str, *, profile_id: str, name: str, scope: str):
+    def create_security_profile(
+        self, session_id: str, *, profile_id: str, name: str, scope: str,
+        description: str = "",
+    ):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.create_profile(
             tenant_id=session.tenant_id, profile_id=profile_id, name=name, scope=scope,
-            actor_user_id=session.user_id, occurred_at=self._now(),
+            description=description, actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
     def set_security_profile_privileges(
@@ -281,6 +284,52 @@ class EnterpriseOrganizationAccessService:
         self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.set_active(
             tenant_id=session.tenant_id, profile_id=profile_id, active=active,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def update_security_profile_details(
+        self, session_id: str, profile_id: str, *, name: str, description: str,
+        expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
+        return self._security_profiles.update_details(
+            tenant_id=session.tenant_id, profile_id=profile_id, name=name,
+            description=description, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def set_security_profile_default(
+        self, session_id: str, profile_id: str, *, is_default: bool, expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
+        return self._security_profiles.set_default(
+            tenant_id=session.tenant_id, profile_id=profile_id, is_default=is_default,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def duplicate_security_profile(
+        self, session_id: str, profile_id: str, *, new_profile_id: str,
+        name: str | None = None, description: str | None = None,
+    ):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
+        return self._security_profiles.duplicate_profile(
+            tenant_id=session.tenant_id, source_profile_id=profile_id,
+            profile_id=new_profile_id, name=name, description=description,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
+    def delete_security_profile(
+        self, session_id: str, profile_id: str, *, expected_revision: int,
+    ) -> None:
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
+        self._security_profiles.delete_profile(
+            tenant_id=session.tenant_id, profile_id=profile_id,
             expected_revision=expected_revision, actor_user_id=session.user_id,
             occurred_at=self._now(),
         )

@@ -34,7 +34,14 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             status, payload = 403, {"code": str(exc) or "ORGANIZATION_ACCESS_DENIED"}
         except SecurityProfileError as exc:
             code = exc.code
-            status = 404 if code in {"SECURITY_PROFILE_NOT_FOUND", "SECURITY_PROFILE_PROJECT_NOT_FOUND"} else (409 if "REVISION_CONFLICT" in code else 400)
+            status = (
+                404 if code in {"SECURITY_PROFILE_NOT_FOUND", "SECURITY_PROFILE_PROJECT_NOT_FOUND"}
+                else 409 if ("REVISION_CONFLICT" in code or code in {
+                    "SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE",
+                    "SECURITY_PROFILE_NAME_ALREADY_EXISTS",
+                    "SECURITY_PROFILE_ID_ALREADY_EXISTS",
+                }) else 400
+            )
             payload = {"code": code}
         except OrganizationAccessError as exc:
             code = str(exc) or "ORGANIZATION_ACCESS_REQUEST_INVALID"
@@ -93,16 +100,80 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 }
             if method == "POST":
                 payload = self._body(environ, "cubi-p6-security-profile.v1")
+                description = payload.get("description", "")
+                if not isinstance(description, str):
+                    raise SecurityProfileError("SECURITY_PROFILE_DESCRIPTION_INVALID")
                 profile = self._service.create_security_profile(
                     session_id, profile_id=self._text(payload, "profile_id"),
                     name=self._text(payload, "name"), scope=self._text(payload, "scope"),
+                    description=description,
                 )
                 return 201, {"contract_version": "cubi-p6-security-profile.v1",
                              "profile": self._profile(profile)}
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
+        if (len(parts) == 4 and parts[:3] == ["api", "enterprise", "security-profiles"]
+                and method == "DELETE"):
+            query = parse_qs(str(environ.get("QUERY_STRING", "") or ""))
+            revisions = query.get("expected_revision", [])
+            if len(revisions) != 1:
+                raise SecurityProfileError("SECURITY_PROFILE_REVISION_REQUIRED")
+            try:
+                expected = int(revisions[0])
+            except ValueError as exc:
+                raise SecurityProfileError("SECURITY_PROFILE_REVISION_REQUIRED") from exc
+            if expected < 1:
+                raise SecurityProfileError("SECURITY_PROFILE_REVISION_REQUIRED")
+            self._service.delete_security_profile(session_id, parts[3], expected_revision=expected)
+            return 200, {"contract_version": "cubi-p6-security-profile-delete.v1",
+                         "profile_id": parts[3], "deleted": True}
+
         if len(parts) == 5 and parts[:3] == ["api", "enterprise", "security-profiles"]:
             profile_id = parts[3]
+            if parts[4] == "details":
+                if method == "PATCH":
+                    payload = self._body(environ, "cubi-p6-security-profile-details.v1")
+                    expected = payload.get("expected_revision")
+                    description = payload.get("description")
+                    if (isinstance(expected, bool) or not isinstance(expected, int)
+                            or not isinstance(description, str)):
+                        raise SecurityProfileError("SECURITY_PROFILE_DETAILS_REQUEST_INVALID")
+                    profile = self._service.update_security_profile_details(
+                        session_id, profile_id, name=self._text(payload, "name"),
+                        description=description, expected_revision=expected,
+                    )
+                    return 200, {"contract_version": "cubi-p6-security-profile.v1",
+                                 "profile": self._profile(profile)}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            if parts[4] == "default":
+                if method == "PATCH":
+                    payload = self._body(environ, "cubi-p6-security-profile-default.v1")
+                    is_default, expected = payload.get("is_default"), payload.get("expected_revision")
+                    if (not isinstance(is_default, bool) or isinstance(expected, bool)
+                            or not isinstance(expected, int)):
+                        raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_REQUEST_INVALID")
+                    profile = self._service.set_security_profile_default(
+                        session_id, profile_id, is_default=is_default, expected_revision=expected,
+                    )
+                    return 200, {"contract_version": "cubi-p6-security-profile.v1",
+                                 "profile": self._profile(profile)}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            if parts[4] == "duplicate":
+                if method == "POST":
+                    payload = self._body(environ, "cubi-p6-security-profile-duplicate.v1")
+                    name, description = payload.get("name"), payload.get("description")
+                    if (name is not None and not isinstance(name, str)) or (
+                        description is not None and not isinstance(description, str)
+                    ):
+                        raise SecurityProfileError("SECURITY_PROFILE_DUPLICATE_REQUEST_INVALID")
+                    profile = self._service.duplicate_security_profile(
+                        session_id, profile_id,
+                        new_profile_id=self._text(payload, "profile_id"),
+                        name=name, description=description,
+                    )
+                    return 201, {"contract_version": "cubi-p6-security-profile.v1",
+                                 "profile": self._profile(profile)}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
             if parts[4] == "privileges":
                 if method == "PATCH":
                     payload = self._body(environ, "cubi-p6-security-profile-privileges.v1")
