@@ -187,6 +187,11 @@ def runtime() -> ProductionRuntime:
             "VALUES (%s,%s,'add_projects') ON CONFLICT DO NOTHING",
             (tenant_a, f"project-planner-{suffix}"),
         )
+        connection.execute(
+            "INSERT INTO p6_security_profile_privileges (tenant_id,profile_id,permission) "
+            "VALUES (%s,%s,'add_edit_delete_eps_except_costs_financials') ON CONFLICT DO NOTHING",
+            (tenant_a, f"project-planner-{suffix}"),
+        )
         connection.commit()
     finally:
         instance.pool.release(connection, healthy=True)
@@ -464,6 +469,25 @@ def test_planner_can_create_project_only_through_assigned_eps_profile(runtime):
     eps_status, _, eps_body = call(runtime, "GET", "/api/p6/eps", cookie=cookie)
     assert eps_status == 200
     assert [node["eps_id"] for node in json.loads(eps_body)["eps_nodes"]] == [ids["eps_a"]]
+    child_eps_id = f"planner-child-eps-{uuid.uuid4().hex[:8]}"
+    child_status, _, child_body = call(
+        runtime, "POST", "/api/p6/eps", cookie=cookie, csrf=csrf,
+        body={
+            "eps_id": child_eps_id,
+            "name": "Planner Child EPS",
+            "parent_eps_id": ids["eps_a"],
+            "responsible_obs_id": ids["obs_a"],
+            "sequence_number": 1,
+        },
+    )
+    assert child_status == 201, child_body
+    patch_status, _, patch_body = call(
+        runtime, "PATCH", f"/api/p6/eps/{child_eps_id}",
+        cookie=cookie, csrf=csrf,
+        body={"name": "Planner Child EPS Updated", "expected_revision": 1},
+    )
+    assert patch_status == 200, patch_body
+    assert json.loads(patch_body)["eps_node"]["name"] == "Planner Child EPS Updated"
     project_id = f"planner-created-{uuid.uuid4().hex[:8]}"
     status, _, body = call(
         runtime,
