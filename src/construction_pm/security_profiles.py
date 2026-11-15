@@ -773,15 +773,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "responsible_obs(obs_id) AS ("
             "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
-            "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps), "
-            "project_obs(obs_id,parent_obs_id) AS ("
-            "SELECT obs.obs_id,obs.parent_obs_id FROM p6_obs_node obs "
-            "JOIN responsible_obs responsible ON responsible.obs_id=obs.obs_id "
-            "WHERE obs.tenant_id=%s "
-            "UNION "
-            "SELECT parent.obs_id,parent.parent_obs_id FROM p6_obs_node parent "
-            "JOIN project_obs child ON child.parent_obs_id=parent.obs_id "
-            "WHERE parent.tenant_id=%s) "
+            "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps) "
             "SELECT p.scope,p.active,a.obs_id,p.profile_id "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id "
@@ -789,10 +781,10 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "WHERE a.tenant_id=%s AND a.user_id=%s "
             "AND ( (p.scope='global' AND a.obs_id='') "
             "OR (p.scope='project' AND a.obs_id IN "
-            "(SELECT obs_id FROM project_obs)))",
+            "(SELECT obs_id FROM responsible_obs)))",
             (context.tenant_id, context.project_id, context.tenant_id,
              context.tenant_id, context.project_id, context.tenant_id,
-             context.tenant_id, context.user_id),
+             context.user_id),
         ).fetchall()
         global_rows = [row for row in rows if str(row[0]) == "global"]
         project_rows = [row for row in rows if str(row[0]) == "project"]
