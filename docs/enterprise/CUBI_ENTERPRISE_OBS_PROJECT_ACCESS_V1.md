@@ -110,3 +110,11 @@ Tests added for activity view vs write separation and issue/expense operation-sp
 - **Thresholds:** list/read/history/runs use `threshold.view`; create uses `threshold.add_edit`; update uses `threshold.edit`; delete uses `threshold.delete`. OBS responsibility checks remain independent. The monitor operation is intentionally still behind the legacy project-write gate pending an explicit V26 Tools privilege mapping; it is not silently equated with threshold editing.
 
 These are route/service-boundary mappings, not a claim that all Project Data privileges are complete. In particular, threshold monitoring must be mapped to the exact V26 tool privilege before granular-only profiles can run it. The project privilege catalogue, resource assignment operations, baseline/document permissions, global/module/resource security and full acceptance matrix remain outstanding.
+
+
+### Baseline operation enforcement
+
+- Baseline create uses `baseline.create_update`.
+- Baseline get/list use `baseline.view`.
+
+The current baseline application surface has no delete/restore/assign operations; those rights are not claimed as implemented. Project-level profile grants and application-role grants are both checked. Legacy project read/write profile permissions remain compatibility fallbacks.
