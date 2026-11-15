@@ -1054,7 +1054,7 @@ class PostgresWBSMasterRepository:
         row = self.connection.execute(
             """WITH RECURSIVE target AS (
                    SELECT p.obs_id AS project_obs_id,
-                          CASE WHEN %s THEN %s ELSE COALESCE(w.responsible_obs_id,p.obs_id) END AS responsible_obs_id
+                          CASE WHEN %s THEN COALESCE(%s,p.obs_id) ELSE COALESCE(w.responsible_obs_id,p.obs_id) END AS responsible_obs_id
                    FROM wbs_master w
                    JOIN project_lifecycle_projects p
                      ON p.tenant_id=w.tenant_id AND p.project_id=w.project_id
