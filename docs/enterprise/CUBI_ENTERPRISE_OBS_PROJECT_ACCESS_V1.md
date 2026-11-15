@@ -86,3 +86,19 @@ This is deliberately a catalogue foundation, **not** a claim of complete V26 cat
 The initial privilege catalogue is now consumed by the authenticated `GET /api/enterprise/project-security-privileges` endpoint and the bilingual Enterprise Project Access form. The form renders grouped privileges with group-level Select all / Clear controls. Profile creation accepts legacy compatibility grants and granular catalogue keys; granular grants are normalized and stored using the V26 Add/Delete → Edit/Assign/View inheritance rules. Unknown privilege keys and missing inheritance targets fail closed. Tests cover profile normalization, invalid keys, inheritance targets and the authenticated catalogue endpoint.
 
 **Important enforcement boundary:** this increment makes granular grants configurable and persisted; it does not yet claim every P6 API is mapped to its granular privilege. Existing API handlers still using `project.read` / `project.write` remain compatibility-authorized until their operation-level privilege mappings and tests are migrated. Do not assign granular-only profiles to production users for operational access until the endpoint matrix is enforced. Remaining work includes full V26 privilege-by-privilege reconciliation, profile edit/duplicate/default and audit administration, Global Security Profiles, resource/module access, and all API/UI enforcement.
+
+
+## Operation-level enforcement increment (2026-11-15)
+
+The granular catalogue is now enforced at the application API boundary for a bounded set of operations:
+
+- **Activities:** create → `activity.add_edit`; update → `activity.edit`; get/list → `activity.view`. Activity listing was corrected to use the same view privilege as item retrieval instead of the legacy project-read key.
+- **Activity relationships:** create/update/delete → `activity.relationship.add_edit_delete`; get/list → `activity.view`.
+- **Issues:** create → `issue.add_edit`; update and add discussion comment → `issue.edit`; delete → `issue.delete`; get/list/history → `issue.view`.
+- **Expenses:** create → `expense.add_edit`; get/list → `expense.view`. The current Expense API has no separate update/delete operation, so those catalogue rights are not represented as implemented routes.
+
+The role policy accepts the granular capability as an application-level gate, while the Enterprise Project Authorization Policy additionally requires the corresponding project-profile grant. Explicit legacy `project.read`/`project.write` profile grants remain a compatibility fallback; they are not expanded into granular-only profiles. OBS/WBS checks remain a separate scope gate and continue to run on the data operations.
+
+Tests added for activity view vs write separation and issue/expense operation-specific grants. The exact-head Python, web, typecheck and live PostgreSQL checks are the promotion gate; browser-level security acceptance remains outstanding.
+
+**Still not full V26 parity:** Activity deletion is not exposed by the current Activity Master repository/API; Expense update/delete routes are absent; Risk and Threshold routes are not yet migrated; Baseline and the remaining Project Data, Resource Assignment, Tools, Views/Reports and related-application privileges still need endpoint-by-endpoint mapping. Global Security Profiles, module/resource access, Owner/Contributor exceptions, and the exhaustive Oracle privilege traceability matrix also remain open. Do not describe this increment as full P6 V26 security parity.
