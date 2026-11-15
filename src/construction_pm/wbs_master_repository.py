@@ -987,6 +987,36 @@ class PostgresWBSMasterRepository:
             )"""
         )
 
+    def has_wbs_permission(
+        self,
+        scope: BackendScope,
+        user_id: str,
+        wbs_id: str,
+        permission: str,
+        *,
+        responsible_obs_id_override: object = _WBS_OBS_UNSET,
+    ) -> bool:
+        """Resolve the WBS's assigned OBS (legacy fallback: project OBS), then authorize it."""
+        if responsible_obs_id_override is _WBS_OBS_UNSET:
+            row = self.connection.execute(
+                "SELECT responsible_obs_id FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s",
+                (scope.tenant_id, scope.project_id, wbs_id),
+            ).fetchone()
+            if row is None:
+                return False
+            responsible_obs_id = row[0]
+        else:
+            responsible_obs_id = responsible_obs_id_override
+        if not responsible_obs_id:
+            project = self.connection.execute(
+                "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            ).fetchone()
+            responsible_obs_id = None if project is None else project[0]
+        return self.has_responsible_obs_permission(
+            scope, user_id, None if responsible_obs_id is None else str(responsible_obs_id), permission
+        )
+
     def has_responsible_obs_permission(
         self, scope: BackendScope, user_id: str, responsible_obs_id: str | None, permission: str
     ) -> bool:
