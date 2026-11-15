@@ -27,6 +27,15 @@ class Service:
         self.calls.append(("list", session_id))
         return (self.team,)
 
+    def list_accounts(self, session_id):
+        self.calls.append(("accounts", session_id))
+        return ({"user_id": "owner", "email": "owner@example.test",
+                 "display_name": "Owner", "active": True},)
+
+    def set_account_active(self, session_id, user_id, *, active):
+        self.calls.append(("account_status", session_id, user_id, active))
+        return {"user_id": user_id, "active": active, "changed": True}
+
     def create_team(self, session_id, name):
         self.calls.append(("create", session_id, name))
         return self.team
@@ -146,3 +155,38 @@ def test_stale_membership_revision_returns_http_conflict():
     )
     assert status == "409 Conflict"
     assert body["code"] == "TEAM_MEMBERSHIP_REVISION_CONFLICT"
+
+
+def test_enterprise_user_list_and_account_status_use_separate_versioned_contracts():
+    service = Service()
+    app = EnterpriseOrganizationAccessHttpMiddleware(lambda *_: [b"fallback"], service)
+    status, body = request(app, "GET", "/api/enterprise/users")
+    assert status == "200 OK"
+    assert body["contract_version"] == "cubi-enterprise-user-list.v1"
+    assert body["users"][0]["active"] is True
+
+    status, body = request(
+        app, "PATCH", "/api/enterprise/users/worker-1/status",
+        {"contract_version": "cubi-enterprise-user-admin.v1", "active": False},
+    )
+    assert status == "200 OK"
+    assert body["contract_version"] == "cubi-enterprise-user-status.v1"
+    assert body["account"]["active"] is False
+    assert service.calls[-1] == ("account_status", "session-1", "worker-1", False)
+
+
+def test_enterprise_user_status_rejects_invalid_boolean_and_unsupported_contract():
+    app = EnterpriseOrganizationAccessHttpMiddleware(lambda *_: [b"fallback"], Service())
+    status, body = request(
+        app, "PATCH", "/api/enterprise/users/worker-1/status",
+        {"contract_version": "cubi-enterprise-user-admin.v1", "active": "false"},
+    )
+    assert status == "400 Bad Request"
+    assert body["code"] == "ACCOUNT_ACTIVE_FLAG_INVALID"
+
+    status, body = request(
+        app, "PATCH", "/api/enterprise/users/worker-1/status",
+        {"contract_version": "cubi-enterprise-team.v1", "active": False},
+    )
+    assert status == "400 Bad Request"
+    assert body["code"] == "UNSUPPORTED_ENTERPRISE_TEAM_CONTRACT"
