@@ -19,6 +19,10 @@ from .application.authorization import (
 
 _PROFILE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
 _PROFILE_SCOPES = frozenset({"global", "project"})
+# Reserved Oracle P6 V26 built-in. It is provisioned only by a controlled
+# installation bootstrap; tenant administrators cannot create or edit it.
+ADMIN_SUPERUSER_PROFILE_ID = "p6-admin-superuser"
+_RESERVED_PROFILE_IDS = frozenset({ADMIN_SUPERUSER_PROFILE_ID})
 
 # Oracle P6 EPPM Help V26, Privileges Detail Window of the Global Security Profiles Page.
 GLOBAL_PRIVILEGES = frozenset({
@@ -217,8 +221,7 @@ SECURITY_PROFILE_SCHEMA = (
     CREATE INDEX IF NOT EXISTS p6_security_profile_assignments_user
     ON p6_security_profile_assignments (tenant_id, user_id, obs_id)
     """,
-    """
-    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_global_per_user
+    """    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_global_per_user
     ON p6_security_profile_assignments (tenant_id, user_id)
     WHERE obs_id=''
     """,
@@ -314,6 +317,8 @@ class PostgresSecurityProfileRepository:
     ) -> SecurityProfile:
         if not tenant_id.strip() or not _PROFILE_ID.fullmatch(profile_id):
             raise SecurityProfileError("SECURITY_PROFILE_ID_INVALID")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if scope not in _PROFILE_SCOPES:
             raise SecurityProfileError("SECURITY_PROFILE_SCOPE_INVALID")
         normalized = name.strip() if isinstance(name, str) else ""
@@ -343,6 +348,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         valid = GLOBAL_PRIVILEGES if str(row[1]) == "global" else PROJECT_PRIVILEGES
@@ -385,6 +392,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         before = self.get_profile(tenant_id, profile_id)
@@ -412,6 +421,16 @@ class PostgresSecurityProfileRepository:
         if profile is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         scope, active = str(profile[0]), bool(profile[1])
+        if profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+            actor_is_admin_superuser = self._connection.execute(
+                "SELECT 1 FROM p6_security_profile_assignments a "
+                "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+                "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+                (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
+            ).fetchone()
+            if actor_is_admin_superuser is None:
+                raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED")
         if not active:
             raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
         if (scope == "global" and obs_id) or (scope == "project" and not obs_id):
@@ -437,8 +456,7 @@ class PostgresSecurityProfileRepository:
         if existing is not None:
             if expected_revision is None or int(existing[0]) != expected_revision:
                 raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
-            revision = expected_revision + 1
-            self._connection.execute(
+            revision = expected_revision + 1            self._connection.execute(
                 "UPDATE p6_security_profile_assignments SET revision=%s,assigned_by=%s,assigned_at=%s "
                 "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s",
                 (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
@@ -455,6 +473,14 @@ class PostgresSecurityProfileRepository:
                 if occupied is not None:
                     if expected_revision is None or int(occupied[1]) != expected_revision:
                         raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+                    if str(occupied[0]) == ADMIN_SUPERUSER_PROFILE_ID and profile_id != ADMIN_SUPERUSER_PROFILE_ID:
+                        remaining = self._connection.execute(
+                            "SELECT count(*) FROM p6_security_profile_assignments "
+                            "WHERE tenant_id=%s AND profile_id=%s AND obs_id=''",
+                            (tenant_id, ADMIN_SUPERUSER_PROFILE_ID),
+                        ).fetchone()
+                        if remaining is not None and int(remaining[0]) <= 1:
+                            raise SecurityProfileError("SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED")
                     revision = expected_revision + 1
                     self._connection.execute(
                         "UPDATE p6_security_profile_assignments "
@@ -581,6 +607,17 @@ class PostgresSecurityProfileAuthorizationPolicy:
         context.validate()
         if not self._role_policy.is_allowed(context, permission):
             return False
+        admin_superuser = self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+            (context.tenant_id, context.user_id, ADMIN_SUPERUSER_PROFILE_ID),
+        ).fetchone()
+        # Oracle's Admin Superuser bypasses Global/Project profile scope and
+        # privilege checks. The legacy role policy remains a hard ceiling.
+        if admin_superuser is not None:
+            return True
         rows = self._connection.execute(
             "WITH RECURSIVE project_obs(obs_id,parent_obs_id) AS ("
             "SELECT obs.obs_id,obs.parent_obs_id FROM project_lifecycle_projects project "
