@@ -115,6 +115,15 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
             tenant_id=tenant, profile_id="global-limited", user_id=user_id,
             actor_user_id=user_id, occurred_at=now,
         )
+        # Global UDF definitions are governed by the V26 Global privilege,
+        # not by a generic Project Write grant or the Project Profile.
+        assert not policy.is_allowed(context, Permission.P6_UDF_ADMIN)
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id="global-limited",
+            privileges={"add_edit_delete_user_defined_fields"},
+            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed(context, Permission.P6_UDF_ADMIN)
 
         profiles.create_profile(
             tenant_id=tenant, profile_id="global-replacement", name="Global Replacement",
