@@ -311,4 +311,4 @@ def test_defaults_application_is_appended_and_read_back_scoped():
     history = PostgresProjectRepository(c).defaults_history_for_user("t1", "p1", "u1")
     assert len(history) == 1
     assert history[0].activity_id == "A1000"
-    assert "JOIN project_lifecycle_memberships" in c.calls[2][0]
+    assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in c.calls[2][0]
