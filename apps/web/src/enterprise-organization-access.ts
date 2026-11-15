@@ -191,7 +191,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         const option=el("option","",member.user_id) as HTMLOptionElement; option.value=member.user_id; transferSelect.append(option);
       }
     }
-    const canTransfer=selected.owner_user_id===currentUserId && Boolean(current);
+    const canTransfer=activeTeam.owner_user_id===currentUserId && Boolean(current);
     transferRow.hidden=!canTransfer || transferSelect.options.length===0;
   };
   const loadTeams=async():Promise<void>=>{
