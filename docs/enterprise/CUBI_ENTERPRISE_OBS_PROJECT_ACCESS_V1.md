@@ -50,7 +50,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 
 ## Browser administration surface — follow-on implementation
 
-The authenticated route `/enterprise/project-access` is mounted from the Enterprise Task Center. It consumes the production project-access API rather than maintaining a browser-side permission store.
+The authenticated route `/enterprise/project-access` is mounted in the web application and linked from the Organization & Access surface (`/enterprise/organization`, PR #1971). It consumes the production project-access API rather than maintaining a browser-side permission store.
 
 - Lists active Project Security Profiles and their project-level permission set.
 - Creates named profiles with the supported `project.read`, `project.write`, `project.schedule`, and `project.admin` permissions.
