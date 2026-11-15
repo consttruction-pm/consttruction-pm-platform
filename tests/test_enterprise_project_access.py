@@ -137,6 +137,45 @@ def test_obs_project_authorization_requires_both_global_module_and_project_profi
     assert not policy.is_allowed(planner, Permission.PROJECT_WRITE)
 
 
+def test_legacy_project_membership_alone_does_not_bypass_obs_profile():
+    repository = FakeRepository()
+    role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+
+    class MembershipOnlyConnection:
+        def execute(self, sql, params):
+            class Result:
+                def fetchone(self):
+                    return (1,) if "project_lifecycle_projects" in sql else None
+            return Result()
+
+    policy = EnterpriseProjectAuthorizationPolicy(
+        role_policy, repository, MembershipOnlyConnection()
+    )
+    viewer = AuthorizationContext(
+        "tenant-a", "project-1", "member-1", frozenset({"viewer"})
+    )
+    assert not policy.is_allowed(viewer, Permission.PROJECT_READ)
+
+
+def test_admin_superuser_global_profile_bypasses_obs_project_assignment():
+    repository = FakeRepository()
+    role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+
+    class Connection:
+        def execute(self, sql, params):
+            class Result:
+                def fetchone(self):
+                    return (1,)
+            return Result()
+
+    policy = EnterpriseProjectAuthorizationPolicy(role_policy, repository, Connection())
+    admin = AuthorizationContext(
+        "tenant-a", "project-1", "admin-1", frozenset({"admin_superuser"})
+    )
+    assert policy.is_allowed(admin, Permission.PROJECT_READ)
+    assert policy.is_allowed(admin, Permission.PROJECT_ADMIN)
+
+
 def test_enterprise_admin_can_list_profiles_and_obs_directory():
     repository=FakeRepository()
     service=EnterpriseProjectAccessService(repository,FakeLifecycle(),FakeOBS(),clock=lambda:NOW)
