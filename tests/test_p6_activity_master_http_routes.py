@@ -1177,6 +1177,9 @@ def test_activity_access_requires_the_assigned_wbs_responsible_obs():
     auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
     connection = sqlite3.connect(":memory:")
     activity_repository = SQLiteActivityMasterRepository(connection)
+    from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
+    wbs_repository = SQLiteWBSMasterRepository(connection)
+    wbs_repository.save(WBSMaster(scope, "W-FOREIGN", WBSParentKind.PROJECT, None, "1", "Foreign WBS", 0))
     activity = ActivityMaster(
         scope, "A-WBS", Decimal("1"), DurationUnit.WORKING_DAY,
         name="WBS scoped activity", wbs_id="W-FOREIGN",
@@ -1209,6 +1212,9 @@ def test_activity_cannot_be_moved_out_of_wbs_without_source_scope_write():
     auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
     connection = sqlite3.connect(":memory:")
     repository = SQLiteActivityMasterRepository(connection)
+    from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
+    wbs_repository = SQLiteWBSMasterRepository(connection)
+    wbs_repository.save(WBSMaster(scope, "W-FOREIGN", WBSParentKind.PROJECT, None, "1", "Foreign WBS", 0))
     stored = repository.save(
         ActivityMaster(
             scope, "A-LOCKED", Decimal("1"), DurationUnit.WORKING_DAY,
