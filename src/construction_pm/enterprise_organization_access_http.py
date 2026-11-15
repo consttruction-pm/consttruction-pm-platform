@@ -42,6 +42,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 "TEAM_MEMBERSHIP_REVISION_CONFLICT",
                 "TEAM_REVISION_CONFLICT",
                 "LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED",
+                "LAST_P6_ADMIN_SUPERUSER_CANNOT_BE_DEACTIVATED",
                 "TEAM_OWNER_TRANSFER_REQUIRED",
             } else 400
             payload = {"code": code}
