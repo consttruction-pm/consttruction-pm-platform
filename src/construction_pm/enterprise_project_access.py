@@ -23,6 +23,41 @@ PROJECT_PERMISSION_CODES = frozenset({
 })
 PROFILE_ID_MAX = 120
 
+# CUBI operation keys are deliberately mapped to the corresponding Oracle V26
+# checkbox keys. This is an explicit adapter, not a wildcard or role bypass.
+PROJECT_PROFILE_ROUTE_ALIASES: dict[str, frozenset[str]] = {
+    "project.read": frozenset({"project.view"}),
+    "project.write": frozenset({"project.edit_details_except_costs_financials"}),
+    "project.schedule": frozenset({"schedule.run"}),
+    "activity.add_edit": frozenset({"activity.add_edit_except_relationships"}),
+    "expense.add_edit": frozenset({"expense.add_edit_delete"}),
+    "issue.add_edit": frozenset({"issue_threshold.add_edit_delete"}),
+    "issue.edit": frozenset({"issue_threshold.add_edit_delete"}),
+    "issue.delete": frozenset({"issue_threshold.add_edit_delete"}),
+    "risk.add_edit": frozenset({"risk.add_edit_delete"}),
+    "risk.edit": frozenset({"risk.add_edit_delete"}),
+    "risk.delete": frozenset({"risk.add_edit_delete"}),
+    "threshold.add_edit": frozenset({"issue_threshold.add_edit_delete"}),
+    "threshold.edit": frozenset({"issue_threshold.add_edit_delete"}),
+    "threshold.delete": frozenset({"issue_threshold.add_edit_delete"}),
+    "baseline.create_update": frozenset({"project_baseline.add_edit_delete"}),
+    "wbs.add_edit": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
+    "wbs.edit": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
+    "wbs.delete": frozenset({"wbs.add_edit_delete_except_costs_financials"}),
+}
+
+
+def project_profile_has_permission(
+    permissions: tuple[str, ...] | list[str] | set[str] | frozenset[str],
+    permission: str,
+) -> bool:
+    """Resolve one CUBI route grant against explicit Oracle V26 profile options."""
+    grants = frozenset(permissions)
+    return permission in grants or bool(
+        PROJECT_PROFILE_ROUTE_ALIASES.get(permission, frozenset()) & grants
+    )
+
+
 
 class ProjectAccessError(ValueError):
     pass
@@ -120,6 +155,31 @@ class PostgresProjectAccessRepository:
                 target_user_id TEXT NOT NULL, obs_id TEXT NOT NULL, profile_id TEXT NOT NULL,
                 action TEXT NOT NULL CHECK(action IN ('profile_created','obs_assigned','obs_revoked')),
                 before_state JSONB, after_state JSONB NOT NULL, occurred_at TIMESTAMPTZ NOT NULL)""",
+            """CREATE OR REPLACE FUNCTION cubi_project_profile_has_privilege(
+                    p_permissions JSONB,p_permission TEXT)
+                RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE AS $
+                SELECT CASE p_permission
+                    WHEN 'project.read' THEN p_permissions ?| ARRAY['project.read','project.view']
+                    WHEN 'project.write' THEN p_permissions ?| ARRAY['project.write','project.edit_details_except_costs_financials']
+                    WHEN 'project.schedule' THEN p_permissions ?| ARRAY['project.schedule','schedule.run']
+                    WHEN 'activity.add_edit' THEN p_permissions ?| ARRAY['activity.add_edit','activity.add_edit_except_relationships']
+                    WHEN 'expense.add_edit' THEN p_permissions ?| ARRAY['expense.add_edit','expense.add_edit_delete']
+                    WHEN 'issue.add_edit' THEN p_permissions ?| ARRAY['issue.add_edit','issue_threshold.add_edit_delete']
+                    WHEN 'issue.edit' THEN p_permissions ?| ARRAY['issue.edit','issue_threshold.add_edit_delete']
+                    WHEN 'issue.delete' THEN p_permissions ?| ARRAY['issue.delete','issue_threshold.add_edit_delete']
+                    WHEN 'risk.add_edit' THEN p_permissions ?| ARRAY['risk.add_edit','risk.add_edit_delete']
+                    WHEN 'risk.edit' THEN p_permissions ?| ARRAY['risk.edit','risk.add_edit_delete']
+                    WHEN 'risk.delete' THEN p_permissions ?| ARRAY['risk.delete','risk.add_edit_delete']
+                    WHEN 'threshold.add_edit' THEN p_permissions ?| ARRAY['threshold.add_edit','issue_threshold.add_edit_delete']
+                    WHEN 'threshold.edit' THEN p_permissions ?| ARRAY['threshold.edit','issue_threshold.add_edit_delete']
+                    WHEN 'threshold.delete' THEN p_permissions ?| ARRAY['threshold.delete','issue_threshold.add_edit_delete']
+                    WHEN 'baseline.create_update' THEN p_permissions ?| ARRAY['baseline.create_update','project_baseline.add_edit_delete']
+                    WHEN 'wbs.add_edit' THEN p_permissions ?| ARRAY['wbs.add_edit','wbs.add_edit_delete_except_costs_financials']
+                    WHEN 'wbs.edit' THEN p_permissions ?| ARRAY['wbs.edit','wbs.add_edit_delete_except_costs_financials']
+                    WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
+                    ELSE p_permissions ? p_permission
+                END
+                $""",
             """CREATE OR REPLACE FUNCTION cubi_user_has_project_access(
                     p_tenant_id TEXT,p_user_id TEXT,p_project_id TEXT,p_permission TEXT)
                 RETURNS BOOLEAN LANGUAGE SQL STABLE AS $$
@@ -139,7 +199,7 @@ class PostgresProjectAccessRepository:
                         AND a.user_id=p_user_id AND a.obs_id=po.obs_id AND a.active=TRUE
                     JOIN enterprise_project_security_profiles sp ON sp.tenant_id=a.tenant_id
                         AND sp.profile_id=a.profile_id AND sp.active=TRUE
-                    WHERE sp.permissions ? p_permission)
+                    WHERE cubi_project_profile_has_privilege(sp.permissions,p_permission))
                 $$""",
             """CREATE OR REPLACE FUNCTION cubi_project_access_audit_immutable()
                 RETURNS trigger LANGUAGE plpgsql AS $$
