@@ -131,7 +131,14 @@ class P6ActivityMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not _is_allowed_for_activity(self.authorization_policy, auth_context, Permission.P6_ACTIVITY_ADMIN, activity.wbs_id):
+        existing = self.repository.get(activity.scope, activity.activity_id)
+        if existing is not None and not _is_allowed_for_activity(
+            self.authorization_policy, auth_context, Permission.P6_ACTIVITY_ADMIN, existing.wbs_id
+        ):
+            raise AuthorizationError("authorization denied for permission=p6.activity.admin")
+        if not _is_allowed_for_activity(
+            self.authorization_policy, auth_context, Permission.P6_ACTIVITY_ADMIN, activity.wbs_id
+        ):
             raise AuthorizationError("authorization denied for permission=p6.activity.admin")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))

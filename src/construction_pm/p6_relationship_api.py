@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
-from .activity_master_repository import ActivityMasterRepository
+from .activity_master_repository import ActivityMaster, ActivityMasterRepository
 from .backend_p0.models import BackendScope
 from .project_checkout import (
     ProjectCheckoutLease,
@@ -30,6 +30,48 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
 def _require_permission(policy: AuthorizationPolicy, auth_context: AuthorizationContext, permission: Permission) -> None:
     if not policy.is_allowed(auth_context, permission):
         raise AuthorizationError(f"authorization denied for permission={permission.value}")
+
+
+def _is_allowed_for_activity(
+    policy: AuthorizationPolicy, auth_context: AuthorizationContext,
+    permission: Permission, activity: ActivityMaster,
+) -> bool:
+    scoped = getattr(policy, "is_allowed_for_wbs", None)
+    if callable(scoped) and activity.wbs_id:
+        return bool(scoped(auth_context, permission, activity.wbs_id))
+    return policy.is_allowed(auth_context, permission)
+
+
+def _can_access_relationship_activities(
+    policy: AuthorizationPolicy, auth_context: AuthorizationContext,
+    permission: Permission, activity_repository: ActivityMasterRepository | None,
+    relationship: RelationshipMaster,
+) -> bool:
+    if activity_repository is None:
+        return policy.is_allowed(auth_context, permission)
+    for activity_id in (relationship.predecessor_id, relationship.successor_id):
+        activity = activity_repository.get(relationship.scope, activity_id)
+        if activity is None or not _is_allowed_for_activity(
+            policy, auth_context, permission, activity
+        ):
+            return False
+    return True
+
+
+def _require_relationship_permission(
+    policy: AuthorizationPolicy, auth_context: AuthorizationContext,
+    permission: Permission, activity_repository: ActivityMasterRepository | None,
+    relationship: RelationshipMaster,
+) -> None:
+    if activity_repository is None:
+        _require_permission(policy, auth_context, permission)
+        return
+    for activity_id in (relationship.predecessor_id, relationship.successor_id):
+        activity = activity_repository.get(relationship.scope, activity_id)
+        if activity is None:
+            raise RelationshipPersistenceError("ACTIVITY_NOT_FOUND_OR_SCOPE_MISMATCH")
+        if not _is_allowed_for_activity(policy, auth_context, permission, activity):
+            raise AuthorizationError(f"authorization denied for permission={permission.value}")
 
 
 def _scope_dto(scope: BackendScope) -> dict[str, Any]:
@@ -64,7 +106,10 @@ class P6RelationshipAPI:
 
     def create(self, relationship: RelationshipMaster, *, auth_context: AuthorizationContext, expected_revision: int | None = None) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN)
+        _require_relationship_permission(
+            self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+            self.activity_repository, relationship,
+        )
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -73,7 +118,16 @@ class P6RelationshipAPI:
 
     def update(self, relationship: RelationshipMaster, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN)
+        previous = self.repository.get(relationship.scope, relationship.relationship_id)
+        if previous is not None:
+            _require_relationship_permission(
+                self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+                self.activity_repository, previous,
+            )
+        _require_relationship_permission(
+            self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+            self.activity_repository, relationship,
+        )
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -116,16 +170,34 @@ class P6RelationshipAPI:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         result = self.repository.get(scope, relationship_id)
-        return None if result is None else _dto(result)
+        if result is None or not _can_access_relationship_activities(
+            self.authorization_policy, auth_context, Permission.PROJECT_READ,
+            self.activity_repository, result,
+        ):
+            return None
+        return _dto(result)
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
-        return tuple(_dto(item) for item in self.repository.list(scope))
+        return tuple(
+            _dto(item) for item in self.repository.list(scope)
+            if _can_access_relationship_activities(
+                self.authorization_policy, auth_context, Permission.PROJECT_READ,
+                self.activity_repository, item,
+            )
+        )
 
     def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN)
+        existing = self.repository.get(scope, relationship_id)
+        if existing is None:
+            _require_permission(self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN)
+        else:
+            _require_relationship_permission(
+                self.authorization_policy, auth_context, Permission.P6_ACTIVITY_RELATIONSHIP_ADMIN,
+                self.activity_repository, existing,
+            )
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         deleted = self.repository.delete(scope, relationship_id, expected_revision=expected_revision)
         return {

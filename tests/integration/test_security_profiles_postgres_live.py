@@ -13,6 +13,12 @@ import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
+from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
+from construction_pm.scheduling.relationships import RelationshipType
+from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_issue_repository import P6Issue, SQLiteP6IssueRepository
 from construction_pm.p6_expense_api import P6ExpenseAPI
@@ -1042,6 +1048,8 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
             privileges={
                 "add_edit_delete_issues_issue_thresholds",
                 "add_edit_delete_expenses",
+                "add_edit_activities_except_relationships",
+                "add_edit_delete_activity_relationships",
             },
             expected_revision=1, actor_user_id=user_id, occurred_at=now,
         )
@@ -1137,9 +1145,85 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
                 ),
                 auth_context=context,
             )
+
+        activity_connection = sqlite3.connect(":memory:")
+        activity_repository = SQLiteActivityMasterRepository(activity_connection)
+        activity_api = P6ActivityMasterAPI(activity_repository, policy)
+        visible_a = ActivityMaster(
+            scope, f"visible-a-{suffix}", Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Visible A", wbs_id=root_wbs,
+        )
+        visible_b = ActivityMaster(
+            scope, f"visible-b-{suffix}", Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Visible B", wbs_id=root_wbs,
+        )
+        restricted_activity = ActivityMaster(
+            scope, f"restricted-activity-{suffix}", Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Restricted Activity", wbs_id=restricted_wbs,
+        )
+        activity_api.create(visible_a, auth_context=context)
+        activity_api.create(visible_b, auth_context=context)
+        activity_repository.save(restricted_activity, expected_revision=0)
+        with pytest.raises(AuthorizationError, match="p6.activity.admin"):
+            activity_api.update(
+                ActivityMaster(
+                    scope, restricted_activity.activity_id, Decimal("1"), DurationUnit.WORKING_DAY,
+                    record_revision=1, name="Unauthorized edit", wbs_id=restricted_wbs,
+                ),
+                expected_revision=1, auth_context=context,
+            )
+        with pytest.raises(AuthorizationError, match="p6.activity.admin"):
+            activity_api.update(
+                ActivityMaster(
+                    scope, visible_a.activity_id, Decimal("1"), DurationUnit.WORKING_DAY,
+                    record_revision=1, name="Move out of authorized WBS", wbs_id=restricted_wbs,
+                ),
+                expected_revision=1, auth_context=context,
+            )
+        with pytest.raises(AuthorizationError, match="p6.activity.admin"):
+            activity_api.update(
+                ActivityMaster(
+                    scope, restricted_activity.activity_id, Decimal("1"), DurationUnit.WORKING_DAY,
+                    record_revision=1, name="Move into authorized WBS", wbs_id=root_wbs,
+                ),
+                expected_revision=1, auth_context=context,
+            )
+
+        relationship_connection = sqlite3.connect(":memory:")
+        relationship_repository = SQLiteRelationshipMasterRepository(relationship_connection)
+        relationship_api = P6RelationshipAPI(
+            relationship_repository, policy, activity_repository,
+        )
+        visible_relationship = RelationshipMaster(
+            scope, f"visible-rel-{suffix}", visible_a.activity_id, visible_b.activity_id,
+            RelationshipType.FS,
+        )
+        relationship_api.create(visible_relationship, auth_context=context)
+        restricted_relationship = RelationshipMaster(
+            scope, f"restricted-rel-{suffix}", visible_a.activity_id,
+            restricted_activity.activity_id, RelationshipType.FS,
+        )
+        with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+            relationship_api.create(restricted_relationship, auth_context=context)
+        relationship_repository.save(restricted_relationship, expected_revision=0)
+        with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+            relationship_api.delete(
+                scope, restricted_relationship.relationship_id, expected_revision=1,
+                auth_context=context,
+            )
+        with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+            relationship_api.update(
+                RelationshipMaster(
+                    scope, visible_relationship.relationship_id, visible_a.activity_id,
+                    restricted_activity.activity_id, RelationshipType.FS, record_revision=1,
+                ),
+                expected_revision=1, auth_context=context,
+            )
         connection.rollback()
     issue_connection.close()
     expense_connection.close()
+    activity_connection.close()
+    relationship_connection.close()
 
 
 def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolation():

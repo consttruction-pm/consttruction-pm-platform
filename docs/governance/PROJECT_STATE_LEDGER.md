@@ -1462,3 +1462,12 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **GitHub Actions:** exact-head workflow-run and check-run queries returned no ConstructionPM CI, Client Typecheck, ConstructionPM Web CI or PostgreSQL Integration runs. The only completed check associated with the code commit was Vercel Preview Comments; it is not a test-suite result. PostgreSQL Integration is configured for `workflow_dispatch` or pushes to `main`, not pull requests.
 - **Test boundary:** no local pytest/npm test command was executed in this environment. The new live PostgreSQL/API coverage is committed but remains unverified until the required workflows run. No CI pass is claimed.
 - **Release gate:** PR #1974 remains open and Draft. No merge, production deployment or destructive production migration was performed. The profile lifecycle increment is implemented but not yet release-verified.
+
+
+### OBS/WBS authorization closure for Activity and Relationship APIs — 2026-11-15
+
+- Activity Master updates now authorize both the stored activity WBS and the requested destination WBS. A user cannot move an activity out of a WBS they cannot write, or move a restricted activity into an authorized WBS to bypass the source boundary.
+- Activity Relationship create/update/delete now resolve both predecessor and successor activities and evaluate the V26 Project Security Profile against each activity's WBS. Updating a relationship checks both the existing relationship endpoints and the requested endpoints. Relationship get/list apply read checks at both endpoints and fail closed for missing activity records.
+- The production composition already supplies the activity repository to the relationship API; the new WBS checks therefore run through the production Postgres security-profile policy. Existing policy fallback behavior remains for non-WBS-aware policies used by isolated legacy tests.
+- Added unit coverage for relationship endpoint scope and live PostgreSQL integration coverage for activity moves and relationship writes crossing a WBS responsible-OBS boundary.
+- **Parity boundary:** mapped Activity and Relationship operations now enforce endpoint-level WBS responsibility. Other remaining WBS-linked APIs (risk, thresholds, documents, resource assignments and issue/expense records without explicit WBS) remain open.

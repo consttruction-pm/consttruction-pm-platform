@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
-from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, Permission, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_relationship_api import P6_RELATIONSHIP_API_VERSION, P6RelationshipAPI
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
@@ -171,3 +171,55 @@ def test_p6_relationship_api_delete_requires_write_permission_and_revision():
         service.delete(scope, "rel-1", expected_revision=99, auth_context=auth())
     with pytest.raises(AuthorizationError):
         service.delete(scope, "rel-1", expected_revision=1, auth_context=auth(roles=("viewer",)))
+
+
+def test_relationship_api_enforces_both_endpoint_wbs_scopes_when_policy_supports_them():
+    class WbsScopedPolicy:
+        def is_allowed(self, context, permission):
+            return True
+
+        def is_allowed_for_wbs(self, context, permission, wbs_id):
+            return permission is Permission.PROJECT_READ or wbs_id == "W-allowed"
+
+    connection = sqlite3.connect(":memory:")
+    scope = BackendScope("t1", "p1", 2)
+    activities = SQLiteActivityMasterRepository(connection)
+    for activity_id, wbs_id in (
+        ("A-1", "W-allowed"), ("A-2", "W-allowed"), ("A-3", "W-restricted"),
+    ):
+        activities.save(ActivityMaster(
+            scope=scope, activity_id=activity_id, duration_value=Decimal("1"),
+            duration_unit=DurationUnit.WORKING_DAY, name=activity_id, wbs_id=wbs_id,
+        ))
+    relationships = SQLiteRelationshipMasterRepository(connection)
+    service = P6RelationshipAPI(relationships, WbsScopedPolicy(), activities)
+
+    service.create(relationship(scope), auth_context=auth())
+    restricted = RelationshipMaster(
+        scope=scope, relationship_id="rel-restricted", predecessor_id="A-1",
+        successor_id="A-3", relationship_type=RelationshipType.FS,
+    )
+    with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+        service.create(restricted, auth_context=auth())
+
+    # Even a relationship inserted by another authorized path cannot be
+    # edited or deleted through an endpoint whose other WBS is out of scope.
+    relationships.save(restricted, expected_revision=0)
+    with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+        service.update(
+            RelationshipMaster(
+                scope=scope, relationship_id="rel-1", predecessor_id="A-1",
+                successor_id="A-3", relationship_type=RelationshipType.FS,
+                record_revision=1,
+            ),
+            expected_revision=1, auth_context=auth(),
+        )
+    with pytest.raises(AuthorizationError, match="p6.activity.relationship.admin"):
+        service.delete(scope, "rel-restricted", expected_revision=1, auth_context=auth())
+
+    # Read visibility is independently evaluated at both endpoint WBS nodes.
+    assert service.get(scope, "rel-restricted", auth_context=auth()) is not None
+    assert {item["relationship"]["relationship_id"] for item in service.list(
+        scope, auth_context=auth()
+    )} == {"rel-1", "rel-restricted"}
+    connection.close()
