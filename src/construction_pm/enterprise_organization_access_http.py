@@ -72,6 +72,99 @@ class EnterpriseOrganizationAccessHttpMiddleware:
         if not session_id:
             return 401, {"code": "SESSION_REQUIRED"}
         parts = [unquote(part) for part in path.strip("/").split("/")]
+        if parts == ["api", "enterprise", "security-profiles"]:
+            if method == "GET":
+                query = parse_qs(str(environ.get("QUERY_STRING", "") or ""))
+                scope_values = query.get("scope", [])
+                if len(scope_values) > 1:
+                    raise SecurityProfileError("SECURITY_PROFILE_SCOPE_INVALID")
+                profiles = self._service.list_security_profiles(
+                    session_id, scope=scope_values[0] if scope_values else None,
+                )
+                from .application.authorization import Permission
+                return 200, {
+                    "contract_version": "cubi-p6-security-profile-list.v1",
+                    "profiles": [self._profile(item) for item in profiles],
+                    "permissions": sorted(permission.value for permission in Permission),
+                }
+            if method == "POST":
+                payload = self._body(environ, "cubi-p6-security-profile.v1")
+                profile = self._service.create_security_profile(
+                    session_id, profile_id=self._text(payload, "profile_id"),
+                    name=self._text(payload, "name"), scope=self._text(payload, "scope"),
+                )
+                return 201, {"contract_version": "cubi-p6-security-profile.v1",
+                             "profile": self._profile(profile)}
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
+        if len(parts) == 5 and parts[:3] == ["api", "enterprise", "security-profiles"]:
+            profile_id = parts[3]
+            if parts[4] == "privileges":
+                if method == "PATCH":
+                    payload = self._body(environ, "cubi-p6-security-profile-privileges.v1")
+                    privileges = payload.get("privileges")
+                    expected = payload.get("expected_revision")
+                    if (not isinstance(privileges, list)
+                            or any(not isinstance(item, str) for item in privileges)
+                            or isinstance(expected, bool) or not isinstance(expected, int)):
+                        raise SecurityProfileError("SECURITY_PROFILE_PRIVILEGES_REQUEST_INVALID")
+                    profile = self._service.set_security_profile_privileges(
+                        session_id, profile_id, privileges=privileges,
+                        expected_revision=expected,
+                    )
+                    return 200, {"contract_version": "cubi-p6-security-profile.v1",
+                                 "profile": self._profile(profile)}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            if parts[4] == "status":
+                if method == "PATCH":
+                    payload = self._body(environ, "cubi-p6-security-profile-status.v1")
+                    active, expected = payload.get("active"), payload.get("expected_revision")
+                    if (not isinstance(active, bool) or isinstance(expected, bool)
+                            or not isinstance(expected, int)):
+                        raise SecurityProfileError("SECURITY_PROFILE_STATUS_REQUEST_INVALID")
+                    profile = self._service.set_security_profile_active(
+                        session_id, profile_id, active=active, expected_revision=expected,
+                    )
+                    return 200, {"contract_version": "cubi-p6-security-profile.v1",
+                                 "profile": self._profile(profile)}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            if parts[4] == "assignments":
+                if method == "PUT":
+                    payload = self._body(environ, "cubi-p6-security-profile-assignment.v1")
+                    user_id = self._text(payload, "user_id")
+                    project_id = payload.get("project_id", "")
+                    expected = payload.get("expected_revision")
+                    if (not isinstance(project_id, str)
+                            or (expected is not None and (isinstance(expected, bool) or not isinstance(expected, int)))):
+                        raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REQUEST_INVALID")
+                    revision = self._service.assign_security_profile(
+                        session_id, profile_id, user_id=user_id, project_id=project_id,
+                        expected_revision=expected,
+                    )
+                    return 200, {"contract_version": "cubi-p6-security-profile-assignment.v1",
+                                 "revision": revision}
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+
+        if (len(parts) == 6 and parts[:3] == ["api", "enterprise", "security-profiles"]
+                and parts[4] == "assignments"):
+            if method == "DELETE":
+                query = parse_qs(str(environ.get("QUERY_STRING", "") or ""))
+                project_values = query.get("project_id", [""])
+                revision_values = query.get("expected_revision", [])
+                if len(project_values) != 1 or len(revision_values) != 1:
+                    raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED")
+                try:
+                    expected = int(revision_values[0])
+                except ValueError as exc:
+                    raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED") from exc
+                self._service.unassign_security_profile(
+                    session_id, parts[3], user_id=parts[5], project_id=project_values[0],
+                    expected_revision=expected,
+                )
+                return 200, {"contract_version": "cubi-p6-security-profile-assignment.v1",
+                             "unassigned": True}
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
         if parts == ["api", "enterprise", "users"]:
             if method == "GET":
                 users = self._service.list_accounts(session_id)
@@ -208,6 +301,10 @@ class EnterpriseOrganizationAccessHttpMiddleware:
         if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
             raise OrganizationAccessError("MEMBERSHIP_PROJECT_SCOPE_INVALID")
         return tuple(value)
+
+    @staticmethod
+    def _profile(item: object) -> dict[str, object]:
+        return item.as_dict()
 
     @staticmethod
     def _team(item: object) -> dict[str, object]:
