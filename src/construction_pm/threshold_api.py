@@ -245,6 +245,7 @@ def _threshold(stored: StoredThreshold) -> dict[str, Any]:
         if threshold.issue_level is None
         else threshold_number_text(threshold.issue_level),
         "responsible_manager": threshold.responsible_manager,
+        "responsible_obs_id": threshold.responsible_obs_id,
         "status": threshold.status,
         "revision": stored.revision,
     }
