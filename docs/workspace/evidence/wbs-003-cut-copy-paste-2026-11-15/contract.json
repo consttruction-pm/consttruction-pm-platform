@@ -1,23 +1,23 @@
 {
   "contract": "cubi-wbs-003-cut-copy-paste.v1",
-  "testedCodeSha": "bbacdaa0094d8dccc647ff08c1cf75db59875901",
-  "gitHead": "bbacdaa0094d8dccc647ff08c1cf75db59875901",
+  "testedCodeSha": "e820a008",
+  "gitHead": "e820a008063f85c3182bb172db5a5de3a744bbca",
   "evidenceCommitSha": null,
-  "baseUrl": "http://127.0.0.1:4411",
-  "startedAt": "2026-11-15T03:04:02.522Z",
+  "baseUrl": "http://127.0.0.1:4504",
+  "startedAt": "2026-11-15T03:32:08.953Z",
   "scenarios": [
     {
       "id": "01",
       "name": "Copy a WBS subtree beneath another element",
       "status": "pass",
-      "at": "2026-11-15T03:04:09.568Z",
-      "durationMs": 3153,
+      "at": "2026-11-15T03:32:16.068Z",
+      "durationMs": 3170,
       "details": {
-        "copiedRootId": "WBS-COPY-F9AEF7C79501",
+        "copiedRootId": "WBS-COPY-A63E71034F60",
         "copyChild": {
-          "wbs_id": "WBS-COPY-AF56D6BD073A",
+          "wbs_id": "WBS-COPY-6599CC775481",
           "parent_kind": "wbs",
-          "parent_wbs_id": "WBS-COPY-F9AEF7C79501",
+          "parent_wbs_id": "WBS-COPY-A63E71034F60",
           "code": "2.1",
           "name": "Site survey",
           "sequence_number": 0,
@@ -32,8 +32,8 @@
       "id": "02",
       "name": "Cut and paste moves the record and keeps its activity assignments",
       "status": "pass",
-      "at": "2026-11-15T03:04:11.068Z",
-      "durationMs": 1500,
+      "at": "2026-11-15T03:32:17.567Z",
+      "durationMs": 1499,
       "details": {
         "parentWbsId": "WBS-RPS-ENV"
       }
@@ -42,8 +42,8 @@
       "id": "03",
       "name": "Pasting a cut into its own descendant is rejected as a hierarchy cycle",
       "status": "pass",
-      "at": "2026-11-15T03:04:14.120Z",
-      "durationMs": 3052,
+      "at": "2026-11-15T03:32:20.667Z",
+      "durationMs": 3100,
       "details": {
         "notice": "WBS_HIERARCHY_CYCLE"
       }
@@ -52,7 +52,7 @@
       "id": "04",
       "name": "A sibling code collision is rejected without creating a record",
       "status": "pass",
-      "at": "2026-11-15T03:04:14.132Z",
+      "at": "2026-11-15T03:32:20.679Z",
       "durationMs": 12,
       "details": {
         "status": 400
@@ -62,18 +62,30 @@
       "id": "05",
       "name": "Deleting a WBS element in use states the precondition and keeps the record",
       "status": "pass",
-      "at": "2026-11-15T03:04:16.453Z",
-      "durationMs": 2321,
+      "at": "2026-11-15T03:32:22.868Z",
+      "durationMs": 2189,
       "details": {
-        "guidance": "This WBS element still has child elements or activity assignments. Move or delete its children and reassign its activities to the parent element before deleting it."
+        "guidance": "This WBS element still has child elements or activity assignments. Child elements must be moved or deleted first. If the element has a WBS parent, you can move its activity assignments to that parent and delete the element.Reassign activities to parent and delete"
+      }
+    },
+    {
+      "id": "05b",
+      "name": "Reassigning a leaf's activities to its parent deletes the element",
+      "status": "pass",
+      "at": "2026-11-15T03:32:29.648Z",
+      "durationMs": 6780,
+      "details": {
+        "leafId": "WBS-RPS-DEL-LEAF",
+        "activityId": "A-WBS3-DEL",
+        "parentRevision": 1
       }
     },
     {
       "id": "06",
       "name": "Persian RTL shows the WBS clipboard commands without overflow",
       "status": "pass",
-      "at": "2026-11-15T03:04:18.037Z",
-      "durationMs": 1584,
+      "at": "2026-11-15T03:32:31.186Z",
+      "durationMs": 1538,
       "details": {
         "dir": "rtl",
         "lang": "fa",
@@ -89,8 +101,8 @@
       "id": "07",
       "name": "A reload restores the copied and moved hierarchy and empties the clipboard",
       "status": "pass",
-      "at": "2026-11-15T03:04:20.768Z",
-      "durationMs": 2731,
+      "at": "2026-11-15T03:32:33.951Z",
+      "durationMs": 2765,
       "details": {
         "nodes": 10
       }
@@ -119,7 +131,7 @@
       "name": "the copied root is a new record beneath the selected target with the source code",
       "ok": true,
       "detail": {
-        "wbs_id": "WBS-COPY-F9AEF7C79501",
+        "wbs_id": "WBS-COPY-A63E71034F60",
         "parent_kind": "wbs",
         "parent_wbs_id": "WBS-RPS-PM",
         "code": "2",
@@ -136,9 +148,9 @@
       "name": "the copied subtree contains the source child",
       "ok": true,
       "detail": {
-        "wbs_id": "WBS-COPY-AF56D6BD073A",
+        "wbs_id": "WBS-COPY-6599CC775481",
         "parent_kind": "wbs",
-        "parent_wbs_id": "WBS-COPY-F9AEF7C79501",
+        "parent_wbs_id": "WBS-COPY-A63E71034F60",
         "code": "2.1",
         "name": "Site survey",
         "sequence_number": 0,
@@ -155,7 +167,7 @@
       "detail": {
         "contract_version": "p6-wbs-master-api.v1",
         "kind": "p6_wbs_milestones",
-        "wbs_id": "WBS-COPY-F9AEF7C79501",
+        "wbs_id": "WBS-COPY-A63E71034F60",
         "record_revision": 1,
         "percent_complete_technique": "milestones",
         "percent_complete": 75,
@@ -315,7 +327,7 @@
       "id": "wbs3-delete-guidance",
       "name": "the delete refusal explains the child/activity precondition instead of the raw code",
       "ok": true,
-      "detail": "This WBS element still has child elements or activity assignments. Move or delete its children and reassign its activities to the parent element before deleting it."
+      "detail": "This WBS element still has child elements or activity assignments. Child elements must be moved or deleted first. If the element has a WBS parent, you can move its activity assignments to that parent and delete the element.Reassign activities to parent and delete"
     },
     {
       "id": "wbs3-delete-intact",
@@ -333,6 +345,106 @@
         "percent_complete_technique": "milestones",
         "percent_complete": 75
       }
+    },
+    {
+      "id": "wbs3-reassign-fixture-wbs",
+      "name": "a leaf WBS element is created under the parent",
+      "ok": true,
+      "detail": {
+        "status": 201,
+        "body": {
+          "contract_version": "p6-wbs-master-api.v1",
+          "kind": "p6_wbs_master",
+          "scope": {
+            "tenant_id": "cubi-preview-tenant",
+            "project_id": "preview-rps-01",
+            "project_revision": 7
+          },
+          "wbs": {
+            "wbs_id": "WBS-RPS-DEL-LEAF",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "WBS-RPS-PM",
+            "code": "DEL-1",
+            "name": "Delete reassignment fixture",
+            "sequence_number": 999,
+            "record_revision": 1,
+            "status": "planned",
+            "percent_complete_technique": "activities",
+            "percent_complete": null
+          },
+          "milestones": []
+        }
+      }
+    },
+    {
+      "id": "wbs3-reassign-fixture-activity",
+      "name": "an activity is assigned to the leaf",
+      "ok": true,
+      "detail": {
+        "status": 201,
+        "body": {
+          "contract_version": "p6-activity-master-api.v1",
+          "kind": "p6_activity_master",
+          "scope": {
+            "tenant_id": "cubi-preview-tenant",
+            "project_id": "preview-rps-01",
+            "project_revision": 7
+          },
+          "activity": {
+            "activity_id": "A-WBS3-DEL",
+            "name": "Reassignment fixture activity",
+            "short_name": null,
+            "activity_type": "Task Dependent",
+            "status": "Not Started",
+            "status_code": "Planned",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+            "duration_type": "Fixed Duration & Units",
+            "cost_account_id": null,
+            "actual_start": null,
+            "actual_finish": null,
+            "remaining_duration": null,
+            "remaining_start": null,
+            "percent_complete": null,
+            "percent_complete_type": "DURATION",
+            "expected_finish": null,
+            "planned_finish": null,
+            "leveling_priority": "Normal",
+            "original_duration": null,
+            "wbs_id": "WBS-RPS-DEL-LEAF",
+            "record_revision": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "wbs3-reassign-offered",
+      "name": "the delete refusal offers reassignment to the parent for a leaf element",
+      "ok": true,
+      "detail": true
+    },
+    {
+      "id": "wbs3-reassign-deleted",
+      "name": "the leaf WBS element is deleted after reassignment",
+      "ok": true,
+      "detail": [
+        "WBS-RPS-ROOT",
+        "WBS-COPY-6599CC775481",
+        "WBS-RPS-CIVIL-SURVEY",
+        "WBS-RPS-PROC",
+        "WBS-COPY-A63E71034F60",
+        "WBS-RPS-PM",
+        "WBS-RPS-CIVIL",
+        "WBS-RPS-ENV",
+        "WBS-RPS-MEP",
+        "WBS-RPS-COM"
+      ]
+    },
+    {
+      "id": "wbs3-reassign-moved",
+      "name": "the activity assignment now points at the parent WBS element",
+      "ok": true,
+      "detail": "WBS-RPS-PM"
     },
     {
       "id": "wbs3-fa-rtl",
@@ -365,7 +477,7 @@
       "ok": true,
       "detail": {
         "copyRoot": {
-          "wbs_id": "WBS-COPY-F9AEF7C79501",
+          "wbs_id": "WBS-COPY-A63E71034F60",
           "parent_kind": "wbs",
           "parent_wbs_id": "WBS-RPS-PM",
           "code": "2",
@@ -377,9 +489,9 @@
           "percent_complete": 75
         },
         "copyChild": {
-          "wbs_id": "WBS-COPY-AF56D6BD073A",
+          "wbs_id": "WBS-COPY-6599CC775481",
           "parent_kind": "wbs",
-          "parent_wbs_id": "WBS-COPY-F9AEF7C79501",
+          "parent_wbs_id": "WBS-COPY-A63E71034F60",
           "code": "2.1",
           "name": "Site survey",
           "sequence_number": 0,
@@ -420,12 +532,14 @@
     "03-wbs-cut-pasted.png",
     "04-wbs-cycle-rejected.png",
     "05-wbs-delete-guidance.png",
+    "05b-wbs-reassign-offered.png",
+    "05c-wbs-reassigned.png",
     "06-wbs-clipboard-fa-rtl.png",
     "07-wbs-reloaded.png"
   ],
   "exceptions": [],
   "consoleErrors": [
-    "WBS mutation failed Error: WBS_HIERARCHY_CYCLE\n    at Object.onWbsUpdate (http://127.0.0.1:4411/dist/main.bundle.js:49735:33)"
+    "WBS mutation failed Error: WBS_HIERARCHY_CYCLE\n    at Object.onWbsUpdate (http://127.0.0.1:4504/dist/main.bundle.js:49751:33)"
   ],
   "apiFailures": [],
   "writes": [
@@ -471,9 +585,29 @@
     },
     {
       "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/wbs"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/p6/activities"
+    },
+    {
+      "method": "POST",
+      "url": "/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "DELETE",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-DEL-LEAF"
+    },
+    {
+      "method": "DELETE",
+      "url": "/api/projects/preview-rps-01/p6/wbs/WBS-RPS-DEL-LEAF"
+    },
+    {
+      "method": "POST",
       "url": "/api/projects/preview-rps-01/open"
     }
   ],
-  "finishedAt": "2026-11-15T03:04:20.768Z",
+  "finishedAt": "2026-11-15T03:32:33.951Z",
   "status": "passed"
 }

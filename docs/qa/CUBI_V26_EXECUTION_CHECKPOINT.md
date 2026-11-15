@@ -4278,3 +4278,37 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   so a tail exit 137 is a successful run's process being closed.
 - **Next.** Continue automatically per the order: WBS, toolbars, project windows,
   calendars, resources, Baseline and the remaining main-environment sections.
+
+## WBS delete reassignment branch — 2026-11-15 (`e820a008`)
+
+- **Gap.** The V26 delete topic prompts for either "delete the element and all
+  activities assigned to it" or "reassign all of its activity assignments to
+  the element's parent WBS element". The repository refused both with
+  `WBS_IN_USE`, and the window only stated the precondition.
+- **Stored contract.** `WBSMasterRepository.delete` takes
+  `reassign_activities_to_parent` and returns the number of moved assignments.
+  The SQLite and PostgreSQL adapters move every `activity_wbs_assignment` row to
+  the element's WBS parent and then delete the element and its milestones in the
+  same transaction. A reassignment without a WBS parent returns
+  `WBS_REASSIGN_PARENT_REQUIRED`; nodes with children still return `WBS_IN_USE`.
+- **HTTP.** `DELETE /api/projects/{id}/p6/wbs/{id}` accepts
+  `activity_action=reject|reassign_to_parent` (default `reject`) and returns
+  `activity_action` and `reassigned_activities`. An unknown action is
+  `WBS_DELETE_ACTIVITY_ACTION_INVALID` (400).
+- **UI.** The refusal notice offers "Reassign activities to parent and delete"
+  for a leaf with a WBS parent and hides it when children exist or the element is
+  a project root. After the delete the page re-reads the hierarchy, so the
+  activity assignment shows the parent.
+- **Acceptance.** `apps/web/e2e/wbs-cut-copy-paste-v26.mjs` scenario `05b`
+  creates a leaf and one assigned activity, checks that reassignment is offered,
+  deletes through it, and reads the leaf gone with the activity moved to the
+  parent. 29/29 checks, 8 scenarios, 9 screenshots, zero exceptions and zero API
+  failures at `e820a008`; the one console line is the deliberate cycle refusal.
+  Evidence: `docs/workspace/evidence/wbs-003-cut-copy-paste-2026-11-15/`.
+- **Tests at the same code.** New repository tests for the reassignment count,
+  the unchanged rows on refusal and `WBS_REASSIGN_PARENT_REQUIRED`; a new
+  authenticated HTTP test for the invalid action, the 200 response and the
+  activity's new `wbs_id`; web assertions for the guidance button.
+- **Remaining.** The cascade branch is not offered because no audited
+  activity-delete path exists; deleting a parent with children is still refused
+  instead of cascading; the V26 copy-options dialogs remain absent.

@@ -110,3 +110,18 @@ scrolls both endpoint rows into the Gantt pane before dragging.
 Continuation point: the Activity window is accepted; the next units are WBS,
 toolbars, project windows, calendars, resources, Baseline and the remaining
 main-environment sections. The Activity window evidence is not merged yet.
+
+## 2026-11-15 — WBS delete reassignment branch
+
+The V26 delete prompt's second branch now exists: deleting a leaf that still has
+activity assignments can move those assignments to its WBS parent and delete the
+element atomically, through `activity_action=reassign_to_parent` on
+`DELETE /p6/wbs/{id}`. Children still block the delete and the cascade branch
+stays unavailable until an audited activity-delete capability exists. Browser
+suite `wbs-cut-copy-paste-v26` grew from 24 to 29 checks with scenario `05b`,
+which creates a leaf and an assigned activity, deletes through the new branch and
+reads the activity on the parent. Tested code `e820a008`; evidence in
+`docs/workspace/evidence/wbs-003-cut-copy-paste-2026-11-15/`.
+
+Continuation point after merge: toolbars, project windows, calendars, resources,
+Baseline and the remaining main-environment sections.
