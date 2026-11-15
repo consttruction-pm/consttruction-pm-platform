@@ -208,3 +208,11 @@ No design approval, code merge or acceptance sign-off until the phase artifact i
 - Master register source-crosswalk commit: `83a2b91185fb6400b6dee1834fbec7d87a07b1e3`.
 - This is a verified first tranche, not a complete topic-level crosswalk for all register rows. Remaining rows stay open; do not infer absent topics.
 - The master register and program issue #1990 now define the full CUBI program. Issue #1989 remains the Scenario Lab child slice only.
+
+
+## 17. Existing workstream deduplication map — 2026-11-15
+
+- Master register deduplication appendix commit: `696d9c9ee91f11dc36f60d24d810efcb5d41a074`.
+- The register maps current issue/PR families for Activity workspace (#1691/#1716), source difference audit (#1925/#1926), Scenario Lab (#1989), Engineering Intelligence/knowledge (#1706/#1540/#1724/#1729), Organization/Security (#1984/#1971/#1974/#1980/#1983), Enterprise tasks (#1928/#1929), Workflow/Form Builder (#1927), subscription/owner CMS (#1605/#1888/#1887), offline clients (#1670), localization (#1531), takeoff/resource/risk planning (#1617), and personal dashboard reporting (#1924).
+- These are deduplication references, not completion claims. Exact PR changed paths, head SHA, checks and merge status must be refreshed before any source write.
+- #1990 is the program parent; #1989 remains a Scenario Lab child slice. Existing issues remain open in their own scopes.
