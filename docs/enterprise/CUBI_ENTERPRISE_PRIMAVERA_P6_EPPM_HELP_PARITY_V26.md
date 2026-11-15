@@ -41,11 +41,17 @@ The V26 HTML topic “Working with P6” explicitly lists seven main sections: D
 | Team Member Web, My Activities, status updates and timesheets | Team & Task Center plus future Engineering Activity Status surface | Separate concepts: current Enterprise Task is an organizational task, not a P6 schedule Activity or a timesheet |
 | Risks and issues | Project Portal / Risk & Issue Management | Partial in Engineering; Enterprise must consume authorized, revision-pinned records rather than duplicate authoritative risk/schedule data |
 | Reports and performance status | Portfolio & Executive Center / Reporting | Existing reporting capabilities require end-to-end parity verification |
-| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; tenant-scoped team/membership persistence, owner creation, manager-controlled add/revoke and append-only access audit exist; authenticated HTTP API is implemented on an open branch. User invitations, security profiles, granular project grants and effective-access reports remain open |
+| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; tenant-scoped team/membership persistence, owner creation, manager-controlled add/revoke and append-only access audit exist; authenticated team/roster/eligible-user HTTP APIs and a live Organization & Access UI are implemented on an open branch. User invitations, global/project security profiles, module access, OBS/resource/project grants and effective-access reports remain open |
 | Project documents and information | Project Portal / Document & Information Management | Partial; use existing document service and access rules where verified |
 | Workflow, notifications and approvals | Workflow Studio / Feedback & Approval Center | Planned; status updates/approval semantics from Team Member V26 are a specific acceptance input |
 
-## 4. Team Member V26 — workflow-specific acceptance requirements
+## 4. Administration V26 — user and access administration requirements
+
+The V26 Users Page is the authoritative reference for account administration. It includes account creation, status, associated resource, Team Member/Timesheet module access, global security profile, project access, resource access, and User Interface View assignment. Copy User Settings covers copying selected combinations of module access, resource access, UI views, global security profile, project access and user preferences. CUBI must model these as separate, auditable access dimensions; a team role must never be treated as a substitute for any of them.
+
+Current Organization & Access delivers tenant teams, membership lifecycle, roster visibility and manager-only eligible-account discovery. The following remain explicit gaps: account creation/invitation/deactivation, global and project security profiles, module access, OBS/project/resource access, UI view assignment, bulk copy settings, granular privilege editing and effective-access preview. See `CUBI_ENTERPRISE_ORGANIZATION_ACCESS_API_V1.md` for the endpoint contract and traceability.
+
+## 5. Team Member V26 — workflow-specific acceptance requirements
 
 The Team Member Help V26 is a distinct reference set. Its My Activities workflow must be assessed independently from the Enterprise task list.
 
@@ -64,7 +70,7 @@ At minimum, the reference review must cover:
 
 **Important distinction:** the current CUBI Enterprise Task API supports generic personal/project tasks with lifecycle status, priority and due date. It does not yet implement P6 activity assignment, schedule status fields, step progress, timesheets, Team Member approval, or CPM/schedule update semantics. Do not present the Task Center as a replacement for P6 Team Member or as complete V26 Team Member parity.
 
-## 5. Task Center V1 — parity-informed acceptance
+## 6. Task Center V1 — parity-informed acceptance
 
 The initial Task Center is a narrow, truthful slice of the Enterprise Team & Task Center, not a complete Team Member module.
 
