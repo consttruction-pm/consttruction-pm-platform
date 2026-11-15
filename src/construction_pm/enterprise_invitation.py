@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 from uuid import uuid4
@@ -173,9 +173,13 @@ class EnterpriseInvitationService:
     def list_received(self, session_id: str) -> tuple[TeamInvitation, ...]:
         """Return only the authenticated user's incoming invitations."""
         session = self._session(session_id)
-        return self._repository.list_received_invitations(
+        invitations = self._repository.list_received_invitations(
             session.tenant_id, session.user_id
         )
+        # Raw one-time tokens are returned only to the inviter at creation time.
+        # The recipient inbox is authenticated by account + invitation ID and
+        # must never serialize a reusable bearer secret.
+        return tuple(replace(item, token=None) for item in invitations)
 
     def _session(self, session_id: str):
         if not isinstance(session_id, str) or not session_id:
