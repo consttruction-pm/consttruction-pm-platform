@@ -210,7 +210,7 @@ class P6BaselineUpdateAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_READ
+            self.authorization_policy, auth_context, Permission.BASELINE_VIEW
         )
         _require_revision(scope, expected_revision)
         source = _require_identifier(
@@ -253,7 +253,7 @@ class P6BaselineUpdateAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.BASELINE_UPDATE
         )
         _require_revision(scope, expected_revision)
         source = _require_identifier(
@@ -302,7 +302,7 @@ class P6BaselineUpdateAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_READ
+            self.authorization_policy, auth_context, Permission.BASELINE_VIEW
         )
         _require_revision(scope, expected_revision)
         identifier = _require_identifier(
