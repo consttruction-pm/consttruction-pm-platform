@@ -30,6 +30,10 @@ class Permission(str, Enum):
     RISK_ADD_EDIT = "risk.add_edit"
     RISK_EDIT = "risk.edit"
     RISK_DELETE = "risk.delete"
+    THRESHOLD_VIEW = "threshold.view"
+    THRESHOLD_ADD_EDIT = "threshold.add_edit"
+    THRESHOLD_EDIT = "threshold.edit"
+    THRESHOLD_DELETE = "threshold.delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -105,6 +109,10 @@ class RoleBasedAuthorizationPolicy:
             Permission.RISK_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.RISK_EDIT: Permission.PROJECT_WRITE,
             Permission.RISK_DELETE: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_VIEW: Permission.PROJECT_READ,
+            Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
         }.get(permission)
         return legacy_guardrail in role_grants if legacy_guardrail is not None else False
 
