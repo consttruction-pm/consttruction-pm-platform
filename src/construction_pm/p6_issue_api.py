@@ -198,7 +198,7 @@ class P6IssueAPI:
         existing = self.repository.get(issue.scope, issue.issue_id)
         if existing is not None:
             self._require_wbs_permission(issue.scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
-        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value)
+        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value, issue.responsible_obs_id)
         with self._transaction():
             stored = self.repository.update(
                 issue,
@@ -255,7 +255,7 @@ class P6IssueAPI:
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
-        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value)
+        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
         with self._transaction():
             stored = self.repository.add_comment(
                 scope,
