@@ -1237,3 +1237,11 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **V26 boundary:** this is the Users Page active/inactive account-status behavior slice, not full Users Page parity. Account creation/invitation/password lifecycle, security profiles, module access, OBS/project/resource access, UI views, Copy User Settings and effective-access reporting remain open.
 - **Code head:** `4bc0ea5f9f5d66d6a264c87ac9c19988ad52694a`. Exact-head ConstructionPM CI, PostgreSQL Integration, Client Typecheck and ConstructionPM Web CI are running; earlier code/test head `01392b1253f49ef0b5ca98c4e7eb3bb05793a259` passed all four workflows after correcting the deactivation regression's expected `SESSION_NOT_FOUND` response.
 - **Release gate:** no merge or deployment; do not promote until the current exact-head workflows and preview/browser acceptance are green.
+
+
+## Organization & Access — production WSGI account-admin acceptance — 2026-11-15
+
+- Added `test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end` to `tests/integration/test_production_login_postgres_live.py`. It provisions unique same-tenant administrator/target and cross-tenant outsider identities, performs real production login, reads the tenant-only account directory, submits the CSRF-protected versioned account-deactivation API, and verifies the target's already-issued session is rejected on its next `/api/session` request.
+- Live PostgreSQL Integration run #3105 passed with the new end-to-end case. Client Typecheck #8458 passed for all four client targets. ConstructionPM CI #8760 and ConstructionPM Web CI #2713 were still running at the time of this checkpoint.
+- Oracle V26 trace was expanded with the exact Users Page, Global Security Profile privileges, Project Security Profile creation/privileges and About User Access topics. The profile model remains a distinct future work package; no parity claim is inferred from `enterprise_admin` role tokens.
+- Code/test head `c981824fa3a33e547d28a31c2781241677a25909`; latest documentation head `fe50176334406a839dc313792c9a0e0fd33ff560`. PR #1974 remains open Draft; no merge/deployment.
