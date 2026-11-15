@@ -22,6 +22,7 @@ class EnterpriseProjectAccessHttpMiddleware:
     def __call__(self, environ: Mapping[str, object], start_response: Callable):
         path = str(environ.get("PATH_INFO", "/") or "/")
         if not (path == "/api/enterprise/project-security-profiles"
+                or path == "/api/enterprise/project-security-privileges"
                 or path == "/api/enterprise/obs"
                 or path == "/api/enterprise/user-obs-access"
                 or path.startswith("/api/enterprise/user-obs-access/")):
@@ -49,6 +50,14 @@ class EnterpriseProjectAccessHttpMiddleware:
         session_id = self._session_id(environ)
         if not session_id:
             return 401, {"code":"SESSION_REQUIRED"}
+        if path == "/api/enterprise/project-security-privileges":
+            if method != "GET":
+                return 405, {"code":"METHOD_NOT_ALLOWED"}
+            definitions = self._service.list_privilege_definitions(session_id)
+            return 200, {"contract_version":_VERSION,"privileges":[{
+                "key":item.key,"group":item.group.value,"label":item.label,
+                "description":item.description,
+            } for item in definitions]}
         if path == "/api/enterprise/project-security-profiles":
             if method == "GET":
                 profiles = self._service.list_profiles(session_id)
