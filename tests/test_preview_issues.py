@@ -45,7 +45,8 @@ def _payload(**overrides):
         "owner": "planner",
         "date_identified": "2026-11-04",
         "due_date": "2026-11-18",
-        "wbs_id": "WBS-PREVIEW-1",
+        "wbs_id": "WBS-RPS-CIVIL",
+        "responsible_obs_id": "OBS-OPERATIONS",
         "activity_id": "A1000",
         "document_refs": ["DOC-PREVIEW-1"],
     }
