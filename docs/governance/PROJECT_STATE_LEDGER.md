@@ -1217,3 +1217,10 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **V26 trace:** this implements the session-enforcement consequence of the Users Page account-status/deactivation concept. It does not yet provide the administrator UI/API to deactivate/reactivate accounts, nor invitations, security profiles, module/project/resource access, UI views or Copy User Settings.
 - **Branch/PR:** `feat/cubi-enterprise-organization-access-api-v1` / #1974. Code commit `59bd5769d62d7064da498816433749c64313d29f`; unit-test commit `ff9ed15507be9150602ce9bb36e25b800a1d0d07`; PostgreSQL regression commit `481faceb8808db51af6b5c7a2ca072bbcfe2c47e`; parity documentation commit `bd8680e319653e50460bd29e9e4dbf69fca815ba`.
 - **Verification state:** exact-head CI was queued after code/test changes; the previous PR head's PostgreSQL Integration run had passed, but that does not validate this new regression. Do not merge until the exact current head's Python CI, PostgreSQL integration and web/typecheck gates complete successfully.
+
+
+## Organization & Access — PostgreSQL regression isolation correction — 2026-11-15
+
+- The first live PostgreSQL run for the new deactivation regression reached the test but its login returned `AUTHENTICATION_THROTTLED`: the integration fixture reuses a durable IP-throttle table across tests. This was a test-isolation defect, not a failure of the account-active check.
+- Corrected the regression to assign a unique per-run client IP before login. The corrected test is committed at `1502fa6d31d1692ade702ef993bca7101aa58247`.
+- Fresh ConstructionPM CI, PostgreSQL Integration, Client Typecheck and ConstructionPM Web CI were queued for this corrected head. Results must be checked before promotion.
