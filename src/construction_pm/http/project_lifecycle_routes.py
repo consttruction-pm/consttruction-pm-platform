@@ -544,13 +544,17 @@ class ProjectLifecycleHttpRoutes:
                 expected_revision = payload.get("expected_revision")
                 if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
                     return self._error(400, "P6_EPS_REVISION_REQUIRED", "error.request.invalid")
+                existing_nodes = self._api.list_eps_nodes(session_id, now=now)
+                existing = next((item for item in existing_nodes if item.eps_id == eps_id), None)
+                if existing is None:
+                    return self._error(404, "P6_EPS_NOT_FOUND_OR_NOT_AUTHORIZED", "error.resource.not_found")
                 node = P6EPSNode(
                     tenant_id=session.tenant_id,
                     eps_id=eps_id,
-                    name=str(payload.get("name", "")),
-                    parent_eps_id=payload.get("parent_eps_id"),
-                    responsible_obs_id=str(payload.get("responsible_obs_id", "")),
-                    sequence_number=payload.get("sequence_number", 0),
+                    name=str(payload.get("name", existing.name)),
+                    parent_eps_id=payload.get("parent_eps_id", existing.parent_eps_id),
+                    responsible_obs_id=str(payload.get("responsible_obs_id", existing.responsible_obs_id)),
+                    sequence_number=payload.get("sequence_number", existing.sequence_number),
                 )
                 saved = self._api.save_eps_node(
                     session_id, node, expected_revision=expected_revision, now=now
