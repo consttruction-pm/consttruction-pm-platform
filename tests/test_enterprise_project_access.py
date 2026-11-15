@@ -265,6 +265,7 @@ def test_granular_wbs_profile_is_checked_without_legacy_project_read_write():
         ("issue_threshold.add_edit_delete", "threshold.add_edit"),
         ("risk.add_edit_delete", "risk.delete"),
         ("project_baseline.add_edit_delete", "baseline.create_update"),
+        ("baseline.update", "baseline.update"),
         ("wbs.add_edit_delete_except_costs_financials", "wbs.add_edit"),
         ("wbs.add_edit_delete_except_costs_financials", "wbs.delete"),
         ("project.view", "project.read"),
@@ -291,4 +292,21 @@ def test_unmapped_profile_privileges_do_not_grant_unrelated_routes():
     )
     assert not project_profile_has_permission(
         {"activity.add_edit_except_relationships"}, "activity.relationship.add_edit_delete"
+    )
+
+
+
+def test_v26_baseline_assignment_requires_both_documented_profile_privileges():
+    assert project_profile_has_permission(
+        {
+            "project_baseline.assign",
+            "project.edit_details_except_costs_financials",
+        },
+        "baseline.assign",
+    )
+    assert not project_profile_has_permission(
+        {"project_baseline.assign"}, "baseline.assign"
+    )
+    assert not project_profile_has_permission(
+        {"project.edit_details_except_costs_financials"}, "baseline.assign"
     )
