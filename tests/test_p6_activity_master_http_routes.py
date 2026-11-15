@@ -239,10 +239,12 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
             "code": "1",
             "name": "Project Root",
             "sequence_number": 0,
+            "responsible_obs_id": "OBS-OPERATIONS",
         },
     )
     assert wbs_status == "201 Created"
     assert wbs_root["wbs"]["wbs_id"] == "W-ROOT"
+    assert wbs_root["wbs"]["responsible_obs_id"] == "OBS-OPERATIONS"
     path = "/api/projects/p1/p6/activities"
     actual_start = "2026-10-01T09:15:30.123456+00:00"
     create_payload = {
@@ -1103,3 +1105,125 @@ def test_checkout_holder_blocks_activity_and_wbs_writes_with_409(tmp_path):
     )
     assert status == "409 Conflict"
     assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
+
+
+def test_wbs_obs_policy_keeps_foreign_responsible_scope_read_only():
+    import pytest
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    repository = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repository.has_responsible_obs_permission = lambda *args: True
+    repository.has_wbs_permission = (
+        lambda scope, user_id, wbs_id, permission, **kwargs: permission == "project.read"
+    )
+    api = P6WBSMasterAPI(repository, default_project_policy())
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    created = api.create(
+        WBSMaster(
+            scope, "W-ROOT", WBSParentKind.PROJECT, None,
+            "1", "Project Root", 0, responsible_obs_id="OBS-OTHER",
+        ),
+        auth_context=auth,
+    )
+    assert created["wbs"]["responsible_obs_id"] == "OBS-OTHER"
+    assert api.get(scope, "W-ROOT", auth_context=auth)["wbs"]["wbs_id"] == "W-ROOT"
+
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.update(
+            WBSMaster(
+                scope, "W-ROOT", WBSParentKind.PROJECT, None,
+                "1", "Unauthorized edit", 0, record_revision=1,
+                responsible_obs_id="OBS-OTHER",
+            ),
+            expected_revision=1,
+            auth_context=auth,
+        )
+
+
+def test_wbs_creation_requires_permission_for_responsible_obs():
+    import pytest
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    repository = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repository.has_responsible_obs_permission = lambda *args: False
+    api = P6WBSMasterAPI(repository, default_project_policy())
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.create(
+            WBSMaster(
+                scope, "W-ROOT", WBSParentKind.PROJECT, None,
+                "1", "Project Root", 0, responsible_obs_id="OBS-OTHER",
+            ),
+            auth_context=auth,
+        )
+    assert repository.list(scope) == ()
+
+
+def test_activity_access_inherits_wbs_read_only_scope_but_denies_write():
+    import pytest
+    from construction_pm.activity_master_repository import ActivityMaster
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+    from construction_pm.scheduling.time_duration import DurationUnit
+
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    connection = sqlite3.connect(":memory:")
+    activity_repository = SQLiteActivityMasterRepository(connection)
+    activity = ActivityMaster(
+        scope, "A-WBS", Decimal("1"), DurationUnit.WORKING_DAY,
+        name="WBS scoped activity", wbs_id="W-FOREIGN",
+    )
+    stored = activity_repository.save(activity, expected_revision=0)
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return permission == "project.read"
+
+    api = P6ActivityMasterAPI(
+        activity_repository, default_project_policy(), wbs_access_repository=WBSAccess()
+    )
+    assert api.get(scope, "A-WBS", auth_context=auth)["activity"]["activity_id"] == "A-WBS"
+    assert [item["activity"]["activity_id"] for item in api.list(scope, auth_context=auth)] == ["A-WBS"]
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.update(stored, expected_revision=1, auth_context=auth)
+    connection.close()
+
+
+def test_activity_cannot_be_moved_out_of_wbs_without_source_scope_write():
+    import pytest
+    from construction_pm.activity_master_repository import ActivityMaster
+    from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+    from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+    from construction_pm.scheduling.time_duration import DurationUnit
+
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteActivityMasterRepository(connection)
+    stored = repository.save(
+        ActivityMaster(
+            scope, "A-LOCKED", Decimal("1"), DurationUnit.WORKING_DAY,
+            name="Locked activity", wbs_id="W-FOREIGN",
+        ),
+        expected_revision=0,
+    )
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return wbs_id == "W-OWN" and permission == "project.write"
+
+    api = P6ActivityMasterAPI(repository, default_project_policy(), wbs_access_repository=WBSAccess())
+    moved = ActivityMaster(
+        scope, stored.activity_id, Decimal("1"), DurationUnit.WORKING_DAY,
+        record_revision=stored.record_revision, name="Moved activity", wbs_id="W-OWN",
+    )
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        api.update(moved, expected_revision=stored.record_revision, auth_context=auth)
+    connection.close()
