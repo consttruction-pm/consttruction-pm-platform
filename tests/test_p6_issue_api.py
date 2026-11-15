@@ -126,3 +126,33 @@ def test_issue_access_is_scoped_by_responsible_wbs_obs():
             issue(issue_id="ISSUE-DENIED", wbs_id="W-FOREIGN"),
             auth_context=planner(), occurred_at=AT,
         )
+
+
+def test_issue_own_responsible_obs_overrides_project_scope_for_write():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(
+        issue(responsible_obs_id="OBS-QUALITY"),
+        auth_context=planner(),
+        occurred_at=AT,
+    )
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return obs_id == "OBS-QUALITY" and permission == "project.read"
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=OBSAccess())
+    assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["responsible_obs_id"] == "OBS-QUALITY"
+    assert [item["issue"]["issue_id"] for item in scoped.list(SCOPE, auth_context=planner())] == ["ISSUE-API-1"]
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.update(
+            issue(responsible_obs_id="OBS-QUALITY", title="Unauthorized edit"),
+            expected_revision=1,
+            auth_context=planner(),
+            occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.add_comment(
+            SCOPE, "ISSUE-API-1", comment="Unauthorized", expected_revision=1,
+            auth_context=planner(), occurred_at=AT,
+        )
