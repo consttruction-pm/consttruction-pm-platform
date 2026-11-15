@@ -1402,3 +1402,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - **Code commits:** `9f29bced` (old/new branch reparent guard), `2574e53c` (PATCH merge semantics), `38758db7` (EPS branch administration integration coverage).
 - **Verification:** exact-head Actions remain queued; no test pass is claimed.
 
+
+
+### WBS-scoped Issue and Expense API authorization — 2026-11-15
+
+- Updated `P6IssueAPI` and `P6ExpenseAPI` so create/write authorization evaluates the record's explicit WBS against `PostgresSecurityProfileAuthorizationPolicy.is_allowed_for_wbs`; issue update checks both the existing and target WBS so a record cannot be moved out of an inaccessible branch or moved into one without target responsibility.
+- Issue get/history/comment/delete operations now evaluate the existing issue's WBS. Issue and expense get/list operations apply per-record WBS read checks; list responses are filtered by each record's WBS instead of relying on a project-level read gate. Read-only visibility inherited from the project/EPS OBS remains available on a WBS overridden to another OBS, while writes remain denied without the override OBS assignment.
+- Added unit regressions for inaccessible WBS reads, list filtering, writes, WBS reassignment, delete/comment/history, plus a live PostgreSQL authorization test that exercises the real profile/OBS/WBS evaluator through the Issue and Expense APIs.
+- **Code/test commits:** `811f16fc` (Issue API WBS enforcement), `153014d9` (Expense API WBS enforcement), `f8598ab7` (Issue unit tests), `98c203bf` (Expense unit tests), `4e2223f8` (live PostgreSQL security-profile integration test and corrected WBS fixture).
+- **Scope limitation:** object-level checks currently use explicit `wbs_id` values. Issue/expense records that reference an Activity but omit `wbs_id` still need an activity-to-WBS resolver before their effective responsibility can be enforced; this is recorded as outstanding, not treated as complete.
+- **Verification:** source and test changes are committed. The exact-head CI result is not yet available; the only combined status currently visible is the Vercel preview check in pending state. No test pass is claimed until the latest PostgreSQL Integration and CI workflows complete.
+- **Oracle V26 references:** [Project Security Profile Privileges](https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm), [Global Security Profile Privileges](https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm), [About User Access](https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/6597.htm), [Assigning OBS Elements to Users](https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm), and [Project Access Detail Window](https://docs.oracle.com/cd/G48897_01/p6help/en/6186.htm).
