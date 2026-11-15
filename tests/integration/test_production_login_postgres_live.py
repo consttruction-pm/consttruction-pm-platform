@@ -603,7 +603,7 @@ def test_account_deactivation_revokes_existing_session_immediately(runtime):
     user = runtime.test_ids["users"]["planner"]
     # Keep this authentication flow independent from the durable per-IP
     # throttle state left by other integration tests in a shared database.
-    runtime.test_ids["client_ip"] = f"2001:db8::{uuid.uuid4().hex[:10]}"
+    runtime.test_ids["client_ip"] = f"198.18.{int(uuid.uuid4().hex[:2], 16)}.{int(uuid.uuid4().hex[2:4], 16)}"
     cookie, _ = login(runtime, "planner")
 
     connection = runtime.pool.acquire()
