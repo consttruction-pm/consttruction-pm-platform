@@ -20,6 +20,10 @@ class Permission(str, Enum):
     ACTIVITY_EDIT = "activity.edit"
     ACTIVITY_DELETE = "activity.delete"
     ACTIVITY_RELATIONSHIP_MANAGE = "activity.relationship.add_edit_delete"
+    ISSUE_VIEW = "issue.view"
+    ISSUE_ADD_EDIT = "issue.add_edit"
+    ISSUE_EDIT = "issue.edit"
+    ISSUE_DELETE = "issue.delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -85,6 +89,10 @@ class RoleBasedAuthorizationPolicy:
             Permission.ACTIVITY_EDIT: Permission.PROJECT_WRITE,
             Permission.ACTIVITY_DELETE: Permission.PROJECT_WRITE,
             Permission.ACTIVITY_RELATIONSHIP_MANAGE: Permission.PROJECT_WRITE,
+            Permission.ISSUE_VIEW: Permission.PROJECT_READ,
+            Permission.ISSUE_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_DELETE: Permission.PROJECT_WRITE,
         }.get(permission)
         return legacy_guardrail in role_grants if legacy_guardrail is not None else False
 
