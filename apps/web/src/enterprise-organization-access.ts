@@ -58,7 +58,11 @@ async function api<T>(path: string, method = "GET", body?: Record<string, unknow
   const payload: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = isRecord(payload) && typeof payload.code === "string" ? payload.code : "REQUEST_FAILED";
-    throw new Error(response.status === 401 ? "SESSION_REQUIRED" : code);
+    if (response.status === 401) {
+      window.location.assign(`/login?next=${encodeURIComponent("/enterprise/organization")}`);
+      throw new Error("SESSION_REQUIRED");
+    }
+    throw new Error(code);
   }
   return payload as T;
 }
@@ -266,6 +270,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
 
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+  document.title = `CUBI Enterprise · ${t.title}`;
   render();
   await load();
 }
