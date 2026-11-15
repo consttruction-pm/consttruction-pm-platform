@@ -1013,12 +1013,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (!node) return;
       const status = form.querySelector<HTMLSelectElement>('[name="status"]')?.value;
       const technique = form.querySelector<HTMLSelectElement>('[name="percent_complete_technique"]')?.value;
+      const responsibleObsId = form.querySelector<HTMLInputElement>('[name="responsible_obs_id"]')?.value.trim() || null;
       void record.options.onWbsUpdate?.(wbsId, {
         code: node.localCode,
         name: node.name,
         sequenceNumber: node.sequenceNumber,
         ...(status === "planned" || status === "active" || status === "inactive" || status === "what_if" ? { status } : {}),
         ...(technique === "activities" || technique === "milestones" ? { percentCompleteTechnique: technique } : {}),
+        responsibleObsId,
       });
       return;
     }
@@ -1148,12 +1150,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     else if (form.matches("[data-wbs-create-form]")) {
       event.preventDefault();
       const parentWbsId = form.querySelector<HTMLSelectElement>('[name="parent_wbs_id"]')?.value || null;
-      void record.options.onWbsCreate?.({ code: readText("code"), name: readText("name"), sequenceNumber, parentWbsId });
+      const responsibleObsId = readText("responsible_obs_id") || null;
+      void record.options.onWbsCreate?.({ code: readText("code"), name: readText("name"), sequenceNumber, parentWbsId, responsibleObsId });
     } else if (form.matches("[data-wbs-edit-form]")) {
       event.preventDefault();
       const wbsId = form.dataset.wbsEditForm;
       const status = form.querySelector<HTMLSelectElement>('[name="status"]')?.value;
       const technique = form.querySelector<HTMLSelectElement>('[name="percent_complete_technique"]')?.value;
+      const responsibleObsId = readText("responsible_obs_id") || null;
       if (wbsId) {
         void record.options.onWbsUpdate?.(wbsId, {
           code: readText("code"),
@@ -1161,6 +1165,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
           sequenceNumber,
           ...(status === "planned" || status === "active" || status === "inactive" || status === "what_if" ? { status } : {}),
           ...(technique === "activities" || technique === "milestones" ? { percentCompleteTechnique: technique } : {}),
+          responsibleObsId,
         });
       }
     }
@@ -2747,8 +2752,8 @@ export type WorkspaceRendererOptions = {
   openWindows?: readonly WorkspaceState["activeMenu"][];
   onWindowClose?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
-  onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
-  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number; status?: "planned" | "active" | "inactive" | "what_if"; percentCompleteTechnique?: "activities" | "milestones"; parentKind?: "project" | "wbs"; parentWbsId?: string | null }) => void | Promise<void>;
+  onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null; responsibleObsId?: string | null }) => void | Promise<void>;
+  onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number; status?: "planned" | "active" | "inactive" | "what_if"; percentCompleteTechnique?: "activities" | "milestones"; responsibleObsId?: string | null; parentKind?: "project" | "wbs"; parentWbsId?: string | null }) => void | Promise<void>;
   onWbsCopy?: (wbsId: string, targetParentWbsId: string, rootCode: string) => void | Promise<void>;
   onWbsMilestonesUpdate?: (wbsId: string, milestones: readonly WorkspaceWbsMilestone[], expectedRevision: number) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
@@ -3144,6 +3149,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 <h3>${escapeHtml(t.wbsCreate)}</h3>
                 <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
                 <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" autocomplete="off"></label>
+                <label>${escapeHtml(uiText(state.locale, "Responsible OBS ID (optional)", "شناسه OBS مسئول (اختیاری)"))} <input name="responsible_obs_id" maxlength="120" placeholder="${escapeAttribute(uiText(state.locale, "Blank inherits project OBS", "خالی = ارث‌بری از OBS پروژه"))}"></label>
                 <label>${escapeHtml(t.wbsParent)}
                   <select name="parent_wbs_id" required>
                     ${state.wbsNodes.length ? state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === (state.selectedWbsId ?? state.wbsNodes.find((item) => item.parentKind === "project")?.id) ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("") : `<option value="__project__" selected>${escapeHtml(t.wbsProjectRoot)}</option>`}
@@ -3159,6 +3165,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <h3>${escapeHtml(t.wbsEdit)}</h3>
                   <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" value="${escapeAttribute(selected.localCode)}"></label>
                   <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" value="${escapeAttribute(selected.name)}"></label>
+                  <label>${escapeHtml(uiText(state.locale, "Responsible OBS ID", "شناسه OBS مسئول"))} <input name="responsible_obs_id" maxlength="120" value="${escapeAttribute(selected.responsibleObsId ?? "")}" placeholder="${escapeAttribute(uiText(state.locale, "Blank inherits project OBS", "خالی = ارث‌بری از OBS پروژه"))}"></label>
                   <label>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}
                     <select name="status">
                       ${(["planned", "active", "inactive", "what_if"] as const).map((status) => `<option value="${status}" ${(selected.status ?? "planned") === status ? "selected" : ""}>${escapeHtml(wbsStatusLabel(state.locale, status))}</option>`).join("")}
@@ -5723,6 +5730,7 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
         [uiText(state.locale, "WBS ID", "شناسه WBS"), node.id],
         [uiText(state.locale, "WBS Code", "کد WBS"), node.localCode],
         [uiText(state.locale, "WBS Name", "نام WBS"), node.name],
+        [uiText(state.locale, "Responsible OBS", "OBS مسئول"), node.responsibleObsId ?? uiText(state.locale, "Inherited from project", "ارث‌بری از پروژه")],
         [uiText(state.locale, "Status", "وضعیت"), wbsStatusLabel(state.locale, node.status)],
         [uiText(state.locale, "Percent complete technique", "روش درصد تکمیل"), wbsTechniqueLabel(state.locale, node.percentCompleteTechnique)],
         [uiText(state.locale, "Weighted percent complete", "درصد تکمیل وزنی"), percent === null ? "—" : `${percent.toFixed(2)}%`],
@@ -5740,6 +5748,7 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
         .join("");
       return `${fieldsHtml}
         <form class="cp-wbs-status-form" data-wbs-status-form="${escapeAttribute(node.id)}" data-wbs-revision="${node.recordRevision}">
+          <label>${escapeHtml(uiText(state.locale, "Responsible OBS ID", "شناسه OBS مسئول"))}<input name="responsible_obs_id" maxlength="120" value="${escapeAttribute(node.responsibleObsId ?? "")}" placeholder="${escapeAttribute(uiText(state.locale, "Blank inherits project OBS", "خالی = ارث‌بری از OBS پروژه"))}"></label>
           <label>${escapeHtml(uiText(state.locale, "Status", "وضعیت"))}<select name="status">${statusSelect}</select></label>
           <label>${escapeHtml(uiText(state.locale, "Percent complete technique", "روش درصد تکمیل"))}<select name="percent_complete_technique">${techniqueSelect}</select></label>
           <button type="submit">${escapeHtml(uiText(state.locale, "Save WBS settings", "ذخیره تنظیمات WBS"))}</button>
