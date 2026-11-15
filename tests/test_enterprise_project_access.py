@@ -39,6 +39,10 @@ class FakeOBS:
     def obs_node_exists(self, tenant_id, obs_id):
         return tenant_id == "tenant-a" and obs_id in {"root", "child"}
 
+    def list(self, tenant_id):
+        return (type("OBSNode",(),{"obs_id":"root","parent_obs_id":None,"code":"ROOT",
+            "name":"Root","manager_user_id":"admin-1","sequence_number":1})(),)
+
 
 class FakeRepository:
     def __init__(self):
@@ -51,6 +55,9 @@ class FakeRepository:
 
     def get_profile(self, tenant_id, profile_id):
         return self.profiles.get((tenant_id, profile_id))
+
+    def list_profiles(self, tenant_id):
+        return tuple(value for (tenant, _), value in self.profiles.items() if tenant == tenant_id)
 
     def assign_user_obs(self, assignment):
         if assignment.user_id != "member-1":
@@ -128,3 +135,13 @@ def test_obs_project_authorization_requires_both_global_module_and_project_profi
     assert not policy.is_allowed(viewer, Permission.PROJECT_WRITE)
     planner = AuthorizationContext("tenant-a","project-1","member-1",frozenset({"planner"}))
     assert not policy.is_allowed(planner, Permission.PROJECT_WRITE)
+
+
+def test_enterprise_admin_can_list_profiles_and_obs_directory():
+    repository=FakeRepository()
+    service=EnterpriseProjectAccessService(repository,FakeLifecycle(),FakeOBS(),clock=lambda:NOW)
+    service.create_profile("valid-session","read_only","Read only",("project.read",))
+    profiles=service.list_profiles("valid-session")
+    nodes=service.list_obs_nodes("valid-session")
+    assert profiles[0].profile_id=="read_only"
+    assert nodes[0].obs_id=="root"
