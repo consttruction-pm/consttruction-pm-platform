@@ -10336,3 +10336,27 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
  .ce-task-actions button { flex:1; }
  .ce-form-grid { grid-template-columns:1fr; }
 }
+
+/* Enterprise project access administration */
+.oa-shell { max-width:1120px; }
+.oa-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); gap:1rem; align-items:start; }
+.oa-card { min-width:0; padding:1.2rem; border:1px solid #e1e6ec; border-radius:16px; background:#fff; box-shadow:0 8px 26px rgba(15,39,71,.045); }
+.oa-card h2 { margin:0 0 1rem; color:#0f2747; font-size:1.08rem; }
+.oa-card h3 { margin:.25rem 0 .3rem; color:#0f2747; font-size:.92rem; }
+.oa-inline { display:flex; align-items:center; gap:.65rem; flex-wrap:wrap; }
+.oa-inline .ce-select,.oa-inline .ce-search { flex:1; min-width:150px; max-width:none; }
+.oa-form { display:grid; gap:.65rem; margin-top:1.2rem; padding-top:1rem; border-top:1px solid #eef0f3; }
+.oa-list { display:grid; gap:.55rem; }
+.oa-row { display:flex; justify-content:space-between; align-items:center; gap:.8rem; padding:.75rem; border:1px solid #eef0f3; border-radius:10px; }
+.oa-row > div:first-child { display:grid; gap:.25rem; min-width:0; }
+.oa-row strong { overflow-wrap:anywhere; color:#24364b; font-size:.88rem; }
+.oa-row small,.oa-muted { color:#667085; font-size:.78rem; }
+.oa-row .ce-button { min-height:34px; padding:.35rem .7rem; font-size:.76rem; }
+.oa-shell .ce-notice,.oa-shell .ce-error { margin:.75rem 0; }
+.oa-shell .ce-header .ce-back { text-decoration:none; }
+@media(max-width:760px) {
+ .oa-grid { grid-template-columns:1fr; }
+ .oa-row { align-items:flex-start; flex-direction:column; }
+ .oa-row .ce-button { flex:1; }
+ .oa-inline .ce-button { flex:1; }
+}
