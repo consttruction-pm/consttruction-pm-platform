@@ -129,6 +129,9 @@ PROJECT_PERMISSION_PRIVILEGE_MAP = {
 GLOBAL_PERMISSION_PRIVILEGE_MAP = {
     # V26 Global Security Profile privilege for creating/editing/deleting UDF definitions.
     Permission.P6_UDF_ADMIN: "add_edit_delete_user_defined_fields",
+    Permission.P6_OBS_ADMIN: "add_edit_delete_obs",
+    Permission.P6_COST_ACCOUNT_ADMIN: "add_edit_delete_cost_accounts",
+    Permission.P6_FINANCIAL_PERIOD_ADMIN: "add_edit_delete_financial_period_calendars",
 }
 
 GLOBAL_PRIVILEGE_IMPLICATIONS = {
@@ -790,7 +793,10 @@ class PostgresSecurityProfileAuthorizationPolicy:
             Permission.P6_EXPORT_PROJECT_DATA, Permission.P6_PROJECT_LEVEL_LAYOUT_ADMIN,
             Permission.P6_REPORT_ADMIN,
         }
-        p6_permissions = p6_project_permissions | {Permission.P6_UDF_ADMIN}
+        p6_permissions = p6_project_permissions | {
+            Permission.P6_UDF_ADMIN, Permission.P6_OBS_ADMIN,
+            Permission.P6_COST_ACCOUNT_ADMIN, Permission.P6_FINANCIAL_PERIOD_ADMIN,
+        }
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
