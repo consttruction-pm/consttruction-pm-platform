@@ -188,3 +188,15 @@ No design approval, code merge or acceptance sign-off until the phase artifact i
 - Scope: resolve actual-checkout instructions and path ownership, finish exact source-topic mapping, then deliver isolated scenario create/read/edit/run using the authoritative Shared Scheduling Core, immutable source/run provenance, auth, revision/idempotency, SQLite/PostgreSQL tests, and only then wire the existing Scenario Lab. Comparison follows on pinned snapshots; promotion remains a separate release gate.
 - This is an executable handoff artifact, not evidence that Qoder has started or that code is implemented. The GitHub coordination connector cannot launch the user's Qoder desktop agent or execute the canonical repository test/browser environment. Backend implementation, tests, runtime evidence and merge remain pending Qoder execution.
 - PR #1988 remains Draft/open/unmerged; no merge/deploy authorized. Jalal 5 weights unchanged; no earned progress claimed.
+
+
+## 15. Master CUBI capability program — scope expanded beyond Scenario Lab — 2026-11-15
+
+- The product-owner mandate covers **all** new and parity capabilities across Engineering, Enterprise and Workbench; Scenario Lab is one Engineering P1 slice only.
+- Canonical full-scope register: `docs/architecture/CUBI_MASTER_CAPABILITY_REGISTER_EPPM_V26_CLOUD_V1.md`.
+- Register commit: `b4f66fe79434c674ec95e9fcc2995bf6abe5b430`.
+- Program-level tracking issue: #1990. Scenario-specific execution remains #1989 under this wider program.
+- Scope includes ENG-01..ENG-14 (project/EPS/WBS, activities, CPM/calendars, baselines/scenarios, diagnostics, project resources, cost/progress/EVM, project risk/Monte Carlo, Field Work Plan/Last Planner, Team Member updates, timesheets, documents, layouts/reports); ENT-01..ENT-12 (organization/security, portfolio/intake, enterprise capacity, portfolio scenarios/risk, dashboards, generic tasks, workflows/approvals, portal/documents, reporting, integrations, benefits/PMO knowledge); SH-01..SH-10 (Workbench, inbox/notifications, global search, tenant/auth, audit/jobs, localization/Jalali-Gregorian, storage/subscriptions, offline mobile/desktop, forms, Super Admin).
+- Binding source hierarchy is EPPM V26 HTML Help first; Primavera Cloud HTML Help for genuinely EPPM-absent functionality; shared behavior reconciled without duplication; Team Member V26 is a distinct normative source; Professional Help supplementary only.
+- Execution order: P1 Engineering via Qoder; P2 Enterprise architecture/integration coordinated here after stable Engineering contracts; P0 shared security/data/locale boundaries kept minimal and non-blocking.
+- This register is an architecture and feasibility inventory, **not implementation evidence**. Every row still needs exact topic-level source crosswalk, repo/issue/PR collision audit, feasibility and acceptance criteria. No weights/progress changed; no code/tests/merge/deploy are claimed by this documentation step.
