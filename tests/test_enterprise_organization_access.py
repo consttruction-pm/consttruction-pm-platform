@@ -78,6 +78,16 @@ class Repository:
         return ({"user_id": "member-1", "email": "member@example.test", "display_name": "Member"},
                 {"user_id": "owner", "email": "owner@example.test", "display_name": "Owner"})
 
+    def list_tenant_users(self, tenant_id):
+        return ({"user_id": "owner", "email": "owner@example.test",
+                 "display_name": "Owner", "active": True},)
+
+    def has_active_role(self, tenant_id, user_id, role):
+        return tenant_id == "tenant-a" and user_id == "owner" and role == "enterprise_admin"
+
+    def set_account_active(self, tenant_id, target_user_id, actor_user_id, active, occurred_at):
+        return {"user_id": target_user_id, "active": active, "changed": True}
+
 
 def service(roles=frozenset({"enterprise_admin", "pro_monthly_active"})):
     repository = Repository()
@@ -159,3 +169,21 @@ def test_team_member_directory_requires_manager_and_is_tenant_scoped():
     }
     with pytest.raises(OrganizationAccessDenied, match="TEAM_ADMIN_PERMISSION_REQUIRED"):
         app.list_eligible_users("viewer-session", team.team_id)
+
+
+def test_account_administration_requires_live_enterprise_admin_role_and_prevents_self_deactivation():
+    app, _ = service()
+    accounts = app.list_accounts("owner-session")
+    assert accounts[0]["user_id"] == "owner"
+
+    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
+        app.list_accounts("viewer-session")
+
+    with pytest.raises(OrganizationAccessDenied, match="SELF_DEACTIVATION_NOT_ALLOWED"):
+        app.set_account_active("owner-session", "owner", active=False)
+
+    changed = app.set_account_active("owner-session", "member-1", active=False)
+    assert changed == {"user_id": "member-1", "active": False, "changed": True}
+
+    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
+        app.set_account_active("viewer-session", "member-1", active=False)
