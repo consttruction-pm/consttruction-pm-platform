@@ -15,6 +15,10 @@ class Service:
         return (type("OBSNode",(),{"obs_id":"root","parent_obs_id":None,"code":"ROOT",
             "name":"Root","manager_user_id":"admin","sequence_number":1})(),)
 
+    def list_privilege_definitions(self, session_id):
+        return (type("Privilege",(),{"key":"activity.view","group":type("Group",(),{"value":"activities"})(),
+            "label":"View Activities","description":"View activity data."})(),)
+
 
 def request(app,path,method="GET",body=None,cookie="cp_session=session-1"):
     raw=json.dumps(body or {}).encode()
@@ -40,3 +44,12 @@ def test_project_access_routes_require_authenticated_session():
     app=EnterpriseProjectAccessHttpMiddleware(lambda e,s:[b"fallback"],Service())
     response=request(app,"/api/enterprise/obs",cookie="")
     assert response["status"].startswith("401")
+
+
+def test_granular_project_privilege_catalogue_route_returns_grouped_definitions():
+    app=EnterpriseProjectAccessHttpMiddleware(lambda e,s:[b"fallback"],Service())
+    response=request(app,"/api/enterprise/project-security-privileges")
+    assert response["status"].startswith("200")
+    payload=json.loads(response["body"])
+    assert payload["privileges"][0]["key"]=="activity.view"
+    assert payload["privileges"][0]["group"]=="activities"
