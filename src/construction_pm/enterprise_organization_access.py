@@ -6,7 +6,11 @@ from typing import Protocol, Sequence
 from uuid import uuid4
 
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
-from .security_profiles import PostgresSecurityProfileRepository
+from .security_profiles import (
+    ADMIN_SUPERUSER_PROFILE_ID,
+    PROJECT_SUPERUSER_PROFILE_ID,
+    PostgresSecurityProfileRepository,
+)
 
 TEAM_ROLES = frozenset({"owner", "admin", "project_manager", "approver", "field_worker", "member", "viewer"})
 TEAM_STATUSES = frozenset({"active", "suspended", "archived"})
@@ -296,7 +300,12 @@ class EnterpriseOrganizationAccessService:
         obs_id: str = "", expected_revision: int | None = None,
     ) -> int:
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
+        # Oracle V26 permits only an existing Admin Superuser to assign the
+        # Admin Superuser and Project Superuser built-ins. The repository
+        # enforces that authority against persisted assignments; do not
+        # incorrectly require the separate CUBI enterprise_admin role here.
+        if profile_id not in {ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID}:
+            self._require_enterprise_admin(session)
         if user_id == session.user_id:
             raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
         if self._security_profiles is None:
