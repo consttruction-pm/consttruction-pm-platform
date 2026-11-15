@@ -414,6 +414,7 @@ class EnterpriseProjectAuthorizationPolicy:
             Permission.BASELINE_VIEW: Permission.PROJECT_READ,
             Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
             Permission.WBS_VIEW: Permission.PROJECT_READ,
+            Permission.WBS_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_ADD_EDIT: Permission.PROJECT_WRITE,
             Permission.WBS_DELETE: Permission.PROJECT_WRITE,
         }.get(permission)
