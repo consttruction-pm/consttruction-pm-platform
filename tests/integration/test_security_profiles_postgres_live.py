@@ -1319,6 +1319,7 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
         assert "profile_status_changed" in {str(row[0]) for row in audit}
         connection.rollback()
 
+
 class _PostgresTransactionManager:
     def __init__(self, connection):
         self.connection = connection
@@ -1503,9 +1504,13 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             write_api.save_assignment_period(
                 restricted_period, auth_context=context
             )
+        write_api.save_assignment_period(
+            restricted_period, auth_context=restricted_context
+        )
 
         # A user assigned to the restricted OBS can write that WBS only, not
         # the project OBS WBS; this is not inferred from team membership.
+        write_api.save_assignment(restricted_assignment, auth_context=restricted_context)
         assert policy.is_allowed_for_wbs(
             restricted_context, Permission.P6_ACTIVITY_ADMIN, restricted_wbs
         )
