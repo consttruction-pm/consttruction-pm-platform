@@ -22,6 +22,7 @@ from construction_pm.p6_expense_repository import (
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    AuthorizationError,
     Permission,
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
@@ -788,14 +789,14 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         connection.execute(
             "INSERT INTO wbs_master "
             "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-            "code,name,sequence_number,record_revision,status,percent_complete_tech) "
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
             "VALUES (%s,%s,0,%s,'project',NULL,'ROOT','Root WBS',0,1,'active','activities')",
             (tenant, project_id, root_wbs),
         )
         connection.execute(
             "INSERT INTO wbs_master "
             "(tenant_id,project_id,project_revision,wbs_id,parent_kind,parent_wbs_id,"
-            "code,name,sequence_number,record_revision,status,percent_complete_tech) "
+            "code,name,sequence_number,record_revision,status,percent_complete_technique) "
             "VALUES (%s,%s,0,%s,'wbs',%s,'RESTRICTED','Restricted WBS',1,1,'active','activities')",
             (tenant, project_id, restricted_wbs, root_wbs),
         )
@@ -858,7 +859,7 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         assert {item["issue"]["issue_id"] for item in issue_api.list(scope, auth_context=context)} == {
             visible_issue.issue_id, restricted_issue.issue_id,
         }
-        with pytest.raises(Exception, match="authorization denied"):
+        with pytest.raises(AuthorizationError, match="authorization denied"):
             issue_api.create(
                 P6Issue(
                     scope, f"denied-{suffix}", "Denied WBS issue", "", "scope", "open",
@@ -866,17 +867,17 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
                 ),
                 auth_context=context, occurred_at=occurred_at,
             )
-        with pytest.raises(Exception, match="authorization denied"):
+        with pytest.raises(AuthorizationError, match="authorization denied"):
             issue_api.update(
                 restricted_issue, expected_revision=1, auth_context=context,
                 occurred_at=occurred_at,
             )
-        with pytest.raises(Exception, match="authorization denied"):
+        with pytest.raises(AuthorizationError, match="authorization denied"):
             issue_api.delete(
                 scope, restricted_issue.issue_id, expected_revision=1,
                 auth_context=context, occurred_at=occurred_at,
             )
-        with pytest.raises(Exception, match="authorization denied"):
+        with pytest.raises(AuthorizationError, match="authorization denied"):
             issue_api.add_comment(
                 scope, restricted_issue.issue_id, comment="not allowed",
                 expected_revision=1, auth_context=context, occurred_at=occurred_at,
@@ -905,7 +906,7 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         assert {item["expense"]["expense_id"] for item in expense_api.list(
             scope, auth_context=context
         )} == {visible_expense.expense_id, restricted_expense.expense_id}
-        with pytest.raises(Exception, match="authorization denied"):
+        with pytest.raises(AuthorizationError, match="authorization denied"):
             expense_api.create(
                 P6Expense(
                     scope, f"denied-expense-{suffix}", "Denied WBS expense", "SITE",
