@@ -16,6 +16,8 @@ from uuid import uuid4
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 
+_WBS_OBS_UNSET = object()
+
 
 class WBSPersistenceError(ValueError):
     """Raised when WBS identity, hierarchy, scope, or revision is invalid."""
@@ -1046,13 +1048,13 @@ class PostgresWBSMasterRepository:
 
     def has_wbs_permission(
         self, scope: BackendScope, user_id: str, wbs_id: str, permission: str,
-        responsible_obs_id_override: str | None = None,
+        responsible_obs_id_override: object = _WBS_OBS_UNSET,
     ) -> bool:
         """Apply project inheritance plus WBS-specific read-only/OBS override rules."""
         row = self.connection.execute(
             """WITH RECURSIVE target AS (
                    SELECT p.obs_id AS project_obs_id,
-                          COALESCE(%s,w.responsible_obs_id,p.obs_id) AS responsible_obs_id
+                          CASE WHEN %s THEN %s ELSE COALESCE(w.responsible_obs_id,p.obs_id) END AS responsible_obs_id
                    FROM wbs_master w
                    JOIN project_lifecycle_projects p
                      ON p.tenant_id=w.tenant_id AND p.project_id=w.project_id
@@ -1096,7 +1098,9 @@ class PostgresWBSMasterRepository:
                END
                FROM target""",
             (
-                responsible_obs_id_override, scope.tenant_id, scope.project_id, wbs_id,
+                responsible_obs_id_override is not _WBS_OBS_UNSET,
+                None if responsible_obs_id_override is _WBS_OBS_UNSET else responsible_obs_id_override,
+                scope.tenant_id, scope.project_id, wbs_id,
                 scope.tenant_id, scope.tenant_id,
                 scope.tenant_id, user_id, scope.project_id, permission,
                 permission, scope.tenant_id, user_id, scope.project_id,
