@@ -376,6 +376,7 @@ class ProductionRuntime:
             EnterpriseOrganizationAccessService(
                 PostgresEnterpriseOrganizationAccessRepository(connection),
                 lifecycle_api,
+                security_profiles=PostgresSecurityProfileRepository(connection),
             ),
         )
         self.web_app = ProductionWebApp(
