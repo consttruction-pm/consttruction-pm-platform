@@ -310,7 +310,7 @@ class EnterpriseOrganizationAccessService:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         self._security_profiles.unassign(
             tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
-            project_id=project_id, expected_revision=expected_revision,
+            obs_id=obs_id, expected_revision=expected_revision,
             actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
