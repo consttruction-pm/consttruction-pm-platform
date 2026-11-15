@@ -217,3 +217,16 @@ test("contract adapter rejects malformed WBS milestone records", () => {
     /INVALID_WORKSPACE_WBS_MILESTONES/,
   );
 });
+
+
+test("contract adapter preserves WBS responsible OBS identity", () => {
+  const state = withWbsNodes(createWorkspaceState(context), [{
+    id: "W-OPS", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Operations", sequenceNumber: 0, recordRevision: 4,
+    responsibleObsId: "OBS-OPERATIONS",
+  }]);
+  const snapshot = createWorkspaceControlRoomSnapshot(state);
+  assert.equal(snapshot.wbs_nodes[0]?.responsible_obs_id, "OBS-OPERATIONS");
+  const restored = workspaceWbsNodesFromSnapshot(snapshot);
+  assert.equal(restored[0]?.responsibleObsId, "OBS-OPERATIONS");
+});
