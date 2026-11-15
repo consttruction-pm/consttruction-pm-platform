@@ -491,6 +491,8 @@ class ProjectEPSAssignmentPort(Protocol):
 
     def eps_node_exists(self, tenant_id: str, eps_id: str) -> bool: ...
 
+    def list_nodes(self, tenant_id: str) -> tuple[Any, ...]: ...
+
     def assign_project(
         self, tenant_id: str, project_id: str, eps_id: str, *,
         actor_user_id: str, occurred_at: datetime,
@@ -724,11 +726,25 @@ class ProjectLifecycleService:
             roles=session.roles,
         )
         if self._eps_nodes is not None:
+            eps_authorizer = getattr(self._policy, "is_allowed_for_eps", None)
             if not isinstance(eps_id, str) or not eps_id.strip():
-                raise ProjectLifecycleError("PROJECT_EPS_REQUIRED")
+                # The register client may omit an EPS selection. Resolve the
+                # first branch on which this actor has the V26 Add Projects
+                # privilege; never create an unscoped project as a fallback.
+                candidates = self._eps_nodes.list_nodes(session.tenant_id)
+                eligible = [
+                    node for node in candidates
+                    if (
+                        bool(eps_authorizer(create_context, Permission.P6_PROJECT_CREATE, node.eps_id))
+                        if callable(eps_authorizer)
+                        else self._policy.is_allowed(create_context, Permission.P6_PROJECT_CREATE)
+                    )
+                ]
+                if not eligible:
+                    raise ProjectLifecycleError("PROJECT_EPS_REQUIRED")
+                eps_id = eligible[0].eps_id
             if not self._eps_nodes.eps_node_exists(session.tenant_id, eps_id):
                 raise ProjectLifecycleError("PROJECT_EPS_NOT_FOUND")
-            eps_authorizer = getattr(self._policy, "is_allowed_for_eps", None)
             allowed = (
                 bool(eps_authorizer(create_context, Permission.P6_PROJECT_CREATE, eps_id))
                 if callable(eps_authorizer)
