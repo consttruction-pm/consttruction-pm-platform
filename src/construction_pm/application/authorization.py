@@ -16,6 +16,7 @@ class Permission(str, Enum):
     PROJECT_ADMIN = "project.admin"
     P6_UDF_ADMIN = "p6.udf.admin"
     P6_WBS_ADMIN = "p6.wbs.admin"
+    P6_ACTIVITY_ADMIN = "p6.activity.admin"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -95,6 +96,7 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_WRITE,
                 Permission.PROJECT_SCHEDULE,
                 Permission.P6_UDF_ADMIN,
+                Permission.P6_ACTIVITY_ADMIN,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
@@ -115,6 +117,7 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_ADMIN,
                 Permission.P6_UDF_ADMIN,
                 Permission.P6_WBS_ADMIN,
+                Permission.P6_ACTIVITY_ADMIN,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
