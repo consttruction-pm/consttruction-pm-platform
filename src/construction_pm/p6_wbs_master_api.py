@@ -126,6 +126,8 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        if callable(getattr(self.repository, "has_wbs_permission", None)) and not item.responsible_obs_id:
+            raise AuthorizationError("WBS_RESPONSIBLE_OBS_REQUIRED")
         self._require_obs_permission(item.scope, auth_context, Permission.PROJECT_WRITE.value,
                                      responsible_obs_id=item.responsible_obs_id)
         return _dto(self.repository.save(item, expected_revision=0))
