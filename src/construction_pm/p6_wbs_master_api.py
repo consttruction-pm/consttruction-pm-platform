@@ -75,6 +75,7 @@ def _dto(
             "record_revision": item.record_revision,
             "status": item.status.value,
             "percent_complete_technique": item.percent_complete_technique.value,
+            "responsible_obs_id": item.responsible_obs_id,
             "percent_complete": percent,
         },
         "milestones": [_milestone_dto(entry) for entry in loaded],
