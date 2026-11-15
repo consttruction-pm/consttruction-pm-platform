@@ -212,6 +212,22 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       const label = account ? (account.display_name || account.email) + " · " + account.email : item.user_id;
       return `<option value="${escapeHtml(item.user_id)}" data-revision="${item.revision}">${escapeHtml(label)}</option>`;
     }).join("");
+    const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
+    const profileOptions = profiles.map((profile) =>
+      `<option value="${escapeHtml(profile.profile_id)}" ${profile.profile_id === selectedProfileId ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(profile.scope)}</option>`
+    ).join("");
+    const profileCatalog = selectedProfile ? privilegeCatalogs[selectedProfile.scope] : [];
+    const privilegeOptions = profileCatalog.map((privilege) =>
+      `<option value="${escapeHtml(privilege)}" ${selectedProfile?.privileges.includes(privilege) ? "selected" : ""}>${escapeHtml(privilege)}</option>`
+    ).join("");
+    const profileAssignmentRows = profileAssignments.map((assignment) => `<tr>
+      <td><strong>${escapeHtml(assignment.display_name || assignment.email)}</strong><small>${escapeHtml(assignment.email)} · ${escapeHtml(assignment.user_id)}</small></td>
+      <td>${escapeHtml(assignment.obs_id || "—")}</td><td>${assignment.revision}</td>
+      <td>${selectedProfile?.scope === "project" ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
+    </tr>`).join("");
+    const activeAccountOptions = accounts.filter((account) => account.active).map((account) =>
+      `<option value="${escapeHtml(account.user_id)}">${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
+    ).join("");
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
