@@ -43,7 +43,7 @@ export type RiskRecord = {
   score: number;
   exposureLevel: string;
   responseStrategy: string;
-  responseOwner: string |  wbsId?: string | null;
+  responseOwner: string;
   responseDueDate: string | null;
   owner: string;
   responsibleManager: string | null;
