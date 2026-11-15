@@ -157,11 +157,9 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   const heroCopy = element("div");
   heroCopy.append(element("p", "ce-eyebrow", t.eyebrow), element("h1", "", t.title), element("p", "ce-subtitle", t.subtitle));
   const actions = element("div", "ce-hero-actions");
-  const accessLink = element("a", "ce-button ce-button-secondary", locale === "fa" ? "دسترسی پروژه" : "Project Access");
-  accessLink.href = "/enterprise/project-access";
   const refresh = element("button", "ce-button ce-button-secondary", t.refresh);
   const createButton = element("button", "ce-button ce-button-primary", `＋ ${t.create}`);
-  actions.append(accessLink, refresh, createButton);
+  actions.append(refresh, createButton);
   hero.append(heroCopy, actions);
 
   const toolbar = element("section", "ce-toolbar");
