@@ -72,7 +72,7 @@ class P6ExpenseAPI:
 
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.P6_EXPENSE_ADMIN)
         return _dto(self.service.save(expense))
 
     def get(
