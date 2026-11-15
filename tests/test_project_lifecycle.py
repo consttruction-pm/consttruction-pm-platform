@@ -303,7 +303,7 @@ def test_expired_session_is_rejected_before_project_access():
 
 def test_viewer_cannot_create_project():
     now, session = make_session(roles=frozenset({"viewer"}))
-    with pytest.raises(Exception, match="project.admin"):
+    with pytest.raises(Exception, match="p6.project.create"):
         make_service(session).create_project(
             "session-a", "project-new", "New Project", now=now
         )
