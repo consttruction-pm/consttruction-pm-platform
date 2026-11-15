@@ -602,8 +602,8 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
             (tenant, project_id, f"eps-wbs-inherit-{suffix}", f"eps-wbs-{suffix}"),
         )
         eps = PostgresP6EPSRepository(connection)
-        eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id))
-        eps.save_node(P6EPSNode(tenant, child_id, "Child EPS", parent_eps_id=root_id))
+        eps.save_node(P6EPSNode(tenant, root_id, "Root EPS", responsible_obs_id=obs_id), actor_user_id=user_id, occurred_at=now)
+        eps.save_node(P6EPSNode(tenant, child_id, "Child EPS", parent_eps_id=root_id), actor_user_id=user_id, occurred_at=now)
         eps.assign_project(
             tenant, project_id, child_id, actor_user_id=user_id, occurred_at=now,
         )
@@ -725,7 +725,7 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
             eps.save_node(
                 P6EPSNode(tenant, root_id, "Root EPS", parent_eps_id=child_id,
                           responsible_obs_id=obs_id),
-                expected_revision=1,
+                actor_user_id=user_id, occurred_at=now, expected_revision=1,
             )
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         connection.rollback()
