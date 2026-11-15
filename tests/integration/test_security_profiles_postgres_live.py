@@ -110,6 +110,21 @@ def test_postgres_global_and_project_profiles_narrow_real_authorization():
             tenant_id=tenant, profile_id="global-limited", user_id=user_id,
             actor_user_id=user_id, occurred_at=now,
         )
+
+        profiles.create_profile(
+            tenant_id=tenant, profile_id="global-replacement", name="Global Replacement",
+            scope="global", actor_user_id=user_id, occurred_at=now,
+        )
+        assert profiles.assign(
+            tenant_id=tenant, profile_id="global-replacement", user_id=user_id,
+            actor_user_id=user_id, occurred_at=now, expected_revision=1,
+        ) == 2
+        assert len(profiles.list_assignments(tenant, "global-replacement")) == 1
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED"):
+            profiles.unassign(
+                tenant_id=tenant, profile_id="global-replacement", user_id=user_id,
+                expected_revision=2, actor_user_id=user_id, occurred_at=now,
+            )
         profiles.assign(
             tenant_id=tenant, profile_id="project-read-only", user_id=user_id,
             obs_id=f"obs-{suffix}", actor_user_id=user_id, occurred_at=now,
