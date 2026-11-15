@@ -125,7 +125,7 @@ class P6IssueAPI:
         if wbs_id is None:
             return True
         checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
-        return True if not callable(checker) else bool(checker(scope, auth_context.user_id, wbs_id, Permission.PROJECT_READ.value))
+        return True if not callable(checker) else bool(checker(scope, auth_context.user_id, wbs_id, Permission.ISSUE_VIEW.value))
 
     def _transaction(self) -> AbstractContextManager[None]:
         if self.transaction_manager is None:
@@ -279,7 +279,7 @@ class P6IssueAPI:
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
-        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.PROJECT_READ.value, existing.responsible_obs_id)
+        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.ISSUE_VIEW.value, existing.responsible_obs_id)
         return tuple(_event_dto(event) for event in self.repository.history(scope, issue_id))
 
 
