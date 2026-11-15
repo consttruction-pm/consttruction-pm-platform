@@ -174,6 +174,27 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let notice = "";
   let failure = "";
 
+  const loadProfileAssignments = async () => {
+    if (!selectedProfileId) { profileAssignments = []; return; }
+    const result = await api<{ assignments: ProfileAssignment[] }>(
+      `/api/enterprise/security-profiles/${encodeURIComponent(selectedProfileId)}/assignments`,
+    );
+    profileAssignments = Array.isArray(result.assignments) ? result.assignments : [];
+  };
+
+  const loadProfiles = async () => {
+    const result = await api<{ profiles: SecurityProfile[]; privilege_catalogs: PrivilegeCatalogs }>(
+      "/api/enterprise/security-profiles",
+    );
+    profiles = Array.isArray(result.profiles) ? result.profiles : [];
+    privilegeCatalogs = result.privilege_catalogs ?? { global: [], project: [] };
+    if (!profiles.some((profile) => profile.profile_id === selectedProfileId)) {
+      selectedProfileId = profiles[0]?.profile_id ?? "";
+    }
+    await loadProfileAssignments();
+    canManageSecurityProfiles = true;
+  };
+
   const render = () => {
     const selected = teams.find((team) => team.team_id === selectedTeamId) ?? null;
     const teamOptions = teams.map((team) => `<option value="${escapeHtml(team.team_id)}" ${team.team_id === selectedTeamId ? "selected" : ""}>${escapeHtml(team.name)}</option>`).join("");
