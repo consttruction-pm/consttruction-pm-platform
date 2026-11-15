@@ -41,3 +41,21 @@ def test_api_rejects_cross_tenant_scope():
             user_id="user-1", tenant_id="tenant-b", project_id="project-a",
             roles=frozenset({"viewer"}),
         ))
+
+
+
+def test_activity_read_model_requires_explicit_project_financial_visibility():
+    class DenyFinancials:
+        @staticmethod
+        def is_allowed(context, permission):
+            return permission != Permission.PROJECT_COSTS_VIEW
+
+    scope = BackendScope("tenant-a", "project-a", 7)
+    sources = SimpleNamespace(
+        list_expenses=lambda scope, activity_id: (),
+        list_actuals=lambda scope, activity_id: (),
+        list_baselines=lambda scope: (),
+    )
+    api = P6ActivityReadModelAPI(P6ActivityReadModelService(sources), DenyFinancials())
+    with pytest.raises(PermissionError, match="project.view_costs_financials"):
+        api.get(scope, "A-100", auth_context=_auth())
