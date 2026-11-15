@@ -121,7 +121,7 @@ class P6IssueAPI:
         if responsible_obs_id is not None:
             checker = getattr(self.wbs_access_repository, "has_responsible_obs_permission", None)
             if callable(checker):
-                return bool(checker(scope, auth_context.user_id, responsible_obs_id, Permission.PROJECT_READ.value))
+                return bool(checker(scope, auth_context.user_id, responsible_obs_id, Permission.ISSUE_VIEW.value))
         if wbs_id is None:
             return True
         checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
@@ -139,7 +139,7 @@ class P6IssueAPI:
         _require_permission(self.authorization_policy, auth_context, Permission.ISSUE_ADD_EDIT)
         if self.wbs_access_repository is not None and not issue.responsible_obs_id:
             raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
-        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value, issue.responsible_obs_id)
+        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.ISSUE_ADD_EDIT.value, issue.responsible_obs_id)
         with self._transaction():
             stored = self.repository.create(
                 issue, actor_id=auth_context.user_id, occurred_at=occurred_at
@@ -154,7 +154,7 @@ class P6IssueAPI:
         stored = self.repository.get(scope, issue_id)
         if stored is None:
             return None
-        self._require_wbs_permission(scope, auth_context, stored.wbs_id, Permission.PROJECT_READ.value, stored.responsible_obs_id)
+        self._require_wbs_permission(scope, auth_context, stored.wbs_id, Permission.ISSUE_VIEW.value, stored.responsible_obs_id)
         return _dto(stored)
 
     def list(
@@ -201,8 +201,8 @@ class P6IssueAPI:
             raise AuthorizationError("ISSUE_RESPONSIBLE_OBS_REQUIRED")
         existing = self.repository.get(issue.scope, issue.issue_id)
         if existing is not None:
-            self._require_wbs_permission(issue.scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
-        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.PROJECT_WRITE.value, issue.responsible_obs_id)
+            self._require_wbs_permission(issue.scope, auth_context, existing.wbs_id, Permission.ISSUE_EDIT.value, existing.responsible_obs_id)
+        self._require_wbs_permission(issue.scope, auth_context, issue.wbs_id, Permission.ISSUE_EDIT.value, issue.responsible_obs_id)
         with self._transaction():
             stored = self.repository.update(
                 issue,
@@ -226,7 +226,7 @@ class P6IssueAPI:
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
-        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
+        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.ISSUE_DELETE.value, existing.responsible_obs_id)
         with self._transaction():
             deleted = self.repository.delete(
                 scope,
@@ -259,7 +259,7 @@ class P6IssueAPI:
         existing = self.repository.get(scope, issue_id)
         if existing is None:
             raise P6IssuePersistenceError("ISSUE_NOT_FOUND")
-        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.PROJECT_WRITE.value, existing.responsible_obs_id)
+        self._require_wbs_permission(scope, auth_context, existing.wbs_id, Permission.ISSUE_EDIT.value, existing.responsible_obs_id)
         with self._transaction():
             stored = self.repository.add_comment(
                 scope,
