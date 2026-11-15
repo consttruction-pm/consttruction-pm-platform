@@ -179,7 +179,7 @@ class PostgresProjectAccessRepository:
                     WHEN 'wbs.delete' THEN p_permissions ?| ARRAY['wbs.delete','wbs.add_edit_delete_except_costs_financials']
                     ELSE p_permissions ? p_permission
                 END
-                $""",
+                $cubi$""",
             """CREATE OR REPLACE FUNCTION cubi_user_has_project_access(
                     p_tenant_id TEXT,p_user_id TEXT,p_project_id TEXT,p_permission TEXT)
                 RETURNS BOOLEAN LANGUAGE SQL STABLE AS $$
