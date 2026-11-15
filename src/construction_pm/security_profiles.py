@@ -748,6 +748,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             Permission.PROJECT_SCHEDULE, Permission.PROJECT_ADMIN,
             Permission.P6_WBS_ADMIN,
         }
+        p6_permissions = p6_project_permissions | {Permission.P6_UDF_ADMIN}
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
