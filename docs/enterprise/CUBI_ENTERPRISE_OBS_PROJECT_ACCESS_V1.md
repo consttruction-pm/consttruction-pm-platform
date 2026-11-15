@@ -129,3 +129,16 @@ The current baseline application surface has no delete/restore/assign operations
 - **Threshold monitoring** now uses the separate `threshold.monitor` key in the Tools group, matching the V26 Help option "Monitor Project Thresholds". A profile with only `threshold.add_edit` or `threshold.edit` cannot run the monitor.
 
 Tests added for granular WBS view/manage/delete boundaries and dedicated threshold monitor authorization. Exact-head Python and PostgreSQL CI remain the required verification gates.
+
+
+### Oracle P6 EPPM Help V26 privilege-catalogue reconciliation (2026-11-15)
+
+The project privilege registry has been expanded to include the checkbox-level concepts in the official V26 **Privileges Detail Window**. The catalogue now uses Oracle's eight detail-window categories: Activities, Codes, EPS and Projects, Project Data, Related Applications, Resource Assignments, Tools, and Views and Reports. Timesheet approval is placed in Project Data, not exposed as an invented top-level Oracle category.
+
+New definitions include the separate EPS/WBS costs and financials gates, project costs masking, delete-published-data and delete-with-timesheet-actuals controls, project calendars, issue/threshold combined control, document-template prerequisites, related-application exchanges, resource/role planning assignment controls, future-period and period-performance controls, exclusive checkout, publication priority, global search/replace, project layouts/reports/website, and Visualizer layouts.
+
+Privilege inheritance is now an explicit Help-reviewed mapping rather than suffix-based inference. This matters for compound Oracle options such as `Add/Edit/Delete WBS Except Costs/Financials`, `Add/Edit/Delete Issues and Issue Thresholds`, and `Add/Edit/Delete Template Documents`. The WBS financial privilege is deliberately not inferred from WBS structural edit, and template-document management does not automatically grant work-product/document management: V26 requires the latter separately before the template-document option can be selected.
+
+Regression tests assert the V26 option-label inventory, unique stable keys, known inheritance targets, combined privilege expansion, and non-inheritance of WBS costs and template-document prerequisites. The registry is still a catalogue, not proof that every option is persisted in a user-editable profile or enforced by every endpoint. Full route/UI/profile persistence parity remains open.
+
+Primary source: https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm
