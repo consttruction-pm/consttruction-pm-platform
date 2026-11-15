@@ -37,6 +37,8 @@ const COPY = {
     createProfile: "Create profile", selectProfile: "Select a profile", privileges: "Privileges",
     savePrivileges: "Save privileges", assignProfile: "Assign profile", obsId: "Responsible OBS ID",
     assignmentRevision: "Existing assignment revision (for replacement)", assignedUsers: "Assignments",
+    userAdminRequired: "The V26 Add/Edit/Delete Users global privilege is required to assign profiles or manage accounts.",
+    privilegeRequired: "Your assigned Global Security Profile does not grant this operation.",
     noProfiles: "No security profiles are defined.", profileCreated: "Security profile created.",
     profileSaved: "Privileges saved.", profileAssigned: "Profile assigned.", profileActive: "Active",
     profileInactive: "Inactive", profileActivate: "Activate", profileDeactivate: "Deactivate",
@@ -71,6 +73,8 @@ const COPY = {
     createProfile: "ایجاد پروفایل", selectProfile: "انتخاب پروفایل", privileges: "مجوزها",
     savePrivileges: "ذخیره مجوزها", assignProfile: "اختصاص پروفایل", obsId: "شناسه مسئولیت OBS",
     assignmentRevision: "نسخه تخصیص قبلی (برای جایگزینی)", assignedUsers: "تخصیص‌ها",
+    userAdminRequired: "برای تخصیص پروفایل یا مدیریت حساب‌ها، مجوز سراسری Add/Edit/Delete Users نسخه ۲۶ لازم است.",
+    privilegeRequired: "پروفایل امنیتی سراسری اختصاص‌یافته، مجوز این عملیات را ندارد.",
     noProfiles: "پروفایل امنیتی تعریف نشده است.", profileCreated: "پروفایل امنیتی ایجاد شد.",
     profileSaved: "مجوزها ذخیره شدند.", profileAssigned: "پروفایل اختصاص یافت.", profileActive: "فعال",
     profileInactive: "غیرفعال", profileActivate: "فعال‌سازی", profileDeactivate: "غیرفعال‌سازی",
@@ -223,7 +227,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const profileAssignmentRows = profileAssignments.map((assignment) => `<tr>
       <td><strong>${escapeHtml(assignment.display_name || assignment.email)}</strong><small>${escapeHtml(assignment.email)} · ${escapeHtml(assignment.user_id)}</small></td>
       <td>${escapeHtml(assignment.obs_id || "—")}</td><td>${assignment.revision}</td>
-      <td>${selectedProfile?.scope === "project" ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
+      <td>${selectedProfile?.scope === "project" && canAdminAccounts ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
     </tr>`).join("");
     const activeAccountOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}">${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
@@ -315,12 +319,12 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             <h3>${t.assignedUsers}</h3>
             <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
               <tbody>${profileAssignmentRows || `<tr><td colspan="4">${t.noEligible}</td></tr>`}</tbody></table></div>
-            <form class="cubi-oa-form" id="cubi-oa-profile-assign">
+            ${canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
               ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><input id="cubi-oa-profile-obs" name="obs_id" required></div>` : ""}
               <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
               <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
-            </form>
+            </form>` : `<p class="cubi-oa-note">${t.userAdminRequired}</p>`}
           ` : `<div class="cubi-oa-muted">${t.noProfiles}</div>`}
         </section>` : ""}
       </div></main>`;
@@ -479,6 +483,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         LAST_ENTERPRISE_ADMIN_CANNOT_BE_DEACTIVATED: t.lastAdminError,
         TEAM_OWNER_TRANSFER_REQUIRED: t.ownerTransferError,
         SELF_DEACTIVATION_NOT_ALLOWED: t.selfDeactivateError,
+        P6_GLOBAL_PRIVILEGE_REQUIRED: t.privilegeRequired,
       };
       failure = code === "SESSION_REQUIRED" ? t.session : messages[code] ?? (code || t.error);
     } finally { busy = false; render(); }
@@ -516,14 +521,13 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       try {
         accounts = accountList(await api<unknown>("/api/enterprise/users"));
         canAdminAccounts = true;
-        try {
-          await loadProfiles();
-        } catch (error) {
-          profiles = []; profileAssignments = []; canManageSecurityProfiles = false;
-          if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
-        }
       } catch (error) {
         accounts = []; canAdminAccounts = false;
+        if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
+      }
+      try {
+        await loadProfiles();
+      } catch (error) {
         profiles = []; profileAssignments = []; canManageSecurityProfiles = false;
         if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
       }

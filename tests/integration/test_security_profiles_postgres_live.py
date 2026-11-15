@@ -234,12 +234,16 @@ def _http_request(app, method: str, path: str, *, session_id: str, payload: dict
     return int(str(captured["status"]).split(" ", 1)[0]), json.loads(body)
 
 
-def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
+def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded():
     suffix = uuid.uuid4().hex
     tenant = f"profile-http-{suffix}"
     admin_id = f"profile-admin-{suffix}"
     target_id = f"profile-target-{suffix}"
+    user_admin_id = f"profile-user-admin-{suffix}"
+    profile_admin_only_id = f"profile-profile-admin-only-{suffix}"
+    role_only_id = f"profile-role-only-{suffix}"
     project_id = f"profile-http-project-{suffix}"
+    other_tenant = f"profile-http-other-{suffix}"
     now = datetime.now(timezone.utc)
 
     with _connect() as connection:
@@ -251,7 +255,50 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
         identity.upsert_user(_identity_user(target_id, tenant, "planner"))
+        identity.upsert_user(_identity_user(user_admin_id, tenant, "planner"))
+        identity.upsert_user(_identity_user(profile_admin_only_id, tenant, "planner"))
+        identity.upsert_user(_identity_user(role_only_id, tenant, "enterprise_admin"))
         PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile HTTP OBS"))
+        profiles = PostgresSecurityProfileRepository(connection)
+        profile_admin = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-profile-admin", name="HTTP Profile Administrator",
+            scope="global", actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=profile_admin.profile_id,
+            privileges={"add_edit_delete_security_profiles", "add_edit_delete_users"},
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=profile_admin.profile_id, user_id=admin_id,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        user_admin_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-user-admin", name="HTTP User Administrator",
+            scope="global", actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=user_admin_profile.profile_id,
+            privileges={"add_edit_delete_users"}, expected_revision=1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=user_admin_profile.profile_id, user_id=user_admin_id,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profile_admin_only = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-profile-admin-only", name="HTTP Profile Administrator Only",
+            scope="global", actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=profile_admin_only.profile_id,
+            privileges={"add_edit_delete_security_profiles"}, expected_revision=1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=profile_admin_only.profile_id, user_id=profile_admin_only_id,
+            actor_user_id=admin_id, occurred_at=now,
+        )
         PostgresProjectRepository(connection).create_for_user(
             tenant, target_id, project_id, "Profile HTTP project", obs_id=f"obs-{suffix}"
         )
@@ -263,6 +310,12 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
                 return SimpleNamespace(user_id=admin_id, tenant_id=tenant, roles=frozenset({"enterprise_admin"}))
             if session_id == "planner-session":
                 return SimpleNamespace(user_id=target_id, tenant_id=tenant, roles=frozenset({"planner"}))
+            if session_id == "user-admin-session":
+                return SimpleNamespace(user_id=user_admin_id, tenant_id=tenant, roles=frozenset({"planner"}))
+            if session_id == "profile-admin-only-session":
+                return SimpleNamespace(user_id=profile_admin_only_id, tenant_id=tenant, roles=frozenset({"planner"}))
+            if session_id == "role-only-session":
+                return SimpleNamespace(user_id=role_only_id, tenant_id=tenant, roles=frozenset({"enterprise_admin"}))
             return None
 
     with _connect() as connection:
@@ -273,6 +326,33 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
         )
         app = EnterpriseOrganizationAccessHttpMiddleware(lambda environ, start: [], service)
 
+        # P6 Global privileges independently authorize account and profile administration.
+        status, user_list = _http_request(app, "GET", "/api/enterprise/users", session_id="user-admin-session")
+        assert status == 200 and user_list["users"]
+        status, profile_list_denied = _http_request(
+            app, "GET", "/api/enterprise/security-profiles", session_id="user-admin-session",
+        )
+        assert status == 403 and profile_list_denied["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, profile_admin_only_profiles = _http_request(
+            app, "GET", "/api/enterprise/security-profiles", session_id="profile-admin-only-session",
+        )
+        assert status == 200 and profile_admin_only_profiles["profiles"]
+        status, profile_admin_only_users = _http_request(
+            app, "GET", "/api/enterprise/users", session_id="profile-admin-only-session",
+        )
+        assert status == 403 and profile_admin_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, role_only_users = _http_request(app, "GET", "/api/enterprise/users", session_id="role-only-session")
+        assert status == 403 and role_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, role_only_profiles = _http_request(
+            app, "POST", "/api/enterprise/security-profiles", session_id="role-only-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile.v1",
+                "profile_id": "role-only-profile", "name": "Role Only", "scope": "global",
+            },
+        )
+        assert status == 403 and role_only_profiles["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        assert not profiles.has_global_privilege(other_tenant, admin_id, "add_edit_delete_users")
+
         status, global_created = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
             payload={
@@ -281,6 +361,15 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             },
         )
         assert status == 201, global_created
+        status, profile_admin_only_assignment = _http_request(
+            app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
+            session_id="profile-admin-only-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-assignment.v1",
+                "user_id": target_id,
+            },
+        )
+        assert status == 403 and profile_admin_only_assignment["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
         status, global_assigned = _http_request(
             app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
             session_id="admin-session",
@@ -290,6 +379,17 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             },
         )
         assert status == 200 and global_assigned["revision"] == 1
+
+        # Add/Edit/Delete Users can assign profiles, but does not grant profile CRUD.
+        status, user_admin_assignment = _http_request(
+            app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-security-profile-assignment.v1",
+                "user_id": target_id, "expected_revision": 1,
+            },
+        )
+        assert status == 200 and user_admin_assignment["revision"] == 2
 
         status, created = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
@@ -349,7 +449,7 @@ def test_security_profile_admin_http_api_is_tenant_and_role_guarded():
             },
         )
         assert status == 403
-        assert denied["code"] == "ENTERPRISE_ADMIN_REQUIRED"
+        assert denied["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
 
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
@@ -399,6 +499,9 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
 
     with _connect() as connection:
         profiles = PostgresSecurityProfileRepository(connection)
+        assert profiles.has_global_privilege(tenant, admin_id, "add_edit_delete_users")
+        assert profiles.has_global_privilege(tenant, admin_id, "add_edit_delete_security_profiles")
+        assert not profiles.has_global_privilege(tenant, target_id, "add_edit_delete_users")
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
         )
@@ -468,6 +571,11 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
             tenant_id=tenant, profile_id="p6-project-superuser", user_id=target_id,
             obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
         )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED"):
+            profiles.unassign(
+                tenant_id=tenant, profile_id="p6-project-superuser", user_id=target_id,
+                obs_id=obs_id, expected_revision=1, actor_user_id=target_id, occurred_at=now,
+            )
         target_context = AuthorizationContext(tenant, project_id, target_id, frozenset({"viewer"}))
         assert policy.is_allowed(target_context, Permission.PROJECT_SCHEDULE)
         assert policy.is_allowed(target_context, Permission.PROJECT_WRITE)

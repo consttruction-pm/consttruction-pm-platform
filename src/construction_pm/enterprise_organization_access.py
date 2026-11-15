@@ -218,14 +218,14 @@ class EnterpriseOrganizationAccessService:
 
     def list_accounts(self, session_id: str) -> tuple[dict[str, object], ...]:
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
+        self._require_global_privilege(session, "add_edit_delete_users")
         return self._repository.list_tenant_users(session.tenant_id)
 
     def set_account_active(
         self, session_id: str, target_user_id: str, *, active: bool,
     ) -> dict[str, object]:
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
+        self._require_global_privilege(session, "add_edit_delete_users")
         if not isinstance(active, bool):
             raise OrganizationAccessError("ACCOUNT_ACTIVE_FLAG_INVALID")
         if not isinstance(target_user_id, str) or not target_user_id.strip():
@@ -236,33 +236,27 @@ class EnterpriseOrganizationAccessService:
             session.tenant_id, target_user_id, session.user_id, active, self._now()
         )
 
-    def _require_enterprise_admin(self, session: object) -> None:
-        # Re-read the current identity role, rather than trusting a role snapshot
-        # captured when the administrator's browser session was first issued.
-        if not self._repository.has_active_role(
-            session.tenant_id, session.user_id, "enterprise_admin"
+    def _require_global_privilege(self, session: object, privilege: str) -> None:
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        if not self._security_profiles.has_global_privilege(
+            session.tenant_id, session.user_id, privilege
         ):
-            raise OrganizationAccessDenied("ENTERPRISE_ADMIN_REQUIRED")
+            raise OrganizationAccessDenied("P6_GLOBAL_PRIVILEGE_REQUIRED")
 
     def list_security_profiles(self, session_id: str, *, scope: str | None = None):
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.list_profiles(session.tenant_id, scope)
 
     def list_security_profile_assignments(self, session_id: str, profile_id: str):
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.list_assignments(session.tenant_id, profile_id)
 
     def create_security_profile(self, session_id: str, *, profile_id: str, name: str, scope: str):
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.create_profile(
             tenant_id=session.tenant_id, profile_id=profile_id, name=name, scope=scope,
             actor_user_id=session.user_id, occurred_at=self._now(),
@@ -273,9 +267,7 @@ class EnterpriseOrganizationAccessService:
         expected_revision: int,
     ):
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.set_privileges(
             tenant_id=session.tenant_id, profile_id=profile_id, privileges=privileges,
             expected_revision=expected_revision, actor_user_id=session.user_id,
@@ -286,9 +278,7 @@ class EnterpriseOrganizationAccessService:
         self, session_id: str, profile_id: str, *, active: bool, expected_revision: int,
     ):
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_security_profiles")
         return self._security_profiles.set_active(
             tenant_id=session.tenant_id, profile_id=profile_id, active=active,
             expected_revision=expected_revision, actor_user_id=session.user_id,
@@ -305,7 +295,7 @@ class EnterpriseOrganizationAccessService:
         # enforces that authority against persisted assignments; do not
         # incorrectly require the separate CUBI enterprise_admin role here.
         if profile_id not in {ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID}:
-            self._require_enterprise_admin(session)
+            self._require_global_privilege(session, "add_edit_delete_users")
         if user_id == session.user_id:
             raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
         if self._security_profiles is None:
@@ -321,9 +311,7 @@ class EnterpriseOrganizationAccessService:
         obs_id: str = "", expected_revision: int,
     ) -> None:
         session = self._session(session_id)
-        self._require_enterprise_admin(session)
-        if self._security_profiles is None:
-            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        self._require_global_privilege(session, "add_edit_delete_users")
         self._security_profiles.unassign(
             tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
             obs_id=obs_id, expected_revision=expected_revision,

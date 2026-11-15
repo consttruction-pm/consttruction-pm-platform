@@ -25,7 +25,17 @@ class Lifecycle:
             return SimpleNamespace(user_id="owner", tenant_id="tenant-a", roles=self.roles)
         if session_id == "viewer-session":
             return SimpleNamespace(user_id="viewer", tenant_id="tenant-a", roles=frozenset({"enterprise_user"}))
+        if session_id == "role-only-session":
+            return SimpleNamespace(user_id="role-only", tenant_id="tenant-a", roles=frozenset({"enterprise_admin"}))
         raise ValueError("SESSION_REQUIRED")
+
+
+class SecurityProfiles:
+    def has_global_privilege(self, tenant_id, user_id, privilege):
+        return (
+            tenant_id == "tenant-a" and user_id == "owner"
+            and privilege == "add_edit_delete_users"
+        )
 
 
 class Repository:
@@ -112,7 +122,9 @@ class Repository:
 
 def service(roles=frozenset({"enterprise_admin", "pro_monthly_active"})):
     repository = Repository()
-    app = EnterpriseOrganizationAccessService(repository, Lifecycle(roles), clock=lambda: NOW)
+    app = EnterpriseOrganizationAccessService(
+        repository, Lifecycle(roles), security_profiles=SecurityProfiles(), clock=lambda: NOW
+    )
     return app, repository
 
 
@@ -215,12 +227,15 @@ def test_team_member_directory_requires_manager_and_is_tenant_scoped():
         app.list_eligible_users("viewer-session", team.team_id)
 
 
-def test_account_administration_requires_live_enterprise_admin_role_and_prevents_self_deactivation():
+def test_account_administration_requires_v26_global_user_privilege_not_enterprise_role():
     app, _ = service()
     accounts = app.list_accounts("owner-session")
     assert accounts[0]["user_id"] == "owner"
 
-    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
+    # A CUBI Enterprise administrator role alone is not a P6 Global privilege.
+    with pytest.raises(OrganizationAccessDenied, match="P6_GLOBAL_PRIVILEGE_REQUIRED"):
+        app.list_accounts("role-only-session")
+    with pytest.raises(OrganizationAccessDenied, match="P6_GLOBAL_PRIVILEGE_REQUIRED"):
         app.list_accounts("viewer-session")
 
     with pytest.raises(OrganizationAccessDenied, match="SELF_DEACTIVATION_NOT_ALLOWED"):
@@ -229,5 +244,5 @@ def test_account_administration_requires_live_enterprise_admin_role_and_prevents
     changed = app.set_account_active("owner-session", "member-1", active=False)
     assert changed == {"user_id": "member-1", "active": False, "changed": True}
 
-    with pytest.raises(OrganizationAccessDenied, match="ENTERPRISE_ADMIN_REQUIRED"):
-        app.set_account_active("viewer-session", "member-1", active=False)
+    with pytest.raises(OrganizationAccessDenied, match="P6_GLOBAL_PRIVILEGE_REQUIRED"):
+        app.set_account_active("role-only-session", "member-1", active=False)

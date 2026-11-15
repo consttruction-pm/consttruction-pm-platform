@@ -16,6 +16,7 @@ import io
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ from construction_pm.deployment.production_runtime import (
     ProductionSettings,
 )
 from construction_pm.identity_session import IdentityUser, PostgresIdentityStore, hash_password
+from construction_pm.security_profiles import PostgresSecurityProfileRepository
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("CONSTRUCTION_PM_POSTGRES_DSN"),
@@ -828,6 +830,22 @@ def test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end
         store = PostgresIdentityStore(connection)
         for account in (admin, target, outsider):
             store.upsert_user(account)
+        profiles = PostgresSecurityProfileRepository(connection)
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"user-access-global-{suffix}",
+            name="User Access Administrator", scope="global",
+            actor_user_id=admin.user_id, occurred_at=datetime.now(timezone.utc),
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=global_profile.profile_id,
+            privileges={"add_edit_delete_users"}, expected_revision=1,
+            actor_user_id=admin.user_id, occurred_at=datetime.now(timezone.utc),
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=global_profile.profile_id,
+            user_id=admin.user_id, actor_user_id=admin.user_id,
+            occurred_at=datetime.now(timezone.utc),
+        )
         connection.commit()
     finally:
         runtime.pool.release(connection, healthy=True)

@@ -512,6 +512,28 @@ class PostgresSecurityProfileRepository:
     def __init__(self, connection: Any) -> None:
         self._connection = connection
 
+    def has_global_privilege(self, tenant_id: str, user_id: str, privilege: str) -> bool:
+        """Evaluate one assigned Global Security Profile privilege for a live tenant user.
+
+        Admin Superuser is the V26 built-in and implicitly carries every Global
+        privilege. Other profiles grant only the exact stored Global privilege;
+        Project profiles and OBS assignments are never consulted here.
+        """
+        if not isinstance(privilege, str) or privilege not in GLOBAL_PRIVILEGES:
+            return False
+        return self._connection.execute(
+            "SELECT 1 FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id "
+            "LEFT JOIN p6_security_profile_privileges grant_row "
+            "ON grant_row.tenant_id=p.tenant_id AND grant_row.profile_id=p.profile_id "
+            "AND grant_row.permission=%s "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' "
+            "AND p.scope='global' AND p.active=TRUE AND u.active=TRUE "
+            "AND (p.profile_id=%s OR grant_row.permission IS NOT NULL) LIMIT 1",
+            (privilege, tenant_id, user_id, ADMIN_SUPERUSER_PROFILE_ID),
+        ).fetchone() is not None
+
     def create_profile(
         self, *, tenant_id: str, profile_id: str, name: str, scope: str,
         actor_user_id: str, occurred_at: Any,
@@ -727,6 +749,16 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if str(profile[0]) == "global":
             raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
+        if profile_id in _ADMIN_ONLY_PROFILE_IDS:
+            actor_is_admin_superuser = self._connection.execute(
+                "SELECT 1 FROM p6_security_profile_assignments a "
+                "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+                "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+                (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
+            ).fetchone()
+            if actor_is_admin_superuser is None:
+                raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED")
         result = self._connection.execute(
             "DELETE FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s AND revision=%s "
