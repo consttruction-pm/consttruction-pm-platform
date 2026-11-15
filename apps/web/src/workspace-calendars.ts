@@ -380,7 +380,16 @@ export async function loadCalendarUsage(
 export type CalendarUpdateInput = {
   name: string;
   calendarType: string;
+  /** Omit to keep the stored base; send ``null`` to stop inheriting. */
+  baseCalendarId?: string | null;
+  baseCalendarVersion?: string | null;
 };
+
+export function calendarBaseValue(calendar: WorkspaceCalendarRecord): string {
+  return calendar.baseCalendarId && calendar.baseCalendarVersion
+    ? `${calendar.baseCalendarId}|${calendar.baseCalendarVersion}`
+    : "";
+}
 
 export async function updateCalendar(
   transport: ApiTransport,
@@ -390,6 +399,10 @@ export async function updateCalendar(
 ): Promise<ApiResult<WorkspaceCalendarRecord>> {
   if (!input.name.trim()) return localError("CALENDAR_NAME_REQUIRED");
   if (!CALENDAR_TYPES.includes(input.calendarType as (typeof CALENDAR_TYPES)[number])) return localError("INVALID_CALENDAR_TYPE");
+  const baseCalendarId = input.baseCalendarId !== undefined ? input.baseCalendarId : calendar.baseCalendarId ?? null;
+  const baseCalendarVersion = baseCalendarId
+    ? input.baseCalendarVersion ?? calendar.baseCalendarVersion ?? null
+    : null;
   const request = {
     contract_version: CALENDAR_API_CONTRACT,
     calendar_id: calendar.calendarId,
@@ -398,8 +411,8 @@ export async function updateCalendar(
     kind: calendar.kind,
     name: input.name.trim(),
     expected_revision: calendar.recordRevision,
-    base_calendar_id: calendar.baseCalendarId ?? null,
-    base_calendar_version: calendar.baseCalendarVersion ?? null,
+    base_calendar_id: baseCalendarId,
+    base_calendar_version: baseCalendarVersion,
   };
   if (!transport.patch) return localError("CALENDAR_UPDATE_TRANSPORT_UNAVAILABLE");
   const result = await transport.patch<typeof request, unknown>(
@@ -769,6 +782,7 @@ type PageState = {
   notice: { kind: "ok" | "error"; message: string } | null;
   draftName: string | null;
   draftType: string | null;
+  draftBase: string | null;
 };
 
 function selectedRecord(state: PageState): WorkspaceCalendarRecord | null {
@@ -803,6 +817,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     notice: null,
     draftName: null,
     draftType: null,
+    draftBase: null,
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -836,10 +851,29 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     const name = state.draftName ?? record.name;
     const type = state.draftType ?? record.calendarType;
     const factor = (value: string | null): string => value ?? say("Not provided", "ارائه نشده");
+    // V26 lets a calendar inherit holidays and exceptions from a base calendar.
+    // The select only offers stored calendars of the same kind; the current
+    // base stays selectable even when it is not in the loaded catalogue.
+    const baseValue = state.draftBase ?? calendarBaseValue(record);
+    const baseChoices = state.catalog.filter((item) =>
+      item.kind === record.kind &&
+      !(item.calendarId === record.calendarId && item.calendarVersion === record.calendarVersion));
+    const baseKnown = baseChoices.some((item) => `${item.calendarId}|${item.calendarVersion}` === baseValue);
+    const baseFallback = baseValue && !baseKnown
+      ? `<option value="${escapeAttribute(baseValue)}" selected>${escapeHtml(baseValue.replace("|", " / "))}</option>`
+      : "";
+    const baseOptions = baseChoices.map((item) => {
+      const value = `${item.calendarId}|${item.calendarVersion}`;
+      return `<option value="${escapeAttribute(value)}" ${value === baseValue ? "selected" : ""}>${escapeHtml(`${item.calendarId} · ${item.name} (${item.calendarVersion})`)}</option>`;
+    }).join("");
     return `<section class="cp-calendar-editor-panel" data-calendar-panel="general">
       <div class="cp-calendar-fields">
         <label>${escapeHtml(say("Calendar Name", "نام تقویم"))}<input data-calendar-name value="${escapeHtml(name)}" ${editable ? "" : "readonly"}></label>
         <label>${escapeHtml(say("Calendar Type", "نوع تقویم"))}<select data-calendar-type ${editable ? "" : "disabled"}>${CALENDAR_TYPES.map((value) => `<option value="${value}" ${value === type ? "selected" : ""}>${value}</option>`).join("")}</select></label>
+        <label>${escapeHtml(say("Inherit Holidays and Exceptions from Global Calendar", "ارث‌بری تعطیلات و استثناها از تقویم سراسری"))}<select data-calendar-base ${editable ? "" : "disabled"}><option value="">${escapeHtml(say("Do not inherit", "بدون ارث‌بری"))}</option>${baseFallback}${baseOptions}</select></label>
+        <p class="cp-calendar-hint" data-calendar-base-hint>${escapeHtml(baseValue
+          ? say("Holidays and exceptions are inherited from the selected base calendar.", "تعطیلات و استثناها از تقویم پایهٔ انتخاب‌شده ارث‌بری می‌شوند.")
+          : say("This calendar does not inherit from another calendar.", "این تقویم از تقویم دیگری ارث‌بری نمی‌کند."))}</p>
         <label>${escapeHtml(say("Calendar ID", "شناسه تقویم"))}<input readonly value="${escapeHtml(record.calendarId)}"></label>
         <label>${escapeHtml(say("Version", "نسخه"))}<input readonly value="${escapeHtml(record.calendarVersion)}"></label>
         <label>${escapeHtml(say("Calendar Kind", "ماهیت تقویم"))}<input readonly value="${escapeHtml(record.kind)}"></label>
@@ -1082,6 +1116,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     state.dialog = "none";
     state.draftName = null;
     state.draftType = null;
+    state.draftBase = null;
     state.notice = null;
     state.snapshotLoading = true;
     state.workHoursLoading = true;
@@ -1275,12 +1310,14 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     if (action === "edit" && record) {
       state.draftName = record.name;
       state.draftType = record.calendarType;
+      state.draftBase = calendarBaseValue(record);
       render();
       return;
     }
     if (action === "cancel-edit") {
       state.draftName = null;
       state.draftType = null;
+      state.draftBase = null;
       render();
       return;
     }
@@ -1344,9 +1381,13 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
       void (async () => {
         state.busy = true;
         render();
+        const baseValue = state.draftBase ?? calendarBaseValue(record);
+        const [baseCalendarId, baseCalendarVersion] = baseValue ? baseValue.split("|") : [null, null];
         const result = await updateCalendar(transport, context, record, {
           name: state.draftName ?? record.name,
           calendarType: state.draftType ?? record.calendarType,
+          baseCalendarId: baseCalendarId ?? null,
+          baseCalendarVersion: baseCalendarVersion ?? null,
         });
         state.busy = false;
         if (!result.ok) {
@@ -1357,6 +1398,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
         state.catalog = state.catalog.map((item) => item.calendarId === result.data.calendarId && item.calendarVersion === result.data.calendarVersion ? result.data : item);
         state.draftName = null;
         state.draftType = null;
+        state.draftBase = null;
         state.notice = { kind: "ok", message: say("Calendar saved.", "تقویم ذخیره شد.") };
         render();
       })();
@@ -1424,6 +1466,9 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     const target = event.target as HTMLElement;
     if (target.matches("[data-calendar-type]")) {
       state.draftType = (target as HTMLSelectElement).value;
+    }
+    if (target.matches("[data-calendar-base]")) {
+      state.draftBase = (target as HTMLSelectElement).value;
     }
     const form = target.closest<HTMLFormElement>("[data-calendar-exception-form]");
     if (form && target.matches("[name=mode]")) {

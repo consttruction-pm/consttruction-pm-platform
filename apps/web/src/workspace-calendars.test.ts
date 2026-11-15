@@ -234,6 +234,50 @@ test("calendar update uses PATCH with the persisted revision and kind", async ()
   if (!missingName.ok) assert.equal(missingName.error.code, "CALENDAR_NAME_REQUIRED");
 });
 
+test("calendar update preserves, changes and clears the inherited base calendar", async () => {
+  const calendar = {
+    calendarId: "CAL-PRJ",
+    calendarVersion: "1",
+    name: "Project calendar",
+    kind: "working-time",
+    calendarType: "project",
+    recordRevision: 3,
+    baseCalendarId: "CAL-GLOBAL",
+    baseCalendarVersion: "1",
+  };
+  const calls: Calls = { gets: [], posts: [], patches: [], puts: [], deletes: [] };
+  const payload = (index: number) => calls.patches[index].request as Record<string, unknown>;
+  const preserved = await updateCalendar(
+    transportWith({ ok: true, data: { ...CALENDAR, name: "Renamed", record_revision: 4 } }, calls),
+    CONTEXT,
+    calendar,
+    { name: "Renamed", calendarType: "project" },
+  );
+  assert.equal(preserved.ok, true);
+  assert.equal(payload(0).base_calendar_id, "CAL-GLOBAL");
+  assert.equal(payload(0).base_calendar_version, "1");
+
+  const changedCalls: Calls = { gets: [], posts: [], patches: [], puts: [], deletes: [] };
+  await updateCalendar(
+    transportWith({ ok: true, data: CALENDAR }, changedCalls),
+    CONTEXT,
+    calendar,
+    { name: "Renamed", calendarType: "project", baseCalendarId: "CAL-OTHER", baseCalendarVersion: "2" },
+  );
+  assert.equal((changedCalls.patches[0].request as Record<string, unknown>).base_calendar_id, "CAL-OTHER");
+  assert.equal((changedCalls.patches[0].request as Record<string, unknown>).base_calendar_version, "2");
+
+  const clearedCalls: Calls = { gets: [], posts: [], patches: [], puts: [], deletes: [] };
+  await updateCalendar(
+    transportWith({ ok: true, data: CALENDAR }, clearedCalls),
+    CONTEXT,
+    calendar,
+    { name: "Renamed", calendarType: "project", baseCalendarId: null },
+  );
+  assert.equal((clearedCalls.patches[0].request as Record<string, unknown>).base_calendar_id, null);
+  assert.equal((clearedCalls.patches[0].request as Record<string, unknown>).base_calendar_version, null);
+});
+
 test("split-shift parser accepts ordered ranges and rejects overlap or malformed input", () => {
   assert.deepEqual(parseWorkdayShifts("08:00-12:00, 13:00-17:00"), [["08:00", "12:00"], ["13:00", "17:00"]]);
   assert.equal(parseWorkdayShifts("08:00-12:00, 11:00-13:00"), null);

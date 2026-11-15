@@ -111,6 +111,10 @@ const calendarState = `(() => {
     notice: notice ? { kind: notice.dataset.state, text: notice.textContent.trim() } : null,
     dialog: page?.querySelector(".cp-calendar-dialog")?.textContent?.trim() ?? null,
     newDisabled: Boolean(page?.querySelector('[data-calendar-action="new"]')?.disabled),
+    baseSelect: page?.querySelector("[data-calendar-base]")?.value ?? null,
+    baseDisabled: Boolean(page?.querySelector("[data-calendar-base]")?.disabled),
+    baseHint: page?.querySelector("[data-calendar-base-hint]")?.textContent?.trim() ?? null,
+    baseOptions: [...document.querySelectorAll("[data-calendar-base] option")].map((option) => option.value),
     tabs: [...document.querySelectorAll("[data-calendar-tab]")].map((button) => button.dataset.calendarTab),
   };
 })()`;
@@ -302,7 +306,7 @@ async function main() {
       await selectCalendar(page, BASE_ID);
       state = await page.evaluate(calendarState);
       assert(state.caption === `${BASE_ID} / 1`, `selected caption ${state.caption}`);
-      assert(state.tabs.join(",") === "general,workweek,exceptions", `tabs ${state.tabs}`);
+      assert(state.tabs.join(",") === "general,workweek,exceptions,usage", `tabs ${state.tabs}`);
       const snapshot = await readSnapshot(page, BASE_ID);
       assert(snapshot.status === 200 && snapshot.body.kind === "calendar_snapshot", `snapshot ${snapshot.status}`);
       await capture(page, "01-calendar-register");
@@ -403,6 +407,42 @@ async function main() {
         copiedHolidays,
         inheritedWorkHourRules: inheritedHours.body.work_hours.length,
       };
+    });
+
+    await scenario("05b", "فیلد ارث‌بری تعطیلات و استثناها تقویم پایه را نشان می‌دهد، حذف و بازگردانی می‌شود", async () => {
+      await selectCalendar(page, newId);
+      await selectTab(page, "general");
+      let state = await page.evaluate(calendarState);
+      assert(state.baseSelect === `${BASE_ID}|1`, `initial base select ${state.baseSelect}`);
+      assert(state.baseDisabled === true, "the base select is editable before Edit is pressed");
+      assert(state.baseOptions.includes(BASE_ID + "|1"), `base options ${JSON.stringify(state.baseOptions)}`);
+
+      await page.click('[data-calendar-action="edit"]');
+      await page.waitFor(`document.querySelector("[data-calendar-base]")?.disabled === false`, "editable base select");
+      await page.setSelect("[data-calendar-base]", "");
+      await page.click('[data-calendar-action="save"]');
+      await page.waitFor(`document.querySelector("[data-calendar-notice][data-state='ok']") !== null`, "clear-base notice");
+      await sleep(400);
+      let record = await readCatalogRecord(page, newId);
+      assert(record.base_calendar_id === null, `base after clear ${record.base_calendar_id}`);
+      state = await page.evaluate(calendarState);
+      assert(state.baseSelect === "", `base select after clear ${state.baseSelect}`);
+      assert(/does not inherit|ارث‌بری نمی‌کند/.test(state.baseHint ?? ""), `base hint after clear ${state.baseHint}`);
+      await capture(page, "05b-base-cleared");
+
+      await page.click('[data-calendar-action="edit"]');
+      await page.waitFor(`document.querySelector("[data-calendar-base]")?.disabled === false`, "editable base select again");
+      await page.setSelect("[data-calendar-base]", `${BASE_ID}|1`);
+      await page.click('[data-calendar-action="save"]');
+      await page.waitFor(`document.querySelector("[data-calendar-notice][data-state='ok']") !== null`, "restore-base notice");
+      await sleep(400);
+      record = await readCatalogRecord(page, newId);
+      assert(record.base_calendar_id === BASE_ID, `base after restore ${record.base_calendar_id}`);
+      assert(record.base_calendar_version === "1", `base version after restore ${record.base_calendar_version}`);
+      state = await page.evaluate(calendarState);
+      assert(state.baseSelect === `${BASE_ID}|1`, `base select after restore ${state.baseSelect}`);
+      await capture(page, "05c-base-restored");
+      return { cleared: true, restoredBase: record.base_calendar_id, revision: record.record_revision };
     });
 
     await scenario("06", "افزودن و حذف استثنا از جدول واقعی و تأیید از سرور", async () => {

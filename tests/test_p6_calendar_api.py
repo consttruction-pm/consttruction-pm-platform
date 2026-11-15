@@ -1,5 +1,6 @@
 import sqlite3
-from datetime import date
+from dataclasses import replace
+from datetime import date, time
 from unittest.mock import Mock
 from decimal import Decimal
 
@@ -15,9 +16,11 @@ from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHou
 from construction_pm.p6_calendar_api import (
     P6_CALENDAR_API_VERSION,
     P6CalendarAPI,
+    P6CalendarAPIError,
     P6CalendarCreateRequest,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar
+from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
 
@@ -48,6 +51,14 @@ def _definition() -> WorkingCalendar:
             hours_per_day=Decimal("8"), hours_per_week=Decimal("40"),
             hours_per_month=Decimal("176"), hours_per_year=Decimal("2080"),
         ),
+    )
+
+
+def _time_definition() -> WorkingTimeCalendar:
+    intervals = ((time(8), time(12)), (time(13), time(17)))
+    return WorkingTimeCalendar(
+        holidays=frozenset({date(2026, 3, 21)}),
+        daily_intervals={weekday: intervals for weekday in range(5)},
     )
 
 
@@ -106,6 +117,118 @@ def test_update_rejects_kind_change_when_snapshot_exists():
     with pytest.raises(ValueError, match="CALENDAR_SNAPSHOT_KIND_CONFLICT"):
         api.update(_scope(), request, auth_context=_auth())
     assert api.calendar_repository.get(_scope(), "CAL-K", "1").kind == "working-day"
+
+
+def _seeded(api, calendar_id: str, *, calendar_type: str = "project", kind: str = "working-day"):
+    api.create(_scope(), _request(calendar_id, calendar_type=calendar_type), auth_context=_auth())
+    stored = api.calendar_repository.get(_scope(), calendar_id, "1")
+    if kind != stored.kind:
+        stored = api.calendar_repository.save(replace(stored, kind=kind), 1)
+    api.snapshot_repository.save(stored, _definition() if kind == "working-day" else _time_definition())
+    return stored
+
+
+def test_update_sets_preserves_and_clears_the_inherited_base_calendar():
+    api, _ = _api()
+    _seeded(api, "CAL-GLOBAL", calendar_type="global")
+    _seeded(api, "CAL-PRJ")
+
+    linked = api.update(
+        _scope(),
+        P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-PRJ", "1", "project", "working-day",
+            "Renamed", 1, "CAL-GLOBAL", "1",
+        ),
+        auth_context=_auth(),
+    )
+    assert linked["base_calendar_id"] == "CAL-GLOBAL"
+    assert linked["base_calendar_version"] == "1"
+
+    preserved = api.update(
+        _scope(),
+        P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-PRJ", "1", "project", "working-day",
+            "Renamed again", linked["record_revision"], "CAL-GLOBAL", "1",
+        ),
+        auth_context=_auth(),
+    )
+    assert preserved["base_calendar_id"] == "CAL-GLOBAL"
+    assert preserved["name"] == "Renamed again"
+
+    cleared = api.update(
+        _scope(),
+        P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-PRJ", "1", "project", "working-day",
+            "Standalone", preserved["record_revision"],
+        ),
+        auth_context=_auth(),
+    )
+    assert cleared["base_calendar_id"] is None
+    assert cleared["base_calendar_version"] is None
+
+
+def test_update_rejects_self_reference_and_inheritance_cycle():
+    api, _ = _api()
+    _seeded(api, "CAL-A")
+    _seeded(api, "CAL-B")
+    api.update(
+        _scope(),
+        P6CalendarCreateRequest(
+            P6_CALENDAR_API_VERSION, "CAL-B", "1", "project", "working-day",
+            "B inherits A", 1, "CAL-A", "1",
+        ),
+        auth_context=_auth(),
+    )
+
+    with pytest.raises(P6CalendarAPIError, match="CALENDAR_BASE_SELF_REFERENCE"):
+        api.update(
+            _scope(),
+            P6CalendarCreateRequest(
+                P6_CALENDAR_API_VERSION, "CAL-A", "1", "project", "working-day",
+                "A inherits A", 1, "CAL-A", "1",
+            ),
+            auth_context=_auth(),
+        )
+
+    with pytest.raises(P6CalendarAPIError, match="CALENDAR_BASE_CYCLE"):
+        api.update(
+            _scope(),
+            P6CalendarCreateRequest(
+                P6_CALENDAR_API_VERSION, "CAL-A", "1", "project", "working-day",
+                "A inherits B", 1, "CAL-B", "1",
+            ),
+            auth_context=_auth(),
+        )
+    assert api.calendar_repository.get(_scope(), "CAL-A", "1").base_calendar_id is None
+
+
+def test_update_base_reference_requires_a_stored_same_kind_definition():
+    api, _ = _api()
+    _seeded(api, "CAL-BASE")
+    _seeded(api, "CAL-PRJ")
+    _seeded(api, "CAL-TIME", kind="working-time")
+
+    with pytest.raises(ValueError, match="BASE_CALENDAR_NOT_FOUND"):
+        api.update(
+            _scope(),
+            P6CalendarCreateRequest(
+                P6_CALENDAR_API_VERSION, "CAL-PRJ", "1", "project", "working-day",
+                "Missing base", 1, "CAL-MISSING", "1",
+            ),
+            auth_context=_auth(),
+        )
+
+    with pytest.raises(P6CalendarAPIError, match="BASE_CALENDAR_KIND_MISMATCH"):
+        api.update(
+            _scope(),
+            P6CalendarCreateRequest(
+                P6_CALENDAR_API_VERSION, "CAL-TIME", "1", "project", "working-time",
+                "Kind mismatch", 1, "CAL-BASE", "1",
+            ),
+            auth_context=_auth(),
+        )
+    assert api.calendar_repository.get(_scope(), "CAL-TIME", "1").base_calendar_id is None
+    assert api.calendar_repository.get(_scope(), "CAL-PRJ", "1").base_calendar_id is None
 
 
 def test_create_from_base_copies_snapshot_exceptions_and_work_hours():
