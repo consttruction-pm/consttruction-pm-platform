@@ -29,9 +29,11 @@ def main() -> int:
     try:
         import psycopg
 
+        from .deployment.schema import initialize_production_schema
         from .security_profiles import bootstrap_first_admin_superuser
 
         with psycopg.connect(dsn) as connection:
+            initialize_production_schema(connection)
             profile = bootstrap_first_admin_superuser(
                 connection,
                 tenant_id=tenant_id,
