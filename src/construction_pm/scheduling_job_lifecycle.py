@@ -276,6 +276,21 @@ class SchedulingJobRepository(Protocol):
         self, now: datetime, *, limit: int
     ) -> tuple[SchedulingJob, ...]: ...
 
+    def find_queued(
+        self,
+        limit: int,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[SchedulingJob, ...]: ...
+
+    def count_pending(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> int: ...
+
 
 class InMemorySchedulingJobRepository:
     """Reference repository with the same revision semantics as the SQL one."""
@@ -364,6 +379,41 @@ class InMemorySchedulingJobRepository:
             ]
         expired.sort(key=lambda job: (job.lease_expires_at, job.job_id))
         return tuple(expired[:limit])
+
+    def find_queued(
+        self,
+        limit: int,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[SchedulingJob, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise SchedulingJobError("INVALID_QUEUE_LIMIT")
+        with self._lock:
+            queued = [
+                job
+                for job in self._jobs.values()
+                if job.state is SchedulingJobState.QUEUED
+                and (tenant_id is None or job.tenant_id == tenant_id)
+                and (project_id is None or job.project_id == project_id)
+            ]
+        queued.sort(key=lambda job: (job.created_at, job.job_id))
+        return tuple(queued[:limit])
+
+    def count_pending(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> int:
+        with self._lock:
+            return sum(
+                1
+                for job in self._jobs.values()
+                if job.state is SchedulingJobState.QUEUED
+                and (tenant_id is None or job.tenant_id == tenant_id)
+                and (project_id is None or job.project_id == project_id)
+            )
 
 
 @dataclass(frozen=True)
@@ -504,6 +554,40 @@ class SchedulingJobService:
             raise SchedulingJobIdentityMismatch("SCHEDULING_JOB_RESULT_IDENTITY_MISMATCH")
         return result
 
+    # -- worker queue -----------------------------------------------------
+
+    def queued_jobs(
+        self,
+        limit: int,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[SchedulingJob, ...]:
+        """Discover queued jobs for a trusted worker.
+
+        Discovery is not user-facing: it returns candidates that a worker then
+        claims, and claim/complete still require the lease token. Authorization
+        is enforced on ``submit``, ``get``, ``get_result`` and ``cancel``, so a
+        worker never becomes a way to read another user's run.
+        """
+        return self._repository.find_queued(
+            limit, tenant_id=tenant_id, project_id=project_id
+        )
+
+    def pending_count(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> int:
+        return self._repository.count_pending(
+            tenant_id=tenant_id, project_id=project_id
+        )
+
+    @property
+    def lease_ttl(self) -> timedelta:
+        return self._lease_ttl
+
     # -- leases -----------------------------------------------------------
 
     def claim(
@@ -547,6 +631,9 @@ class SchedulingJobService:
             job = self._load(tenant_id, project_id, job_id)
             self._require_lease(job, token, now)
             if job.cancel_requested:
+                # Renewal is one of the documented cancellation observation
+                # points, so persist the terminal state instead of only raising.
+                self._cancel_leased(job, now)
                 raise SchedulingJobCancelled("SCHEDULING_JOB_CANCEL_REQUESTED")
             renewed = replace(
                 job,

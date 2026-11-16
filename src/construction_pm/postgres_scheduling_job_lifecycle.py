@@ -285,3 +285,50 @@ class PostgresSchedulingJobRepository:
             (now, limit),
         ).fetchall()
         return tuple(_job_from_row(row) for row in rows)
+
+    def find_queued(
+        self,
+        limit: int,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> tuple[SchedulingJob, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("INVALID_QUEUE_LIMIT")
+        clauses = ["state='QUEUED'"]
+        params: list[Any] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=%s")
+            params.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=%s")
+            params.append(project_id)
+        params.append(limit)
+        rows = self._connection.execute(
+            f"SELECT {_JOB_COLUMNS} FROM scheduling_jobs "
+            f"WHERE {' AND '.join(clauses)} "
+            "ORDER BY created_at, job_id LIMIT %s",
+            tuple(params),
+        ).fetchall()
+        return tuple(_job_from_row(row) for row in rows)
+
+    def count_pending(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+    ) -> int:
+        clauses = ["state='QUEUED'"]
+        params: list[Any] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=%s")
+            params.append(tenant_id)
+        if project_id is not None:
+            clauses.append("project_id=%s")
+            params.append(project_id)
+        row = self._connection.execute(
+            "SELECT count(*) FROM scheduling_jobs "
+            f"WHERE {' AND '.join(clauses)}",
+            tuple(params),
+        ).fetchone()
+        return int(row[0])
