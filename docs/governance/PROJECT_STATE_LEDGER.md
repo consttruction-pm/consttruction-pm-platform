@@ -9,11 +9,13 @@
 - **Priority:** P0, highest CUBI Engineering priority; tracked by [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992).
 - **Canonical assessment:** [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 - **Baseline reviewed:** `main` `9d496a219dd39250ff220052d62111b6cdcb958c`.
-- **Status:** repository/architecture feasibility recorded; implementation and measured performance baseline remain pending. No production calculation code was changed by the assessment.
+- **Status:** P0-A through P0-I implemented, measured and merged through `648cef68` (PRs #1993–#1998). One canonical engine is retained; every optimization and the parallel float path passed exact canonical-output differential tests. The only remaining gaps are packaging/runtime gates: no desktop installer supervision test and no proven portable mobile runtime for the Python engine.
+- **Merged phases:** P0-A/B seeded baselines + heap topological ordering; P0-C time-aware free-float bounded search; P0-D leveling demand ledger; P0-E exact CPM reuse; P0-F durable PostgreSQL job lifecycle; P0-G adaptive CPU/RAM worker budget + job executor (1.96x at 2 workers, 3.45x at 4 on this 4-core host); P0-H exact parallel per-activity time-aware floats (2.27x at 4 workers, opt-in, identical hashes); P0-I self-contained offline bundle with identical canonical output and a fail-closed network guard.
+- **Measured, not extrapolated:** concurrency numbers cover 4 effective cores only; 16/32 workers are refused by the harness. Desktop/mobile packaging, multi-host PostgreSQL, HTTP admission and leveling-bundle execution are not claimed.
 - **Priority rule:** perform this work before Engineering enhancements that change or depend on Scheduling, Calendar, CPM, Float or Resource Leveling. Preserve unrelated work that does not destabilize the core.
 - **Non-subtractive acceptance:** maintain one canonical Engine and exact P6 Professional Version 26 behavior. Every optimization and parallel execution path must pass complete canonical-output differential tests.
 - **First scaling direction:** process-based Workers for independent immutable schedule jobs; adaptive CPU/RAM-aware concurrency; then separately assess intra-project parallelism. Resource Leveling candidate decisions remain deterministic and globally coordinated unless exact independence is proven.
-- **Verification limitation:** no local performance benchmark was executed in the assessment environment; CI success is not performance proof. No user-capacity or timing claim is approved until measured on named hardware and exact code SHA.
+- **Verification limitation:** measured on one 4-core host with local PostgreSQL 14.24; CI success alone is not performance proof. No user-capacity claim is approved beyond the recorded measurements on named hardware and exact code SHA.
 
 
 
