@@ -281,6 +281,26 @@ def test_submission_excludes_other_party_private_evidence(service):
     assert '"evidence":[]' in submission.manifest_json
 
 
+def test_submission_builder_cannot_freeze_another_partys_private_evidence(service):
+    created = service.create_day(day(), idempotency_key="create-1")
+    private_link = evidence()
+    service.add_evidence(
+        tenant_id="T-1", project_id="P-1", claim_day_id=created.claim_day_id,
+        evidence=private_link, expected_revision=1, idempotency_key="evidence-1",
+    )
+    current = service.repository.get_day("T-1", "P-1", created.claim_day_id)
+    with pytest.raises(ClaimDayArchiveError, match="EVIDENCE_NOT_DISCLOSED"):
+        ClaimSubmission.build(
+            tenant_id="T-1", project_id="P-1", contract_id="C-1", claim_id="CL-1",
+            submission_id="SUB-EMP", submission_number=1,
+            submitting_party_id="EMPLOYER", submitted_by="u-employer",
+            submitted_at="2026-10-26T08:00:00Z", form_template_id="FORM-RESPONSE",
+            form_template_version="v1", form_snapshot={"response": "position"},
+            evidence_links=((created.claim_day_id, private_link),),
+            claim_days=(current,),
+        )
+
+
 def test_submission_rejects_day_from_another_claim_scope(service):
     created = service.create_day(day(), idempotency_key="create-1")
     with pytest.raises(ClaimDayArchiveError, match="SCOPE_MISMATCH"):
