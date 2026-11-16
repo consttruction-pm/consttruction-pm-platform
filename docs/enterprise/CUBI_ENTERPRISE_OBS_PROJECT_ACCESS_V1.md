@@ -166,3 +166,32 @@ Baseline operations now distinguish `baseline.view`, `baseline.assign`, and `bas
 - Added unit tests for the two-part baseline assignment prerequisite and denial of financial read-model data without the explicit costs/financials grant.
 
 The live PostgreSQL test fixture for combined WBS privileges now normalizes the inherited grants before persisting the profile, matching the repository's canonical profile validation contract. The earlier PostgreSQL failure was caused by a non-normalized test fixture; the corrected fixture is being re-run on the current head.
+
+
+## Verification checkpoint — 2026-11-16
+
+### Branch reconciliation
+- Feature branch synchronized with the latest `main` through two-parent merge commit `bd897af95bca417abc777a433975d05e8ea209e1`.
+- Second parent (latest `main`): `ee9753e692eb319f98824ecf7e6084a92f814b7b`.
+- GitHub compare confirms `behind_by = 0`; the PR remains open and must not be merged until all release gates pass.
+
+### Reproduced Python failures and corrections
+- Reproduced all nine Python failures from the prior exact-head CI run.
+- Updated stale authorization-test fixtures/assertions to use the granular privilege identifiers now enforced for Expense, Issue, Risk, Threshold and Baseline operations.
+- Updated the threshold monitoring test to call the current `monitor` service method.
+- Corrected the WBS delete denial message to report `wbs.delete` rather than the unrelated `project.write` fallback.
+- The 48-entry count asserted in the administration test describes the current implemented catalogue size only; it is **not** proof that the catalogue is complete against the official V26 HTML Help. The exact V26 privilege-by-privilege traceability work remains an acceptance requirement.
+
+### Local verification evidence
+On an isolated worktree containing the latest `main`, the OBS/WBS feature and the above corrections:
+- Python 3.11: **4,583 passed, 213 skipped, 10 warnings**.
+- Python 3.13: **4,583 passed, 213 skipped, 10 warnings**.
+- Web: `npm test`, `npm run typecheck` and `npm run build` all passed.
+
+### Still required — not marked complete
+- Exact-head GitHub Actions for the final PR SHA (Python, Web, Client Typecheck and PostgreSQL Integration).
+- Live PostgreSQL security integration. The local verification sandbox had no PostgreSQL client/server and no `CONSTRUCTION_PM_POSTGRES_DSN`; this gate is delegated to the repository CI service.
+- Fresh Vercel preview and browser E2E on the same final SHA. Earlier preview attempts hit the account daily deployment quota; an older preview is not valid evidence.
+- Complete V26 global security profiles, Admin Superuser/No Global Privileges semantics, module/resource access, EPS Responsible OBS, privilege inheritance and the endpoint-by-endpoint traceability matrix in Issue #1984.
+
+This checkpoint records completed local verification and explicitly preserves the outstanding acceptance gates. It does not declare full Primavera P6 EPPM V26 security parity.
