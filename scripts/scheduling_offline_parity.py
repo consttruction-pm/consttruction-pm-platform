@@ -46,11 +46,6 @@ from construction_pm.scheduling.calendar_context import (  # noqa: E402
     CalendarReference,
     CalendarResolverRegistry,
 )
-from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers  # noqa: E402
-from construction_pm.scheduling.calendar_exceptions import (  # noqa: E402
-    CalendarException,
-    CalendarExceptionType,
-)
 from construction_pm.scheduling.calculation_context import CalculationContext  # noqa: E402
 from construction_pm.scheduling.benchmark_fixtures import (  # noqa: E402
     date_network,
