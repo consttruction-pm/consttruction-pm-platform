@@ -194,6 +194,22 @@ def test_submission_numbers_are_scoped_per_party_like_postgres():
         repository.append_submission(duplicate_contractor)
 
 
+def test_submission_manifest_binds_party_number_and_submitter(service):
+    created = service.create_day(day(), idempotency_key="create-1")
+    submission = service.submit(
+        tenant_id="T-1", project_id="P-1", contract_id="C-1", claim_id="CL-1",
+        submission_id="SUB-1", submission_number=1,
+        submitting_party_id="CONTRACTOR", submitted_by="u-contractor",
+        submitted_at="2026-10-26T08:00:00Z",
+        form_template_id="FORM-EOT", form_template_version="v1",
+        form_snapshot={"requested_days": 5}, claim_day_ids=(created.claim_day_id,),
+    )
+    for field, value in (("submission_number", 2), ("submitted_by", "u-other")):
+        tampered = ClaimSubmission(**{**submission.__dict__, field: value})
+        with pytest.raises(ClaimDayArchiveError, match="MANIFEST_FIELDS_MISMATCH"):
+            tampered.validate()
+
+
 def test_submission_excludes_other_party_private_evidence(service):
     created = service.create_day(day(), idempotency_key="create-1")
     service.add_evidence(
