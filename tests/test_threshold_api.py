@@ -230,7 +230,7 @@ def test_threshold_responsible_obs_is_enforced_and_round_tripped(api):
 
     class OBSAccess:
         def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
-            return obs_id == "OBS-CONTROLS" and permission == "project.read"
+            return obs_id == "OBS-CONTROLS" and permission == "threshold.view"
 
     scoped = ThresholdAPI(replace(api.service, responsible_obs_access=OBSAccess()))
     listed = scoped.list_thresholds(
