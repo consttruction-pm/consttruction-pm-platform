@@ -4,6 +4,19 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+**P0 — Shared Scheduling Core Performance & Adaptive Execution (2026-11-16)**
+
+- **Priority:** P0, highest CUBI Engineering priority; tracked by [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992).
+- **Canonical assessment:** [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
+- **Baseline reviewed:** `main` `9d496a219dd39250ff220052d62111b6cdcb958c`.
+- **Status:** repository/architecture feasibility recorded; implementation and measured performance baseline remain pending. No production calculation code was changed by the assessment.
+- **Priority rule:** perform this work before Engineering enhancements that change or depend on Scheduling, Calendar, CPM, Float or Resource Leveling. Preserve unrelated work that does not destabilize the core.
+- **Non-subtractive acceptance:** maintain one canonical Engine and exact P6 Professional Version 26 behavior. Every optimization and parallel execution path must pass complete canonical-output differential tests.
+- **First scaling direction:** process-based Workers for independent immutable schedule jobs; adaptive CPU/RAM-aware concurrency; then separately assess intra-project parallelism. Resource Leveling candidate decisions remain deterministic and globally coordinated unless exact independence is proven.
+- **Verification limitation:** no local performance benchmark was executed in the assessment environment; CI success is not performance proof. No user-capacity or timing claim is approved until measured on named hardware and exact code SHA.
+
+
+
 ## Workspace two-rail slice — Issue #1797 — 2026-11-13 (PR pending review)
 
 - **Scope:** owner comment `6867521682`. Left rail icon duplicates and aliases; right rail contextual Add (+) and record-level commands. No header, menu, login, route or shell redesign; no new destinations; the saved table/Gantt and activity/Details ratios are untouched.
