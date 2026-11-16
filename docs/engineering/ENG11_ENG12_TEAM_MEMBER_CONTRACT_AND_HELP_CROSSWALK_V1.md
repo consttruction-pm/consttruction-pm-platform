@@ -145,3 +145,38 @@ This packet is documentation-only. Before code:
 5. Only then split ENG-11 and ENG-12 into independent implementation PRs. Do not bundle both aggregates into one broad implementation.
 
 Qoder had no available tokens at the last coordination check. This packet does not claim code execution, tests, UI parity, approval parity or shipped functionality.
+
+
+## 9. Additional P6 EPPM V26 review and timesheet configuration evidence (2026-11-16)
+
+The following official V26 topics were retrieved and checked after the initial contract packet. These close several previously open questions, but do not remove the need to verify every linked procedure and UI option.
+
+### ENG-11 — status-update review
+
+- [About P6 Team Member Status Updates](https://docs.oracle.com/cd/G48897_01/p6help/en/50904_1.htm): the project manager can review, update, approve and reject activity progress before it is committed to the schedule. Project Preferences controls whether review is enabled, required by default, the review type and assigned reviewers. Search result verified; direct page retrieval returned cache miss.
+- [Configuring P6 Team Member Status Update Reviews](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/50915.htm): review is off by default; review type supports Anyone can review or Everyone must review; pending reviews prevent changing review type; reviewers can be assigned at project/WBS scope; activity-level Review Required can disable review, causing auto-approval; reviewers can continue receiving updates while a prior review is pending. The assigned reviewers or Admin/Project Superuser can view/edit/approve; only designated reviewers receive pending-review notifications.
+- [Reviewing Team Member Status Updates](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/51331.htm): review can approve, reject, edit or hold updates; multiple reviewers may be configured with any-reviewer or all-reviewer acceptance; pending/held updates can receive further team-member updates; pending updates are hidden while the project is checked out in P6 Professional or exclusively locked; step additions/deletions do not go through the activity status approval process.
+- [Team Member project preference fields](https://docs.oracle.com/cd/G48897_01/p6help/en/91692.htm): project configuration determines whether primary resources can complete activities without approval or update activity dates; controls step add/delete, notebook updates and status for other resource assignments; review settings and status reviewer privilege requirements are project-configurable. Search result verified; exact detail should be re-opened during implementation source review.
+
+**Contract refinement:** ENG-11 must model the configured review policy at project/WBS/activity scope, including Anyone vs Everyone reviewer semantics, hold, edit/override, reject, activity auto-approval when review is not required, and continuing updates while review is pending. Step add/delete is a separate permissioned operation and must not be assumed to be covered by activity status approval. Exclusive lock/checkout visibility is a source behavior that must be handled explicitly, not silently bypassed.
+
+### ENG-12 — timesheet settings and approval
+
+- [Configuring Timesheets Settings](https://docs.oracle.com/cd/G48897_01/p6help/en/36211.htm): the V26 application settings include resource self-assignment defaults, matching Team Member role assignment, timesheet auditing and approval configuration. Search result verified; direct page retrieval returned cache miss.
+- [Timesheets Implementation](https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/7532.htm): the V26 administrator guide identifies setup topics for timesheet resources, periods, overhead codes and Timesheet Approval access. Search result verified.
+- [Timesheets (P6 EPPM Only)](https://docs.oracle.com/cd/F88968_01/client_help/en_US/102615.htm): timesheets are period-based and have approval levels; the period may range from one week to one month; approval levels range from no approval to two levels; designated project/resource approval managers or delegates can approve/reject, notify resources, inspect started/submitted state and add notes. This is a P6 Professional V26 comparative source, not a replacement for EPPM/Team Member semantics.
+- [Working with Timesheets](https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/88358.htm): designated-user eligibility, submission/withdrawal, auto-submission/auto-approval behavior, adding activities/overhead time and privilege-gated editing of other resources' timesheets are confirmed.
+
+**Contract refinement:** ENG-12 must not hard-code one approval step. The source includes period and approval-level configuration, manager/delegate roles, auditing, overhead codes, resource eligibility and conditional manual commands. The exact V26 EPPM settings page and the linked approval/privilege procedures remain an implementation source gate where direct retrieval was unavailable. P6 Professional material is supplementary evidence only.
+
+## 10. Source status after this pass
+
+| Source area | Status | Remaining gate |
+|---|---|---|
+| Team Member V26 activity update, steps, open/submit/withdraw timesheets | PARTIALLY VERIFIED | Child pages still missing/cache-miss: resubmit, add activities, recording actual work time, completed assignment, edit other resource timesheets, notes |
+| EPPM V26 status review | VERIFIED for high-level review model | Re-open exact linked accept/reject/hold/history/override and project preference topics during implementation |
+| EPPM V26 timesheet settings | PARTIALLY VERIFIED | Direct settings page cache miss; retrieve detailed option semantics and approval application privilege pages |
+| P6 Professional V26 timesheet approval | COMPARATIVE ONLY | Do not use as normative replacement for EPPM/Team Member |
+| Cloud Timesheets | COMPARATIVE ONLY | Use only for additive extension behavior |
+
+The packet remains documentation-only. These source findings improve contract readiness; they do not authorize edits to the activity/actuals API, approval runtime, schema, authorization or workspace paths occupied by active PRs.
