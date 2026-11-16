@@ -88,6 +88,16 @@ def test_archive_creation_and_evidence_append_are_revision_guarded(service):
         )
 
 
+def test_archive_revisions_remain_retrievable_after_append():
+    repository = InMemoryClaimDayArchiveRepository()
+    original = day()
+    repository.put_day(original, expected_revision=0, idempotency_key="create")
+    updated = day(revision=2, evidence_links=(evidence(),))
+    repository.put_day(updated, expected_revision=1, idempotency_key="append")
+    assert repository.get_day_revision("T-1", "P-1", original.claim_day_id, 1) == original
+    assert repository.get_day_revision("T-1", "P-1", original.claim_day_id, 2) == updated
+
+
 def test_archive_cannot_remove_or_rewrite_existing_evidence():
     repository = InMemoryClaimDayArchiveRepository()
     original = day(evidence_links=(evidence(),))
