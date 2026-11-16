@@ -164,7 +164,7 @@ def test_oracle_v26_checkbox_catalogue_is_separate_from_internal_authorization_k
     selectable = oracle_v26_project_privileges()
     assert tuple(item.key for item in selectable) == ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS
     assert len(selectable) == len(ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS)
-    assert len(selectable) == 58
+    assert len(selectable) == 57
     assert {item.group for item in selectable} == set(ProjectPrivilegeGroup)
     assert "activity.view" not in {item.key for item in selectable}
     assert "project.create" not in {item.key for item in selectable}
