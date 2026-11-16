@@ -280,3 +280,18 @@ For each Cloud-derived capability:
 - Run regression and acceptance tests in **both environments**. A Cloud enhancement must not break Professional-aligned workflows; a Professional-aligned improvement must not strip or regress Cloud-aligned workflows.
 
 **Acceptance gate:** a capability is not complete until its full Cloud Help scope is retained in CUBI, all applicable shared improvements are demonstrated in both environments, Cloud-only additions remain usable in the Cloud-aligned environment, and tests prove no destructive cross-environment regression. "Parity" means faithful preservation plus additive CUBI integration and dual-environment uplift—not reduction to the smaller feature set.
+
+
+## 10. Enterprise layered ownership refinement — 2026-11-16
+
+The detailed layered Enterprise architecture and Cloud-to-environment deduplication matrix are maintained in `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md`.
+
+Binding interpretation for this register:
+- Enterprise is organized into layers: shared platform foundations (reuse only), organization/governance, portfolio/strategy/executive oversight, enterprise coordination/stakeholder services, and contextual shared tools.
+- The earlier flat 12-heading Enterprise sketch is reconciled into the canonical eight-module architecture in `CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md`; it is not a license to create 12 new modules or duplicate existing product contexts.
+- Cloud schedule scenarios, Monte Carlo project risk, Field Work Plan/Last Planner, Team Member activity updates, project timesheets, project resource assignments/leveling, project risk registers, structured project attachments and schedule diagnostics remain Engineering-owned (ENG-04..ENG-13 as applicable). Enterprise may consume authorized summaries or coordinate generic actions but must not implement competing records or calculations.
+- Enterprise owns portfolio lifecycle/decisions, enterprise resource pool and portfolio capacity envelopes/scenarios, portfolio risk governance, workflow definitions/approval evidence, generic organizational tasks, executive read models, stakeholder grants, integration governance, benefits and organizational knowledge (ENT-01..ENT-12), subject to source crosswalk and evidence.
+- Form Builder remains the explicitly shared cross-environment capability; platform primitives are reused services, not duplicate Enterprise modules.
+- Enterprise Executive Portfolio Decision Scenario is a proposal only and remains **OPEN — PRODUCT-OWNER DECISION REQUIRED**. It is distinct from Engineering project schedule scenarios and the already-listed ENT-04 portfolio resource-planning scenarios. No implementation or menu is authorized until explicit approval.
+- Quality & Safety Center and Unifier-informed Contract/Commercial Management are not approved additions; obtain a separate product-owner decision after source/ownership analysis.
+- This refinement is architecture/documentation only. It does not claim any capability is implemented, tested, parity-complete or released.
