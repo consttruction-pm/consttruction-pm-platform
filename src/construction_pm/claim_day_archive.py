@@ -464,12 +464,17 @@ class InMemoryClaimDayArchiveRepository:
             if (item.tenant_id, item.project_id, item.contract_id, item.claim_id)
             == (submission.tenant_id, submission.project_id, submission.contract_id, submission.claim_id)
         ]
-        if any(item.submission_number == submission.submission_number for item in claim_submissions):
+        # Match the PostgreSQL uniqueness scope: each submitting party has its
+        # own submission-number sequence within a claim.
+        party_submissions = [
+            item for item in claim_submissions
+            if item.submitting_party_id == submission.submitting_party_id
+        ]
+        if any(item.submission_number == submission.submission_number for item in party_submissions):
             raise ClaimDayArchiveError("CLAIM_SUBMISSION_NUMBER_ALREADY_EXISTS")
         if submission.supersedes_submission_id is not None and not any(
             item.submission_id == submission.supersedes_submission_id
-            and item.submitting_party_id == submission.submitting_party_id
-            for item in claim_submissions
+            for item in party_submissions
         ):
             raise ClaimDayArchiveError("CLAIM_SUBMISSION_SUPERSEDED_PACKAGE_NOT_FOUND")
         self.submissions[key] = submission
