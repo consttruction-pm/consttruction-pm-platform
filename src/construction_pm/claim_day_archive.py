@@ -40,9 +40,11 @@ def _require_text(value: object, field: str) -> str:
 
 
 def _aware_datetime(value: str, field: str) -> datetime:
+    if not isinstance(value, str) or not value.strip():
+        raise ClaimDayArchiveError(`INVALID_${field.upper()}`)
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (TypeError, ValueError) as exc:
+    except (AttributeError, TypeError, ValueError) as exc:
         raise ClaimDayArchiveError(f"INVALID_{field.upper()}") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ClaimDayArchiveError(f"{field.upper()}_MUST_BE_TIMEZONE_AWARE")
@@ -193,7 +195,11 @@ class ClaimDayArchive:
             raise ClaimDayArchiveError("INVALID_REPORTING_TIMEZONE") from exc
         if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
             raise ClaimDayArchiveError("INVALID_CLAIM_DAY_REVISION")
-        if not self.claim_party_ids or len(set(self.claim_party_ids)) != len(self.claim_party_ids):
+        if (
+            not isinstance(self.claim_party_ids, tuple)
+            or not self.claim_party_ids
+            or len(set(self.claim_party_ids)) != len(self.claim_party_ids)
+        ):
             raise ClaimDayArchiveError("INVALID_CLAIM_PARTIES")
         for party_id in self.claim_party_ids:
             _require_text(party_id, "claim_party_id")
@@ -297,7 +303,8 @@ class ClaimSubmission:
         form_template_id: str,
         form_template_version: str,
         form_snapshot: Mapping[str, object],
-        evidence_links: tuple[ClaimDayEvidenceLink, ...],
+        evidence_links: tuple[tuple[str, ClaimDayEvidenceLink], ...],
+        claim_days: tuple[ClaimDayArchive, ...],
         schedule_snapshot_ids: tuple[str, ...] = (),
         baseline_snapshot_ids: tuple[str, ...] = (),
         supersedes_submission_id: str | None = None,
@@ -314,9 +321,27 @@ class ClaimSubmission:
             "form_template_id": form_template_id,
             "form_template_version": form_template_version,
             "form_snapshot_sha256": _digest(form_json),
+            "claim_days": sorted(
+                (
+                    {
+                        "claim_day_id": item.claim_day_id,
+                        "reporting_date": item.reporting_date.isoformat(),
+                        "timezone": item.timezone,
+                        "revision": item.revision,
+                        "day_start_utc": item.day_start_utc,
+                        "day_end_utc": item.day_end_utc,
+                        "delay_event_ids": sorted(item.delay_event_ids),
+                    }
+                    for item in claim_days
+                ),
+                key=lambda item: str(item["claim_day_id"]),
+            ),
             "evidence": sorted(
-                (item.manifest_entry() for item in evidence_links),
-                key=lambda item: str(item["evidence_link_id"]),
+                (
+                    {"claim_day_id": claim_day_id, **link.manifest_entry()}
+                    for claim_day_id, link in evidence_links
+                ),
+                key=lambda item: (str(item["claim_day_id"]), str(item["evidence_link_id"])),
             ),
             "schedule_snapshot_ids": sorted(schedule_snapshot_ids),
             "baseline_snapshot_ids": sorted(baseline_snapshot_ids),
@@ -407,6 +432,8 @@ class InMemoryClaimDayArchiveRepository:
                 or current.claim_party_ids != day.claim_party_ids
             ):
                 raise ClaimDayArchiveError("CLAIM_DAY_IDENTITY_IS_IMMUTABLE")
+            if not set(current.delay_event_ids).issubset(set(day.delay_event_ids)):
+                raise ClaimDayArchiveError("CLAIM_DAY_EVENTS_CANNOT_BE_REMOVED")
             old_ids = {item.evidence_link_id for item in current.evidence_links}
             new_by_id = {item.evidence_link_id: item for item in day.evidence_links}
             if not old_ids.issubset(new_by_id):
@@ -438,7 +465,9 @@ class InMemoryClaimDayArchiveRepository:
         if any(item.submission_number == submission.submission_number for item in claim_submissions):
             raise ClaimDayArchiveError("CLAIM_SUBMISSION_NUMBER_ALREADY_EXISTS")
         if submission.supersedes_submission_id is not None and not any(
-            item.submission_id == submission.supersedes_submission_id for item in claim_submissions
+            item.submission_id == submission.supersedes_submission_id
+            and item.submitting_party_id == submission.submitting_party_id
+            for item in claim_submissions
         ):
             raise ClaimDayArchiveError("CLAIM_SUBMISSION_SUPERSEDED_PACKAGE_NOT_FOUND")
         self.submissions[key] = submission
@@ -507,7 +536,7 @@ class ClaimDayArchiveService:
                 raise ClaimDayArchiveError("CLAIM_SUBMITTER_NOT_A_CLAIM_PARTY")
             days.append(day)
         evidence = tuple(
-            link
+            (day.claim_day_id, link)
             for day in days
             for link in day.visible_evidence(submitting_party_id)
         )
@@ -518,6 +547,7 @@ class ClaimDayArchiveService:
             submitted_by=submitted_by, submitted_at=submitted_at,
             form_template_id=form_template_id, form_template_version=form_template_version,
             form_snapshot=form_snapshot, evidence_links=evidence,
+            claim_days=tuple(days),
             schedule_snapshot_ids=schedule_snapshot_ids,
             baseline_snapshot_ids=baseline_snapshot_ids,
             supersedes_submission_id=supersedes_submission_id,
