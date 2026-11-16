@@ -13,7 +13,7 @@ from .application.authorization import (
     RoleBasedAuthorizationPolicy,
 )
 from .application.project_lifecycle import ProjectLifecycleError, SessionError
-from .p6_project_privileges import PROJECT_PRIVILEGES, normalize_project_privileges
+from .p6_project_privileges import oracle_v26_project_privileges, normalize_project_privileges
 
 PROJECT_PERMISSION_CODES = frozenset({
     Permission.PROJECT_READ.value,
@@ -395,7 +395,7 @@ class EnterpriseProjectAccessService:
 
     def list_privilege_definitions(self, session_id: str):
         self._admin_session(session_id)
-        return PROJECT_PRIVILEGES
+        return oracle_v26_project_privileges()
 
     def list_obs_nodes(self, session_id: str):
         session = self._admin_session(session_id)
