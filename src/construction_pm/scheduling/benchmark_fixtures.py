@@ -842,13 +842,16 @@ def run_date_schedule(fixture: DateFixture) -> ScheduleResult:
     )
 
 
-def run_time_schedule(fixture: TimeFixture) -> TimeScheduleResult:
+def run_time_schedule(
+    fixture: TimeFixture, *, float_workers: int = 1
+) -> TimeScheduleResult:
     return time_schedule(
         fixture.activities,
         fixture.relationships,
         fixture.project_start,
         fixture.project_finish,
         fixture.registry,
+        float_workers=float_workers,
     )
 
 

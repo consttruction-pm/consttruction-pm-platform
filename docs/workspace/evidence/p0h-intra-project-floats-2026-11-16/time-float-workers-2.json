@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "af8b38c0",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 906.729,
+        "median_ms": 902.984,
+        "min_ms": 899.238,
+        "p95_ms": 906.729
+      },
+      "fixture_build_ms": 228.801,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+      "peak_rss_kb": 71512,
+      "project_finish": "2083-07-08T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "time_float_workers": 2,
+      "wall": {
+        "count": 2,
+        "max_ms": 2158.104,
+        "median_ms": 2155.501,
+        "min_ms": 2152.898,
+        "p95_ms": 2158.104
+      }
+    },
+    {
+      "children_peak_rss_kb": 53592,
+      "counts": {
+        "activities": 20000,
+        "relationships": 38291
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 3449.075,
+        "median_ms": 3420.069,
+        "min_ms": 3391.062,
+        "p95_ms": 3449.075
+      },
+      "fixture_build_ms": 942.567,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "d6fb24752019bd288eef677550768b17a88b29b78083fff1c85582071e15070b",
+      "peak_rss_kb": 140744,
+      "project_finish": "2256-01-03T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 20000,
+      "status": "ok",
+      "time_float_workers": 2,
+      "wall": {
+        "count": 2,
+        "max_ms": 8559.826,
+        "median_ms": 8516.504,
+        "min_ms": 8473.181,
+        "p95_ms": 8559.826
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}
