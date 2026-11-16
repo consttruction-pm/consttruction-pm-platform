@@ -247,3 +247,78 @@ The previously TOC-only Pull Plans decision gate was advanced with direct retrie
 | Production & Productivity quantity/rate model | MISSING / VERIFY |
 | PPC denominator with multiple recommitments / commitment-history correction audit | MISSING / VERIFY |
 | CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED |
+
+
+## 16. Daily Huddle, PPC and production quantity/productivity — source closure pass (2026-11-16)
+
+### 16.1 Daily Huddle — verified as a workflow, not a separate data owner
+
+Oracle's current Primavera Cloud product documentation explicitly describes Daily Huddle as field coordination:
+- a short (15-minute) meeting reviewing the daily plan;
+- one-click task completion;
+- recommitment to a new finish date with reason codes;
+- a learning/feedback review of PPC and missed-commitment reasons;
+- a printable daily work plan.
+
+Source: [Oracle Primavera Cloud product tour — Daily Huddle slides](https://www.oracle.com/construction-engineering/primavera-cloud-project-management/), particularly the Daily Huddle sections. This is official product documentation, not a detailed command-level Help procedure.
+
+**Contract decision:** Daily Huddle is a meeting/workflow and role-focused projection over existing ENG-10 FieldTask, TaskCommitment, TaskReasonCode, task completion and PPC facts. It is not a new task store, commitment ledger, duplicate PPC calculator or separate scheduler. Its commands must call the same authorized task completion/recommit operations used elsewhere. The meeting record may retain date/time, facilitator, attendees, agenda/notes and linked task IDs as an auditable meeting artifact, but must not copy task state into a second source of truth.
+
+**Evidence limit:** The product workflow is VERIFIED at product-description level; dedicated Oracle Help procedures for a distinct Daily Huddle page, attendee/meeting lifecycle and exact button permissions remain MISSING / VERIFY. CUBI can contract the projection/meeting artifact, but cannot claim exact Oracle UI parity or reproduce undocumented meeting controls.
+
+### 16.2 Production & Productivity — distinct typed quantity/rate capability
+
+Oracle Primavera Cloud Scope Help documents a separate installed-quantity model:
+- Scope Items represent materials/products, with original quantity, unit of measure and original productivity rate (hours required per unit); original hours are quantity × rate.
+- Scope Assignments distribute scope items to work packages and carry revised quantity/hours/productivity rate.
+- Progress can be recorded by rule-of-credit milestones or physical installed values.
+- For physical progress, users record incremental installed quantity since the last progress date or cumulative installed quantity to date.
+- Installed hours are calculated from installed quantity × revised productivity rate.
+- Installed quantity and progress percent are separate from Field Task completion/PPC.
+
+Sources:
+- [Add a Scope Item](https://primavera.oraclecloud.com/help/en/user/88997.htm) (source search result; direct page retrieval unavailable in this pass).
+- [Update Installed Quantity for a Scope Assignment](https://primavera.oraclecloud.com/help/en/user/89818.htm) (directly retrieved; published 2026-01-26).
+- [Data Dictionary](https://primavera.oraclecloud.com/help/en/user/46503.htm) (source search result).
+- [Scope Assignment REST API](https://docs.oracle.com/en/industries/construction-engineering/primavera-cloud/opcap/op-scopeitemassignment-scopeitemassignmentid-get.html) (source search result; API field definitions).
+
+**Proposed ENG-10 sub-capability boundary — Production & Productivity:**
+- 'ProductionItem': typed deliverable/material/work item, unit of measure, discipline/location/system classification.
+- 'ProductionPackageAssignment': project/work-package/activity reference, planned/revised quantity, planned/revised hours, productivity rate and baseline/change provenance.
+- 'ProductionProgressEntry': immutable dated incremental or cumulative installed quantity, source actor, unit, location, shift/crew attribution, evidence and revision/idempotency metadata.
+- Derived measures: installed quantity, remaining quantity, physical progress %, installed hours and actual productivity rate (hours per installed unit); forecasts must be separately labelled and versioned.
+- Formula policy: installed_hours = installed_quantity × revised_productivity_rate; remaining_quantity = revised_quantity − installed_quantity; actual productivity rate must use a documented positive installed quantity and actual labor-hour source. Never divide by zero or silently mix unlike units.
+- Scope/work-package data remains distinct from FieldTask/TaskCommitment. A FieldTask may reference a production assignment, but task completion does not automatically assert a measured installed quantity. ENG-12 approved labor may be an actual-hour source only through a governed, reconciled posting path; do not double count hours.
+- No second EVM, CPM or resource actuals engine. Production quantities/rates are Engineering project execution facts; Enterprise may consume approved rollups for portfolio/commercial reporting.
+
+**Source boundary:** Oracle Scope Management is an adjacent Cloud source for quantity/progress semantics, not proof that P6 EPPM Team Member or Tasks App contains this capability. CUBI's Production & Productivity contract is therefore SOURCE_MAPPED / CONTRACT_PROPOSED, not P6-parity-complete. Full Scope Help, change control after baseline, work-package closeout, cost/hour entry, permissions, API write semantics and exact UI remain source-review gates.
+
+### 16.3 PPC — formula confirmed; historical denominator remains a deliberate gate
+
+Oracle Tasks Analysis defines PPC as completed tasks divided by task commitments. Daily values are calculated through the previous day; weekly values through the previous week; current periods are pending. The missed-commitment charts count tasks with recommitted due dates and support time/company analysis.
+
+Sources:
+- [Tasks Analysis Overview](https://primavera-au1.oraclecloud.com/help/en/user/105747.htm) (official search result; direct retrieval cache-missed).
+- [Recommit to a Task on the Work Plan Page](https://primavera.oraclecloud.com/help/en/user/139410.htm) (directly retrieved; includes multiple reasons and latest-commitment deletion behavior).
+- [Oracle field schedule guide](https://www.oracle.com/customer-hub/construction-engineering/primavera-cloud/primavera-cloud-getting-started-schedulers/managing-field-schedule/) (product guide confirms formula and reason analysis).
+
+Additional confirmed semantics:
+- A recommitment records a new due date, one or more missed reasons and optional comments; the commitment history is visible.
+- Oracle allows deletion of the most recent commitment, after which the task displays the preceding commitment's due date.
+- Changing committed due dates can move connected tasks according to Keep Hand-offs / Break Hand-offs mode.
+
+**Do not guess the denominator implementation.** Help describes the metric as "completed tasks / task commitments", but the reviewed material does not conclusively resolve whether historical PPC periods count immutable commitment events, the latest active commitment per task at the period cutoff, or another source-defined commitment snapshot when a task is recommitted/deleted. This must be validated against Oracle examples or reproducible source data before implementing CUBI PPC. Until then, PPC can be displayed only as an explicitly provisional metric or withheld; do not certify parity.
+
+## 17. Final ENG-10 source/contract disposition
+
+| Slice | Disposition | Implementation status |
+|---|---|---|
+| Field Tasks, Task Plans, hand-offs, constraints, commitments, completion | Source-mapped; detailed source and permission gates remain | NOT IMPLEMENTED / NOT VERIFIED |
+| Pull Plans, Parking Lot, approval/release, live sessions | Procedure-level source-mapped; first-release scope decision remains | NOT IMPLEMENTED / NOT VERIFIED |
+| Daily Huddle | Product-workflow source verified; contract is a projection over ENG-10 facts; detailed UI/help gaps remain | NOT IMPLEMENTED / NOT VERIFIED |
+| PPC | Formula and reporting windows source-verified; historical recommitment denominator unresolved | NOT IMPLEMENTED / NOT VERIFIED |
+| Production & Productivity | Separate quantity/productivity model proposed from Cloud Scope sources; full source and integration mapping remain | NOT IMPLEMENTED / NOT VERIFIED |
+
+**First-release recommendation:** deliver core Field Work Plan and task/commitment/constraint lifecycles first; include Daily Huddle as a thin meeting/projection only if its meeting artifact and permissions are approved; keep Pull Plans/live collaboration as a separately scoped increment; keep Production & Productivity behind its own data contract and unit/formula/actual-hours reconciliation; do not enable PPC as parity-complete until the recommitment denominator is empirically resolved.
+
+No application code, APIs, persistence, schema, routes, UI, authorization, tests or runtime behavior were changed by this source/contract update.
