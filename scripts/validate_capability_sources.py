@@ -145,8 +145,9 @@ def validate_capability(cap: Any, root: Path, manifest_path: Path) -> list[str]:
                 errors.append(label + " requires an id")
                 continue
             _relative_file(root, test.get("path"), label + ".path", errors)
-            if _nonempty(test.get("path")) and test.get("path") and test_file_exists := (root / test["path"]).is_file():
-                if test["id"] not in (root / test["path"]).read_text(encoding="utf-8"):
+            if _nonempty(test.get("path")) and test.get("path"):
+                test_file = root / test["path"]
+                if test_file.is_file() and test["id"] not in test_file.read_text(encoding="utf-8"):
                     errors.append(label + f" id {test['id']} is not present in its test file")
 
     gaps = cap.get("open_gaps", [])
