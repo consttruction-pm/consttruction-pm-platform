@@ -295,3 +295,27 @@ Binding interpretation for this register:
 - Enterprise Executive Portfolio Decision Scenario is a proposal only and remains **OPEN — PRODUCT-OWNER DECISION REQUIRED**. It is distinct from Engineering project schedule scenarios and the already-listed ENT-04 portfolio resource-planning scenarios. No implementation or menu is authorized until explicit approval.
 - Quality & Safety Center and Unifier-informed Contract/Commercial Management are not approved additions; obtain a separate product-owner decision after source/ownership analysis.
 - This refinement is architecture/documentation only. It does not claim any capability is implemented, tested, parity-complete or released.
+
+
+## 11. Source inheritance, traceability and build-time gates — binding
+
+Every capability row in this register must link to its exact software Help source(s), applicable standards and implementation crosswalk. Apply the source hierarchy and mandatory inheritance packet defined in `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md` §§8–9.
+
+Minimum rule:
+- P6 EPPM V26 Help for inherited EPPM behavior.
+- Primavera Cloud Help for Cloud-only/additive behavior, preserving the complete Cloud scope.
+- Primavera Unifier Help for contract/commercial/procurement/cost-BP/SOV/payment lifecycle behavior.
+- PMI and domain standards for theory/control only, never as a substitute for software Help.
+- Machine-readable source manifest, formula register, lifecycle/state model, permissions, UI/procedure crosswalk and mapped tests required before implementation acceptance.
+- CI validation is a required follow-on implementation task; this document does not claim the validator exists.
+
+## 12. New Enterprise capability family — ENT-13 Contract & Commercial Management
+
+**Status:** Added to Enterprise target scope by product-owner direction on 2026-11-16.  
+**Canonical source family:** Primavera Unifier Help, with PMI procurement/contract and cost-management practices; applicable law/policy is jurisdiction-configured.  
+**Lifecycle:** sourcing strategy → solicitation/tender → evaluation → award → contract formation/execution → administration/obligations → SOV/progress/payment applications/certification → variations/change orders → claims/disputes/notices → forecast/cash flow → suspension/termination → final account/closeout/archive.  
+**Ownership:** Enterprise owns contract/commercial records and governance; Engineering owns schedule, activity, project cost/EVM and resource calculations. Approved commercial events integrate through revision-pinned domain APIs. Shared forms/workflows/audit/storage/jobs are reused. No duplicate cost sheet, EVM, schedule or payment execution ledger.  
+**Required source anchors:** Unifier Contracts BP, Cost Type BP, Change Orders, Payment Applications, Cost Manager/SOV and Cost Management Levels Help; see the Enterprise architecture §9 for official URLs, field/lifecycle expectations and formula gates.  
+**Evidence status:** Initial official topic anchors identified; exhaustive current-release topic-by-topic crosswalk remains MISSING / VERIFY. No implementation or parity-complete claim.
+
+**Register cardinality:** 37 capability families (ENG-01..14, ENT-01..13, SH-01..10). Existing IDs are unchanged.
