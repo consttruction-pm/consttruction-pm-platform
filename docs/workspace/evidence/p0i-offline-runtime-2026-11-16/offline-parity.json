@@ -1,0 +1,75 @@
+{
+  "boundary": "offline-schedule-bundle/v1",
+  "engine": "shared-scheduling-core",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "a7735bb71e84bcf05306226e1651eda99fd3ec60",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "network_guard_probe": {
+    "denied": "OFFLINE_NETWORK_ACCESS_DENIED:create_connection",
+    "ok": true
+  },
+  "ok": true,
+  "phase": "P0-I",
+  "results": [
+    {
+      "bundle_build_ms": 13.81,
+      "bundle_bytes": 853285,
+      "bundle_hash": "2b96bdc0c46ac98a3e74a9dbc72940ad38004be4d1453fc4cba006296277c525",
+      "calculation_identity": "a0ee249424371e2ef2d52e5b4e85862aec7ad62d66962005231fd9bda14ed28e",
+      "calendars": [
+        "CAL-A@1",
+        "CAL-BASE@1",
+        "CAL-P@1"
+      ],
+      "counts": {
+        "activities": 1000,
+        "relationships": 1923
+      },
+      "failures": [],
+      "identity_equal": true,
+      "offline_median_execute_ms": 274.548,
+      "offline_run_identity": "0c811c700798b93077e26465806ccfee5c9cc410cda6882a24e9fcd5e2eb38cb",
+      "offline_runs": 3,
+      "ok": true,
+      "online_median_ms": 239.922,
+      "online_run_identity": "0c811c700798b93077e26465806ccfee5c9cc410cda6882a24e9fcd5e2eb38cb",
+      "size": 1000,
+      "snapshot_hash": "b92201e32908d741260a93a002560ffb8c6d66b857108e99412c5560f3ec27e2",
+      "snapshot_id": "S-OFFLINE-1000"
+    },
+    {
+      "bundle_build_ms": 70.522,
+      "bundle_bytes": 4247877,
+      "bundle_hash": "c8919cfa52a4902b643a488fa3c03ddf1ae079a62166fa270bb8ab3aaf7bbeaf",
+      "calculation_identity": "eb5b8f79586d0b2f51f20f10e8424152d3e167cd119047f543810a51336b116c",
+      "calendars": [
+        "CAL-A@1",
+        "CAL-BASE@1",
+        "CAL-P@1"
+      ],
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "failures": [],
+      "identity_equal": true,
+      "offline_median_execute_ms": 1339.095,
+      "offline_run_identity": "901b101d3500dc72df776fd0df35f421eb04cf0cc16ba0b3c0989848023ba7e5",
+      "offline_runs": 3,
+      "ok": true,
+      "online_median_ms": 1232.354,
+      "online_run_identity": "901b101d3500dc72df776fd0df35f421eb04cf0cc16ba0b3c0989848023ba7e5",
+      "size": 5000,
+      "snapshot_hash": "7f8497653c8154edd92465bca62f78ca81371f249da79491bafb7d1c429bd82a",
+      "snapshot_id": "S-OFFLINE-5000"
+    }
+  ],
+  "runs_per_size": 3
+}

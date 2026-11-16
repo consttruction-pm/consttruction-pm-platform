@@ -1,0 +1,12 @@
+{
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "git_sha": "a7735bb71e84bcf05306226e1651eda99fd3ec60",
+  "implementation": "CPython",
+  "machine": "x86_64",
+  "memory_total_kb": 8131540,
+  "note": "offline parity needs no database",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "postgres": "14.24 at postgresql://postgres@127.0.0.1:55432/postgres",
+  "python": "3.12.13"
+}
