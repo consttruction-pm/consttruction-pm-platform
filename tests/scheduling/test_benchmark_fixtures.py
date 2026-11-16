@@ -13,10 +13,13 @@ from construction_pm.scheduling.benchmark_fixtures import (
     date_schedule_payload,
     environment_fingerprint,
     leveling_case,
+    leveling_orchestration_case,
+    leveling_orchestration_payload,
     leveling_payload,
     measure,
     run_date_schedule,
     run_leveling,
+    run_leveling_orchestration,
     run_time_schedule,
     time_network,
     time_schedule_payload,
@@ -147,3 +150,33 @@ def test_time_amounts_remain_decimal_in_the_payload():
     sample = payload["floats"]["ACT-0000000"]
     assert isinstance(sample["total_float_value"], str)
     assert Decimal(sample["total_float_value"]) >= Decimal("0")
+
+
+def test_leveling_orchestration_fixture_is_reproducible():
+    first = leveling_orchestration_case(20)
+    second = leveling_orchestration_case(20)
+    assert first.counts == second.counts
+    assert first.project_finish == second.project_finish
+    assert first.leveling_input.forward_activities == second.leveling_input.forward_activities
+    assert first.leveling_input.capacities == second.leveling_input.capacities
+
+
+@pytest.mark.parametrize(
+    ("size", "expected_hash"),
+    [
+        (20, "d23faac45ef0a923c6d0df169749372806356b5e5abcce8be8979d46d13bbaf6"),
+        (50, "a43f0cd7a8b254b35c85a64c17926910ad4ca9beec12b7f92dda9c04ea8a0c6d"),
+    ],
+)
+def test_leveling_orchestration_output_matches_the_reference_engine(size, expected_hash):
+    result, forward, backward = run_leveling_orchestration(leveling_orchestration_case(size))
+    payload = leveling_orchestration_payload(result, forward, backward)
+    assert canonical_hash(payload) == expected_hash
+    assert backward == ()
+
+
+def test_leveling_orchestration_fixture_rejects_invalid_arguments():
+    with pytest.raises(ValueError):
+        leveling_orchestration_case(1)
+    with pytest.raises(ValueError):
+        leveling_orchestration_case(10, duration_days=0)

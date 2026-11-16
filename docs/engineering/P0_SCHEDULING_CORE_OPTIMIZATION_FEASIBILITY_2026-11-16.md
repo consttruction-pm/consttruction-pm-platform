@@ -513,3 +513,81 @@ provably identical work; final CPM and final resource-load validation stay
 authoritative. P0-F (durable job lifecycle with leases, retries, cancellation,
 result persistence and authorization-checked single-flight) and P0-G (adaptive
 supervision from real quota/RAM) remain unimplemented and unmeasured.
+
+## 11. P0-E execution record (2026-11-16)
+
+Status: implemented and verified. Reference for this slice is `79200d26`, the
+merge of P0-A..P0-D.
+
+### 11.1 What was counted first
+
+`leveling_scheduler.schedule_with_resource_leveling` executes a sequence of CPM
+passes: an initial pass on the caller's constraints, an intermediate pass on the
+forward-leveling constraints, one trial pass per backward candidate, and a
+closing pass on the final constraints. Every pass calls the same
+`construction_pm.scheduling.schedule.schedule` with the same activities,
+relationships, calendars, options, lag resolvers, batch finish, activity
+resolvers and calculation context. Only the ordered `ActivityConstraint` tuple
+differs.
+
+Measured before the change:
+
+| Scenario | CPM passes |
+|---|---|
+| Two linked activities, one accepted backward move | 5 |
+| Forward-only orchestration, 20 / 50 / 100 activities | 3 / 3 / 3 |
+| No forward and no backward shift | 3 |
+
+Three of those passes were exact duplicates: the intermediate pass repeats the
+initial pass when forward leveling proposed no positive shift; the closing pass
+repeats the intermediate pass when no backward shift was accepted or backward
+leveling is disabled; the closing pass repeats the last accepted candidate
+trial when that candidate produced the final constraint set.
+
+### 11.2 What was changed
+
+The identical passes are replaced by the already computed `ScheduleResult`.
+Because `schedule()` is a pure function of its arguments and the constraint
+tuple is compared exactly, reuse cannot change an output. The final
+`_validate_final_resource_load` still runs on the returned result, so the final
+resource-capacity validation and the final CPM result remain authoritative. No
+calculation, option, calendar rule, relationship rule, float value or leveling
+decision changed, and the single authoritative CUBI engine is still the only
+implementation.
+
+### 11.3 Measured result
+
+Forward-only orchestration fixture, 3 runs after 1 warm-up, same host:
+
+| Activities | CPM passes | Wall time before | Wall time after | Gain | Single CPM pass |
+|---|---|---|---|---|---|
+| 20 | 3 -> 2 | 24.541 ms | 22.989 ms | 6.3% | 1.863 ms |
+| 50 | 3 -> 2 | 293.177 ms | 284.480 ms | 3.0% | 9.315 ms |
+| 100 | 3 -> 2 | 2,172.426 ms | 2,147.145 ms | 1.2% | 33.400 ms |
+
+Every canonical output hash is identical (`d23faac4…`, `a43f0cd7…`,
+`a3da54e1…`). The gain is bounded by the removed pass: the dominant remaining
+cost is the one-shift-per-iteration forward decision schedule, which is
+quadratic in activity count and outside P0-E.
+
+The two-activity backward-acceptance scenario drops from 5 to 3 passes with an
+identical result; the count, the fresh-CPM equality and the continued final
+validation are asserted in `tests/scheduling/test_leveling_cpm_reuse.py`.
+
+### 11.4 Not measured
+
+- Backward-acceptance orchestration at 50+ activities: the fixtures that force
+  many accepted backward moves also hit the one-shift-per-iteration cost and did
+  not converge without a capacity profile tailored to proposal order, so no
+  number is claimed.
+- Python 3.11/3.13 and PostgreSQL: CI only.
+- Worker counts, queue pressure and throughput: P0-F/P0-G are not implemented.
+
+Evidence: `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
+
+### 11.5 Next slice
+
+P0-F: durable Scheduling Job lifecycle (stable identity, leases, retries,
+cancellation, result persistence, failure recovery, and single-flight dedup that
+still enforces per-user authorization), with the same Engine and version
+identity for every execution surface.

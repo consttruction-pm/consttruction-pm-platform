@@ -44,13 +44,18 @@ from .calendar_context import (
 )
 from .relationships import Relationship, RelationshipType
 from .resource_leveling import (
+    BackwardLevelingActivity,
     LevelingActivity,
     LevelingShift,
     ResourceCapacity,
     ResourceDemand,
+    ResourceLevelingOptions,
     propose_forward_leveling_within_float,
 )
+from .leveling_boundary import SchedulerLevelingInput
+from .leveling_scheduler import schedule_with_resource_leveling
 from .schedule import ScheduleResult, schedule
+from .schedule_options import ScheduleOptions
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import LagQuantity, TimeQuantity
 from .time_forward_pass import TimeActivity, TimeRelationship, time_forward_pass
@@ -411,6 +416,167 @@ def leveling_case(
 
 
 # ---------------------------------------------------------------------------
+# Full leveling orchestration (forward proposal + backward acceptance + CPM)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LevelingOrchestrationFixture:
+    activities: tuple[Activity, ...]
+    relationships: tuple[Relationship, ...]
+    project_start: date
+    project_finish: date
+    resolver: WorkingTimeResolver
+    leveling_input: object
+    options: object
+    size: int
+    shape: str
+    seed: int
+
+    @property
+    def counts(self) -> dict[str, int]:
+        return {
+            "activities": len(self.activities),
+            "relationships": len(self.relationships),
+            "forward_activities": len(self.leveling_input.forward_activities),
+            "backward_activities": len(self.leveling_input.backward_activities),
+            "capacities": len(self.leveling_input.capacities),
+        }
+
+
+def leveling_orchestration_case(
+    size: int,
+    seed: int = 20261116,
+    *,
+    duration_days: int = 2,
+    demand_units: Decimal = Decimal("4"),
+    capacity_units: Decimal = Decimal("8"),
+    float_slack_working_days: int | None = None,
+) -> LevelingOrchestrationFixture:
+    """Build a leveling case that the full orchestrator can actually resolve.
+
+    The activities are independent (no relationships) and all start on the
+    project start day, each holding ``demand_units`` for ``duration_days``
+    working days while daily capacity allows only two of them at once.  That
+    leaves a large, unambiguous forward backlog and no relationship that could
+    make a shift infeasible.  The project finish is placed
+    ``float_slack_working_days`` working days after the early finish so every
+    activity has the float the forward pass needs; once forward leveling has
+    spread the backlog the late window has no overload left, so this fixture
+    measures the forward path and the closing pass, not backward acceptance.
+
+    The fixture is deliberately independent-of-network-shape: P0-E is about the
+    number of CPM passes the orchestrator performs, not about a particular
+    relationship topology, which the date and time benchmarks already cover.
+    """
+
+    if size < 2:
+        raise ValueError("size must be at least 2")
+    if duration_days < 1:
+        raise ValueError("duration_days must be positive")
+    if float_slack_working_days is None:
+        # Two working days of float per activity is enough to serialize the
+        # whole starting backlog, plus a margin for holidays.
+        float_slack_working_days = max(20, 2 * size + 10)
+    if float_slack_working_days < 1:
+        raise ValueError("float_slack_working_days must be positive")
+
+    rng = _StableLcg(seed)
+    resolver = date_resolver()
+    project_start = resolver.normalize_start(PROJECT_START)
+    early_finish = resolver.add_working_duration(project_start, duration_days)
+    project_finish = resolver.add_working_duration(
+        early_finish, float_slack_working_days + 1
+    )
+
+    activities = tuple(Activity(activity_id(index), duration=duration_days) for index in range(size))
+    initial = schedule(activities, (), project_start, resolver, project_finish=project_finish)
+    early = initial.early_activities or initial.activities
+    late = initial.late_activities or initial.activities
+    floats = initial.floats
+    resource = resource_id(0)
+
+    forward: list[LevelingActivity] = []
+    backward: list[BackwardLevelingActivity] = []
+    period_days: list[date] = []
+    cursor = project_start
+    for _ in range(duration_days):
+        period_days.append(cursor)
+        cursor = resolver.next_working_day(cursor)
+
+    for index, activity in enumerate(activities):
+        early_activity = early[activity.id]
+        late_activity = late[activity.id]
+        float_activity = floats[activity.id]
+        demands = tuple(
+            ResourceDemand(resource, period, demand_units, activity.id)
+            for period in period_days
+        )
+        priority = index % 4
+        forward.append(
+            LevelingActivity(
+                activity.id,
+                early_activity.start,
+                early_activity.finish,
+                float_activity.total_float,
+                demands,
+                activity_priority=priority,
+            )
+        )
+        backward.append(
+            BackwardLevelingActivity(
+                activity.id,
+                early_activity.start,
+                early_activity.finish,
+                late_activity.start,
+                late_activity.finish,
+                demands,
+                activity_priority=priority,
+            )
+        )
+        # Keep the generator exercised so future patterns stay deterministic
+        # without changing today's layout.
+        rng.next()
+
+    capacities: list[ResourceCapacity] = []
+    cursor = project_start
+    horizon_end = resolver.add_working_duration(
+        project_finish, float_slack_working_days + 1
+    )
+    while cursor <= horizon_end:
+        capacities.append(ResourceCapacity(resource, cursor, capacity_units))
+        cursor = resolver.next_working_day(cursor)
+
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=tuple(forward),
+        backward_activities=tuple(backward),
+        capacities=tuple(capacities),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+            level_within_float=True,
+        ),
+    )
+    options = ScheduleOptions(
+        level_all_resources=True,
+        level_within_float=True,
+        preserve_scheduled_early_and_late_dates=False,
+    )
+    return LevelingOrchestrationFixture(
+        activities=activities,
+        relationships=(),
+        project_start=project_start,
+        project_finish=project_finish,
+        resolver=resolver,
+        leveling_input=leveling_input,
+        options=options,
+        size=size,
+        shape="flat",
+        seed=seed,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Canonical serialisation
 # ---------------------------------------------------------------------------
 
@@ -536,6 +702,42 @@ def leveling_payload(shifts: Sequence[LevelingShift]) -> dict[str, object]:
     }
 
 
+def leveling_orchestration_payload(
+    result: ScheduleResult,
+    forward: Sequence[LevelingShift],
+    backward: Sequence[object],
+) -> dict[str, object]:
+    """Canonical digest input for the full leveling orchestration.
+
+    The payload covers the published CPM result and both accepted shift lists,
+    so a reuse of an identical earlier CPM pass cannot hide a changed output.
+    """
+    return {
+        "schedule": date_schedule_payload(result),
+        "forward_shifts": [
+            {
+                "activity_id": item.activity_id,
+                "shift_working_days": item.shift_working_days,
+                "new_start": _iso(item.new_start),
+                "new_finish": _iso(item.new_finish),
+                "consumed_float": item.consumed_float,
+                "remaining_float": item.remaining_float,
+            }
+            for item in forward
+        ],
+        "backward_shifts": [
+            {
+                "activity_id": item.activity_id,
+                "shift_working_days": item.shift_working_days,
+                "new_start": _iso(item.new_start),
+                "new_finish": _iso(item.new_finish),
+                "advanced_days": item.advanced_days,
+            }
+            for item in backward
+        ],
+    }
+
+
 def canonical_json(payload: object) -> str:
     return json.dumps(
         payload,
@@ -655,6 +857,20 @@ def run_leveling(fixture: LevelingFixture) -> tuple[LevelingShift, ...]:
         fixture.activities,
         fixture.capacities,
         resolver=fixture.resolver,
+    )
+
+
+def run_leveling_orchestration(
+    fixture: LevelingOrchestrationFixture,
+):
+    return schedule_with_resource_leveling(
+        fixture.activities,
+        fixture.relationships,
+        fixture.project_start,
+        fixture.resolver,
+        fixture.leveling_input,
+        project_finish=fixture.project_finish,
+        options=fixture.options,
     )
 
 
