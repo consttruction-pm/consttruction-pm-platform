@@ -119,6 +119,7 @@ def test_evidence_correction_appends_revision_with_reason_and_supersedes_link():
     corrected = evidence(
         evidence_link_id="EV-1-CORRECTED",
         source_revision=4,
+        source_content_version="content-v4",
         supersedes_evidence_link_id="EV-1",
         correction_reason="Source document correction received",
     )
