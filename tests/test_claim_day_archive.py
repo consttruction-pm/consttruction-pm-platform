@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timezone
 
 import pytest
 
@@ -61,8 +61,8 @@ def service():
 def test_reporting_day_boundaries_respect_dst_transition():
     spring = day(reporting_date=date(2026, 3, 29))
     autumn = day(reporting_date=date(2026, 10, 25))
-    assert (spring.day_end - spring.day_start).total_seconds() == 23 * 3600
-    assert (autumn.day_end - autumn.day_start).total_seconds() == 25 * 3600
+    assert (spring.day_end.astimezone(timezone.utc) - spring.day_start.astimezone(timezone.utc)).total_seconds() == 23 * 3600
+    assert (autumn.day_end.astimezone(timezone.utc) - autumn.day_start.astimezone(timezone.utc)).total_seconds() == 25 * 3600
     assert spring.day_start_utc.endswith("+00:00")
     assert autumn.day_end_utc.endswith("+00:00")
 
