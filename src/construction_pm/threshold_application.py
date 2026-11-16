@@ -140,7 +140,10 @@ class ThresholdApplicationService:
         actor_id: str,
         occurred_at: datetime,
     ) -> StoredThreshold:
-        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id)
+        self._authorize_write(
+            threshold.tenant_id, threshold.project_id, context, actor_id,
+            Permission.P6_ISSUE_ADMIN,
+        )
         with self.transaction_manager.transaction():
             return self.store.create_threshold(
                 threshold,
@@ -179,7 +182,9 @@ class ThresholdApplicationService:
         occurred_at: datetime,
         reason: str = "",
     ) -> None:
-        self._authorize_write(tenant_id, project_id, context, actor_id)
+        self._authorize_write(
+            tenant_id, project_id, context, actor_id, Permission.P6_ISSUE_ADMIN
+        )
         with self.transaction_manager.transaction():
             self.store.delete_threshold(
                 tenant_id=tenant_id,
@@ -203,7 +208,9 @@ class ThresholdApplicationService:
         occurred_at: datetime,
     ) -> MonitoringResult:
         """Read the authoritative metric, evaluate and append one immutable run."""
-        self._authorize_write(tenant_id, project_id, context, actor_id)
+        self._authorize_write(
+            tenant_id, project_id, context, actor_id, Permission.P6_MONITOR_THRESHOLDS
+        )
         with self.transaction_manager.transaction():
             stored = self.store.get_threshold(tenant_id, project_id, threshold_id)
             threshold = stored.threshold
@@ -304,10 +311,11 @@ class ThresholdApplicationService:
         project_id: str,
         context: AuthorizationContext,
         actor_id: str,
+        permission: Permission,
     ) -> None:
         if actor_id != context.user_id:
             raise ThresholdAuthorizationError("THRESHOLD_ACTOR_MISMATCH")
-        self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        self._check(context, tenant_id, project_id, permission)
 
     @staticmethod
     def error_dto(exc: Exception) -> APIError:

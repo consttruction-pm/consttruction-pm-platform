@@ -7,6 +7,7 @@ import pytest
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -29,6 +30,16 @@ def context(
     role: str = "planner", *, tenant: str = "T-1", project: str = "P-1", user: str = "u-1"
 ) -> AuthorizationContext:
     return AuthorizationContext(tenant, project, user, frozenset({role}))
+
+
+class PermissionOnlyPolicy:
+    def __init__(self, allowed: set[Permission]) -> None:
+        self.allowed = set(allowed)
+        self.checked: list[Permission] = []
+
+    def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
+        self.checked.append(permission)
+        return permission in self.allowed
 
 
 def risk(**changes: object) -> Risk:
@@ -230,6 +241,34 @@ def test_delete_requires_current_revision(service) -> None:
             risk_id="RK-1",
             context=context("viewer", user="v-1"),
         )
+
+
+def test_risk_writes_require_the_v26_risk_privilege_not_generic_project_write() -> None:
+    connection = sqlite3.connect(":memory:")
+    store = SQLiteRiskStore(connection)
+    store.initialize()
+    policy = PermissionOnlyPolicy({Permission.PROJECT_WRITE})
+    service = RiskApplicationService(store, policy, SQLiteTransactionManager(connection))
+
+    with pytest.raises(RiskAuthorizationError, match="RISK_PERMISSION_DENIED"):
+        service.create_risk(
+            risk(), idempotency_key="k-1", context=context(), actor_id="u-1", occurred_at=NOW
+        )
+    assert policy.checked == [Permission.P6_RISK_ADMIN]
+
+    policy.allowed = {Permission.P6_RISK_ADMIN}
+    created = service.create_risk(
+        risk(), idempotency_key="k-1", context=context(), actor_id="u-1", occurred_at=NOW
+    )
+    updated = service.update_risk(
+        risk(status="mitigating"), expected_revision=created.revision,
+        context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    service.delete_risk(
+        tenant_id="T-1", project_id="P-1", risk_id="RK-1",
+        expected_revision=updated.revision, context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    assert policy.checked == [Permission.P6_RISK_ADMIN] * 4
 
 
 def test_error_dto_maps_failures_to_stable_categories() -> None:

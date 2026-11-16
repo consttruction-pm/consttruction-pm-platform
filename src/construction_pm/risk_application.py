@@ -169,7 +169,9 @@ class RiskApplicationService:
     ) -> None:
         if actor_id != context.user_id:
             raise RiskAuthorizationError("RISK_ACTOR_MISMATCH")
-        self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        # P6 EPPM V26 Project Security Profiles: Add/Edit/Delete Risks.
+        # Risk records are project-scoped in this domain and have no WBS key.
+        self._check(context, tenant_id, project_id, Permission.P6_RISK_ADMIN)
 
     @staticmethod
     def error_dto(exc: Exception) -> APIError:

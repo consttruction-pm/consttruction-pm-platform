@@ -8,6 +8,7 @@ import pytest
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -29,6 +30,16 @@ def context(
     role: str = "planner", *, tenant: str = "T-1", project: str = "P-1", user: str = "u-1"
 ) -> AuthorizationContext:
     return AuthorizationContext(tenant, project, user, frozenset({role}))
+
+
+class PermissionOnlyPolicy:
+    def __init__(self, allowed: set[Permission]) -> None:
+        self.allowed = set(allowed)
+        self.checked: list[Permission] = []
+
+    def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
+        self.checked.append(permission)
+        return permission in self.allowed
 
 
 def threshold(**changes: object) -> Threshold:
@@ -236,6 +247,49 @@ def test_creation_is_idempotent_and_updates_are_guarded(parts) -> None:
         context=context("viewer", user="v-1"),
     )
     assert [event.event_type for event in history] == ["created", "updated"]
+
+
+def test_threshold_crud_and_monitor_use_distinct_v26_privileges() -> None:
+    connection = sqlite3.connect(":memory:")
+    store = SQLiteThresholdStore(connection)
+    store.initialize()
+    metrics = Metrics("0")
+    writer = Writer()
+    policy = PermissionOnlyPolicy({Permission.PROJECT_WRITE})
+    service = ThresholdApplicationService(
+        store, policy, SQLiteTransactionManager(connection), metrics, writer
+    )
+
+    with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+        create(service)
+    assert policy.checked == [Permission.P6_ISSUE_ADMIN]
+
+    policy.allowed = {Permission.P6_ISSUE_ADMIN}
+    created = create(service)
+    with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+        monitor(service)
+    assert policy.checked[-1] == Permission.P6_MONITOR_THRESHOLDS
+    assert metrics.calls == []
+
+    policy.allowed.add(Permission.P6_MONITOR_THRESHOLDS)
+    monitored = monitor(service)
+    assert monitored.run.level == "normal"
+    updated = service.update_threshold(
+        threshold(name="Cost overrun watch revised"), expected_revision=created.revision,
+        context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    service.delete_threshold(
+        tenant_id="T-1", project_id="P-1", threshold_id="TH-1",
+        expected_revision=updated.revision, context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    assert policy.checked == [
+        Permission.P6_ISSUE_ADMIN,
+        Permission.P6_ISSUE_ADMIN,
+        Permission.P6_MONITOR_THRESHOLDS,
+        Permission.P6_MONITOR_THRESHOLDS,
+        Permission.P6_ISSUE_ADMIN,
+        Permission.P6_ISSUE_ADMIN,
+    ]
 
 
 def test_error_dto_maps_failures_to_stable_categories() -> None:

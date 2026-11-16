@@ -30,6 +30,16 @@ from construction_pm.relationship_master_repository import RelationshipMaster, S
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_issue_repository import P6Issue, SQLiteP6IssueRepository
+from construction_pm.risk_application import (
+    RiskApplicationService,
+    RiskAuthorizationError,
+)
+from construction_pm.risk_persistence import Risk, SQLiteRiskStore
+from construction_pm.threshold_application import (
+    ThresholdApplicationService,
+    ThresholdAuthorizationError,
+)
+from construction_pm.threshold_persistence import Threshold, SQLiteThresholdStore
 from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_expense_repository import (
     P6Expense, P6ExpenseApplicationService, SQLiteP6ExpenseRepository,
@@ -1526,3 +1536,171 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         assert not policy.is_allowed(foreign_context, Permission.P6_ACTIVITY_ADMIN)
         connection.rollback()
 
+
+
+
+def test_postgres_project_profiles_gate_risk_and_threshold_services_by_v26_privileges():
+    """Exercise real project API services against persisted PostgreSQL profile grants."""
+    suffix = uuid.uuid4().hex
+    tenant = f"risk-threshold-{suffix}"
+    other_tenant = f"risk-threshold-other-{suffix}"
+    user_id = f"risk-threshold-user-{suffix}"
+    project_id = f"risk-threshold-project-{suffix}"
+    obs_id = f"risk-threshold-obs-{suffix}"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant))
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, obs_id, name="Risk and threshold OBS")
+        )
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, user_id, project_id, "Risk and threshold project", obs_id=obs_id
+        )
+
+    with _connect() as connection:
+        profiles = PostgresSecurityProfileRepository(connection)
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        context = AuthorizationContext(tenant, project_id, user_id, frozenset({"planner"}))
+
+        global_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id="risk-threshold-global", name="Risk Threshold Global",
+            scope="global", actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=global_profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id="risk-threshold-project", name="Risk Threshold Project",
+            scope="project", actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id, user_id=user_id,
+            obs_id=obs_id, actor_user_id=user_id, occurred_at=now,
+        )
+
+        risk_connection = sqlite3.connect(":memory:")
+        risk_store = SQLiteRiskStore(risk_connection)
+        risk_store.initialize()
+        risk_service = RiskApplicationService(
+            risk_store, policy, SQLiteTransactionManager(risk_connection)
+        )
+        risk = Risk(
+            tenant_id=tenant, project_id=project_id, risk_id="RK-1",
+            title="Supplier lead-time exposure", description="",
+            category="technical", status="open", probability=2, impact=3,
+            response_strategy="mitigate", owner=user_id, date_identified=now.date().isoformat(),
+        )
+        with pytest.raises(RiskAuthorizationError, match="RISK_PERMISSION_DENIED"):
+            risk_service.create_risk(
+                risk, idempotency_key="risk-key", context=context,
+                actor_id=user_id, occurred_at=now,
+            )
+
+        threshold_connection = sqlite3.connect(":memory:")
+        threshold_store = SQLiteThresholdStore(threshold_connection)
+        threshold_store.initialize()
+
+        class ZeroMetric:
+            def observe(self, **kwargs):
+                return Decimal("0")
+
+        threshold_service = ThresholdApplicationService(
+            threshold_store, policy, SQLiteTransactionManager(threshold_connection),
+            ZeroMetric(), lambda issue, *, context, occurred_at: issue.issue_id,
+        )
+        threshold = Threshold(
+            tenant_id=tenant, project_id=project_id, threshold_id="TH-1",
+            name="Open issue watch", monitoring_subject="quality",
+            parameter="open_issue_count", upper_threshold=Decimal("5"),
+            warning_level=Decimal("1"), issue_level=Decimal("3"),
+            responsible_manager=user_id,
+        )
+        with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+            threshold_service.create_threshold(
+                threshold, idempotency_key="threshold-key", context=context,
+                actor_id=user_id, occurred_at=now,
+            )
+
+        project_privileges = {
+            "add_edit_delete_risks",
+            "add_edit_delete_issues_issue_thresholds",
+        }
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges=project_privileges, expected_revision=1,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        assert risk_service.create_risk(
+            risk, idempotency_key="risk-key", context=context,
+            actor_id=user_id, occurred_at=now,
+        ).revision == 1
+        assert threshold_service.create_threshold(
+            threshold, idempotency_key="threshold-key", context=context,
+            actor_id=user_id, occurred_at=now,
+        ).revision == 1
+
+        with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+            threshold_service.monitor(
+                tenant_id=tenant, project_id=project_id, project_revision=1,
+                threshold_id="TH-1", context=context, actor_id=user_id, occurred_at=now,
+            )
+
+        project_privileges.add("monitor_project_thresholds")
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges=project_privileges, expected_revision=2,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        monitored = threshold_service.monitor(
+            tenant_id=tenant, project_id=project_id, project_revision=1,
+            threshold_id="TH-1", context=context, actor_id=user_id, occurred_at=now,
+        )
+        assert monitored.run.level == "normal"
+
+        # Monitoring remains separate from threshold CRUD.
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={"add_edit_delete_risks", "monitor_project_thresholds"},
+            expected_revision=3, actor_user_id=user_id, occurred_at=now,
+        )
+        monitored_again = threshold_service.monitor(
+            tenant_id=tenant, project_id=project_id, project_revision=1,
+            threshold_id="TH-1", context=context, actor_id=user_id, occurred_at=now,
+        )
+        assert monitored_again.run.level == "normal"
+        with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
+            threshold_service.update_threshold(
+                Threshold(
+                    tenant_id=tenant, project_id=project_id, threshold_id="TH-1",
+                    name="Changed without issue/threshold grant", monitoring_subject="quality",
+                    parameter="open_issue_count", upper_threshold=Decimal("6"),
+                    warning_level=Decimal("1"), issue_level=Decimal("3"),
+                    responsible_manager=user_id,
+                ),
+                expected_revision=1, context=context, actor_id=user_id, occurred_at=now,
+            )
+        risk_updated = risk_service.update_risk(
+            Risk(
+                tenant_id=tenant, project_id=project_id, risk_id="RK-1",
+                title="Supplier lead-time exposure", description="",
+                category="technical", status="mitigating", probability=2, impact=3,
+                response_strategy="mitigate", owner=user_id, date_identified=now.date().isoformat(),
+            ),
+            expected_revision=1, context=context, actor_id=user_id, occurred_at=now,
+        )
+        assert risk_updated.revision == 2
+
+        foreign_context = AuthorizationContext(
+            other_tenant, project_id, user_id, frozenset({"planner"})
+        )
+        assert not policy.is_allowed(foreign_context, Permission.P6_RISK_ADMIN)
+        assert not policy.is_allowed(foreign_context, Permission.P6_ISSUE_ADMIN)
