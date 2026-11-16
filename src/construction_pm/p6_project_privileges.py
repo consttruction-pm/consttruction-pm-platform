@@ -192,6 +192,74 @@ PROJECT_PRIVILEGES: tuple[ProjectPrivilegeDefinition, ...] = (
 
 PRIVILEGE_BY_KEY = {item.key: item for item in PROJECT_PRIVILEGES}
 
+# Exact selectable rows from Oracle P6 EPPM V26 Project Security Profiles detail
+# window. Internal route adapters remain in PROJECT_PRIVILEGES for authorization,
+# but must never leak into the administrator's Oracle-compatible checkbox list.
+ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS: tuple[str, ...] = (
+    "activity.add_edit_except_relationships",
+    "activity.delete",
+    "activity.relationship.add_edit_delete",
+    "activity.id.edit",
+    "expense.add_edit_delete",
+    "discussion_comment.delete",
+    "project_activity_code.add",
+    "project_activity_code.edit",
+    "project_activity_code.delete",
+    "eps_activity_code.add",
+    "eps_activity_code.edit",
+    "eps_activity_code.delete",
+    "eps.add_edit_delete_except_costs_financials",
+    "eps.edit_costs_financials",
+    "project.add",
+    "project.delete",
+    "project.edit_details_except_costs_financials",
+    "wbs.add_edit_delete_except_costs_financials",
+    "wbs.edit_costs_financials",
+    "project.view_costs_financials",
+    "project.delete_data_with_timesheet_actuals",
+    "project.delete_published_data",
+    "project.export_data",
+    "issue_threshold.add_edit_delete",
+    "project_baseline.add_edit_delete",
+    "project_calendar.add_edit_delete",
+    "risk.add_edit_delete",
+    "template_document.add_edit_delete",
+    "work_product_document.add_edit_delete",
+    "project_baseline.assign",
+    "timesheet.approve",
+    "external_application.administer",
+    "unifier.project_data.exchange",
+    "opc.project_data.exchange",
+    "gateway.project_data.exchange",
+    "activity_resource_request.add_edit",
+    "resource_planning_assignment.add_edit_delete",
+    "role_planning_assignment.add_edit_delete",
+    "resource_planning_assignment.committed_flag.edit",
+    "assignment.future_periods.edit",
+    "assignment.period_performance.edit",
+    "actuals.apply",
+    "project.checkout_exclusive",
+    "resource.level",
+    "schedule.run",
+    "threshold.monitor",
+    "period_performance.store",
+    "project.summarize",
+    "publication_priority.edit",
+    "baseline.update",
+    "global_change.execute",
+    "unifier.integration.allow",
+    "global_search_replace.execute",
+    "project_level_layout.add_edit",
+    "project_report.edit",
+    "project_website.publish",
+    "project_visualizer_layout.add_edit_delete",
+)
+
+
+def oracle_v26_project_privileges() -> tuple[ProjectPrivilegeDefinition, ...]:
+    """Return only the documented V26 checkbox rows, in Oracle detail-window order."""
+    return tuple(PRIVILEGE_BY_KEY[key] for key in ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS)
+
 
 # Explicit inheritance from the V26 Help hierarchy. Compound Oracle options
 # are expanded deliberately; suffix-based guessing is unsafe for names such as
