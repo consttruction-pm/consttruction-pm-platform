@@ -228,3 +228,59 @@ A schedule finding is not a legal determination. Entitlement, causation responsi
 - PR #2001 remains open and defines ENT-13 as source-mapped, not implementation-ready. This document does not bypass its CI governance gate.
 
 **Exit criterion:** ENT-13 becomes implementation-ready only when sections 1–8 have traceable exact Help topics, verified code paths, versioned contracts, authorization threat tests, end-to-end acceptance evidence and approved ownership. Full production implementation is a subsequent isolated Enterprise P2 delivery, never a documentation-only claim.
+
+
+## 10. Exact route and persistence inventory — second source pass
+
+The following is now confirmed from executable source, not inferred from UI projections:
+
+### 10.1 Existing Claim/Change persistence and HTTP boundary
+
+- `src/construction_pm/change_claims.py` defines `ChangeClaim`, `ChangeClaimService` and `PostgresChangeClaimStore`. The PostgreSQL store creates `project_change_revisions`, `project_change_claims` and `project_change_claim_audit`; it uses a tenant+project+resource identity, expected project revision, idempotency key and canonical SHA-256 fingerprint. This is the existing PostgreSQL-backed change/claim resource envelope to extend, not replace.
+- `src/construction_pm/change_claim_api.py` exposes `P0_CHANGE_CLAIM_API_VERSION = "p0-change-claim.v1"`, create and get operations, scope matching and PROJECT_READ/PROJECT_WRITE authorization.
+- `src/construction_pm/http/project_lifecycle_routes.py` currently exposes **POST** `/api/projects/{project_id}/change-claims` when the adapter is composed. The inspected route is a create/upsert path; do not assume that a complete claims REST surface (list/read/update/submission/response/disclosure) exists from the API class alone.
+- `src/construction_pm/backend_p0/models.py` also contains `ClaimRecord` (`claim-record.v1`) with claim type/status, notice/change refs, schedule/cost/impact refs, entitlement/quantum/decision references and generic `EvidenceRef`. Its `EvidenceRef` carries source ID/type/locator/revision only. This is not the same object as the PostgreSQL `ChangeClaim` envelope. Preserve both existing contracts until an explicit migration/ownership decision is made; do not create a third claim aggregate or silently migrate payload semantics.
+- Existing tests: `tests/backend_p0/test_change_claim_core.py` for ClaimRecord validation/round-trip; locate and run the dedicated `ChangeClaimAPI`/Postgres repository tests before changing the PostgreSQL contract.
+
+### 10.2 Existing Document Management endpoints and content authority
+
+The production/preview HTTP composition in `src/construction_pm/http/project_lifecycle_routes.py` delegates `/api/projects/{project_id}/documents...` to `DocumentAPI`. The document register, binary content, versions, retention and audit paths are already real:
+
+| HTTP surface | Code owner | Verified behavior |
+|---|---|---|
+| `GET/POST /api/projects/{id}/documents` | `document_api.py`, `document_application.py`, project lifecycle routes | Project-scoped list/create, filtering/search, auth, idempotency. |
+| `GET /api/projects/{id}/documents/{document_id}` | same | Project-scoped document metadata read. |
+| `GET /api/projects/{id}/documents/{document_id}/history` | same + `document_persistence.py` | Append-only metadata audit history. |
+| `PUT/PATCH /api/projects/{id}/documents/{document_id}` | same | Metadata edit with expected revision; content binding cannot be retargeted by metadata update. |
+| `POST /api/projects/{id}/documents/{document_id}/content` | `DocumentAPI.upload_content`, `DocumentApplicationService.upload_content` | Validates payload type/size, computes SHA-256, writes a new immutable content version, idempotency and revision guard. |
+| `GET /api/projects/{id}/documents/{document_id}/content/versions` | `DocumentAPI.list_content_versions` | Lists exact immutable content versions. |
+| `GET /api/projects/{id}/documents/{document_id}/content/{version}` | `DocumentAPI.download_content` | Downloads selected exact version with scoped authorization and integrity validation. |
+| `GET /api/projects/{id}/documents/{document_id}/retention` | `DocumentAPI.read_retention` | Reads document retention policy, hold and disposition summary. |
+| `PUT/PATCH /api/projects/{id}/documents/{document_id}/retention` | `DocumentAPI.set_retention` | Sets document-level retain days/legal hold with revision guard and reason. |
+| Document status transition route | `DocumentAPI.transition_status` | Audited draft/submitted/approved/rejected/superseded transition; approval/rejection is role-gated. |
+
+Document metadata/content have SQLite preview and PostgreSQL production adapters as recorded by `WEB_SURFACE_TRACEABILITY_MATRIX.md`; binary bytes are stored via the document storage adapter and immutable `DocumentContentVersion` records. Reuse this exact authority. The API accepts image content types (JPEG/PNG/TIFF/WebP) as document bytes, but the inspected source does **not** establish a dedicated photo evidence domain with EXIF/capture metadata, GPS/work-front, offline-capture provenance or video support. Do not mark those photo capabilities present.
+
+Tests already present include `tests/test_document_http_routes.py`, `tests/test_document_binary_storage.py`, `tests/test_document_retention.py`, `tests/test_document_scan_and_object_storage.py`, `tests/test_document_api_v1.py` and the PostgreSQL document-store tests. These are source-level test inventory only; this pass did not execute them.
+
+### 10.3 Retention/legal-hold composition
+
+- `src/construction_pm/document_retention.py` defines both SQLite and PostgreSQL document-retention stores and `DocumentRetentionService`.
+- `set_policy` binds policy to a specific tenant/project/document; `dispose` requires PROJECT_ADMIN, explicit confirmation, reason, elapsed retention and a clear document legal hold.
+- Claim-level hold is not a new retention engine. The Claim service must register a hold binding against each pinned source document version and prevent claim-level deletion/disposition while any active claim/legal hold references that version. This requires a transaction-safe cross-domain guard and tests for race conditions; current document-level policy alone does not prove claim-level reference protection.
+
+### 10.4 Engineering schedule/baseline source
+
+- `src/construction_pm/p6_baseline_capture_api.py` exposes `p6-baseline-capture-api.v1`, requires matching tenant/project scope, PROJECT_WRITE and the expected project revision, and returns the captured baseline plus the immutable schedule snapshot ID, calculation run identity, project finish and activity count.
+- `src/construction_pm/p6_baseline_capture.py` obtains schedule facts from the authoritative `BaselineCaptureScheduleSource.latest_schedule`; caller-supplied calculated schedule facts are not accepted.
+- This is a valid baseline capture/reference source, but it is **not** a forensic delay-analysis API. No Enterprise adapter may infer time impact from the baseline capture response or calculate CPM independently. A dedicated Engineering-owned analysis request/result contract remains required.
+
+### 10.5 Field logs and photo gap
+
+- `FieldDailyLog` stores a date-only `log_date`, location key, status, entries, audit metadata and generic evidence refs. `FieldTimecard`, `EquipmentStatusReport` and `FieldInspection` also carry date/evidence references.
+- These are structured field facts, not an archive keyed by claim + contract timezone + reporting day. Their evidence refs do not pin content hash/version or capture/received timestamps.
+- The inspected field daily log source does not prove a dedicated photo/video upload metadata API. Until one is located and tested, CUBI should link an existing Document Management image version as evidence and mark missing photo-specific capture metadata explicitly. Video remains unsupported by the current document content allow-list.
+
+### 10.6 Consequence for the first coding slice
+
+The first production code slice must be a **Claim Day Archive reference/manifest aggregate over the existing PostgreSQL ChangeClaim + DocumentContentVersion + FieldDailyLog + Engineering baseline/snapshot IDs**, with party scope/disclosure and immutable submission packages. It must not create a replacement claim register, duplicate file bytes, claim-specific retention engine or schedule calculator. Before implementation, map the actual `ChangeClaimRepository` schema/transition rules and production composition, then extend them under a new versioned contract and migrations. Keep the legacy `ClaimRecord` generic backend envelope stable until a tested compatibility/migration decision is approved.
