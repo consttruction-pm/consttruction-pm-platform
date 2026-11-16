@@ -141,6 +141,8 @@ def test_submission_freezes_exact_evidence_revisions_and_form_snapshot(service):
     )
     submission.validate()
     assert '"source_revision":3' in submission.manifest_json
+    assert '"reporting_date":"2026-10-25"' in submission.manifest_json
+    assert '"claim_day_id":"CL-1:2026-10-25"' in submission.manifest_json
     assert submission.form_template_version == "v5"
     assert submission.schedule_snapshot_ids == ("SCHED-17",)
     assert submission.manifest_sha256.startswith("sha256:")
