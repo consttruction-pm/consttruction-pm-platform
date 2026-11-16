@@ -67,6 +67,17 @@ Additional normative V26 topics reviewed:
 - [Assigning Global Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/8117.htm)
 
 ## Oracle V26 privilege-source traceability (2026-11-16)
+The dependency rules are also encoded in the profile normalizer and covered by focused tests:
+- Level Resources selects Schedule Projects.
+- Edit Future Periods requires Add/Edit Activities Except Relationships.
+- Edit Period Performance requires Add/Edit Activities Except Relationships and View Project Costs/Financials.
+- Store Period Performance requires Add/Edit Activities Except Relationships.
+- Assign Project Baselines requires Edit Project Details Except Costs/Financials (already enforced).
+- Activity/EPS code, WBS, issue/threshold, risk, expense, baseline, calendar, document and resource-assignment inheritance is explicit; no suffix-based wildcard inference is used.
+
+These dependencies are enforced when privileges are normalized for storage, not merely described in the UI.
+
+
 
 Every selectable privilege returned by `GET /api/enterprise/project-security-privileges` now carries two navigable source references:
 - The V26 **Privileges Detail Window** HTML Help topic: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html
