@@ -284,3 +284,20 @@ Tests already present include `tests/test_document_http_routes.py`, `tests/test_
 ### 10.6 Consequence for the first coding slice
 
 The first production code slice must be a **Claim Day Archive reference/manifest aggregate over the existing PostgreSQL ChangeClaim + DocumentContentVersion + FieldDailyLog + Engineering baseline/snapshot IDs**, with party scope/disclosure and immutable submission packages. It must not create a replacement claim register, duplicate file bytes, claim-specific retention engine or schedule calculator. Before implementation, map the actual `ChangeClaimRepository` schema/transition rules and production composition, then extend them under a new versioned contract and migrations. Keep the legacy `ClaimRecord` generic backend envelope stable until a tested compatibility/migration decision is approved.
+
+
+## 11. Official forensic-method references (not software Help)
+
+These sources are methodology authorities, not substitutes for product HTML Help or contract terms:
+
+- AACE International RP 29R-03 official catalogue/search result: https://web.aacei.org/docs/default-source/rps/29r-03.pdf?sfvrsn=1e27b2c_1
+- AACE 29R-03 official table of contents (public): https://web.aacei.org/docs/default-source/toc/toc_29r-03.pdf
+- AACE 29R-03 purpose and scope overview: https://29r-03.com/About29R03
+- Society of Construction Law UK official Delay and Disruption Protocol page (confirms 2nd edition, February 2017, and official download): https://www.scl.org.uk/index.php/resources/delay-disruption-protocol
+- SCL UK official 2nd edition PDF: https://www.scl.org.uk/sites/default/files/documents/SCL_Delay_Protocol_2nd_Edition_Final.pdf
+
+Methodology-to-product mapping:
+- AACE RP 29R-03 governs the taxonomy and competent application of CPM-based forensic schedule-analysis methods. CUBI records the selected method, method version, contemporaneous schedule inputs, schedule validation/assumptions, data dates, analysis intervals, logic changes, critical/near-critical path evidence, concurrency treatment and activity-level outputs. The Engineering service remains the sole calculation authority.
+- SCL 2nd edition guides contemporaneous programme/records, EOT process, delay analysis, concurrency/float, mitigation/acceleration, disruption and prolongation-cost assessment. CUBI's Claim Day Archive is the evidence chain that makes these contemporaneous records discoverable and revision-pinned.
+- Neither standard alone decides contractual entitlement or legal responsibility. The applicable contract, amendments, governing law and authorized determination process control those outcomes.
+- AACE RP 29R-03 is copyrighted/licensed; CUBI must not reproduce the full standard or protected text. Store citation/version/selected method metadata and use appropriately licensed copies for expert reference.
