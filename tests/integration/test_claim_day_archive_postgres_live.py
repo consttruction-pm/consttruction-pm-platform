@@ -113,3 +113,23 @@ def test_claim_day_archive_postgres_round_trip_replay_and_submission_freeze():
             tenant_id, project_id, submission.submission_id
         ) == submission
         assert submission.manifest_sha256.startswith("sha256:")
+        # Submission numbers are independently sequenced by submitting party,
+        # matching the database unique key and the in-memory repository.
+        employer_submission = service.submit(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            contract_id=contract_id,
+            claim_id=claim_id,
+            submission_id=f"employer-submission-{suffix}",
+            submission_number=1,
+            submitting_party_id="EMPLOYER",
+            submitted_by="employer-user",
+            submitted_at="2026-10-26T09:00:00Z",
+            form_template_id="FORM-RESPONSE",
+            form_template_version="v1",
+            form_snapshot={"response": "received"},
+            claim_day_ids=(day_id,),
+        )
+        assert employer_submission.submission_number == submission.submission_number
+        assert employer_submission.submitting_party_id == "EMPLOYER"
+
