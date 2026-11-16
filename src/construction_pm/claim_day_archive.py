@@ -352,6 +352,23 @@ class ClaimSubmission:
         supersedes_submission_id: str | None = None,
     ) -> "ClaimSubmission":
         _aware_datetime(submitted_at, "submitted_at")
+        day_by_id = {item.claim_day_id: item for item in claim_days}
+        if not day_by_id or len(day_by_id) != len(claim_days):
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_REQUIRES_UNIQUE_CLAIM_DAYS")
+        for item in claim_days:
+            item.validate()
+            if (
+                (item.tenant_id, item.project_id, item.contract_id, item.claim_id)
+                != (tenant_id, project_id, contract_id, claim_id)
+                or submitting_party_id not in item.claim_party_ids
+            ):
+                raise ClaimDayArchiveError("CLAIM_SUBMISSION_DAY_SCOPE_MISMATCH")
+        for claim_day_id, link in evidence_links:
+            day = day_by_id.get(claim_day_id)
+            if day is None or not any(existing == link for existing in day.evidence_links):
+                raise ClaimDayArchiveError("CLAIM_SUBMISSION_EVIDENCE_SCOPE_MISMATCH")
+            if not link.visible_to(submitting_party_id):
+                raise ClaimDayArchiveError("CLAIM_SUBMISSION_EVIDENCE_NOT_DISCLOSED")
         form_json = _canonical_json(dict(form_snapshot))
         manifest = {
             "contract_version": CLAIM_SUBMISSION_CONTRACT_VERSION,
