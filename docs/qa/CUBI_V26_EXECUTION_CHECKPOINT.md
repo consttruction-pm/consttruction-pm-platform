@@ -4511,3 +4511,30 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   effective cores; multi-host PostgreSQL, HTTP admission and OOM behaviour are
   not claimed. Next: P0-H intra-project parallelism, gated on exact canonical
   equality.
+
+## P0-H exact intra-project float parallelism, 2026-11-16
+
+- **Scope.** Parallelize only the independent per-activity time-aware float
+  computation, prove exact equality, and leave every sequential decision path
+  untouched.
+- **Profiled first.** At 20,000 activities: forward 0.73 s, backward 2.50 s,
+  floats 10.13 s — the float stage is ~76% of the 13.4 s run and each activity
+  is independent given frozen early/late schedules.
+- **Built.** `calculate_time_floats(..., workers=N)` splits sorted ids into
+  contiguous chunks, evaluates the same pure function in forked children and
+  merges by id; `time_schedule(..., float_workers=N)` forwards it. Default is 1
+  everywhere. Falls back to the identical sequential loop when the platform has
+  no fork or the caller has threads, because forking a threaded process is
+  unsafe. Date CPM and leveling loops remain sequential by design.
+- **Measured (4 CPUs).** 5,000 activities: 3,350.0 → 2,155.5 → 1,482.7 ms
+  (1.55x, 2.26x) at 1/2/4 workers. 20,000: 13,462.5 → 8,516.5 → 5,923.9 ms
+  (1.58x, 2.27x). Identical canonical hashes at every worker count; the ceiling
+  is the ~24% sequential pass share.
+- **Gates.** 6 parity tests (FS/SS/FF/SF, lags, working-hour/day, Decimal
+  precision, chunk determinism, invalid counts). Full suite 4,508 passed / 211
+  skipped without a database and 4,597 passed / 131 skipped with PostgreSQL. No
+  scheduling option, calendar rule, float value or leveling decision changed;
+  production default remains sequential.
+- **Not measured / next.** Time constraints and exception calendars in the
+  parallel path, 16/32 workers, summed child memory, and any date/leveling
+  speed-up are not claimed. Next: P0-I offline runtime boundary.

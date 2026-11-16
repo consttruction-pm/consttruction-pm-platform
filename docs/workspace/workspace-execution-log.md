@@ -264,3 +264,27 @@ Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
 Continuation point after merge: P0-H intra-project parallelism, which changes
 calculation execution and therefore remains gated on exact canonical equality
 plus the final CPM and final resource-capacity validation.
+
+2026-11-16 — P0-H exact intra-project float parallelism
+
+Profiled the time-aware engine before changing it: at 20,000 activities the
+forward pass takes 0.73 s, the backward pass 2.50 s and the per-activity float
+calculation 10.13 s, about 76% of a 13.4 s run. Each activity's float is a pure
+function of frozen early/late schedules, so `calculate_time_floats` now takes a
+`workers` parameter that splits sorted ids into contiguous chunks, evaluates
+the same function in forked children and merges the immutable records by id.
+`time_schedule` exposes it as `float_workers`. Both default to 1; the parallel
+path falls back to the identical sequential loop on platforms without fork or
+when the parent has threads, because forking a threaded process is unsafe.
+Date CPM and the resource-leveling decision loop were deliberately not
+parallelized: their steps depend on the previous result and changing them would
+risk V26 decisions.
+
+Measured on 4 CPUs: 5,000 activities 3,350.0 → 2,155.5 → 1,482.7 ms and 20,000
+activities 13,462.5 → 8,516.5 → 5,923.9 ms for 1/2/4 workers (2.26x and 2.27x at
+four), with identical canonical hashes at every count. The ceiling is the ~24%
+sequential pass share. Six parity tests compare every field across paths,
+including FS/SS/FF/SF lags and Decimal values.
+
+Evidence: `docs/workspace/evidence/p0h-intra-project-floats-2026-11-16/`.
+Continuation point after merge: P0-I offline runtime boundary.

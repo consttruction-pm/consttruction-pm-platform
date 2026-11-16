@@ -756,3 +756,82 @@ Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
 P0-H: intra-project parallelism. Unlike P0-G, this touches calculation
 semantics, so it remains gated on exact canonical equality for every split and
 on retaining the final CPM and final resource-capacity validation.
+
+## 14. P0-H execution record (2026-11-16)
+
+Status: implemented and verified; production default unchanged. Tested commit
+`af8b38c0`, based on `3ed3892c` (P0-G merge).
+
+### 14.1 What was parallelized and why only this
+
+Profiling the time-aware engine at 20,000 activities showed the per-activity
+float calculation dominates: forward pass 0.73 s, backward pass 2.50 s, floats
+10.13 s (about 76% of the 13.4 s total). Each activity's float is already a pure
+function of the frozen early/late schedules, its outgoing relationships,
+calendars and lag calendar, so evaluating activities in different processes
+cannot change a value.
+
+`calculate_time_floats` now accepts an execution-only `workers` parameter:
+sorted ids are split into contiguous chunks, evaluated by the same pure
+function in forked children, and merged in id order. `time_schedule` exposes it
+as `float_workers`. The parameter changes neither inputs nor formula, and the
+default is 1, so no existing caller changes behaviour.
+
+Deliberately left sequential:
+
+- the date CPM forward/backward passes and the resource-leveling decision loop,
+  whose steps depend on the previous accepted result;
+- thread-based execution, which cannot help CPU-bound Python under the GIL;
+- any automatic use inside a threaded server process, because forking a process
+  that holds database/logging locks is unsafe. The parallel path falls back to
+  the same sequential loop when `threading.active_count() > 1` or when the
+  platform has no `fork`.
+
+### 14.2 Measured result
+
+Same fixture and seed, 2 runs after 1 warm-up, canonical hash compared:
+
+| Activities | Float workers | Wall median (ms) | Speed-up | Parent CPU (ms) |
+|---|---|---|---|---|
+| 5,000 | 1 | 3,350.0 | 1.00x | 3,349.6 |
+| 5,000 | 2 | 2,155.5 | 1.55x | 903.0 |
+| 5,000 | 4 | 1,482.7 | 2.26x | 837.9 |
+| 20,000 | 1 | 13,462.5 | 1.00x | 13,461.0 |
+| 20,000 | 2 | 8,516.5 | 1.58x | 3,420.1 |
+| 20,000 | 4 | 5,923.9 | 2.27x | 3,375.5 |
+
+The ceiling is the still-sequential forward and backward passes: about 24% of
+the 20,000-activity run, so `1 / (0.24 + 0.76/4) ≈ 2.4x` is the best four
+workers can do; 2.27x was measured. Canonical output hashes are identical at
+every worker count (`3d2f1f8d…` at 5,000 and `d6fb2475…` at 20,000), and the
+parity tests compare every field of every float record.
+
+### 14.3 What this means for adoption
+
+The capability is real and exact, but it is not switched on by default. A
+server that already runs calculation threads cannot safely fork during a
+calculation, and P0-G's executor runs calculations in threads. Using this path
+therefore requires a dedicated single-threaded worker bootstrap that passes
+`float_workers` explicitly. Until such a bootstrap exists, the measured gain is
+available but unexercised in production, and the sequential path remains the
+authoritative default. This is recorded rather than presented as a production
+speed-up.
+
+### 14.4 Not measured
+
+- Time constraints, exception calendars and working-day durations in the
+  parallel path: the parity fixtures cover FS/SS/FF/SF, positive and negative
+  lags, and working-hour/day values, but not every V26 calendar variant.
+- 16 and 32 float workers: the host supplies 4 effective cores.
+- Memory sum across children: only the maximum child RSS is available from
+  `RUSAGE_CHILDREN`.
+- Any gain in the date path, leveling path or multi-project batch: those were
+  not parallelized in this slice.
+
+Evidence: `docs/workspace/evidence/p0h-intra-project-floats-2026-11-16/`.
+
+### 14.5 Next slice
+
+P0-I: offline runtime boundary. The remote engine, calendar and snapshot
+dependencies of the offline runtime need an explicit boundary with no network
+calls, and the offline result must remain the same canonical output.
