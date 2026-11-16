@@ -53,7 +53,8 @@ def test_granular_project_privilege_catalogue_route_returns_grouped_definitions(
     response=request(app,"/api/enterprise/project-security-privileges")
     assert response["status"].startswith("200")
     payload=json.loads(response["body"])
-    assert payload["privileges"][0]["key"]=="activity.view"
+    assert payload["privileges"][0]["key"]=="activity.add_edit_except_relationships"
+    assert all(item["key"] != "activity.view" for item in payload["privileges"])
     assert payload["privileges"][0]["group"]=="activities"
     assert payload["privileges"][0]["help_url"].endswith("/102786.html")
     assert payload["privileges"][0]["definitions_help_url"].endswith("/projectprivilegedefinitions-47746a.html")
