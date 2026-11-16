@@ -77,9 +77,17 @@ def resolve_relationship_lag_calendar(
     predecessor_activity_id: str,
     successor_activity_id: str,
     option: RelationshipLagCalendar | None = None,
+    *,
+    calendars: ResolvedActivityCalendars | None = None,
 ):
-    """Resolve the lag calendar from the authoritative activity assignments."""
-    calendars = resolve_authoritative_activity_calendars(snapshot, registry)
+    """Resolve the lag calendar from the authoritative activity assignments.
+
+    ``calendars`` lets a caller that resolves many relationships reuse the
+    single snapshot-wide activity calendar map instead of rebuilding it per
+    relationship. The resolution itself is unchanged and deterministic.
+    """
+    if calendars is None:
+        calendars = resolve_authoritative_activity_calendars(snapshot, registry)
     predecessor_reference = calendars.reference_for(predecessor_activity_id)
     successor_reference = calendars.reference_for(successor_activity_id)
     context = SchedulingCalendarContext(
@@ -105,6 +113,10 @@ def resolve_relationship_lag_resolvers(
         (item.predecessor_id, item.successor_id): item
         for item in snapshot.relationship_lag_calendar_assignments
     }
+    # The activity calendar map is relationship-independent. Resolve it once;
+    # rebuilding it per relationship was O(edges * activities) with identical
+    # results.
+    calendars = resolve_authoritative_activity_calendars(snapshot, registry)
     resolvers: dict[tuple[str, str], WorkingTimeResolver] = {}
     for relationship in snapshot.relationships:
         key = (relationship.predecessor_id, relationship.successor_id)
@@ -114,6 +126,11 @@ def resolve_relationship_lag_resolvers(
             continue
         option = assignment.option if assignment is not None else default_option
         resolvers[key] = resolve_relationship_lag_calendar(
-            snapshot, registry, relationship.predecessor_id, relationship.successor_id, option
+            snapshot,
+            registry,
+            relationship.predecessor_id,
+            relationship.successor_id,
+            option,
+            calendars=calendars,
         )
     return resolvers
