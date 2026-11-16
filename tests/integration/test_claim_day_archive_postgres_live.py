@@ -133,6 +133,21 @@ def test_claim_day_archive_postgres_round_trip_replay_and_submission_freeze():
             tenant_id, project_id, submission.submission_id
         ) == submission
         assert submission.manifest_sha256.startswith("sha256:")
+        with pytest.raises(psycopg.errors.RaiseException):
+            with connection.transaction():
+                connection.execute(
+                    "UPDATE claim_submissions SET submission_json=%s "
+                    "WHERE tenant_id=%s AND project_id=%s AND submission_id=%s",
+                    ("{}", tenant_id, project_id, submission.submission_id),
+                )
+        with pytest.raises(psycopg.errors.RaiseException):
+            with connection.transaction():
+                connection.execute(
+                    "DELETE FROM claim_submissions "
+                    "WHERE tenant_id=%s AND project_id=%s AND submission_id=%s",
+                    (tenant_id, project_id, submission.submission_id),
+                )
+
         # Submission numbers are independently sequenced by submitting party,
         # matching the database unique key and the in-memory repository.
         employer_submission = service.submit(
