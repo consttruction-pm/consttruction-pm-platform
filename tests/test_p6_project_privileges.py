@@ -137,3 +137,22 @@ def test_v26_group_header_rejects_unknown_privileges_and_group_names():
         set_privilege_group({"made.up"}, ProjectPrivilegeGroup.ACTIVITIES, True)
     with pytest.raises(ValueError, match="UNKNOWN_PROJECT_PRIVILEGE_GROUP"):
         privilege_keys_for_group("not-a-v26-group")
+
+
+
+def test_v26_tool_and_resource_period_dependencies_are_inherited_exactly():
+    level = expand_project_privileges({"resource.level"})
+    assert {"resource.level", "schedule.run"} <= level
+
+    future_periods = expand_project_privileges({"assignment.future_periods.edit"})
+    assert "activity.add_edit_except_relationships" in future_periods
+    assert "project.view_costs_financials" not in future_periods
+
+    period_performance = expand_project_privileges({"assignment.period_performance.edit"})
+    assert {
+        "activity.add_edit_except_relationships",
+        "project.view_costs_financials",
+    } <= period_performance
+
+    stored = expand_project_privileges({"period_performance.store"})
+    assert "activity.add_edit_except_relationships" in stored
