@@ -313,6 +313,13 @@ PROJECT_PRIVILEGE_INHERITANCE: dict[str, frozenset[str]] = {
         "project.view_costs_financials",
     }),
     "period_performance.store": frozenset({"activity.add_edit_except_relationships"}),
+    "activity.id.edit": frozenset({"activity.add_edit_except_relationships"}),
+    "wbs.edit_costs_financials": frozenset({
+        "wbs.add_edit_delete_except_costs_financials",
+        "project.view_costs_financials",
+    }),
+    "project_baseline.assign": frozenset({"project.edit_details_except_costs_financials"}),
+    "template_document.add_edit_delete": frozenset({"work_product_document.add_edit_delete"}),
 }
 
 
