@@ -93,6 +93,8 @@ class ClaimDayEvidenceLink:
     wbs_refs: tuple[str, ...] = ()
     delay_event_refs: tuple[str, ...] = ()
     chain_of_custody_refs: tuple[str, ...] = ()
+    supersedes_evidence_link_id: str | None = None
+    correction_reason: str | None = None
 
     def validate(self, *, claim_party_ids: tuple[str, ...]) -> None:
         for field_name in (
@@ -128,6 +130,11 @@ class ClaimDayEvidenceLink:
                 raise ClaimDayArchiveError("EXPLICIT_EVIDENCE_AUDIENCE_REQUIRED")
             if any(party not in claim_party_ids for party in self.audience_party_ids):
                 raise ClaimDayArchiveError("EVIDENCE_AUDIENCE_NOT_A_CLAIM_PARTY")
+        if self.supersedes_evidence_link_id is not None:
+            _require_text(self.supersedes_evidence_link_id, "supersedes_evidence_link_id")
+            _require_text(self.correction_reason, "correction_reason")
+        elif self.correction_reason is not None:
+            raise ClaimDayArchiveError("CORRECTION_REASON_REQUIRES_SUPERSEDED_EVIDENCE")
         for values in (self.activity_refs, self.wbs_refs, self.delay_event_refs, self.chain_of_custody_refs):
             if not isinstance(values, tuple) or any(not isinstance(item, str) or not item.strip() for item in values):
                 raise ClaimDayArchiveError("INVALID_EVIDENCE_REFERENCES")
@@ -166,6 +173,8 @@ class ClaimDayEvidenceLink:
             "wbs_refs": sorted(self.wbs_refs),
             "delay_event_refs": sorted(self.delay_event_refs),
             "chain_of_custody_refs": sorted(self.chain_of_custody_refs),
+            "supersedes_evidence_link_id": self.supersedes_evidence_link_id,
+            "correction_reason": self.correction_reason,
         }
 
 
@@ -179,6 +188,9 @@ class ClaimDayArchive:
     reporting_date: date
     timezone: str
     claim_party_ids: tuple[str, ...]
+    revision_actor_id: str
+    revision_occurred_at: str
+    revision_reason: str
     revision: int = 1
     delay_event_ids: tuple[str, ...] = ()
     evidence_links: tuple[ClaimDayEvidenceLink, ...] = ()
@@ -197,6 +209,9 @@ class ClaimDayArchive:
             raise ClaimDayArchiveError("INVALID_REPORTING_TIMEZONE") from exc
         if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
             raise ClaimDayArchiveError("INVALID_CLAIM_DAY_REVISION")
+        _require_text(self.revision_actor_id, "revision_actor_id")
+        _aware_datetime(self.revision_occurred_at, "revision_occurred_at")
+        _require_text(self.revision_reason, "revision_reason")
         if (
             not isinstance(self.claim_party_ids, tuple)
             or not self.claim_party_ids
@@ -207,12 +222,22 @@ class ClaimDayArchive:
             _require_text(party_id, "claim_party_id")
         for event_id in self.delay_event_ids:
             _require_text(event_id, "delay_event_id")
-        ids: set[str] = set()
+        ids: dict[str, ClaimDayEvidenceLink] = {}
         for link in self.evidence_links:
             link.validate(claim_party_ids=self.claim_party_ids)
             if link.evidence_link_id in ids:
                 raise ClaimDayArchiveError("DUPLICATE_EVIDENCE_LINK_ID")
-            ids.add(link.evidence_link_id)
+            if link.supersedes_evidence_link_id is not None:
+                previous = ids.get(link.supersedes_evidence_link_id)
+                if previous is None:
+                    raise ClaimDayArchiveError("SUPERSEDED_EVIDENCE_NOT_FOUND")
+                if (
+                    (previous.source_system, previous.source_type, previous.source_id)
+                    != (link.source_system, link.source_type, link.source_id)
+                    or link.source_revision <= previous.source_revision
+                ):
+                    raise ClaimDayArchiveError("INVALID_EVIDENCE_CORRECTION_CHAIN")
+            ids[link.evidence_link_id] = link
 
     @property
     def day_start(self) -> datetime:
@@ -238,7 +263,18 @@ class ClaimDayArchive:
         link.validate(claim_party_ids=self.claim_party_ids)
         if any(item.evidence_link_id == link.evidence_link_id for item in self.evidence_links):
             raise ClaimDayArchiveError("DUPLICATE_EVIDENCE_LINK_ID")
-        updated = replace(self, revision=self.revision + 1, evidence_links=(*self.evidence_links, link))
+        updated = replace(
+            self,
+            revision=self.revision + 1,
+            revision_actor_id=link.actor_id,
+            revision_occurred_at=link.server_received_at or link.captured_at or link.effective_at,
+            revision_reason=(
+                f"Evidence correction: {link.correction_reason}"
+                if link.supersedes_evidence_link_id is not None
+                else f"Evidence linked: {link.evidence_link_id}"
+            ),
+            evidence_links=(*self.evidence_links, link),
+        )
         updated.validate()
         return updated
 
@@ -261,6 +297,9 @@ class ClaimDayArchive:
             "day_start_utc": self.day_start_utc,
             "day_end_utc": self.day_end_utc,
             "claim_party_ids": list(self.claim_party_ids),
+            "revision_actor_id": self.revision_actor_id,
+            "revision_occurred_at": self.revision_occurred_at,
+            "revision_reason": self.revision_reason,
             "revision": self.revision,
             "delay_event_ids": list(self.delay_event_ids),
             "evidence_links": [item.manifest_entry() for item in self.evidence_links],
@@ -333,6 +372,9 @@ class ClaimSubmission:
                         "reporting_date": item.reporting_date.isoformat(),
                         "timezone": item.timezone,
                         "revision": item.revision,
+                        "revision_actor_id": item.revision_actor_id,
+                        "revision_occurred_at": item.revision_occurred_at,
+                        "revision_reason": item.revision_reason,
                         "day_start_utc": item.day_start_utc,
                         "day_end_utc": item.day_end_utc,
                         "delay_event_ids": sorted(item.delay_event_ids),
@@ -625,6 +667,8 @@ def _day_from_json(payload: str) -> ClaimDayArchive:
             wbs_refs=tuple(item.get("wbs_refs", ())),
             delay_event_refs=tuple(item.get("delay_event_refs", ())),
             chain_of_custody_refs=tuple(item.get("chain_of_custody_refs", ())),
+            supersedes_evidence_link_id=item.get("supersedes_evidence_link_id"),
+            correction_reason=item.get("correction_reason"),
         )
         for item in data["evidence_links"]
     )
@@ -637,6 +681,9 @@ def _day_from_json(payload: str) -> ClaimDayArchive:
         reporting_date=date.fromisoformat(data["reporting_date"]),
         timezone=data["timezone"],
         claim_party_ids=tuple(data["claim_party_ids"]),
+        revision_actor_id=data["revision_actor_id"],
+        revision_occurred_at=data["revision_occurred_at"],
+        revision_reason=data["revision_reason"],
         revision=int(data["revision"]),
         delay_event_ids=tuple(data.get("delay_event_ids", ())),
         evidence_links=links,
