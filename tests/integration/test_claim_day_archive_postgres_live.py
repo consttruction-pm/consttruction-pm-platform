@@ -74,6 +74,26 @@ def test_claim_day_archive_postgres_round_trip_replay_and_submission_freeze():
         )
         assert updated.revision == 2
         assert repository.get_day(tenant_id, project_id, day_id) == updated
+        assert repository.get_day_revision(tenant_id, project_id, day_id, 1) == created
+        assert repository.get_day_revision(tenant_id, project_id, day_id, 2) == updated
+
+        # Revision snapshots are protected at the database boundary, not only
+        # by repository methods.
+        with pytest.raises(psycopg.errors.RaiseException):
+            with connection.transaction():
+                connection.execute(
+                    "UPDATE claim_day_archive_revisions SET day_json=%s "
+                    "WHERE tenant_id=%s AND project_id=%s AND claim_day_id=%s AND revision=1",
+                    ("{}", tenant_id, project_id, day_id),
+                )
+        with pytest.raises(psycopg.errors.RaiseException):
+            with connection.transaction():
+                connection.execute(
+                    "DELETE FROM claim_day_archive_revisions "
+                    "WHERE tenant_id=%s AND project_id=%s AND claim_day_id=%s AND revision=1",
+                    (tenant_id, project_id, day_id),
+                )
+
 
         replay = repository.put_day(
             updated, expected_revision=1, idempotency_key=f"evidence-{suffix}"
