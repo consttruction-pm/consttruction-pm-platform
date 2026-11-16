@@ -81,3 +81,16 @@ Enterprise generic Task and ENG-10 Field Work Plan commitments remain separate. 
 Exact Team Member V26 topics were checked for Updating Activities, Updating Progress on Steps, Working with Timesheets, Opening, Submitting and Withdrawing Timesheets. TOC child pages that could not be retrieved remain explicitly MISSING / VERIFY; they are a pre-code source gate.
 
 No implementation is authorized yet: PR #1974 owns current actuals API/persistence, schema, production composition, identity and main.ts paths; #1929 owns Enterprise Task contracts; #1711/#1971/#1983 overlap activity, workspace, authorization and production paths. Refresh exact path lists and obtain handoff before any write. Qoder token availability remains unverified/unavailable at last check.
+
+
+## 13. Separate Qoder implementation packets registered (2026-11-16)
+
+The source/contract stage now has three independent implementation packets. They are intentionally **BLOCKED**, not marked ready-to-run, because exact path handoff and Qoder availability are not verified.
+
+- ENG-10 Field Work Plan / Last Planner: [#2012](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2012). Contract: `docs/engineering/ENG10_FIELD_WORK_PLAN_LAST_PLANNER_SOURCE_CROSSWALK_AND_CONTRACT_V1.md`. Core FieldTask/TaskPlan/hand-off/constraint/commitment/completion only; Daily Huddle, PPC and Production & Productivity remain separately gated sub-slices.
+- ENG-11 Team Member Activity Status Update: [#2013](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2013). Contract: `docs/engineering/ENG11_ENG12_TEAM_MEMBER_CONTRACT_AND_HELP_CROSSWALK_V1.md`. Assignment-scoped activity/step progress only.
+- ENG-12 designated-user Timesheets: [#2014](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2014). Same contract packet, but separate aggregate, approval lifecycle and implementation PR.
+
+All three packets use the refreshed main base SHA `0fc0d80ece1d3f495564fa20e32d6f2f21f10a1b` as the coordination snapshot, require a fresh SHA/PR-path refresh before execution, and explicitly state **allowed write paths = NONE until named owner handoff**. The PR collision audit refreshed open PRs #1974, #1983, #1980, #1711, #1971, #1929, #2001, #2006 and #2008. Shared protected paths remain unavailable without explicit handoff.
+
+No Qoder connector/tool is exposed in the current ChatGPT tool session. Token availability and task acceptance are unverified. Do not claim Qoder has started. If Qoder becomes available, start only after the named owner grants the exact path set and repository instructions/state ledger are read.
