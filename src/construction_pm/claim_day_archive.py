@@ -758,6 +758,22 @@ class PostgresClaimDayArchiveRepository:
                 UNIQUE (tenant_id, project_id, contract_id, claim_id, submitting_party_id, submission_number)
             )"""
         )
+        self.connection.execute(
+            """CREATE OR REPLACE FUNCTION claim_submission_immutable()
+               RETURNS trigger
+               LANGUAGE plpgsql
+               AS 'BEGIN
+                   RAISE EXCEPTION ''CLAIM_SUBMISSION_IMMUTABLE'';
+               END;'"""
+        )
+        self.connection.execute(
+            "DROP TRIGGER IF EXISTS claim_submission_no_mutation ON claim_submissions"
+        )
+        self.connection.execute(
+            """CREATE TRIGGER claim_submission_no_mutation
+               BEFORE UPDATE OR DELETE ON claim_submissions
+               FOR EACH ROW EXECUTE FUNCTION claim_submission_immutable()"""
+        )
 
     def get_day_revision(
         self, tenant_id: str, project_id: str, claim_day_id: str, revision: int
