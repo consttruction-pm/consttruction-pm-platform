@@ -133,8 +133,10 @@ class ClaimDayEvidenceLink:
                 raise ClaimDayArchiveError("INVALID_EVIDENCE_REFERENCES")
 
     def visible_to(self, party_id: str) -> bool:
-        if party_id == self.owner_party_id:
-            return True
+        # Explicit disclosure is an exact allow-list: the owner retains access
+        # only when included in the disclosed audience. PRIVATE remains owner-only.
+        if self.party_visibility is ClaimDayVisibility.PRIVATE:
+            return party_id == self.owner_party_id
         if self.party_visibility is ClaimDayVisibility.CLAIM_PARTIES:
             return True
         if self.party_visibility is ClaimDayVisibility.EXPLICIT_PARTIES:
