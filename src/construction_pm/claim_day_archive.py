@@ -113,7 +113,7 @@ class ClaimDayEvidenceLink:
                 ZoneInfo(self.captured_timezone)
             except ZoneInfoNotFoundError as exc:
                 raise ClaimDayArchiveError("INVALID_CAPTURE_TIMEZONE") from exc
-        if self.content_sha256 is not None and not _SHA256_RE.fullmatch(self.content_sha256):
+        if not isinstance(self.content_sha256, str) or not _SHA256_RE.fullmatch(self.content_sha256):
             raise ClaimDayArchiveError("INVALID_EVIDENCE_SHA256")
         if self.owner_party_id not in claim_party_ids:
             raise ClaimDayArchiveError("EVIDENCE_OWNER_NOT_A_CLAIM_PARTY")
