@@ -124,3 +124,34 @@ Each Qoder handoff must name: issue, branch, base SHA, exact allowed paths, forb
 - Keep #1992 as the historical canonical performance optimization tracker; this continuation does not reopen that completed discussion.
 - Update #1989 to point to the exact menu/access contract and require a fresh path matrix before implementation.
 - #2007/#1990 remain the source-traceability, consolidation and overall capability program records.
+
+
+## 8. Exact current-main navigation and implementation audit
+
+This is a code-level snapshot check, separate from the target placement matrix above. The menu placements in §2 are **approved target insertion points**, not a claim that every tab/route is already mounted.
+
+At inspected main SHA `0fc0d80ece1d3f495564fa20e32d6f2f21f10a1b`:
+
+- `apps/web/src/workspace-model.ts` defines `WorkspaceMenuKey` entries for Project, WBS, Schedule, Progress, Resources, Assignments, Roles, Calendars, Cost, Expenses, Documents, Reports, Tracking, Issues, Risks, Thresholds, Control, Settings, Administration, Exchange and Backup. It does **not** define first-class menu keys for Scenario Lab, Field Operations, Timesheets, Team Update, Monte Carlo, Daily Huddle, PPC, Production Intelligence, Decisions or Standards & Methods.
+- `apps/web/src/workspace-engineering-shells.ts` contains visual definitions such as `scenario-lab`, `optimization-studio`, `project-quality`, `construction-productivity` and `data-reconciliation`. Its renderer explicitly marks these as “Planned · shell only”; Add/Edit/Delete/Run/Export controls are disabled; no live records or data contracts are connected. These definitions are not operational capabilities and must not be presented as such.
+- `apps/web/src/workspace-resources.ts` is a real project Resources client with versioned resource/capacity/rate API contracts and time-phased usage helpers. This is a wired foundation, not proof that every proposed histogram/leveling view and P6 option is complete.
+- `apps/web/src/workspace-risks.ts` is a real project Risk Register client using `p6-risk-api.v1`, with risk lifecycle fields and a deterministic probability × impact exposure. This is not Monte Carlo and does not prove full Risk Help parity.
+- The existing Schedule surface is the host for future Scenarios/Compare/Health. PR #1711 currently overlaps quality audit, shell and main workspace paths; do not add the Health UI until its exact head and owner disposition are refreshed.
+
+### Status disposition from this audit
+
+| Capability | Main-snapshot disposition | What is still missing before “implemented” |
+|---|---|---|
+| Schedule Scenarios / Scenario Lab | `SHELL_ONLY`; #1989 remains draft/in review | Scenario persistence/API, immutable fork/run lifecycle, comparison, conflict-safe promotion, real project-scoped UI and tests |
+| Optimization Studio | `SHELL_ONLY` | Approved owner and scope split: project optimization in Engineering; portfolio optimization in Enterprise; typed solver contracts and evidence |
+| Schedule & Project Quality visual shell | `SHELL_ONLY` for the generic shell; separate quality-audit code/PR evidence exists | Reconcile PR #1711 exact head, source rule catalog, Schedule → Health placement and full browser/evidence matrix |
+| Construction Productivity | `SHELL_ONLY` | Canonical child capability ID, production quantity/rate records, calculation ownership, persistence/API and Field Operations placement |
+| Data Reconciliation | `SHELL_ONLY` | Shared matching/lineage contract, Engineering-owned rule packs, permission-filtered review and source-domain mutation |
+| Project Resources | `WIRED` foundation | Prove each usage/assignment/spread/role/leveling control and exact source semantics; do not infer complete parity |
+| Project Risk Register | `WIRED` foundation | Finish lifecycle, history/response permissions and UI/source audit; deterministic exposure is not Monte Carlo |
+| Monte Carlo / Quantitative Risk | `MISSING / VERIFY` as an operational simulation capability | Independent model/run/result contracts, async execution, reproducibility and analysis UI |
+| Field Work Plan / Last Planner / Huddle / PPC | `MISSING / VERIFY` as an operational connected workflow; shell/roadmap labels are not evidence | Typed field commitments/constraints/huddles, activity links, workflow/API and acceptance evidence |
+| Team Update / Timesheets | `MISSING / VERIFY` for full Team Member behavior | Normative Team Member Help crosswalk, assignment-scoped writes, submit/withdraw/review/approval and actual posting |
+| Decision Register / Standards & Methods / Scope & Work Packages | `MISSING / VERIFY` as complete Engineering capabilities | Owner-approved child register rows, domain contracts, UI and source traceability |
+
+The generic visual-shell renderer is intentionally honest about being unconnected. Preserve that honesty; do not enable its controls or route users to it as if the feature were live before the required backend, permission, data and test contracts exist.
