@@ -16,6 +16,25 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 # Project Stage Status
 
+# P0 — Shared Scheduling Core Performance & Adaptive Execution
+
+**Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
+
+Status: **Feasibility assessed and registered — implementation not yet started.** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+
+Mandatory order:
+1. Establish reproducible large-schedule and concurrency baselines against the current authoritative engine.
+2. Optimize data structures and algorithmic hot spots only with exact differential-result proof.
+3. Add durable process-based workers for independent immutable schedule jobs, then safe single-flight and adaptive CPU/RAM-aware execution.
+4. Evaluate intra-project CPM parallelism and Resource Leveling concurrency as separate high-risk gates.
+5. Prove the same authoritative Engine runtime for Cloud, Local Server, Desktop and approved offline Mobile workflows.
+
+**Non-subtractive rule:** No Scheduling/P6 Version 26 capability, option, calculation, validation, calendar behavior, relationship, Float/critical-path behavior, Resource Leveling rule or cost result may be removed, simplified or weakened for performance. P6 Professional Version 26 HTML Help is the normative parity reference. A performance claim requires measured evidence on the exact tested commit; no unmeasured timing or user-capacity estimate is accepted.
+
+This registration does not mark implementation complete and does not authorize semantic changes before baseline characterization and review.
+
+
+
 ### CMP-01 — Project Comparison and Variance Analysis
 Status: **Registered / Not implemented — mandatory V1 capability; tracked by [Issue #1669](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1669)**.
 
