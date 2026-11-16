@@ -218,3 +218,27 @@ However, the V26 [Configuring Application Settings](https://docs.oracle.com/cd/G
 | EPPM V26 approval manager/delegate and one/two-level approval | VERIFIED at topic/search-result level |
 | EPPM V26 exact application settings and project-level review combinations | PARTIALLY VERIFIED; re-open detailed source procedures before implementation |
 | CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED |
+
+
+## 13. Additional Help inventory check — version boundary preserved (2026-11-16)
+
+A further source-discovery pass confirmed two important version/product distinctions:
+
+- The current V26 Team Member TOC remains the normative source for ENG-11/ENG-12: `https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm`. The listed child procedures for resubmitting status updates, adding/removing activities, recording actual work time, reporting completed assignments, editing another resource's timesheet and timesheet notes remain direct-retrieval gaps in this pass. Their titles are not sufficient evidence to invent behavior.
+- The V25 Team Member TOC at `https://docs.oracle.com/cd/G18294_01/team_member/web/help/en/toc.htm` independently confirms the existence and naming of these workflows, including Resubmitting Status Updates, Recording Actual Work Time on a Timesheet, Updating Activity Level Dates, Reporting a Completed Assignment, Editing Other Resource's Timesheets, Notes, Saving/Printing, Submitting and Withdrawing. This is **comparative discovery evidence only**. It does not close the V26 page-level source gate or authorize importing V25 semantics into a V26 contract.
+- The current Primavera Cloud Help TOC also contains a separate Cloud Timesheets app with user, supervisor and approver procedures (period settings, hour types, add/delete projects and activities, supervisor/approver actions). These are Cloud product behaviors, not P6 EPPM Team Member V26 behavior. They must remain additive/comparative only and must not be used to fill V26 cache-miss gaps.
+
+### Source closure decision
+
+Do not block all contract work on unavailable Oracle child pages, but keep each unavailable procedure explicitly **MISSING / VERIFY**. Implementation of the affected command must remain blocked until its V26 semantics, permission checks, field availability and audit behavior are evidenced from the normative source. Where source retrieval remains unavailable, record the gap and defer that command rather than silently substituting V25 or Cloud behavior.
+
+## 14. Updated source status
+
+| Source area | Status after this pass |
+|---|---|
+| Team Member V26 core activity, steps, settings, open/submit/withdraw | VERIFIED / PARTIALLY VERIFIED as documented above |
+| Team Member V26 resubmit, add/remove activity, record actual time, completed assignment, other-resource edit, notes | MISSING / VERIFY (direct page retrieval still unavailable) |
+| Team Member V25 TOC | COMPARATIVE DISCOVERY ONLY; does not close V26 gates |
+| Primavera Cloud Timesheets TOC and procedures | SEPARATE PRODUCT / COMPARATIVE ONLY; not a substitute for P6 EPPM/Team Member |
+| EPPM V26 status review and approval settings | PARTIALLY VERIFIED; re-open exact page-level option semantics before implementation |
+| CUBI ENG-11/ENG-12 implementation | NOT IMPLEMENTED / NOT VERIFIED |
