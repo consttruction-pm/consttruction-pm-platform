@@ -5,6 +5,8 @@ import pytest
 from construction_pm.p6_project_privileges import (
     PRIVILEGE_BY_KEY,
     PROJECT_PRIVILEGES,
+    ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS,
+    oracle_v26_project_privileges,
     ProjectPrivilegeGroup,
     expand_project_privileges,
     privilege_keys_for_group,
@@ -156,3 +158,16 @@ def test_v26_tool_and_resource_period_dependencies_are_inherited_exactly():
 
     stored = expand_project_privileges({"period_performance.store"})
     assert "activity.add_edit_except_relationships" in stored
+
+
+def test_oracle_v26_checkbox_catalogue_is_separate_from_internal_authorization_keys():
+    selectable = oracle_v26_project_privileges()
+    assert tuple(item.key for item in selectable) == ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS
+    assert len(selectable) == len(ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS)
+    assert len(selectable) == 58
+    assert {item.group for item in selectable} == set(ProjectPrivilegeGroup)
+    assert "activity.view" not in {item.key for item in selectable}
+    assert "project.create" not in {item.key for item in selectable}
+    assert "activity.id.edit" in {item.key for item in selectable}
+    assert "discussion_comment.delete" in {item.key for item in selectable}
+    assert "eps_activity_code.delete" in {item.key for item in selectable}
