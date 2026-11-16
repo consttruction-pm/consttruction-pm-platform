@@ -66,6 +66,16 @@ Additional normative V26 topics reviewed:
 - [WBS General Detail Window of the Activities Page](https://docs.oracle.com/cd/G48897_01/p6help/en/92498.htm)
 - [Assigning Global Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/8117.htm)
 
+## Oracle V26 privilege-source traceability (2026-11-16)
+
+Every selectable privilege returned by `GET /api/enterprise/project-security-privileges` now carries two navigable source references:
+- The V26 **Privileges Detail Window** HTML Help topic: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html
+- The V26 **Project Privilege Definitions** web-services reference: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/projectprivilegedefinitions-47746a.html
+
+The API exposes these as `help_url` and `definitions_help_url` on each privilege definition. This makes the source visible to administration clients and creates a stable audit trail back to the official HTML documentation. The catalogue labels/descriptions remain CUBI-normalized; the source links are authoritative for interpreting Oracle checkbox semantics.
+
+Oracle V26 explicitly documents category-level and detail-window select/clear controls, including the requirement that Assign Project Baselines also requires Edit Project Details Except Costs/Financials. CUBI's normalized privilege inheritance is separately encoded and tested; the source links do not imply that every Oracle UI action, global privilege, module privilege, or resource restriction is already implemented.
+
 ## Verification
 
 - Unit: pytest -q tests/test_enterprise_project_access.py
