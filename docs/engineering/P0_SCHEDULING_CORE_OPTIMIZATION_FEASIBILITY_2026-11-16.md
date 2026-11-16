@@ -835,3 +835,83 @@ Evidence: `docs/workspace/evidence/p0h-intra-project-floats-2026-11-16/`.
 P0-I: offline runtime boundary. The remote engine, calendar and snapshot
 dependencies of the offline runtime need an explicit boundary with no network
 calls, and the offline result must remain the same canonical output.
+
+## 15. P0-I execution record (2026-11-16)
+
+Reference main `a7735bb7`. No second calculation engine exists: the offline
+runtime calls `evaluate_schedule_snapshot`, the same boundary used online.
+
+### 15.1 Boundary definition
+
+| Requirement | Implementation |
+|---|---|
+| Self-contained artifact | `OfflineScheduleBundle` (`construction-pm/offline-schedule-bundle/v1`): canonical snapshot payload + SHA-256, calculation context, snapshot creation metadata, and the version-pinned calendar definitions |
+| Calendar dependency | Calendar definitions are exported from `CalendarResolverRegistry.entries()` including exception layers and base references; the bundle carries only the closure of calendars the snapshot resolves |
+| Snapshot dependency | The runtime rebuilds `ScheduleInputSnapshot` from the payload and re-validates its hash; a tampered payload fails with `OFFLINE_SNAPSHOT_HASH_MISMATCH` |
+| Engine dependency | No repository, transport, URL, credential or engine discovery is accepted. The runtime evaluates in the same process with the same engine code |
+| No network | `deny_network_access()` replaces `socket.connect`, `connect_ex`, `create_connection` and `getaddrinfo` with raising stubs for the duration of `execute()` |
+| Fail closed | Missing calendars, missing base calendars, hash mismatches, identity mismatches and unsupported bundle schemas raise stable `OFFLINE_*` codes; nothing is coerced |
+| Preserved semantics | The offline path runs date-based or time-aware CPM through the existing evaluator, including final CPM validation. Resource leveling and resource-dependent placement need application-bound capacity inputs that a bundle does not carry yet and are rejected with `OFFLINE_LEVELING_INPUT_REQUIRED` instead of being simplified |
+
+### 15.2 Measured parity
+
+`scripts/scheduling_offline_parity.py` evaluates the snapshot online, binds the
+bundle, then executes the bundle in a fresh subprocess whose socket layer is
+disabled *before* any `construction_pm` import. 3 runs per size, 4 logical CPUs:
+
+| Activities | Relationships | Online median | Offline median (process + parse + calculate) | Bundle bytes | Canonical run identity |
+|---|---|---|---|---|---|
+| 1,000 | 1,923 | 239.9 ms | 274.5 ms | 853,285 | `0c811c700798…` identical |
+| 5,000 | 9,575 | 1,232.4 ms | 1,339.1 ms | 4,247,877 | `901b101d3500…` identical |
+
+A probe subprocess attempting `socket.create_connection` returned
+`OFFLINE_NETWORK_ACCESS_DENIED:create_connection`, so the guard is active in the
+measured environment rather than merely unused.
+
+### 15.3 Exact resolver hoist exposed by the boundary
+
+Building bundles made an existing hot path visible:
+`resolve_relationship_lag_resolvers` rebuilt the snapshot-wide activity calendar
+map once per relationship, although that map is relationship-independent. It is
+now resolved once and passed into `resolve_relationship_lag_calendar` (new
+optional `calendars` keyword). `registry.resolve` is pure for a pinned
+reference, so the resolver objects are unchanged.
+
+Old implementation re-run against the same snapshots, 3 runs:
+
+| Activities | Old median | New median | Speed-up | Canonical run identity |
+|---|---|---|---|---|
+| 200 | 251.7 ms | 48.5 ms | 5.18x | identical `7ba4b8a7…` |
+| 1,000 | 5,273.9 ms | 240.3 ms | 21.95x | identical `0c811c70…` |
+
+This removes repeated resolution only. No CPM pass, float, constraint,
+calendar rule, validation or leveling decision changed or was reordered.
+
+### 15.4 Verification
+
+- `tests/scheduling/test_offline_schedule_runtime.py` (12 tests): date and
+  time-aware round-trip identity, exception layers and base inheritance,
+  deterministic bundles, missing calendar/base rejection, tampered payload and
+  bundle hashes, unsupported schema, network guard denial and restoration,
+  guard active during `execute`, explicit leveling rejection.
+- `tests/scheduling/test_calendar_resolution.py`: precomputed calendars yield
+  the same resolver object as per-call resolution.
+- Full matrix: Python 3.11 / 3.12 / 3.13, PostgreSQL 14.24 integration.
+
+### 15.5 Not measured
+
+- Windows Desktop installer and runtime supervision; mobile FFI/WASM/embedded
+  runtime packaging. Mobile offline parity is still gated on a proven portable
+  runtime for the same engine and is not claimed here.
+- Time-aware bundles beyond unit parity, multi-project bundles, leveling
+  bundles, and compatibility with older bundle schemas.
+- Peak RSS of the offline process and bundle parse time at very large sizes.
+
+### 15.6 Phase status
+
+P0-A through P0-I are implemented and measured. P0-I closes the scheduled
+sequence: there is no further phase in the canonical P0 plan. Any follow-up
+should be a new, explicitly scoped change (for example leveling inputs in the
+bundle, or a proven mobile runtime) rather than an extension of this record.
+
+Evidence: `docs/workspace/evidence/p0i-offline-runtime-2026-11-16/`.

@@ -288,3 +288,34 @@ including FS/SS/FF/SF lags and Decimal values.
 
 Evidence: `docs/workspace/evidence/p0h-intra-project-floats-2026-11-16/`.
 Continuation point after merge: P0-I offline runtime boundary.
+
+2026-11-16 — P0-I offline runtime boundary
+
+Defined the offline boundary as a self-contained bundle rather than a second
+execution path: the canonical snapshot payload and hash, the deterministic
+calculation context, and the exact version-pinned calendar definitions
+(including exception layers and base references) travel together and are
+rebuilt in a fresh process. No repository, transport, URL or credential is
+accepted, and `OfflineSchedulingRuntime.execute()` installs a fail-closed
+socket guard so an accidental remote call raises instead of connecting. The
+same `evaluate_schedule_snapshot` runs, so the offline result is the online
+result.
+
+`scripts/scheduling_offline_parity.py` proves it: the bundle is executed in a
+subprocess whose socket layer is disabled before any package import, and the
+canonical `calculation_run_identity` equals the online value at 1,000 and 5,000
+activities (bundle 0.85 MB and 4.25 MB; offline medians 274.5 ms and 1,339.1 ms
+against online 239.9 ms and 1,232.4 ms). A probe confirms the guard denies
+`create_connection`.
+
+The measurement also exposed an existing quadratic rebuild of the
+relationship-independent activity calendar map inside
+`resolve_relationship_lag_resolvers`. Hoisting it out of the relationship loop
+changed no output (identical run identities) and cut 200-activity evaluation
+from 251.7 to 48.5 ms and 1,000-activity evaluation from 5,273.9 to 240.3 ms.
+
+Leveling and resource-dependent snapshots are rejected explicitly because
+capacity inputs are not part of a bundle yet; online behavior is untouched.
+
+Evidence: `docs/workspace/evidence/p0i-offline-runtime-2026-11-16/`.
+P0-A through P0-I are now implemented and measured.

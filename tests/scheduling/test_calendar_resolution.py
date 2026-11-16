@@ -19,6 +19,7 @@ from construction_pm.scheduling.calendar_context import (
     RelationshipLagCalendar,
 )
 from construction_pm.scheduling.calendar_resolution import (
+    resolve_authoritative_activity_calendars,
     resolve_relationship_lag_calendar,
     resolve_relationship_lag_resolvers,
 )
@@ -74,6 +75,38 @@ def test_relationship_lag_calendar_selects_each_authoritative_calendar():
             _snapshot(option), registry, "A", "B", option
         )
         assert actual is expected_resolver
+
+
+def test_precomputed_activity_calendars_produce_identical_resolution():
+    snapshot = _snapshot(RelationshipLagCalendar.PREDECESSOR)
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": WorkingTimeResolver(WorkingCalendar()),
+            "pred@1": WorkingTimeResolver(
+                WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+            ),
+            "succ@1": WorkingTimeResolver(
+                WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
+            ),
+        }
+    )
+    calendars = resolve_authoritative_activity_calendars(snapshot, registry)
+
+    without_cache = resolve_relationship_lag_calendar(
+        snapshot, registry, "A", "B", RelationshipLagCalendar.PREDECESSOR
+    )
+    with_cache = resolve_relationship_lag_calendar(
+        snapshot,
+        registry,
+        "A",
+        "B",
+        RelationshipLagCalendar.PREDECESSOR,
+        calendars=calendars,
+    )
+    assert without_cache is with_cache
+    assert with_cache is registry.resolve(
+        CalendarReference("pred", "1")
+    )
 
 
 def test_relationship_lag_calendar_24_hour_returns_continuous_resolver():
