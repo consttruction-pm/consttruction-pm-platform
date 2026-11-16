@@ -176,7 +176,7 @@ class P6WBSMasterAPI:
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_DELETE):
-            raise AuthorizationError("authorization denied for permission=project.write")
+            raise AuthorizationError("authorization denied for permission=wbs.delete")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         self._require_obs_permission(scope, auth_context, Permission.WBS_DELETE.value, wbs_id=wbs_id)
         self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
