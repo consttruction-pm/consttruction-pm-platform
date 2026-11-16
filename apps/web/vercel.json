@@ -34,6 +34,10 @@
       "destination": "/api/shell"
     },
     {
+      "source": "/enterprise/:path*/",
+      "destination": "/api/shell"
+    },
+    {
       "source": "/app.html",
       "destination": "/api/shell"
     },
