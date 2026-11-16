@@ -180,3 +180,41 @@ The following official V26 topics were retrieved and checked after the initial c
 | Cloud Timesheets | COMPARATIVE ONLY | Use only for additive extension behavior |
 
 The packet remains documentation-only. These source findings improve contract readiness; they do not authorize edits to the activity/actuals API, approval runtime, schema, authorization or workspace paths occupied by active PRs.
+
+
+## 11. Directly retrieved Team Member V26 application settings (2026-11-16)
+
+The V26 Team Member Help TOC was reopened. The following detailed child procedures still return Oracle cache misses: Resubmitting Status Updates, Adding Activities, Recording Actual Work Time, Reporting a Completed Assignment, Editing Other Resource Timesheets, and Timesheet Notes. These remain explicitly MISSING / VERIFY rather than inferred from their TOC titles.
+
+However, the V26 [Configuring Application Settings](https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/88584.htm) topic was retrieved directly and confirms important configuration semantics:
+
+### ENG-11 / Activity Status Update
+- Start time when an activity is started after its scheduled start can be Current Time, Start of Day, or Calendar Work Period Start.
+- Calendar Work Period Start uses the activity calendar; if started during a non-work period, the actual start uses the time the user selected Start.
+- Administrators configure which statuses are shown as due/overdue and the field/operator/value rules that determine due/overdue.
+- Completing an activity/assignment that was never started may update actual units in P6 depending on the explicit application setting.
+
+### ENG-12 / Timesheets
+- Supervisors can be allowed to edit subordinate timesheets through a separate setting.
+- Timesheet auditing can record submission, approval, rejection, reviewers and associated dates; the setting can also be managed from P6.
+- Timesheet UI can be Classic or Standard; Standard supports filtering, grouping, sorting, grid column changes and quick search.
+- Hours may be entered Daily (with optional max daily hours across all assigned activities) or By Reporting Period.
+- Entry representation may be decimal hours, hours:minutes, or quarter-hour. Quarter-hour values round to the nearest 00/15/30/45 minute.
+- Decimal precision, future periods and past periods accessible are configurable.
+- Separate privileges govern future timesheets, not-started activities, completed activities/assignments, entries before assignment/activity start, entries after assignment/activity finish, negative entry hours and negative total hours.
+- Negative entry hours can be used to correct previous entries even when the setting preventing a negative activity total is active; total-negative permission is a separate control.
+
+**Contract refinement:** ENG-12 must model time-entry configuration and validation server-side; do not rely on UI formatting alone. Daily vs period totals, quarter-hour rounding, max daily hours, future/past period access, start/finish boundaries and negative correction semantics are acceptance requirements. Supervisor editing is not the same as approval authority. Audit history must be configurable but immutable once recorded.
+
+## 12. Source status after direct settings retrieval
+
+| Area | Status |
+|---|---|
+| Team Member activity updates, steps and core date/progress behavior | VERIFIED at topic level |
+| Team Member application settings for start-time, due/overdue and status updates | VERIFIED |
+| Team Member timesheet hour entry, precision, rounding, limits and edit privileges | VERIFIED |
+| Team Member submit/withdraw/open basics | VERIFIED |
+| Team Member child procedures for resubmit, add/remove activity, record actual time, completed assignment, other-resource editing, notes | MISSING / VERIFY (cache miss) |
+| EPPM V26 approval manager/delegate and one/two-level approval | VERIFIED at topic/search-result level |
+| EPPM V26 exact application settings and project-level review combinations | PARTIALLY VERIFIED; re-open detailed source procedures before implementation |
+| CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED |
