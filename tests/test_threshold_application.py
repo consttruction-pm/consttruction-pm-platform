@@ -325,7 +325,7 @@ def test_threshold_monitor_requires_its_own_tools_privilege(parts):
     )
     assert created.revision == 1
     with pytest.raises(ThresholdAuthorizationError, match="THRESHOLD_PERMISSION_DENIED"):
-        service.monitor_threshold(
+        service.monitor(
             tenant_id="T-1", project_id="P-1", project_revision=7,
             threshold_id="TH-1", context=context("threshold_creator", user="creator"),
             actor_id="creator", occurred_at=NOW,
