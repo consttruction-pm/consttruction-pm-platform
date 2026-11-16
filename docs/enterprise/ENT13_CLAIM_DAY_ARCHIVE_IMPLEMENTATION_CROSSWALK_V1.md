@@ -301,3 +301,37 @@ Methodology-to-product mapping:
 - SCL 2nd edition guides contemporaneous programme/records, EOT process, delay analysis, concurrency/float, mitigation/acceleration, disruption and prolongation-cost assessment. CUBI's Claim Day Archive is the evidence chain that makes these contemporaneous records discoverable and revision-pinned.
 - Neither standard alone decides contractual entitlement or legal responsibility. The applicable contract, amendments, governing law and authorized determination process control those outcomes.
 - AACE RP 29R-03 is copyrighted/licensed; CUBI must not reproduce the full standard or protected text. Store citation/version/selected method metadata and use appropriately licensed copies for expert reference.
+
+
+## 12. Additional exact V26 HTML Help verification and product parity rules
+
+This pass checked the official HTML pages directly (not a PDF mirror or V22/V24 page):
+
+| V26 Help topic | Verified Help behavior | CUBI acceptance requirement |
+|---|---|---|
+| Unifier — Revising Documents: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/revisingdocuments-73757a.html | Revised files are separate versions; the previous file remains untouched; earlier versions are available through Revisions; publication number advances. | A source document revision is immutable. Claim evidence stores exact document ID + content version + SHA-256; later document revisions cannot silently change a claim package. |
+| Unifier — Working with Document Manager: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/workingwithdocumentmanagerincompanyandprojectorshell-10287105a.html | Documents log supports flat/tile/tree views, views/filters, search, upload/download, revise, check-in/out, lock/unlock, permissions, linked records, audit log, recycle bin and unpublished documents. | Reuse CUBI Document Management. Claim archive needs source-link, exact revision, linked-record and permission status, not a second document manager or binary repository. Do not copy features such as recycle-bin disposition into claim UI unless the source policy authorizes them. |
+| Unifier — About Workflows: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/aboutworkflows-73172a.html | Create → review → revision → approval → end; reviewers may return for revision or forward; approver may return, reject or approve; approved/rejected are terminal and cannot be changed (comments/certain edits remain possible). | Claim submissions and determinations require explicit state machine, returned-for-revision path, terminal outcome and append-only correction/new submission. A terminal decision must never be silently rewritten. |
+| Unifier — Business Process Audit Log: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/auditingbusinessprocessesauditlog-73307a.html | Captures workflow steps, To/Cc routing, record creation, comments, linked records, attachment add/remove/open/view/download, ownership transfer, line-item changes, print events and mobile record/line-item changes. The Help also lists events not captured, including some creation-step actions, accept/undo-accept and adding assignees/copy users between steps. | CUBI audit must be at least as complete for claim security: capture create/edit/link/unlink, private draft access where policy requires, all workflow actions and recipients, assignment/copy changes, view/download/export, disclosure/revocation, submission, response, correction, determination, settlement, hold and print/export. Do not inherit documented audit blind spots. |
+| Unifier — View and print BP audit log: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/viewandprintthebusinessprocessauditlog-73308a.html | Audit event timestamps are presented in the user's current preference timezone; details can be inspected and the audit log printed to PDF. | CUBI stores canonical UTC instants plus IANA timezone and renders in user preference timezone; export/print includes canonical time, display timezone, actor, action and correlation/reference IDs. |
+| P6 EPPM V26 — Documents Detail Window of Activities: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/91777.html | Relates/removes documents to activities; view/open; add menu supports upload or link/path depending on repository configuration; visibility depends on application privileges and document security. | Engineering activity/document relationship remains source-owned. Enterprise references activity/WBS and source document revision; authorization is the intersection of project/activity and document permissions plus claim-party disclosure. |
+| P6 EPPM V26 — Security Help: https://docs.oracle.com/cd/G48897_01/p6help/en/9001.htm | Application/module access, security profiles and OBS access are distinct security controls. | CUBI must not collapse project membership, module access and claim-party disclosure into one broad role check. All three scopes are evaluated server-side. |
+
+### 12.1 Important distinction: document revision vs formal claim submission
+
+The V26 Document Manager retains separate document versions, but a Claim Submission is a separate business transaction. CUBI must freeze:
+- the exact Claim Day Archive revision(s) used in that submission;
+- exact evidence source versions/hashes and their claim-day association;
+- party disclosure state at submission time;
+- exact Form Builder template ID/version and canonical form snapshot;
+- exact Engineering schedule/baseline snapshot IDs;
+- submitter, party, submission number, timestamp, workflow recipients and manifest digest.
+
+A later document revision, disclosure change, correction, or new schedule snapshot must not mutate a previously submitted claim package. A corrected package is a new submission revision that explicitly supersedes the prior package and records the reason.
+
+### 12.2 P6 vs Unifier vs Cloud scope boundaries
+
+- P6 EPPM V26 Help is normative for schedule/activity/document/issue/security semantics that it documents. It is not the product authority for a full commercial claims and dispute workflow.
+- Unifier V26 Help is the product-workflow reference for BP forms, review/approval, record permissions, document revisions and audit patterns. CUBI must preserve party-level confidentiality beyond ordinary project record permissions.
+- Primavera Cloud Help is additive for cloud/field/mobile/file workflows. It must not displace EPPM V26 behavior or create a competing Engineering schedule owner.
+- AACE/SCL guide forensic method and evidence quality; neither is a software UI specification or a substitute for the contract/governing law.
