@@ -147,8 +147,8 @@ At inspected main SHA `0fc0d80ece1d3f495564fa20e32d6f2f21f10a1b`:
 | Schedule & Project Quality visual shell | `SHELL_ONLY` for the generic shell; separate quality-audit code/PR evidence exists | Reconcile PR #1711 exact head, source rule catalog, Schedule → Health placement and full browser/evidence matrix |
 | Construction Productivity | `SHELL_ONLY` | Canonical child capability ID, production quantity/rate records, calculation ownership, persistence/API and Field Operations placement |
 | Data Reconciliation | `SHELL_ONLY` | Shared matching/lineage contract, Engineering-owned rule packs, permission-filtered review and source-domain mutation |
-| Project Resources | `WIRED` foundation | Prove each usage/assignment/spread/role/leveling control and exact source semantics; do not infer complete parity |
-| Project Risk Register | `WIRED` foundation | Finish lifecycle, history/response permissions and UI/source audit; deterministic exposure is not Monte Carlo |
+| Project Resources | `WIRED_READ` / `WIRED_WRITE` foundation (operation-specific) | Prove each usage/assignment/spread/role/leveling control and exact source semantics; do not infer complete parity |
+| Project Risk Register | `WIRED_READ` / `WIRED_WRITE` foundation (operation-specific) | Finish lifecycle, history/response permissions and UI/source audit; deterministic exposure is not Monte Carlo |
 | Monte Carlo / Quantitative Risk | `MISSING / VERIFY` as an operational simulation capability | Independent model/run/result contracts, async execution, reproducibility and analysis UI |
 | Field Work Plan / Last Planner / Huddle / PPC | `MISSING / VERIFY` as an operational connected workflow; shell/roadmap labels are not evidence | Typed field commitments/constraints/huddles, activity links, workflow/API and acceptance evidence |
 | Team Update / Timesheets | `MISSING / VERIFY` for full Team Member behavior | Normative Team Member Help crosswalk, assignment-scoped writes, submit/withdraw/review/approval and actual posting |
