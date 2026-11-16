@@ -291,6 +291,34 @@ def test_cancel_leased_job_is_cooperative_and_never_publishes_a_result():
         )
 
 
+def test_renewal_is_a_cancellation_observation_point():
+    service, _repository, _clock = _service()
+    job = service.submit(_request()).job
+    leased = service.claim(
+        tenant_id=TENANT, project_id=PROJECT, job_id=job.job_id, owner="worker-a"
+    )
+    service.cancel(
+        tenant_id=TENANT, project_id=PROJECT, job_id=job.job_id, user_id="alice"
+    )
+
+    with pytest.raises(SchedulingJobCancelled):
+        service.renew(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            job_id=job.job_id,
+            token=leased.lease_token,
+        )
+    final = service.get(
+        tenant_id=TENANT, project_id=PROJECT, job_id=job.job_id, user_id="alice"
+    )
+    assert final.state is SchedulingJobState.CANCELLED
+    assert final.lease_token is None
+    with pytest.raises(SchedulingJobResultError):
+        service.get_result(
+            tenant_id=TENANT, project_id=PROJECT, job_id=job.job_id, user_id="alice"
+        )
+
+
 def test_expired_lease_is_recovered_and_reclaimable():
     service, _repository, clock = _service(lease_ttl=timedelta(seconds=30))
     job = service.submit(_request()).job

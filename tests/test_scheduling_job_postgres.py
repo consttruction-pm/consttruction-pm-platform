@@ -283,3 +283,47 @@ def test_postgres_concurrent_submissions_create_one_active_job():
     finally:
         with _connection() as connection:
             connection.execute("DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,))
+
+
+def test_postgres_executor_drains_a_real_queue():
+    from construction_pm.scheduling_execution_budget import GlobalExecutionBudget
+    from construction_pm.scheduling_job_executor import SchedulingJobExecutor
+
+    tenant = f"p0g-{uuid.uuid4()}"
+    with _connection() as connection:
+        repository = PostgresSchedulingJobRepository(connection)
+        repository.initialize()
+        service = SchedulingJobService(repository, lease_ttl=timedelta(seconds=60))
+        job_ids = [
+            service.submit(
+                _request(tenant, request_fingerprint=f"executor-{index}")
+            ).job.job_id
+            for index in range(3)
+        ]
+        try:
+            executor = SchedulingJobExecutor(
+                service,
+                calculate=lambda job: _result(job),
+                owner="pg-worker",
+                budget=GlobalExecutionBudget(2),
+                poll_interval=0.01,
+            )
+            summary = executor.run_until_idle(timeout=60)
+
+            assert summary.succeeded == 3
+            assert repository.count_pending(tenant_id=tenant) == 0
+            for job_id in job_ids:
+                stored = service.get_result(
+                    tenant_id=tenant,
+                    project_id="project-pg",
+                    job_id=job_id,
+                    user_id="alice",
+                )
+                assert stored.output_hash == "c" * 64
+        finally:
+            connection.execute(
+                "DELETE FROM scheduling_job_results WHERE tenant_id=%s", (tenant,)
+            )
+            connection.execute(
+                "DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,)
+            )

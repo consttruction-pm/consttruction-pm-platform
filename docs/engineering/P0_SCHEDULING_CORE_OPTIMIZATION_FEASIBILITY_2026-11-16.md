@@ -687,3 +687,72 @@ Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
 P0-G: adaptive resource management — one global worker budget derived from
 effective CPU affinity and cgroup quota, memory headroom and real queue
 pressure, with the same engine and version identity on every execution surface.
+
+## 13. P0-G execution record (2026-11-16)
+
+Status: implemented and verified. Tested commit `d2fc916e`, based on `3b56a4c2`
+(P0-F merge).
+
+### 13.1 What was built
+
+One derived worker budget and one execution loop; neither contains calculation
+logic, and neither has a Cloud/Desktop/Mobile/Worker variant.
+
+| Requirement | Implementation |
+|---|---|
+| Effective CPU capacity | CPU affinity plus cgroup v2 `cpu.max` or cgroup v1 `cpu.cfs_quota_us`, whichever is smaller |
+| Memory capacity | `MemAvailable` from `/proc/meminfo` capped by the cgroup memory limit |
+| One global budget | A process-wide `BoundedSemaphore` permit set; every calculation holds one permit for its whole duration, so all executors in a process share the same ceiling |
+| Adaptive processing | `AdaptiveWorkerController` raises the dispatch target by one per observation while a backlog exists and lowers it after consecutive empty observations; it is clamped to the hard budget |
+| Same engine identity | The executor optionally pins `(engine_version, calculation_identity)` and fails the job before calculating when the record differs; every surface calls the same engine and the same lifecycle |
+| Durable execution | P0-F leases are renewed by a heartbeat while the calculation runs; completion persists the engine's canonical hash; retryable failures requeue, terminal failures are recorded, cancellation never publishes a result |
+
+A worker is one OS process with one permit, because the authoritative
+calculation is CPU-bound Python and holds the GIL. The adaptive controller
+therefore changes how many processes are kept busy, not how many threads run
+Python bytecode at once. This is a deployment property, not a calculation rule.
+
+### 13.2 Measured result on this host
+
+Host: 4 logical CPUs, no cgroup quota, 5.93 GiB available memory. Derived
+budget: 4 workers, CPU-limited.
+
+32 jobs on one immutable 200-activity fixture, real worker processes over
+PostgreSQL 14.24:
+
+| Workers | Wall (ms) | Throughput (jobs/s) | Speed-up | CPU cores | p50 latency (ms) | p95 | p99 |
+|---|---|---|---|---|---|---|---|
+| 1 | 1,090.1 | 29.36 | 1.00x | 0.94 | 601.0 | 1,031.6 | 1,097.7 |
+| 2 | 557.4 | 57.41 | 1.96x | 1.85 | 316.4 | 518.7 | 552.6 |
+| 4 | 316.4 | 101.15 | 3.45x | 3.32 | 189.4 | 294.4 | 311.2 |
+
+Queue wait, not calculation time, is what parallelism removes: p50 queue wait
+569.2 → 284.7 → 156.9 ms while p50 calculation time stays 31.3 → 31.6 → 32.4 ms.
+
+All runs produced exactly one canonical hash,
+`2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf`, equal to the
+single-process reference; all 32 jobs succeeded and persisted a result, and the
+queue was empty after each drain.
+
+8 workers forced onto 4 CPUs produced 96.34 jobs/s, 4.8% slower than 4 workers,
+which confirms the derived cap is a capacity bound rather than an arbitrary
+limit.
+
+### 13.3 Not measured
+
+- 16 and 32 workers: the host supplies 4 effective cores, so the benchmark
+  refuses them and records the refusal. No extrapolated number is claimed.
+- Multi-host PostgreSQL and real Cloud/Desktop/Mobile deployment surfaces: only
+  a local single-node cluster exists.
+- Thread-pool scaling inside one process: excluded by the GIL and not claimed.
+- Memory pressure: the policy has a memory cap and a 512 MiB per-job estimate,
+  but no out-of-memory run was performed.
+- HTTP admission and client polling: no HTTP surface was added.
+
+Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
+
+### 13.4 Next slice
+
+P0-H: intra-project parallelism. Unlike P0-G, this touches calculation
+semantics, so it remains gated on exact canonical equality for every split and
+on retaining the final CPM and final resource-capacity validation.

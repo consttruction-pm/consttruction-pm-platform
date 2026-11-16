@@ -237,3 +237,30 @@ skipped without a database and 4,562 passed / 131 skipped with local PostgreSQL.
 Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
 Continuation point after merge: P0-G adaptive resource management with one
 global budget and the same engine/version identity on every execution surface.
+
+2026-11-16 — P0-G adaptive worker budget and durable job execution
+
+Added `scheduling_execution_budget.py`: capacity comes from CPU affinity, cgroup
+v1/v2 CPU quota, `MemAvailable` and the cgroup memory limit; a deterministic
+policy maps it to a worker count (this host: 4, CPU-limited); one process-wide
+permit set is the single budget shared by every executor; and an adaptive
+controller moves the dispatch target inside that cap. Added
+`scheduling_job_executor.py`, the single execution loop over the P0-F lifecycle:
+discover queued jobs, claim with a lease, hold a budget permit for the whole
+calculation, renew the lease by heartbeat, and persist the engine's canonical
+result, with retryable/terminal failure and engine-identity checks. Worker-side
+queue discovery was added to both repositories, and lease renewal now persists
+CANCELLED when a cancellation request is observed.
+
+Benchmarked with real worker processes against PostgreSQL 14.24, 32 jobs on one
+200-activity fixture: 1/2/4 workers gave 29.36/57.41/101.15 jobs/s (1.96x,
+3.45x), 0.94/1.85/3.32 CPU cores, p50 latency 601.0/316.4/189.4 ms, p50 queue
+wait 569.2/284.7/156.9 ms, and p50 calculation time flat at 31.3/31.6/32.4 ms.
+All runs produced the same canonical hash and drained to zero pending. Eight
+workers forced onto four CPUs were 4.8% slower than four. 16/32 workers are
+refused because the host cannot supply them.
+
+Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
+Continuation point after merge: P0-H intra-project parallelism, which changes
+calculation execution and therefore remains gated on exact canonical equality
+plus the final CPM and final resource-capacity validation.
