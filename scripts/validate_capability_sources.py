@@ -127,6 +127,10 @@ def validate_capability(cap: Any, root: Path, manifest_path: Path) -> list[str]:
             if not isinstance(formula.get("variables"), list) or not formula["variables"]:
                 errors.append(label + " requires a non-empty variables array")
             _relative_file(root, formula.get("test_path"), label + ".test_path", errors)
+            if _nonempty(formula.get("test_path")) and _nonempty(formula.get("expected_test_id")):
+                test_file = root / formula["test_path"]
+                if test_file.is_file() and formula["expected_test_id"] not in test_file.read_text(encoding="utf-8"):
+                    errors.append(label + f" expected_test_id {formula['expected_test_id']} is not present in its test file")
 
     _relative_file(root, cap.get("lifecycle_model"), prefix + "lifecycle_model", errors)
     _relative_file(root, cap.get("permission_matrix"), prefix + "permission_matrix", errors)
@@ -141,6 +145,9 @@ def validate_capability(cap: Any, root: Path, manifest_path: Path) -> list[str]:
                 errors.append(label + " requires an id")
                 continue
             _relative_file(root, test.get("path"), label + ".path", errors)
+            if _nonempty(test.get("path")) and test.get("path") and test_file_exists := (root / test["path"]).is_file():
+                if test["id"] not in (root / test["path"]).read_text(encoding="utf-8"):
+                    errors.append(label + f" id {test['id']} is not present in its test file")
 
     gaps = cap.get("open_gaps", [])
     if not isinstance(gaps, list):
