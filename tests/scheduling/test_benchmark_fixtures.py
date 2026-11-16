@@ -103,6 +103,20 @@ def test_leveling_case_actually_over_allocates_and_shifts():
     )
 
 
+@pytest.mark.parametrize(
+    ("size", "expected_hash"),
+    [
+        (40, "f4c24a36388a6b4fe8a46e67e4a4187b4bba7ccdab2e195f12aa7758e7834cf6"),
+        (60, "7fd94ae8f175e65a134f457823d3aa5f5b3d7242822829aca449e5191071f9d6"),
+        (110, "f0b179207a5ef97ef944536f9615e5a8a1083fea33069c7bb266c22a1a321ccb"),
+    ],
+)
+def test_leveling_shift_sequence_matches_the_pre_ledger_reference(size, expected_hash):
+    """Golden hashes captured from the reference engine before P0-D."""
+
+    assert canonical_hash(leveling_payload(run_leveling(leveling_case(size)))) == expected_hash
+
+
 def test_measure_reports_real_samples_and_process_peak_rss():
     timing = measure(lambda: sum(range(1000)), repeat=3, warmup=1)
     assert timing["wall"]["count"] == 3

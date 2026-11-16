@@ -1,0 +1,77 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "e02850361300c494477148bd5e426d2516534ad5",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "leveling",
+  "records": [
+    {
+      "counts": {
+        "activities": 100,
+        "capacities": 86,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 1,
+        "max_ms": 9496.167,
+        "median_ms": 9496.167,
+        "min_ms": 9496.167,
+        "p95_ms": 9496.167
+      },
+      "fixture_build_ms": 1.389,
+      "mode": "leveling",
+      "output_sha256": "ef51580f8fc28cf6bba71a7c3473d9b7941418eb56665e24d918624c397afed8",
+      "peak_rss_kb": 48480,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100,
+      "status": "ok",
+      "wall": {
+        "count": 1,
+        "max_ms": 9421.18,
+        "median_ms": 9421.18,
+        "min_ms": 9421.18,
+        "p95_ms": 9421.18
+      }
+    },
+    {
+      "counts": {
+        "activities": 250,
+        "capacities": 162,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 1,
+        "max_ms": 161168.867,
+        "median_ms": 161168.867,
+        "min_ms": 161168.867,
+        "p95_ms": 161168.867
+      },
+      "fixture_build_ms": 3.162,
+      "mode": "leveling",
+      "output_sha256": "d811889a1fb403101e2c4d2fb90cbca80dd605332fbe1736ebebc9cd27d7fee8",
+      "peak_rss_kb": 49068,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 250,
+      "status": "ok",
+      "wall": {
+        "count": 1,
+        "max_ms": 161182.661,
+        "median_ms": 161182.661,
+        "min_ms": 161182.661,
+        "p95_ms": 161182.661
+      }
+    }
+  ],
+  "repeat": 1,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 0
+}

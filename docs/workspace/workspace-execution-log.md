@@ -167,3 +167,22 @@ build.
 Continuation point after merge: recurring exceptions and the Time Periods
 dialog from the same Help topic; then resources, Baseline and the remaining
 main-environment sections.
+
+### 2026-11-16 — P0 scheduling core baseline and exact hot-path optimizations (`d764c81d`)
+
+Issue #1992. P0-A..P0-D executed against the reference engine at `e0285036`:
+deterministic heap topological ordering for both CPM paths, bounded search for
+Time-Aware Free Float, and a demand index/ledger for forward resource leveling.
+Every benchmarked case keeps a byte-identical canonical result hash; the
+pre-change float scan and list ordering remain in the tree as differential
+oracles. Measured on this 4-CPU/8-GB Python 3.12 host: time-aware 100k DAG
+165.3 -> 68.2 s, date wide 100k 3.64 -> 3.04 s, date fan 25k 5.94 -> 3.01 s,
+float-stress slack 80 7.76 -> 0.21 s, leveling 250 161.2 -> 18.5 s.
+
+Evidence: `docs/workspace/evidence/p0-scheduling-core-2026-11-16/`. Gates:
+4,449 Python tests passed (204 skipped). No worker, queue, single-flight or
+PostgreSQL concurrency claim is made; those phases are not implemented.
+
+Continuation point after merge: P0-E count and reduce provably identical CPM
+work in leveling orchestration, keeping final CPM and final resource-load
+validation authoritative; then P0-F durable scheduling jobs.

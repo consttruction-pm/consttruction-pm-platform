@@ -1,0 +1,159 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "e02850361300c494477148bd5e426d2516534ad5",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "date",
+  "records": [
+    {
+      "counts": {
+        "activities": 1000,
+        "relationships": 1923
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 154.118,
+        "median_ms": 148.975,
+        "min_ms": 143.832,
+        "p95_ms": 154.118
+      },
+      "fixture_build_ms": 8.594,
+      "mode": "date",
+      "output_sha256": "9c6c4a26495a1a12a29bab7e5bcffd00aa0dc0a341732204efedb557be939bae",
+      "peak_rss_kb": 50336,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 154.121,
+        "median_ms": 148.98,
+        "min_ms": 143.839,
+        "p95_ms": 154.121
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 728.506,
+        "median_ms": 726.027,
+        "min_ms": 723.548,
+        "p95_ms": 728.506
+      },
+      "fixture_build_ms": 41.155,
+      "mode": "date",
+      "output_sha256": "cb7ca54e6369f2a6469735b03ca79f3aa270ba296b71348bbcc72e6cc70c3e7f",
+      "peak_rss_kb": 59844,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 728.569,
+        "median_ms": 726.1,
+        "min_ms": 723.631,
+        "p95_ms": 728.569
+      }
+    },
+    {
+      "counts": {
+        "activities": 25000,
+        "relationships": 47881
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 3710.469,
+        "median_ms": 3708.004,
+        "min_ms": 3705.538,
+        "p95_ms": 3710.469
+      },
+      "fixture_build_ms": 222.147,
+      "mode": "date",
+      "output_sha256": "cb2e9cd562133a16bb69cd4a887c4b88041648a7364e53ee9a28448ee3b2648b",
+      "peak_rss_kb": 109612,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 25000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 3710.881,
+        "median_ms": 3708.403,
+        "min_ms": 3705.925,
+        "p95_ms": 3710.881
+      }
+    },
+    {
+      "counts": {
+        "activities": 50000,
+        "relationships": 95786
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 7679.029,
+        "median_ms": 7650.32,
+        "min_ms": 7621.612,
+        "p95_ms": 7679.029
+      },
+      "fixture_build_ms": 468.836,
+      "mode": "date",
+      "output_sha256": "e51656b8035e643a886fbc7478cdf1794b0986651bb45ba85fa7117975ae1c19",
+      "peak_rss_kb": 170948,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 50000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 7679.71,
+        "median_ms": 7651.019,
+        "min_ms": 7622.327,
+        "p95_ms": 7679.71
+      }
+    },
+    {
+      "counts": {
+        "activities": 100000,
+        "relationships": 191483
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 15590.228,
+        "median_ms": 15544.522,
+        "min_ms": 15498.816,
+        "p95_ms": 15590.228
+      },
+      "fixture_build_ms": 952.293,
+      "mode": "date",
+      "output_sha256": "8c36156de8887d98996cbce0078a36f94f5e0737bd68c149f8bc9f3f140f7849",
+      "peak_rss_kb": 294620,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 15591.776,
+        "median_ms": 15545.968,
+        "min_ms": 15500.16,
+        "p95_ms": 15591.776
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

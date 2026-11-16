@@ -4380,3 +4380,36 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - **Remaining.** One month only, Monday week start in both locales, one write
   per date with no bulk endpoint, hours are reset but not edited in the grid,
   and recurring exceptions plus the Time Periods dialog are still absent.
+
+## P0 scheduling core — baseline and exact hot-path optimizations, 2026-11-16 (`d764c81d`)
+
+- **Scope.** Issue #1992, P0-A..P0-D only: characterize the engine, then
+  optimize topological ordering, Time-Aware Free Float search and forward
+  resource leveling. No P6 V26 calculation, option, validation, calendar rule,
+  Float rule, relationship or leveling rule was removed or simplified.
+- **P0-A.** `scheduling/benchmark_fixtures.py` provides seeded chain/wide/dag/
+  fan/mixed/slack fixtures, canonical result hashing and real wall/CPU/RSS
+  capture; `scripts/scheduling_core_benchmark.py` writes per-size evidence JSON.
+- **P0-B.** One min-heap topological ordering (`topological_order.py`) now
+  serves both CPM paths. Differential tests compare the complete order against
+  the literal pre-change list algorithm for seeded DAGs, duplicate edges,
+  disconnected components, cycles and lexicographic edge cases.
+- **P0-C.** Time-Aware Free Float uses an 8-step linear prefix plus
+  exponential/binary search; the original 10,000-step scan is retained as the
+  oracle and the 0/9999 sentinels are preserved. Monotonicity tests cover
+  holidays, breaks, signed lags and all relationship types.
+- **P0-D.** Forward within-float leveling uses a cached shifted-demand index and
+  a (resource, period) ledger rebuilt in canonical activity order; candidate
+  ordering, Decimal sums and the accepted shift sequence are unchanged.
+- **Measured at `d764c81d` (4 CPU AMD EPYC, 8 GB, Python 3.12.13).** Date CPM
+  100k DAG 15.4 s; Time CPM + Float 100k DAG 165.3 → 68.2 s (2.42x); wide 100k
+  date 3.64 → 3.04 s; fan 25k date 5.94 → 3.01 s; float stress 80 7.76 → 0.21 s
+  (37.3x); leveling 100 9.42 → 1.07 s (8.8x), 250 161.2 → 18.5 s (8.7x). Every
+  canonical output hash equals the reference at `e0285036`.
+- **Gates.** 4,449 Python tests passed (204 skipped); no schema or client
+  change. Evidence: `docs/workspace/evidence/p0-scheduling-core-2026-11-16/`.
+- **Not measured / next.** 3.11/3.13 matrix via CI only; no worker, queue,
+  single-flight or PostgreSQL concurrency numbers because P0-F/P0-G are not
+  implemented. Leveling above 500 activities is not measurable on this host
+  with the reference decision schedule. Next: P0-E CPM work accounting, then
+  P0-F durable scheduling jobs.
