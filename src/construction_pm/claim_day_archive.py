@@ -235,6 +235,7 @@ class ClaimDayArchive:
                     (previous.source_system, previous.source_type, previous.source_id)
                     != (link.source_system, link.source_type, link.source_id)
                     or link.source_revision <= previous.source_revision
+                    or link.source_content_version == previous.source_content_version
                 ):
                     raise ClaimDayArchiveError("INVALID_EVIDENCE_CORRECTION_CHAIN")
             ids[link.evidence_link_id] = link
