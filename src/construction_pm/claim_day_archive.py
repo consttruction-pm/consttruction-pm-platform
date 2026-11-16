@@ -392,6 +392,7 @@ class ClaimSubmission:
 
 class ClaimDayArchiveRepository(Protocol):
     def get_day(self, tenant_id: str, project_id: str, claim_day_id: str) -> ClaimDayArchive | None: ...
+    def get_day_revision(self, tenant_id: str, project_id: str, claim_day_id: str, revision: int) -> ClaimDayArchive | None: ...
     def put_day(self, day: ClaimDayArchive, *, expected_revision: int, idempotency_key: str) -> ClaimDayArchive: ...
     def append_submission(self, submission: ClaimSubmission) -> ClaimSubmission: ...
     def get_submission(self, tenant_id: str, project_id: str, submission_id: str) -> ClaimSubmission | None: ...
@@ -402,11 +403,15 @@ class InMemoryClaimDayArchiveRepository:
 
     def __init__(self) -> None:
         self.days: dict[tuple[str, str, str], ClaimDayArchive] = {}
+        self.day_revisions: dict[tuple[str, str, str, int], ClaimDayArchive] = {}
         self.submissions: dict[tuple[str, str, str], ClaimSubmission] = {}
         self.idempotency: dict[tuple[str, str, str], tuple[str, ClaimDayArchive]] = {}
 
     def get_day(self, tenant_id: str, project_id: str, claim_day_id: str) -> ClaimDayArchive | None:
         return self.days.get((tenant_id, project_id, claim_day_id))
+
+    def get_day_revision(self, tenant_id: str, project_id: str, claim_day_id: str, revision: int) -> ClaimDayArchive | None:
+        return self.day_revisions.get((tenant_id, project_id, claim_day_id, revision))
 
     def put_day(
         self, day: ClaimDayArchive, *, expected_revision: int, idempotency_key: str
@@ -448,6 +453,7 @@ class InMemoryClaimDayArchiveRepository:
         elif day.revision != 1:
             raise ClaimDayRevisionConflict("CLAIM_DAY_INITIAL_REVISION_MUST_BE_ONE")
         self.days[aggregate_key] = day
+        self.day_revisions[(day.tenant_id, day.project_id, day.claim_day_id, day.revision)] = day
         self.idempotency[key] = (fingerprint, day)
         return day
 
@@ -674,6 +680,39 @@ class PostgresClaimDayArchiveRepository:
             )"""
         )
         self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS claim_day_archive_revisions (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                claim_day_id TEXT NOT NULL,
+                revision BIGINT NOT NULL,
+                day_json TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (tenant_id, project_id, claim_day_id, revision)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE OR REPLACE FUNCTION claim_day_archive_revision_immutable()
+               RETURNS trigger AS $
+               BEGIN
+                   RAISE EXCEPTION 'CLAIM_DAY_ARCHIVE_REVISION_IMMUTABLE';
+               END;
+               $ LANGUAGE plpgsql"""
+        )
+        self.connection.execute(
+            """DO $
+               BEGIN
+                 IF NOT EXISTS (
+                   SELECT 1 FROM pg_trigger
+                   WHERE tgname = 'claim_day_archive_revision_no_mutation'
+                     AND NOT tgisinternal
+                 ) THEN
+                   CREATE TRIGGER claim_day_archive_revision_no_mutation
+                   BEFORE UPDATE OR DELETE ON claim_day_archive_revisions
+                   FOR EACH ROW EXECUTE FUNCTION claim_day_archive_revision_immutable();
+                 END IF;
+               END $"""
+        )
+        self.connection.execute(
             """CREATE TABLE IF NOT EXISTS claim_day_archive_idempotency (
                 tenant_id TEXT NOT NULL,
                 project_id TEXT NOT NULL,
@@ -698,6 +737,16 @@ class PostgresClaimDayArchiveRepository:
                 UNIQUE (tenant_id, project_id, contract_id, claim_id, submitting_party_id, submission_number)
             )"""
         )
+
+    def get_day_revision(
+        self, tenant_id: str, project_id: str, claim_day_id: str, revision: int
+    ) -> ClaimDayArchive | None:
+        row = self.connection.execute(
+            "SELECT day_json FROM claim_day_archive_revisions "
+            "WHERE tenant_id=%s AND project_id=%s AND claim_day_id=%s AND revision=%s",
+            (tenant_id, project_id, claim_day_id, revision),
+        ).fetchone()
+        return None if row is None else _day_from_json(row[0])
 
     def get_day(
         self, tenant_id: str, project_id: str, claim_day_id: str
@@ -761,6 +810,12 @@ class PostgresClaimDayArchiveRepository:
                     day.tenant_id, day.project_id, day.claim_day_id, day.claim_id,
                     day.contract_id, day.revision, serialized,
                 ),
+            )
+            self.connection.execute(
+                """INSERT INTO claim_day_archive_revisions
+                   (tenant_id, project_id, claim_day_id, revision, day_json)
+                   VALUES (%s,%s,%s,%s,%s)""",
+                (day.tenant_id, day.project_id, day.claim_day_id, day.revision, serialized),
             )
             self.connection.execute(
                 "INSERT INTO claim_day_archive_idempotency "
