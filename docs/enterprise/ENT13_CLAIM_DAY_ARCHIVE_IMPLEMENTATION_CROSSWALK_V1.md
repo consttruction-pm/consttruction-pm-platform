@@ -1,0 +1,337 @@
+# ENT-13 Claim Day Archive — V26 HTML Help Crosswalk and Implementation Contract
+
+**Status:** implementation design baseline; not a claim of runtime completion.  
+**Parent:** Issue #2002; ENT-13 governance in PR #2001; environment ownership in merged PR #1988.  
+**Reviewed main:** `ee9753e692eb319f98824ecf7e6084a92f814b7b` (2026-11-16).  
+**Priority:** Enterprise P2. Do not consume or block Engineering P0/P1 capacity.  
+**CUBI placement:** Enterprise → Contracts & Commercial → Claims & Disputes → Evidence & Day Archive.
+
+## 1. Source authority and exact HTML Help set
+
+The source hierarchy is binding:
+
+1. P6 EPPM V26 English HTML is the universal primary parity baseline for concepts it actually documents.
+2. P6 Team Member V26 HTML is a separate contributor-workflow authority where field/team-member activity reporting is involved.
+3. Unifier V26 HTML is the primary comparative source for contract/commercial business-process forms, workflows, record permissions, document manager revisions and audit.
+4. Primavera Cloud HTML is an additive source for cloud-only project/field/file workflows; it cannot replace EPPM V26 semantics.
+5. AACE RP 29R-03 and SCL Delay and Disruption Protocol 2nd Edition inform forensic schedule-analysis method, not product UI or contractual entitlement.
+6. Contract terms and governing law determine notice compliance, entitlement, liability, valuation and dispute resolution.
+
+Canonical official HTML roots:
+- P6 EPPM V26 Help TOC: https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
+- P6 EPPM V26 documentation library: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/user.html
+- P6 Team Member V26 TOC: https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm
+- Unifier V26 All Guides: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/books.html
+- Unifier V26 User Help (October 2026): https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/index.html
+- Unifier V26 Business Processes User Guide (October 2026): https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/index.html
+- Unifier V26 Managers User Guide (October 2026): https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/index.html
+- Primavera Cloud current HTML Help TOC: https://primavera.oraclecloud.com/help/en/user/toc.htm
+
+### 1.1 Verified P6 EPPM V26 topics
+
+| Topic | Exact official HTML | Relevance and CUBI disposition |
+|---|---|---|
+| About Security | https://docs.oracle.com/cd/G48897_01/p6help/en/9001.htm | Secure logins, security profiles, access settings, module access, OBS access and UI views. CUBI must enforce permissions at API/read/download boundary; UI visibility alone is insufficient. |
+| Assigning Documents to Activities | https://docs.oracle.com/cd/G48897_01/p6help/en/41625.htm | Documents may be related to activities, projects and WBS. CUBI Engineering remains owner of activity/WBS references; Enterprise stores revision-pinned links only. |
+| Creating Project Issues | https://docs.oracle.com/cd/G48897_01/p6help/en/7963.htm | Schedule issues are created in project context. A delay event may link to an Engineering issue but must not be equated automatically with a contractual claim. |
+| General Detail Window of the Issues Page | https://docs.oracle.com/cd/G48897_01/p6help/en/93728.htm | Issue name, responsible manager, identified date, project, owner, resolution date, applies-to, status, identified-by, priority and description. Use as the schedule-event/issue reference field inventory where applicable. |
+| P6 EPPM V26 TOC | https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm | Inspected Projects → Activities/Issues/Documents, issue related items, document repository/reviews, security and audit topics. |
+
+**Explicit product boundary:** the inspected EPPM V26 TOC documents project/activity issues, risks, documents, document reviews and schedule references. It does not expose a full multi-party contract claim/dispute lifecycle (claim submissions, counterclaims, contractual determinations, settlement and party disclosure). Record this as **NOT PRESENT IN EPPM V26 Help**, not as a missing CUBI parity feature. ENT-13 is an Enterprise commercial capability whose workflow source is Unifier V26 and contract/forensic standards; EPPM provides the authoritative schedule facts and links.
+
+### 1.2 Verified Unifier V26 topics
+
+| Topic | Exact official HTML | Requirement carried into CUBI |
+|---|---|---|
+| Filling Out a Business Process Form | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/fillingoutabusinessprocessform-73223a.html | Upper form, line items, comments, comment attachments; draft/save/submit; workflow Send; terminal/read-only state; action details and assignee routing. |
+| Completing a Business Process Form | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/completingabusinessprocessform-73280a.html | Review/edit permitted fields, line items, attachments, comments, workflow actions, save draft, send; undo action and view received content. |
+| Business Process Forms | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/businessprocessforms-73165a.html | View vs action form, accept/decline, workflow progress, drafts, attachment/line-item handling, permissions and terminal operations. |
+| About Workflows | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/aboutworkflows-73172a.html | Creation → review → revision → approval → end; return for revision, forward, reject/approve and terminal-state handling. |
+| Granting or Updating Record Permissions for Non-Workflow Business Processes | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/grantingorupdatingrecordpermissionsfornon-workflowbusinessprocesses-73300a.html | Record-scoped View/Edit/Modify/Modify Permissions grants. CUBI must add tenant/project/contract/party/evidence scopes and fail closed. |
+| Creating a Business Process (BP) Record | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/creatingabusinessprocessbprecord-73191a.html | Records can be created from a BP log, template, another record or Document Manager attachments; creation requires configured BP and permissions. |
+| Update Step | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/updatestep-10292180a.html | Save Draft, Send, Submit, More Actions, Print, Review, Terminate, Transfer Ownership and BP-specific actions are configuration/permission dependent. |
+| Assigning Users for the Next Step or Sending a Copy | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/assigningusersforthenextsteporsendingacopy-73281a.html | To recipients are next workflow assignees; Cc receives a copy without workflow action. CUBI disclosure and notification must be explicit, logged and separate. |
+| Revising Documents | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/revisingdocuments-73757a.html | Each new revision is stored separately; old file remains untouched and earlier versions remain accessible. CUBI pins exact source version/hash and never overwrites bytes. |
+| Viewing Previous Revisions | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/viewingpreviousrevisions-10293974a.html | Previous revisions can be viewed/downloaded and linked records inspected. CUBI evidence manifest must pin exact revision rather than “latest”. |
+| View Document Manager Audit log | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/viewdocumentmanagerauditlog-10293989a.html | Upload and other actions are audited, with event details and entry mode. CUBI chain of custody must include source audit references and its own access/disclosure events. |
+| Document Manager | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/documentmanager-73699a.html | Project/shell and company-level document manager; business-process integration. CUBI reuses its authoritative document store and only indexes evidence links. |
+| Business Process permissions reference | https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/reference/information.html | View All Records / View Company Records / View User Records and ownership/termination permissions; CUBI adds party-level confidentiality, not a broad role shortcut. |
+
+### 1.3 Verified Primavera Cloud HTML topics
+
+| Topic | Exact official HTML | Requirement carried into CUBI |
+|---|---|---|
+| Navigation Overview | https://primavera.oraclecloud.com/help/en/user/86731.htm | Apps, object selector, page selectors, menus, dashboards, favorites and recent objects; responsive/viewport reference only, CUBI retains its approved single workspace shell. |
+| Primavera Cloud Help TOC | https://primavera.oraclecloud.com/help/en/user/toc.htm | Current TOC includes files, object links, project settings, field/task apps, reports, forms/workflows and mobile topics. Use as an extension inventory, not an EPPM substitute. |
+
+Further Cloud feature-specific topics must be added by exact URL when the related field/photo/reporting flow is implemented. Do not infer a Help topic from a TOC label alone.
+
+## 2. Repository evidence at reviewed main SHA
+
+Verified source paths:
+- `src/construction_pm/backend_p0/models.py`: `BackendScope`, timezone-aware `AuditMetadata`, `EvidenceRef`, `FieldDailyLog` and `ClaimRecord`/change domain models.
+- `tests/backend_p0/test_backend_p0.py`: field daily log round-trip, evidence refs, persistence atomicity, revision conflict and idempotency coverage.
+- `tests/backend_p0/test_change_claim_core.py`: `ClaimRecord` decision metadata validation, generic resource round-trip, evidence refs, schedule/cost/impact references and claim close-after-decision rule.
+- `apps/web/src/workspace-site-log.ts`: `field-daily-log.v1` projection/status surface.
+- `apps/web/src/workspace-change-claim.ts`: `change-notice.v1`, `change-case.v1`, `claim-record.v1`, `change-claim-impact.v1` projections.
+- `src/construction_pm/document_persistence.py`: `DocumentRecord`, immutable revision records, document lifecycle and audit abstractions; supported types include contract, drawing, correspondence, RFI, submittal, delay_claim and evidence.
+- `src/construction_pm/document_storage.py`: content-addressed bytes, SHA-256 validation, tenant/project storage scoping and content-type validation.
+- `src/construction_pm/document_retention.py`: per-document retention, legal hold, eligibility and deliberate disposition.
+- `src/construction_pm/form_builder_templates.py`: validated shared form templates and organization/project library foundations.
+
+### 2.1 Current state classification
+
+| Capability | Evidence-backed state | What is not yet proven |
+|---|---|---|
+| Daily site log | Existing domain model and web projection | Claim-day grouping, timezone calendar policy, exact approved source revision pinning, completeness review and multi-party visibility. |
+| Claim | Existing `ClaimRecord` model and generic backend resource tests | Contract-party-specific submission versions, response/objection/counterclaim workflow, immutable submitted package and party isolation. |
+| Evidence | Existing generic `EvidenceRef` | Claim evidence lifecycle, SHA-bound source version resolution, chain-of-custody and scoped disclosure. |
+| Documents | Existing versioned metadata/storage/retention foundations | Claims integration, immutable manifest pinning and claim-level legal-hold composition. |
+| Form Builder | Existing reusable template infrastructure | ENT-13 party-specific templates, immutable submission snapshot binding and claims workflow configuration. |
+| Engineering schedule | Existing Engineering-owned schedule/CPM domain | Versioned request/response adapter for claim-period forensic analysis; no Enterprise CPM is allowed. |
+
+No API route, end-to-end UI, party confidentiality, claim-day archive or immutable submission is considered implemented until the exact route/component and its tests are located and executed. The model/projection evidence above is not an end-to-end completion claim.
+
+## 3. Target domain and versioned contract
+
+The archive is a **claims-domain index and immutable manifest over authoritative source records**, not a second file repository.
+
+### 3.1 Aggregates
+
+- `ClaimParty`: tenant, project, contract, claim, party identity/type, participation role and active status.
+- `ClaimDay`: claim, reporting date, timezone identifier, local day boundaries, party scope, status, linked delay events, completeness findings and optimistic revision.
+- `ClaimEvidenceLink`: claim-day, source system/type/id, exact source revision/content version, content hash (binary sources), effective timestamp, capture timestamp/timezone, server-received timestamp, author/uploader, location/work-front, activity/WBS/cost refs, evidence classification and link status.
+- `EvidenceDisclosure`: exact evidence-link revision, recipient party/grant, disclosure actor, reason, timestamp, channel and revocation/supersession state. No implicit disclosure from project membership.
+- `ClaimSubmission`: claim revision, submitting party, submission number, exact form template/version, canonical serialized form snapshot, evidence manifest digest, schedule/baseline snapshot IDs, submitted actor/time and immutable state.
+- `ClaimWorkflowEvent`: transition, actor, role/grant, from/to state, reason, timestamp/timezone, idempotency key and referenced submission.
+- `ClaimHoldBinding`: claim/contract/legal-hold scope and the source document versions it protects; composed with the existing document retention authority.
+
+### 3.2 Claim Day Archive v1 JSON shape
+
+```json
+{
+  "contract_version": "claim-day-archive.v1",
+  "claim_day_id": "opaque-id",
+  "tenant_id": "tenant-id",
+  "project_id": "project-id",
+  "contract_id": "contract-id",
+  "claim_id": "claim-id",
+  "reporting_date": "2026-11-16",
+  "timezone": "Europe/Berlin",
+  "day_start_at": "2026-11-15T23:00:00Z",
+  "day_end_at": "2026-11-16T23:00:00Z",
+  "calendar_policy": "contract-reporting-calendar-v1",
+  "party_scope": "party-id",
+  "delay_event_ids": [],
+  "evidence_links": [],
+  "completeness": {"state": "incomplete", "missing_required_types": []},
+  "revision": 1
+}
+```
+
+The sample is illustrative, not a persisted schema. Canonical timestamps are UTC instants plus an IANA timezone identifier; the reporting date is a contract/project-local calendar date. DST day boundaries must be calculated from timezone rules (a local day is not always 24 hours). Jalali is a display/calendar conversion only; it never changes canonical timestamps or the reporting-date identity.
+
+Evidence link minimum:
+```json
+{
+  "evidence_link_id": "opaque-id",
+  "source": {"system": "cubi-document-management", "type": "document", "id": "doc-id", "revision": 4, "content_version": "v4"},
+  "content_sha256": "sha256:<64-hex>",
+  "effective_at": "2026-11-16T08:30:00Z",
+  "captured_at": "2026-11-16T08:35:00+01:00",
+  "server_received_at": "2026-11-16T08:42:00Z",
+  "actor_id": "user-id",
+  "party_visibility": "private",
+  "activity_refs": [],
+  "wbs_refs": [],
+  "delay_event_refs": [],
+  "chain_of_custody_refs": []
+}
+```
+
+### 3.3 Immutable package rule
+
+At formal submission, persist a canonical manifest containing sorted evidence-link identities, exact source revisions/content hashes, disclosure state, form template ID/version, form snapshot hash, schedule/baseline snapshot IDs and a manifest SHA-256. The submission record is append-only. A correction creates a new claim submission revision and explicitly supersedes the prior package; it never mutates the submitted package. Every export must include the manifest, digest, verification outcome and source-reference availability.
+
+## 4. Party confidentiality and authorization matrix
+
+Authorization must be enforced before any data lookup, list count, search result, download, preview, export, notification payload or link resolution. Opaque IDs do not replace authorization.
+
+| Actor | Private draft | Own submitted package | Other party submitted package | Disclosed evidence | Determination/settlement |
+|---|---:|---:|---:|---:|---:|
+| Claim originating party | Read/write own | Read | Only explicitly disclosed | Read exact grants | Read per contract role |
+| Responding party | Read/write own response | Read only if disclosed to it | Read disclosed subset | Read exact grants | Read per contract role |
+| Independent reviewer/expert | No party-private access by default | Read assigned scope | Read assigned scope | Read assigned scope | Read assigned scope |
+| Contract administrator | Policy-configured; not automatic | Policy-configured | Policy-configured | Policy-configured | Manage only granted workflow |
+| Tenant/project admin | No implicit evidence access | No implicit access | No implicit access | No implicit access | No implicit access |
+| Auditor/legal hold officer | Metadata/audit only unless explicit grant | Metadata/audit only | Metadata/audit only | Explicit scope only | Explicit scope only |
+
+Required tests: cross-tenant, cross-project, cross-contract, cross-party, guessed-ID, linked-document URL, list-count/search side channel, download/preview/export, revoked disclosure, role removal, reassignment and stale authorization cache. All failures must be fail-closed and non-enumerating.
+
+## 5. Day archive UI and behavior contract
+
+Primary Enterprise page: Claims & Disputes → Evidence & Day Archive.
+
+- Claim selector and claim identity summary; role/party context must always be visible.
+- Date-first archive navigator (calendar/list), timezone and reporting-calendar label, day status and completeness.
+- Day workspace: linked delay events, daily site reports, drawing/document revisions, correspondence/notices/RFIs/submittals, photos/videos (only where source support exists), meeting minutes, inspections/tests, permits, delivery records, weather/plant/labour evidence, Engineering schedule/baseline references.
+- Each evidence row shows source type, title, exact revision, effective/capture/received times, uploader, work-front/location, activity/WBS links, party visibility, disclosure status, hash verification, retention/hold state and audit trail.
+- Actions: link existing source, upload through authoritative document/photo source, unlink only while package is mutable, add contextual metadata, request disclosure, disclose, download if authorized, compare revisions, verify manifest, print/export package.
+- Missing evidence indicators must be factual (e.g. “no daily report linked for this date”), never fabricate a report or assume missing evidence proves non-performance.
+- Party-private working papers stay in the originating party's private view. Shared page layout does not mean shared evidence.
+- Reuse CUBI Form Builder for party-specific claim forms; reuse Document Management for bytes/revisions; reuse daily log and Engineering for source records. Do not create a parallel document upload stack or duplicate form designer.
+- Keep the approved CUBI shell and brand. No Oracle/Primavera names, icons, URLs or visual assets in product UI.
+
+## 6. Engineering adapter — no duplicate schedule engine
+
+Enterprise submits a typed request to the Engineering-owned service containing tenant/project/contract/claim IDs, schedule revision, baseline revision, data date, analysis window, delay-event IDs, activity/relationship references, requested method and method version. Engineering validates authorization and returns a provenance-rich immutable result with run ID, engine/version, input hashes, schedule/baseline IDs, data date, method, assumptions, calendar/timezone, activity-level findings, relationship/critical-path/float context, calculation timestamp and limitations. Enterprise stores the result reference and presents the output; it never recomputes CPM, critical path, float, resource leveling or schedule impact.
+
+A schedule finding is not a legal determination. Entitlement, causation responsibility, notice compliance, concurrency treatment and recoverability remain contract/legal review decisions.
+
+## 7. Delivery sequence and merge gates
+
+1. **Source/API inventory:** locate actual route handlers, auth middleware, repository methods, migrations and tests for daily logs, claim/change, documents, storage, photos, retention, audit, forms and Engineering snapshots. Do not infer routes from UI types.
+2. **Domain contract:** add versioned schema, validation, serialization, canonical hashing, date/time policy, state machine and migration plan. Keep source ownership boundaries.
+3. **Persistence:** PostgreSQL repository, tenant/contract scoping, optimistic locking, idempotency, append-only submission/manifest and transactional audit events.
+4. **Authorization:** policy service and negative tests across every read/write/list/download/export route; party isolation is a merge blocker.
+5. **Source adapters:** daily log exact revision, document exact version/hash, photo metadata and Engineering snapshot adapter. If a source capability is unavailable, show an explicit unavailable state and keep the integration contract deferred.
+6. **Workflow/forms:** organization/project Form Builder templates, party-specific drafts, submit/response/objection/counterclaim/expert/determination/settlement transitions.
+7. **UI:** date-first archive, completeness, evidence linking, visibility/disclosure, manifest verification and export.
+8. **QA:** unit, repository/PostgreSQL integration, API contract, security/threat, migration, concurrency/idempotency, browser E2E, RTL/LTR and multilingual tests; attach screenshots and exact SHA.
+9. **Release:** only merge-main, green exact-head CI and runtime evidence can be called implemented. Do not merge the ENT-13 manifest as implementation-ready until every declared path/test and the full Help crosswalk are evidenced.
+
+## 8. Acceptance test catalogue
+
+- Create claim day under contract timezone; prove DST-short/long day boundaries and Jalali display preserve canonical date/time.
+- Attach exact approved daily report revision and verify source ID/revision/hash; later source revision does not alter the claim day.
+- Attach multiple drawing revisions including superseded version; both remain retrievable and distinguishable.
+- Attach photo with original bytes, capture timestamp/timezone, uploader, location/work-front and SHA-256; reject mismatched hash.
+- Link evidence to multiple delay events, Engineering activities/WBS and cost references without mutating source records.
+- Backdated report/capture correction requires actor, reason and audit trail; received time remains distinct.
+- Formal submit freezes sorted manifest and form version; any change requires new submission revision.
+- Two parties maintain private drafts; neither can enumerate, infer or download the other's private evidence.
+- Selective disclosure exposes only selected evidence revision to the specified recipient; revoke future access without rewriting historical disclosure audit.
+- Reviewer sees only assigned claim scope; project admin does not receive implicit privileged evidence access.
+- Claim-level legal hold prevents disposal of all referenced document versions; clearing claim hold does not bypass source-level hold.
+- Export verifies manifest digest and reports missing/unavailable source content without substituting “latest”.
+- Engineering delay analysis references pinned schedule/baseline/data date and records exact engine/method/input provenance.
+- Full audit covers create, edit, link, unlink, view/download where policy requires, disclose/revoke, submit, respond, revise, approve/reject, determine, settle, hold and export.
+
+## 9. Known blockers and honest status
+
+- Existing main has a claim record and change/claim projection, but not a verified claim submission/versioning/party-scope model.
+- Existing `EvidenceRef` is a locator/revision reference; it is not a complete source-version/hash/visibility/chain-of-custody record.
+- Existing document content store and retention are reusable foundations; claim-level hold composition and submission pinning are not yet proven.
+- Existing daily logs are project-scoped; claim-day timezone aggregation and exact approved revision linking are not proven.
+- Existing form templates are reusable; ENT-13 forms/workflows and frozen submission snapshots are not proven.
+- Exact API route inventory and runtime browser/security tests remain mandatory before implementation-ready status.
+- PR #2001 remains open and defines ENT-13 as source-mapped, not implementation-ready. This document does not bypass its CI governance gate.
+
+**Exit criterion:** ENT-13 becomes implementation-ready only when sections 1–8 have traceable exact Help topics, verified code paths, versioned contracts, authorization threat tests, end-to-end acceptance evidence and approved ownership. Full production implementation is a subsequent isolated Enterprise P2 delivery, never a documentation-only claim.
+
+
+## 10. Exact route and persistence inventory — second source pass
+
+The following is now confirmed from executable source, not inferred from UI projections:
+
+### 10.1 Existing Claim/Change persistence and HTTP boundary
+
+- `src/construction_pm/change_claims.py` defines `ChangeClaim`, `ChangeClaimService` and `PostgresChangeClaimStore`. The PostgreSQL store creates `project_change_revisions`, `project_change_claims` and `project_change_claim_audit`; it uses a tenant+project+resource identity, expected project revision, idempotency key and canonical SHA-256 fingerprint. This is the existing PostgreSQL-backed change/claim resource envelope to extend, not replace.
+- `src/construction_pm/change_claim_api.py` exposes `P0_CHANGE_CLAIM_API_VERSION = "p0-change-claim.v1"`, create and get operations, scope matching and PROJECT_READ/PROJECT_WRITE authorization.
+- `src/construction_pm/http/project_lifecycle_routes.py` currently exposes **POST** `/api/projects/{project_id}/change-claims` when the adapter is composed. The inspected route is a create/upsert path; do not assume that a complete claims REST surface (list/read/update/submission/response/disclosure) exists from the API class alone.
+- `src/construction_pm/backend_p0/models.py` also contains `ClaimRecord` (`claim-record.v1`) with claim type/status, notice/change refs, schedule/cost/impact refs, entitlement/quantum/decision references and generic `EvidenceRef`. Its `EvidenceRef` carries source ID/type/locator/revision only. This is not the same object as the PostgreSQL `ChangeClaim` envelope. Preserve both existing contracts until an explicit migration/ownership decision is made; do not create a third claim aggregate or silently migrate payload semantics.
+- Existing tests: `tests/backend_p0/test_change_claim_core.py` for ClaimRecord validation/round-trip; locate and run the dedicated `ChangeClaimAPI`/Postgres repository tests before changing the PostgreSQL contract.
+
+### 10.2 Existing Document Management endpoints and content authority
+
+The production/preview HTTP composition in `src/construction_pm/http/project_lifecycle_routes.py` delegates `/api/projects/{project_id}/documents...` to `DocumentAPI`. The document register, binary content, versions, retention and audit paths are already real:
+
+| HTTP surface | Code owner | Verified behavior |
+|---|---|---|
+| `GET/POST /api/projects/{id}/documents` | `document_api.py`, `document_application.py`, project lifecycle routes | Project-scoped list/create, filtering/search, auth, idempotency. |
+| `GET /api/projects/{id}/documents/{document_id}` | same | Project-scoped document metadata read. |
+| `GET /api/projects/{id}/documents/{document_id}/history` | same + `document_persistence.py` | Append-only metadata audit history. |
+| `PUT/PATCH /api/projects/{id}/documents/{document_id}` | same | Metadata edit with expected revision; content binding cannot be retargeted by metadata update. |
+| `POST /api/projects/{id}/documents/{document_id}/content` | `DocumentAPI.upload_content`, `DocumentApplicationService.upload_content` | Validates payload type/size, computes SHA-256, writes a new immutable content version, idempotency and revision guard. |
+| `GET /api/projects/{id}/documents/{document_id}/content/versions` | `DocumentAPI.list_content_versions` | Lists exact immutable content versions. |
+| `GET /api/projects/{id}/documents/{document_id}/content/{version}` | `DocumentAPI.download_content` | Downloads selected exact version with scoped authorization and integrity validation. |
+| `GET /api/projects/{id}/documents/{document_id}/retention` | `DocumentAPI.read_retention` | Reads document retention policy, hold and disposition summary. |
+| `PUT/PATCH /api/projects/{id}/documents/{document_id}/retention` | `DocumentAPI.set_retention` | Sets document-level retain days/legal hold with revision guard and reason. |
+| Document status transition route | `DocumentAPI.transition_status` | Audited draft/submitted/approved/rejected/superseded transition; approval/rejection is role-gated. |
+
+Document metadata/content have SQLite preview and PostgreSQL production adapters as recorded by `WEB_SURFACE_TRACEABILITY_MATRIX.md`; binary bytes are stored via the document storage adapter and immutable `DocumentContentVersion` records. Reuse this exact authority. The API accepts image content types (JPEG/PNG/TIFF/WebP) as document bytes, but the inspected source does **not** establish a dedicated photo evidence domain with EXIF/capture metadata, GPS/work-front, offline-capture provenance or video support. Do not mark those photo capabilities present.
+
+Tests already present include `tests/test_document_http_routes.py`, `tests/test_document_binary_storage.py`, `tests/test_document_retention.py`, `tests/test_document_scan_and_object_storage.py`, `tests/test_document_api_v1.py` and the PostgreSQL document-store tests. These are source-level test inventory only; this pass did not execute them.
+
+### 10.3 Retention/legal-hold composition
+
+- `src/construction_pm/document_retention.py` defines both SQLite and PostgreSQL document-retention stores and `DocumentRetentionService`.
+- `set_policy` binds policy to a specific tenant/project/document; `dispose` requires PROJECT_ADMIN, explicit confirmation, reason, elapsed retention and a clear document legal hold.
+- Claim-level hold is not a new retention engine. The Claim service must register a hold binding against each pinned source document version and prevent claim-level deletion/disposition while any active claim/legal hold references that version. This requires a transaction-safe cross-domain guard and tests for race conditions; current document-level policy alone does not prove claim-level reference protection.
+
+### 10.4 Engineering schedule/baseline source
+
+- `src/construction_pm/p6_baseline_capture_api.py` exposes `p6-baseline-capture-api.v1`, requires matching tenant/project scope, PROJECT_WRITE and the expected project revision, and returns the captured baseline plus the immutable schedule snapshot ID, calculation run identity, project finish and activity count.
+- `src/construction_pm/p6_baseline_capture.py` obtains schedule facts from the authoritative `BaselineCaptureScheduleSource.latest_schedule`; caller-supplied calculated schedule facts are not accepted.
+- This is a valid baseline capture/reference source, but it is **not** a forensic delay-analysis API. No Enterprise adapter may infer time impact from the baseline capture response or calculate CPM independently. A dedicated Engineering-owned analysis request/result contract remains required.
+
+### 10.5 Field logs and photo gap
+
+- `FieldDailyLog` stores a date-only `log_date`, location key, status, entries, audit metadata and generic evidence refs. `FieldTimecard`, `EquipmentStatusReport` and `FieldInspection` also carry date/evidence references.
+- These are structured field facts, not an archive keyed by claim + contract timezone + reporting day. Their evidence refs do not pin content hash/version or capture/received timestamps.
+- The inspected field daily log source does not prove a dedicated photo/video upload metadata API. Until one is located and tested, CUBI should link an existing Document Management image version as evidence and mark missing photo-specific capture metadata explicitly. Video remains unsupported by the current document content allow-list.
+
+### 10.6 Consequence for the first coding slice
+
+The first production code slice must be a **Claim Day Archive reference/manifest aggregate over the existing PostgreSQL ChangeClaim + DocumentContentVersion + FieldDailyLog + Engineering baseline/snapshot IDs**, with party scope/disclosure and immutable submission packages. It must not create a replacement claim register, duplicate file bytes, claim-specific retention engine or schedule calculator. Before implementation, map the actual `ChangeClaimRepository` schema/transition rules and production composition, then extend them under a new versioned contract and migrations. Keep the legacy `ClaimRecord` generic backend envelope stable until a tested compatibility/migration decision is approved.
+
+
+## 11. Official forensic-method references (not software Help)
+
+These sources are methodology authorities, not substitutes for product HTML Help or contract terms:
+
+- AACE International RP 29R-03 official catalogue/search result: https://web.aacei.org/docs/default-source/rps/29r-03.pdf?sfvrsn=1e27b2c_1
+- AACE 29R-03 official table of contents (public): https://web.aacei.org/docs/default-source/toc/toc_29r-03.pdf
+- AACE 29R-03 purpose and scope overview: https://29r-03.com/About29R03
+- Society of Construction Law UK official Delay and Disruption Protocol page (confirms 2nd edition, February 2017, and official download): https://www.scl.org.uk/index.php/resources/delay-disruption-protocol
+- SCL UK official 2nd edition PDF: https://www.scl.org.uk/sites/default/files/documents/SCL_Delay_Protocol_2nd_Edition_Final.pdf
+
+Methodology-to-product mapping:
+- AACE RP 29R-03 governs the taxonomy and competent application of CPM-based forensic schedule-analysis methods. CUBI records the selected method, method version, contemporaneous schedule inputs, schedule validation/assumptions, data dates, analysis intervals, logic changes, critical/near-critical path evidence, concurrency treatment and activity-level outputs. The Engineering service remains the sole calculation authority.
+- SCL 2nd edition guides contemporaneous programme/records, EOT process, delay analysis, concurrency/float, mitigation/acceleration, disruption and prolongation-cost assessment. CUBI's Claim Day Archive is the evidence chain that makes these contemporaneous records discoverable and revision-pinned.
+- Neither standard alone decides contractual entitlement or legal responsibility. The applicable contract, amendments, governing law and authorized determination process control those outcomes.
+- AACE RP 29R-03 is copyrighted/licensed; CUBI must not reproduce the full standard or protected text. Store citation/version/selected method metadata and use appropriately licensed copies for expert reference.
+
+
+## 12. Additional exact V26 HTML Help verification and product parity rules
+
+This pass checked the official HTML pages directly (not a PDF mirror or V22/V24 page):
+
+| V26 Help topic | Verified Help behavior | CUBI acceptance requirement |
+|---|---|---|
+| Unifier — Revising Documents: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/revisingdocuments-73757a.html | Revised files are separate versions; the previous file remains untouched; earlier versions are available through Revisions; publication number advances. | A source document revision is immutable. Claim evidence stores exact document ID + content version + SHA-256; later document revisions cannot silently change a claim package. |
+| Unifier — Working with Document Manager: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/user-help/workingwithdocumentmanagerincompanyandprojectorshell-10287105a.html | Documents log supports flat/tile/tree views, views/filters, search, upload/download, revise, check-in/out, lock/unlock, permissions, linked records, audit log, recycle bin and unpublished documents. | Reuse CUBI Document Management. Claim archive needs source-link, exact revision, linked-record and permission status, not a second document manager or binary repository. Do not copy features such as recycle-bin disposition into claim UI unless the source policy authorizes them. |
+| Unifier — About Workflows: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/aboutworkflows-73172a.html | Create → review → revision → approval → end; reviewers may return for revision or forward; approver may return, reject or approve; approved/rejected are terminal and cannot be changed (comments/certain edits remain possible). | Claim submissions and determinations require explicit state machine, returned-for-revision path, terminal outcome and append-only correction/new submission. A terminal decision must never be silently rewritten. |
+| Unifier — Business Process Audit Log: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/business-process/auditingbusinessprocessesauditlog-73307a.html | Captures workflow steps, To/Cc routing, record creation, comments, linked records, attachment add/remove/open/view/download, ownership transfer, line-item changes, print events and mobile record/line-item changes. The Help also lists events not captured, including some creation-step actions, accept/undo-accept and adding assignees/copy users between steps. | CUBI audit must be at least as complete for claim security: capture create/edit/link/unlink, private draft access where policy requires, all workflow actions and recipients, assignment/copy changes, view/download/export, disclosure/revocation, submission, response, correction, determination, settlement, hold and print/export. Do not inherit documented audit blind spots. |
+| Unifier — View and print BP audit log: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/managers/viewandprintthebusinessprocessauditlog-73308a.html | Audit event timestamps are presented in the user's current preference timezone; details can be inspected and the audit log printed to PDF. | CUBI stores canonical UTC instants plus IANA timezone and renders in user preference timezone; export/print includes canonical time, display timezone, actor, action and correlation/reference IDs. |
+| P6 EPPM V26 — Documents Detail Window of Activities: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/91777.html | Relates/removes documents to activities; view/open; add menu supports upload or link/path depending on repository configuration; visibility depends on application privileges and document security. | Engineering activity/document relationship remains source-owned. Enterprise references activity/WBS and source document revision; authorization is the intersection of project/activity and document permissions plus claim-party disclosure. |
+| P6 EPPM V26 — Security Help: https://docs.oracle.com/cd/G48897_01/p6help/en/9001.htm | Application/module access, security profiles and OBS access are distinct security controls. | CUBI must not collapse project membership, module access and claim-party disclosure into one broad role check. All three scopes are evaluated server-side. |
+
+### 12.1 Important distinction: document revision vs formal claim submission
+
+The V26 Document Manager retains separate document versions, but a Claim Submission is a separate business transaction. CUBI must freeze:
+- the exact Claim Day Archive revision(s) used in that submission;
+- exact evidence source versions/hashes and their claim-day association;
+- party disclosure state at submission time;
+- exact Form Builder template ID/version and canonical form snapshot;
+- exact Engineering schedule/baseline snapshot IDs;
+- submitter, party, submission number, timestamp, workflow recipients and manifest digest.
+
+A later document revision, disclosure change, correction, or new schedule snapshot must not mutate a previously submitted claim package. A corrected package is a new submission revision that explicitly supersedes the prior package and records the reason.
+
+### 12.2 P6 vs Unifier vs Cloud scope boundaries
+
+- P6 EPPM V26 Help is normative for schedule/activity/document/issue/security semantics that it documents. It is not the product authority for a full commercial claims and dispute workflow.
+- Unifier V26 Help is the product-workflow reference for BP forms, review/approval, record permissions, document revisions and audit patterns. CUBI must preserve party-level confidentiality beyond ordinary project record permissions.
+- Primavera Cloud Help is additive for cloud/field/mobile/file workflows. It must not displace EPPM V26 behavior or create a competing Engineering schedule owner.
+- AACE/SCL guide forensic method and evidence quality; neither is a software UI specification or a substitute for the contract/governing law.
