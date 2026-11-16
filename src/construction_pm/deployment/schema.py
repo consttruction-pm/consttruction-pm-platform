@@ -11,6 +11,7 @@ from typing import Any
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..enterprise_organization_access_repository import PostgresEnterpriseOrganizationAccessRepository
+from ..claim_party_membership_repository import PostgresClaimPartyMembershipRepository
 from ..identity_session import PostgresIdentityStore
 from ..p6_cost_account_repository import PostgresP6CostAccountRepository
 from ..p6_obs_repository import PostgresP6OBSRepository
@@ -36,6 +37,7 @@ def initialize_production_schema(connection: Any) -> None:
     PostgresIdentityStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
     PostgresEnterpriseOrganizationAccessRepository(connection).initialize()
+    PostgresClaimPartyMembershipRepository(connection).initialize()
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
     PostgresP6CostAccountRepository(connection).initialize()
