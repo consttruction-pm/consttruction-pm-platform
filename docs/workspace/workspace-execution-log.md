@@ -304,15 +304,15 @@ result.
 `scripts/scheduling_offline_parity.py` proves it: the bundle is executed in a
 subprocess whose socket layer is disabled before any package import, and the
 canonical `calculation_run_identity` equals the online value at 1,000 and 5,000
-activities (bundle 0.85 MB and 4.25 MB; offline medians 274.5 ms and 1,339.1 ms
-against online 239.9 ms and 1,232.4 ms). A probe confirms the guard denies
-`create_connection`.
+activities (bundle 0.85 MB and 4.25 MB; offline medians 272.7 ms and 1,337.6 ms
+against online 241.1 ms and 1,237.2 ms, measured on merged main `ffc946ca`). A
+probe confirms the guard denies `create_connection`.
 
 The measurement also exposed an existing quadratic rebuild of the
 relationship-independent activity calendar map inside
 `resolve_relationship_lag_resolvers`. Hoisting it out of the relationship loop
 changed no output (identical run identities) and cut 200-activity evaluation
-from 251.7 to 48.5 ms and 1,000-activity evaluation from 5,273.9 to 240.3 ms.
+from 252.0 to 49.3 ms and 1,000-activity evaluation from 5,247.5 to 243.2 ms.
 
 Leveling and resource-dependent snapshots are rejected explicitly because
 capacity inputs are not part of a bundle yet; online behavior is untouched.

@@ -4554,13 +4554,14 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   create_connection/getaddrinfo with raising stubs during `execute()`. The
   parity harness disables the socket layer in a fresh subprocess *before* any
   package import, and a probe confirms the guard denies `create_connection`.
-- **Parity (3 runs).** 1,000 activities: online 239.9 ms, offline 274.5 ms,
-  bundle 853,285 bytes, identical `0c811c700798…`. 5,000: 1,232.4 ms vs
-  1,339.1 ms, bundle 4,247,877 bytes, identical `901b101d3500…`.
+- **Parity (3 runs, merged main `ffc946ca`).** 1,000 activities: online
+  241.1 ms, offline 272.7 ms, bundle 853,285 bytes, identical `0c811c700798…`.
+  5,000: 1,237.2 ms vs 1,337.6 ms, bundle 4,247,877 bytes, identical
+  `901b101d3500…`.
 - **Exact resolver hoist.** The boundary exposed an O(edges × activities)
   rebuild of the relationship-independent activity calendar map. It is now
-  resolved once: 200 activities 251.7 → 48.5 ms (5.18x), 1,000 activities
-  5,273.9 → 240.3 ms (21.95x), with identical canonical run identities. No CPM
+  resolved once: 200 activities 252.0 → 49.3 ms (5.11x), 1,000 activities
+  5,247.5 → 243.2 ms (21.58x), with identical canonical run identities. No CPM
   step, float, option or validation changed.
 - **Fail closed.** Missing calendar/base, tampered payload or bundle, unknown
   schema and identity mismatch raise stable `OFFLINE_*` codes. Leveling and

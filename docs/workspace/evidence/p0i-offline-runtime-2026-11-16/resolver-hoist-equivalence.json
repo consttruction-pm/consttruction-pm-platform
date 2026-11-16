@@ -3,22 +3,23 @@
   "records": [
     {
       "identical": true,
-      "new_median_ms": 48.548,
+      "new_median_ms": 49.341,
       "new_run_identity": "7ba4b8a71a2b6e501919c68d6ae75431d1f933b516262be3f1a74e8368a2e64a",
-      "old_median_ms": 251.694,
+      "old_median_ms": 252.024,
       "old_run_identity": "7ba4b8a71a2b6e501919c68d6ae75431d1f933b516262be3f1a74e8368a2e64a",
       "size": 200,
-      "speedup": 5.18
+      "speedup": 5.11
     },
     {
       "identical": true,
-      "new_median_ms": 240.306,
+      "new_median_ms": 243.21,
       "new_run_identity": "0c811c700798b93077e26465806ccfee5c9cc410cda6882a24e9fcd5e2eb38cb",
-      "old_median_ms": 5273.897,
+      "old_median_ms": 5247.477,
       "old_run_identity": "0c811c700798b93077e26465806ccfee5c9cc410cda6882a24e9fcd5e2eb38cb",
       "size": 1000,
-      "speedup": 21.95
+      "speedup": 21.58
     }
   ],
-  "runs": 3
+  "runs": 3,
+  "tested_code_commit": "ffc946cabff1e8b85206a34141c6368599ffc65a"
 }
