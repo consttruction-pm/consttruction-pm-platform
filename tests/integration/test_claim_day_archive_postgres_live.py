@@ -35,6 +35,9 @@ def test_claim_day_archive_postgres_round_trip_replay_and_submission_freeze():
         reporting_date=date(2026, 10, 25),
         timezone="Europe/Berlin",
         claim_party_ids=("EMPLOYER", "CONTRACTOR"),
+        revision_actor_id="contractor-user",
+        revision_occurred_at="2026-10-25T09:00:00+02:00",
+        revision_reason="Initial archive creation",
     )
     evidence = ClaimDayEvidenceLink(
         evidence_link_id=f"evidence-{suffix}",
