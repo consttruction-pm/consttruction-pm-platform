@@ -110,10 +110,24 @@ def test_v26_combined_privileges_expand_only_to_documented_domain_targets():
     assert "project.view_costs_financials" not in expanded
 
 
-def test_v26_template_document_requires_separate_work_product_document_grant():
+def test_v26_template_document_requires_work_product_document_grant():
     expanded = expand_project_privileges({"template_document.add_edit_delete"})
-    assert "work_product_document.add_edit_delete" not in expanded
+    assert "work_product_document.add_edit_delete" in expanded
     assert "document.add_edit_delete" not in expanded
+
+
+def test_v26_activity_id_wbs_financial_and_baseline_dependencies_are_inherited():
+    activity_id = expand_project_privileges({"activity.id.edit"})
+    assert "activity.add_edit_except_relationships" in activity_id
+
+    wbs_financials = expand_project_privileges({"wbs.edit_costs_financials"})
+    assert {
+        "wbs.add_edit_delete_except_costs_financials",
+        "project.view_costs_financials",
+    } <= wbs_financials
+
+    baseline = expand_project_privileges({"project_baseline.assign"})
+    assert "project.edit_details_except_costs_financials" in baseline
 
 
 
