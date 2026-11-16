@@ -1389,3 +1389,11 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - Coverage is incremental: all other capabilities must add their own manifest before implementation code in their paths can be changed in a PR. The validator checks traceability structure, not source truth or visual parity.
 - GitHub Actions execution is pending on the exact PR head; no green CI claim is made yet. Engineering P1 implementation paths were not changed.
 - Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`; PR #2001 remains Draft and unmerged.
+
+
+## 2026-11-16 — Exact-head verification result for Help inheritance gate
+
+- First CI attempt exposed a defect in the validator's temporary test fixture: its acceptance-test ID was not written into the fixture file. The fixture was corrected; no production capability code was changed.
+- On commit `33711b14bfe22abeb7cdccc4d3995591ea629e13`, **ConstructionPM CI passed on Python 3.11, 3.12 and 3.13**, including the PR changed-code manifest gate on Python 3.11. **Client Typecheck passed** for web, mobile, desktop and client-sync.
+- This verifies the validator/tests and PR gate at that exact commit. It does not establish complete Unifier parity or make ENT-13 implementation-ready.
+- Vercel preview status is separate: the PR's latest deployment attempts reported the account's daily deployment limit; no new preview is claimed from this verification.
