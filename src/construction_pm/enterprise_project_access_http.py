@@ -57,6 +57,8 @@ class EnterpriseProjectAccessHttpMiddleware:
             return 200, {"contract_version":_VERSION,"privileges":[{
                 "key":item.key,"group":item.group.value,"label":item.label,
                 "description":item.description,
+                "help_url":item.help_url,
+                "definitions_help_url":item.definitions_help_url,
             } for item in definitions]}
         if path == "/api/enterprise/project-security-profiles":
             if method == "GET":
