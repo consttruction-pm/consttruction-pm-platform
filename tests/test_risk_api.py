@@ -187,7 +187,7 @@ def test_risk_read_write_follows_wbs_responsible_obs():
 
     class WBSAccess:
         def has_wbs_permission(self, scope, user_id, wbs_id, permission):
-            return permission == "project.read"
+            return permission == "risk.view"
 
     scoped = RiskAPI(replace(base.service, wbs_access_repository=WBSAccess()))
     listed = scoped.list_risks(
