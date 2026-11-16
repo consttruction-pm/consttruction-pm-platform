@@ -257,3 +257,7 @@ def test_day_timezone_and_evidence_hash_are_validated():
         evidence(content_sha256="sha256:bad").validate(
             claim_party_ids=("EMPLOYER", "CONTRACTOR", "CONSULTANT")
         )
+    with pytest.raises(ClaimDayArchiveError, match="SHA256"):
+        evidence(content_sha256=None).validate(
+            claim_party_ids=("EMPLOYER", "CONTRACTOR", "CONSULTANT")
+        )
