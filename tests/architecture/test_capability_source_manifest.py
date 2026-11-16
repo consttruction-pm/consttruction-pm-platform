@@ -1,3 +1,6 @@
+# ENT13-MANIFEST-01 — manifest schema and changed-code gate acceptance coverage.
+# ENT13-PROCUREMENT-CORE-01 — existing RFQ/quote/bid/PO/commitment/delivery boundary acceptance reference.
+
 import json
 from pathlib import Path
 
