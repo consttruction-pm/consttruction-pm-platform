@@ -1,0 +1,280 @@
+{
+  "calculation_identity": "p0g-worker-benchmark",
+  "capacity": {
+    "cgroup_cpu_cores": null,
+    "cgroup_memory_limit_bytes": null,
+    "cpu_affinity": 4,
+    "effective_cores": 4.0,
+    "effective_memory_bytes": 5933924352,
+    "memory_available_bytes": 5933924352,
+    "provenance": [
+      "cpu_affinity",
+      "proc_meminfo_MemAvailable"
+    ]
+  },
+  "derived_budget": {
+    "capacity": {
+      "cgroup_cpu_cores": null,
+      "cgroup_memory_limit_bytes": null,
+      "cpu_affinity": 4,
+      "effective_cores": 4.0,
+      "effective_memory_bytes": 5933924352,
+      "memory_available_bytes": 5933924352,
+      "provenance": [
+        "cpu_affinity",
+        "proc_meminfo_MemAvailable"
+      ]
+    },
+    "cpu_workers": 4,
+    "jobs_per_core": 1.0,
+    "limiting_factor": "cpu",
+    "max_workers": 64,
+    "memory_reserve_fraction": "0.25",
+    "memory_workers": 8,
+    "per_job_memory_bytes": 536870912,
+    "workers": 4
+  },
+  "engine_version": "cubi-26.0.0",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "d2fc916e",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "fixture_size": 200,
+  "jobs": 32,
+  "oversubscription_allowed": true,
+  "runs": [
+    {
+      "budget_per_process": 1,
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "cpu_seconds_total": 1.084,
+      "cpu_utilisation_cores": 3.265,
+      "derived_host_budget": {
+        "capacity": {
+          "cgroup_cpu_cores": null,
+          "cgroup_memory_limit_bytes": null,
+          "cpu_affinity": 4,
+          "effective_cores": 4.0,
+          "effective_memory_bytes": 5933924352,
+          "memory_available_bytes": 5933924352,
+          "provenance": [
+            "cpu_affinity",
+            "proc_meminfo_MemAvailable"
+          ]
+        },
+        "cpu_workers": 4,
+        "jobs_per_core": 1.0,
+        "limiting_factor": "cpu",
+        "max_workers": 64,
+        "memory_reserve_fraction": "0.25",
+        "memory_workers": 8,
+        "per_job_memory_bytes": 536870912,
+        "workers": 4
+      },
+      "event_count": 64,
+      "fixture_size": 200,
+      "jobs": 32,
+      "latency_ms": {
+        "count": 32,
+        "max": 340.408,
+        "mean": 213.819,
+        "median": 214.267,
+        "min": 72.568,
+        "p50": 215.862,
+        "p95": 325.912,
+        "p99": 340.408
+      },
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": true,
+      "pending_after_drain": 0,
+      "queue_wait_ms": {
+        "count": 32,
+        "max": 306.128,
+        "mean": 161.143,
+        "median": 164.935,
+        "min": 32.239,
+        "p50": 168.592,
+        "p95": 278.715,
+        "p99": 306.128
+      },
+      "results_found": 32,
+      "run_ms": {
+        "count": 32,
+        "max": 78.808,
+        "mean": 45.142,
+        "median": 41.156,
+        "min": 32.483,
+        "p50": 41.341,
+        "p95": 61.681,
+        "p99": 78.808
+      },
+      "states": {
+        "SUCCEEDED": 32
+      },
+      "status": "ok",
+      "throughput_jobs_per_s": 96.341,
+      "wall_ms": 332.154,
+      "worker_peak_rss_kb_max": 48924,
+      "worker_peak_rss_kb_sum": 391148,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.104293613,
+          "kind": "SUMMARY",
+          "owner": "p0g-818698",
+          "peak_rss_kb": 48904,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 3,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 5,
+            "stopped": false,
+            "succeeded": 3
+          },
+          "wall_s": 0.2877641950035468
+        },
+        {
+          "cpu_s": 0.136295671,
+          "kind": "SUMMARY",
+          "owner": "p0g-818692",
+          "peak_rss_kb": 48884,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 8,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.29325978699489497
+        },
+        {
+          "cpu_s": 0.134523224,
+          "kind": "SUMMARY",
+          "owner": "p0g-818693",
+          "peak_rss_kb": 48884,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 5,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.29098354899906553
+        },
+        {
+          "cpu_s": 0.135037351,
+          "kind": "SUMMARY",
+          "owner": "p0g-818700",
+          "peak_rss_kb": 48908,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 4,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.29051910000271164
+        },
+        {
+          "cpu_s": 0.136213421,
+          "kind": "SUMMARY",
+          "owner": "p0g-818703",
+          "peak_rss_kb": 48896,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 7,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.29613313599838875
+        },
+        {
+          "cpu_s": 0.134770517,
+          "kind": "SUMMARY",
+          "owner": "p0g-818696",
+          "peak_rss_kb": 48904,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 5,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.30264462702325545
+        },
+        {
+          "cpu_s": 0.164171302,
+          "kind": "SUMMARY",
+          "owner": "p0g-818694",
+          "peak_rss_kb": 48844,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 5,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 5
+          },
+          "wall_s": 0.31130587199004367
+        },
+        {
+          "cpu_s": 0.13901287399999998,
+          "kind": "SUMMARY",
+          "owner": "p0g-818699",
+          "peak_rss_kb": 48924,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 4,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 13,
+            "stopped": false,
+            "succeeded": 4
+          },
+          "wall_s": 0.3147107909899205
+        }
+      ],
+      "workers_requested": 8,
+      "workers_supplied": 4
+    }
+  ],
+  "seed": 20261116,
+  "suppliable_workers": 4
+}

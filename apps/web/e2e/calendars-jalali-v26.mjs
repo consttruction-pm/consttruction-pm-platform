@@ -91,6 +91,11 @@ const calendarState = `(() => {
     exceptions: [...document.querySelectorAll("[data-calendar-panel='exceptions'] .cp-calendar-holiday-list li")].map((item) => (item.textContent || "").trim()),
     exceptionDates: [...document.querySelectorAll("[data-calendar-exception-delete]")].map((button) => button.dataset.calendarExceptionDelete),
     editing: document.querySelector("[data-calendar-exception-form]")?.dataset.editing ?? null,
+    monthTitle: page?.querySelector("[data-calendar-month-title]")?.textContent?.trim() ?? null,
+    monthDays: [...document.querySelectorAll("[data-calendar-month-day]")].map((button) => ({
+      date: button.dataset.calendarMonthDay,
+      state: button.dataset.calendarMonthState,
+    })),
     dateInputType: document.querySelector('[data-calendar-exception-form] [name="date"]')?.getAttribute("type") ?? null,
     notice: notice ? { kind: notice.dataset.state, text: notice.textContent.trim() } : null,
     shared: (() => {
@@ -320,6 +325,19 @@ async function main() {
       assert(stored.mode === "total-work-hours" && stored.record_revision === 2, `stored after reload ${JSON.stringify(stored)}`);
       await capture(page, "04-jalali-persisted");
       return { storedDate: stored.date, revision: stored.record_revision };
+    });
+
+    await scenario("04b", "شبکهٔ ماه برای تقویم جلالی همان ماه جلالی را با تاریخ‌های ISO می‌سازد", async () => {
+      await selectCalendar(page, newId);
+      await selectTab(page, "month");
+      const state = await page.evaluate(calendarState);
+      assert(state.monthTitle, "month title is missing");
+      assert(/۱۴۰۵|1405/.test(state.monthTitle), `Jalali year missing from ${state.monthTitle}`);
+      assert(state.monthDays.length === 30, `Aban day cells ${state.monthDays.length}`);
+      assert(state.monthDays[0].date === "2026-10-23", `first cell ${state.monthDays[0].date}`);
+      assert(state.monthDays.at(-1).date === "2026-11-21", `last cell ${state.monthDays.at(-1).date}`);
+      await capture(page, "04b-jalali-month-grid");
+      return { title: state.monthTitle, days: state.monthDays.length, first: state.monthDays[0].date };
     });
 
     await scenario("05", "پنجرهٔ Jalali در 1280×720 بدون بریدگی چیدمان رندر می‌شود", async () => {

@@ -4,6 +4,9 @@ import test from "node:test";
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { formatJalaliDateInput, parseJalaliDateInput } from "./workspace-jalali-entry.js";
 import {
+  buildCalendarMonth,
+  calendarMonthAnchor,
+  shiftCalendarMonth,
   buildExceptionRequest,
   copyCalendar,
   createCalendar,
@@ -276,6 +279,44 @@ test("calendar update preserves, changes and clears the inherited base calendar"
   );
   assert.equal((clearedCalls.patches[0].request as Record<string, unknown>).base_calendar_id, null);
   assert.equal((clearedCalls.patches[0].request as Record<string, unknown>).base_calendar_version, null);
+});
+
+test("calendar month grid follows the stored workweek and exceptions", () => {
+  const november = buildCalendarMonth("gregorian", "2026-11-15", [0, 1, 2, 3, 4], [
+    { calendarId: "CAL", calendarVersion: "1", date: "2026-11-05", mode: "nonwork", system: "gregorian", totalWorkHours: null, intervals: [], recordRevision: 1 },
+  ]);
+  assert.ok(november);
+  assert.equal(november.system, "gregorian");
+  assert.equal(november.year, 2026);
+  assert.equal(november.month, 11);
+  assert.equal(november.days.length, 30);
+  assert.equal(november.leading, 6, "2026-11-01 is a Sunday in a Monday-first grid");
+  assert.equal(november.days[0].date, "2026-11-01");
+  assert.equal(november.days[0].working, false);
+  assert.equal(november.days[1].working, true, "Monday is a working day");
+  assert.equal(november.days[4].exception?.mode, "nonwork");
+  assert.equal(november.days[4].date, "2026-11-05");
+
+  const aban = buildCalendarMonth("jalali", "2026-11-15", [5, 6, 0, 1, 2], []);
+  assert.ok(aban);
+  assert.equal(aban.system, "jalali");
+  assert.equal(aban.year, 1405);
+  assert.equal(aban.month, 8);
+  assert.equal(aban.days.length, 30, "Aban 1405 has 30 days");
+  assert.equal(aban.days[0].date, "2026-10-23");
+  assert.equal(aban.days.at(-1)?.date, "2026-11-21");
+  assert.equal(aban.leading, 4, "1405/08/01 is a Friday in a Monday-first grid");
+
+  assert.equal(buildCalendarMonth("gregorian", "not-a-date", [], []), null);
+});
+
+test("calendar month anchor and shift stay inside the requested system", () => {
+  assert.equal(calendarMonthAnchor("gregorian", "2026-11-15"), "2026-11-01");
+  assert.equal(calendarMonthAnchor("jalali", "2026-11-15"), "2026-10-23");
+  assert.equal(shiftCalendarMonth("gregorian", "2026-12-15", 1), "2027-01-01");
+  assert.equal(shiftCalendarMonth("gregorian", "2026-01-15", -1), "2025-12-01");
+  assert.equal(shiftCalendarMonth("jalali", "2027-02-20", 1), "2027-03-21");
+  assert.equal(shiftCalendarMonth("jalali", "2027-03-21", -1), "2027-02-20");
 });
 
 test("split-shift parser accepts ordered ranges and rejects overlap or malformed input", () => {

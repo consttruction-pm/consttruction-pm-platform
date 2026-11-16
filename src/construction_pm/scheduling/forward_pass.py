@@ -16,6 +16,7 @@ from .constraints import (
 )
 from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
+from .topological_order import TopologicalCycleError, heap_topological_order
 
 
 class SchedulingCycleError(ScheduleInfeasibilityError):
@@ -200,27 +201,16 @@ def _successor_start(
 def _topological_order(
     activity_ids: Iterable[str], relationships: Iterable[Relationship],
 ) -> list[str]:
-    ids = sorted(activity_ids)
-    predecessor_count = {activity_id: 0 for activity_id in ids}
-    successors: dict[str, list[str]] = {activity_id: [] for activity_id in ids}
-    for rel in relationships:
-        predecessor_count[rel.successor_id] += 1
-        successors[rel.predecessor_id].append(rel.successor_id)
-    ready = sorted(
-        activity_id for activity_id, count in predecessor_count.items() if count == 0
-    )
-    order: list[str] = []
-    while ready:
-        current = ready.pop(0)
-        order.append(current)
-        for successor_id in sorted(successors[current]):
-            predecessor_count[successor_id] -= 1
-            if predecessor_count[successor_id] == 0:
-                ready.append(successor_id)
-                ready.sort()
-    if len(order) != len(ids):
-        raise SchedulingCycleError("activity network contains a cycle")
-    return order
+    try:
+        return heap_topological_order(
+            activity_ids,
+            (
+                (relationship.predecessor_id, relationship.successor_id)
+                for relationship in relationships
+            ),
+        )
+    except TopologicalCycleError as error:
+        raise SchedulingCycleError("activity network contains a cycle") from error
 
 
 def _apply_expected_finish_target(

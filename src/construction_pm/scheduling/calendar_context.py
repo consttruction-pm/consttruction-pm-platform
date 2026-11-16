@@ -167,6 +167,27 @@ class SchedulingCalendarContext:
         raise ValueError(f"unsupported relationship lag calendar: {selected}")
 
 
+@dataclass(frozen=True)
+class CalendarRegistryEntry:
+    """Serializable, version-pinned view of one registered calendar.
+
+    The entry carries the canonical Shared-Core definition plus the exception
+    layers and base reference that the registry would apply. It contains no
+    resolver and performs no arithmetic, so it can be persisted into an
+    offline bundle without changing scheduling semantics.
+    """
+
+    reference: CalendarReference
+    snapshot: dict[str, object]
+    base: CalendarReference | None = None
+    local_exceptions: tuple[dict[str, object], ...] = ()
+    inherited_exceptions: tuple[dict[str, object], ...] = ()
+
+    @property
+    def key(self) -> str:
+        return f"{self.reference.calendar_id}@{self.reference.calendar_version}"
+
+
 class CalendarResolverRegistry:
     """Resolves stable calendar references to authoritative Shared Core resolvers."""
 
@@ -195,6 +216,62 @@ class CalendarResolverRegistry:
     @staticmethod
     def _key(reference: CalendarReference) -> str:
         return f"{reference.calendar_id}@{reference.calendar_version}"
+
+    @staticmethod
+    def _split_key(key: str) -> tuple[str, str]:
+        if not isinstance(key, str) or "@" not in key:
+            raise ValueError(
+                f"calendar registry key must be calendar_id@version: {key!r}"
+            )
+        calendar_id, calendar_version = key.rsplit("@", 1)
+        if not calendar_id or not calendar_version:
+            raise ValueError(
+                f"calendar registry key must be calendar_id@version: {key!r}"
+            )
+        return calendar_id, calendar_version
+
+    def entries(self) -> tuple[CalendarRegistryEntry, ...]:
+        """Return a deterministic, serializable view of every registered calendar.
+
+        Definitions, exception layers and base references are exposed exactly
+        as registered. No calculation is performed, and no mutable repository
+        is consulted; this is the export seam used by the offline runtime
+        boundary.
+        """
+        entries = [
+            self._entry(key, resolver, "working-day")
+            for key, resolver in sorted(self._day.items())
+        ]
+        entries.extend(
+            self._entry(key, resolver, "working-time")
+            for key, resolver in sorted(self._time.items())
+        )
+        return tuple(entries)
+
+    def _entry(self, key: str, resolver, kind: str) -> CalendarRegistryEntry:
+        calendar_id, calendar_version = self._split_key(key)
+        calendar = getattr(resolver, "calendar", None)
+        if calendar is None:
+            raise ValueError(f"calendar resolver has no definition: {key}")
+        layers = self._exception_layers.get(key)
+        return CalendarRegistryEntry(
+            reference=CalendarReference(
+                calendar_id,
+                calendar_version,
+                kind,
+                calendar.system,
+            ),
+            snapshot=calendar.canonical_snapshot(),
+            base=self._base_calendar_references.get(key),
+            local_exceptions=(
+                () if layers is None
+                else tuple(item.canonical_snapshot() for item in layers.local)
+            ),
+            inherited_exceptions=(
+                () if layers is None
+                else tuple(item.canonical_snapshot() for item in layers.inherited)
+            ),
+        )
 
     @staticmethod
     def _merge_inherited_layers(groups: tuple[tuple, ...]) -> tuple:

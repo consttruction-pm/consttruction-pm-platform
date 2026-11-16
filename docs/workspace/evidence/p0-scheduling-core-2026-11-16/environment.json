@@ -1,0 +1,21 @@
+{
+  "baseline_commit": "e02850361300c494477148bd5e426d2516534ad5",
+  "cgroup_cpu_max": null,
+  "cgroup_memory_max": null,
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "cpu_mhz_observed": "2249.998",
+  "cpu_model": "AMD EPYC",
+  "git_sha": "d764c81d6de834390f335971f9069c5a64b8228b",
+  "implementation": "CPython",
+  "kernel": "5.10.134-013.10.1.kangaroo.al8.x86_64",
+  "machine": "x86_64",
+  "meminfo": {
+    "MemAvailable": "5822720 kB",
+    "MemTotal": "8131540 kB"
+  },
+  "memory_total_kb": 8131540,
+  "optimized_commit": "d764c81d6de834390f335971f9069c5a64b8228b",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "python": "3.12.13"
+}

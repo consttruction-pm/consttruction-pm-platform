@@ -1,0 +1,11 @@
+{
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "git_sha": null,
+  "implementation": "CPython",
+  "machine": "x86_64",
+  "memory_total_kb": 8131540,
+  "note": "reference=79200d26 (merged P0-A..P0-D); optimized=working tree for P0-E; identical fixtures in both",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "python": "3.12.13"
+}

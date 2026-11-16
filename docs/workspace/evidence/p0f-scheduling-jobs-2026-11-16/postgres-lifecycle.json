@@ -1,0 +1,17 @@
+{
+  "postgres_concurrent_submit": {
+    "created": 1,
+    "errors": [],
+    "threads": 16,
+    "unique_jobs": 1,
+    "wall_ms": 31.002
+  },
+  "postgres_cycle": {
+    "cycles": 200,
+    "max_ms": 2.534,
+    "median_ms": 0.506,
+    "p95_ms": 0.715,
+    "setup_ms": 0.834
+  },
+  "postgres_version": "14.24 (Ubuntu 14.24-0ubuntu0.22.04.1)"
+}

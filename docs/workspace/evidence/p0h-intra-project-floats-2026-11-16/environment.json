@@ -1,0 +1,13 @@
+{
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "git_sha": "af8b38c0",
+  "implementation": "CPython",
+  "machine": "x86_64",
+  "memory_total_kb": 8131540,
+  "note": "P0-H time-aware per-activity float parallelism; reference main 3ed3892c; fork-based child processes; parent CPU and child RSS reported separately",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "start_method": "fork",
+  "sequential_default": true
+}

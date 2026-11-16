@@ -1,0 +1,14 @@
+{
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "git_sha": "ffc946cabff1e8b85206a34141c6368599ffc65a",
+  "implementation": "CPython",
+  "machine": "x86_64",
+  "memory_total_kb": 8131540,
+  "note": "P0-I offline parity regenerated on merged main; the offline calculation itself needs no database. Branch-head medians differed by <2 ms with identical canonical run identities.",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "postgres": "14.24 at postgresql://postgres@127.0.0.1:55432/postgres",
+  "python": "3.12.13",
+  "reference_main": "a7735bb7",
+  "tested_code_commit": "ffc946cabff1e8b85206a34141c6368599ffc65a"
+}

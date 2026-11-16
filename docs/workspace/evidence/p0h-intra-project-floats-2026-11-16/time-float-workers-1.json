@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "af8b38c0",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 3359.194,
+        "median_ms": 3349.623,
+        "min_ms": 3340.051,
+        "p95_ms": 3359.194
+      },
+      "fixture_build_ms": 232.593,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+      "peak_rss_kb": 63896,
+      "project_finish": "2083-07-08T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 2,
+        "max_ms": 3359.599,
+        "median_ms": 3349.966,
+        "min_ms": 3340.333,
+        "p95_ms": 3359.599
+      }
+    },
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 20000,
+        "relationships": 38291
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 13511.374,
+        "median_ms": 13460.951,
+        "min_ms": 13410.527,
+        "p95_ms": 13511.374
+      },
+      "fixture_build_ms": 939.505,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "d6fb24752019bd288eef677550768b17a88b29b78083fff1c85582071e15070b",
+      "peak_rss_kb": 107428,
+      "project_finish": "2256-01-03T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 20000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 2,
+        "max_ms": 13513.175,
+        "median_ms": 13462.504,
+        "min_ms": 13411.833,
+        "p95_ms": 13513.175
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

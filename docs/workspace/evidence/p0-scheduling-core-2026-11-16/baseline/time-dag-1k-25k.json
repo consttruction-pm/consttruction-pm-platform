@@ -1,0 +1,109 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "e02850361300c494477148bd5e426d2516534ad5",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "counts": {
+        "activities": 1000,
+        "relationships": 1923
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 1707.431,
+        "median_ms": 1705.981,
+        "min_ms": 1704.53,
+        "p95_ms": 1707.431
+      },
+      "fixture_build_ms": 45.703,
+      "float_days": 2,
+      "mode": "time",
+      "output_sha256": "2509bb161055fedb0f95b819bfb2bdbd3f351a62f18921fe62064c77b486722d",
+      "peak_rss_kb": 51108,
+      "project_finish": "2037-07-10T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 1707.628,
+        "median_ms": 1706.123,
+        "min_ms": 1704.617,
+        "p95_ms": 1707.628
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 8364.76,
+        "median_ms": 8289.388,
+        "min_ms": 8214.016,
+        "p95_ms": 8364.76
+      },
+      "fixture_build_ms": 227.73,
+      "float_days": 2,
+      "mode": "time",
+      "output_sha256": "e1f256734d3002ee89a0bbd204b7872afcf59104f8b3488626339f787d545cb9",
+      "peak_rss_kb": 63624,
+      "project_finish": "2083-07-09T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 8365.332,
+        "median_ms": 8289.958,
+        "min_ms": 8214.583,
+        "p95_ms": 8365.332
+      }
+    },
+    {
+      "counts": {
+        "activities": 25000,
+        "relationships": 47881
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 41051.321,
+        "median_ms": 41005.214,
+        "min_ms": 40959.107,
+        "p95_ms": 41051.321
+      },
+      "fixture_build_ms": 1192.695,
+      "float_days": 2,
+      "mode": "time",
+      "output_sha256": "a5fcc02167bc93c878516e5900071aebc749a6897781b8eb2b7d81045c513b03",
+      "peak_rss_kb": 129184,
+      "project_finish": "2313-07-04T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 25000,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 41055.283,
+        "median_ms": 41009.065,
+        "min_ms": 40962.847,
+        "p95_ms": 41055.283
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

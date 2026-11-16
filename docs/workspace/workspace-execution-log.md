@@ -145,3 +145,177 @@ passed (204 skipped), 1166 + 15 web tests, clean typecheck/build.
 Continuation point after merge: the same Help topic's month-year grid,
 recurring exceptions and weekday-column bulk change; then resources, Baseline
 and the remaining main-environment sections.
+
+### 2026-11-15 — Calendars month grid (CAL-002, `244d7aed`)
+
+The V26 project calendar dialog is a month-year grid: click a date then
+Nonwork or Standard, click a weekday's column label to apply the change to
+every instance in the month. CUBI only had a workweek table and an exception
+list. A new Calendar Month tab now renders the month in Gregorian or Jalali
+over the stored snapshot and exceptions, writes a nonwork exception for
+Nonwork, deletes a stored exception for Standard, and applies the last chosen
+action to every visible instance of a weekday from its heading. The pure
+helpers (`calendarWeekday`, `calendarMonthAnchor`, `shiftCalendarMonth`,
+`buildCalendarMonth`) are unit tested, including Aban 1405 and year-boundary
+navigation.
+
+Evidence: `docs/workspace/evidence/calendars-v26-2026-11-15/summary-month-grid.md`
+— 10/10 + 6/6 + 6/6 scenarios, 24 screenshots, zero exceptions/console
+errors/API 5xx at `244d7aed`. Gates: 1168 + 15 web tests, clean typecheck and
+build.
+
+Continuation point after merge: recurring exceptions and the Time Periods
+dialog from the same Help topic; then resources, Baseline and the remaining
+main-environment sections.
+
+### 2026-11-16 — P0 scheduling core baseline and exact hot-path optimizations (`d764c81d`)
+
+Issue #1992. P0-A..P0-D executed against the reference engine at `e0285036`:
+deterministic heap topological ordering for both CPM paths, bounded search for
+Time-Aware Free Float, and a demand index/ledger for forward resource leveling.
+Every benchmarked case keeps a byte-identical canonical result hash; the
+pre-change float scan and list ordering remain in the tree as differential
+oracles. Measured on this 4-CPU/8-GB Python 3.12 host: time-aware 100k DAG
+165.3 -> 68.2 s, date wide 100k 3.64 -> 3.04 s, date fan 25k 5.94 -> 3.01 s,
+float-stress slack 80 7.76 -> 0.21 s, leveling 250 161.2 -> 18.5 s.
+
+Evidence: `docs/workspace/evidence/p0-scheduling-core-2026-11-16/`. Gates:
+4,449 Python tests passed (204 skipped). No worker, queue, single-flight or
+PostgreSQL concurrency claim is made; those phases are not implemented.
+
+Continuation point after merge: P0-E count and reduce provably identical CPM
+work in leveling orchestration, keeping final CPM and final resource-load
+validation authoritative; then P0-F durable scheduling jobs.
+
+2026-11-16 — P0-E exact CPM-pass reuse in leveling orchestration
+
+Counted the CPM passes in `schedule_with_resource_leveling` before changing
+anything: 5 for a two-activity case with one accepted backward move and 3 for
+forward-only orchestration. Three of them are provably identical duplicates and
+now reuse the already computed `ScheduleResult` instead of recalculating the
+same pure function over the same ordered constraint tuple: intermediate ==
+initial when forward leveling proposed no positive shift, closing ==
+intermediate when no backward shift was accepted, and closing == the last
+accepted candidate trial. Final CPM and final resource-load validation are
+unchanged and still run on the returned result.
+
+Added the full-orchestration fixture and benchmark mode
+(`--mode leveling-orchestration`) which records pass counts, accepted shift
+counts, canonical hash and the cost of one CPM pass on the same fixture.
+Measured against `79200d26` with identical fixture code in a detached worktree:
+20/50/100 activities 3 -> 2 passes, wall 24.5 -> 23.0 ms, 293.2 -> 284.5 ms,
+2,172.4 -> 2,147.1 ms; one CPM pass 1.86 / 9.32 / 33.40 ms. All canonical
+hashes unchanged. The two-activity backward-acceptance case drops from 5 to 3
+passes with an identical result.
+
+Evidence: `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
+Continuation point after merge: P0-F durable scheduling jobs with leases,
+retries, cancellation and authorization-checked single-flight.
+
+2026-11-16 — P0-F durable Scheduling Job lifecycle
+
+Added a durable job boundary around the unchanged authoritative engine:
+`src/construction_pm/scheduling_job_lifecycle.py` holds all transition rules
+(stable `job_id` from tenant, project, authorization-scoped dedup key, request
+fingerprint and generation; owner+token+expiry leases; retryable-failure and
+expired-lease requeue up to `max_attempts`; cooperative cancellation that never
+publishes a result; one immutable result per job; `recover_expired()`).
+`src/construction_pm/postgres_scheduling_job_lifecycle.py` stores them with a
+revision compare-and-set on every write, and `infra/scheduling_job_schema.sql`
+adds the partial unique index on QUEUED/LEASED that makes single-flight safe
+across workers.
+
+Measured on a local PostgreSQL 14.24 cluster: 200 submit/claim/complete cycles
+median 0.506 ms, p95 0.715 ms, max 2.534 ms, schema init 0.834 ms; 16 threads
+on separate connections submitting the same authorization-scoped request at one
+barrier produced exactly 1 job with 0 errors in 31.002 ms. Sixteen in-memory
+lifecycle tests and six real PostgreSQL tests pass, including canonical-hash
+persistence from the real 50-activity engine fixture, a lost compare-and-set,
+expired-lease takeover and result immutability. Full suite 4,474 passed / 210
+skipped without a database and 4,562 passed / 131 skipped with local PostgreSQL.
+
+Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
+Continuation point after merge: P0-G adaptive resource management with one
+global budget and the same engine/version identity on every execution surface.
+
+2026-11-16 — P0-G adaptive worker budget and durable job execution
+
+Added `scheduling_execution_budget.py`: capacity comes from CPU affinity, cgroup
+v1/v2 CPU quota, `MemAvailable` and the cgroup memory limit; a deterministic
+policy maps it to a worker count (this host: 4, CPU-limited); one process-wide
+permit set is the single budget shared by every executor; and an adaptive
+controller moves the dispatch target inside that cap. Added
+`scheduling_job_executor.py`, the single execution loop over the P0-F lifecycle:
+discover queued jobs, claim with a lease, hold a budget permit for the whole
+calculation, renew the lease by heartbeat, and persist the engine's canonical
+result, with retryable/terminal failure and engine-identity checks. Worker-side
+queue discovery was added to both repositories, and lease renewal now persists
+CANCELLED when a cancellation request is observed.
+
+Benchmarked with real worker processes against PostgreSQL 14.24, 32 jobs on one
+200-activity fixture: 1/2/4 workers gave 29.36/57.41/101.15 jobs/s (1.96x,
+3.45x), 0.94/1.85/3.32 CPU cores, p50 latency 601.0/316.4/189.4 ms, p50 queue
+wait 569.2/284.7/156.9 ms, and p50 calculation time flat at 31.3/31.6/32.4 ms.
+All runs produced the same canonical hash and drained to zero pending. Eight
+workers forced onto four CPUs were 4.8% slower than four. 16/32 workers are
+refused because the host cannot supply them.
+
+Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
+Continuation point after merge: P0-H intra-project parallelism, which changes
+calculation execution and therefore remains gated on exact canonical equality
+plus the final CPM and final resource-capacity validation.
+
+2026-11-16 — P0-H exact intra-project float parallelism
+
+Profiled the time-aware engine before changing it: at 20,000 activities the
+forward pass takes 0.73 s, the backward pass 2.50 s and the per-activity float
+calculation 10.13 s, about 76% of a 13.4 s run. Each activity's float is a pure
+function of frozen early/late schedules, so `calculate_time_floats` now takes a
+`workers` parameter that splits sorted ids into contiguous chunks, evaluates
+the same function in forked children and merges the immutable records by id.
+`time_schedule` exposes it as `float_workers`. Both default to 1; the parallel
+path falls back to the identical sequential loop on platforms without fork or
+when the parent has threads, because forking a threaded process is unsafe.
+Date CPM and the resource-leveling decision loop were deliberately not
+parallelized: their steps depend on the previous result and changing them would
+risk V26 decisions.
+
+Measured on 4 CPUs: 5,000 activities 3,350.0 → 2,155.5 → 1,482.7 ms and 20,000
+activities 13,462.5 → 8,516.5 → 5,923.9 ms for 1/2/4 workers (2.26x and 2.27x at
+four), with identical canonical hashes at every count. The ceiling is the ~24%
+sequential pass share. Six parity tests compare every field across paths,
+including FS/SS/FF/SF lags and Decimal values.
+
+Evidence: `docs/workspace/evidence/p0h-intra-project-floats-2026-11-16/`.
+Continuation point after merge: P0-I offline runtime boundary.
+
+2026-11-16 — P0-I offline runtime boundary
+
+Defined the offline boundary as a self-contained bundle rather than a second
+execution path: the canonical snapshot payload and hash, the deterministic
+calculation context, and the exact version-pinned calendar definitions
+(including exception layers and base references) travel together and are
+rebuilt in a fresh process. No repository, transport, URL or credential is
+accepted, and `OfflineSchedulingRuntime.execute()` installs a fail-closed
+socket guard so an accidental remote call raises instead of connecting. The
+same `evaluate_schedule_snapshot` runs, so the offline result is the online
+result.
+
+`scripts/scheduling_offline_parity.py` proves it: the bundle is executed in a
+subprocess whose socket layer is disabled before any package import, and the
+canonical `calculation_run_identity` equals the online value at 1,000 and 5,000
+activities (bundle 0.85 MB and 4.25 MB; offline medians 272.7 ms and 1,337.6 ms
+against online 241.1 ms and 1,237.2 ms, measured on merged main `ffc946ca`). A
+probe confirms the guard denies `create_connection`.
+
+The measurement also exposed an existing quadratic rebuild of the
+relationship-independent activity calendar map inside
+`resolve_relationship_lag_resolvers`. Hoisting it out of the relationship loop
+changed no output (identical run identities) and cut 200-activity evaluation
+from 252.0 to 49.3 ms and 1,000-activity evaluation from 5,247.5 to 243.2 ms.
+
+Leveling and resource-dependent snapshots are rejected explicitly because
+capacity inputs are not part of a bundle yet; online behavior is untouched.
+
+Evidence: `docs/workspace/evidence/p0i-offline-runtime-2026-11-16/`.
+P0-A through P0-I are now implemented and measured.

@@ -4351,3 +4351,222 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   exceptions are layered by the resolver rather than copied into the Exceptions
   tab; the month-year grid, recurring exceptions and weekday-column bulk change
   are the next Calendars unit.
+
+## Calendars month grid — 2026-11-15 (`244d7aed`)
+
+- **Help.** [Edit a project calendar](https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_a_project_calendar.htm)
+  steps 4, 5, 7 and the tip: month-year arrows, click a date then Nonwork,
+  click an exception then Standard, and click a weekday's column label to
+  apply the change to every instance in the displayed month.
+- **Gap.** The window had a workweek table and an exceptions list only. A
+  planner could not see the month, could not make or reset a single date, and
+  had no weekday bulk action; a Jalali calendar never rendered a month.
+- **Change.** `calendarWeekday`, `calendarMonthAnchor`, `shiftCalendarMonth`
+  and `buildCalendarMonth` in `apps/web/src/workspace-calendars.ts` are pure
+  helpers over the stored snapshot and exceptions. A new Calendar Month tab
+  renders the localized month-year title (Intl `persian`/`gregory`), prev/next
+  navigation, a Monday-first grid with `data-calendar-month-day` and
+  `data-calendar-month-state`, a disabled-until-selected Nonwork/Standard pair,
+  and weekday heading buttons. Nonwork saves a nonwork exception; Standard
+  deletes a stored exception; the heading applies the last chosen action to
+  every visible instance; every path re-reads stored exceptions.
+- **Acceptance.** `06b` in `calendars-v26.mjs` covers single Nonwork, Standard,
+  bulk Tuesdays both ways and month navigation; `04b` in the Jalali suite
+  covers Aban 1405 over ISO dates. 10/10 + 6/6 + 6/6 scenarios, 24 screenshots,
+  zero exceptions/console errors/API 5xx at `244d7aed`.
+- **Tests at the same code.** Grid shape and offsets for November 2026 and
+  Aban 1405, anchor and shift across year boundaries, plus the CSS parity test.
+  `npm test` = 1168 + 15 passed; typecheck and build clean.
+- **Remaining.** One month only, Monday week start in both locales, one write
+  per date with no bulk endpoint, hours are reset but not edited in the grid,
+  and recurring exceptions plus the Time Periods dialog are still absent.
+
+## P0 scheduling core — baseline and exact hot-path optimizations, 2026-11-16 (`d764c81d`)
+
+- **Scope.** Issue #1992, P0-A..P0-D only: characterize the engine, then
+  optimize topological ordering, Time-Aware Free Float search and forward
+  resource leveling. No P6 V26 calculation, option, validation, calendar rule,
+  Float rule, relationship or leveling rule was removed or simplified.
+- **P0-A.** `scheduling/benchmark_fixtures.py` provides seeded chain/wide/dag/
+  fan/mixed/slack fixtures, canonical result hashing and real wall/CPU/RSS
+  capture; `scripts/scheduling_core_benchmark.py` writes per-size evidence JSON.
+- **P0-B.** One min-heap topological ordering (`topological_order.py`) now
+  serves both CPM paths. Differential tests compare the complete order against
+  the literal pre-change list algorithm for seeded DAGs, duplicate edges,
+  disconnected components, cycles and lexicographic edge cases.
+- **P0-C.** Time-Aware Free Float uses an 8-step linear prefix plus
+  exponential/binary search; the original 10,000-step scan is retained as the
+  oracle and the 0/9999 sentinels are preserved. Monotonicity tests cover
+  holidays, breaks, signed lags and all relationship types.
+- **P0-D.** Forward within-float leveling uses a cached shifted-demand index and
+  a (resource, period) ledger rebuilt in canonical activity order; candidate
+  ordering, Decimal sums and the accepted shift sequence are unchanged.
+- **Measured at `d764c81d` (4 CPU AMD EPYC, 8 GB, Python 3.12.13).** Date CPM
+  100k DAG 15.4 s; Time CPM + Float 100k DAG 165.3 → 68.2 s (2.42x); wide 100k
+  date 3.64 → 3.04 s; fan 25k date 5.94 → 3.01 s; float stress 80 7.76 → 0.21 s
+  (37.3x); leveling 100 9.42 → 1.07 s (8.8x), 250 161.2 → 18.5 s (8.7x). Every
+  canonical output hash equals the reference at `e0285036`.
+- **Gates.** 4,449 Python tests passed (204 skipped); no schema or client
+  change. Evidence: `docs/workspace/evidence/p0-scheduling-core-2026-11-16/`.
+- **Not measured / next.** 3.11/3.13 matrix via CI only; no worker, queue,
+  single-flight or PostgreSQL concurrency numbers because P0-F/P0-G are not
+  implemented. Leveling above 500 activities is not measurable on this host
+  with the reference decision schedule. Next: P0-E CPM work accounting, then
+  P0-F durable scheduling jobs.
+
+## P0-E scheduling orchestrator CPM reuse, 2026-11-16
+
+- **Scope.** Count the CPM passes inside
+  `leveling_scheduler.schedule_with_resource_leveling` on the merged P0-A..P0-D
+  engine (`79200d26`), then remove only passes that are byte-for-byte the same
+  calculation.
+- **Counted before.** 5 passes for a two-activity case with one accepted
+  backward move; 3 passes for every forward-only orchestration. Three were
+  exact duplicates: intermediate == initial when forward leveling proposed no
+  positive shift, closing == intermediate when no backward shift was accepted,
+  and closing == the last accepted candidate trial.
+- **Change.** Identical passes reuse the already computed `ScheduleResult`
+  instead of recalculating the same pure function over the same ordered
+  constraint tuple. The final `_validate_final_resource_load` still runs on the
+  returned result, the final CPM result stays authoritative, and no option,
+  calendar rule, relationship rule, float value or leveling decision changed.
+- **Measured (3 runs after 1 warm-up).** Forward-only orchestration 20/50/100
+  activities: 3 -> 2 passes, wall 24.5 -> 23.0 ms, 293.2 -> 284.5 ms,
+  2,172.4 -> 2,147.1 ms; one CPM pass on the same fixture costs 1.86 / 9.32 /
+  33.40 ms, so the gain is bounded by that pass and the remaining cost is the
+  quadratic forward decision schedule. Every canonical output hash is
+  unchanged. Backward-acceptance scenario 5 -> 3 passes with an identical
+  result.
+- **Gates.** Focused tests
+  `tests/scheduling/test_leveling_cpm_reuse.py` plus golden hashes in
+  `tests/scheduling/test_benchmark_fixtures.py`; full Python suite 4,458 passed
+  / 204 skipped locally; the 3.11/3.12/3.13 and PostgreSQL matrix is recorded
+  by CI on the pull request. Evidence:
+  `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
+- **Not measured / next.** Backward-acceptance orchestration above 50
+  activities is not yet a converged fixture; 3.11/3.13 and PostgreSQL remain
+  CI-only; no worker or queue claim. Next: P0-F durable scheduling jobs.
+
+## P0-F durable Scheduling Job lifecycle, 2026-11-16
+
+- **Scope.** Give the authoritative engine a durable job boundary before any
+  worker parallelism: stable identity, leases, retries, cancellation, result
+  persistence, failure recovery, and single-flight de-duplication that still
+  enforces per-user authorization. No calculation was added; the job layer only
+  stores the engine's canonical hash and payload.
+- **Built.** `src/construction_pm/scheduling_job_lifecycle.py` (state machine
+  `QUEUED -> LEASED -> SUCCEEDED | FAILED | CANCELLED`, with `LEASED -> QUEUED`
+  on retryable failure or expiry), `src/construction_pm/postgres_scheduling_job_lifecycle.py`
+  (revision compare-and-set on every write), and `infra/scheduling_job_schema.sql`
+  (partial unique index on the active state is the single-flight guarantee).
+- **Identity and authorization.** `job_id = sha256(tenant, project, dedup scope,
+  request fingerprint, generation)`; `engine_version` and
+  `calculation_identity` are stored on the job and rejected on mismatch at
+  completion. The dedup key includes an authorization-derived scope and
+  `can_view` is re-checked before returning any job or result, so dedup never
+  merges two users' runs.
+- **Measured (PostgreSQL 14.24, local single node).** 200 submit -> claim ->
+  complete cycles: median 0.506 ms, p95 0.715 ms, max 2.534 ms, schema init
+  0.834 ms. 16 threads on separate connections submitting the same
+  authorization-scoped request at one barrier: 1 unique job, 1 created, 0
+  errors, 31.002 ms; the losers hit the partial unique index, re-read and
+  return the winner.
+- **Gates.** `tests/scheduling/test_scheduling_job_lifecycle.py` (16 in-memory
+  tests, including persistence of the real engine's canonical hash for a
+  50-activity fixture) and `tests/test_scheduling_job_postgres.py` (6 real
+  PostgreSQL tests). Full Python suite: 4,474 passed / 210 skipped without a
+  database, 4,562 passed / 131 skipped with the local PostgreSQL running; the
+  3.11/3.12/3.13 and postgres CI matrix is recorded on the pull request.
+  Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
+- **Not measured / next.** Multi-host or high-availability PostgreSQL, HTTP
+  admission and client polling, and worker/queue/throughput numbers are not
+  claimed. Next: P0-G adaptive resource management under one global budget.
+
+## P0-G adaptive worker budget and durable execution, 2026-11-16
+
+- **Scope.** Execute durable scheduling jobs on real worker processes under one
+  derived budget, without adding or varying any calculation logic.
+- **Built.** `scheduling_execution_budget.py` reads affinity, cgroup v1/v2 CPU
+  quota, `MemAvailable` and the cgroup memory limit, maps them to a worker
+  count, owns a process-wide permit set, and adapts the dispatch target inside
+  that cap. `scheduling_job_executor.py` is the single loop: discover → claim →
+  acquire permit → run the caller's authoritative calculation → renew the lease
+  → persist the canonical result. The lifecycle gained worker-side queue
+  discovery, and renewal now persists `CANCELLED` when a cancellation request is
+  observed, matching the documented cancellation points.
+- **Measured (4 CPUs, PostgreSQL 14.24, 32 jobs on a 200-activity fixture).**
+  1/2/4 real worker processes: 29.36 / 57.41 / 101.15 jobs/s (1.96x, 3.45x),
+  CPU 0.94 / 1.85 / 3.32 cores, p50 latency 601.0 / 316.4 / 189.4 ms, p95
+  1,031.6 / 518.7 / 294.4 ms, p99 1,097.7 / 552.6 / 311.2 ms. p50 queue wait
+  569.2 / 284.7 / 156.9 ms while p50 calculation stays 31.3 / 31.6 / 32.4 ms.
+  One canonical hash everywhere
+  (`2719a62c…`), 32/32 succeeded, 0 pending after each drain. 8 workers forced
+  onto 4 CPUs: 96.34 jobs/s, 4.8% slower than 4.
+- **Gates.** 18 budget tests, 9 executor tests, the renewal cancellation test,
+  and one added PostgreSQL executor test; full suite 4,502 passed / 211 skipped
+  without a database and 4,591 passed / 131 skipped with local PostgreSQL. No
+  calculation, leveling decision, option, calendar rule or float changed.
+  Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
+- **Not measured / next.** 16/32 workers are refused because the host supplies 4
+  effective cores; multi-host PostgreSQL, HTTP admission and OOM behaviour are
+  not claimed. Next: P0-H intra-project parallelism, gated on exact canonical
+  equality.
+
+## P0-H exact intra-project float parallelism, 2026-11-16
+
+- **Scope.** Parallelize only the independent per-activity time-aware float
+  computation, prove exact equality, and leave every sequential decision path
+  untouched.
+- **Profiled first.** At 20,000 activities: forward 0.73 s, backward 2.50 s,
+  floats 10.13 s — the float stage is ~76% of the 13.4 s run and each activity
+  is independent given frozen early/late schedules.
+- **Built.** `calculate_time_floats(..., workers=N)` splits sorted ids into
+  contiguous chunks, evaluates the same pure function in forked children and
+  merges by id; `time_schedule(..., float_workers=N)` forwards it. Default is 1
+  everywhere. Falls back to the identical sequential loop when the platform has
+  no fork or the caller has threads, because forking a threaded process is
+  unsafe. Date CPM and leveling loops remain sequential by design.
+- **Measured (4 CPUs).** 5,000 activities: 3,350.0 → 2,155.5 → 1,482.7 ms
+  (1.55x, 2.26x) at 1/2/4 workers. 20,000: 13,462.5 → 8,516.5 → 5,923.9 ms
+  (1.58x, 2.27x). Identical canonical hashes at every worker count; the ceiling
+  is the ~24% sequential pass share.
+- **Gates.** 6 parity tests (FS/SS/FF/SF, lags, working-hour/day, Decimal
+  precision, chunk determinism, invalid counts). Full suite 4,508 passed / 211
+  skipped without a database and 4,597 passed / 131 skipped with PostgreSQL. No
+  scheduling option, calendar rule, float value or leveling decision changed;
+  production default remains sequential.
+- **Not measured / next.** Time constraints and exception calendars in the
+  parallel path, 16/32 workers, summed child memory, and any date/leveling
+  speed-up are not claimed. Next: P0-I offline runtime boundary.
+
+## P0-I offline runtime boundary, 2026-11-16
+
+- **Scope.** Give offline scheduling an explicit self-contained boundary with
+  no remote engine, calendar or snapshot dependency, and prove the canonical
+  output is identical to online evaluation.
+- **Built.** `offline_schedule_runtime.py` defines
+  `construction-pm/offline-schedule-bundle/v1`: canonical snapshot payload +
+  hash, calculation context, creation metadata, and the closure of versioned
+  calendar definitions (exception layers and base references included). The
+  runtime rebuilds the snapshot, re-validates every hash and executes the same
+  `evaluate_schedule_snapshot`. It accepts no repository, transport or URL.
+- **Network proof.** `deny_network_access()` replaces socket connect/connect_ex/
+  create_connection/getaddrinfo with raising stubs during `execute()`. The
+  parity harness disables the socket layer in a fresh subprocess *before* any
+  package import, and a probe confirms the guard denies `create_connection`.
+- **Parity (3 runs, merged main `ffc946ca`).** 1,000 activities: online
+  241.1 ms, offline 272.7 ms, bundle 853,285 bytes, identical `0c811c700798…`.
+  5,000: 1,237.2 ms vs 1,337.6 ms, bundle 4,247,877 bytes, identical
+  `901b101d3500…`.
+- **Exact resolver hoist.** The boundary exposed an O(edges × activities)
+  rebuild of the relationship-independent activity calendar map. It is now
+  resolved once: 200 activities 252.0 → 49.3 ms (5.11x), 1,000 activities
+  5,247.5 → 243.2 ms (21.58x), with identical canonical run identities. No CPM
+  step, float, option or validation changed.
+- **Fail closed.** Missing calendar/base, tampered payload or bundle, unknown
+  schema and identity mismatch raise stable `OFFLINE_*` codes. Leveling and
+  resource-dependent snapshots raise `OFFLINE_LEVELING_INPUT_REQUIRED` because
+  capacity inputs are not yet bundled, rather than being simplified.
+- **Not measured / next.** Desktop installer supervision, mobile runtime
+  packaging, time-aware and multi-project bundles at scale, leveling bundles.
+  P0-A through P0-I are complete; further work needs a new explicit scope.
