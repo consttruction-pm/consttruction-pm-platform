@@ -591,3 +591,99 @@ P0-F: durable Scheduling Job lifecycle (stable identity, leases, retries,
 cancellation, result persistence, failure recovery, and single-flight dedup that
 still enforces per-user authorization), with the same Engine and version
 identity for every execution surface.
+
+## 12. P0-F execution record (2026-11-16)
+
+Status: implemented and verified. Reference for this slice is `9591d000`, the
+merge of P0-E.
+
+### 12.1 Why this slice came next
+
+§4 P0-F5/P0-F6 recorded a synchronous Schedule Query path with no durable
+Schedule Worker: nothing survived a process restart, two concurrent submissions
+for the same snapshot could both calculate, and the canonical result hash was
+not bound to the engine version that produced it. Those are availability and
+correctness-of-identity defects, not performance defects, so they were fixed
+before any worker parallelism (P0-G/P0-H) could rely on them.
+
+### 12.2 What was built
+
+Two layers around the unchanged authoritative engine. Neither layer calculates;
+the caller still runs `construction_pm.scheduling` exactly once and persists the
+canonical hash.
+
+| Requirement | Implementation |
+|---|---|
+| Identity | `job_id = sha256(tenant, project, dedup scope, request fingerprint, generation)`; `engine_version` and `calculation_identity` persisted on the job |
+| Leases | Owner + token + expiry; only the token holder renews, checkpoints, completes or fails; expiry is taken over only after an explicit check |
+| Retries | Retryable failure or expired lease requeues until `max_attempts`, then FAILED with the last error |
+| Cancellation | QUEUED cancels immediately; LEASED records the request and terminates at the next checkpoint, renewal, completion attempt or expiry, never publishing a result |
+| Result persistence | One immutable result per job; identical replay tolerated, different result rejected |
+| Failure recovery | `recover_expired()` requeues, fails or cancels abandoned leases |
+| Single-flight | Partial unique index on the active state per authorization-scoped request key, so at most one QUEUED/LEASED job exists |
+| Authorization | The dedup key includes an authorization-derived scope and `can_view` is re-checked before returning a job or a result, so dedup never merges two users' runs |
+
+State machine: `QUEUED -> LEASED -> SUCCEEDED | FAILED | CANCELLED`, with
+`LEASED -> QUEUED` on a retryable failure or an expired lease. Every durable
+write is a revision compare-and-set, so a stale worker cannot overwrite a newer
+state.
+
+### 12.3 Measured result on PostgreSQL 14.24
+
+Local single-node cluster, autocommit connections, schema created from
+`infra/scheduling_job_schema.sql`; each cycle is submit → claim → complete.
+
+| Metric | Value |
+|---|---|
+| Cycles | 200 |
+| Median cycle | 0.506 ms |
+| p95 cycle | 0.715 ms |
+| Max cycle | 2.534 ms |
+| Schema init | 0.834 ms |
+
+Concurrent single-flight: 16 threads, one connection each, all submitting the
+same authorization-scoped request at a shared barrier.
+
+| Metric | Value |
+|---|---|
+| Unique job ids | 1 |
+| Jobs created | 1 |
+| Errors | 0 |
+| Wall time | 31.002 ms |
+
+The guarantee is the partial unique index, not application timing: the losing
+threads hit the index, re-read and return the winner's job.
+
+### 12.4 Correctness evidence
+
+- `tests/scheduling/test_scheduling_job_lifecycle.py` — 16 tests on the
+  in-memory reference repository: single-flight, authorization scoping,
+  claim/renew/stale token, completion and result immutability, engine identity
+  mismatch, retryable vs terminal failure, cooperative cancellation, expiry
+  recovery (requeue/fail/cancel), a new generation after a terminal job, 8
+  concurrent submissions, and persistence of the real engine's canonical hash
+  for a 50-activity fixture.
+- `tests/test_scheduling_job_postgres.py` — 6 PostgreSQL tests: round trip and
+  result persistence, the partial unique index across two real connections, a
+  lost compare-and-set, takeover of an expired lease by another worker, result
+  immutability, and 6 concurrent submitting threads. Run locally against 14.24
+  and in the `postgres` CI job.
+- No scheduling calculation, leveling decision, option, calendar rule,
+  relationship rule or float value was modified. The lifecycle never produces a
+  schedule; it only stores the engine's canonical hash and payload.
+
+### 12.5 Not measured
+
+- Multi-host or high-availability PostgreSQL: only a local single node exists.
+- End-to-end HTTP admission and client polling: no HTTP surface was added, so
+  none is claimed.
+- Worker counts, queue waiting time and throughput: P0-G/P0-H are not
+  implemented.
+
+Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
+
+### 12.6 Next slice
+
+P0-G: adaptive resource management — one global worker budget derived from
+effective CPU affinity and cgroup quota, memory headroom and real queue
+pressure, with the same engine and version identity on every execution surface.

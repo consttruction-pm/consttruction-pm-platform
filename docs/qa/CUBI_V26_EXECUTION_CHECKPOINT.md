@@ -4446,3 +4446,38 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - **Not measured / next.** Backward-acceptance orchestration above 50
   activities is not yet a converged fixture; 3.11/3.13 and PostgreSQL remain
   CI-only; no worker or queue claim. Next: P0-F durable scheduling jobs.
+
+## P0-F durable Scheduling Job lifecycle, 2026-11-16
+
+- **Scope.** Give the authoritative engine a durable job boundary before any
+  worker parallelism: stable identity, leases, retries, cancellation, result
+  persistence, failure recovery, and single-flight de-duplication that still
+  enforces per-user authorization. No calculation was added; the job layer only
+  stores the engine's canonical hash and payload.
+- **Built.** `src/construction_pm/scheduling_job_lifecycle.py` (state machine
+  `QUEUED -> LEASED -> SUCCEEDED | FAILED | CANCELLED`, with `LEASED -> QUEUED`
+  on retryable failure or expiry), `src/construction_pm/postgres_scheduling_job_lifecycle.py`
+  (revision compare-and-set on every write), and `infra/scheduling_job_schema.sql`
+  (partial unique index on the active state is the single-flight guarantee).
+- **Identity and authorization.** `job_id = sha256(tenant, project, dedup scope,
+  request fingerprint, generation)`; `engine_version` and
+  `calculation_identity` are stored on the job and rejected on mismatch at
+  completion. The dedup key includes an authorization-derived scope and
+  `can_view` is re-checked before returning any job or result, so dedup never
+  merges two users' runs.
+- **Measured (PostgreSQL 14.24, local single node).** 200 submit -> claim ->
+  complete cycles: median 0.506 ms, p95 0.715 ms, max 2.534 ms, schema init
+  0.834 ms. 16 threads on separate connections submitting the same
+  authorization-scoped request at one barrier: 1 unique job, 1 created, 0
+  errors, 31.002 ms; the losers hit the partial unique index, re-read and
+  return the winner.
+- **Gates.** `tests/scheduling/test_scheduling_job_lifecycle.py` (16 in-memory
+  tests, including persistence of the real engine's canonical hash for a
+  50-activity fixture) and `tests/test_scheduling_job_postgres.py` (6 real
+  PostgreSQL tests). Full Python suite: 4,474 passed / 210 skipped without a
+  database, 4,562 passed / 131 skipped with the local PostgreSQL running; the
+  3.11/3.12/3.13 and postgres CI matrix is recorded on the pull request.
+  Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
+- **Not measured / next.** Multi-host or high-availability PostgreSQL, HTTP
+  admission and client polling, and worker/queue/throughput numbers are not
+  claimed. Next: P0-G adaptive resource management under one global budget.
