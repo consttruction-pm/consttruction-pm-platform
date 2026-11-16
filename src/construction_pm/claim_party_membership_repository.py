@@ -155,11 +155,12 @@ class PostgresClaimPartyMembershipRepository:
             raise ClaimPartyMembershipError("QUERY_TIME_MUST_BE_TIMEZONE_AWARE")
         rows = self._connection.execute(
             """
-            SELECT party_id FROM claim_party_memberships
-            WHERE tenant_id=%s AND project_id=%s AND contract_id=%s AND claim_id=%s
-              AND user_id=%s AND status='active' AND effective_from<=%s
-              AND (effective_until IS NULL OR effective_until>%s)
-            ORDER BY party_id
+            SELECT m.party_id FROM claim_party_memberships m
+            JOIN identity_users u ON u.user_id=m.user_id AND u.tenant_id=m.tenant_id AND u.active=TRUE
+            WHERE m.tenant_id=%s AND m.project_id=%s AND m.contract_id=%s AND m.claim_id=%s
+              AND m.user_id=%s AND m.status='active' AND m.effective_from<=%s
+              AND (m.effective_until IS NULL OR m.effective_until>%s)
+            ORDER BY m.party_id
             """,
             (tenant_id, project_id, contract_id, claim_id, user_id, at, at),
         ).fetchall()
@@ -178,7 +179,12 @@ class PostgresClaimPartyMembershipRepository:
         payload = row[0]
         data = json.loads(payload) if isinstance(payload, str) else payload
         claim_payload = data.get("payload") if isinstance(data, dict) else None
-        if not isinstance(claim_payload, dict) or claim_payload.get("contract_id") != contract_id:
+        if (
+            not isinstance(data, dict)
+            or data.get("resource_type") != "claim"
+            or not isinstance(claim_payload, dict)
+            or claim_payload.get("contract_id") != contract_id
+        ):
             raise ClaimPartyMembershipError("CLAIM_CONTRACT_SCOPE_MISMATCH")
 
     def _audit(self, item: ClaimPartyMembership, *, actor_id: str, action: str, before: dict | None, occurred_at: datetime) -> None:
