@@ -157,3 +157,12 @@ Every capability issue must maintain this compact status:
 - **Release evidence:**
 
 This gate is additive to the existing architecture, Qoder resumption and capability-register policies. It does not authorize application code changes, PR merges, deployments or schedule-weight changes.
+
+
+## 11. Live queue links (2026-11-16)
+
+- ENG-11 / ENG-12 Team Member and Timesheets contract/source closure: [#2010](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2010). Contract packet: `docs/engineering/ENG11_ENG12_TEAM_MEMBER_CONTRACT_AND_HELP_CROSSWALK_V1.md`.
+- ENG-10 Field Work Plan / Last Planner source map and contract: [#2011](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2011). Initial Cloud Help sources are registered in that issue; full topic/procedure crosswalk is still outstanding.
+- Canonical coordination queue and non-interference order: [#2009](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2009).
+
+These are contract/source issues, not implementation-complete claims. Each must be converted to a separately scoped Qoder implementation task/PR only after source closure and exact path-owner handoff.
