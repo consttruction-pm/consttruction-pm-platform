@@ -240,3 +240,44 @@ The repository already contains reusable foundations, including:
 The current main branch also contains a provider-backed orchestration/chat path. That path does not satisfy this principle and is legacy work to retire or replace. A language tag contract is not automatic language detection; an action runtime is not a complete command-understanding engine; a memory schema is not durable memory; a menu is not an integrated tool. Every capability must be verified by its actual code path, exact commit, tests and end-to-end evidence.
 
 No documentation update, architecture diagram, mock, unmerged branch or planned tool earns implementation completion credit.
+
+
+## 10. Approved non-AI dependencies and permanent language support — owner clarification (2026-11-16)
+
+This section clarifies the dependency and localization boundaries above. It does not authorize any third-party AI model, AI inference service, paid AI feature or temporary AI trial.
+
+### 10.1 Permitted ordinary, free and permanently usable add-ons
+
+CUBI may use ordinary non-AI libraries, plugins, utilities and language/resource packages when all of the following are true:
+- They are free to use for the intended production/commercial deployment, with a compatible license and no required subscription, usage meter, credit balance, trial expiry, time-limited free tier or paid activation.
+- They can be installed or packaged as a durable product dependency, including with the Windows Desktop installer where applicable; the deployed CUBI capability must not expire because a trial or external account ends.
+- They do not call an external AI service, require an AI API key, send project/user content to a third party, or depend on a hosted service for their core function.
+- They pass CUBI security, privacy, license, provenance, maintenance, supply-chain and offline-use review.
+- Their use does not transfer engineering decision-making, semantic reasoning, command understanding or calculation authority outside CUBI.
+
+Examples of permitted dependency categories, subject to the conditions above, include conventional non-AI OCR engines, PDF/document and spreadsheet parsers, file-format converters, spell-check dictionaries, fonts, locale data, keyboard/input resources, language packs, Unicode/RTL support libraries, chart/rendering libraries and other ordinary utilities. Free language data and OCR language resources may be bundled or installed for continuing use where their licenses permit.
+
+A package being open-source or free to download is not sufficient by itself: any paid component, expiring trial, metered hosted feature, mandatory account, hidden network dependency or incompatible license disqualifies it. Each selected dependency must be recorded with version, license, source, purpose, offline behavior, update/maintenance status and Windows packaging decision.
+
+### 10.2 OCR and document recognition boundary
+
+Conventional, non-AI OCR and document-processing components are permitted under 10.1, including installable language resources for supported scripts. AI/ML OCR, pretrained recognition models, cloud OCR APIs and paid or trial-limited OCR services remain prohibited. Scanned-document support must state the supported formats/languages and measured accuracy; low-confidence output must be staged for human review and must never silently become trusted project or contractual data.
+
+### 10.3 All approved languages, across every CUBI surface
+
+The assistant must support **every language formally approved in CUBI's language catalogue**, not merely Persian and English, across the complete product. This requirement applies consistently to:
+- Enterprise and all Enterprise workspaces/modules;
+- Engineering and all project-controls workspaces, tools and visualizations;
+- public pages, public help and public product-facing pages;
+- Web, Windows Desktop and Flutter/Mobile clients;
+- command input, parsing, clarification, result explanations, notifications, approvals, audit summaries and Smart Guide;
+- menus, forms, grids, Gantt/timeline, charts, calendars, dashboards, reports, print/PDF/Excel outputs and document workflows;
+- background jobs, integrations, emails and other user-visible generated content.
+
+The language catalogue is the single source of truth for approved languages. A new language becomes a product obligation only through the formal catalogue approval process; once approved, it is not optional by module or client. The same versioned language resources, terminology IDs, command schemas and localization keys must be shared across environments. Each surface may have a different release status, but it may not claim full language support until it passes the same end-to-end acceptance suite.
+
+Acceptance for each approved language must cover language identification where applicable, normalization of digits/dates/units, domain terminology and synonyms, command grammar and entity extraction, focused clarification, localized responses/errors, search/sort/collation, mixed-script content, RTL/LTR behavior, accessibility, forms, charts, reports, exports, help and offline workflows. Preserve original user-authored text and keep display locale separate from stored values, timezone, calendar settings and calculation semantics. Unsupported language or command coverage must be disclosed explicitly rather than silently switching language or fabricating a translation.
+
+### 10.4 Release and dependency audit
+
+Release evidence must include: (1) a complete dependency inventory and license/cost/expiry review; (2) confirmation that no paid, metered, trial-limited or external-AI capability is required; (3) Windows packaging and offline/permanent-use tests for selected add-ons; (4) the approved-language catalogue version and per-surface coverage matrix; and (5) end-to-end tests for every approved language on every declared product surface. No language or OCR capability is complete based solely on installing a package or adding a selector.
