@@ -4538,3 +4538,34 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - **Not measured / next.** Time constraints and exception calendars in the
   parallel path, 16/32 workers, summed child memory, and any date/leveling
   speed-up are not claimed. Next: P0-I offline runtime boundary.
+
+## P0-I offline runtime boundary, 2026-11-16
+
+- **Scope.** Give offline scheduling an explicit self-contained boundary with
+  no remote engine, calendar or snapshot dependency, and prove the canonical
+  output is identical to online evaluation.
+- **Built.** `offline_schedule_runtime.py` defines
+  `construction-pm/offline-schedule-bundle/v1`: canonical snapshot payload +
+  hash, calculation context, creation metadata, and the closure of versioned
+  calendar definitions (exception layers and base references included). The
+  runtime rebuilds the snapshot, re-validates every hash and executes the same
+  `evaluate_schedule_snapshot`. It accepts no repository, transport or URL.
+- **Network proof.** `deny_network_access()` replaces socket connect/connect_ex/
+  create_connection/getaddrinfo with raising stubs during `execute()`. The
+  parity harness disables the socket layer in a fresh subprocess *before* any
+  package import, and a probe confirms the guard denies `create_connection`.
+- **Parity (3 runs).** 1,000 activities: online 239.9 ms, offline 274.5 ms,
+  bundle 853,285 bytes, identical `0c811c700798…`. 5,000: 1,232.4 ms vs
+  1,339.1 ms, bundle 4,247,877 bytes, identical `901b101d3500…`.
+- **Exact resolver hoist.** The boundary exposed an O(edges × activities)
+  rebuild of the relationship-independent activity calendar map. It is now
+  resolved once: 200 activities 251.7 → 48.5 ms (5.18x), 1,000 activities
+  5,273.9 → 240.3 ms (21.95x), with identical canonical run identities. No CPM
+  step, float, option or validation changed.
+- **Fail closed.** Missing calendar/base, tampered payload or bundle, unknown
+  schema and identity mismatch raise stable `OFFLINE_*` codes. Leveling and
+  resource-dependent snapshots raise `OFFLINE_LEVELING_INPUT_REQUIRED` because
+  capacity inputs are not yet bundled, rather than being simplified.
+- **Not measured / next.** Desktop installer supervision, mobile runtime
+  packaging, time-aware and multi-project bundles at scale, leveling bundles.
+  P0-A through P0-I are complete; further work needs a new explicit scope.
