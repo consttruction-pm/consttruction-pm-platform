@@ -96,7 +96,12 @@ def test_archive_revisions_remain_retrievable_after_append():
     repository = InMemoryClaimDayArchiveRepository()
     original = day()
     repository.put_day(original, expected_revision=0, idempotency_key="create")
-    updated = day(revision=2, evidence_links=(evidence(),))
+    updated = day(
+        revision=2,
+        revision_occurred_at="2026-10-25T09:03:00+02:00",
+        revision_reason="Evidence linked: EV-1",
+        evidence_links=(evidence(),),
+    )
     repository.put_day(updated, expected_revision=1, idempotency_key="append")
     assert repository.get_day_revision("T-1", "P-1", original.claim_day_id, 1) == original
     assert repository.get_day_revision("T-1", "P-1", original.claim_day_id, 2) == updated
@@ -143,11 +148,20 @@ def test_archive_cannot_remove_or_rewrite_existing_evidence():
     repository.put_day(original, expected_revision=0, idempotency_key="k1")
     with pytest.raises(ClaimDayArchiveError, match="CANNOT_BE_REMOVED"):
         repository.put_day(
-            day(revision=2), expected_revision=1, idempotency_key="k2"
+            day(
+                revision=2,
+                revision_occurred_at="2026-10-25T09:03:00+02:00",
+                revision_reason="Attempted evidence removal",
+            ), expected_revision=1, idempotency_key="k2"
         )
     with pytest.raises(ClaimDayArchiveError, match="CANNOT_BE_REWRITTEN"):
         repository.put_day(
-            day(revision=2, evidence_links=(evidence(source_revision=4),)),
+            day(
+                revision=2,
+                revision_occurred_at="2026-10-25T09:03:00+02:00",
+                revision_reason="Attempted evidence rewrite",
+                evidence_links=(evidence(source_revision=4),),
+            ),
             expected_revision=1,
             idempotency_key="k3",
         )
