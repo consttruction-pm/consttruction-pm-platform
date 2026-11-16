@@ -166,3 +166,8 @@ This gate is additive to the existing architecture, Qoder resumption and capabil
 - Canonical coordination queue and non-interference order: [#2009](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2009).
 
 These are contract/source issues, not implementation-complete claims. Each must be converted to a separately scoped Qoder implementation task/PR only after source closure and exact path-owner handoff.
+
+
+## 12. ENG-10 contract artifact
+
+The ENG-10 issue [#2011](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2011) now has a full source crosswalk and domain contract at `docs/engineering/ENG10_FIELD_WORK_PLAN_LAST_PLANNER_SOURCE_CROSSWALK_AND_CONTRACT_V1.md`. Oracle Help confirms task/hand-off/constraint/commitment/completion and PPC analytics behavior at topic level. The contract explicitly distinguishes Field Tasks from CPM Activities and Enterprise Tasks, records PPC time cutoffs and company analysis, and keeps security/denominator edge cases as pre-implementation gates. It remains `CONTRACTED`, not implemented or verified.
