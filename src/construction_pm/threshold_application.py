@@ -161,7 +161,10 @@ class ThresholdApplicationService:
         actor_id: str,
         occurred_at: datetime,
     ) -> StoredThreshold:
-        self._authorize_write(threshold.tenant_id, threshold.project_id, context, actor_id)
+        self._authorize_write(
+            threshold.tenant_id, threshold.project_id, context, actor_id,
+            Permission.P6_ISSUE_ADMIN,
+        )
         with self.transaction_manager.transaction():
             return self.store.update_threshold(
                 threshold,
