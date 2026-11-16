@@ -242,7 +242,7 @@ The open-PR search also returned unrelated public-site and legacy workspace PRs;
 
 ## 9. Full-program feasibility blueprint
 
-The row-by-row delivery feasibility, dependency graph, single-owner technical boundaries, persistence/API/UI/security/offline/job considerations and implementation acceptance gates for **all ENG-01–14, ENT-01–12 and SH-01–10** are maintained in:
+The row-by-row delivery feasibility, dependency graph, single-owner technical boundaries, persistence/API/UI/security/offline/job considerations and implementation acceptance gates for **all ENG-01–14, ENT-01–13 and SH-01–10** are maintained in:
 
 `docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md`
 
