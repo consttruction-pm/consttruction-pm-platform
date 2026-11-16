@@ -217,3 +217,134 @@ Engineering-only capabilities listed in §4 are not included in this Enterprise 
 - [ ] Executive Portfolio Decision Scenario and all items in §6 remain blocked until explicit product-owner approval.
 
 **Current conclusion:** the Enterprise target is the layered organization/portfolio/coordination architecture above, not the earlier flat 12-module list. Cloud features assigned to Engineering remain in Engineering. The only intentionally shared feature explicitly confirmed here is Form Builder (alongside platform-level primitives and shared services that must be reused rather than cloned). New Enterprise capabilities require consultation before scope expansion.
+
+
+## 8. Binding source-to-capability inheritance and implementation rule — 2026-11-16
+
+This section establishes a traceable inheritance contract for every Enterprise capability. It is a product architecture rule, not a claim that all Help topics have already been extracted or implemented.
+
+### 8.1 Source hierarchy and precedence
+
+1. **Primavera P6 EPPM V26 HTML Help** is the primary software-behavior authority for features that exist in P6 EPPM. Use the exact V26 topic, its procedures, field definitions, security behavior and lifecycle states.
+2. **Primavera Cloud Help** is the authority for Cloud-origin capabilities absent from EPPM, and for documented Cloud-specific additive behavior. Preserve the complete Cloud behavior; never reduce it to the EPPM subset.
+3. **Primavera Unifier Help (current applicable release, including V26 where published)** is the source authority for contract/commercial, procurement, cost business processes, change orders, schedule of values, payment applications, funding, cash flow and connected commercial controls. Unifier is an additional source family, not a replacement for P6 EPPM or Cloud.
+4. **PMI standards** provide management theory, governance principles, portfolio/benefits practices and project lifecycle concepts. They do not override documented software behavior or supply undocumented product-specific screen behavior.
+5. **Complementary standards** (for example ISO 31000 for risk, ISO 9001 for quality, COBIT for governance/control, BPMN for process modeling) are used only for the domain they govern. Confirm the current edition and licensed text before claiming conformance.
+6. If sources conflict, preserve source-specific behavior and record a documented decision in the crosswalk. Do not silently blend incompatible workflows, definitions, formulas or legal terms.
+
+### 8.2 Mandatory inheritance packet for every capability
+
+Before a capability is designed or built, its work package must contain:
+- Capability ID, canonical owner, environment(s), user roles and business outcome.
+- Exact source product, release, Help landing page and deep topic URLs; topic title/ID; section and procedure-step references.
+- A bidirectional Help-to-CUBI and CUBI-to-Help crosswalk, including every screen, tab, dialog, field, default, option, validation, dependency, permission, status, transition, report, table, chart, export and error/empty/loading state applicable to the feature.
+- Data dictionary mapping: source field → canonical CUBI field → type/unit/currency/timezone/nullability/validation/provenance.
+- Lifecycle and state-transition model; role/segregation-of-duties matrix; approval and delegation rules.
+- Formula register: exact formula, variable definitions, units, rounding, calendar/time basis, inclusion/exclusion rules, source revision, worked examples and independently derived expected results. Where Help does not prescribe a formula, label the proposed CUBI policy explicitly and obtain product-owner approval.
+- API/event mapping, idempotency and concurrency behavior, audit evidence, integration/retry behavior, retention and access rules.
+- UI parity inventory and side-by-side evidence for inherited software behavior.
+- Acceptance tests mapped to each Help procedure and state; negative authorization tests; regression tests in both environments where shared behavior applies.
+- Open gaps explicitly marked MISSING / VERIFY. No parity, conformance or completion claim while applicable rows remain unresolved.
+
+### 8.3 Build-time enforcement — do not rely on developer memory
+
+The capability implementation template and delivery gate must require a machine-readable source manifest (for example `capability.sources.yaml`) containing capability ID, source product/release, official Help URLs/topic IDs, standard references, inheritance type (exact / additive / adapted), owner, formula IDs, lifecycle model and acceptance-test IDs. CI or the repository validation workflow should reject a new or materially changed capability package when:
+- its source manifest is absent or has no official Help reference;
+- a Help-derived UI/procedure has no crosswalk disposition;
+- a calculation has no formula owner, unit definition and independent test;
+- a workflow has no lifecycle/state-transition definition and permission matrix;
+- a shared feature creates a second canonical record/calculation owner;
+- an unresolved MISSING / VERIFY row is incorrectly marked parity-complete.
+
+The exact validator location and schema are implementation work and must be inspected against repository conventions before coding. This document does not claim that such automation is already implemented.
+
+### 8.4 Section-level source map (initial authoritative map; topic expansion remains mandatory)
+
+| CUBI capability / area | Primary software Help inheritance | Theory / control reference | Ownership and calculation rule |
+|---|---|---|---|
+| Organization, EPS discovery, OBS, project hierarchy | P6 EPPM V26 Help: EPS, OBS, projects, user access/security topics | PMI governance; COBIT for enterprise control | One organization/security authority; EPS remains Engineering's project hierarchy. |
+| Project schedule, activities, WBS, baselines, schedule health | P6 EPPM V26 Help: projects, activities, relationships, calendars, baselines, schedule calculations; Cloud Help only for documented additive schedule features | PMBOK project schedule management | Engineering owns CPM and project schedule calculations. |
+| Project resources, assignments, units, rates and leveling | P6 EPPM V26 Help: resources, roles, assignments, resource curves/leveling; Cloud Help for Cloud-only additions | PMBOK resource management | Engineering owns project assignment/leveling; Enterprise owns workforce directory and capacity envelope only. |
+| Project risk and quantitative analysis | P6 EPPM V26 risk topics where applicable; Primavera Cloud Help: Risk, Risk Analysis, Iteration Analysis and associated procedures | PMI risk practices; ISO 31000 | Engineering owns project risk records and Monte Carlo engine; Enterprise owns portfolio risk appetite/exposure roll-up. |
+| Work Plan / Last Planner / Team Member / Timesheets | Primavera Cloud Help: Work Planning, lookahead, constraints, commitments, pull plans, Team Member and timesheet topics; P6 Team Member Help where relevant | PMBOK delivery/resource practices; Last Planner methodology where applicable | Engineering owns project execution records and approved time actuals. |
+| Portfolio intake, selection, prioritization and governance | P6 EPPM V26 portfolio/project portfolio Help topics where present; Primavera Cloud Help: Portfolio Management and portfolio planning topics | PMI Standard for Portfolio Management; PMBOK | Enterprise owns cross-project selection and prioritization; source calculations remain revision-pinned. |
+| Enterprise resource capacity and scenario planning | Primavera Cloud Help: Portfolio Resource Planning and resource planning procedures; P6 resource Help for overlap only | PMI portfolio/resource governance | Enterprise owns enterprise pool and capacity envelopes; no project assignment or leveling duplicate. |
+| Executive dashboards, reports and analytics | P6 EPPM V26 Dashboards/Reports Help; Primavera Cloud Help for Cloud-only portlets/analytics | PMI performance/value governance; COBIT monitoring | Read models aggregate authorized, revision-pinned source measures; no re-computation of source KPIs. |
+| Workflow, approvals and shared Form Builder | Primavera Cloud Help: Workflow Design/Workflow Inbox where applicable; P6 Help for relevant approval/security behavior; Unifier Help for cost-BP workflows | BPMN; COBIT control/segregation of duties | Shared workflow/form primitives; destination domain validates and commits its own business mutation. |
+| Contract & Commercial Management | Primavera Unifier Help: Contracts BP, Cost Type BP, Change Orders, Payment Applications, Schedule of Values, Cost Manager, funding and cash-flow topics | PMBOK procurement/contract and cost practices; applicable procurement law and contract terms | See §9. Contract master and commercial events must have one canonical owner; Engineering consumes approved schedule/cost impacts. |
+| Stakeholder portal and project documents | Primavera Cloud Help portal/document topics where present; Unifier Document Manager and business-process attachment Help; P6 document topics for applicable overlap | PMI stakeholder/communications practices; ISO 27001 controls where adopted | Project document identity remains with its owner; Enterprise governs external grants and publication. |
+| Integration, operations and audit | Relevant P6/Cloud/Unifier integration, REST/API, import/export and audit Help topics | COBIT; applicable security standards | Shared integration/job/audit primitives; no second queue or audit authority. |
+| Quality, safety and assurance | Unifier Help for configured quality/safety business processes when selected; Cloud/P6 Help only where corresponding features exist | ISO 9001, applicable occupational safety rules | Not a standalone approved Enterprise module yet; source inventory and product-owner scope decision remain required. |
+
+## 9. Contract & Commercial Management — added to Enterprise scope
+
+**Decision:** Contract & Commercial Management is added as a required Enterprise capability family because excluding the commercial contract lifecycle leaves a material gap between portfolio approval, project delivery, commitments, changes, payment and closeout. It is a scoped architecture decision; it does not authorize a legal template, jurisdiction-specific clause library or production implementation without the applicable review gates.
+
+### 9.1 Capability placement and ownership
+
+- Add **ENT-13 — Contract & Commercial Management** as a new Enterprise capability. Update the master register count from 36 to 37 when the register row is added; do not renumber existing ENG/ENT/SH IDs.
+- Enterprise owns the contract/commercial lifecycle workspace, contract register, procurement/commercial governance, vendor/contract relationships, commercial events, approval evidence, obligations, notices, claims/change governance, payment certification workflow and closeout evidence.
+- A contract may be associated with an Engineering project, WBS/CBS/cost code, activity, risk or document through typed, permission-checked references. Those references do not transfer ownership of the Engineering records.
+- Engineering remains authoritative for project schedule, activity progress, project cost/EVM calculations, resource assignments and schedule-linked impacts. Contract events send approved, revision-pinned changes through explicit domain APIs; Engineering decides and records its own schedule/cost projection or approved mutation.
+- Enterprise portfolio reporting consumes approved contract commitments, exposure, forecast and cash-flow projections from the appropriate financial/project owner. It must not create a competing project cost sheet, EVM engine, schedule engine or payment ledger.
+- Shared Form Builder, Workflow Studio, identity, audit, document/storage and job services are reused. Contract-specific forms and workflows are configuration over shared primitives, not parallel engines.
+
+### 9.2 End-to-end commercial lifecycle
+
+1. **Need / sourcing strategy:** define business need, scope/package, procurement route, budget authority, funding source, delivery strategy and approval thresholds.
+2. **Solicitation / tender:** create tender/RFQ/RFP package, bidder list, issue/addenda log, clarification questions, submissions, compliance checks, evaluation criteria, scoring and recommendation. Keep evaluation access segregated.
+3. **Award recommendation and authorization:** compare bids, document due diligence and conflicts, verify budget/funding/capacity, route approval, record award decision and delegated authority.
+4. **Contract formation and execution:** create contract record with parties, contract type, scope, price model, currency, dates, milestones, bonds/insurance, securities, tax, retention, payment terms, notice requirements, deliverables, obligations, governing law and executed document versions. Track signatures and effective date; do not infer legal execution from workflow approval.
+5. **Mobilization and administration:** establish baseline contract value, schedule of values (SOV), deliverable/submittal register, insurance/bond expiry, notices, correspondence, obligations, key dates, vendor performance and linked project controls.
+6. **Progress measurement and payment:** capture measured work/earned quantities, supporting evidence, invoice/payment application, review/certification, deductions, retention, tax, advance recovery, previous payments, approved amount and payment status. Payment authorization and actual disbursement remain distinct events; connect to the designated finance/ERP owner rather than inventing a bank-payment ledger.
+7. **Variations / change orders:** initiate change event, classify cause, record scope/time/cost/contract-term impacts, quotations and substantiation, evaluate entitlement, route thresholds/approvals, issue formal instruction only under authorized policy, then publish approved effects to the canonical contract and the owning project cost/schedule services. Pending changes must remain separate from approved commitments.
+8. **Claims, disputes and notices:** maintain notice deadlines, event chronology, contractual clause references, correspondence, evidence, quantum/time submissions, assessments, negotiation, dispute escalation and settlement/decision outcomes. Preserve privilege/confidentiality controls and legal hold where required.
+9. **Risk, compliance and performance:** track contract-specific obligations, deliverable acceptance, vendor KPIs, non-conformance, insurance/bond validity, sanctions/compliance checks, risk events and escalation; link rather than duplicate the project risk register.
+10. **Forecast, cash flow and portfolio exposure:** show original value, approved changes, approved commitment, pending exposure separately, certified/paid amounts, retention, forecast-to-complete and cash-flow timing with explicit formula definitions, currency and as-of date. Reconcile to source financial records; never add pending values to approved commitments without a clearly labeled scenario.
+11. **Suspension, termination and closeout:** manage suspension/resumption, termination grounds and approvals, final account, final payment, release of retention/security, warranties/defects period, deliverable/document handover, claims/disputes disposition, lessons learned, audit archive and contract closure. Reopening requires controlled authorization and immutable history.
+
+### 9.3 Canonical records and core data
+
+At minimum, model distinct versioned records for: procurement package; solicitation/addendum; bidder/submission; evaluation; award decision; contract and contract version; party/vendor reference; obligation/deliverable; notice/correspondence; SOV and SOV revision; invoice/payment application; payment certification; change event/change order; claim/dispute; performance/compliance event; forecast snapshot; closeout record.
+
+Each commercial transaction must retain: unique ID, project/portfolio context, contract ID and version, currency, tax basis, amount/unit, status, effective/received/approved dates, approver and delegated authority, source document/evidence, source revision, audit trail, idempotency key, and links to any resulting Engineering/Finance mutations. Never overwrite executed contract versions or approved commercial events; supersede them with controlled revisions or linked events.
+
+### 9.4 Required commercial calculations and safeguards
+
+The formula register must explicitly define and test, as applicable:
+- Original contract value; approved change value; revised contract value.
+- Approved commitment versus pending change exposure (separate measures).
+- SOV line totals and remaining balance.
+- Gross measured work, prior certified amount, current gross amount, retention, advance recovery, deductions, tax and net certified amount.
+- Paid-to-date, certified-not-paid, retention outstanding and remaining contract balance.
+- Forecast final contract value / estimate at completion, with assumptions and confidence/status labels.
+- Cash-flow periodization and currency conversion using a named rate source/date.
+- Claim amount and time-impact estimates as claims/submissions, not automatically accepted liabilities or schedule changes.
+
+Every formula requires a named owner, exact variable semantics, unit/currency, sign convention, rounding, tax/retention treatment, effective date, worked example and independent expected-value test. The source system's documented formula takes precedence for inherited behavior; new CUBI policy formulas require product-owner approval.
+
+### 9.5 Controls and acceptance gates
+
+- Role separation for requester, procurement, evaluator, commercial manager, project manager, finance, approver, legal reviewer, vendor and auditor.
+- Threshold-based approval, delegated authority, conflict-of-interest declarations, immutable decision history and no self-approval where prohibited.
+- Contract-version locking and controlled amendment; pending vs approved vs executed states are never conflated.
+- Idempotent event processing and reconciliation for approved changes, SOV updates, certifications and downstream project/finance messages.
+- Permission-filtered vendor portal; time-limited external grants; confidential bid, claim and legal material protected by need-to-know rules.
+- Explicit legal-jurisdiction, tax, procurement-policy and retention-policy configuration. CUBI must not present generic workflow as legal advice or assume a contract is enforceable.
+- Acceptance tests replay each inherited Unifier Help procedure and validate cross-system consistency, approval boundaries, calculations, revision pinning, duplicate delivery/retry and full lifecycle closeout.
+
+### 9.6 Initial official source anchors (topic-level crosswalk must be expanded)
+
+- P6 EPPM V26 documentation landing page: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/user.html
+- P6 EPPM V26 Help — Configuring Project Calculations: https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/7955.htm
+- Primavera Unifier Help V25 — Cost Type BP: https://docs.oracle.com/cd/G18097_01/help/user/en/10292725.htm
+- Primavera Unifier Help — Contracts Business Process: https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/80340.htm
+- Primavera Unifier Help — Change Orders: https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/10284927.htm
+- Primavera Unifier Help — Payment Applications: https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/80345.htm
+- Primavera Unifier Help — Cost Manager Overview / Cost Sheets / SOV: https://docs.oracle.com/cd/E37673_01/English/User_Guides/UnifierHelp/WebHelp/content/unifier_user_guide/cost_manager/cost_manager_overview.htm
+- Primavera Unifier 26 uDesigner Help — Cost Management Levels / SOV: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/udesigner/costmanagementlevels-77650a.html
+- PMI Standard for Portfolio Management (official PMI-hosted reference): https://www.pmi.org/standards/portfolio-management
+- All official Help URLs must be checked for current applicable release before each implementation; older version-specific Unifier topics are source anchors only and cannot be silently treated as V26 parity evidence.
+
+**Open evidence:** The exact current-release Unifier topic inventory for solicitation, vendor, claims, notices, bonds/insurance, closeout and every workflow variant still requires direct Help extraction. Those topics are MISSING / VERIFY until captured. This addition defines the target lifecycle and source family; it does not claim complete Unifier parity.
+
