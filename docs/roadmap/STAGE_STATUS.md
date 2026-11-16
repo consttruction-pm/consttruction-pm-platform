@@ -20,18 +20,31 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 **Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 
-Status: **Feasibility assessed and registered — implementation not yet started.** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+
+Phase record (all merged; measured evidence under `docs/workspace/evidence/`):
+
+| Phase | Delivered | Evidence |
+|---|---|---|
+| P0-A/B | Seeded baselines and heap topological ordering | `p0-scheduling-core-2026-11-16/` |
+| P0-C | Time-aware free-float bounded search | feasibility record §10 |
+| P0-D | Leveling demand ledger | feasibility record §10 |
+| P0-E | Exact reuse of identical CPM work | `p0e-scheduling-cpm-reuse-2026-11-16/` |
+| P0-F | Durable scheduling job lifecycle (PostgreSQL) | `p0f-scheduling-jobs-2026-11-16/` |
+| P0-G | Adaptive CPU/RAM worker budget and job executor | `p0g-adaptive-workers-2026-11-16/` |
+| P0-H | Exact parallel per-activity time-aware floats (opt-in) | `p0h-intra-project-floats-2026-11-16/` |
+| P0-I | Self-contained offline bundle, identical canonical output, network guard | `p0i-offline-runtime-2026-11-16/` |
 
 Mandatory order:
-1. Establish reproducible large-schedule and concurrency baselines against the current authoritative engine.
-2. Optimize data structures and algorithmic hot spots only with exact differential-result proof.
-3. Add durable process-based workers for independent immutable schedule jobs, then safe single-flight and adaptive CPU/RAM-aware execution.
-4. Evaluate intra-project CPM parallelism and Resource Leveling concurrency as separate high-risk gates.
-5. Prove the same authoritative Engine runtime for Cloud, Local Server, Desktop and approved offline Mobile workflows.
+1. Establish reproducible large-schedule and concurrency baselines against the current authoritative engine. — done (P0-A).
+2. Optimize data structures and algorithmic hot spots only with exact differential-result proof. — done (P0-B, C, D, E; every change kept identical canonical output).
+3. Add durable process-based workers for independent immutable schedule jobs, then safe single-flight and adaptive CPU/RAM-aware execution. — done (P0-F, P0-G).
+4. Evaluate intra-project CPM parallelism and Resource Leveling concurrency as separate high-risk gates. — evaluated (P0-H); only the provably independent per-activity float stage was parallelized and it remains opt-in. CPM passes and leveling decisions stay sequential.
+5. Prove the same authoritative Engine runtime for Cloud, Local Server, Desktop and approved offline Mobile workflows. — offline boundary and exact parity proven for the Python engine (P0-I); Desktop packaging and mobile runtime remain explicitly unproven and are not claimed.
 
 **Non-subtractive rule:** No Scheduling/P6 Version 26 capability, option, calculation, validation, calendar behavior, relationship, Float/critical-path behavior, Resource Leveling rule or cost result may be removed, simplified or weakened for performance. P6 Professional Version 26 HTML Help is the normative parity reference. A performance claim requires measured evidence on the exact tested commit; no unmeasured timing or user-capacity estimate is accepted.
 
-This registration does not mark implementation complete and does not authorize semantic changes before baseline characterization and review.
+The remaining P0 gaps are packaging/runtime gates, not engine behavior: no desktop installer supervision test and no portable mobile runtime for the Python engine have been proven. Those require a new, explicitly scoped change.
 
 
 
