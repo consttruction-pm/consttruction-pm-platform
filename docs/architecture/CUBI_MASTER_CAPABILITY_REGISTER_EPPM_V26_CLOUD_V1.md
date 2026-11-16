@@ -308,7 +308,7 @@ Minimum rule:
 - Primavera Unifier Help for contract/commercial/procurement/cost-BP/SOV/payment lifecycle behavior.
 - PMI and domain standards for theory/control only, never as a substitute for software Help.
 - Machine-readable source manifest, formula register, lifecycle/state model, permissions, UI/procedure crosswalk and mapped tests required before implementation acceptance.
-- CI validation is a required follow-on implementation task; this document does not claim the validator exists.
+- CI validation is implemented in `scripts/validate_capability_sources.py` and `.github/workflows/ci.yml`. Current manifest coverage starts with ENT-13; every other capability must add its own manifest before changing mapped implementation code. The validator checks structure, source references, lifecycle, permissions, formula/test traceability and changed-code mapping; it does not certify source completeness or parity by itself.
 
 ## 12. New Enterprise capability family — ENT-13 Contract & Commercial Management
 
