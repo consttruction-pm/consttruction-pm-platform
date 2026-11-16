@@ -147,7 +147,9 @@ class ClaimPartyMembershipService:
     @staticmethod
     def _require_contract_admin(session) -> None:
         roles = frozenset(getattr(session, "roles", ()))
-        if not roles.intersection({"enterprise_admin", "contract_admin"}):
+        if "enterprise_admin" not in roles:
+            # Contract-scoped grants remain closed until the contract ACL is
+            # composed. A tenant admin is the only currently trusted grantor.
             raise ClaimPartyMembershipDenied("CONTRACT_PARTY_ADMIN_REQUIRED")
 
     def _now(self) -> datetime:
