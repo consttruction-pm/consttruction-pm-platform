@@ -553,3 +553,278 @@ class ClaimDayArchiveService:
             supersedes_submission_id=supersedes_submission_id,
         )
         return self.repository.append_submission(submission)
+
+
+class ClaimDayArchiveConnection(Protocol):
+    def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
+    def transaction(self): ...
+
+
+def _day_from_json(payload: str) -> ClaimDayArchive:
+    data = json.loads(payload)
+    links = tuple(
+        ClaimDayEvidenceLink(
+            evidence_link_id=item["evidence_link_id"],
+            source_system=item["source_system"],
+            source_type=item["source_type"],
+            source_id=item["source_id"],
+            source_revision=int(item["source_revision"]),
+            source_content_version=item["source_content_version"],
+            actor_id=item["actor_id"],
+            effective_at=item["effective_at"],
+            party_visibility=ClaimDayVisibility(item["party_visibility"]),
+            owner_party_id=item["owner_party_id"],
+            audience_party_ids=tuple(item.get("audience_party_ids", ())),
+            content_sha256=item.get("content_sha256"),
+            captured_at=item.get("captured_at"),
+            captured_timezone=item.get("captured_timezone"),
+            server_received_at=item.get("server_received_at"),
+            location_key=item.get("location_key"),
+            work_front=item.get("work_front"),
+            activity_refs=tuple(item.get("activity_refs", ())),
+            wbs_refs=tuple(item.get("wbs_refs", ())),
+            delay_event_refs=tuple(item.get("delay_event_refs", ())),
+            chain_of_custody_refs=tuple(item.get("chain_of_custody_refs", ())),
+        )
+        for item in data["evidence_links"]
+    )
+    result = ClaimDayArchive(
+        tenant_id=data["tenant_id"],
+        project_id=data["project_id"],
+        contract_id=data["contract_id"],
+        claim_id=data["claim_id"],
+        claim_day_id=data["claim_day_id"],
+        reporting_date=date.fromisoformat(data["reporting_date"]),
+        timezone=data["timezone"],
+        claim_party_ids=tuple(data["claim_party_ids"]),
+        revision=int(data["revision"]),
+        delay_event_ids=tuple(data.get("delay_event_ids", ())),
+        evidence_links=links,
+        contract_version=data["contract_version"],
+    )
+    result.validate()
+    return result
+
+
+def _submission_json(submission: ClaimSubmission) -> str:
+    return _canonical_json({
+        "tenant_id": submission.tenant_id,
+        "project_id": submission.project_id,
+        "contract_id": submission.contract_id,
+        "claim_id": submission.claim_id,
+        "submission_id": submission.submission_id,
+        "submission_number": submission.submission_number,
+        "submitting_party_id": submission.submitting_party_id,
+        "submitted_by": submission.submitted_by,
+        "submitted_at": submission.submitted_at,
+        "form_template_id": submission.form_template_id,
+        "form_template_version": submission.form_template_version,
+        "form_snapshot_json": submission.form_snapshot_json,
+        "form_snapshot_sha256": submission.form_snapshot_sha256,
+        "manifest_json": submission.manifest_json,
+        "manifest_sha256": submission.manifest_sha256,
+        "schedule_snapshot_ids": list(submission.schedule_snapshot_ids),
+        "baseline_snapshot_ids": list(submission.baseline_snapshot_ids),
+        "supersedes_submission_id": submission.supersedes_submission_id,
+        "contract_version": submission.contract_version,
+    })
+
+
+def _submission_from_json(payload: str) -> ClaimSubmission:
+    data = json.loads(payload)
+    result = ClaimSubmission(
+        **{
+            **data,
+            "schedule_snapshot_ids": tuple(data.get("schedule_snapshot_ids", ())),
+            "baseline_snapshot_ids": tuple(data.get("baseline_snapshot_ids", ())),
+        }
+    )
+    result.validate()
+    return result
+
+
+class PostgresClaimDayArchiveRepository:
+    """PostgreSQL persistence for immutable claim-day and submission snapshots.
+
+    This repository stores source references and canonical JSON snapshots only;
+    it never duplicates Document Management binary content or Engineering data.
+    """
+
+    def __init__(self, connection: ClaimDayArchiveConnection) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS claim_day_archives (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                claim_day_id TEXT NOT NULL,
+                claim_id TEXT NOT NULL,
+                contract_id TEXT NOT NULL,
+                revision BIGINT NOT NULL,
+                day_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, claim_day_id)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS claim_day_archive_idempotency (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                result_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, idempotency_key)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS claim_submissions (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                contract_id TEXT NOT NULL,
+                claim_id TEXT NOT NULL,
+                submitting_party_id TEXT NOT NULL,
+                submission_number BIGINT NOT NULL,
+                manifest_sha256 TEXT NOT NULL,
+                submission_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, submission_id),
+                UNIQUE (tenant_id, project_id, contract_id, claim_id, submitting_party_id, submission_number)
+            )"""
+        )
+
+    def get_day(
+        self, tenant_id: str, project_id: str, claim_day_id: str
+    ) -> ClaimDayArchive | None:
+        row = self.connection.execute(
+            "SELECT day_json FROM claim_day_archives "
+            "WHERE tenant_id=%s AND project_id=%s AND claim_day_id=%s",
+            (tenant_id, project_id, claim_day_id),
+        ).fetchone()
+        return None if row is None else _day_from_json(row[0])
+
+    def put_day(
+        self,
+        day: ClaimDayArchive,
+        *,
+        expected_revision: int,
+        idempotency_key: str,
+    ) -> ClaimDayArchive:
+        day.validate()
+        _require_text(idempotency_key, "idempotency_key")
+        fingerprint = _digest(_canonical_json(day.as_dict()))
+        with self.connection.transaction():
+            replay = self.connection.execute(
+                "SELECT fingerprint, result_json FROM claim_day_archive_idempotency "
+                "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+                (day.tenant_id, day.project_id, idempotency_key),
+            ).fetchone()
+            if replay is not None:
+                if replay[0] != fingerprint:
+                    raise ClaimDayIdempotencyConflict("CLAIM_DAY_IDEMPOTENCY_KEY_REUSE")
+                return _day_from_json(replay[1])
+
+            row = self.connection.execute(
+                "SELECT day_json, revision FROM claim_day_archives "
+                "WHERE tenant_id=%s AND project_id=%s AND claim_day_id=%s FOR UPDATE",
+                (day.tenant_id, day.project_id, day.claim_day_id),
+            ).fetchone()
+            current = None if row is None else _day_from_json(row[0])
+            actual_revision = 0 if row is None else int(row[1])
+            if actual_revision != expected_revision:
+                raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
+            if current is None:
+                if day.revision != 1:
+                    raise ClaimDayRevisionConflict("CLAIM_DAY_INITIAL_REVISION_MUST_BE_ONE")
+            else:
+                _validate_day_append_only(current, day)
+                if day.revision != current.revision + 1:
+                    raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
+
+            serialized = _canonical_json(day.as_dict())
+            self.connection.execute(
+                """INSERT INTO claim_day_archives
+                   (tenant_id, project_id, claim_day_id, claim_id, contract_id, revision, day_json)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s)
+                   ON CONFLICT (tenant_id, project_id, claim_day_id)
+                   DO UPDATE SET claim_id=EXCLUDED.claim_id,
+                                 contract_id=EXCLUDED.contract_id,
+                                 revision=EXCLUDED.revision,
+                                 day_json=EXCLUDED.day_json""",
+                (
+                    day.tenant_id, day.project_id, day.claim_day_id, day.claim_id,
+                    day.contract_id, day.revision, serialized,
+                ),
+            )
+            self.connection.execute(
+                "INSERT INTO claim_day_archive_idempotency "
+                "(tenant_id, project_id, idempotency_key, fingerprint, result_json) "
+                "VALUES (%s,%s,%s,%s,%s)",
+                (day.tenant_id, day.project_id, idempotency_key, fingerprint, serialized),
+            )
+        return day
+
+    def append_submission(self, submission: ClaimSubmission) -> ClaimSubmission:
+        submission.validate()
+        serialized = _submission_json(submission)
+        with self.connection.transaction():
+            existing = self.connection.execute(
+                "SELECT submission_json FROM claim_submissions "
+                "WHERE tenant_id=%s AND project_id=%s AND submission_id=%s",
+                (submission.tenant_id, submission.project_id, submission.submission_id),
+            ).fetchone()
+            if existing is not None:
+                previous = _submission_from_json(existing[0])
+                if previous != submission:
+                    raise ClaimDayArchiveError("CLAIM_SUBMISSION_ID_IMMUTABLE")
+                return previous
+            if submission.supersedes_submission_id is not None:
+                superseded = self.connection.execute(
+                    "SELECT submitting_party_id, contract_id, claim_id FROM claim_submissions "
+                    "WHERE tenant_id=%s AND project_id=%s AND submission_id=%s",
+                    (submission.tenant_id, submission.project_id, submission.supersedes_submission_id),
+                ).fetchone()
+                if superseded is None or tuple(superseded) != (
+                    submission.submitting_party_id, submission.contract_id, submission.claim_id
+                ):
+                    raise ClaimDayArchiveError("CLAIM_SUBMISSION_SUPERSEDED_PACKAGE_NOT_FOUND")
+            self.connection.execute(
+                """INSERT INTO claim_submissions
+                   (tenant_id, project_id, submission_id, contract_id, claim_id,
+                    submitting_party_id, submission_number, manifest_sha256, submission_json)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (
+                    submission.tenant_id, submission.project_id, submission.submission_id,
+                    submission.contract_id, submission.claim_id, submission.submitting_party_id,
+                    submission.submission_number, submission.manifest_sha256, serialized,
+                ),
+            )
+        return submission
+
+    def get_submission(
+        self, tenant_id: str, project_id: str, submission_id: str
+    ) -> ClaimSubmission | None:
+        row = self.connection.execute(
+            "SELECT submission_json FROM claim_submissions "
+            "WHERE tenant_id=%s AND project_id=%s AND submission_id=%s",
+            (tenant_id, project_id, submission_id),
+        ).fetchone()
+        return None if row is None else _submission_from_json(row[0])
+
+
+def _validate_day_append_only(current: ClaimDayArchive, updated: ClaimDayArchive) -> None:
+    if (
+        current.claim_id != updated.claim_id
+        or current.contract_id != updated.contract_id
+        or current.reporting_date != updated.reporting_date
+        or current.timezone != updated.timezone
+        or current.claim_party_ids != updated.claim_party_ids
+    ):
+        raise ClaimDayArchiveError("CLAIM_DAY_IDENTITY_IS_IMMUTABLE")
+    if not set(current.delay_event_ids).issubset(set(updated.delay_event_ids)):
+        raise ClaimDayArchiveError("CLAIM_DAY_EVENTS_CANNOT_BE_REMOVED")
+    updated_by_id = {item.evidence_link_id: item for item in updated.evidence_links}
+    for previous in current.evidence_links:
+        if previous.evidence_link_id not in updated_by_id:
+            raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REMOVED")
+        if updated_by_id[previous.evidence_link_id] != previous:
+            raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REWRITTEN")
