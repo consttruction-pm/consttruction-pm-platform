@@ -17,7 +17,9 @@ class Service:
 
     def list_privilege_definitions(self, session_id):
         return (type("Privilege",(),{"key":"activity.view","group":type("Group",(),{"value":"activities"})(),
-            "label":"View Activities","description":"View activity data."})(),)
+            "label":"View Activities","description":"View activity data.",
+            "help_url":"https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html",
+            "definitions_help_url":"https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/projectprivilegedefinitions-47746a.html"})(),)
 
 
 def request(app,path,method="GET",body=None,cookie="cp_session=session-1"):
@@ -53,3 +55,5 @@ def test_granular_project_privilege_catalogue_route_returns_grouped_definitions(
     payload=json.loads(response["body"])
     assert payload["privileges"][0]["key"]=="activity.view"
     assert payload["privileges"][0]["group"]=="activities"
+    assert payload["privileges"][0]["help_url"].endswith("/102786.html")
+    assert payload["privileges"][0]["definitions_help_url"].endswith("/projectprivilegedefinitions-47746a.html")
