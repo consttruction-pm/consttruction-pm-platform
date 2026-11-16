@@ -168,7 +168,7 @@ def test_list_requires_project_read(connection):
 
     with pytest.raises(AuthorizationError) as error:
         harness.api.list(scope(), "BL-1", auth_context=auth("guest"))
-    assert "project.read" in str(error.value)
+    assert "baseline.view" in str(error.value)
 
     # The same rows remain readable for a role that only holds read permission.
     payload = harness.api.list(scope(), "BL-1", auth_context=auth("viewer"))
