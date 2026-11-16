@@ -1,3 +1,4 @@
+# ENT13-PROCUREMENT-CORE-01 — current RFQ/quote/bid/PO/commitment/delivery boundary.
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
