@@ -1,6 +1,6 @@
 # P0-I offline runtime boundary — measured evidence
 
-Date: 2026-11-16. Reference main at the time of measurement: `a7735bb7`.
+Date: 2026-11-16. Measured on merged main `ffc946ca` (P0-I code merged as `648cef68`; reference main before the branch was `a7735bb7`).
 Engine: the single authoritative Shared Scheduling Core; no second scheduler
 exists for offline execution.
 
@@ -23,8 +23,8 @@ exists for offline execution.
 
 | Activities | Relationships | Online median | Offline median (separate process) | Bundle bytes | Run identity |
 |---|---|---|---|---|---|
-| 1,000 | 1,923 | 239.9 ms | 274.5 ms | 853,285 | `0c811c700798…` (equal) |
-| 5,000 | 9,575 | 1,232.4 ms | 1,339.1 ms | 4,247,877 | `901b101d3500…` (equal) |
+| 1,000 | 1,923 | 241.1 ms | 272.7 ms | 853,285 | `0c811c700798…` (equal) |
+| 5,000 | 9,575 | 1,237.2 ms | 1,337.6 ms | 4,247,877 | `901b101d3500…` (equal) |
 
 The offline median includes process start, bundle parse, snapshot
 materialization and calculation; it is not a claim that offline is faster.
@@ -45,8 +45,8 @@ the same snapshots:
 
 | Activities | Old median | New median | Speed-up | Canonical run identity |
 |---|---|---|---|---|
-| 200 | 251.7 ms | 48.5 ms | 5.18x | identical `7ba4b8a7…` |
-| 1,000 | 5,273.9 ms | 240.3 ms | 21.95x | identical `0c811c70…` |
+| 200 | 252.0 ms | 49.3 ms | 5.11x | identical `7ba4b8a7…` |
+| 1,000 | 5,247.5 ms | 243.2 ms | 21.58x | identical `0c811c70…` |
 
 This is an exact-equivalence reduction of repeated *resolution* work only; it
 does not remove or reorder any CPM step, validation, option, calendar rule,

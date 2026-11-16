@@ -838,8 +838,10 @@ calls, and the offline result must remain the same canonical output.
 
 ## 15. P0-I execution record (2026-11-16)
 
-Reference main `a7735bb7`. No second calculation engine exists: the offline
-runtime calls `evaluate_schedule_snapshot`, the same boundary used online.
+Measured on merged main `ffc946ca` (P0-I merged as `648cef68`; reference main
+before the branch was `a7735bb7`). No second calculation engine exists: the
+offline runtime calls `evaluate_schedule_snapshot`, the same boundary used
+online.
 
 ### 15.1 Boundary definition
 
@@ -861,8 +863,8 @@ disabled *before* any `construction_pm` import. 3 runs per size, 4 logical CPUs:
 
 | Activities | Relationships | Online median | Offline median (process + parse + calculate) | Bundle bytes | Canonical run identity |
 |---|---|---|---|---|---|
-| 1,000 | 1,923 | 239.9 ms | 274.5 ms | 853,285 | `0c811c700798…` identical |
-| 5,000 | 9,575 | 1,232.4 ms | 1,339.1 ms | 4,247,877 | `901b101d3500…` identical |
+| 1,000 | 1,923 | 241.1 ms | 272.7 ms | 853,285 | `0c811c700798…` identical |
+| 5,000 | 9,575 | 1,237.2 ms | 1,337.6 ms | 4,247,877 | `901b101d3500…` identical |
 
 A probe subprocess attempting `socket.create_connection` returned
 `OFFLINE_NETWORK_ACCESS_DENIED:create_connection`, so the guard is active in the
@@ -881,8 +883,8 @@ Old implementation re-run against the same snapshots, 3 runs:
 
 | Activities | Old median | New median | Speed-up | Canonical run identity |
 |---|---|---|---|---|
-| 200 | 251.7 ms | 48.5 ms | 5.18x | identical `7ba4b8a7…` |
-| 1,000 | 5,273.9 ms | 240.3 ms | 21.95x | identical `0c811c70…` |
+| 200 | 252.0 ms | 49.3 ms | 5.11x | identical `7ba4b8a7…` |
+| 1,000 | 5,247.5 ms | 243.2 ms | 21.58x | identical `0c811c70…` |
 
 This removes repeated resolution only. No CPM pass, float, constraint,
 calendar rule, validation or leveling decision changed or was reordered.
