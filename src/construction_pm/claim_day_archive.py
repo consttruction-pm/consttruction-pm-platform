@@ -500,23 +500,7 @@ class InMemoryClaimDayArchiveRepository:
         if actual_revision != expected_revision:
             raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
         if current is not None:
-            if (
-                current.claim_id != day.claim_id
-                or current.contract_id != day.contract_id
-                or current.reporting_date != day.reporting_date
-                or current.timezone != day.timezone
-                or current.claim_party_ids != day.claim_party_ids
-            ):
-                raise ClaimDayArchiveError("CLAIM_DAY_IDENTITY_IS_IMMUTABLE")
-            if not set(current.delay_event_ids).issubset(set(day.delay_event_ids)):
-                raise ClaimDayArchiveError("CLAIM_DAY_EVENTS_CANNOT_BE_REMOVED")
-            old_ids = {item.evidence_link_id for item in current.evidence_links}
-            new_by_id = {item.evidence_link_id: item for item in day.evidence_links}
-            if not old_ids.issubset(new_by_id):
-                raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REMOVED")
-            for old in current.evidence_links:
-                if new_by_id[old.evidence_link_id] != old:
-                    raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REWRITTEN")
+            _validate_day_append_only(current, day)
             if day.revision != current.revision + 1:
                 raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
         elif day.revision != 1:
@@ -968,6 +952,12 @@ def _validate_day_append_only(current: ClaimDayArchive, updated: ClaimDayArchive
         raise ClaimDayArchiveError("CLAIM_DAY_IDENTITY_IS_IMMUTABLE")
     if not set(current.delay_event_ids).issubset(set(updated.delay_event_ids)):
         raise ClaimDayArchiveError("CLAIM_DAY_EVENTS_CANNOT_BE_REMOVED")
+    if updated.revision_reason == current.revision_reason:
+        raise ClaimDayArchiveError("CLAIM_DAY_REVISION_REASON_REQUIRED")
+    if _aware_datetime(updated.revision_occurred_at, "revision_occurred_at") < _aware_datetime(
+        current.revision_occurred_at, "revision_occurred_at"
+    ):
+        raise ClaimDayArchiveError("CLAIM_DAY_REVISION_TIME_CANNOT_MOVE_BACKWARD")
     updated_by_id = {item.evidence_link_id: item for item in updated.evidence_links}
     for previous in current.evidence_links:
         if previous.evidence_link_id not in updated_by_id:
