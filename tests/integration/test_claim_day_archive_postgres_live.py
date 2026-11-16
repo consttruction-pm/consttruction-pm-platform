@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 
 psycopg = pytest.importorskip("psycopg")
-DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
+DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN") or os.getenv("P6_TEST_POSTGRES_DSN")
 if not DSN:
     pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is not configured", allow_module_level=True)
 
