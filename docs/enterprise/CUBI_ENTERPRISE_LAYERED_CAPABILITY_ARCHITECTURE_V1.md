@@ -256,7 +256,14 @@ The capability implementation template and delivery gate must require a machine-
 - a shared feature creates a second canonical record/calculation owner;
 - an unresolved MISSING / VERIFY row is incorrectly marked parity-complete.
 
-The exact validator location and schema are implementation work and must be inspected against repository conventions before coding. This document does not claim that such automation is already implemented.
+Implemented in this repository:
+- Validator: `scripts/validate_capability_sources.py` (Python standard library only).
+- Manifest contract: `capability.sources.yaml`, encoded as the JSON-compatible YAML subset so CI requires no new YAML parser dependency.
+- Initial capability manifest: `docs/enterprise/capabilities/ENT-13/capability.sources.yaml`, with lifecycle, permissions, formula register, source anchors and mapped acceptance-test paths.
+- CI integration: `.github/workflows/ci.yml` validates manifests on pushes and, on pull requests, compares changed implementation files under `apps/`, `src/`, `api/` and `shared/` against declared `implementation_paths`. An unmapped code change or a mapped capability not marked `implementation-ready` fails the gate.
+- Unit and formula-example tests: `tests/architecture/test_capability_source_manifest.py` and `tests/architecture/test_contract_commercial_formula_examples.py`.
+
+Coverage is intentionally incremental: ENT-13 is the first registered capability. Existing capability packages without manifests must add their own before implementation code in their paths can change in a PR. ENT-13 remains `source-mapped`, not `implementation-ready`, because its current-release Unifier topic inventory and parity evidence still contain MISSING / VERIFY gaps. The validator enforces manifest structure and readiness claims; it does not independently prove that a cited Help page is complete or that UI parity is true.
 
 ### 8.4 Section-level source map (initial authoritative map; topic expansion remains mandatory)
 
