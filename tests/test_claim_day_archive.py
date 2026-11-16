@@ -150,6 +150,39 @@ def test_submission_freezes_exact_evidence_revisions_and_form_snapshot(service):
     assert replay == submission
 
 
+def test_submission_numbers_are_scoped_per_party_like_postgres():
+    repository = InMemoryClaimDayArchiveRepository()
+    archive = day()
+    contractor = ClaimSubmission.build(
+        tenant_id="T-1", project_id="P-1", contract_id="C-1", claim_id="CL-1",
+        submission_id="SUB-CON-1", submission_number=1,
+        submitting_party_id="CONTRACTOR", submitted_by="u-contractor",
+        submitted_at="2026-10-26T08:00:00Z", form_template_id="FORM-EOT",
+        form_template_version="v1", form_snapshot={"days": 10},
+        evidence_links=(), claim_days=(archive,),
+    )
+    employer = ClaimSubmission.build(
+        tenant_id="T-1", project_id="P-1", contract_id="C-1", claim_id="CL-1",
+        submission_id="SUB-EMP-1", submission_number=1,
+        submitting_party_id="EMPLOYER", submitted_by="u-employer",
+        submitted_at="2026-10-26T08:01:00Z", form_template_id="FORM-RESPONSE",
+        form_template_version="v1", form_snapshot={"position": "response"},
+        evidence_links=(), claim_days=(archive,),
+    )
+    repository.append_submission(contractor)
+    repository.append_submission(employer)
+    duplicate_contractor = ClaimSubmission.build(
+        tenant_id="T-1", project_id="P-1", contract_id="C-1", claim_id="CL-1",
+        submission_id="SUB-CON-1B", submission_number=1,
+        submitting_party_id="CONTRACTOR", submitted_by="u-contractor",
+        submitted_at="2026-10-26T08:02:00Z", form_template_id="FORM-EOT",
+        form_template_version="v1", form_snapshot={"days": 12},
+        evidence_links=(), claim_days=(archive,),
+    )
+    with pytest.raises(ClaimDayArchiveError, match="NUMBER_ALREADY_EXISTS"):
+        repository.append_submission(duplicate_contractor)
+
+
 def test_submission_excludes_other_party_private_evidence(service):
     created = service.create_day(day(), idempotency_key="create-1")
     service.add_evidence(
