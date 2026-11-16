@@ -71,7 +71,7 @@ def test_expense_access_is_scoped_by_responsible_wbs_obs():
 
     class WBSAccess:
         def has_wbs_permission(self, scope, user_id, wbs_id, permission):
-            return permission == "project.read"
+            return permission == "expense.view"
 
     scoped = api(connection, WBSAccess())
     assert scoped.get(scope, "e-1", auth_context=auth())["expense"]["wbs_id"] == "wbs-1"
