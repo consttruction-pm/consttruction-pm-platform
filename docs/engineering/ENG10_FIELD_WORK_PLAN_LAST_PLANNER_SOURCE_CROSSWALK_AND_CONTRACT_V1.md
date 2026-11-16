@@ -173,3 +173,39 @@ Oracle's [Security Permissions for Tasks](https://primavera.oraclecloud.com/help
 - **MISSING / VERIFY:** Full per-page field/command availability and exact UI-level gating; source semantics for deleting/correcting latest commitment history and downstream audit; PPC denominator behavior when a task has multiple commitment records/recommitments; Daily Huddle as a distinct page/process (no dedicated Tasks App Help topic confirmed in the reviewed TOC); Production & Productivity quantity/rate model (not equivalent to PPC); mobile/offline behavior if in scope.
 - **Decision:** Daily Huddle may be a meeting workflow/projection over existing FieldTask, TaskCommitment, TaskConstraint and PPC facts, but no separate store or lifecycle is authorized until its own source and acceptance contract is complete.
 - **Decision:** Production quantity/rate records and productivity calculations must be a separate typed sub-capability with its own units, numerator/denominator, period, attribution and calculation owner. PPC remains only commitment reliability.
+
+
+
+## 12. Additional Tasks App Help inventory and Task Plan procedures (2026-11-16)
+
+The current Oracle Primavera Cloud Help TOC was re-opened at `https://primavera.oraclecloud.com/help/en/user/toc.htm`. It confirms a larger explicit procedure inventory than the first ENG-10 crosswalk had enumerated:
+
+- Pull Plans: overview; create; approve/release; manage existing plans; planning board; Parking Lot; add/bulk-add tasks and milestones; manage tasks and hand-offs; longest path; live pull-planning session start/end/join.
+- Hand-offs: add task/milestone and hand-off; propose/accept due date; assign constraint; commit/recommit; complete; longest path; filters, task cards, notifications and Plan By options.
+- Work Plan: add/import tasks; modify task details; crew size estimate; move task; due-date proposal/acceptance; constraints; commit/recommit/complete; Task Plan create/open/edit/close; swimlanes; display customization; filters; search; print.
+- Constraints: create, assign task, notes, deliver, file and Aconex package linking.
+- Task List: create/import/copy; assign user/activity/WBS; crew size/duration/due date; hand-offs; constraints; commit/recommit/complete; files and configured fields.
+- Analysis: Tasks Analysis Overview and View Tasks Analysis Metrics.
+- Separate app areas also exist for My Activities and Timesheets. Their presence in the Cloud TOC does not merge them into ENG-10; ENG-11/ENG-12 retain their own contracts and source authority.
+
+**Important limitation:** TOC presence proves that Oracle documents these workflows; it does not establish detailed command semantics, permissions, state transitions or parity. Each procedure still needs direct page review before its behavior is accepted into the CUBI contract. In particular, Pull Plans, Live Pull Planning and Parking Lot remain first-release scope decisions, not silently included implementation scope.
+
+### 12.1 Task Plan / swimlane details directly verified
+
+- [Task Plan Overview](https://primavera.oracle.com/help/en/user/264813.htm): a project may have multiple task plans; plans organize task cards using swimlane categories such as assigned user, company, activity code, task code or WBS; plans may be shared and revisited; the Configure Task Plan project privilege is required to add, edit or delete plans.
+- [Use Swimlanes on the Planning Board](https://primavera.oracle.com/help/en/user/264804.htm): swimlanes can combine configured categories; tasks may be moved among lanes or to/from the hopper; moving a task into a lane can change its assignment to match the lane; copy/paste duplicates tasks but does not copy hand-offs; moving a task to the hopper removes its due date; moving it back to the board assigns today or the next available work day as its start; lane visibility and filters affect the board's displayed content.
+
+**Contract refinement:** TaskPlan is a saved, shareable planning configuration, not just a transient UI filter. Swimlane moves can mutate task assignment and dates; those commands require explicit confirmation, authorization, revision checks and audit. Copying tasks must not implicitly duplicate hand-off relationships. Hopper transitions are domain commands, not cosmetic drag-and-drop.
+
+## 13. Updated source readiness and remaining gates
+
+| Source area | Status after this pass | Gate |
+|---|---|---|
+| Tasks App top-level Help inventory (Pull Plans, Work Plan, Hand-offs, Constraints, Task List, Analysis) | VERIFIED at TOC level | Review each relevant procedure before implementing its commands |
+| Task Plan overview and swimlane behavior | VERIFIED at procedure level | Confirm remaining edit/close/create example pages and exact field constraints |
+| Task security permissions | VERIFIED at procedure level | Map each named Oracle permission to CUBI grants and page-level controls |
+| Pull Plan approval/release, Parking Lot, live planning | DOCUMENTED IN TOC; PROCEDURE DETAILS MISSING / VERIFY | Keep deferred until exact pages, lifecycle and permissions are crosswalked |
+| Daily Huddle | MISSING / VERIFY | No dedicated Tasks App Help topic identified in the current TOC |
+| Production & Productivity quantity/rate model | MISSING / VERIFY | Requires independent source and calculation contract; PPC is not a substitute |
+| PPC recommitment denominator and commitment correction audit | MISSING / VERIFY | Validate source examples and history semantics |
+| CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED | No code, runtime, UI or test implementation is claimed |
