@@ -1378,3 +1378,14 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - Initial Oracle Help anchors include Unifier Contracts BP, Cost Type BP, Change Orders, Payment Applications, Cost Manager/SOV and Cost Management Levels; exact current-release topic coverage for tendering, vendor, claims, notices, securities, closeout and workflow variants remains MISSING / VERIFY pending extraction.
 - Updated target register cardinality to **37 capability families**: ENG-01..14, ENT-01..13, SH-01..10. Existing IDs are unchanged. This is architecture/documentation scope, not implementation, legal review, CI validation or parity completion.
 - Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`; PR #2001 remains Draft pending review. Engineering P1 remains protected; Enterprise remains P2.
+
+
+## 2026-11-16 — Capability Help inheritance validator implemented
+
+- Implemented `scripts/validate_capability_sources.py` using the Python standard library. It validates manifest schema/version, unique capability IDs, owner, environments, inheritance, official software Help URLs, formula policy and formula/test traceability, lifecycle model, permission matrix and acceptance-test paths.
+- Added PR changed-code enforcement to `.github/workflows/ci.yml`: implementation paths under `apps/`, `src/`, `api/` and `shared/` must map to exactly one manifest and that capability must be `implementation-ready`. Full Git history is fetched for the base/head comparison. Push-to-main validates all present manifests.
+- Added the first capability manifest for ENT-13, plus lifecycle, permission and formula registers and validator/formula example tests. Existing procurement RFQ/quote/bid/PO/commitment/delivery tests are linked only as the implemented subset; full Unifier contract lifecycle is not claimed complete.
+- ENT-13 remains `source-mapped` with MISSING / VERIFY gaps; it cannot pass implementation-ready until current-release Unifier Help, UI/state parity and formula/permission evidence are complete.
+- Coverage is incremental: all other capabilities must add their own manifest before implementation code in their paths can be changed in a PR. The validator checks traceability structure, not source truth or visual parity.
+- GitHub Actions execution is pending on the exact PR head; no green CI claim is made yet. Engineering P1 implementation paths were not changed.
+- Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`; PR #2001 remains Draft and unmerged.
