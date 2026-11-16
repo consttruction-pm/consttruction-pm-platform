@@ -209,3 +209,41 @@ The current Oracle Primavera Cloud Help TOC was re-opened at `https://primavera.
 | Production & Productivity quantity/rate model | MISSING / VERIFY | Requires independent source and calculation contract; PPC is not a substitute |
 | PPC recommitment denominator and commitment correction audit | MISSING / VERIFY | Validate source examples and history semantics |
 | CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED | No code, runtime, UI or test implementation is claimed |
+
+
+## 14. Pull Plans procedure-level verification (2026-11-16)
+
+The previously TOC-only Pull Plans decision gate was advanced with direct retrieval of the relevant Oracle Cloud procedures:
+
+- [Pull-Planning Overview](https://primavera.oraclecloud.com/help/en/user/294153.htm): plans work backward from a finish milestone; tasks can be staged in the Parking Lot and moved to the board; task duration, responsible company, crew size and "What I Need" information are part of planning. Plan states include In Planning and Approved; release is a distinct downstream step.
+- [Working with the Pull Plans Page](https://primavera.oraclecloud.com/help/en/user/294154.htm): create a plan against a milestone or activity; inspect plan status, target duration, session date and description; withdraw approval to revise; release approved plan to Work Plan. Once released, only plan name, description and session date remain editable.
+- [Approve and Release a Pull Plan](https://primavera.oraclecloud.com/help/en/user/294161.htm): requires the distinct Approve and Release to Work Plan permission. Approval freezes tasks and hand-offs; changes require withdrawal to In Planning. Approval warnings can identify disconnected tasks/milestones/hand-offs, Parking Lot tasks and chains without successors. Release can move tasks to the Work Plan Hopper or place the sequence relative to a selected finish-milestone date. Parking Lot tasks are not released; hand-offs among released items are retained.
+- [Manage Existing Pull Plans](https://primavera.oraclecloud.com/help/en/user/294156.htm): delete requires Pull Plans - Delete; withdrawal requires Approve and Release to Work Plan; approved, released or live-session plans cannot be deleted; approved/released plans have restricted editable fields.
+- [Use the Parking Lot](https://primavera.oraclecloud.com/help/en/user/294202.htm): stores unsequenced tasks; no hand-offs or contribution to longest path; no task milestones; hidden for approved/released plans; Add Tasks privilege required. Tasks can move to/from the Planning Board with explicit commands; filters include My Tasks, My Company's Tasks and All Tasks.
+- [Live Pull-Planning Session Overview](https://primavera.oraclecloud.com/help/en/user/294162.htm) and [Start or End a Live Session](https://primavera.oraclecloud.com/help/en/user/294165.htm): live sessions are optional. The plan is read-only until a participant joins. Joined participants see Planning Board and Parking Lot changes automatically. A facilitator with Approve and Release to Work Plan starts/ends the session; participant task operations remain governed by their task privileges. Company Restricted Users are limited to invited plans and plans in which they participated. The overview specifies up to 100 participants, a 25-minute inactivity warning and 30-minute disconnect; the start/end procedure additionally documents the session ending after one hour of inactivity.
+- [Bulk-add Tasks](https://primavera.oraclecloud.com/help/en/user/294186.htm): up to 100 valid tasks can be added to the Parking Lot per operation; grid, paste and Excel template input are supported; task milestones are excluded; Add-task privilege, plan status and live-session state gate availability.
+
+**Contract refinements:**
+1. Pull Plan is a distinct staged plan aggregate with explicit status, target finish object, session date, approval/withdrawal and release-to-Work-Plan transitions. It is not interchangeable with TaskPlan (saved Work Plan swimlane configuration).
+2. Approval/release are separate commands and permissions. Approval freezes tasks/hand-offs; withdrawal restores editability; release transfers eligible planned items to Work Plan while excluding Parking Lot items.
+3. A release operation must preserve hand-offs among released items and explicitly report excluded/unreleased items. It must not silently create CPM activities.
+4. Live collaboration is optional and does not bypass task-level privileges or company-restricted visibility. Real-time session state, participant membership, inactivity timeout and read-only-until-join behavior require explicit support if this feature is in scope.
+5. Parking Lot membership is a real planning state with constraints (no hand-offs, no milestones, excluded from longest path), not merely a visual container.
+6. Bulk-add requires row-level validation, deterministic limits and privilege/state gating.
+
+**Scope decision:** Pull Plans, Parking Lot, approval/release and live sessions are now sufficiently source-mapped to be considered in ENG-10 product scope; they are no longer unknown feature names. Their CUBI first-release inclusion still requires an explicit product decision and a complete acceptance/authorization map. No implementation is implied.
+
+## 15. Updated ENG-10 evidence status
+
+| Area | Status |
+|---|---|
+| Pull Plans overview, lifecycle, approval, withdrawal, release | VERIFIED at procedure level |
+| Parking Lot rules and operations | VERIFIED at procedure level |
+| Live pull-planning collaboration and access boundaries | VERIFIED at procedure level |
+| Bulk-add tasks | VERIFIED at procedure level |
+| Task Plan and Work Plan swimlanes | VERIFIED at procedure level |
+| Complete CUBI first-release scope selection and API/domain design | OPEN PRODUCT DECISION |
+| Daily Huddle | MISSING / VERIFY |
+| Production & Productivity quantity/rate model | MISSING / VERIFY |
+| PPC denominator with multiple recommitments / commitment-history correction audit | MISSING / VERIFY |
+| CUBI implementation | NOT IMPLEMENTED / NOT VERIFIED |
