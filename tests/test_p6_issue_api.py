@@ -112,7 +112,7 @@ def test_issue_access_is_scoped_by_responsible_wbs_obs():
 
     class WBSAccess:
         def has_wbs_permission(self, scope, user_id, wbs_id, permission):
-            return permission == "project.read"
+            return permission == "issue.view"
 
     scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=WBSAccess())
     assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["wbs_id"] == "W-FOREIGN"
