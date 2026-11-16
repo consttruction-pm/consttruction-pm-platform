@@ -25,6 +25,9 @@ def day(**changes):
         reporting_date=date(2026, 10, 25),
         timezone="Europe/Berlin",
         claim_party_ids=("EMPLOYER", "CONTRACTOR", "CONSULTANT"),
+        revision_actor_id="u-contractor",
+        revision_occurred_at="2026-10-25T09:00:00+02:00",
+        revision_reason="Initial archive creation",
     )
     values.update(changes)
     return ClaimDayArchive(**values)
