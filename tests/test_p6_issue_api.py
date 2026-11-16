@@ -140,7 +140,7 @@ def test_issue_own_responsible_obs_overrides_project_scope_for_write():
 
     class OBSAccess:
         def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
-            return obs_id == "OBS-QUALITY" and permission == "project.read"
+            return obs_id == "OBS-QUALITY" and permission == "issue.view"
 
     scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=OBSAccess())
     assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["responsible_obs_id"] == "OBS-QUALITY"
