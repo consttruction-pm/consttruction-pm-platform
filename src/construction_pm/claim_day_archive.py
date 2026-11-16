@@ -319,7 +319,10 @@ class ClaimSubmission:
             "project_id": project_id,
             "contract_id": contract_id,
             "claim_id": claim_id,
+            "submission_id": submission_id,
+            "submission_number": submission_number,
             "submitting_party_id": submitting_party_id,
+            "submitted_by": submitted_by,
             "form_template_id": form_template_id,
             "form_template_version": form_template_version,
             "form_snapshot_sha256": _digest(form_json),
@@ -383,9 +386,33 @@ class ClaimSubmission:
             raise ClaimDayArchiveError("CLAIM_SUBMISSION_MANIFEST_HASH_MISMATCH")
         try:
             json.loads(self.form_snapshot_json)
-            json.loads(self.manifest_json)
+            manifest = json.loads(self.manifest_json)
         except (TypeError, ValueError) as exc:
             raise ClaimDayArchiveError("INVALID_CLAIM_SUBMISSION_SNAPSHOT") from exc
+        if not isinstance(manifest, dict):
+            raise ClaimDayArchiveError("INVALID_CLAIM_SUBMISSION_MANIFEST")
+        expected_manifest_fields = {
+            "contract_version": self.contract_version,
+            "tenant_id": self.tenant_id,
+            "project_id": self.project_id,
+            "contract_id": self.contract_id,
+            "claim_id": self.claim_id,
+            "submission_id": self.submission_id,
+            "submission_number": self.submission_number,
+            "submitting_party_id": self.submitting_party_id,
+            "submitted_by": self.submitted_by,
+            "submitted_at": self.submitted_at,
+            "form_template_id": self.form_template_id,
+            "form_template_version": self.form_template_version,
+            "form_snapshot_sha256": self.form_snapshot_sha256,
+            "schedule_snapshot_ids": sorted(self.schedule_snapshot_ids),
+            "baseline_snapshot_ids": sorted(self.baseline_snapshot_ids),
+            "supersedes_submission_id": self.supersedes_submission_id,
+        }
+        if any(manifest.get(key) != value for key, value in expected_manifest_fields.items()):
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_MANIFEST_FIELDS_MISMATCH")
+        if self.supersedes_submission_id is not None:
+            _require_text(self.supersedes_submission_id, "supersedes_submission_id")
         for item in (*self.schedule_snapshot_ids, *self.baseline_snapshot_ids):
             _require_text(item, "schedule_or_baseline_snapshot_id")
 
