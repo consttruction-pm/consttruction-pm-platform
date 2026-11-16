@@ -110,7 +110,9 @@ def _measure_one(args, size: int) -> dict[str, object]:
         payload_builder = date_schedule_payload
     elif args.mode == "time":
         fixture = time_network(size, args.shape, args.seed, float_days=args.float_days)
-        operation = lambda: run_time_schedule(fixture)  # noqa: E731
+        operation = lambda: run_time_schedule(  # noqa: E731
+            fixture, float_workers=args.time_float_workers
+        )
         payload_builder = time_schedule_payload
     elif args.mode == "leveling":
         fixture = leveling_case(size, args.seed)
@@ -125,6 +127,12 @@ def _measure_one(args, size: int) -> dict[str, object]:
     if args.mode == "time":
         record["project_finish"] = fixture.project_finish.isoformat() if fixture.project_finish else None
         record["float_days"] = args.float_days
+        record["time_float_workers"] = args.time_float_workers
+        import resource
+
+        record["children_peak_rss_kb"] = int(
+            resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+        )
 
     timing = measure(operation, repeat=args.repeat, warmup=args.warmup)
     result = timing.pop("result")
@@ -153,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--warmup", type=int, default=0)
     parser.add_argument("--float-days", type=int, default=0, help="time mode: project-finish float offset in working days")
+    parser.add_argument("--time-float-workers", type=int, default=1, help="time mode: forked processes for per-activity floats")
     parser.add_argument("--git-sha", default=None)
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args(argv)

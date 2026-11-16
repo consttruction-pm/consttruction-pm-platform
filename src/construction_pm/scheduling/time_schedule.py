@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import multiprocessing
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -335,6 +337,196 @@ def _free_float_limit(holds) -> Decimal:
     return high - Decimal("1")
 
 
+@dataclass(frozen=True)
+class _TimeFloatContext:
+    """Everything one activity's float calculation needs, and nothing mutable."""
+
+    activity_map: Mapping[str, TimeActivity]
+    outgoing: Mapping[str, tuple[TimeRelationship, ...]]
+    early: Mapping[str, TimeScheduledActivity]
+    late: Mapping[str, TimeScheduledActivity]
+    registry: CalendarResolverRegistry
+    relationship_lag_calendar: RelationshipLagCalendar | None
+
+
+def _time_float_context(
+    activities: Iterable[TimeActivity],
+    relationships: Iterable[TimeRelationship],
+    early: Mapping[str, TimeScheduledActivity],
+    late: Mapping[str, TimeScheduledActivity],
+    registry: CalendarResolverRegistry,
+    relationship_lag_calendar: RelationshipLagCalendar | None,
+) -> _TimeFloatContext:
+    activity_map = {a.id: a for a in activities}
+    outgoing: dict[str, list[TimeRelationship]] = {activity_id: [] for activity_id in activity_map}
+    for rel in relationships:
+        outgoing[rel.predecessor_id].append(rel)
+    return _TimeFloatContext(
+        activity_map=activity_map,
+        outgoing={key: tuple(value) for key, value in outgoing.items()},
+        early=early,
+        late=late,
+        registry=registry,
+        relationship_lag_calendar=relationship_lag_calendar,
+    )
+
+
+def _time_float_for_activity(
+    context: _TimeFloatContext, activity_id: str
+) -> TimeFloatActivity:
+    """Calculate one activity's float from immutable inputs only.
+
+    The function reads no global state and mutates nothing, so evaluating it in
+    a child process yields exactly the value the sequential loop would produce.
+    """
+    activity_map = context.activity_map
+    outgoing = context.outgoing
+    early = context.early
+    late = context.late
+    registry = context.registry
+    relationship_lag_calendar = context.relationship_lag_calendar
+
+    activity = activity_map[activity_id]
+    resolver = _resolver(activity, registry)
+    e = early[activity_id]
+    l = late[activity_id]
+    if activity.duration.unit is DurationUnit.WORKING_DAY:
+        total = Decimal(resolver.resolver.working_days_between(e.start.date(), l.start.date()))
+        if l.start < e.start:
+            total = -Decimal(resolver.resolver.working_days_between(l.start.date(), e.start.date()))
+    else:
+        total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
+        if l.start < e.start:
+            total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
+
+    if not outgoing[activity_id]:
+        free = Decimal("0")
+    else:
+        limits: list[Decimal] = []
+        for rel in outgoing[activity_id]:
+            successor = early[rel.successor_id]
+            if rel.lag.unit not in {DurationUnit.WORKING_HOUR, DurationUnit.WORKING_DAY}:
+                raise ValueError("unsupported lag unit")
+            lag_context = activity_map[rel.successor_id].calendar_context
+            predecessor_context = activity_map[rel.predecessor_id].calendar_context
+            if lag_context is None or predecessor_context is None:
+                raise ValueError("relationship activities require calendar contexts")
+            raw_lag_resolver = registry.resolve_relationship_lag(
+                lag_context,
+                predecessor_context.effective_activity(),
+                relationship_lag_calendar,
+            )
+            if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+                lag_resolver = CalendarAwareResolver(
+                    CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
+                )
+            else:
+                lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
+                lag_resolver = resolve_calendar_aware(registry, lag_reference)
+            if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
+                # Measure slack by delaying the predecessor and checking the
+                # relationship event in the authoritative lag calendar.
+                def holds_at(delay: Decimal) -> bool:
+                    delay_quantity = (
+                        TimeQuantity.working_hours(delay)
+                        if activity.duration.unit is DurationUnit.WORKING_HOUR
+                        else TimeQuantity.working_days(delay)
+                    )
+                    candidate_start = resolver.add_duration(e.start, delay_quantity)
+                    candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
+                    if rel.type is RelationshipType.FS:
+                        event = candidate_finish
+                        required = lag_resolver.add_lag(event, rel.lag)
+                        return successor.start >= required
+                    if rel.type is RelationshipType.SS:
+                        event = candidate_start
+                        required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                        return successor.start >= required
+                    if rel.type is RelationshipType.FF:
+                        event = candidate_finish
+                        required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                        return successor.finish >= required
+                    event = candidate_start
+                    required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                    return successor.finish >= required
+
+                limits.append(_free_float_limit(holds_at))
+        free = min(limits) if limits else Decimal("0")
+
+    return TimeFloatActivity(
+        activity_id=activity_id,
+        early_start=e.start,
+        early_finish=e.finish,
+        late_start=l.start,
+        late_finish=l.finish,
+        total_float_hours=total if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+        free_float_hours=min(total, free) if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+        total_float_value=total,
+        free_float_value=min(total, free),
+        float_unit=activity.duration.unit,
+        critical=total <= 0,
+    )
+
+
+# Forked children inherit this context at process creation. Nothing else is
+# shared: each child computes independent activities and returns immutable
+# records, so the merged mapping is exactly the sequential mapping.
+_FLOAT_CONTEXT: _TimeFloatContext | None = None
+_FLOAT_FORK_LOCK = threading.Lock()
+
+
+def _float_chunk(activity_ids: list[str]) -> list[TimeFloatActivity]:
+    context = _FLOAT_CONTEXT
+    if context is None:
+        raise RuntimeError("FLOAT_CONTEXT_NOT_INITIALIZED")
+    return [_time_float_for_activity(context, activity_id) for activity_id in activity_ids]
+
+
+def _chunk_activity_ids(activity_ids: list[str], workers: int) -> list[list[str]]:
+    if workers <= 1 or len(activity_ids) <= 1:
+        return [activity_ids]
+    size = max(1, -(-len(activity_ids) // workers))
+    return [activity_ids[index : index + size] for index in range(0, len(activity_ids), size)]
+
+
+def _parallel_time_floats(
+    context: _TimeFloatContext, activity_ids: list[str], workers: int
+) -> dict[str, TimeFloatActivity]:
+    """Evaluate independent activities in forked children, then merge by id.
+
+    Falls back to the sequential loop when the platform has no ``fork`` or when
+    the caller is multithreaded, because forking a threaded process is not safe.
+    Both paths are exactly equivalent; the fallback changes only speed.
+    """
+    global _FLOAT_CONTEXT
+    chunks = _chunk_activity_ids(activity_ids, workers)
+    if len(chunks) <= 1:
+        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
+    if threading.active_count() > 1:
+        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
+    try:
+        fork_context = multiprocessing.get_context("fork")
+    except ValueError:
+        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
+
+    with _FLOAT_FORK_LOCK:
+        previous = _FLOAT_CONTEXT
+        _FLOAT_CONTEXT = context
+        pool = fork_context.Pool(processes=len(chunks))
+        try:
+            chunks_out = pool.map(_float_chunk, chunks)
+        finally:
+            pool.close()
+            pool.join()
+            _FLOAT_CONTEXT = previous
+
+    merged: dict[str, TimeFloatActivity] = {}
+    for chunk in chunks_out:
+        for item in chunk:
+            merged[item.activity_id] = item
+    return {activity_id: merged[activity_id] for activity_id in activity_ids}
+
+
 def calculate_time_floats(
     activities: Iterable[TimeActivity],
     relationships: Iterable[TimeRelationship],
@@ -342,95 +534,28 @@ def calculate_time_floats(
     late: Mapping[str, TimeScheduledActivity],
     registry: CalendarResolverRegistry,
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
+    *,
+    workers: int = 1,
 ) -> Mapping[str, TimeFloatActivity]:
-    activity_map = {a.id: a for a in activities}
-    outgoing = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
-        outgoing[rel.predecessor_id].append(rel)
+    """Calculate every activity's float.
 
-    result: dict[str, TimeFloatActivity] = {}
-    for activity_id in sorted(activity_map):
-        activity = activity_map[activity_id]
-        resolver = _resolver(activity, registry)
-        e = early[activity_id]
-        l = late[activity_id]
-        if activity.duration.unit is DurationUnit.WORKING_DAY:
-            total = Decimal(resolver.resolver.working_days_between(e.start.date(), l.start.date()))
-            if l.start < e.start:
-                total = -Decimal(resolver.resolver.working_days_between(l.start.date(), e.start.date()))
-        else:
-            total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
-            if l.start < e.start:
-                total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
-
-        if not outgoing[activity_id]:
-            free = Decimal("0")
-        else:
-            limits: list[Decimal] = []
-            for rel in outgoing[activity_id]:
-                successor = early[rel.successor_id]
-                if rel.lag.unit not in {DurationUnit.WORKING_HOUR, DurationUnit.WORKING_DAY}:
-                    raise ValueError("unsupported lag unit")
-                lag_context = activity_map[rel.successor_id].calendar_context
-                predecessor_context = activity_map[rel.predecessor_id].calendar_context
-                if lag_context is None or predecessor_context is None:
-                    raise ValueError("relationship activities require calendar contexts")
-                raw_lag_resolver = registry.resolve_relationship_lag(
-                    lag_context,
-                    predecessor_context.effective_activity(),
-                    relationship_lag_calendar,
-                )
-                if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
-                    lag_resolver = CalendarAwareResolver(
-                        CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
-                    )
-                else:
-                    lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
-                    lag_resolver = resolve_calendar_aware(registry, lag_reference)
-                if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
-                    # Measure slack by delaying the predecessor and checking the
-                    # relationship event in the authoritative lag calendar.
-                    def holds_at(delay: Decimal) -> bool:
-                        delay_quantity = (
-                            TimeQuantity.working_hours(delay)
-                            if activity.duration.unit is DurationUnit.WORKING_HOUR
-                            else TimeQuantity.working_days(delay)
-                        )
-                        candidate_start = resolver.add_duration(e.start, delay_quantity)
-                        candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
-                        if rel.type is RelationshipType.FS:
-                            event = candidate_finish
-                            required = lag_resolver.add_lag(event, rel.lag)
-                            return successor.start >= required
-                        if rel.type is RelationshipType.SS:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            return successor.start >= required
-                        if rel.type is RelationshipType.FF:
-                            event = candidate_finish
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            return successor.finish >= required
-                        event = candidate_start
-                        required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                        return successor.finish >= required
-
-                    limits.append(_free_float_limit(holds_at))
-            free = min(limits) if limits else Decimal("0")
-
-        result[activity_id] = TimeFloatActivity(
-            activity_id=activity_id,
-            early_start=e.start,
-            early_finish=e.finish,
-            late_start=l.start,
-            late_finish=l.finish,
-            total_float_hours=total if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
-            free_float_hours=min(total, free) if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
-            total_float_value=total,
-            free_float_value=min(total, free),
-            float_unit=activity.duration.unit,
-            critical=total <= 0,
-        )
-    return result
+    ``workers`` is an execution-only parameter: it splits independent activity
+    calculations across forked processes and merges them in sorted id order.
+    It cannot change a value, and the default (1) is the historical sequential
+    loop.
+    """
+    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+        raise ValueError("INVALID_FLOAT_WORKERS")
+    context = _time_float_context(
+        activities, relationships, early, late, registry, relationship_lag_calendar
+    )
+    activity_ids = sorted(context.activity_map)
+    if workers == 1:
+        return {
+            activity_id: _time_float_for_activity(context, activity_id)
+            for activity_id in activity_ids
+        }
+    return _parallel_time_floats(context, activity_ids, workers)
 
 
 def time_schedule(
@@ -441,6 +566,8 @@ def time_schedule(
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
     options: TimeScheduleOptions | None = None,
+    *,
+    float_workers: int = 1,
 ) -> TimeScheduleResult:
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
@@ -477,6 +604,7 @@ def time_schedule(
         late,
         registry,
         selected_options.relationship_lag_calendar,
+        workers=float_workers,
     )
     return TimeScheduleResult(
         activities=early,
