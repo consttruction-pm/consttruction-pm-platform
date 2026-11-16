@@ -171,3 +171,13 @@ These are contract/source issues, not implementation-complete claims. Each must 
 ## 12. ENG-10 contract artifact
 
 The ENG-10 issue [#2011](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2011) now has a full source crosswalk and domain contract at `docs/engineering/ENG10_FIELD_WORK_PLAN_LAST_PLANNER_SOURCE_CROSSWALK_AND_CONTRACT_V1.md`. Oracle Help confirms task/hand-off/constraint/commitment/completion and PPC analytics behavior at topic level. The contract explicitly distinguishes Field Tasks from CPM Activities and Enterprise Tasks, records PPC time cutoffs and company analysis, and keeps security/denominator edge cases as pre-implementation gates. It remains `CONTRACTED`, not implemented or verified.
+
+
+## 13. ENG implementation packet linkage (2026-11-16)
+
+The three independent implementation handoff issues are now registered and linked to the canonical Qoder queue #2009:
+- ENG-10 Field Work Plan / Last Planner — [#2012](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2012), BLOCKED pending named path-owner handoff and Qoder availability.
+- ENG-11 Activity Status Update — [#2013](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2013), BLOCKED pending named path-owner handoff, V26 source gaps for affected commands and Qoder availability.
+- ENG-12 Timesheets — [#2014](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2014), BLOCKED pending named path-owner handoff, V26/EPPM source gaps for affected commands and Qoder availability.
+
+All three issues state that no write path is authorized until a named owner handoff. This is a deliberate no-overlap control, not an implementation failure or completion claim.
