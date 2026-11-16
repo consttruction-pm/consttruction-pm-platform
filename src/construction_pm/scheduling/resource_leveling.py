@@ -506,29 +506,49 @@ def propose_forward_leveling_within_float(
             Decimal("1") + over_allocation_percentage / Decimal("100")
         )
 
-    def current_demands() -> list[ResourceDemand]:
-        out: list[ResourceDemand] = []
-        for activity in levelable_activities:
-            activity_resolver = _resolver_for_activity(
-                activity.activity_id, resolver, activity_resolvers
-            )
-            out.extend(
-                demand
-                for demand in _shift_demands(
-                    activity.resource_demands, selected[activity.activity_id], activity_resolver
-                )
-                if demand.resource_id in selected_resources
-            )
-        return out
+    demand_cache: dict[tuple[str, int], dict[tuple[str, date], Decimal]] = {}
+
+    def demand_index(activity: LevelingActivity, shift: int) -> dict[tuple[str, date], Decimal]:
+        """Selected-resource demand units for one activity at one shift.
+
+        The cache stores the same values the previous implementation rebuilt
+        from scratch on every pass: the requests are shifted with the activity
+        resolver and then filtered to the selected resources.  Units for the
+        same ``(resource, period)`` are summed in demand order, which keeps
+        Decimal behaviour identical to the direct ``sum`` it replaces.
+        """
+        key = (activity.activity_id, shift)
+        cached = demand_cache.get(key)
+        if cached is not None:
+            return cached
+        activity_resolver = _resolver_for_activity(
+            activity.activity_id, resolver, activity_resolvers
+        )
+        merged: dict[tuple[str, date], Decimal] = {}
+        for demand in _shift_demands(activity.resource_demands, shift, activity_resolver):
+            if demand.resource_id not in selected_resources:
+                continue
+            unit_key = (demand.resource_id, demand.period)
+            merged[unit_key] = merged.get(unit_key, Decimal("0")) + demand.units
+        demand_cache[key] = merged
+        return merged
 
     shifts: list[LevelingShift] = []
     while True:
-        demands = current_demands()
+        # Rebuild the (resource, period) ledger in activity order.  The value
+        # for each key is exactly the Decimal sum the previous O(n^2) scan
+        # recomputed on every iteration, but without repeating date arithmetic
+        # for every (activity, overloaded period) pair.
+        totals: dict[tuple[str, date], Decimal] = {}
+        for activity in levelable_activities:
+            for unit_key, units in demand_index(
+                activity, selected[activity.activity_id]
+            ).items():
+                totals[unit_key] = totals.get(unit_key, Decimal("0")) + units
         overloaded = [
-            (resource_id, period)
-            for resource_id, period in sorted({(d.resource_id, d.period) for d in demands if d.resource_id in selected_resources}, key=lambda x: (x[1], x[0]))
-            if sum((d.units for d in demands if d.resource_id == resource_id and d.period == period), Decimal("0"))
-            > effective_capacity(resource_id, period)
+            unit_key
+            for unit_key in sorted(totals, key=lambda key: (key[1], key[0]))
+            if totals[unit_key] > effective_capacity(unit_key[0], unit_key[1])
         ]
         if not overloaded:
             break
@@ -545,13 +565,9 @@ def propose_forward_leveling_within_float(
                         continue
                 elif current_shift >= max(0, activity.total_float - min_float_to_preserve):
                     continue
-                activity_resolver = _resolver_for_activity(
-                    activity.activity_id, resolver, activity_resolvers
+                units = demand_index(activity, current_shift).get(
+                    (resource_id, period), Decimal("0")
                 )
-                shifted = _shift_demands(
-                    activity.resource_demands, current_shift, activity_resolver
-                )
-                units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
                 if units > 0:
                     priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
                     candidates.append((priority_key, -units, activity.activity_id))

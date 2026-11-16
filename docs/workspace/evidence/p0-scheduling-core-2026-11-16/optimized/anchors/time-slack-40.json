@@ -1,0 +1,49 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "d764c81d6de834390f335971f9069c5a64b8228b",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "counts": {
+        "activities": 40,
+        "relationships": 39
+      },
+      "cpu": {
+        "count": 1,
+        "max_ms": 103.58,
+        "median_ms": 103.58,
+        "min_ms": 103.58,
+        "p95_ms": 103.58
+      },
+      "fixture_build_ms": 1.718,
+      "float_days": 1,
+      "mode": "time",
+      "output_sha256": "4ffbec4ba2df9009a318709c913fc6298f761dec50bc8ed9106a87cb035d817c",
+      "peak_rss_kb": 48184,
+      "project_finish": "2026-04-09T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "slack",
+      "size": 40,
+      "status": "ok",
+      "wall": {
+        "count": 1,
+        "max_ms": 54.179,
+        "median_ms": 54.179,
+        "min_ms": 54.179,
+        "p95_ms": 54.179
+      }
+    }
+  ],
+  "repeat": 1,
+  "seed": 20261116,
+  "shape": "slack",
+  "warmup": 0
+}

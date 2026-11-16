@@ -1,0 +1,79 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "e02850361300c494477148bd5e426d2516534ad5",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "counts": {
+        "activities": 40,
+        "relationships": 39
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 994.936,
+        "median_ms": 993.876,
+        "min_ms": 992.817,
+        "p95_ms": 994.936
+      },
+      "fixture_build_ms": 1.625,
+      "float_days": 1,
+      "mode": "time",
+      "output_sha256": "4ffbec4ba2df9009a318709c913fc6298f761dec50bc8ed9106a87cb035d817c",
+      "peak_rss_kb": 49148,
+      "project_finish": "2026-04-09T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "slack",
+      "size": 40,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 994.99,
+        "median_ms": 993.932,
+        "min_ms": 992.875,
+        "p95_ms": 994.99
+      }
+    },
+    {
+      "counts": {
+        "activities": 80,
+        "relationships": 79
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 7757.469,
+        "median_ms": 7756.339,
+        "min_ms": 7755.208,
+        "p95_ms": 7757.469
+      },
+      "fixture_build_ms": 2.858,
+      "float_days": 1,
+      "mode": "time",
+      "output_sha256": "4b5031553de718a6b6bc0c76a0278e15fc3c32a93810ad484df6a3054e958f2c",
+      "peak_rss_kb": 49424,
+      "project_finish": "2026-07-02T17:00:00+00:00",
+      "seed": 20261116,
+      "shape": "slack",
+      "size": 80,
+      "status": "ok",
+      "wall": {
+        "count": 2,
+        "max_ms": 7757.99,
+        "median_ms": 7756.852,
+        "min_ms": 7755.713,
+        "p95_ms": 7757.99
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "slack",
+  "warmup": 1
+}
