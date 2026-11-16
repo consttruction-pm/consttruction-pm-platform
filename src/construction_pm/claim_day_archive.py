@@ -1,0 +1,525 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from datetime import date, datetime, time, timedelta, timezone
+from enum import Enum
+from hashlib import sha256
+import json
+import re
+from typing import Any, Mapping, Protocol
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+CLAIM_DAY_ARCHIVE_CONTRACT_VERSION = "claim-day-archive.v1"
+CLAIM_SUBMISSION_CONTRACT_VERSION = "claim-submission.v1"
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+class ClaimDayArchiveError(ValueError):
+    """Invalid claim-day archive data or operation."""
+
+
+class ClaimDayRevisionConflict(ClaimDayArchiveError):
+    """The aggregate revision changed since the caller read it."""
+
+
+class ClaimDayIdempotencyConflict(ClaimDayArchiveError):
+    """An idempotency key was reused for a different command."""
+
+
+class ClaimDayVisibility(str, Enum):
+    PRIVATE = "private"
+    CLAIM_PARTIES = "claim_parties"
+    EXPLICIT_PARTIES = "explicit_parties"
+
+
+def _require_text(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ClaimDayArchiveError(f"INVALID_{field.upper()}")
+    return value.strip()
+
+
+def _aware_datetime(value: str, field: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise ClaimDayArchiveError(f"INVALID_{field.upper()}") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ClaimDayArchiveError(f"{field.upper()}_MUST_BE_TIMEZONE_AWARE")
+    return parsed
+
+
+def _canonical_json(value: object) -> str:
+    try:
+        return json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+    except (TypeError, ValueError) as exc:
+        raise ClaimDayArchiveError("INVALID_CANONICAL_JSON") from exc
+
+
+def _digest(value: str) -> str:
+    return "sha256:" + sha256(value.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class ClaimDayEvidenceLink:
+    """A revision-pinned pointer to an authoritative CUBI source record.
+
+    This object never owns the source bytes. Document Management, Field Daily
+    Log and Engineering remain authoritative for their respective records.
+    """
+
+    evidence_link_id: str
+    source_system: str
+    source_type: str
+    source_id: str
+    source_revision: int
+    source_content_version: str
+    actor_id: str
+    effective_at: str
+    party_visibility: ClaimDayVisibility
+    owner_party_id: str
+    audience_party_ids: tuple[str, ...] = ()
+    content_sha256: str | None = None
+    captured_at: str | None = None
+    captured_timezone: str | None = None
+    server_received_at: str | None = None
+    location_key: str | None = None
+    work_front: str | None = None
+    activity_refs: tuple[str, ...] = ()
+    wbs_refs: tuple[str, ...] = ()
+    delay_event_refs: tuple[str, ...] = ()
+    chain_of_custody_refs: tuple[str, ...] = ()
+
+    def validate(self, *, claim_party_ids: tuple[str, ...]) -> None:
+        for field_name in (
+            "evidence_link_id", "source_system", "source_type", "source_id",
+            "source_content_version", "actor_id", "owner_party_id",
+        ):
+            _require_text(getattr(self, field_name), field_name)
+        if isinstance(self.source_revision, bool) or not isinstance(self.source_revision, int) or self.source_revision < 1:
+            raise ClaimDayArchiveError("INVALID_SOURCE_REVISION")
+        _aware_datetime(self.effective_at, "effective_at")
+        if self.captured_at is not None:
+            _aware_datetime(self.captured_at, "captured_at")
+        if self.server_received_at is not None:
+            _aware_datetime(self.server_received_at, "server_received_at")
+        if self.captured_timezone is not None:
+            _require_text(self.captured_timezone, "captured_timezone")
+            try:
+                ZoneInfo(self.captured_timezone)
+            except ZoneInfoNotFoundError as exc:
+                raise ClaimDayArchiveError("INVALID_CAPTURE_TIMEZONE") from exc
+        if self.content_sha256 is not None and not _SHA256_RE.fullmatch(self.content_sha256):
+            raise ClaimDayArchiveError("INVALID_EVIDENCE_SHA256")
+        if self.owner_party_id not in claim_party_ids:
+            raise ClaimDayArchiveError("EVIDENCE_OWNER_NOT_A_CLAIM_PARTY")
+        if not isinstance(self.party_visibility, ClaimDayVisibility):
+            raise ClaimDayArchiveError("INVALID_EVIDENCE_VISIBILITY")
+        if self.party_visibility is ClaimDayVisibility.PRIVATE and self.audience_party_ids:
+            raise ClaimDayArchiveError("PRIVATE_EVIDENCE_CANNOT_HAVE_AUDIENCE")
+        if self.party_visibility is ClaimDayVisibility.CLAIM_PARTIES and self.audience_party_ids:
+            raise ClaimDayArchiveError("CLAIM_PARTY_EVIDENCE_CANNOT_HAVE_EXPLICIT_AUDIENCE")
+        if self.party_visibility is ClaimDayVisibility.EXPLICIT_PARTIES:
+            if not self.audience_party_ids:
+                raise ClaimDayArchiveError("EXPLICIT_EVIDENCE_AUDIENCE_REQUIRED")
+            if any(party not in claim_party_ids for party in self.audience_party_ids):
+                raise ClaimDayArchiveError("EVIDENCE_AUDIENCE_NOT_A_CLAIM_PARTY")
+        for values in (self.activity_refs, self.wbs_refs, self.delay_event_refs, self.chain_of_custody_refs):
+            if not isinstance(values, tuple) or any(not isinstance(item, str) or not item.strip() for item in values):
+                raise ClaimDayArchiveError("INVALID_EVIDENCE_REFERENCES")
+
+    def visible_to(self, party_id: str) -> bool:
+        if party_id == self.owner_party_id:
+            return True
+        if self.party_visibility is ClaimDayVisibility.CLAIM_PARTIES:
+            return True
+        if self.party_visibility is ClaimDayVisibility.EXPLICIT_PARTIES:
+            return party_id in self.audience_party_ids
+        return False
+
+    def manifest_entry(self) -> dict[str, object]:
+        return {
+            "evidence_link_id": self.evidence_link_id,
+            "source_system": self.source_system,
+            "source_type": self.source_type,
+            "source_id": self.source_id,
+            "source_revision": self.source_revision,
+            "source_content_version": self.source_content_version,
+            "content_sha256": self.content_sha256,
+            "effective_at": self.effective_at,
+            "captured_at": self.captured_at,
+            "captured_timezone": self.captured_timezone,
+            "server_received_at": self.server_received_at,
+            "actor_id": self.actor_id,
+            "owner_party_id": self.owner_party_id,
+            "party_visibility": self.party_visibility.value,
+            "audience_party_ids": sorted(self.audience_party_ids),
+            "location_key": self.location_key,
+            "work_front": self.work_front,
+            "activity_refs": sorted(self.activity_refs),
+            "wbs_refs": sorted(self.wbs_refs),
+            "delay_event_refs": sorted(self.delay_event_refs),
+            "chain_of_custody_refs": sorted(self.chain_of_custody_refs),
+        }
+
+
+@dataclass(frozen=True)
+class ClaimDayArchive:
+    tenant_id: str
+    project_id: str
+    contract_id: str
+    claim_id: str
+    claim_day_id: str
+    reporting_date: date
+    timezone: str
+    claim_party_ids: tuple[str, ...]
+    revision: int = 1
+    delay_event_ids: tuple[str, ...] = ()
+    evidence_links: tuple[ClaimDayEvidenceLink, ...] = ()
+    contract_version: str = CLAIM_DAY_ARCHIVE_CONTRACT_VERSION
+
+    def validate(self) -> None:
+        for name in ("tenant_id", "project_id", "contract_id", "claim_id", "claim_day_id"):
+            _require_text(getattr(self, name), name)
+        if self.contract_version != CLAIM_DAY_ARCHIVE_CONTRACT_VERSION:
+            raise ClaimDayArchiveError("UNSUPPORTED_CLAIM_DAY_ARCHIVE_CONTRACT_VERSION")
+        if not isinstance(self.reporting_date, date) or isinstance(self.reporting_date, datetime):
+            raise ClaimDayArchiveError("INVALID_REPORTING_DATE")
+        try:
+            ZoneInfo(self.timezone)
+        except (TypeError, ZoneInfoNotFoundError) as exc:
+            raise ClaimDayArchiveError("INVALID_REPORTING_TIMEZONE") from exc
+        if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
+            raise ClaimDayArchiveError("INVALID_CLAIM_DAY_REVISION")
+        if not self.claim_party_ids or len(set(self.claim_party_ids)) != len(self.claim_party_ids):
+            raise ClaimDayArchiveError("INVALID_CLAIM_PARTIES")
+        for party_id in self.claim_party_ids:
+            _require_text(party_id, "claim_party_id")
+        for event_id in self.delay_event_ids:
+            _require_text(event_id, "delay_event_id")
+        ids: set[str] = set()
+        for link in self.evidence_links:
+            link.validate(claim_party_ids=self.claim_party_ids)
+            if link.evidence_link_id in ids:
+                raise ClaimDayArchiveError("DUPLICATE_EVIDENCE_LINK_ID")
+            ids.add(link.evidence_link_id)
+
+    @property
+    def day_start(self) -> datetime:
+        self.validate()
+        return datetime.combine(self.reporting_date, time.min, ZoneInfo(self.timezone))
+
+    @property
+    def day_end(self) -> datetime:
+        self.validate()
+        next_day = self.reporting_date + timedelta(days=1)
+        return datetime.combine(next_day, time.min, ZoneInfo(self.timezone))
+
+    @property
+    def day_start_utc(self) -> str:
+        return self.day_start.astimezone(timezone.utc).isoformat()
+
+    @property
+    def day_end_utc(self) -> str:
+        return self.day_end.astimezone(timezone.utc).isoformat()
+
+    def add_evidence(self, link: ClaimDayEvidenceLink) -> "ClaimDayArchive":
+        self.validate()
+        link.validate(claim_party_ids=self.claim_party_ids)
+        if any(item.evidence_link_id == link.evidence_link_id for item in self.evidence_links):
+            raise ClaimDayArchiveError("DUPLICATE_EVIDENCE_LINK_ID")
+        updated = replace(self, revision=self.revision + 1, evidence_links=(*self.evidence_links, link))
+        updated.validate()
+        return updated
+
+    def visible_evidence(self, party_id: str) -> tuple[ClaimDayEvidenceLink, ...]:
+        if party_id not in self.claim_party_ids:
+            raise ClaimDayArchiveError("PARTY_NOT_ASSIGNED_TO_CLAIM")
+        return tuple(link for link in self.evidence_links if link.visible_to(party_id))
+
+    def as_dict(self) -> dict[str, object]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "tenant_id": self.tenant_id,
+            "project_id": self.project_id,
+            "contract_id": self.contract_id,
+            "claim_id": self.claim_id,
+            "claim_day_id": self.claim_day_id,
+            "reporting_date": self.reporting_date.isoformat(),
+            "timezone": self.timezone,
+            "day_start_utc": self.day_start_utc,
+            "day_end_utc": self.day_end_utc,
+            "claim_party_ids": list(self.claim_party_ids),
+            "revision": self.revision,
+            "delay_event_ids": list(self.delay_event_ids),
+            "evidence_links": [item.manifest_entry() for item in self.evidence_links],
+        }
+
+
+@dataclass(frozen=True)
+class ClaimSubmission:
+    tenant_id: str
+    project_id: str
+    contract_id: str
+    claim_id: str
+    submission_id: str
+    submission_number: int
+    submitting_party_id: str
+    submitted_by: str
+    submitted_at: str
+    form_template_id: str
+    form_template_version: str
+    form_snapshot_json: str
+    form_snapshot_sha256: str
+    manifest_json: str
+    manifest_sha256: str
+    schedule_snapshot_ids: tuple[str, ...] = ()
+    baseline_snapshot_ids: tuple[str, ...] = ()
+    supersedes_submission_id: str | None = None
+    contract_version: str = CLAIM_SUBMISSION_CONTRACT_VERSION
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        tenant_id: str,
+        project_id: str,
+        contract_id: str,
+        claim_id: str,
+        submission_id: str,
+        submission_number: int,
+        submitting_party_id: str,
+        submitted_by: str,
+        submitted_at: str,
+        form_template_id: str,
+        form_template_version: str,
+        form_snapshot: Mapping[str, object],
+        evidence_links: tuple[ClaimDayEvidenceLink, ...],
+        schedule_snapshot_ids: tuple[str, ...] = (),
+        baseline_snapshot_ids: tuple[str, ...] = (),
+        supersedes_submission_id: str | None = None,
+    ) -> "ClaimSubmission":
+        _aware_datetime(submitted_at, "submitted_at")
+        form_json = _canonical_json(dict(form_snapshot))
+        manifest = {
+            "contract_version": CLAIM_SUBMISSION_CONTRACT_VERSION,
+            "tenant_id": tenant_id,
+            "project_id": project_id,
+            "contract_id": contract_id,
+            "claim_id": claim_id,
+            "submitting_party_id": submitting_party_id,
+            "form_template_id": form_template_id,
+            "form_template_version": form_template_version,
+            "form_snapshot_sha256": _digest(form_json),
+            "evidence": sorted(
+                (item.manifest_entry() for item in evidence_links),
+                key=lambda item: str(item["evidence_link_id"]),
+            ),
+            "schedule_snapshot_ids": sorted(schedule_snapshot_ids),
+            "baseline_snapshot_ids": sorted(baseline_snapshot_ids),
+            "submitted_at": submitted_at,
+            "supersedes_submission_id": supersedes_submission_id,
+        }
+        manifest_json = _canonical_json(manifest)
+        result = cls(
+            tenant_id=tenant_id, project_id=project_id, contract_id=contract_id,
+            claim_id=claim_id, submission_id=submission_id,
+            submission_number=submission_number, submitting_party_id=submitting_party_id,
+            submitted_by=submitted_by, submitted_at=submitted_at,
+            form_template_id=form_template_id, form_template_version=form_template_version,
+            form_snapshot_json=form_json, form_snapshot_sha256=_digest(form_json),
+            manifest_json=manifest_json, manifest_sha256=_digest(manifest_json),
+            schedule_snapshot_ids=tuple(schedule_snapshot_ids),
+            baseline_snapshot_ids=tuple(baseline_snapshot_ids),
+            supersedes_submission_id=supersedes_submission_id,
+        )
+        result.validate()
+        return result
+
+    def validate(self) -> None:
+        for name in (
+            "tenant_id", "project_id", "contract_id", "claim_id", "submission_id",
+            "submitting_party_id", "submitted_by", "form_template_id", "form_template_version",
+        ):
+            _require_text(getattr(self, name), name)
+        _aware_datetime(self.submitted_at, "submitted_at")
+        if self.contract_version != CLAIM_SUBMISSION_CONTRACT_VERSION:
+            raise ClaimDayArchiveError("UNSUPPORTED_CLAIM_SUBMISSION_CONTRACT_VERSION")
+        if isinstance(self.submission_number, bool) or not isinstance(self.submission_number, int) or self.submission_number < 1:
+            raise ClaimDayArchiveError("INVALID_CLAIM_SUBMISSION_NUMBER")
+        if _digest(self.form_snapshot_json) != self.form_snapshot_sha256:
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_FORM_SNAPSHOT_HASH_MISMATCH")
+        if _digest(self.manifest_json) != self.manifest_sha256:
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_MANIFEST_HASH_MISMATCH")
+        try:
+            json.loads(self.form_snapshot_json)
+            json.loads(self.manifest_json)
+        except (TypeError, ValueError) as exc:
+            raise ClaimDayArchiveError("INVALID_CLAIM_SUBMISSION_SNAPSHOT") from exc
+        for item in (*self.schedule_snapshot_ids, *self.baseline_snapshot_ids):
+            _require_text(item, "schedule_or_baseline_snapshot_id")
+
+
+class ClaimDayArchiveRepository(Protocol):
+    def get_day(self, tenant_id: str, project_id: str, claim_day_id: str) -> ClaimDayArchive | None: ...
+    def put_day(self, day: ClaimDayArchive, *, expected_revision: int, idempotency_key: str) -> ClaimDayArchive: ...
+    def append_submission(self, submission: ClaimSubmission) -> ClaimSubmission: ...
+    def get_submission(self, tenant_id: str, project_id: str, submission_id: str) -> ClaimSubmission | None: ...
+
+
+class InMemoryClaimDayArchiveRepository:
+    """Deterministic repository used by domain tests and local preview composition."""
+
+    def __init__(self) -> None:
+        self.days: dict[tuple[str, str, str], ClaimDayArchive] = {}
+        self.submissions: dict[tuple[str, str, str], ClaimSubmission] = {}
+        self.idempotency: dict[tuple[str, str, str], tuple[str, ClaimDayArchive]] = {}
+
+    def get_day(self, tenant_id: str, project_id: str, claim_day_id: str) -> ClaimDayArchive | None:
+        return self.days.get((tenant_id, project_id, claim_day_id))
+
+    def put_day(
+        self, day: ClaimDayArchive, *, expected_revision: int, idempotency_key: str
+    ) -> ClaimDayArchive:
+        day.validate()
+        _require_text(idempotency_key, "idempotency_key")
+        key = (day.tenant_id, day.project_id, idempotency_key)
+        fingerprint = _digest(_canonical_json(day.as_dict()))
+        replay = self.idempotency.get(key)
+        if replay is not None:
+            if replay[0] != fingerprint:
+                raise ClaimDayIdempotencyConflict("CLAIM_DAY_IDEMPOTENCY_KEY_REUSE")
+            return replay[1]
+        aggregate_key = (day.tenant_id, day.project_id, day.claim_day_id)
+        current = self.days.get(aggregate_key)
+        actual_revision = 0 if current is None else current.revision
+        if actual_revision != expected_revision:
+            raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
+        if current is not None:
+            if (
+                current.claim_id != day.claim_id
+                or current.contract_id != day.contract_id
+                or current.reporting_date != day.reporting_date
+                or current.timezone != day.timezone
+                or current.claim_party_ids != day.claim_party_ids
+            ):
+                raise ClaimDayArchiveError("CLAIM_DAY_IDENTITY_IS_IMMUTABLE")
+            old_ids = {item.evidence_link_id for item in current.evidence_links}
+            new_by_id = {item.evidence_link_id: item for item in day.evidence_links}
+            if not old_ids.issubset(new_by_id):
+                raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REMOVED")
+            for old in current.evidence_links:
+                if new_by_id[old.evidence_link_id] != old:
+                    raise ClaimDayArchiveError("CLAIM_DAY_EVIDENCE_CANNOT_BE_REWRITTEN")
+            if day.revision != current.revision + 1:
+                raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
+        elif day.revision != 1:
+            raise ClaimDayRevisionConflict("CLAIM_DAY_INITIAL_REVISION_MUST_BE_ONE")
+        self.days[aggregate_key] = day
+        self.idempotency[key] = (fingerprint, day)
+        return day
+
+    def append_submission(self, submission: ClaimSubmission) -> ClaimSubmission:
+        submission.validate()
+        key = (submission.tenant_id, submission.project_id, submission.submission_id)
+        if key in self.submissions:
+            existing = self.submissions[key]
+            if existing != submission:
+                raise ClaimDayArchiveError("CLAIM_SUBMISSION_ID_IMMUTABLE")
+            return existing
+        claim_submissions = [
+            item for item in self.submissions.values()
+            if (item.tenant_id, item.project_id, item.contract_id, item.claim_id)
+            == (submission.tenant_id, submission.project_id, submission.contract_id, submission.claim_id)
+        ]
+        if any(item.submission_number == submission.submission_number for item in claim_submissions):
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_NUMBER_ALREADY_EXISTS")
+        if submission.supersedes_submission_id is not None and not any(
+            item.submission_id == submission.supersedes_submission_id for item in claim_submissions
+        ):
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_SUPERSEDED_PACKAGE_NOT_FOUND")
+        self.submissions[key] = submission
+        return submission
+
+    def get_submission(
+        self, tenant_id: str, project_id: str, submission_id: str
+    ) -> ClaimSubmission | None:
+        return self.submissions.get((tenant_id, project_id, submission_id))
+
+
+@dataclass(frozen=True)
+class ClaimDayArchiveService:
+    repository: ClaimDayArchiveRepository
+
+    def create_day(self, day: ClaimDayArchive, *, idempotency_key: str) -> ClaimDayArchive:
+        day.validate()
+        return self.repository.put_day(day, expected_revision=0, idempotency_key=idempotency_key)
+
+    def add_evidence(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        claim_day_id: str,
+        evidence: ClaimDayEvidenceLink,
+        expected_revision: int,
+        idempotency_key: str,
+    ) -> ClaimDayArchive:
+        current = self.repository.get_day(tenant_id, project_id, claim_day_id)
+        if current is None:
+            raise ClaimDayArchiveError("CLAIM_DAY_NOT_FOUND")
+        if current.revision != expected_revision:
+            raise ClaimDayRevisionConflict("CLAIM_DAY_REVISION_CONFLICT")
+        updated = current.add_evidence(evidence)
+        return self.repository.put_day(updated, expected_revision=expected_revision, idempotency_key=idempotency_key)
+
+    def submit(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        contract_id: str,
+        claim_id: str,
+        submission_id: str,
+        submission_number: int,
+        submitting_party_id: str,
+        submitted_by: str,
+        submitted_at: str,
+        form_template_id: str,
+        form_template_version: str,
+        form_snapshot: Mapping[str, object],
+        claim_day_ids: tuple[str, ...],
+        schedule_snapshot_ids: tuple[str, ...] = (),
+        baseline_snapshot_ids: tuple[str, ...] = (),
+        supersedes_submission_id: str | None = None,
+    ) -> ClaimSubmission:
+        if not claim_day_ids:
+            raise ClaimDayArchiveError("CLAIM_SUBMISSION_REQUIRES_CLAIM_DAYS")
+        days: list[ClaimDayArchive] = []
+        for claim_day_id in claim_day_ids:
+            day = self.repository.get_day(tenant_id, project_id, claim_day_id)
+            if day is None or day.claim_id != claim_id or day.contract_id != contract_id:
+                raise ClaimDayArchiveError("CLAIM_SUBMISSION_DAY_SCOPE_MISMATCH")
+            if submitting_party_id not in day.claim_party_ids:
+                raise ClaimDayArchiveError("CLAIM_SUBMITTER_NOT_A_CLAIM_PARTY")
+            days.append(day)
+        evidence = tuple(
+            link
+            for day in days
+            for link in day.visible_evidence(submitting_party_id)
+        )
+        submission = ClaimSubmission.build(
+            tenant_id=tenant_id, project_id=project_id, contract_id=contract_id,
+            claim_id=claim_id, submission_id=submission_id,
+            submission_number=submission_number, submitting_party_id=submitting_party_id,
+            submitted_by=submitted_by, submitted_at=submitted_at,
+            form_template_id=form_template_id, form_template_version=form_template_version,
+            form_snapshot=form_snapshot, evidence_links=evidence,
+            schedule_snapshot_ids=schedule_snapshot_ids,
+            baseline_snapshot_ids=baseline_snapshot_ids,
+            supersedes_submission_id=supersedes_submission_id,
+        )
+        return self.repository.append_submission(submission)
