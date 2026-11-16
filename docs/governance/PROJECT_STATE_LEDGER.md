@@ -1353,3 +1353,15 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - Both CUBI environments must be upgraded: shared capabilities improve both the Professional-aligned and Cloud-aligned environments; Cloud-specific additions remain fully available in the Cloud-aligned environment and are surfaced in the Professional-aligned environment wherever semantically compatible.
 - Professional parity is not a ceiling or reason to reduce Cloud. Preserve source-specific distinctions, reconcile overlap as a full union/superset, maintain singular canonical domain/data/calculation ownership, and test both environments for regressions.
 - Binding rules added to capability register section 2C and master feasibility/execution blueprint. This records acceptance criteria, not completed feature implementation or test evidence.
+
+
+## 2026-11-16 — Enterprise layered architecture and Cloud capability ownership
+
+- Added `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md` and linked it from the master capability register.
+- Reconciled the earlier flat 12-section sketch with the canonical two-environment architecture: layered Enterprise governance/portfolio/coordination; shared platform services reused; Form Builder explicitly shared; Workbench remains the shared entry/personal projection.
+- Recorded the non-duplication boundary: Cloud project schedule scenarios, Monte Carlo project risk, Work Plan/Last Planner, Team Member activity updates, timesheets, project resource assignments/leveling, project risk register, structured project attachments and schedule diagnostics stay Engineering-owned. Enterprise consumes only authorized summaries or coordinates generic actions.
+- Clarified Enterprise ownership of portfolio lifecycle, enterprise resource pool and portfolio capacity planning, portfolio risk governance, workflow definitions/approval evidence, generic organizational tasks, executive reporting, stakeholder grants, integration governance, benefits and organizational knowledge.
+- Executive Portfolio Decision Scenario is **proposed only / OPEN — PRODUCT-OWNER DECISION REQUIRED**. It is distinct from Engineering schedule scenarios and the existing ENT-04 portfolio resource-planning scenarios. No implementation, route, menu or persistence is authorized pending explicit product-owner approval.
+- Quality & Safety Center and Unifier-informed Contract/Commercial Management are not approved additions and require separate consultation.
+- This is a documentation/architecture refinement only; no product capability completion, tests, runtime acceptance, merge to main or deployment is claimed.
+- Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`. PR to be opened for review; Enterprise remains P2 and Engineering P1 is unchanged.
