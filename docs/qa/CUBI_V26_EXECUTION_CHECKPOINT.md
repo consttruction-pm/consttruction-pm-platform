@@ -4481,3 +4481,33 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
 - **Not measured / next.** Multi-host or high-availability PostgreSQL, HTTP
   admission and client polling, and worker/queue/throughput numbers are not
   claimed. Next: P0-G adaptive resource management under one global budget.
+
+## P0-G adaptive worker budget and durable execution, 2026-11-16
+
+- **Scope.** Execute durable scheduling jobs on real worker processes under one
+  derived budget, without adding or varying any calculation logic.
+- **Built.** `scheduling_execution_budget.py` reads affinity, cgroup v1/v2 CPU
+  quota, `MemAvailable` and the cgroup memory limit, maps them to a worker
+  count, owns a process-wide permit set, and adapts the dispatch target inside
+  that cap. `scheduling_job_executor.py` is the single loop: discover → claim →
+  acquire permit → run the caller's authoritative calculation → renew the lease
+  → persist the canonical result. The lifecycle gained worker-side queue
+  discovery, and renewal now persists `CANCELLED` when a cancellation request is
+  observed, matching the documented cancellation points.
+- **Measured (4 CPUs, PostgreSQL 14.24, 32 jobs on a 200-activity fixture).**
+  1/2/4 real worker processes: 29.36 / 57.41 / 101.15 jobs/s (1.96x, 3.45x),
+  CPU 0.94 / 1.85 / 3.32 cores, p50 latency 601.0 / 316.4 / 189.4 ms, p95
+  1,031.6 / 518.7 / 294.4 ms, p99 1,097.7 / 552.6 / 311.2 ms. p50 queue wait
+  569.2 / 284.7 / 156.9 ms while p50 calculation stays 31.3 / 31.6 / 32.4 ms.
+  One canonical hash everywhere
+  (`2719a62c…`), 32/32 succeeded, 0 pending after each drain. 8 workers forced
+  onto 4 CPUs: 96.34 jobs/s, 4.8% slower than 4.
+- **Gates.** 18 budget tests, 9 executor tests, the renewal cancellation test,
+  and one added PostgreSQL executor test; full suite 4,502 passed / 211 skipped
+  without a database and 4,591 passed / 131 skipped with local PostgreSQL. No
+  calculation, leveling decision, option, calendar rule or float changed.
+  Evidence: `docs/workspace/evidence/p0g-adaptive-workers-2026-11-16/`.
+- **Not measured / next.** 16/32 workers are refused because the host supplies 4
+  effective cores; multi-host PostgreSQL, HTTP admission and OOM behaviour are
+  not claimed. Next: P0-H intra-project parallelism, gated on exact canonical
+  equality.

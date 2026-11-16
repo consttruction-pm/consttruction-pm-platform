@@ -1,0 +1,439 @@
+{
+  "calculation_identity": "p0g-worker-benchmark",
+  "capacity": {
+    "cgroup_cpu_cores": null,
+    "cgroup_memory_limit_bytes": null,
+    "cpu_affinity": 4,
+    "effective_cores": 4.0,
+    "effective_memory_bytes": 5934706688,
+    "memory_available_bytes": 5934706688,
+    "provenance": [
+      "cpu_affinity",
+      "proc_meminfo_MemAvailable"
+    ]
+  },
+  "derived_budget": {
+    "capacity": {
+      "cgroup_cpu_cores": null,
+      "cgroup_memory_limit_bytes": null,
+      "cpu_affinity": 4,
+      "effective_cores": 4.0,
+      "effective_memory_bytes": 5934706688,
+      "memory_available_bytes": 5934706688,
+      "provenance": [
+        "cpu_affinity",
+        "proc_meminfo_MemAvailable"
+      ]
+    },
+    "cpu_workers": 4,
+    "jobs_per_core": 1.0,
+    "limiting_factor": "cpu",
+    "max_workers": 64,
+    "memory_reserve_fraction": "0.25",
+    "memory_workers": 8,
+    "per_job_memory_bytes": 536870912,
+    "workers": 4
+  },
+  "engine_version": "cubi-26.0.0",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "d2fc916e",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "fixture_size": 200,
+  "jobs": 32,
+  "oversubscription_allowed": false,
+  "runs": [
+    {
+      "budget_per_process": 1,
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "cpu_seconds_total": 1.024,
+      "cpu_utilisation_cores": 0.939,
+      "derived_host_budget": {
+        "capacity": {
+          "cgroup_cpu_cores": null,
+          "cgroup_memory_limit_bytes": null,
+          "cpu_affinity": 4,
+          "effective_cores": 4.0,
+          "effective_memory_bytes": 5934706688,
+          "memory_available_bytes": 5934706688,
+          "provenance": [
+            "cpu_affinity",
+            "proc_meminfo_MemAvailable"
+          ]
+        },
+        "cpu_workers": 4,
+        "jobs_per_core": 1.0,
+        "limiting_factor": "cpu",
+        "max_workers": 64,
+        "memory_reserve_fraction": "0.25",
+        "memory_workers": 8,
+        "per_job_memory_bytes": 536870912,
+        "workers": 4
+      },
+      "event_count": 64,
+      "fixture_size": 200,
+      "jobs": 32,
+      "latency_ms": {
+        "count": 32,
+        "max": 1097.745,
+        "mean": 583.402,
+        "median": 584.9,
+        "min": 63.085,
+        "p50": 600.96,
+        "p95": 1031.573,
+        "p99": 1097.745
+      },
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "queue_wait_ms": {
+        "count": 32,
+        "max": 1066.571,
+        "mean": 551.643,
+        "median": 553.261,
+        "min": 29.355,
+        "p50": 569.241,
+        "p95": 1000.021,
+        "p99": 1066.571
+      },
+      "results_found": 32,
+      "run_ms": {
+        "count": 32,
+        "max": 32.933,
+        "mean": 31.41,
+        "median": 31.244,
+        "min": 30.969,
+        "p50": 31.255,
+        "p95": 32.037,
+        "p99": 32.933
+      },
+      "states": {
+        "SUCCEEDED": 32
+      },
+      "status": "ok",
+      "throughput_jobs_per_s": 29.356,
+      "wall_ms": 1090.063,
+      "worker_peak_rss_kb_max": 48764,
+      "worker_peak_rss_kb_sum": 48764,
+      "worker_summaries": [
+        {
+          "cpu_s": 1.023804003,
+          "kind": "SUMMARY",
+          "owner": "p0g-818458",
+          "peak_rss_kb": 48764,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 32,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 32
+          },
+          "wall_s": 1.081199820007896
+        }
+      ],
+      "workers_requested": 1,
+      "workers_supplied": 1
+    },
+    {
+      "budget_per_process": 1,
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "cpu_seconds_total": 1.033,
+      "cpu_utilisation_cores": 1.853,
+      "derived_host_budget": {
+        "capacity": {
+          "cgroup_cpu_cores": null,
+          "cgroup_memory_limit_bytes": null,
+          "cpu_affinity": 4,
+          "effective_cores": 4.0,
+          "effective_memory_bytes": 5934706688,
+          "memory_available_bytes": 5934706688,
+          "provenance": [
+            "cpu_affinity",
+            "proc_meminfo_MemAvailable"
+          ]
+        },
+        "cpu_workers": 4,
+        "jobs_per_core": 1.0,
+        "limiting_factor": "cpu",
+        "max_workers": 64,
+        "memory_reserve_fraction": "0.25",
+        "memory_workers": 8,
+        "per_job_memory_bytes": 536870912,
+        "workers": 4
+      },
+      "event_count": 64,
+      "fixture_size": 200,
+      "jobs": 32,
+      "latency_ms": {
+        "count": 32,
+        "max": 552.581,
+        "mean": 300.43,
+        "median": 301.128,
+        "min": 47.399,
+        "p50": 316.419,
+        "p95": 518.695,
+        "p99": 552.581
+      },
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "queue_wait_ms": {
+        "count": 32,
+        "max": 520.293,
+        "mean": 268.32,
+        "median": 269.388,
+        "min": 13.999,
+        "p50": 284.743,
+        "p95": 486.982,
+        "p99": 520.293
+      },
+      "results_found": 32,
+      "run_ms": {
+        "count": 32,
+        "max": 33.02,
+        "mean": 31.669,
+        "median": 31.642,
+        "min": 31.032,
+        "p50": 31.648,
+        "p95": 32.36,
+        "p99": 33.02
+      },
+      "states": {
+        "SUCCEEDED": 32
+      },
+      "status": "ok",
+      "throughput_jobs_per_s": 57.408,
+      "wall_ms": 557.413,
+      "worker_peak_rss_kb_max": 48948,
+      "worker_peak_rss_kb_sum": 97892,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.517454016,
+          "kind": "SUMMARY",
+          "owner": "p0g-818528",
+          "peak_rss_kb": 48944,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 16,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 16
+          },
+          "wall_s": 0.5477811209857464
+        },
+        {
+          "cpu_s": 0.515396774,
+          "kind": "SUMMARY",
+          "owner": "p0g-818529",
+          "peak_rss_kb": 48948,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 16,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 16
+          },
+          "wall_s": 0.5481062650214881
+        }
+      ],
+      "workers_requested": 2,
+      "workers_supplied": 2
+    },
+    {
+      "budget_per_process": 1,
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "cpu_seconds_total": 1.05,
+      "cpu_utilisation_cores": 3.319,
+      "derived_host_budget": {
+        "capacity": {
+          "cgroup_cpu_cores": null,
+          "cgroup_memory_limit_bytes": null,
+          "cpu_affinity": 4,
+          "effective_cores": 4.0,
+          "effective_memory_bytes": 5934706688,
+          "memory_available_bytes": 5934706688,
+          "provenance": [
+            "cpu_affinity",
+            "proc_meminfo_MemAvailable"
+          ]
+        },
+        "cpu_workers": 4,
+        "jobs_per_core": 1.0,
+        "limiting_factor": "cpu",
+        "max_workers": 64,
+        "memory_reserve_fraction": "0.25",
+        "memory_workers": 8,
+        "per_job_memory_bytes": 536870912,
+        "workers": 4
+      },
+      "event_count": 64,
+      "fixture_size": 200,
+      "jobs": 32,
+      "latency_ms": {
+        "count": 32,
+        "max": 311.188,
+        "mean": 181.777,
+        "median": 182.779,
+        "min": 52.435,
+        "p50": 189.408,
+        "p95": 294.402,
+        "p99": 311.188
+      },
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "queue_wait_ms": {
+        "count": 32,
+        "max": 278.859,
+        "mean": 147.93,
+        "median": 150.171,
+        "min": 16.39,
+        "p50": 156.915,
+        "p95": 262.403,
+        "p99": 278.859
+      },
+      "results_found": 32,
+      "run_ms": {
+        "count": 32,
+        "max": 35.329,
+        "mean": 32.614,
+        "median": 32.374,
+        "min": 31.63,
+        "p50": 32.391,
+        "p95": 33.844,
+        "p99": 35.329
+      },
+      "states": {
+        "SUCCEEDED": 32
+      },
+      "status": "ok",
+      "throughput_jobs_per_s": 101.149,
+      "wall_ms": 316.365,
+      "worker_peak_rss_kb_max": 48968,
+      "worker_peak_rss_kb_sum": 195836,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.26342846,
+          "kind": "SUMMARY",
+          "owner": "p0g-818600",
+          "peak_rss_kb": 48956,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 8,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 8
+          },
+          "wall_s": 0.2901438570115715
+        },
+        {
+          "cpu_s": 0.260615394,
+          "kind": "SUMMARY",
+          "owner": "p0g-818601",
+          "peak_rss_kb": 48956,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 8,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 8
+          },
+          "wall_s": 0.29012281500035897
+        },
+        {
+          "cpu_s": 0.26288895700000003,
+          "kind": "SUMMARY",
+          "owner": "p0g-818604",
+          "peak_rss_kb": 48956,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 8,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 3,
+            "stopped": false,
+            "succeeded": 8
+          },
+          "wall_s": 0.3027520420146175
+        },
+        {
+          "cpu_s": 0.26320217900000004,
+          "kind": "SUMMARY",
+          "owner": "p0g-818603",
+          "peak_rss_kb": 48968,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 8,
+            "failed": 0,
+            "idle_polls": 2,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 8
+          },
+          "wall_s": 0.3060632699925918
+        }
+      ],
+      "workers_requested": 4,
+      "workers_supplied": 4
+    },
+    {
+      "reason": "HOST_SUPPLIES_ONLY_4_EFFECTIVE_CORES; pass --allow-oversubscription to measure informational oversubscription",
+      "status": "refused",
+      "workers_requested": 8
+    },
+    {
+      "reason": "HOST_SUPPLIES_ONLY_4_EFFECTIVE_CORES; pass --allow-oversubscription to measure informational oversubscription",
+      "status": "refused",
+      "workers_requested": 16
+    },
+    {
+      "reason": "HOST_SUPPLIES_ONLY_4_EFFECTIVE_CORES; pass --allow-oversubscription to measure informational oversubscription",
+      "status": "refused",
+      "workers_requested": 32
+    }
+  ],
+  "seed": 20261116,
+  "suppliable_workers": 4
+}

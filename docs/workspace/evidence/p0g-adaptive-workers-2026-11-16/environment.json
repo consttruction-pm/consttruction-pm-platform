@@ -1,0 +1,27 @@
+{
+  "cpu_affinity_count": 4,
+  "cpu_count": 4,
+  "git_sha": "d2fc916e",
+  "implementation": "CPython",
+  "machine": "x86_64",
+  "memory_total_kb": 8131540,
+  "note": "P0-G adaptive worker execution; PostgreSQL 14.24 local test cluster over 127.0.0.1:55432; reference main 3b56a4c2; all workers are real OS processes",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "derived_budget": {
+    "workers": 4,
+    "cpu_workers": 4,
+    "memory_workers": 8,
+    "limiting_factor": "cpu",
+    "per_job_memory_bytes": 536870912,
+    "memory_reserve_fraction": "0.25",
+    "jobs_per_core": 1.0
+  },
+  "effective_capacity": {
+    "cpu_affinity": 4,
+    "cgroup_cpu_cores": null,
+    "cgroup_memory_limit_bytes": null,
+    "memory_available_bytes": 5934497792,
+    "provenance": ["cpu_affinity", "proc_meminfo_MemAvailable"]
+  }
+}
