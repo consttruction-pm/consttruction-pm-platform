@@ -66,3 +66,18 @@ Only one active task may write any given path set. No overlapping edits, force-p
 ## Execution availability and evidence
 
 Qoder had no available tokens at the last coordination check. Recheck at actual handoff. No code execution is claimed. Documentation, menu proposals and shell labels do not prove implementation. Every implementation claim requires exact-head CI, persistence/security tests, browser/runtime evidence and source traceability. No merge/deployment is authorized here.
+
+
+## 2026-11-16 — next Engineering P1 slice registered: ENG-11 / ENG-12
+
+The next documentation-first contributor slice is registered as [#2010](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2010), with contract packet `docs/engineering/ENG11_ENG12_TEAM_MEMBER_CONTRACT_AND_HELP_CROSSWALK_V1.md` on this branch.
+
+Scope is deliberately split into two distinct domain aggregates:
+- ENG-11 assigned Activity Status Updates and Step Progress → Activity Details → Team Update.
+- ENG-12 designated-user Timesheets → Workbench → My Work → Timesheets.
+
+Enterprise generic Task and ENG-10 Field Work Plan commitments remain separate. Existing `p6-activity-period-actual-api.v1` is only the downstream activity-period actual posting boundary, not a timesheet aggregate or approval workflow.
+
+Exact Team Member V26 topics were checked for Updating Activities, Updating Progress on Steps, Working with Timesheets, Opening, Submitting and Withdrawing Timesheets. TOC child pages that could not be retrieved remain explicitly MISSING / VERIFY; they are a pre-code source gate.
+
+No implementation is authorized yet: PR #1974 owns current actuals API/persistence, schema, production composition, identity and main.ts paths; #1929 owns Enterprise Task contracts; #1711/#1971/#1983 overlap activity, workspace, authorization and production paths. Refresh exact path lists and obtain handoff before any write. Qoder token availability remains unverified/unavailable at last check.
