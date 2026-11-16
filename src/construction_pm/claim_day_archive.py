@@ -41,7 +41,7 @@ def _require_text(value: object, field: str) -> str:
 
 def _aware_datetime(value: str, field: str) -> datetime:
     if not isinstance(value, str) or not value.strip():
-        raise ClaimDayArchiveError(`INVALID_${field.upper()}`)
+        raise ClaimDayArchiveError(f"INVALID_{field.upper()}")
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (AttributeError, TypeError, ValueError) as exc:
