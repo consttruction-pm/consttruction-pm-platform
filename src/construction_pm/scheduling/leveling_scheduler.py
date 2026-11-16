@@ -500,17 +500,30 @@ def schedule_with_resource_leveling(
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
 
-    intermediate = schedule(
-        activities, relationships, project_start, resolver,
-        project_finish=project_finish, constraints=forward_constraints, options=base_options,
-        calculation_context=calculation_context,
-        relationship_lag_resolvers=relationship_lag_resolvers,
-        batch_scheduled_finish=batch_scheduled_finish,
-        activity_resolvers=activity_resolvers,
+    # A CPM pass is a pure function of its inputs, and every leveling pass below
+    # passes the same activities, relationships, calendars, options, lag
+    # resolvers and calculation context; only the ordered constraint tuple
+    # differs. Reusing the result for an identical ordered constraint tuple is
+    # therefore an exact identity, not an approximation. The initial pass is
+    # reused when forward leveling proposed no positive shift, which is the
+    # whole of `merge_leveling_constraints` in that case.
+    intermediate = (
+        initial
+        if forward_constraints == tuple(constraints or ())
+        else schedule(
+            activities, relationships, project_start, resolver,
+            project_finish=project_finish, constraints=forward_constraints, options=base_options,
+            calculation_context=calculation_context,
+            relationship_lag_resolvers=relationship_lag_resolvers,
+            batch_scheduled_finish=batch_scheduled_finish,
+            activity_resolvers=activity_resolvers,
+        )
     )
 
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
     final_constraints = forward_constraints
+    last_accepted_constraints: tuple[ActivityConstraint, ...] | None = None
+    last_accepted_result: object | None = None
     if not leveling_input.options.preserve_scheduled_early_and_late_dates:
         protected_forward_ids = tuple(sorted({
             shift.activity_id for shift in forward_shifts
@@ -600,6 +613,11 @@ def schedule_with_resource_leveling(
                 raise
             accepted_backward_shifts.append(candidate)
             accepted_activity_ids.add(candidate.activity_id)
+            # The final accepted candidate's constraint set can be the exact
+            # final set; keep its already-computed CPM result so the closing
+            # pass does not recompute an identical calculation.
+            last_accepted_constraints = trial_constraints
+            last_accepted_result = trial_result
 
         backward_shifts = tuple(accepted_backward_shifts)
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
@@ -608,14 +626,23 @@ def schedule_with_resource_leveling(
         )
         final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
 
-    result = schedule(
-        activities, relationships, project_start, resolver,
-        project_finish=project_finish, constraints=final_constraints, options=base_options,
-        calculation_context=calculation_context,
-        relationship_lag_resolvers=relationship_lag_resolvers,
-        batch_scheduled_finish=batch_scheduled_finish,
-        activity_resolvers=activity_resolvers,
-    )
+    if final_constraints == forward_constraints:
+        # No accepted backward shift removed a forward constraint.
+        result = intermediate
+    elif final_constraints == last_accepted_constraints and last_accepted_result is not None:
+        result = last_accepted_result
+    else:
+        result = schedule(
+            activities, relationships, project_start, resolver,
+            project_finish=project_finish, constraints=final_constraints, options=base_options,
+            calculation_context=calculation_context,
+            relationship_lag_resolvers=relationship_lag_resolvers,
+            batch_scheduled_finish=batch_scheduled_finish,
+            activity_resolvers=activity_resolvers,
+        )
+    # The final capacity validation always runs against the result that is
+    # actually returned, whether that result was just calculated or is an
+    # identical earlier calculation reused by constraint-set identity.
     _validate_final_resource_load(
         result=result,
         leveling_input=leveling_input,

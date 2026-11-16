@@ -4413,3 +4413,36 @@ and [Filter by project status](https://docs.oracle.com/cd/G48902_01/client_help/
   implemented. Leveling above 500 activities is not measurable on this host
   with the reference decision schedule. Next: P0-E CPM work accounting, then
   P0-F durable scheduling jobs.
+
+## P0-E scheduling orchestrator CPM reuse, 2026-11-16
+
+- **Scope.** Count the CPM passes inside
+  `leveling_scheduler.schedule_with_resource_leveling` on the merged P0-A..P0-D
+  engine (`79200d26`), then remove only passes that are byte-for-byte the same
+  calculation.
+- **Counted before.** 5 passes for a two-activity case with one accepted
+  backward move; 3 passes for every forward-only orchestration. Three were
+  exact duplicates: intermediate == initial when forward leveling proposed no
+  positive shift, closing == intermediate when no backward shift was accepted,
+  and closing == the last accepted candidate trial.
+- **Change.** Identical passes reuse the already computed `ScheduleResult`
+  instead of recalculating the same pure function over the same ordered
+  constraint tuple. The final `_validate_final_resource_load` still runs on the
+  returned result, the final CPM result stays authoritative, and no option,
+  calendar rule, relationship rule, float value or leveling decision changed.
+- **Measured (3 runs after 1 warm-up).** Forward-only orchestration 20/50/100
+  activities: 3 -> 2 passes, wall 24.5 -> 23.0 ms, 293.2 -> 284.5 ms,
+  2,172.4 -> 2,147.1 ms; one CPM pass on the same fixture costs 1.86 / 9.32 /
+  33.40 ms, so the gain is bounded by that pass and the remaining cost is the
+  quadratic forward decision schedule. Every canonical output hash is
+  unchanged. Backward-acceptance scenario 5 -> 3 passes with an identical
+  result.
+- **Gates.** Focused tests
+  `tests/scheduling/test_leveling_cpm_reuse.py` plus golden hashes in
+  `tests/scheduling/test_benchmark_fixtures.py`; full Python suite 4,458 passed
+  / 204 skipped locally; the 3.11/3.12/3.13 and PostgreSQL matrix is recorded
+  by CI on the pull request. Evidence:
+  `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
+- **Not measured / next.** Backward-acceptance orchestration above 50
+  activities is not yet a converged fixture; 3.11/3.13 and PostgreSQL remain
+  CI-only; no worker or queue claim. Next: P0-F durable scheduling jobs.

@@ -1,0 +1,169 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "WORKING-TREE",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "leveling-orchestration",
+  "records": [
+    {
+      "backward_shifts": 0,
+      "counts": {
+        "activities": 20,
+        "backward_activities": 20,
+        "capacities": 102,
+        "forward_activities": 20,
+        "relationships": 0
+      },
+      "cpm_passes": 2,
+      "cpu": {
+        "count": 3,
+        "max_ms": 23.294,
+        "median_ms": 23.097,
+        "min_ms": 22.989,
+        "p95_ms": 23.294
+      },
+      "fixture_build_ms": 2.724,
+      "forward_shifts": 18,
+      "mode": "leveling-orchestration",
+      "output_sha256": "d23faac45ef0a923c6d0df169749372806356b5e5abcce8be8979d46d13bbaf6",
+      "peak_rss_kb": 48528,
+      "seed": 20261116,
+      "shape": "dag",
+      "single_cpm_ms": {
+        "cpu": {
+          "count": 3,
+          "max_ms": 1.887,
+          "median_ms": 1.886,
+          "min_ms": 1.88,
+          "p95_ms": 1.887
+        },
+        "wall": {
+          "count": 3,
+          "max_ms": 1.888,
+          "median_ms": 1.886,
+          "min_ms": 1.88,
+          "p95_ms": 1.888
+        }
+      },
+      "size": 20,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 23.097,
+        "median_ms": 22.989,
+        "min_ms": 22.971,
+        "p95_ms": 23.097
+      }
+    },
+    {
+      "backward_shifts": 0,
+      "counts": {
+        "activities": 50,
+        "backward_activities": 50,
+        "capacities": 222,
+        "forward_activities": 50,
+        "relationships": 0
+      },
+      "cpm_passes": 2,
+      "cpu": {
+        "count": 3,
+        "max_ms": 285.027,
+        "median_ms": 284.451,
+        "min_ms": 284.387,
+        "p95_ms": 285.027
+      },
+      "fixture_build_ms": 10.741,
+      "forward_shifts": 48,
+      "mode": "leveling-orchestration",
+      "output_sha256": "a43f0cd7a8b254b35c85a64c17926910ad4ca9beec12b7f92dda9c04ea8a0c6d",
+      "peak_rss_kb": 49644,
+      "seed": 20261116,
+      "shape": "dag",
+      "single_cpm_ms": {
+        "cpu": {
+          "count": 3,
+          "max_ms": 9.363,
+          "median_ms": 9.248,
+          "min_ms": 9.248,
+          "p95_ms": 9.363
+        },
+        "wall": {
+          "count": 3,
+          "max_ms": 9.363,
+          "median_ms": 9.249,
+          "min_ms": 9.248,
+          "p95_ms": 9.363
+        }
+      },
+      "size": 50,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 285.037,
+        "median_ms": 284.48,
+        "min_ms": 284.417,
+        "p95_ms": 285.037
+      }
+    },
+    {
+      "backward_shifts": 0,
+      "counts": {
+        "activities": 100,
+        "backward_activities": 100,
+        "capacities": 422,
+        "forward_activities": 100,
+        "relationships": 0
+      },
+      "cpm_passes": 2,
+      "cpu": {
+        "count": 3,
+        "max_ms": 2151.967,
+        "median_ms": 2146.989,
+        "min_ms": 2139.454,
+        "p95_ms": 2151.967
+      },
+      "fixture_build_ms": 35.906,
+      "forward_shifts": 98,
+      "mode": "leveling-orchestration",
+      "output_sha256": "a3da54e11ce83dbe2b0cdabffd4635344422087b75fffe94ab79860024de2851",
+      "peak_rss_kb": 53428,
+      "seed": 20261116,
+      "shape": "dag",
+      "single_cpm_ms": {
+        "cpu": {
+          "count": 3,
+          "max_ms": 33.298,
+          "median_ms": 33.262,
+          "min_ms": 33.254,
+          "p95_ms": 33.298
+        },
+        "wall": {
+          "count": 3,
+          "max_ms": 33.299,
+          "median_ms": 33.267,
+          "min_ms": 33.255,
+          "p95_ms": 33.299
+        }
+      },
+      "size": 100,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 2152.144,
+        "median_ms": 2147.145,
+        "min_ms": 2139.62,
+        "p95_ms": 2152.144
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

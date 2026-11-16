@@ -35,16 +35,19 @@ from construction_pm.scheduling.benchmark_fixtures import (  # noqa: E402
     date_schedule_payload,
     environment_fingerprint,
     leveling_case,
+    leveling_orchestration_case,
+    leveling_orchestration_payload,
     leveling_payload,
     measure,
     run_date_schedule,
     run_leveling,
+    run_leveling_orchestration,
     run_time_schedule,
     time_network,
     time_schedule_payload,
 )
 
-MODES = ("date", "time", "leveling")
+MODES = ("date", "time", "leveling", "leveling-orchestration")
 
 
 def _parse_sizes(value: str) -> list[int]:
@@ -52,6 +55,49 @@ def _parse_sizes(value: str) -> list[int]:
     if not sizes or any(size <= 0 for size in sizes):
         raise argparse.ArgumentTypeError("sizes must be a comma list of positive integers")
     return sizes
+
+
+def _count_cpm_passes(fixture) -> int:
+    """Count the CPM passes one orchestration performs, without timing them."""
+    import importlib
+
+    module = importlib.import_module("construction_pm.scheduling.schedule")
+    calls: list[int] = []
+    real_schedule = module.schedule
+
+    def counting(*args, **kwargs):
+        calls.append(1)
+        return real_schedule(*args, **kwargs)
+
+    module.schedule = counting
+    try:
+        run_leveling_orchestration(fixture)
+    finally:
+        module.schedule = real_schedule
+    return len(calls)
+
+
+def _single_cpm_ms(fixture) -> dict[str, object]:
+    """Time one authoritative CPM pass on the same fixture.
+
+    This makes the size of the eliminated pass measurable relative to the whole
+    orchestration instead of guessing its share.
+    """
+    from construction_pm.scheduling.schedule import schedule
+
+    def one_pass():
+        return schedule(
+            fixture.activities,
+            fixture.relationships,
+            fixture.project_start,
+            fixture.resolver,
+            project_finish=fixture.project_finish,
+        )
+
+    timing = measure(one_pass, repeat=3, warmup=1)
+    timing.pop("result")
+    timing.pop("peak_rss_kb")
+    return {"wall": timing["wall"], "cpu": timing["cpu"]}
 
 
 def _measure_one(args, size: int) -> dict[str, object]:
@@ -66,10 +112,14 @@ def _measure_one(args, size: int) -> dict[str, object]:
         fixture = time_network(size, args.shape, args.seed, float_days=args.float_days)
         operation = lambda: run_time_schedule(fixture)  # noqa: E731
         payload_builder = time_schedule_payload
-    else:
+    elif args.mode == "leveling":
         fixture = leveling_case(size, args.seed)
         operation = lambda: run_leveling(fixture)  # noqa: E731
         payload_builder = leveling_payload
+    else:
+        fixture = leveling_orchestration_case(size, args.seed)
+        operation = lambda: run_leveling_orchestration(fixture)  # noqa: E731
+        payload_builder = None
     record["fixture_build_ms"] = round((time.perf_counter() - build_start) * 1000.0, 3)
     record["counts"] = fixture.counts
     if args.mode == "time":
@@ -79,7 +129,17 @@ def _measure_one(args, size: int) -> dict[str, object]:
     timing = measure(operation, repeat=args.repeat, warmup=args.warmup)
     result = timing.pop("result")
     record.update(timing)
-    record["output_sha256"] = canonical_hash(payload_builder(result))
+    if args.mode == "leveling-orchestration":
+        schedule_result, forward, backward = result
+        record["output_sha256"] = canonical_hash(
+            leveling_orchestration_payload(schedule_result, forward, backward)
+        )
+        record["forward_shifts"] = len(forward)
+        record["backward_shifts"] = len(backward)
+        record["cpm_passes"] = _count_cpm_passes(fixture)
+        record["single_cpm_ms"] = _single_cpm_ms(fixture)
+    else:
+        record["output_sha256"] = canonical_hash(payload_builder(result))
     record["status"] = "ok"
     return record
 

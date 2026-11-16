@@ -186,3 +186,28 @@ PostgreSQL concurrency claim is made; those phases are not implemented.
 Continuation point after merge: P0-E count and reduce provably identical CPM
 work in leveling orchestration, keeping final CPM and final resource-load
 validation authoritative; then P0-F durable scheduling jobs.
+
+2026-11-16 — P0-E exact CPM-pass reuse in leveling orchestration
+
+Counted the CPM passes in `schedule_with_resource_leveling` before changing
+anything: 5 for a two-activity case with one accepted backward move and 3 for
+forward-only orchestration. Three of them are provably identical duplicates and
+now reuse the already computed `ScheduleResult` instead of recalculating the
+same pure function over the same ordered constraint tuple: intermediate ==
+initial when forward leveling proposed no positive shift, closing ==
+intermediate when no backward shift was accepted, and closing == the last
+accepted candidate trial. Final CPM and final resource-load validation are
+unchanged and still run on the returned result.
+
+Added the full-orchestration fixture and benchmark mode
+(`--mode leveling-orchestration`) which records pass counts, accepted shift
+counts, canonical hash and the cost of one CPM pass on the same fixture.
+Measured against `79200d26` with identical fixture code in a detached worktree:
+20/50/100 activities 3 -> 2 passes, wall 24.5 -> 23.0 ms, 293.2 -> 284.5 ms,
+2,172.4 -> 2,147.1 ms; one CPM pass 1.86 / 9.32 / 33.40 ms. All canonical
+hashes unchanged. The two-activity backward-acceptance case drops from 5 to 3
+passes with an identical result.
+
+Evidence: `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
+Continuation point after merge: P0-F durable scheduling jobs with leases,
+retries, cancellation and authorization-checked single-flight.
