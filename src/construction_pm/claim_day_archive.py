@@ -692,25 +692,19 @@ class PostgresClaimDayArchiveRepository:
         )
         self.connection.execute(
             """CREATE OR REPLACE FUNCTION claim_day_archive_revision_immutable()
-               RETURNS trigger AS $
-               BEGIN
-                   RAISE EXCEPTION 'CLAIM_DAY_ARCHIVE_REVISION_IMMUTABLE';
-               END;
-               $ LANGUAGE plpgsql"""
+               RETURNS trigger
+               LANGUAGE plpgsql
+               AS 'BEGIN
+                   RAISE EXCEPTION ''CLAIM_DAY_ARCHIVE_REVISION_IMMUTABLE'';
+               END;'"""
         )
         self.connection.execute(
-            """DO $
-               BEGIN
-                 IF NOT EXISTS (
-                   SELECT 1 FROM pg_trigger
-                   WHERE tgname = 'claim_day_archive_revision_no_mutation'
-                     AND NOT tgisinternal
-                 ) THEN
-                   CREATE TRIGGER claim_day_archive_revision_no_mutation
-                   BEFORE UPDATE OR DELETE ON claim_day_archive_revisions
-                   FOR EACH ROW EXECUTE FUNCTION claim_day_archive_revision_immutable();
-                 END IF;
-               END $"""
+            "DROP TRIGGER IF EXISTS claim_day_archive_revision_no_mutation ON claim_day_archive_revisions"
+        )
+        self.connection.execute(
+            """CREATE TRIGGER claim_day_archive_revision_no_mutation
+               BEFORE UPDATE OR DELETE ON claim_day_archive_revisions
+               FOR EACH ROW EXECUTE FUNCTION claim_day_archive_revision_immutable()"""
         )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS claim_day_archive_idempotency (
