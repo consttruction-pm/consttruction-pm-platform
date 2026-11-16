@@ -21,12 +21,27 @@ class ProjectPrivilegeGroup(StrEnum):
     VIEWS_REPORTS = "views_reports"
 
 
+PROJECT_PRIVILEGE_HELP_URL = "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html"
+PROJECT_PRIVILEGE_DEFINITIONS_HELP_URL = "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/projectprivilegedefinitions-47746a.html"
+PROJECT_PRIVILEGE_HELP_VERSION = "P6 EPPM V26 HTML Help"
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectPrivilegeDefinition:
     key: str
     group: ProjectPrivilegeGroup
     label: str
     description: str
+
+    @property
+    def help_url(self) -> str:
+        """Canonical Oracle V26 HTML detail-window topic for this privilege."""
+        return PROJECT_PRIVILEGE_HELP_URL
+
+    @property
+    def definitions_help_url(self) -> str:
+        """Oracle V26 web-services privilege-definition reference."""
+        return PROJECT_PRIVILEGE_DEFINITIONS_HELP_URL
 
 
 # Keys are stable internal identifiers. Labels/descriptions follow the V26 Help
