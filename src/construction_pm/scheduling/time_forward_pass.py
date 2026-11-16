@@ -17,6 +17,7 @@ from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_constraints import TimeActivityConstraint, apply_time_earliest_constraints, validate_time_early_window
 from .time_unit_resolver import CalendarAwareResolver, resolve_calendar_aware
+from .topological_order import heap_topological_order
 
 
 @dataclass(frozen=True)
@@ -169,25 +170,13 @@ def time_forward_pass(
             raise ValueError("relationship references an unknown activity")
 
     incoming: dict[str, list[TimeRelationship]] = {a.id: [] for a in activity_list}
-    outgoing: dict[str, list[str]] = {a.id: [] for a in activity_list}
-    counts = {a.id: 0 for a in activity_list}
     for rel in relationship_list:
         incoming[rel.successor_id].append(rel)
-        outgoing[rel.predecessor_id].append(rel.successor_id)
-        counts[rel.successor_id] += 1
 
-    ready = sorted(k for k, v in counts.items() if v == 0)
-    order: list[str] = []
-    while ready:
-        current = ready.pop(0)
-        order.append(current)
-        for nxt in sorted(outgoing[current]):
-            counts[nxt] -= 1
-            if counts[nxt] == 0:
-                ready.append(nxt)
-                ready.sort()
-    if len(order) != len(activity_map):
-        raise ValueError("activity network contains a cycle")
+    order = heap_topological_order(
+        activity_map,
+        ((rel.predecessor_id, rel.successor_id) for rel in relationship_list),
+    )
 
     constraint_list = list(constraints)
     result: dict[str, TimeScheduledActivity] = {}

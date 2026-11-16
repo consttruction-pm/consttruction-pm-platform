@@ -264,6 +264,77 @@ def time_backward_pass(
     return late
 
 
+_FREE_FLOAT_SEARCH_CEILING = Decimal("10000")
+_FREE_FLOAT_LINEAR_PREFIX = 8
+
+
+def _legacy_free_float_limit(holds) -> Decimal:
+    """The pre-P0-C linear probe, retained as the differential oracle.
+
+    Increments the delay from zero and stops at the first delay for which the
+    relationship event no longer holds.  If the relationship still holds after
+    9999 increments the reported limit is 9999, which is the historical
+    sentinel for "no boundary found inside the scan bound".
+    """
+
+    delay = Decimal("0")
+    for _ in range(10000):
+        if not holds(delay):
+            break
+        delay += Decimal("1")
+    return max(Decimal("0"), delay - Decimal("1"))
+
+
+def _free_float_limit(holds) -> Decimal:
+    """Locate the same Free Float boundary as the legacy scan with O(log) probes.
+
+    The legacy scan evaluated delays 0..9999 in order and reported the last
+    delay that still held.  Calendar arithmetic is monotone in the delay: a
+    later predecessor start can only move ``candidate_start`` and
+    ``candidate_finish`` forward (never backward), and the required event is a
+    non-decreasing function of that event for every relationship type, signed
+    lag and working-time/working-day calendar.  Therefore the predicate is
+    true for a prefix ``0..F-1`` and false from ``F`` onward, and the boundary
+    can be found by exponential growth followed by a binary search.
+
+    Boundaries are preserved exactly:
+
+    * ``holds(0)`` false -> ``0`` (the legacy loop never advanced).
+    * ``F > 0`` -> ``F - 1``.
+    * no failure among 0..9999 -> ``9999`` (legacy sentinel), whether or not
+      the relationship would still hold at delay 10000.  Evaluating delay
+      10000 is only used to disambiguate the search interval; the reported
+      value stays 9999.
+
+    The first eight delays are still probed linearly so the common tiny-Free-
+    Float case costs exactly what it did before.
+    """
+
+    probe = Decimal("0")
+    while probe < _FREE_FLOAT_LINEAR_PREFIX:
+        if not holds(probe):
+            return max(Decimal("0"), probe - Decimal("1"))
+        probe += Decimal("1")
+
+    low = probe - Decimal("1")  # last delay known to hold
+    high = probe * Decimal("2")
+    while high < _FREE_FLOAT_SEARCH_CEILING and holds(high):
+        low = high
+        high *= Decimal("2")
+    if high >= _FREE_FLOAT_SEARCH_CEILING:
+        if not holds(_FREE_FLOAT_SEARCH_CEILING):
+            high = _FREE_FLOAT_SEARCH_CEILING
+        else:
+            return _FREE_FLOAT_SEARCH_CEILING - Decimal("1")
+    while high - low > Decimal("1"):
+        middle = (low + high) // Decimal("2")
+        if holds(middle):
+            low = middle
+        else:
+            high = middle
+    return high - Decimal("1")
+
+
 def calculate_time_floats(
     activities: Iterable[TimeActivity],
     relationships: Iterable[TimeRelationship],
@@ -319,8 +390,7 @@ def calculate_time_floats(
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
                     # Measure slack by delaying the predecessor and checking the
                     # relationship event in the authoritative lag calendar.
-                    delay = Decimal("0")
-                    for _ in range(10000):
+                    def holds_at(delay: Decimal) -> bool:
                         delay_quantity = (
                             TimeQuantity.working_hours(delay)
                             if activity.duration.unit is DurationUnit.WORKING_HOUR
@@ -331,23 +401,20 @@ def calculate_time_floats(
                         if rel.type is RelationshipType.FS:
                             event = candidate_finish
                             required = lag_resolver.add_lag(event, rel.lag)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.SS:
+                            return successor.start >= required
+                        if rel.type is RelationshipType.SS:
                             event = candidate_start
                             required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.FF:
+                            return successor.start >= required
+                        if rel.type is RelationshipType.FF:
                             event = candidate_finish
                             required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        else:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        if not holds:
-                            break
-                        delay += Decimal("1")
-                    limits.append(max(Decimal("0"), delay - Decimal("1")))
+                            return successor.finish >= required
+                        event = candidate_start
+                        required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                        return successor.finish >= required
+
+                    limits.append(_free_float_limit(holds_at))
             free = min(limits) if limits else Decimal("0")
 
         result[activity_id] = TimeFloatActivity(
