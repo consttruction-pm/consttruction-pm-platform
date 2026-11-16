@@ -140,3 +140,36 @@ Qoder task packet must include this contract version, base SHA, allowed/forbidde
 - Complete security permissions matrix and all detailed task field/command procedures: **MISSING / VERIFY**.
 - EPPM V26 shared project/activity semantics and integration field mappings: **PARTIALLY VERIFIED**; full EPPM field mapping and authoritative link behavior must be verified before integration code.
 - CUBI implementation: **NOT IMPLEMENTED / NOT VERIFIED**.
+
+
+## 10. Tasks App security permission crosswalk (verified 2026-11-16)
+
+Oracle's [Security Permissions for Tasks](https://primavera.oraclecloud.com/help/en/user/186885.htm) topic is now retrieved directly. It separates workspace-level permissions from project-level permissions.
+
+### Workspace permission category
+- Configuration: Calendars, Codes, Configured Fields, Field Labels, Reasons.
+
+### Project permission categories
+- Project: Calendars, Codes, Companies, Project.
+- Schedule (Current): Activities.
+- Tasks:
+  - Complete Constraints for All Companies.
+  - Complete Constraints for My Company.
+  - Configure Task Notifications for Others.
+  - Configure Task Plan.
+  - Constraints.
+  - Link Constraint to Aconex Package.
+  - Manage Commitments and Complete All Company's Tasks.
+  - Manage Commitments and Complete My Company's Tasks.
+  - Manage Commitments and Complete My Tasks.
+  - Tasks for All Companies.
+  - Tasks for My Company.
+
+**Contract impact:** do not flatten these into one generic `manage_field_operations` permission. CUBI must preserve company-scope tiers and distinguish configuration, task visibility, constraint completion, notification configuration, commitment management and completion authority. Map CUBI role grants to these operation-level capabilities with server-side project/company/actor checks. The source says some permissions may be optional depending on use; do not require or grant them indiscriminately.
+
+## 11. Remaining evidence gaps (updated)
+
+- **VERIFIED:** Tasks App security permission categories and named grants; Task Concepts; Work Plan; Hand-offs; Constraints; Commitments/Recommitments; Completion; PPC Analysis.
+- **MISSING / VERIFY:** Full per-page field/command availability and exact UI-level gating; source semantics for deleting/correcting latest commitment history and downstream audit; PPC denominator behavior when a task has multiple commitment records/recommitments; Daily Huddle as a distinct page/process (no dedicated Tasks App Help topic confirmed in the reviewed TOC); Production & Productivity quantity/rate model (not equivalent to PPC); mobile/offline behavior if in scope.
+- **Decision:** Daily Huddle may be a meeting workflow/projection over existing FieldTask, TaskCommitment, TaskConstraint and PPC facts, but no separate store or lifecycle is authorized until its own source and acceptance contract is complete.
+- **Decision:** Production quantity/rate records and productivity calculations must be a separate typed sub-capability with its own units, numerator/denominator, period, attribution and calculation owner. PPC remains only commitment reliability.
