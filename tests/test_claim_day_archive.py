@@ -102,6 +102,41 @@ def test_archive_revisions_remain_retrievable_after_append():
     assert repository.get_day_revision("T-1", "P-1", original.claim_day_id, 2) == updated
 
 
+def test_evidence_correction_appends_revision_with_reason_and_supersedes_link():
+    repository = InMemoryClaimDayArchiveRepository()
+    service = ClaimDayArchiveService(repository)
+    created = service.create_day(day(), idempotency_key="create")
+    original = evidence()
+    service.add_evidence(
+        tenant_id="T-1", project_id="P-1", claim_day_id=created.claim_day_id,
+        evidence=original, expected_revision=1, idempotency_key="original",
+    )
+    corrected = evidence(
+        evidence_link_id="EV-1-CORRECTED",
+        source_revision=4,
+        supersedes_evidence_link_id="EV-1",
+        correction_reason="Source document correction received",
+    )
+    revised = service.add_evidence(
+        tenant_id="T-1", project_id="P-1", claim_day_id=created.claim_day_id,
+        evidence=corrected, expected_revision=2, idempotency_key="corrected",
+    )
+    assert [link.evidence_link_id for link in revised.evidence_links] == [
+        "EV-1", "EV-1-CORRECTED"
+    ]
+    assert revised.revision_actor_id == corrected.actor_id
+    assert revised.revision_reason == "Evidence correction: Source document correction received"
+    assert repository.get_day_revision("T-1", "P-1", created.claim_day_id, 2).evidence_links == (original,)
+
+
+def test_evidence_correction_must_reference_an_earlier_revision():
+    with pytest.raises(ClaimDayArchiveError, match="SUPERSEDED_EVIDENCE_NOT_FOUND"):
+        day(evidence_links=(evidence(
+            supersedes_evidence_link_id="missing",
+            correction_reason="Attempted correction",
+        ),)).validate()
+
+
 def test_archive_cannot_remove_or_rewrite_existing_evidence():
     repository = InMemoryClaimDayArchiveRepository()
     original = day(evidence_links=(evidence(),))
