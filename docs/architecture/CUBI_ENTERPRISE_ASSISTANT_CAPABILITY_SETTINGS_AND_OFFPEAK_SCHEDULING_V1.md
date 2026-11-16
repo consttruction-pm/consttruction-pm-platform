@@ -181,3 +181,22 @@ A capability is complete only with: source Help traceability; code paths and mig
 ## 10. Non-interference
 
 Enterprise assistant monitoring is P2. It must not block Engineering P1, increase peak load materially, create a second scheduler/queue or duplicate Engineering calculations. Any scheduler integration must use shared infrastructure and published resource budgets.
+
+## 11. Initial repository feasibility audit (2026-11-16)
+
+This is a bounded source/document audit, not a full code/runtime certification. Findings are deliberately conservative:
+
+| Area | Evidence found on main | Assessment for this assistant scope |
+|---|---|---|
+| Enterprise module ownership | `docs/enterprise/CUBI_ENTERPRISE_FOUNDATION_V1.md` (blob `592326fe4528054b9d78a64042c9e88fc2d0f7d8`) | Eight-module target and shared cross-cutting services are documented. This is an architecture baseline, not proof all modules are production-complete. |
+| Enterprise background jobs/monitoring | Same foundation inventory: existing job processing, monitoring and operational reporting primitives are reusable; Enterprise UX and policy wiring are not certified | Reuse-first is feasible; inspect exact runtime composition and add only missing policy/settings integration. |
+| Enterprise task lifecycle | `docs/enterprise/CUBI_ENTERPRISE_IMPLEMENTATION_PLAN.md` (blob `c822dbbc5ec1fe09d20f5b1af91b00c4094e55c7`) records its baseline search found no complete Team & Task Center lifecycle API/repository at that recorded branch point | Task assistant integration depends on the active task vertical slice; re-fetch its current PR/head before implementation. |
+| Assistant command architecture | `docs/architecture/CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md` (owner-approved Principle 13) | CUBI-owned deterministic command/rule system is binding; provider/model paths are prohibited. |
+| User settings | Repository search found general/project preferences and settings primitives, but no verified assistant-specific per-user × module × monitor settings contract in this bounded search | Treat granular assistant settings as a gap until exact API/schema/runtime and tests are demonstrated. Do not mistake project-local preferences for assistant subscriptions. |
+| Background scheduler and load-aware admission | Existing job/queue/operations and resource-monitoring design evidence exists; the Engineering scheduling-core optimization document is not itself proof of a generic Enterprise monitoring scheduler or low-load admission policy | Reuse the actual shared job runtime after source inspection. Load-aware admission, deferral, pause/backpressure and bounded manual-refresh behavior remain explicit acceptance gates until runtime evidence is produced. |
+| Notifications and audit | Existing shared foundations are identified in Enterprise architecture and implementation documents | Verify the exact user preference, tenant filtering, delivery and audit paths before connecting assistant alerts. |
+| Help parity | Master capability register requires exact topic-level EPPM V26, Team Member V26 and Cloud Help crosswalks | Each released assistant surface must carry verified contextual Help references; no Help parity is claimed by this specification. |
+
+**Important distinction:** the shared Engineering schedule calculation/worker optimization path is not the assistant's monitoring scheduler. Do not route recurring Enterprise scans through CPM calculation workers or create a second generic queue. First identify the existing general-purpose background job runtime and its telemetry, then extend its admission policy.
+
+**Audit limitation:** this first pass searched canonical architecture, Enterprise foundation/plan, scheduler feasibility and repository search results. It did not inspect every source file, open PR changed-path collision, production deployment, or live metrics. Those are mandatory P0 tasks before code changes or operational claims.
