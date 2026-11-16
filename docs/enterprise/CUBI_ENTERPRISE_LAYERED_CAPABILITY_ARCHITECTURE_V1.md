@@ -343,7 +343,7 @@ Every formula requires a named owner, exact variable semantics, unit/currency, s
 - Primavera Unifier Help — Payment Applications: https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/80345.htm
 - Primavera Unifier Help — Cost Manager Overview / Cost Sheets / SOV: https://docs.oracle.com/cd/E37673_01/English/User_Guides/UnifierHelp/WebHelp/content/unifier_user_guide/cost_manager/cost_manager_overview.htm
 - Primavera Unifier 26 uDesigner Help — Cost Management Levels / SOV: https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/udesigner/costmanagementlevels-77650a.html
-- PMI Standard for Portfolio Management (official PMI-hosted reference): https://www.pmi.org/standards/portfolio-management
+- PMI Standard for Portfolio Management (official PMI-hosted reference): https://www.pmi.org/-/media/pmi/documents/public/pdf/certifications/standard-for-portfolio-management-third-edition.pdf?rev=67c367d7cf8f483d8e67f99af78205f7
 - All official Help URLs must be checked for current applicable release before each implementation; older version-specific Unifier topics are source anchors only and cannot be silently treated as V26 parity evidence.
 
 **Open evidence:** The exact current-release Unifier topic inventory for solicitation, vendor, claims, notices, bonds/insurance, closeout and every workflow variant still requires direct Help extraction. Those topics are MISSING / VERIFY until captured. This addition defines the target lifecycle and source family; it does not claim complete Unifier parity.
