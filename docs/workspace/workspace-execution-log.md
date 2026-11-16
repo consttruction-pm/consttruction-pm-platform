@@ -211,3 +211,29 @@ passes with an identical result.
 Evidence: `docs/workspace/evidence/p0e-scheduling-cpm-reuse-2026-11-16/`.
 Continuation point after merge: P0-F durable scheduling jobs with leases,
 retries, cancellation and authorization-checked single-flight.
+
+2026-11-16 — P0-F durable Scheduling Job lifecycle
+
+Added a durable job boundary around the unchanged authoritative engine:
+`src/construction_pm/scheduling_job_lifecycle.py` holds all transition rules
+(stable `job_id` from tenant, project, authorization-scoped dedup key, request
+fingerprint and generation; owner+token+expiry leases; retryable-failure and
+expired-lease requeue up to `max_attempts`; cooperative cancellation that never
+publishes a result; one immutable result per job; `recover_expired()`).
+`src/construction_pm/postgres_scheduling_job_lifecycle.py` stores them with a
+revision compare-and-set on every write, and `infra/scheduling_job_schema.sql`
+adds the partial unique index on QUEUED/LEASED that makes single-flight safe
+across workers.
+
+Measured on a local PostgreSQL 14.24 cluster: 200 submit/claim/complete cycles
+median 0.506 ms, p95 0.715 ms, max 2.534 ms, schema init 0.834 ms; 16 threads
+on separate connections submitting the same authorization-scoped request at one
+barrier produced exactly 1 job with 0 errors in 31.002 ms. Sixteen in-memory
+lifecycle tests and six real PostgreSQL tests pass, including canonical-hash
+persistence from the real 50-activity engine fixture, a lost compare-and-set,
+expired-lease takeover and result immutability. Full suite 4,474 passed / 210
+skipped without a database and 4,562 passed / 131 skipped with local PostgreSQL.
+
+Evidence: `docs/workspace/evidence/p0f-scheduling-jobs-2026-11-16/`.
+Continuation point after merge: P0-G adaptive resource management with one
+global budget and the same engine/version identity on every execution surface.
