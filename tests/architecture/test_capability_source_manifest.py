@@ -16,7 +16,7 @@ def _write_manifest(root: Path, *, status="implementation-ready", gaps=None):
     (docs / "lifecycle.md").write_text("lifecycle", encoding="utf-8")
     (docs / "permissions.md").write_text("permissions", encoding="utf-8")
     (root / "tests").mkdir(exist_ok=True)
-    (root / "tests" / "test_acceptance.py").write_text("# test", encoding="utf-8")
+    (root / "tests" / "test_acceptance.py").write_text("# ENT99-AT-01 acceptance fixture\n", encoding="utf-8")
     payload = {
         "schema_version": 1,
         "capabilities": [{
