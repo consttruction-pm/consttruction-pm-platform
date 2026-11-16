@@ -9,6 +9,7 @@ from construction_pm.claim_day_archive import (
     ClaimDayEvidenceLink,
     ClaimDayIdempotencyConflict,
     ClaimDayRevisionConflict,
+    ClaimSubmission,
     ClaimDayVisibility,
     InMemoryClaimDayArchiveRepository,
 )
