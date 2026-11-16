@@ -237,6 +237,14 @@ PROJECT_PRIVILEGE_INHERITANCE: dict[str, frozenset[str]] = {
     "code.edit": frozenset({"code.assign", "code.view"}),
     "code.assign": frozenset({"code.view"}),
     "timesheet.edit": frozenset({"timesheet.view"}),
+    # V26 detail-window dependencies documented in the privilege descriptions.
+    "resource.level": frozenset({"schedule.run"}),
+    "assignment.future_periods.edit": frozenset({"activity.add_edit_except_relationships"}),
+    "assignment.period_performance.edit": frozenset({
+        "activity.add_edit_except_relationships",
+        "project.view_costs_financials",
+    }),
+    "period_performance.store": frozenset({"activity.add_edit_except_relationships"}),
 }
 
 
