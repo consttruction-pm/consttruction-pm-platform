@@ -216,3 +216,8 @@ On an isolated worktree containing the latest `main`, the OBS/WBS feature and th
 - Complete V26 global security profiles, Admin Superuser/No Global Privileges semantics, module/resource access, EPS Responsible OBS, privilege inheritance and the endpoint-by-endpoint traceability matrix in Issue #1984.
 
 This checkpoint records completed local verification and explicitly preserves the outstanding acceptance gates. It does not declare full Primavera P6 EPPM V26 security parity.
+
+
+## Oracle V26 selectable-checkbox boundary (2026-11-16)
+
+The administrator-facing privilege catalogue is now explicitly separated from CUBI's internal authorization vocabulary. `PROJECT_PRIVILEGES` remains the complete internal key registry used by validation and inheritance. `ORACLE_V26_CHECKBOX_PRIVILEGE_KEYS` is an explicit, ordered allowlist for the selectable rows in the Oracle V26 Project Security Profiles Privileges Detail Window; the administration API returns only this allowlist. Internal adapter capabilities such as `activity.view`, `project.create`, and `resource.level` are not exposed as extra Oracle checkbox rows unless the corresponding exact V26 checkbox is explicitly listed. This avoids presenting implementation details as Oracle product capabilities. The source remains the official [V26 Privileges Detail Window](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html). The allowlist and its eight-category coverage are regression-tested; exact UI/API operation mapping and Global Security Profiles remain separate acceptance gates.
