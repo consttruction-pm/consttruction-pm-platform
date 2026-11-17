@@ -58,3 +58,20 @@ def test_project_superuser_name_is_reserved_for_the_builtin_profile():
         P6ProjectSecurityProfile(
             "tenant-a", "custom-superuser", "Project Superuser", ()
         ).validate()
+
+
+def test_v26_project_privilege_required_co_grants_are_not_auto_granted():
+    with pytest.raises(ProjectSecurityError, match="PROJECT_SECURITY_PRIVILEGE_REQUIREMENT_MISSING"):
+        P6ProjectSecurityProfile(
+            "tenant-a", "future-only", "Future Only", ("edit_future_periods",)
+        ).validate()
+    with pytest.raises(ProjectSecurityError, match="PROJECT_SECURITY_PRIVILEGE_REQUIREMENT_MISSING"):
+        P6ProjectSecurityProfile(
+            "tenant-a", "period-only", "Period Only", (
+                "edit_period_performance", "add_edit_activities_except_relationships",
+            )
+        ).validate()
+    with pytest.raises(ProjectSecurityError, match="PROJECT_SECURITY_PRIVILEGE_REQUIREMENT_MISSING"):
+        P6ProjectSecurityProfile(
+            "tenant-a", "template-only", "Template Only", ("add_edit_delete_template_documents",)
+        ).validate()
