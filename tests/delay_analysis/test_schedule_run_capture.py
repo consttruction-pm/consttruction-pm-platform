@@ -156,3 +156,35 @@ def test_sqlite_capture_rejects_same_run_identity_with_different_payload():
 
     with pytest.raises(ScheduleRunCaptureError, match="IMMUTABLE_SCHEDULE_RUN_CAPTURE_CONFLICT"):
         repository.save(changed)
+
+
+
+@pytest.fixture(scope="module")
+def postgres_dsn():
+    import os
+    value = os.getenv("P6_TEST_POSTGRES_DSN")
+    if not value:
+        pytest.skip("P6_TEST_POSTGRES_DSN is not configured")
+    return value
+
+
+def test_postgres_capture_repository_round_trip(postgres_dsn):
+    psycopg = pytest.importorskip("psycopg")
+    from construction_pm.delay_analysis.schedule_run_capture import (
+        PostgresScheduleRunCaptureRepository,
+    )
+
+    snapshot, context, evaluation = make_inputs()
+    capture = build_schedule_run_capture(
+        snapshot, context, evaluation,
+        captured_at=datetime(2026, 11, 18, tzinfo=timezone.utc),
+    )
+    connection = psycopg.connect(postgres_dsn)
+    try:
+        repository = PostgresScheduleRunCaptureRepository(connection)
+        repository.initialize()
+        assert repository.save(capture) == capture
+        assert repository.get(snapshot.scope, capture.run_id) == capture
+    finally:
+        connection.rollback()
+        connection.close()
