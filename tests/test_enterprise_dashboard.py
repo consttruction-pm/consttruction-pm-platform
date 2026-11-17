@@ -289,6 +289,16 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
         DashboardFilter("project_id", "in", tuple(f"project-{i}" for i in range(201))).validate()
 
 
+def test_multi_value_filters_are_immutable_after_parse():
+    raw_values = ["project-1"]
+    parsed = DashboardFilter.from_dict(
+        {"key": "project_id", "operator": "in", "value": raw_values}
+    )
+    raw_values.append("project-2")
+    assert parsed.value == ("project-1",)
+    assert parsed.as_dict()["value"] == ["project-1"]
+
+
 def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
     DashboardLayout(0, 0, 6, 4).validate()
     DashboardLayout(6, 0, 6, 4).validate()
