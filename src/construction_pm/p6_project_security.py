@@ -139,3 +139,14 @@ class P6ProjectSecurityProfile:
             raise ProjectSecurityError("DUPLICATE_PROJECT_SECURITY_PRIVILEGE")
         if set(self.privileges) != set(normalize_project_privileges(self.privileges)):
             raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_DEPENDENCY_MISSING")
+
+
+def require_project_privilege(policy, auth_context, privilege_code: str) -> None:
+    """Apply a named V26 project privilege when the composed policy supports it.
+
+    Legacy standalone policies remain compatible; the production P6 global
+    security policy exposes this method and fails closed without an OBS grant.
+    """
+    checker = getattr(policy, "require_project_privilege", None)
+    if callable(checker):
+        checker(auth_context, privilege_code)
