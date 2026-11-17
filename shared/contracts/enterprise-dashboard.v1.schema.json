@@ -1566,6 +1566,7 @@
         "contract_version",
         "displayed_dashboards",
         "available_dashboards",
+        "max_portlets",
         "read_at"
       ],
       "properties": {
@@ -1583,6 +1584,11 @@
           "items": {
             "$ref": "#/$defs/dashboard_catalog_item"
           }
+        },
+        "max_portlets": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
         },
         "read_at": {
           "type": "string",
