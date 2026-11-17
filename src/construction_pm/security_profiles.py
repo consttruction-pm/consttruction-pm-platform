@@ -697,6 +697,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        if profile_id in _RESERVED_PROFILE_IDS:
+            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if str(row[1]) != scope:
             raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
         if not bool(row[2]) and is_default:
@@ -835,8 +837,6 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if int(row[0]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
-        if bool(row[1]):
-            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_CANNOT_DELETE")
         assigned = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
@@ -844,6 +844,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if assigned is not None:
             raise SecurityProfileError("SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE")
+        if bool(row[1]):
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_CANNOT_DELETE")
         before = self.get_profile(tenant_id, profile_id)
         self._connection.execute(
             "DELETE FROM p6_security_profile_privileges WHERE tenant_id=%s AND profile_id=%s",
