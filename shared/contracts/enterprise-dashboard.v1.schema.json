@@ -24,7 +24,7 @@
     "created_at",
     "updated_at",
     "restrict_filter_override",
-    "max_portlet_rows"
+    "max_rows_per_portlet"
   ],
   "properties": {
     "contract_version": {
@@ -105,7 +105,7 @@
     },
     "portlets": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 12,
       "items": {
         "oneOf": [
@@ -474,18 +474,12 @@
                     "const": "project_id"
                   },
                   "operator": {
-                    "const": "in"
+                    "const": "eq"
                   },
                   "value": {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 200
-                    },
-                    "maxItems": 200
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 }
               }
@@ -514,12 +508,10 @@
       "type": "boolean",
       "default": false
     },
-    "max_portlet_rows": {
+    "max_rows_per_portlet": {
       "type": "integer",
       "minimum": 1,
-      "maximum": 1000,
-      "default": 100,
-      "description": "Maximum number of rows returned for each dashboard portlet; CUBI default is 100."
+      "maximum": 500
     }
   },
   "allOf": [
@@ -670,6 +662,33 @@
             "maxItems": 0
           }
         }
+      }
+    },
+    {
+      "not": {
+        "properties": {
+          "filters": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "enum": [
+                    "portfolio_id",
+                    "project_id"
+                  ]
+                }
+              },
+              "required": [
+                "key"
+              ]
+            },
+            "minContains": 2
+          }
+        },
+        "required": [
+          "filters"
+        ]
       }
     }
   ],
@@ -1117,17 +1136,12 @@
                         "const": "project_id"
                       },
                       "operator": {
-                        "const": "in"
+                        "const": "eq"
                       },
                       "value": {
-                        "type": "array",
-                        "minItems": 1,
-                        "uniqueItems": true,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        }
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       }
                     }
                   }
@@ -1404,17 +1418,12 @@
                         "const": "project_id"
                       },
                       "operator": {
-                        "const": "in"
+                        "const": "eq"
                       },
                       "value": {
-                        "type": "array",
-                        "minItems": 1,
-                        "uniqueItems": true,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        }
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       }
                     }
                   }
