@@ -4,7 +4,7 @@ import { withCsrfHeader } from "./csrf.js";
 type Profile = { profile_id: string; name: string; permissions: string[]; active: boolean; revision: number };
 type OBSNode = { obs_id: string; parent_obs_id: string | null; code: string; name: string; manager_user_id: string | null; sequence_number: number };
 type Assignment = { user_id: string; obs_id: string; profile_id: string; active: boolean; revision: number; assigned_by: string; assigned_at: string };
-type Privilege = { key: string; group: string; label: string; description: string };
+type Privilege = { key: string; group: string; label: string; description: string; help_url: string; definitions_help_url: string };
 type Locale = "en" | "fa";
 const VERSION = "cubi-enterprise-project-access.v1";
 const COPY = {
@@ -20,6 +20,7 @@ const COPY = {
     revoked:"OBS access revoked.", failed:"The request could not be completed.", session:"Your session has expired. Sign in again.",
     adminOnly:"Enterprise administrator access is required.", rootWarning:"Assigning the root OBS grants access to every project beneath it.",
     select:"Select…", manager:"Responsible manager", status:"Status", active:"Active", inactive:"Revoked",
+    oracleHelp:"Oracle V26 HTML Help", privilegeDefinitions:"Privilege definition", helpTopics:"P6 EPPM V26 Help topics",
   },
   fa: {
     title:"دسترسی پروژه", subtitle:"مدیریت مسئولیت OBS، پروفایل‌های امنیتی پروژه و تخصیص کاربران.",
@@ -33,6 +34,7 @@ const COPY = {
     revoked:"دسترسی OBS لغو شد.", failed:"انجام درخواست ممکن نشد.", session:"نشست شما پایان یافته است؛ دوباره وارد شوید.",
     adminOnly:"دسترسی مدیر سازمانی لازم است.", rootWarning:"تخصیص OBS ریشه، دسترسی به تمام پروژه‌های زیرمجموعه را ایجاد می‌کند.",
     select:"انتخاب…", manager:"مسئول", status:"وضعیت", active:"فعال", inactive:"لغوشده",
+    oracleHelp:"راهنمای HTML پریماورا نسخه ۲۶", privilegeDefinitions:"تعریف مجوز", helpTopics:"موضوعات راهنمای P6 EPPM نسخه ۲۶",
   },
 } as const;
 
@@ -81,6 +83,15 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
   const refresh = button(t.refresh,true); hero.append(heroCopy,refresh);
   const status = el("p","ce-notice"); status.hidden=true; status.setAttribute("role","status");
   const error = el("p","ce-error"); error.hidden=true; error.setAttribute("role","alert");
+  const helpBar = el("nav","oa-help-links"); helpBar.setAttribute("aria-label",t.helpTopics);
+  const helpSources = [
+    ["Users", "https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm"],
+    ["Assigning OBS Elements to Users", "https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm"],
+    ["Creating OBS", "https://docs.oracle.com/cd/G48897_01/p6help/en/7795.htm"],
+    ["Creating Project Security Profiles", "https://docs.oracle.com/cd/G48897_01/p6help/en/35278.htm"],
+    ["Privileges Detail Window", "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html"],
+  ] as const;
+  for (const [label,url] of helpSources) { const link=el("a","oa-help-link",label); link.href=url; link.target="_blank"; link.rel="noopener noreferrer"; helpBar.append(link); }
   const grid = el("div","oa-grid");
 
   const profileCard = el("section","oa-card"); profileCard.append(el("h2","",t.profiles));
@@ -115,7 +126,7 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
   const assignmentList=el("div","oa-list");
   accessCard.append(assignmentForm,rootWarning,assignmentList);
   grid.append(profileCard,obsCard);
-  shell.append(header,hero,status,error,grid,accessCard);
+  shell.append(header,hero,status,error,helpBar,grid,accessCard);
   container.replaceChildren(shell);
 
   let profiles: Profile[]=[];
@@ -170,7 +181,10 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
         const labelNode=el("label","oa-inline");const input=el("input") as HTMLInputElement;
         input.type="checkbox";input.value=item.key;input.checked=item.key==="project.read";
         groupInputs.push(input);permissionInputs.push(input);
-        labelNode.append(input,el("span","",item.label));choices.append(labelNode);
+        const caption=el("span","",item.label); caption.title=item.description;
+        const help=el("a","oa-help-inline",t.oracleHelp); help.href=item.help_url; help.target="_blank"; help.rel="noopener noreferrer"; help.setAttribute("aria-label",`${item.label} — ${t.oracleHelp}`);
+        const definition=el("a","oa-help-inline",t.privilegeDefinitions); definition.href=item.definitions_help_url; definition.target="_blank"; definition.rel="noopener noreferrer"; definition.setAttribute("aria-label",`${item.label} — ${t.privilegeDefinitions}`);
+        labelNode.append(input,caption,help,definition);choices.append(labelNode);
       }
       selectAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=true));
       clearAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=false));
