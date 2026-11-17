@@ -93,3 +93,8 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
     assert len(result.analysis_hash) == 64
     assert snapshot_repository.get(source_snapshot.scope, "IMPACTED-SNAPSHOT") is not None
     assert run_repository.get(source_snapshot.scope, result.impacted_run.run_id) == result.impacted_run
+
+    replay = executor.execute(source_snapshot, source_context, registry, fragnet)
+    assert replay.analysis_hash == result.analysis_hash
+    assert replay.unimpacted_run.run_id == result.unimpacted_run.run_id
+    assert replay.impacted_run.run_id == result.impacted_run.run_id
