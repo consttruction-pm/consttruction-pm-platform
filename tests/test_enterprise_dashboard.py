@@ -708,6 +708,53 @@ def test_saved_user_filter_override_obeys_owner_restriction():
         )
 
 
+def test_saved_project_id_in_filter_reauthorizes_every_project_before_persisting():
+    source = replace(
+        snapshot(),
+        projects=(
+            PortfolioProjectControlInput("project-1", 7, "included", "active"),
+            PortfolioProjectControlInput("project-2", 3, "on_hold", "planned"),
+        ),
+        source_refs=(
+            SourceReference("source-1", "portfolio", "/portfolio/project-1", 7),
+            SourceReference("source-2", "portfolio", "/portfolio/project-2", 3),
+        ),
+    )
+    service, repository, lifecycle, _ = make_service(
+        source=FakePortfolioQuery(source)
+    )
+    created = create_dashboard(service)
+    override = [{
+        "key": "project_id",
+        "operator": "in",
+        "value": ["project-1", "project-2"],
+    }]
+
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="SOURCE_PROJECT_NOT_AUTHORIZED",
+    ):
+        service.save_dashboard_filter_override(
+            "alice-session", created.dashboard.dashboard_id, override
+        )
+    assert set(lifecycle.authorized_project_ids) == {
+        ("alice-session", "project-1"),
+        ("alice-session", "project-2"),
+    }
+    assert repository.list_user_preferences("tenant-a", "alice") == {}
+
+    lifecycle.project_grants.add(("alice-session", "project-2"))
+    service.save_dashboard_filter_override(
+        "alice-session", created.dashboard.dashboard_id, override
+    )
+    result = service.read_portlets(
+        "alice-session", created.dashboard.dashboard_id
+    )
+    assert [row["project_id"] for row in result["portlets"][0]["data"]["projects"]] == [
+        "project-1", "project-2"
+    ]
+
+
 def test_decision_status_and_freshness_filters_suppress_nonmatching_data():
     service, _, _, _ = make_service()
     created = service.create_dashboard(
