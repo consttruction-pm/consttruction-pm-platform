@@ -526,3 +526,56 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
         "cubi-enterprise-dashboard-read.v1"
     )
+
+
+ORACLE_HELP_TRACEABILITY_URLS = (
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm",
+    "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/5989.html",
+    "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/portfolioanalysissettingsarea-9110a.html",
+    "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/5959.html",
+    "https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/7858.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7856.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43796.htm",
+    "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-reports/portfolioreports-63041a.html",
+    "https://primavera.oraclecloud.com/help/en/user/90205.htm",
+    "https://primavera.oraclecloud.com/help/en/user/81716.htm",
+    "https://primavera.oraclecloud.com/help/en/user/81707_1.htm",
+    "https://primavera.oraclecloud.com/help/en/user/100616.htm",
+    "https://primavera.oraclecloud.com/help/en/user/99393.htm",
+    "https://primavera.oraclecloud.com/help/en/user/99399.htm",
+    "https://primavera.oraclecloud.com/help/en/user/144444.htm",
+    "https://primavera.oraclecloud.com/help/en/user/91076.htm",
+    "https://primavera.oraclecloud.com/help/en/user/91079.htm",
+    "https://primavera.oraclecloud.com/help/en/user/102753_2.htm",
+    "https://primavera.oraclecloud.com/help/en/user/99151.htm",
+    "https://primavera.oraclecloud.com/help/en/user/102917.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/usingportfolios.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/portfolios.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_portfolio.htm",
+    "https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm",
+    "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-tm/p6-tmw_overview-51690a.html",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44303.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44295.htm",
+)
+
+
+def test_official_oracle_help_sources_have_exact_documentation_traceability():
+    root = Path(__file__).parents[1]
+    document = (
+        root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
+    ).read_text(encoding="utf-8")
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 37
+    for url in ORACLE_HELP_TRACEABILITY_URLS:
+        assert url in document
+    for disposition in ("Partial", "Not Applicable", "Deferred"):
+        assert disposition in document
