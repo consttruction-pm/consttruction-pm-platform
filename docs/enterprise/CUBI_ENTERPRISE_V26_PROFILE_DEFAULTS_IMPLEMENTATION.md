@@ -49,6 +49,7 @@ Each scope has one active default profile. The defaults are independent: changin
 - Adds a canonical OBS assignment operation: assigning an OBS without an explicit Project profile resolves the current Project default and records the profile in `p6_security_profile_assignments`; the operation shares the Project-default advisory lock so a concurrent default change cannot race the assignment.
 - Enforces one Project profile per user/OBS with a partial unique index. Replacing a profile is revision-guarded and audited in place; it does not accumulate additive grants.
 - Adds a tenant-scoped OBS options endpoint and a bilingual selector/form in the Enterprise access UI. The selector reads `p6_obs_node`, not the duplicate `enterprise_user_obs_assignments` store.
+- Preserves V26 Responsible OBS behavior across EPS ancestry: a root-EPS Responsible OBS applies to descendant projects, while the nearest explicit WBS Responsible OBS takes precedence for WBS-scoped operations.
 
 ## Acceptance evidence added
 
