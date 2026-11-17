@@ -242,7 +242,7 @@ def build_project_lifecycle_wsgi_app(
         if resource_write_api is not None:
             resource_write_api = replace(
                 resource_write_api, authorization_policy=authorization_policy,
-                resource_repository=tracking_resource_repository,
+                resource_repository=resource_master_repository,
             )
         if p6_resource_spread_api is not None:
             p6_resource_spread_api = replace(
