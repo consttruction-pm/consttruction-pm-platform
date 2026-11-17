@@ -49,6 +49,7 @@ class P6BaselineScheduleSnapshotBinding:
             isinstance(self.source_revision, bool)
             or not isinstance(self.source_revision, int)
             or self.source_revision < 0
+            or self.source_revision > self.scope.project_revision
         ):
             raise BaselineScheduleSnapshotBindingError("INVALID_SOURCE_REVISION")
 
@@ -255,7 +256,14 @@ class P6BaselineScheduleSnapshotBindingService:
             snapshot_scope = BackendScope(
                 scope.tenant_id, scope.project_id, baseline.source_revision
             )
-            snapshot = self.snapshot_repository.get(snapshot_scope, snapshot_id)
+            try:
+                snapshot = self.snapshot_repository.get(snapshot_scope, snapshot_id)
+            except ValueError as exc:
+                if "REVISION_CONFLICT" in str(exc):
+                    raise BaselineScheduleSnapshotBindingError(
+                        "BASELINE_SOURCE_SNAPSHOT_REVISION_MISMATCH"
+                    ) from exc
+                raise
             if snapshot is None:
                 raise BaselineScheduleSnapshotBindingError(
                     "BASELINE_SOURCE_SNAPSHOT_NOT_FOUND"
@@ -289,10 +297,17 @@ class P6BaselineScheduleSnapshotBindingService:
                 raise BaselineScheduleSnapshotBindingError(
                     "BASELINE_SOURCE_REVISION_MISMATCH"
                 )
-            snapshot = self.snapshot_repository.get(
-                BackendScope(scope.tenant_id, scope.project_id, binding.source_revision),
-                binding.snapshot_id,
-            )
+            try:
+                snapshot = self.snapshot_repository.get(
+                    BackendScope(scope.tenant_id, scope.project_id, binding.source_revision),
+                    binding.snapshot_id,
+                )
+            except ValueError as exc:
+                if "REVISION_CONFLICT" in str(exc):
+                    raise BaselineScheduleSnapshotBindingError(
+                        "BASELINE_SOURCE_SNAPSHOT_REVISION_MISMATCH"
+                    ) from exc
+                raise
             if snapshot is None:
                 raise BaselineScheduleSnapshotBindingError(
                     "BASELINE_SOURCE_SNAPSHOT_NOT_FOUND"
