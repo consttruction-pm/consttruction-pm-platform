@@ -178,3 +178,17 @@ def test_contributor_module_sees_projects_where_associated_resource_is_assigned(
     other_project = AuthorizationContext("tenant-a", "project-b", "user-1", frozenset())
     assert not policy.is_allowed(other_project, Permission.PROJECT_READ)
     assert not policy.is_allowed(user_context, Permission.PROJECT_WRITE)
+
+
+def test_native_associated_resource_assignment_syncs_user_personal_name():
+    connection, _, _ = setup()
+    users = UserRepository({("tenant-a", "user-1")})
+    synced = []
+    repo = SQLiteP6AssociatedResourceRepository(
+        connection, user_exists=users.exists,
+        native_auth_name_sync=lambda tenant, user, name: synced.append((tenant, user, name)),
+    )
+    repo.assign(P6AssociatedResource(
+        "tenant-a", "user-1", "R-100", 1, "admin", datetime.now(timezone.utc)
+    ))
+    assert synced == [("tenant-a", "user-1", "Civil Crew")]
