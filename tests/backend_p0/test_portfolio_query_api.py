@@ -30,6 +30,20 @@ def snapshot(tenant_id: str = "tenant-1") -> PortfolioControlSnapshot:
     )
 
 
+class ProjectAuthorizer:
+    def __init__(self, allowed=("project-1",)):
+        self.allowed = set(allowed)
+        self.calls = []
+
+    def is_project_read_allowed(self, auth_context, project_id):
+        self.calls.append((auth_context.user_id, project_id))
+        return project_id in self.allowed
+
+
+def project_authorizer():
+    return ProjectAuthorizer()
+
+
 class Provider:
     def __init__(self, result: PortfolioControlSnapshot) -> None:
         self.result = result
@@ -42,24 +56,26 @@ class Provider:
 
 def test_application_delegates_and_preserves_tenant_scope() -> None:
     provider = Provider(snapshot())
-    service = PortfolioQueryApplicationService(provider, policy())
+    authorizer = project_authorizer()
+    service = PortfolioQueryApplicationService(provider, policy(), authorizer)
 
     result = service.get_snapshot("portfolio-1", auth_context=auth())
 
     assert result.portfolio_id == "portfolio-1"
     assert result.tenant_id == "tenant-1"
     assert provider.calls == [("portfolio-1", "tenant-1")]
+    assert authorizer.calls == [("user-1", "project-1")]
 
 
 def test_application_rejects_cross_tenant_snapshot_and_forbidden_access() -> None:
-    service = PortfolioQueryApplicationService(Provider(snapshot("tenant-2")), policy())
+    service = PortfolioQueryApplicationService(Provider(snapshot("tenant-2")), policy(), project_authorizer())
     with pytest.raises(Exception) as cross:
         service.get_snapshot("portfolio-1", auth_context=auth())
     assert cross.value.category == ErrorCategory.AUTHORIZATION
     assert cross.value.code == "CROSS_SCOPE_ACCESS"
 
     with pytest.raises(Exception) as forbidden:
-        PortfolioQueryApplicationService(Provider(snapshot()), policy()).get_snapshot(
+        PortfolioQueryApplicationService(Provider(snapshot()), policy(), project_authorizer()).get_snapshot(
             "portfolio-1", auth_context=auth(role="unknown")
         )
     assert forbidden.value.category == ErrorCategory.AUTHORIZATION
@@ -89,6 +105,38 @@ def test_api_maps_invalid_portfolio_and_provider_result() -> None:
             return object()
 
     invalid_result = PortfolioQueryAPI(
-        PortfolioQueryApplicationService(InvalidProvider(), policy())  # type: ignore[arg-type]
+        PortfolioQueryApplicationService(InvalidProvider(), policy(), project_authorizer())  # type: ignore[arg-type]
     ).get_snapshot("portfolio-1", auth_context=auth())
     assert invalid_result["error"]["code"] == "INVALID_PORTFOLIO_QUERY_RESULT"
+
+
+def test_application_fails_closed_without_project_authorizer():
+    with pytest.raises(Exception) as denied:
+        PortfolioQueryApplicationService(Provider(snapshot()), policy()).get_snapshot(
+            "portfolio-1", auth_context=auth()
+        )
+    assert denied.value.code == "PROJECT_AUTHORIZATION_NOT_CONFIGURED"
+
+
+def test_application_reauthorizes_each_project_and_denies_if_any_project_is_forbidden():
+    provider = Provider(
+        PortfolioControlSnapshot(
+            snapshot_id="snapshot-2", portfolio_id="portfolio-1", tenant_id="tenant-1",
+            generated_at=datetime(2026, 9, 27, 18, 0, tzinfo=timezone.utc),
+            projects=(
+                PortfolioProjectControlInput("project-1", 7, "included", "active"),
+                PortfolioProjectControlInput("project-2", 4, "included", "active"),
+            ),
+            source_refs=(
+                SourceReference("source-1", "portfolio", "/portfolio/project-1", 7),
+                SourceReference("source-2", "portfolio", "/portfolio/project-2", 4),
+            ),
+        )
+    )
+    authorizer = ProjectAuthorizer(allowed=("project-1",))
+    with pytest.raises(Exception) as denied:
+        PortfolioQueryApplicationService(provider, policy(), authorizer).get_snapshot(
+            "portfolio-1", auth_context=auth()
+        )
+    assert denied.value.code == "FORBIDDEN"
+    assert authorizer.calls == [("user-1", "project-1"), ("user-1", "project-2")]
