@@ -298,6 +298,13 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
+            if not profile.active:
+                assigned = self.connection.execute(
+                    "SELECT 1 FROM p6_user_obs_project_profile WHERE tenant_id=? AND profile_id=? LIMIT 1",
+                    (profile.tenant_id, profile.profile_id),
+                ).fetchone()
+                if assigned is not None:
+                    raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_HAS_ASSIGNMENTS")
             changed = self.connection.execute(
                 "UPDATE p6_project_security_profile SET name=?,privileges=?,active=?,revision=?,description=? "
                 "WHERE tenant_id=? AND profile_id=? AND revision=?",
@@ -344,8 +351,6 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         current = self.get_profile(tenant_id, profile_id)
         if current is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
-        if current.built_in:
-            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if current.built_in:
             raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if current.is_default:
@@ -443,10 +448,19 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                  profile.revision, profile.is_default, profile.built_in, profile.description),
             )
         else:
+            if current.built_in:
+                raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
             if current.revision != expected_revision or profile.revision != current.revision + 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
+            if not profile.active:
+                assigned = self.connection.execute(
+                    "SELECT 1 FROM p6_user_obs_project_profile WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+                    (profile.tenant_id, profile.profile_id),
+                ).fetchone()
+                if assigned is not None:
+                    raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_HAS_ASSIGNMENTS")
             row = self.connection.execute(
                 "UPDATE p6_project_security_profile SET name=%s,privileges=%s::jsonb,active=%s,revision=%s,description=%s "
                 "WHERE tenant_id=%s AND profile_id=%s AND revision=%s RETURNING profile_id",
