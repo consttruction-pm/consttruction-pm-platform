@@ -7,11 +7,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from construction_pm.identity_session import PostgresIdentityStore
+from construction_pm.identity_session import IdentityUser, PostgresIdentityStore, hash_password
 from construction_pm.p6_global_security import (
     ADMIN_SUPERUSER,
     GlobalSecurityError,
     GlobalSecurityProfile,
+    UserGlobalSecurity,
     PostgresP6GlobalSecurityRepository,
 )
 
@@ -120,3 +121,88 @@ def test_v26_global_profile_duplicate_default_edit_delete_and_audit():
             assert admin_copy.privileges == ()
         finally:
             connection.rollback()
+
+def test_last_admin_assignment_can_be_reassigned_only_while_another_admin_remains():
+    tenant = f"tenant-admin-guard-{uuid.uuid4()}"
+    now = datetime.now(timezone.utc)
+    first_admin = f"admin-one-{uuid.uuid4().hex}"
+    second_admin = f"admin-two-{uuid.uuid4().hex}"
+
+    with _connection() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        for user_id, email in (
+            (first_admin, f"{first_admin}@example.test"),
+            (second_admin, f"{second_admin}@example.test"),
+        ):
+            identity.upsert_user(
+                IdentityUser(
+                    user_id=user_id,
+                    tenant_id=tenant,
+                    email=email,
+                    display_name=user_id,
+                    roles=frozenset({"enterprise_admin"}),
+                    password_hash=hash_password("integration-password"),
+                )
+            )
+
+        repo = PostgresP6GlobalSecurityRepository(connection)
+        repo.initialize()
+        try:
+            repo.ensure_builtin_profiles(
+                tenant, provisioned_by="integration-bootstrap", created_at=now
+            )
+            target = GlobalSecurityProfile(
+                tenant_id=tenant,
+                profile_id="guard-target",
+                name="Guard Target",
+                privileges=(),
+            )
+            repo.create_profile(
+                target, actor_id="integration-bootstrap", created_at=now
+            )
+
+            # The first administrator is established only by the controlled
+            # database/bootstrap path; the public assignment API cannot mint
+            # the initial recovery principal.
+            for user_id in (first_admin, second_admin):
+                connection.execute(
+                    "INSERT INTO p6_user_global_security "
+                    "(tenant_id,user_id,profile_id,module_access,resource_access_mode,"
+                    "resource_root_ids,revision,updated_by,updated_at) "
+                    "VALUES (%s,%s,'p6-admin-superuser','[]'::jsonb,'all','[]'::jsonb,"
+                    "1,'integration-bootstrap',%s)",
+                    (tenant, user_id, now),
+                )
+
+            reassigned = UserGlobalSecurity(
+                tenant_id=tenant,
+                user_id=first_admin,
+                profile_id=target.profile_id,
+                module_access=("projects",),
+                resource_access_mode="none",
+                resource_root_ids=(),
+                revision=2,
+                updated_by=second_admin,
+                updated_at=now,
+            )
+            repo.assign_user_security(reassigned, expected_revision=1)
+            assert repo.get_user_security(tenant, first_admin).profile_id == target.profile_id
+
+            last_admin_reassignment = UserGlobalSecurity(
+                tenant_id=tenant,
+                user_id=second_admin,
+                profile_id=target.profile_id,
+                module_access=("projects",),
+                resource_access_mode="none",
+                resource_root_ids=(),
+                revision=2,
+                updated_by=first_admin,
+                updated_at=now,
+            )
+            with pytest.raises(GlobalSecurityError, match="LAST_ADMIN_SUPERUSER_REQUIRED"):
+                repo.assign_user_security(last_admin_reassignment, expected_revision=1)
+            assert repo.get_user_security(tenant, second_admin).profile_id == "p6-admin-superuser"
+        finally:
+            connection.rollback()
+
