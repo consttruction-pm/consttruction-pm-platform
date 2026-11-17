@@ -78,7 +78,8 @@ class EnterpriseDashboardApplicationService:
         session = self._session(session_id)
         self._require_enterprise(session, write=True)
         allowed = {
-            "title", "description", "context", "context_portfolio_id", "portlets", "filters"
+            "title", "description", "context", "context_portfolio_id", "portlets", "filters",
+            "restrict_filter_override",
         }
         if not isinstance(payload, Mapping) or set(payload) - allowed:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_CREATE_FIELDS")
@@ -103,6 +104,7 @@ class EnterpriseDashboardApplicationService:
             filters=filters,
             revision=1,
             created_at=now,
+            restrict_filter_override=payload.get("restrict_filter_override", False),
         )
         dashboard.validate()
         if dashboard.context == "portfolio":
@@ -155,7 +157,7 @@ class EnterpriseDashboardApplicationService:
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
-        allowed = {"title", "description", "portlets", "filters"}
+        allowed = {"title", "description", "portlets", "filters", "restrict_filter_override"}
         if not isinstance(payload, Mapping) or not payload or set(payload) - allowed:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_UPDATE_FIELDS")
         changes: dict[str, object] = {}
@@ -171,6 +173,8 @@ class EnterpriseDashboardApplicationService:
             )
         if "filters" in payload:
             changes["filters"] = self._filters(payload["filters"])
+        if "restrict_filter_override" in payload:
+            changes["restrict_filter_override"] = payload["restrict_filter_override"]
         updated = replace(current.dashboard, **changes)
         updated.validate()
         if updated.context == "portfolio":
@@ -214,6 +218,7 @@ class EnterpriseDashboardApplicationService:
             revision=1,
             created_at=now,
             updated_at=None,
+            restrict_filter_override=False,
         )
         duplicate.validate()
         if duplicate.context == "portfolio":
@@ -259,10 +264,15 @@ class EnterpriseDashboardApplicationService:
                 raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARED_ROLE")
             if target_id not in roles:
                 roles.append(target_id)
+        elif target_type == "all_users":
+            if not self._is_admin(session):
+                raise EnterpriseDashboardAuthorizationError("GLOBAL_DASHBOARD_ADMIN_REQUIRED")
+            users, roles = [], []
         else:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET_TYPE")
         users_tuple, roles_tuple = tuple(sorted(users)), tuple(sorted(roles))
-        if users_tuple == current.dashboard.shared_user_ids and roles_tuple == current.dashboard.shared_role_ids:
+        new_visibility = "global" if target_type == "all_users" else visibility_for_shares(users_tuple, roles_tuple)
+        if users_tuple == current.dashboard.shared_user_ids and roles_tuple == current.dashboard.shared_role_ids and new_visibility == current.dashboard.visibility:
             if current.revision != expected_revision:
                 raise EnterpriseDashboardRevisionConflict("ENTERPRISE_DASHBOARD_REVISION_CONFLICT")
             return current
@@ -270,7 +280,7 @@ class EnterpriseDashboardApplicationService:
             current.dashboard,
             shared_user_ids=users_tuple,
             shared_role_ids=roles_tuple,
-            visibility=visibility_for_shares(users_tuple, roles_tuple),
+            visibility=new_visibility,
         )
         return self._repository.update(
             updated,
@@ -305,6 +315,10 @@ class EnterpriseDashboardApplicationService:
         elif target_type == "role":
             users = current.dashboard.shared_user_ids
             roles = tuple(item for item in current.dashboard.shared_role_ids if item != target_id)
+        elif target_type == "all_users":
+            if not self._is_admin(session):
+                raise EnterpriseDashboardAuthorizationError("GLOBAL_DASHBOARD_ADMIN_REQUIRED")
+            users, roles = (), ()
         else:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET_TYPE")
         if users == current.dashboard.shared_user_ids and roles == current.dashboard.shared_role_ids:
@@ -315,7 +329,7 @@ class EnterpriseDashboardApplicationService:
             current.dashboard,
             shared_user_ids=users,
             shared_role_ids=roles,
-            visibility=visibility_for_shares(users, roles),
+            visibility="private" if target_type == "all_users" else visibility_for_shares(users, roles),
         )
         return self._repository.update(
             updated,
@@ -581,7 +595,8 @@ class EnterpriseDashboardApplicationService:
         if dashboard.status == "archived":
             return dashboard.owner_user_id == session.user_id or "enterprise_admin" in roles
         return (
-            dashboard.owner_user_id == session.user_id
+            dashboard.visibility == "global"
+            or dashboard.owner_user_id == session.user_id
             or "enterprise_admin" in roles
             or session.user_id in dashboard.shared_user_ids
             or bool(roles.intersection(dashboard.shared_role_ids))
@@ -593,6 +608,8 @@ class EnterpriseDashboardApplicationService:
 
     @classmethod
     def _require_manage(cls, dashboard: EnterpriseDashboard, session: object) -> None:
+        if dashboard.visibility == "global" and not cls._is_admin(session):
+            raise EnterpriseDashboardAuthorizationError("GLOBAL_DASHBOARD_ADMIN_REQUIRED")
         if dashboard.owner_user_id != session.user_id and not cls._is_admin(session):
             raise EnterpriseDashboardAuthorizationError("DASHBOARD_OWNER_OR_ADMIN_REQUIRED")
 
