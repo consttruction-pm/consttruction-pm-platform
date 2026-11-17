@@ -53,13 +53,14 @@ def _from_row(row) -> P6AssociatedResource:
 
 
 class _AssociatedResourceBase:
-    def _require_resource(self, tenant_id: str, resource_id: str) -> None:
+    def _require_resource(self, tenant_id: str, resource_id: str) -> str:
         row = self.connection.execute(
-            f"SELECT 1 FROM p6_enterprise_resource_identity WHERE tenant_id={self.placeholder} "
+            f"SELECT name FROM p6_enterprise_resource_identity WHERE tenant_id={self.placeholder} "
             f"AND resource_id={self.placeholder}", (tenant_id, resource_id),
         ).fetchone()
         if row is None:
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_NOT_FOUND")
+        return str(row[0])
 
     def get_for_user(self, tenant_id: str, user_id: str):
         row = self.connection.execute(
@@ -106,8 +107,9 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
     placeholder = "?"
     audit_json_placeholder = "?"
 
-    def __init__(self, connection: sqlite3.Connection, *, user_exists: Callable[[str, str], bool] | None = None):
+    def __init__(self, connection: sqlite3.Connection, *, user_exists: Callable[[str, str], bool] | None = None, native_auth_name_sync: Callable[[str, str, str], None] | None = None):
         self.connection = connection
+        self.native_auth_name_sync = native_auth_name_sync
         self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
             "SELECT 1 FROM p6_user_global_security WHERE tenant_id=? AND user_id=?", (tenant, user)
         ).fetchone() is not None)
@@ -138,7 +140,7 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
         association.validate()
         if not self.user_exists(association.tenant_id, association.user_id):
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_USER_NOT_FOUND")
-        self._require_resource(association.tenant_id, association.resource_id)
+        resource_name = self._require_resource(association.tenant_id, association.resource_id)
         resource_owner = self.get_for_resource(association.tenant_id, association.resource_id)
         if resource_owner is not None and resource_owner.user_id != association.user_id:
             raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED")
@@ -168,6 +170,8 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
             )
         except sqlite3.IntegrityError as exc:
             raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED") from exc
+        if self.native_auth_name_sync is not None:
+            self.native_auth_name_sync(association.tenant_id, association.user_id, resource_name)
         self._audit(association, action, before)
         return association
 
@@ -195,8 +199,9 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
     placeholder = "%s"
     audit_json_placeholder = "%s::jsonb"
 
-    def __init__(self, connection, *, user_exists: Callable[[str, str], bool] | None = None):
+    def __init__(self, connection, *, user_exists: Callable[[str, str], bool] | None = None, native_auth_name_sync: Callable[[str, str, str], None] | None = None):
         self.connection = connection
+        self.native_auth_name_sync = native_auth_name_sync
         self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
             "SELECT 1 FROM p6_user_global_security WHERE tenant_id=%s AND user_id=%s", (tenant, user)
         ).fetchone() is not None)
