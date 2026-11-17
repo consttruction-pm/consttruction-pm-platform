@@ -55,6 +55,12 @@ def test_tenant_admin_routes_create_project_profile_assign_obs_and_associated_re
     now = datetime.now(timezone.utc)
 
     status, _, body = routes._handle_p6_security_admin_route(
+        "GET", "/api/admin/p6/obs", session_id="session", now=now, body=b"",
+    )
+    assert status == 200
+    assert json.loads(body)["obs_nodes"][0]["obs_id"] == "OBS-ROOT"
+
+    status, _, body = routes._handle_p6_security_admin_route(
         "POST", "/api/admin/p6/project-security-profiles", session_id="session",
         now=now, body=json.dumps({
             "profile_id": "profile-pm", "name": "Project Manager",
