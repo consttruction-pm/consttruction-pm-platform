@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Callable
 from uuid import uuid4
 
+from ..backend_p0.transactions import TransactionManager
 from ..schedule_evaluator import evaluate_schedule_snapshot
 from ..schedule_input_snapshot_repository import ScheduleInputSnapshotRepository, build_snapshot
 from ..schedule_run_capture import ScheduleRunCapture, ScheduleRunCaptureRepository, build_schedule_run_capture
@@ -86,11 +87,13 @@ class TimeImpactAnalysisExecutor:
         *,
         snapshot_repository: ScheduleInputSnapshotRepository,
         run_repository: ScheduleRunCaptureRepository,
+        transaction_manager: TransactionManager,
         snapshot_id_factory: Callable[[], str] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.snapshot_repository = snapshot_repository
         self.run_repository = run_repository
+        self.transaction_manager = transaction_manager
         self.snapshot_id_factory = snapshot_id_factory or (lambda: str(uuid4()))
         self.clock = clock or (lambda: datetime.now().astimezone())
 
@@ -206,31 +209,31 @@ class TimeImpactAnalysisExecutor:
                 raise TimeImpactExecutionError("SCHEDULE_FINISH_TYPE_MISMATCH")
             delta = (after_finish - before_finish).days
 
-            # Reuse a previously captured source run on deterministic replay.
-            # The capture timestamp is provenance metadata, not calculation
-            # identity; all semantic payloads must still match byte-for-byte.
-            existing_baseline = self.run_repository.get(
-                source_snapshot.scope, baseline_capture.run_id
-            )
-            if existing_baseline is not None:
-                if replace(existing_baseline, captured_at=baseline_capture.captured_at) != baseline_capture:
-                    raise TimeImpactExecutionError("SOURCE_RUN_CAPTURE_IMMUTABLE_CONFLICT")
-                baseline_capture = existing_baseline
+            # Persist the derived snapshot and both run captures atomically.
+            # Reuse deterministic run records on replay; capture time is audit
+            # metadata and may differ while semantic payloads must remain equal.
+            with self.transaction_manager.transaction():
+                existing_baseline = self.run_repository.get(
+                    source_snapshot.scope, baseline_capture.run_id
+                )
+                if existing_baseline is not None:
+                    if replace(existing_baseline, captured_at=baseline_capture.captured_at) != baseline_capture:
+                        raise TimeImpactExecutionError("SOURCE_RUN_CAPTURE_IMMUTABLE_CONFLICT")
+                    baseline_capture = existing_baseline
 
-            existing_impacted = self.run_repository.get(
-                impacted_snapshot.scope, impacted_capture.run_id
-            )
-            if existing_impacted is not None:
-                if replace(existing_impacted, captured_at=impacted_capture.captured_at) != impacted_capture:
-                    raise TimeImpactExecutionError("IMPACTED_RUN_CAPTURE_IMMUTABLE_CONFLICT")
-                impacted_capture = existing_impacted
+                existing_impacted = self.run_repository.get(
+                    impacted_snapshot.scope, impacted_capture.run_id
+                )
+                if existing_impacted is not None:
+                    if replace(existing_impacted, captured_at=impacted_capture.captured_at) != impacted_capture:
+                        raise TimeImpactExecutionError("IMPACTED_RUN_CAPTURE_IMMUTABLE_CONFLICT")
+                    impacted_capture = existing_impacted
 
-            # Persist only after both calculations and provenance records validate.
-            self.snapshot_repository.save(impacted_snapshot)
-            if existing_baseline is None:
-                self.run_repository.save(baseline_capture)
-            if existing_impacted is None:
-                self.run_repository.save(impacted_capture)
+                self.snapshot_repository.save(impacted_snapshot)
+                if existing_baseline is None:
+                    self.run_repository.save(baseline_capture)
+                if existing_impacted is None:
+                    self.run_repository.save(impacted_capture)
             digest = _analysis_hash(
                 fragnet.event_id, source_snapshot.snapshot_hash,
                 impacted_snapshot.snapshot_hash, baseline_capture,
