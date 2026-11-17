@@ -715,3 +715,12 @@ class P6GlobalSecurityAuthorizationPolicy:
             return bool(self._project_policy.is_allowed(context, permission))
         except (GlobalSecurityError, ValueError, AttributeError):
             return False
+
+    def require(self, context: Any, permission: Any) -> None:
+        """Preserve the AuthorizationPolicy.require contract used by lifecycle APIs."""
+        if not self.is_allowed(context, permission):
+            from .application.authorization import AuthorizationError
+
+            raise AuthorizationError(
+                f"authorization denied for permission={getattr(permission, 'value', permission)}"
+            )
