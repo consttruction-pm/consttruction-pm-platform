@@ -51,6 +51,14 @@ class PortfolioProjectFactsReader(Protocol):
         ...
 
 
+class PortfolioSourceReferenceReader(Protocol):
+    def is_current(
+        self, tenant_id: str, project_id: str, source_ref: SourceReference
+    ) -> bool:
+        """Return true only when the exact opaque source locator/revision still exists and is current."""
+        ...
+
+
 @dataclass(frozen=True)
 class PortfolioMembershipRecord:
     tenant_id: str
@@ -403,8 +411,10 @@ class PostgresPortfolioControlRepository:
         if not isinstance(source_refs, tuple) or not source_refs:
             raise PortfolioControlPersistenceError("PORTFOLIO_MEMBERSHIP_SOURCE_REQUIRED")
         for source in source_refs:
-            if not isinstance(source, SourceReference) or source.revision != project_revision:
-                raise PortfolioControlPersistenceError("PORTFOLIO_SOURCE_REVISION_MISMATCH")
+            if not isinstance(source, SourceReference):
+                raise PortfolioControlPersistenceError("INVALID_PORTFOLIO_SOURCE_REFERENCE")
+            if not 0 <= source.revision <= MAX_SAFE_REVISION:
+                raise PortfolioControlPersistenceError("INVALID_PORTFOLIO_SOURCE_REVISION")
 
     @staticmethod
     def _encode_sources(source_refs: tuple[SourceReference, ...]) -> str:
@@ -459,11 +469,13 @@ class PostgresPortfolioControlSnapshotProvider:
         self,
         repository: PostgresPortfolioControlRepository,
         project_facts_reader: PortfolioProjectFactsReader,
+        source_reference_reader: PortfolioSourceReferenceReader,
         *,
         clock=lambda: datetime.now(timezone.utc),
     ) -> None:
         self._repository = repository
         self._project_facts_reader = project_facts_reader
+        self._source_reference_reader = source_reference_reader
         self._clock = clock
 
     def get_snapshot(self, portfolio_id: str, *, tenant_id: str) -> PortfolioControlSnapshot:
@@ -486,8 +498,18 @@ class PostgresPortfolioControlSnapshotProvider:
             if not membership.source_refs:
                 raise PortfolioControlPersistenceError("PORTFOLIO_MEMBERSHIP_SOURCE_REQUIRED")
             for source in membership.source_refs:
-                if source.revision != membership.project_revision:
-                    raise PortfolioControlPersistenceError("PORTFOLIO_SOURCE_REVISION_STALE")
+                try:
+                    current = self._source_reference_reader.is_current(
+                        tenant_id, membership.project_id, source
+                    )
+                except KeyError as exc:
+                    raise PortfolioControlPersistenceError(
+                        "PORTFOLIO_SOURCE_REFERENCE_MISSING"
+                    ) from exc
+                if current is not True:
+                    raise PortfolioControlPersistenceError(
+                        "PORTFOLIO_SOURCE_REFERENCE_STALE"
+                    )
                 source_refs.append(source)
             projects.append(
                 PortfolioProjectControlInput(
@@ -550,6 +572,6 @@ class PostgresPortfolioControlSnapshotProvider:
 __all__ = [
     "PortfolioControlPersistenceError", "PortfolioControlRevisionConflict",
     "PortfolioMembershipRecord", "PortfolioProjectFacts", "PortfolioProjectFactsReader",
-    "PortfolioRecord", "PostgresProjectLifecycleFactsReader", "PostgresPortfolioControlRepository",
+    "PortfolioRecord", "PortfolioSourceReferenceReader", "PostgresProjectLifecycleFactsReader", "PostgresPortfolioControlRepository",
     "PostgresPortfolioControlSnapshotProvider",
 ]
