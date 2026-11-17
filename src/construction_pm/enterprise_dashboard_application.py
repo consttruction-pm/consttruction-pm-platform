@@ -781,7 +781,7 @@ class EnterpriseDashboardApplicationService:
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": filtered_out,
-            "display_limit": max_rows_per_portlet,
+            "row_limit": max_rows_per_portlet,
             "truncated": truncated if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT else False,
         }
 
@@ -840,7 +840,7 @@ class EnterpriseDashboardApplicationService:
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": False,
-            "display_limit": None,
+            "row_limit": None,
             "truncated": False,
         }
 
