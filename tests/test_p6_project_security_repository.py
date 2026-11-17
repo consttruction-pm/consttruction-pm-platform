@@ -278,3 +278,15 @@ def test_assigned_profile_cannot_be_deactivated_and_api_preserves_default_flag()
         expected_revision=2, auth_context=context(),
     )
     assert updated["profile"]["is_default"] is True
+
+
+def test_user_admin_can_list_profiles_for_assignment_but_cannot_edit_catalog():
+    _, repo = setup_repository()
+    repo.save_profile(profile(), actor_id="admin-user")
+    class UserAdminOnly:
+        def allows_global_privilege(self, context, code):
+            return code == "add_edit_delete_users"
+    api = P6ProjectSecurityAPI(repo, UserAdminOnly())
+    assert len(api.list_profiles(auth_context=context())["profiles"]) == 1
+    with pytest.raises(AuthorizationError, match="P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED"):
+        api.save_profile(profile(), expected_revision=None, auth_context=context())
