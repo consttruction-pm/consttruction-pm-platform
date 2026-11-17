@@ -11,6 +11,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_resource_master_repository import P6ResourceRepository
 from .p6_resource_access import resource_is_accessible, require_resource_access
 from .p6_resource_spread_repository import (
@@ -94,6 +95,7 @@ class P6ResourceSpreadAPI:
         _require_scope(bucket.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("RESOURCE_SPREAD_WRITE_NOT_AUTHORIZED")
+        require_project_privilege(self.authorization_policy, auth_context, "edit_future_periods")
         require_resource_access(
             self.authorization_policy, self.resource_repository, bucket.scope,
             bucket.resource_id, auth_context,
