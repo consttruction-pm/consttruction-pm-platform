@@ -259,6 +259,10 @@ class EnterpriseDashboardApplicationService:
         users = list(current.dashboard.shared_user_ids)
         roles = list(current.dashboard.shared_role_ids)
         if target_type == "user":
+            if not self._repository.user_belongs_to_tenant(session.tenant_id, target_id):
+                raise EnterpriseDashboardAuthorizationError(
+                    "DASHBOARD_SHARE_TARGET_NOT_IN_TENANT"
+                )
             if target_id == current.dashboard.owner_user_id:
                 raise EnterpriseDashboardError("DASHBOARD_OWNER_MUST_NOT_BE_SHARED_WITH_SELF")
             if target_id not in users:
