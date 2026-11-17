@@ -117,30 +117,25 @@ class SQLiteP6BaselineScheduleSnapshotBindingRepository:
             binding.snapshot_hash,
             binding.calculation_identity,
         )
+        self.connection.execute(
+            "INSERT OR IGNORE INTO p6_baseline_schedule_snapshot "
+            "(tenant_id,project_id,baseline_id,baseline_project_revision,"
+            "source_revision,snapshot_id,snapshot_hash,calculation_identity) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (*key, *payload),
+        )
         existing = self.connection.execute(
             "SELECT baseline_project_revision,source_revision,snapshot_id,"
             "snapshot_hash,calculation_identity FROM p6_baseline_schedule_snapshot "
             "WHERE tenant_id=? AND project_id=? AND baseline_id=?",
             key,
         ).fetchone()
-        if existing is not None:
-            if tuple(existing) == payload:
-                return binding
+        if existing is None:
+            raise BaselineScheduleSnapshotBindingError("BASELINE_SNAPSHOT_BIND_FAILED")
+        if tuple(existing) != payload:
             raise BaselineScheduleSnapshotBindingError(
                 "IMMUTABLE_BASELINE_SNAPSHOT_BINDING"
             )
-        try:
-            self.connection.execute(
-                "INSERT INTO p6_baseline_schedule_snapshot "
-                "(tenant_id,project_id,baseline_id,baseline_project_revision,"
-                "source_revision,snapshot_id,snapshot_hash,calculation_identity) "
-                "VALUES (?,?,?,?,?,?,?,?)",
-                (*key, *payload),
-            )
-        except sqlite3.IntegrityError as exc:
-            raise BaselineScheduleSnapshotBindingError(
-                "BASELINE_OR_SCHEDULE_SNAPSHOT_REQUIRED"
-            ) from exc
         return binding
 
     def get(
