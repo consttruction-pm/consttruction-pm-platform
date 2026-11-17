@@ -403,6 +403,7 @@ class EnterpriseDashboardApplicationService:
                 payload["portlets"],
                 current.dashboard.context,
                 current.dashboard.context_portfolio_id,
+                self._portlet_limit(session.tenant_id),
             )
         if "filters" in payload:
             changes["filters"] = self._filters(payload["filters"])
