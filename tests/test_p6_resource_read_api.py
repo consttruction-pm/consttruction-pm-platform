@@ -18,6 +18,7 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentRepository,
 )
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_master_repository import P6Resource, SQLiteP6ResourceRepository
 from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
     P6ResourceSpreadBucket,
@@ -141,3 +142,29 @@ def test_resource_read_api_rejects_cross_scope_and_non_reader():
             scope,
             auth_context=AuthorizationContext("tenant-a", "project-a", "writer", frozenset()),
         )
+
+
+class SelectedResourcePolicy:
+    def is_allowed(self, context, permission):
+        return True
+
+    def can_access_resource(self, context, resource_id, ancestor_resource_ids):
+        return "resource-1" in ancestor_resource_ids
+
+
+def test_resource_assignment_reads_apply_global_resource_access_before_serialization():
+    connection, base_api, assignment_repo, _, _ = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+    resource_repo = SQLiteP6ResourceRepository(connection)
+    resource_repo.save(P6Resource("tenant-a", "project-a", 7, "resource-1", "Selected"))
+    resource_repo.save(P6Resource("tenant-a", "project-a", 7, "resource-2", "Restricted"))
+    for assignment_id, resource_id in (("a-1", "resource-1"), ("a-2", "resource-2")):
+        assignment_repo.upsert(P6ResourceAssignment(scope, assignment_id, "activity-1", resource_id))
+
+    restricted = P6ResourceReadAPI(
+        base_api.assignment_service, base_api.period_service, base_api.spread_service,
+        SelectedResourcePolicy(), resource_repository=resource_repo,
+    )
+    result = restricted.list_assignments(scope, auth_context=auth())
+    assert [item["assignment"]["assignment_id"] for item in result] == ["a-1"]
+    assert restricted.get_assignment(scope, "a-2", auth_context=auth()) is None
