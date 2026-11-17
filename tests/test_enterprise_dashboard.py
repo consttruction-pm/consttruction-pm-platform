@@ -1549,7 +1549,7 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
     assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["minItems"] == 0
-    assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert schema["properties"]["portlets"]["maxItems"] == 50
     project_id_filter = schema["properties"]["filters"]["items"]["oneOf"][-1]["oneOf"]
     assert {item["properties"]["operator"]["const"] for item in project_id_filter} == {"eq", "in"}
     project_status_filter = schema["properties"]["filters"]["items"]["oneOf"][0]["oneOf"]
