@@ -19,11 +19,123 @@ BUILTIN_GLOBAL_PROFILES = frozenset({ADMIN_SUPERUSER, NO_GLOBAL_PRIVILEGES})
 
 P6_MODULE_ACCESS_OPTIONS = frozenset({
     "projects", "portfolios", "resources", "contributor",
-    "enterprise_reporting", "integration_api", "p6_analytics",
+    "enterprise_reports", "integration_api", "p6_analytics",
     "p6_professional", "team_member", "timesheet", "visualizer",
     "web_services",
 })
 P6_MAX_SELECTED_RESOURCE_ROOTS = 5
+P6_GLOBAL_SECURITY_HELP_URL = "https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm"
+P6_GLOBAL_PRIVILEGE_DEFINITIONS = (
+    ("add_edit_delete_obs", "Add/Edit/Delete OBS", "Administration"),
+    ("add_edit_delete_security_profiles", "Add/Edit/Delete Security Profiles", "Administration"),
+    ("add_edit_delete_users", "Add/Edit/Delete Users", "Administration"),
+    ("add_edit_delete_user_interface_views", "Add/Edit/Delete User Interface Views", "Administration"),
+    ("edit_application_settings", "Edit Application Settings", "Administration"),
+    ("provision_users_from_ldap", "Provision Users from LDAP", "Administration"),
+    ("view_published_audit_data", "View Published Audit Data", "Administration"),
+    ("global_activity_codes_add", "Add Global Activity Codes", "Codes"),
+    ("global_activity_codes_edit", "Edit Global Activity Codes", "Codes"),
+    ("global_activity_codes_delete", "Delete Global Activity Codes", "Codes"),
+    ("global_issue_codes_add", "Add Global Issue Codes", "Codes"),
+    ("global_issue_codes_edit", "Edit Global Issue Codes", "Codes"),
+    ("global_issue_codes_delete", "Delete Global Issue Codes", "Codes"),
+    ("project_codes_add", "Add Project Codes", "Codes"),
+    ("project_codes_edit", "Edit Project Codes", "Codes"),
+    ("project_codes_delete", "Delete Project Codes", "Codes"),
+    ("resource_codes_add", "Add Resource Codes", "Codes"),
+    ("resource_codes_edit", "Edit Resource Codes", "Codes"),
+    ("resource_codes_delete", "Delete Resource Codes", "Codes"),
+    ("role_codes_add", "Add Role Codes", "Codes"),
+    ("role_codes_edit", "Edit Role Codes", "Codes"),
+    ("role_codes_delete", "Delete Role Codes", "Codes"),
+    ("assignment_codes_add", "Add Assignment Codes", "Codes"),
+    ("assignment_codes_edit", "Edit Assignment Codes", "Codes"),
+    ("assignment_codes_delete", "Delete Assignment Codes", "Codes"),
+    ("secure_codes_add_delete", "Add/Delete Secure Codes", "Codes"),
+    ("secure_codes_edit", "Edit Secure Codes", "Codes"),
+    ("secure_codes_assign", "Assign Secure Codes", "Codes"),
+    ("secure_codes_view", "View Secure Codes", "Codes"),
+    ("add_edit_delete_categories_overhead_codes", "Add/Edit/Delete Categories and Overhead Codes", "Global Data"),
+    ("add_edit_delete_cost_accounts", "Add/Edit/Delete Cost Accounts", "Global Data"),
+    ("add_edit_delete_currencies", "Add/Edit/Delete Currencies", "Global Data"),
+    ("add_edit_delete_locations", "Add/Edit/Delete Locations", "Global Data"),
+    ("add_edit_delete_financial_period_calendars", "Add/Edit/Delete Financial Period Calendars", "Global Data"),
+    ("add_edit_delete_funding_sources", "Add/Edit/Delete Funding Sources", "Global Data"),
+    ("add_edit_delete_global_calendars", "Add/Edit/Delete Global Calendars", "Global Data"),
+    ("add_edit_delete_global_portfolios", "Add/Edit/Delete Global Portfolios", "Global Data"),
+    ("add_edit_delete_risk_categories_matrices_thresholds", "Add/Edit/Delete Risk Categories, Matrices, and Thresholds", "Global Data"),
+    ("add_edit_delete_timesheet_period_dates", "Add/Edit/Delete Timesheet Period Dates", "Global Data"),
+    ("add_edit_delete_user_defined_fields", "Add/Edit/Delete User Defined fields", "Global Data"),
+    ("add_edit_delete_stored_images", "Add/Edit/Delete Stored Images", "Global Data"),
+    ("resources_add", "Add Resources", "Resources"),
+    ("resources_edit", "Edit Resources", "Resources"),
+    ("resources_delete", "Delete Resources", "Resources"),
+    ("add_edit_delete_resource_calendars", "Add/Edit/Delete Resource Calendars", "Resources"),
+    ("add_edit_delete_resource_curves", "Add/Edit/Delete Resource Curves", "Resources"),
+    ("add_edit_delete_roles", "Add/Edit/Delete Roles", "Resources"),
+    ("add_edit_delete_global_resource_role_teams", "Add/Edit/Delete Global Resource and Role Teams", "Resources"),
+    ("add_edit_delete_rate_types_units_measure", "Add/Edit/Delete Rate Types and Units of Measure", "Resources"),
+    ("view_resource_role_costs_financials", "View Resource and Role Costs/Financials", "Resources"),
+    ("view_resource_role_proficiency", "View Resource Role Proficiency", "Resources"),
+    ("approve_resource_timesheets", "Approve Resource Timesheets", "Resources"),
+    ("add_edit_delete_activity_step_templates", "Add/Edit/Delete Activity Step Templates", "Templates"),
+    ("add_edit_delete_issue_forms", "Add/Edit/Delete Issue Forms", "Templates"),
+    ("add_edit_delete_microsoft_primavera_templates", "Add/Edit/Delete Microsoft and Primavera Templates", "Templates"),
+    ("add_edit_delete_project_templates", "Add/Edit/Delete Project Templates", "Templates"),
+    ("administer_global_external_applications", "Administer Global External Applications", "Tools"),
+    ("administer_global_scheduled_services", "Administer Global Scheduled Services", "Tools"),
+    ("administer_project_scheduled_services", "Administer Project Scheduled Services", "Tools"),
+    ("edit_global_change_definitions", "Edit Global Change Definitions", "Tools"),
+    ("import_p6_professional_xer_mpx", "Import P6 Professional XER and MPX", "Tools"),
+    ("import_xlsx", "Import XLSX", "Tools"),
+    ("import_xml", "Import XML", "Tools"),
+    ("enable_work_offline", "Enable Work Offline", "Tools"),
+    ("add_edit_delete_global_activity_assignment_layouts_views_filters", "Add/Edit/Delete Global Activity and Assignment Layouts, Views and Filters", "Views and Reports"),
+    ("add_edit_delete_global_dashboards", "Add/Edit/Delete Global Dashboards", "Views and Reports"),
+    ("add_edit_delete_global_project_wbs_portfolio_layouts_views_filters", "Add/Edit/Delete Global Project, WBS and Portfolio Layouts, Views and Filters", "Views and Reports"),
+    ("add_edit_delete_global_reports", "Add/Edit/Delete Global Reports", "Views and Reports"),
+    ("edit_global_tracking_layouts", "Edit Global Tracking Layouts", "Views and Reports"),
+    ("edit_projects_from_scorecards", "Edit Projects from Scorecards", "Views and Reports"),
+    ("add_edit_delete_global_visualizer_layouts", "Add/Edit/Delete Global Visualizer Layouts", "Views and Reports"),
+    ("add_edit_delete_global_visualizer_filters", "Add/Edit/Delete Global Visualizer Filters", "Views and Reports"),
+)
+P6_GLOBAL_PRIVILEGE_IDS = frozenset(item[0] for item in P6_GLOBAL_PRIVILEGE_DEFINITIONS)
+P6_GLOBAL_PRIVILEGE_DEPENDENCIES = {
+    "global_activity_codes_add": frozenset({"global_activity_codes_edit"}),
+    "global_activity_codes_delete": frozenset({"global_activity_codes_add", "global_activity_codes_edit"}),
+    "global_issue_codes_add": frozenset({"global_issue_codes_edit"}),
+    "global_issue_codes_delete": frozenset({"global_issue_codes_add", "global_issue_codes_edit"}),
+    "project_codes_add": frozenset({"project_codes_edit"}),
+    "project_codes_delete": frozenset({"project_codes_add", "project_codes_edit"}),
+    "resource_codes_add": frozenset({"resource_codes_edit"}),
+    "resource_codes_delete": frozenset({"resource_codes_add", "resource_codes_edit"}),
+    "role_codes_add": frozenset({"role_codes_edit"}),
+    "role_codes_delete": frozenset({"role_codes_add", "role_codes_edit"}),
+    "assignment_codes_add": frozenset({"assignment_codes_edit"}),
+    "assignment_codes_delete": frozenset({"assignment_codes_add", "assignment_codes_edit"}),
+    "secure_codes_add_delete": frozenset({"secure_codes_edit", "secure_codes_assign", "secure_codes_view"}),
+    "secure_codes_edit": frozenset({"secure_codes_assign", "secure_codes_view"}),
+    "secure_codes_assign": frozenset({"secure_codes_view"}),
+    "resources_add": frozenset({"resources_edit"}),
+    "resources_delete": frozenset({"resources_add", "resources_edit"}),
+}
+
+
+def normalize_global_privileges(privileges):
+    """Apply only dependency selections explicitly described by V26 HTML Help."""
+    selected = set(privileges)
+    if selected - P6_GLOBAL_PRIVILEGE_IDS:
+        raise GlobalSecurityError("UNKNOWN_GLOBAL_SECURITY_PRIVILEGE")
+    changed = True
+    while changed:
+        changed = False
+        for privilege in tuple(selected):
+            missing = P6_GLOBAL_PRIVILEGE_DEPENDENCIES.get(privilege, frozenset()) - selected
+            if missing:
+                selected.update(missing)
+                changed = True
+    return tuple(item[0] for item in P6_GLOBAL_PRIVILEGE_DEFINITIONS if item[0] in selected)
+
 
 
 class GlobalSecurityError(ValueError):
@@ -52,6 +164,10 @@ class GlobalSecurityProfile:
             raise GlobalSecurityError("GLOBAL_SECURITY_PRIVILEGE_INVALID")
         if len(set(self.privileges)) != len(self.privileges):
             raise GlobalSecurityError("DUPLICATE_GLOBAL_SECURITY_PRIVILEGE")
+        if set(self.privileges) - P6_GLOBAL_PRIVILEGE_IDS:
+            raise GlobalSecurityError("UNKNOWN_GLOBAL_SECURITY_PRIVILEGE")
+        if tuple(self.privileges) != normalize_global_privileges(self.privileges):
+            raise GlobalSecurityError("GLOBAL_SECURITY_PRIVILEGE_DEPENDENCY_MISSING")
         if self.built_in and self.name not in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE")
         if self.name in BUILTIN_GLOBAL_PROFILES and not self.built_in:
