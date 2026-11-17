@@ -585,6 +585,7 @@ def bootstrap_first_admin_superuser(
     active_admin = connection.execute(
         "SELECT 1 FROM p6_security_profile_assignments a "
         "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
         "JOIN identity_users u ON u.user_id=a.user_id "
         "WHERE a.tenant_id=%s AND a.profile_id=%s AND a.obs_id='' "
         "AND p.scope='global' AND p.active=TRUE AND u.active=TRUE LIMIT 1",
@@ -856,6 +857,7 @@ class PostgresSecurityProfileRepository:
         return self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id "
             "LEFT JOIN p6_security_profile_privileges grant_row "
             "ON grant_row.tenant_id=p.tenant_id AND grant_row.profile_id=p.profile_id "
@@ -1260,6 +1262,7 @@ class PostgresSecurityProfileRepository:
             actor_is_admin_superuser = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
                 "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
                 (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -1316,6 +1319,7 @@ class PostgresSecurityProfileRepository:
                         actor_is_admin_superuser = self._connection.execute(
                             "SELECT 1 FROM p6_security_profile_assignments a "
                             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
                             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
                             (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -1399,6 +1403,7 @@ class PostgresSecurityProfileRepository:
             "SELECT p.profile_id,p.name,a.obs_id,a.revision "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id<>'' AND p.scope='project' "
             "ORDER BY a.obs_id",
             (tenant_id, user_id),
@@ -1447,6 +1452,7 @@ class PostgresSecurityProfileRepository:
             "a.revision,a.assigned_by,a.assigned_at "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global'",
             (tenant_id, user_id),
         ).fetchone()
@@ -1500,6 +1506,7 @@ class PostgresSecurityProfileRepository:
             "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,a.revision "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global' "
             "FOR UPDATE OF a",
             (tenant_id, user_id),
@@ -1556,6 +1563,7 @@ class PostgresSecurityProfileRepository:
             actor_is_admin_superuser = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
                 "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
                 (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -1691,6 +1699,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id, context.user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -1783,6 +1792,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         return self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
@@ -1798,6 +1808,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
@@ -1805,6 +1816,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         global_profile = self._connection.execute(
             "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
@@ -1836,6 +1848,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         profiles = self._connection.execute(
             "SELECT p.profile_id FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
             "AND p.active=TRUE AND a.obs_id=ANY(%s)",
             (context.tenant_id,context.user_id,obs_ids),
@@ -1897,6 +1910,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
@@ -1904,6 +1918,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         global_profile = self._connection.execute(
             "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
@@ -1993,6 +2008,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         profile_rows = self._connection.execute(
             "SELECT p.profile_id,p.active FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
             "AND a.obs_id=%s",
             (context.tenant_id,context.user_id,effective_obs_id),
@@ -2008,6 +2024,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             readonly = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
                 "AND p.active=TRUE AND a.obs_id = ANY(%s) LIMIT 1",
                 (context.tenant_id,context.user_id,sorted(project_obs_ids)),
