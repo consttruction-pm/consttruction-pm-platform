@@ -105,6 +105,7 @@ class FakeRepository:
             ("tenant-a", "alice"), ("tenant-a", "bob"), ("tenant-a", "admin"),
             ("tenant-b", "other"),
         }
+        self.preferences: dict[tuple[str, str, str], tuple[bool, int]] = {}
 
     def user_belongs_to_tenant(self, tenant_id, user_id):
         return (tenant_id, user_id) in self.users
@@ -139,6 +140,18 @@ class FakeRepository:
         return tuple(
             item for (tenant, _), item in self.items.items() if tenant == tenant_id
         )[:limit]
+
+    def list_display_preferences(self, tenant_id, user_id):
+        return {
+            dashboard_id: (displayed, display_order)
+            for (tenant, user, dashboard_id), (displayed, display_order) in self.preferences.items()
+            if tenant == tenant_id and user == user_id
+        }
+
+    def replace_display_preferences(self, tenant_id, user_id, preferences, *, updated_at):
+        for dashboard_id, displayed, display_order in preferences:
+            self.get(tenant_id, dashboard_id)
+            self.preferences[(tenant_id, user_id, dashboard_id)] = (displayed, display_order)
 
     def update(self, dashboard, *, expected_revision, actor_id, occurred_at, event_type="updated"):
         current = self.get(dashboard.tenant_id, dashboard.dashboard_id)
@@ -259,6 +272,77 @@ def test_create_derives_tenant_and_owner_from_authenticated_session():
     assert stored.dashboard.owner_user_id == "alice"
     assert stored.dashboard.revision == 1
     assert stored.dashboard.visibility == "private"
+
+
+def test_p6_dashboard_max_rows_setting_defaults_and_validates_bounds():
+    service, _, _, _ = make_service()
+    default_dashboard = create_dashboard(service)
+    assert default_dashboard.dashboard.max_rows_per_portlet == 100
+
+    custom = service.create_dashboard(
+        "alice-session",
+        create_payload(max_rows_per_portlet=25),
+        idempotency_key="dashboard-row-limit",
+    )
+    assert custom.dashboard.max_rows_per_portlet == 25
+    updated = service.update_dashboard(
+        "alice-session",
+        custom.dashboard.dashboard_id,
+        {"max_rows_per_portlet": 10},
+        expected_revision=1,
+    )
+    assert updated.dashboard.max_rows_per_portlet == 10
+
+    with pytest.raises(EnterpriseDashboardError, match="MAX_ROWS_PER_PORTLET"):
+        service.update_dashboard(
+            "alice-session",
+            custom.dashboard.dashboard_id,
+            {"max_rows_per_portlet": 0},
+            expected_revision=2,
+        )
+
+
+def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order():
+    service, repository, _, _ = make_service()
+    created = []
+    for index, title in enumerate(("Alpha", "Beta", "Gamma")):
+        created.append(
+            service.create_dashboard(
+                "alice-session",
+                create_payload(title=title),
+                idempotency_key=f"catalog-{index}",
+            )
+        )
+    ids = [item.dashboard.dashboard_id for item in created]
+    initial = service.list_dashboard_catalog("alice-session")
+    assert [item["dashboard"]["dashboard_id"] for item in initial["displayed_dashboards"]] == ids
+    assert initial["available_dashboards"] == []
+
+    hidden = service.set_dashboard_display_preference(
+        "alice-session", ids[1], displayed=False
+    )
+    assert [item["dashboard"]["dashboard_id"] for item in hidden["displayed_dashboards"]] == [
+        ids[0], ids[2]
+    ]
+    assert [item["dashboard"]["dashboard_id"] for item in hidden["available_dashboards"]] == [
+        ids[1]
+    ]
+
+    reordered = service.set_dashboard_display_preference(
+        "alice-session", ids[1], displayed=True, position=0
+    )
+    assert [item["dashboard"]["dashboard_id"] for item in reordered["displayed_dashboards"]] == [
+        ids[1], ids[0], ids[2]
+    ]
+    searched = service.list_dashboard_catalog("alice-session", search="amm")
+    assert [item["dashboard"]["title"] for item in searched["displayed_dashboards"]] == ["Gamma"]
+
+    assert all(repository.get("tenant-a", dashboard_id).revision == 1 for dashboard_id in ids)
+    assert repository.list_display_preferences("tenant-a", "bob") == {}
+    with pytest.raises(Exception):
+        service.set_dashboard_display_preference(
+            "bob-session", ids[0], displayed=False
+        )
 
 
 def test_create_rejects_caller_supplied_authority_fields():
@@ -722,6 +806,40 @@ def test_portlet_read_rejects_cross_tenant_source_snapshot():
         match="PORTFOLIO_SNAPSHOT_SCOPE_MISMATCH",
     ):
         service.read_portlets("alice-session", created.dashboard.dashboard_id)
+
+
+def test_p6_max_rows_limits_displayed_snapshot_rows_without_changing_source_summary():
+    source = replace(
+        snapshot(),
+        projects=tuple(
+            PortfolioProjectControlInput(
+                f"project-{index}", index, "included", "active"
+            )
+            for index in range(1, 4)
+        ),
+    )
+    service, _, lifecycle, _ = make_service(source=FakePortfolioQuery(source))
+    for index in range(2, 4):
+        lifecycle.project_grants.add(("alice-session", f"project-{index}"))
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(
+            max_rows_per_portlet=2,
+            filters=[],
+        ),
+        idempotency_key="dashboard-row-limit-read",
+    )
+    portlet = service.read_portlets(
+        "alice-session", created.dashboard.dashboard_id
+    )["portlets"][0]
+    assert [row["project_id"] for row in portlet["data"]["projects"]] == [
+        "project-1", "project-2"
+    ]
+    assert portlet["data"]["summary"]["total_projects"] == 3
+    assert portlet["data"]["summary"]["displayed_projects"] == 2
+    assert portlet["truncated"] is True
+    assert portlet["display_limit"] == 2
+    assert {project for _, project, _ in lifecycle.authorized} == set()
 
 
 def test_stale_and_missing_source_states_are_explicit():
