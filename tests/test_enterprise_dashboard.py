@@ -1293,6 +1293,15 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     assert len(ORACLE_HELP_TRACEABILITY_URLS) == 109
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
+    documented_official_urls = {
+        line.split("](", 1)[1].split(")", 1)[0]
+        for line in document.splitlines()
+        if "](" in line
+        and line.split("](", 1)[1].startswith(
+            ("https://docs.oracle.com/", "https://primavera.oraclecloud.com/")
+        )
+    }
+    assert documented_official_urls == set(ORACLE_HELP_TRACEABILITY_URLS)
     for disposition in ("Implemented", "Partial", "Not Applicable", "Deferred"):
         assert disposition in document
     for navigation_or_access_term in (
@@ -1306,5 +1315,8 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
         "Filter by",
         "restrict_filter_override",
         "administrator-only",
+        "max_rows_per_portlet",
+        "unique dashboard title within each tenant",
+        "Project Code",
     ):
         assert navigation_or_access_term in document
