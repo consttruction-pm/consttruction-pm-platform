@@ -1245,6 +1245,7 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert "applied_filters" in schema["$defs"]["portlet_read_response"]["required"]
     assert "row_limit" in schema["$defs"]["portlet_read_response"]["required"]
     assert "truncated" in schema["$defs"]["portlet_read_response"]["required"]
+    assert schema["$defs"]["portlet_read_response"]["properties"]["row_limit"]["type"] == "integer"
     assert schema["$defs"]["portlet_read_response"]["properties"]["row_limit"]["maximum"] == 500
     assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
         "cubi-enterprise-dashboard-read.v1"
@@ -1363,6 +1364,10 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://docs.oracle.com/cd/G48897_01/p6help/en/9115.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/9114.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/36491.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/101088.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/48710.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/39374.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/34462.htm",
 )
 
 
@@ -1371,7 +1376,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 111
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 115
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     documented_official_urls = {
