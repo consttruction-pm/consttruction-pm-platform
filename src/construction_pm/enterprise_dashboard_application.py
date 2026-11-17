@@ -651,6 +651,7 @@ class EnterpriseDashboardApplicationService:
             "data": None,
             "drill_through_refs": [],
             "saved_filters": [item.as_dict() for item in dashboard_filters],
+            "filtered_out": False,
         }
 
     def _freshness(self, generated_at: datetime | None) -> str:
