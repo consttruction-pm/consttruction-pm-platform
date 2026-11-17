@@ -370,3 +370,19 @@ narrow runtime; the tenant-wide resource identity is populated by the resource
 master repository migrations and existing resource persistence paths. The
 resource selector for Associated Resource is available through the new tenant
 admin endpoint.
+
+
+### Secure Codes production API wiring — 2026-11-17
+
+PostgreSQL code-definition and code-assignment repositories are now part of
+production schema initialization and runtime composition. Production HTTP
+routes mount code definition list/detail/create and assignment list/detail/create
+through the persisted global-security policy. The code-definition POST contract
+accepts the explicit `is_secure` flag; assignment routes use the secure-code
+View/Assign checks and activity-code Project Security Profile checks. The
+profile API's code catalogue and Secure Code global privileges therefore reach
+the actual production route surface, not only unit-level API classes.
+
+Definition update/delete, assignment delete, XER/XML import/export, copy/paste,
+all code-value editing surfaces and report/selector consumers remain open parity
+items; no claim is made that every secure-code surface is covered yet.
