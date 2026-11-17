@@ -77,6 +77,12 @@ from ..p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
 from ..p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from ..p6_resource_rate_read_api import P6ResourceRateReadAPI
 from ..p6_resource_rate_write_api import P6ResourceRateWriteAPI
+from ..p6_code_repository import P6CodeApplicationService, PostgresP6CodeRepository
+from ..p6_code_assignment_repository import (
+    P6CodeAssignmentApplicationService,
+    PostgresP6CodeAssignmentRepository,
+)
+from ..p6_code_api import P6CodeAPI, P6CodeAssignmentAPI
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -389,6 +395,12 @@ class ProductionRuntime:
         resource_rate_service = P6ResourceRateApplicationService(
             resource_rate_repository, transaction_manager
         )
+        code_repository = PostgresP6CodeRepository(connection)
+        code_service = P6CodeApplicationService(code_repository, transaction_manager)
+        code_assignment_repository = PostgresP6CodeAssignmentRepository(connection)
+        code_assignment_service = P6CodeAssignmentApplicationService(
+            code_assignment_repository, transaction_manager
+        )
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
@@ -466,6 +478,10 @@ class ProductionRuntime:
             ),
             p6_resource_rate_write_api=P6ResourceRateWriteAPI(
                 resource_rate_service, policy, resource_repository=resource_repository,
+            ),
+            p6_code_api=P6CodeAPI(code_service, policy),
+            p6_code_assignment_api=P6CodeAssignmentAPI(
+                code_assignment_service, policy, code_service=code_service,
             ),
             tracking_resource_repository=resource_repository,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
