@@ -199,3 +199,29 @@ and [Working with Security Profiles — V26](https://docs.oracle.com/en/industri
 
 Acceptance still requires PostgreSQL integration coverage and browser E2E on
 the exact final SHA. No completion claim is made by this slice.
+
+
+### Resource Access expansion to resource-bearing APIs — 2026-11-17
+
+A shared repository-backed gate now resolves the requested resource's
+self-to-root ancestry and is consumed by:
+- resource assignment, assignment-period, and spread reads;
+- resource assignment and assignment-period writes;
+- effective-dated resource capacity and rate reads/writes;
+- role-to-resource mapping list, add, and remove operations.
+
+Read lists filter before DTO serialization; detail reads hide inaccessible
+records; writes reject before persistence. The production WSGI composition
+replaces these APIs' authorization policy with the persisted global policy and
+injects the same authoritative resource-master repository. If a P6 global
+policy is active but no resource-master repository is supplied, composition
+fails with `P6_RESOURCE_ACCESS_REPOSITORY_REQUIRED` rather than silently
+running without ancestry enforcement. The preview composition now supplies its
+resource master to all resource read/write APIs as well.
+
+Tests added for the shared ancestry resolver, fail-closed configuration,
+master-register list/detail filtering, assignment list/detail filtering,
+selected-root descendants, sibling denial, and persisted Resources-module
+requirements. Live PostgreSQL and browser checks are still required; the
+resource-bearing API matrix should be reviewed against every remaining import,
+export, role picker, and reporting surface before acceptance.
