@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 P6_PROJECT_SECURITY_HELP_URL = "https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm"
+P6_PROJECT_SUPERUSER_PROFILE_ID = "p6-project-superuser"
+P6_PROJECT_SUPERUSER_PROFILE_NAME = "Project Superuser"
 
 # (stable privilege code, exact V26 label, exact Help category)
 P6_PROJECT_PRIVILEGE_DEFINITIONS = (
@@ -120,6 +122,8 @@ class P6ProjectSecurityProfile:
     active: bool = True
     revision: int = 1
     is_default: bool = False
+    built_in: bool = False
+    description: str = ""
 
     def validate(self) -> None:
         if not all(isinstance(value, str) and value.strip() for value in (
@@ -129,7 +133,8 @@ class P6ProjectSecurityProfile:
         if (len(self.profile_id) > 120 or len(self.name) > 160
                 or isinstance(self.revision, bool) or not isinstance(self.revision, int)
                 or self.revision < 1 or not isinstance(self.active, bool)
-                or not isinstance(self.is_default, bool)):
+                or not isinstance(self.is_default, bool) or not isinstance(self.built_in, bool)
+                or not isinstance(self.description, str) or len(self.description) > 2000):
             raise ProjectSecurityError("PROJECT_SECURITY_PROFILE_INVALID")
         if not isinstance(self.privileges, tuple) or any(
             not isinstance(code, str) or not code.strip() for code in self.privileges
@@ -139,6 +144,12 @@ class P6ProjectSecurityProfile:
             raise ProjectSecurityError("DUPLICATE_PROJECT_SECURITY_PRIVILEGE")
         if set(self.privileges) != set(normalize_project_privileges(self.privileges)):
             raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_DEPENDENCY_MISSING")
+        if self.built_in and (self.profile_id != P6_PROJECT_SUPERUSER_PROFILE_ID
+                              or self.name != P6_PROJECT_SUPERUSER_PROFILE_NAME
+                              or set(self.privileges) != set(P6_PROJECT_PRIVILEGE_IDS)):
+            raise ProjectSecurityError("PROJECT_SUPERUSER_PROFILE_INVALID")
+        if not self.built_in and self.profile_id == P6_PROJECT_SUPERUSER_PROFILE_ID:
+            raise ProjectSecurityError("PROJECT_SUPERUSER_PROFILE_ID_RESERVED")
 
 
 def require_project_privilege(policy, auth_context, privilege_code: str) -> None:
