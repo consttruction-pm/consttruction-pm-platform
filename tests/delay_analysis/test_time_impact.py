@@ -83,7 +83,6 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
         snapshot_repository=snapshot_repository,
         run_repository=run_repository,
         transaction_manager=SQLiteTransactionManager(connection),
-        snapshot_id_factory=lambda: "IMPACTED-SNAPSHOT",
         clock=lambda: next(clock_values),
     )
 
@@ -91,7 +90,7 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
 
     assert result.method == "P6_EPPM_STYLE_INSERTED_FRAGNET_WHAT_IF"
     assert result.source_snapshot_id == "SOURCE-SNAPSHOT"
-    assert result.impacted_snapshot_id == "IMPACTED-SNAPSHOT"
+    assert result.impacted_snapshot_id.startswith("TIA-")
     assert result.added_activity_ids == ("EVT-ACCESS-01-A",)
     assert result.impacted_run.snapshot_hash == result.impacted_snapshot_hash
     assert result.unimpacted_run.snapshot_hash == source_snapshot.snapshot_hash
