@@ -158,7 +158,6 @@ class SQLiteP6ResourceRepository:
         self, resource: P6Resource, *, expected_revision: int | None = None
     ) -> P6Resource:
         resource.validate()
-        self._validate_enterprise_identity(resource)
         row = self.connection.execute(
             "SELECT project_revision,name,resource_type,parent_resource_id,calendar_id,"
             "default_units_per_time,unit_of_measure,email,is_active,record_revision "
