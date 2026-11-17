@@ -19,6 +19,25 @@ from .application.authorization import (
 
 _PROFILE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
 _PROFILE_SCOPES = frozenset({"global", "project"})
+P6_MODULE_ACCESS_OPTIONS = (
+    "projects", "portfolios", "resources", "contributor",
+    "enterprise_reports", "integration_api", "p6_analytics",
+    "p6_professional", "team_member", "timesheet", "visualizer",
+    "web_services",
+)
+P6_RESOURCE_ACCESS_MODES = frozenset({"none", "all", "selected"})
+P6_MAX_SELECTED_RESOURCE_ROOTS = 5
+
+
+def normalize_module_access(values: Iterable[str]) -> tuple[str, ...]:
+    selected = set(values)
+    if selected - set(P6_MODULE_ACCESS_OPTIONS):
+        raise SecurityProfileError("SECURITY_PROFILE_MODULE_ACCESS_INVALID")
+    if "contributor" in selected and len(selected) > 1:
+        raise SecurityProfileError("SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE")
+    return tuple(value for value in P6_MODULE_ACCESS_OPTIONS if value in selected)
+
+
 # Reserved Oracle P6 V26 built-in. It is provisioned only by a controlled
 # installation bootstrap; tenant administrators cannot create or edit it.
 ADMIN_SUPERUSER_PROFILE_ID = "p6-admin-superuser"
@@ -303,6 +322,45 @@ SECURITY_PROFILE_SCHEMA = (
     )
     """,
     """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS module_access JSONB NOT NULL DEFAULT '[]'::jsonb
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS resource_access_mode TEXT NOT NULL DEFAULT 'none'
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS resource_root_ids JSONB NOT NULL DEFAULT '[]'::jsonb
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    DROP CONSTRAINT IF EXISTS p6_security_profile_module_access_check
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD CONSTRAINT p6_security_profile_module_access_check
+    CHECK (jsonb_typeof(module_access)='array')
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    DROP CONSTRAINT IF EXISTS p6_security_profile_resource_access_check
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD CONSTRAINT p6_security_profile_resource_access_check
+    CHECK (
+        jsonb_typeof(resource_root_ids)='array'
+        AND resource_access_mode IN ('none','all','selected')
+        AND (
+            (resource_access_mode IN ('none','all') AND jsonb_array_length(resource_root_ids)=0)
+            OR
+            (resource_access_mode='selected'
+             AND jsonb_array_length(resource_root_ids) BETWEEN 1 AND 5)
+        )
+    )
+    """,
+    """
     CREATE INDEX IF NOT EXISTS p6_security_profile_assignments_user
     ON p6_security_profile_assignments (tenant_id, user_id, obs_id)
     """,
@@ -374,7 +432,7 @@ SECURITY_PROFILE_SCHEMA = (
     ADD CONSTRAINT p6_security_profile_audit_action_check
     CHECK (action IN ('profile_created','privileges_changed','profile_status_changed',
                       'profile_assigned','profile_unassigned','profile_updated',
-                      'profile_default_changed','profile_deleted'))
+                      'profile_default_changed','profile_deleted','user_global_access_updated'))
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_audit_immutable()
@@ -1062,6 +1120,104 @@ class PostgresSecurityProfileRepository:
                     occurred_at)
         return revision
 
+    def get_global_user_access(self, tenant_id: str, user_id: str) -> dict[str, Any]:
+        row = self._connection.execute(
+            "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,"
+            "a.revision,a.assigned_by,a.assigned_at "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global'",
+            (tenant_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
+        modules, roots = row[1], row[3]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if isinstance(roots, str):
+            roots = json.loads(roots)
+        return {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "profile_id": str(row[0]),
+            "module_access": list(normalize_module_access(tuple(modules or ()))),
+            "resource_access_mode": str(row[2]),
+            "resource_root_ids": list(roots or ()),
+            "revision": int(row[4]),
+            "assigned_by": str(row[5]),
+            "assigned_at": row[6].isoformat(),
+        }
+
+    def set_global_user_access(
+        self, *, tenant_id: str, user_id: str, module_access: Iterable[str],
+        resource_access_mode: str, resource_root_ids: Iterable[str] = (),
+        expected_revision: int, actor_user_id: str, occurred_at: Any,
+    ) -> dict[str, Any]:
+        if (not isinstance(expected_revision, int) or isinstance(expected_revision, bool)
+                or expected_revision < 1):
+            raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED")
+        modules = normalize_module_access(module_access)
+        if resource_access_mode not in P6_RESOURCE_ACCESS_MODES:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ACCESS_INVALID")
+        roots = tuple(resource_root_ids)
+        if any(not isinstance(value, str) or not value.strip() for value in roots):
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOT_INVALID")
+        if len(set(roots)) != len(roots) or len(roots) > P6_MAX_SELECTED_RESOURCE_ROOTS:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOT_LIMIT")
+        if resource_access_mode == "selected":
+            # The current canonical resource master is project/revision scoped;
+            # it is not the enterprise-wide hierarchy required by V26 Resource
+            # Access. Do not accept arbitrary IDs as an authorization boundary.
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED")
+        if roots:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOTS_NOT_ALLOWED")
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-global-user-access:{tenant_id}:{user_id}",),
+        )
+        current = self._connection.execute(
+            "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,a.revision "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global' "
+            "FOR UPDATE OF a",
+            (tenant_id, user_id),
+        ).fetchone()
+        if current is None:
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
+        if int(current[4]) != expected_revision:
+            raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+        profile_id = str(current[0])
+        if profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+            resource_access_mode = "all"
+        before = {
+            "profile_id": profile_id,
+            "module_access": list(current[1] if not isinstance(current[1], str) else json.loads(current[1])),
+            "resource_access_mode": str(current[2]),
+            "resource_root_ids": list(current[3] if not isinstance(current[3], str) else json.loads(current[3])),
+            "revision": int(current[4]),
+        }
+        revision = expected_revision + 1
+        self._connection.execute(
+            "UPDATE p6_security_profile_assignments SET module_access=%s::jsonb,"
+            "resource_access_mode=%s,resource_root_ids='[]'::jsonb,revision=%s,"
+            "assigned_by=%s,assigned_at=%s "
+            "WHERE tenant_id=%s AND user_id=%s AND profile_id=%s AND obs_id='' AND revision=%s",
+            (json.dumps(list(modules)), resource_access_mode, revision, actor_user_id,
+             occurred_at, tenant_id, user_id, profile_id, expected_revision),
+        )
+        after = {
+            "profile_id": profile_id, "module_access": list(modules),
+            "resource_access_mode": resource_access_mode, "resource_root_ids": [],
+            "revision": revision,
+        }
+        self._audit(
+            tenant_id, actor_user_id, profile_id, "user_global_access_updated",
+            {"user_id": user_id, **before}, {"user_id": user_id, **after}, occurred_at,
+        )
+        return {"tenant_id": tenant_id, "user_id": user_id, **after,
+                "assigned_by": actor_user_id, "assigned_at": occurred_at.isoformat()}
+
     def unassign(
         self, *, tenant_id: str, profile_id: str, user_id: str,
         obs_id: str = "", expected_revision: int,
@@ -1133,18 +1289,27 @@ class PostgresSecurityProfileRepository:
         if exists is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         rows = self._connection.execute(
-            "SELECT a.user_id,u.email,u.display_name,a.obs_id,a.revision,a.assigned_by,a.assigned_at "
+            "SELECT a.user_id,u.email,u.display_name,a.obs_id,a.revision,a.assigned_by,a.assigned_at,"
+            "a.module_access,a.resource_access_mode,a.resource_root_ids "
             "FROM p6_security_profile_assignments a "
             "JOIN identity_users u ON u.user_id=a.user_id "
             "WHERE a.tenant_id=%s AND a.profile_id=%s ORDER BY u.email,a.obs_id",
             (tenant_id, profile_id),
         ).fetchall()
-        return tuple({
-            "user_id": str(row[0]), "email": str(row[1]),
-            "display_name": str(row[2]), "obs_id": str(row[3]),
-            "revision": int(row[4]), "assigned_by": str(row[5]),
-            "assigned_at": row[6].isoformat(),
-        } for row in rows)
+        result = []
+        for row in rows:
+            modules = row[7] if not isinstance(row[7], str) else json.loads(row[7])
+            roots = row[9] if not isinstance(row[9], str) else json.loads(row[9])
+            result.append({
+                "user_id": str(row[0]), "email": str(row[1]),
+                "display_name": str(row[2]), "obs_id": str(row[3]),
+                "revision": int(row[4]), "assigned_by": str(row[5]),
+                "assigned_at": row[6].isoformat(),
+                "module_access": list(modules or ()),
+                "resource_access_mode": str(row[8]),
+                "resource_root_ids": list(roots or ()),
+            })
+        return tuple(result)
 
     def _description(self, value: Any) -> str:
         if not isinstance(value, str):
