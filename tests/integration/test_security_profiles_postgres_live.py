@@ -708,6 +708,22 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         context = AuthorizationContext(tenant, project_id, target_id, frozenset({"planner"}))
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
+
+        status, deactivated = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/status",
+            session_id="user-admin-session",
+            payload={"contract_version": "cubi-enterprise-user-admin.v1", "active": False},
+        )
+        assert status == 200 and deactivated["account"]["active"] is False
+        access_after_deactivation = profiles.get_global_user_access(tenant, target_id)
+        assert access_after_deactivation["module_access"] == []
+        status, reactivated = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/status",
+            session_id="user-admin-session",
+            payload={"contract_version": "cubi-enterprise-user-admin.v1", "active": True},
+        )
+        assert status == 200 and reactivated["account"]["active"] is True
+        assert profiles.get_global_user_access(tenant, target_id)["module_access"] == []
         connection.commit()
 
 def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
