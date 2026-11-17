@@ -181,8 +181,14 @@ class PostgresEnterpriseDashboardRepository:
             or not 1 <= max_dashboard_portlets <= 50
         ):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
-        _required_text(actor_id, "ACTOR_ID")
-        _aware_datetime(occurred_at, "OCCURRED_AT")
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise EnterpriseDashboardError("ACTOR_ID_REQUIRED")
+        if (
+            not isinstance(occurred_at, datetime)
+            or occurred_at.tzinfo is None
+            or occurred_at.utcoffset() is None
+        ):
+            raise EnterpriseDashboardError("OCCURRED_AT_MUST_BE_TIMEZONE_AWARE")
         row = self.connection.execute(
             "INSERT INTO enterprise_dashboard_tenant_policies "
             "(tenant_id,max_dashboard_portlets,updated_by,updated_at) "
