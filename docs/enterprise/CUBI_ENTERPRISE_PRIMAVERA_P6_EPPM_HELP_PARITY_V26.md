@@ -161,7 +161,7 @@ For every Enterprise work package:
 
 - Added unit coverage proving Add/Edit Activities does not authorize the Resource Planning route, the dedicated grant does, and a WBS override still denies a project-OBS actor.
 - Added authenticated HTTP-route coverage for the separate Resource Planning endpoint.
-- Extended the live PostgreSQL Security Profile integration scenario to prove exact privilege evaluation, unassigned-planner denial, WBS-responsibility boundaries and cross-tenant denial.
+- Extended the live PostgreSQL Security Profile integration scenario to prove independent positive/negative evaluation of all four Resource Planning privileges, the Edit Future Periods prerequisite, unassigned-planner denial, WBS-responsibility boundaries and cross-tenant denial. Matrix test commit: `706d5ff7f073cf720c6f9233c5f2bda9c73dc8bf`.
 - These tests are committed but are **not marked passing** until the exact latest branch SHA has successful CI/PostgreSQL Integration results.
 - Next implementation slice: add audited, row-revisioned Resource Planning assignment edit/delete; then model the separate project role-assignment entity, committed-flag persistence, and future-period planned/remaining-early values with their own APIs and tests. UI controls remain deferred until those write contracts exist.
 
