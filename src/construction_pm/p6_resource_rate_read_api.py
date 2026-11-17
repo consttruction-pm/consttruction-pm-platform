@@ -13,6 +13,8 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import resource_is_accessible
 from .p6_resource_rate_repository import (
     P6ResourceRateApplicationService,
     P6ResourceRateRecord,
@@ -65,6 +67,12 @@ def _rate_dto(record: P6ResourceRateRecord) -> dict[str, Any]:
 class P6ResourceRateReadAPI:
     service: P6ResourceRateApplicationService
     authorization_policy: AuthorizationPolicy
+    resource_repository: P6ResourceRepository | None = None
+
+    def _visible(self, scope: BackendScope, resource_id: str, auth_context: AuthorizationContext) -> bool:
+        return resource_is_accessible(
+            self.authorization_policy, self.resource_repository, scope, resource_id, auth_context
+        )
 
     def list_rates(
         self,
@@ -77,6 +85,7 @@ class P6ResourceRateReadAPI:
         _require_read(self.authorization_policy, auth_context)
         return tuple(
             _rate_dto(record) for record in self.service.list(scope, resource_id)
+            if self._visible(scope, record.fact.resource_id, auth_context)
         )
 
     def get_profile(
@@ -89,6 +98,8 @@ class P6ResourceRateReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         records = self.service.list(scope, resource_id)
+        if records and not self._visible(scope, records[0].fact.resource_id, auth_context):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         if not records:
             raise ResourceRateFactError("RESOURCE_RATE_NOT_REGISTERED")
         ResourceRateProfile(resource_id, tuple(record.fact for record in records))
@@ -112,6 +123,8 @@ class P6ResourceRateReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         records = self.service.list(scope, resource_id)
+        if records and not self._visible(scope, records[0].fact.resource_id, auth_context):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         if not records:
             raise ResourceRateFactError("RESOURCE_RATE_NOT_REGISTERED")
         profile = ResourceRateProfile(
