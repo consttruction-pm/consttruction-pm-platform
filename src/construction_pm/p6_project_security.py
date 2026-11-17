@@ -80,18 +80,29 @@ P6_PROJECT_PRIVILEGE_CATEGORIES = (
 
 # Only prerequisites explicitly stated by V26 Help are included here.
 P6_PROJECT_PRIVILEGE_DEPENDENCIES = {
-    "edit_activity_id": frozenset({"add_edit_activities_except_relationships"}),
+    # Help explicitly says these options also select the listed privileges.
     "delete_project_activity_codes": frozenset({"add_project_activity_codes", "edit_project_activity_codes"}),
     "add_project_activity_codes": frozenset({"edit_project_activity_codes"}),
     "delete_eps_activity_codes": frozenset({"add_eps_activity_codes", "edit_eps_activity_codes"}),
     "add_eps_activity_codes": frozenset({"edit_eps_activity_codes"}),
-    "edit_wbs_costs_financials": frozenset({"add_edit_delete_wbs_except_costs_financials", "view_project_costs_financials"}),
-    "assign_project_baselines": frozenset({"edit_project_details_except_costs_financials"}),
-    "add_edit_delete_template_documents": frozenset({"add_edit_delete_work_products_documents"}),
-    "edit_period_performance": frozenset({"add_edit_activities_except_relationships", "view_project_costs_financials"}),
-    "store_period_performance": frozenset({"add_edit_activities_except_relationships"}),
+    "edit_wbs_costs_financials": frozenset({"view_project_costs_financials"}),
     "level_resources": frozenset({"schedule_projects"}),
 }
+
+# Required co-grants are not silently auto-selected: the V26 Help says the
+# administrator must also grant them before the feature can be used/selected.
+P6_PROJECT_PRIVILEGE_REQUIREMENTS = {
+    "edit_activity_id": frozenset({"add_edit_activities_except_relationships"}),
+    "edit_wbs_costs_financials": frozenset({"add_edit_delete_wbs_except_costs_financials"}),
+    "assign_project_baselines": frozenset({"edit_project_details_except_costs_financials"}),
+    "add_edit_delete_template_documents": frozenset({"add_edit_delete_work_products_documents"}),
+    "edit_future_periods": frozenset({"add_edit_activities_except_relationships"}),
+    "edit_period_performance": frozenset({
+        "add_edit_activities_except_relationships", "view_project_costs_financials"
+    }),
+    "store_period_performance": frozenset({"add_edit_activities_except_relationships"}),
+}
+
 
 
 class ProjectSecurityError(ValueError):
@@ -142,8 +153,13 @@ class P6ProjectSecurityProfile:
             raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_INVALID")
         if len(set(self.privileges)) != len(self.privileges):
             raise ProjectSecurityError("DUPLICATE_PROJECT_SECURITY_PRIVILEGE")
-        if set(self.privileges) != set(normalize_project_privileges(self.privileges)):
-            raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_DEPENDENCY_MISSING")
+        normalized = set(normalize_project_privileges(self.privileges))
+        if set(self.privileges) != normalized:
+            raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_AUTO_SELECT_MISSING")
+        selected = set(self.privileges)
+        for privilege, required in P6_PROJECT_PRIVILEGE_REQUIREMENTS.items():
+            if privilege in selected and not required.issubset(selected):
+                raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_REQUIREMENT_MISSING")
         if self.built_in and (self.profile_id != P6_PROJECT_SUPERUSER_PROFILE_ID
                               or self.name != P6_PROJECT_SUPERUSER_PROFILE_NAME
                               or set(self.privileges) != set(P6_PROJECT_PRIVILEGE_IDS)):
