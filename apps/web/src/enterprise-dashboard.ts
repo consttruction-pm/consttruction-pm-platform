@@ -187,6 +187,26 @@ export function moveDashboardPortletVertically(
   return validateDashboardLayout(result) ? result : clone();
 }
 
+export function moveDashboardPortletToPosition(
+  portlets: readonly EnterpriseDashboardPortlet[],
+  fromIndex: number,
+  toIndex: number,
+): EnterpriseDashboardPortlet[] {
+  const clone = (): EnterpriseDashboardPortlet[] => portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)
+    || fromIndex < 0 || toIndex < 0 || fromIndex >= portlets.length || toIndex >= portlets.length
+    || fromIndex === toIndex) return clone();
+  const result = clone();
+  const source = result[fromIndex];
+  const target = result[toIndex];
+  const sourcePosition = { x: source.layout.x, y: source.layout.y };
+  source.layout.x = target.layout.x;
+  source.layout.y = target.layout.y;
+  target.layout.x = sourcePosition.x;
+  target.layout.y = sourcePosition.y;
+  return validateDashboardLayout(result) ? result : clone();
+}
+
 export function reorderDashboardPortlets<T>(items: readonly T[], fromIndex: number, toIndex: number): T[] {
   if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return [...items];
   const result = [...items];
@@ -335,7 +355,7 @@ function installDashboardStyles(): void {
   document.head.append(style);
 }
 
-export async function mountEnterpriseDashboard(
+export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options: MountOptions = {}): Promise<void> {\n  return mountEnterpriseDashboard(container, new FetchEnterpriseDashboardClient(), options);\n}\n\nexport async function mountEnterpriseDashboard(
   container: HTMLElement,
   client: EnterpriseDashboardClient,
   options: MountOptions = {},
@@ -964,6 +984,23 @@ export async function mountEnterpriseDashboard(
       const list = node("div", "ced-section");
       draftPortlets.forEach((portlet, originalIndex) => {
         const row = node("div", "ced-panel ced-row ced-section");
+        row.draggable = true;
+        row.dataset.layoutIndex = String(originalIndex);
+        row.addEventListener("dragstart", (event) => {
+          event.dataTransfer?.setData("text/plain", String(originalIndex));
+          if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        });
+        row.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        });
+        row.addEventListener("drop", (event) => {
+          event.preventDefault();
+          const fromIndex = Number(event.dataTransfer?.getData("text/plain"));
+          if (!Number.isInteger(fromIndex)) return;
+          draftPortlets = moveDashboardPortletToPosition(draftPortlets, fromIndex, originalIndex);
+          renderLayout();
+        });
         row.append(node("strong", "", portletLabel(portlet.type_id)));
         row.append(node("span", "ced-muted", portlet.layout.w === 12 ? t.wide : t.narrow));
         const up = button(t.moveUp, () => {
@@ -989,7 +1026,7 @@ export async function mountEnterpriseDashboard(
         row.append(up, down, left, right);
         list.append(row);
       });
-      panel.append(list, node("p", "ced-muted", "Arrow controls move portlets within the two-column layout; horizontal controls move Narrow portlets between columns. Narrow/Wide sizing is configured in Content."));
+      panel.append(list, node("p", "ced-muted", "Drag a portlet onto another to exchange their positions when the resulting layout remains valid. Arrow controls move portlets within the two-column layout; Narrow/Wide sizing is configured in Content."));
     }
     function renderAccess(): void {
       if (!activeDefinition) return;
