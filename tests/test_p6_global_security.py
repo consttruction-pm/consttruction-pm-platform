@@ -185,3 +185,108 @@ def test_custom_profile_cannot_preempt_reserved_builtin_profile_ids():
     )
     with pytest.raises(GlobalSecurityError, match="BUILTIN_PROFILE_ID_RESERVED"):
         forged.validate()
+
+
+
+class _FakeGlobalSecurityRepository:
+    def __init__(self, assignment, profile_value):
+        self.assignment = assignment
+        self.profile_value = profile_value
+
+    def get_user_security(self, tenant_id, user_id):
+        if self.assignment is None or (tenant_id, user_id) != (self.assignment.tenant_id, self.assignment.user_id):
+            return None
+        return self.assignment
+
+    def get_profile(self, tenant_id, profile_id):
+        if self.profile_value is None or (tenant_id, profile_id) != (self.profile_value.tenant_id, self.profile_value.profile_id):
+            return None
+        return self.profile_value
+
+
+class _FakeProjectPolicy:
+    def __init__(self, allowed):
+        self.allowed = allowed
+        self.calls = 0
+
+    def is_allowed(self, context, permission):
+        self.calls += 1
+        return self.allowed
+
+
+def _authorization_context():
+    from construction_pm.application.authorization import AuthorizationContext
+    return AuthorizationContext(
+        tenant_id="tenant-a", project_id="project-1", user_id="user-1",
+        roles=frozenset({"viewer"}),
+    )
+
+
+def _user_assignment(profile_id, modules=("projects",)):
+    return UserGlobalSecurity(
+        tenant_id="tenant-a", user_id="user-1", profile_id=profile_id,
+        module_access=tuple(modules), resource_access_mode="none",
+        resource_root_ids=(), revision=1, updated_by="admin",
+        updated_at=datetime.now(timezone.utc),
+    )
+
+
+def test_production_authorization_fails_closed_without_global_assignment():
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+    from construction_pm.application.authorization import Permission
+    role_policy = _FakeProjectPolicy(True)
+    policy = P6GlobalSecurityAuthorizationPolicy(_FakeGlobalSecurityRepository(None, None), role_policy)
+    assert not policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert role_policy.calls == 0
+
+
+def test_production_authorization_allows_only_real_builtin_admin_global_bypass():
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+    from construction_pm.application.authorization import Permission
+    admin = profile(ADMIN_SUPERUSER)
+    role_policy = _FakeProjectPolicy(False)
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(_user_assignment("p6-admin-superuser", modules=()), admin),
+        role_policy,
+    )
+    assert policy.is_allowed(_authorization_context(), Permission.PROJECT_ADMIN)
+    assert role_policy.calls == 0
+
+
+def test_production_authorization_does_not_treat_no_global_privileges_as_obs_grant():
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+    from construction_pm.application.authorization import Permission
+    no_global = profile(NO_GLOBAL_PRIVILEGES)
+    role_policy = _FakeProjectPolicy(True)
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(_user_assignment("p6-no-global-privileges"), no_global),
+        role_policy,
+    )
+    assert not policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert role_policy.calls == 0
+
+
+def test_production_authorization_requires_projects_module_before_role_grant():
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+    from construction_pm.application.authorization import Permission
+    custom = profile("Planner", built_in=False)
+    role_policy = _FakeProjectPolicy(True)
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(_user_assignment("planner", modules=("resources",)), custom),
+        role_policy,
+    )
+    assert not policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert role_policy.calls == 0
+
+
+def test_production_authorization_composes_project_module_and_role_policy():
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+    from construction_pm.application.authorization import Permission
+    custom = profile("Planner", built_in=False)
+    role_policy = _FakeProjectPolicy(True)
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(_user_assignment("planner", modules=("projects",)), custom),
+        role_policy,
+    )
+    assert policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert role_policy.calls == 1
