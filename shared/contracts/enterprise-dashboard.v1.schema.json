@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/enterprise-dashboard.v1",
+  "title": "CUBI Enterprise Dashboard v1",
+  "description": "Tenant-scoped dashboard definition and read-only portlet response contract. Source business facts remain owned by their source domains.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version", "dashboard_id", "tenant_id", "context", "context_portfolio_id",
+    "owner_user_id", "title", "description", "status", "visibility", "shared_user_ids",
+    "shared_role_ids", "portlets", "filters", "revision", "created_at", "updated_at"
+  ],
+  "properties": {
+    "contract_version": { "const": "cubi-enterprise-dashboard.v1" },
+    "dashboard_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "context": { "enum": ["enterprise_home", "portfolio"] },
+    "context_portfolio_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 200 },
+    "owner_user_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "status": { "enum": ["active", "archived"] },
+    "visibility": { "enum": ["private", "users", "roles", "users_and_roles"] },
+    "shared_user_ids": {
+      "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    },
+    "shared_role_ids": {
+      "type": "array", "uniqueItems": true,
+      "items": { "enum": ["enterprise_admin", "enterprise_user", "enterprise_viewer"] }
+    },
+    "portlets": {
+      "type": "array", "minItems": 1, "maxItems": 12,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object", "additionalProperties": false,
+            "required": ["instance_id", "type_id", "contract_version", "config", "layout"],
+            "properties": {
+              "instance_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "type_id": { "const": "portfolio-control-snapshot.v1" },
+              "contract_version": { "const": "portfolio-control-snapshot.v1" },
+              "config": {
+                "type": "object", "additionalProperties": false, "required": ["portfolio_id"],
+                "properties": { "portfolio_id": { "type": "string", "minLength": 1, "maxLength": 200 } }
+              },
+              "layout": { "$ref": "#/$defs/layout" }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false,
+            "required": ["instance_id", "type_id", "contract_version", "config", "layout"],
+            "properties": {
+              "instance_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "type_id": { "const": "portfolio-decision.v1" },
+              "contract_version": { "const": "portfolio-decision.v1" },
+              "config": {
+                "type": "object", "additionalProperties": false,
+                "required": ["portfolio_id", "decision_id"],
+                "properties": {
+                  "portfolio_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "decision_id": { "type": "string", "minLength": 1, "maxLength": 200 }
+                }
+              },
+              "layout": { "$ref": "#/$defs/layout" }
+            }
+          }
+        ]
+      }
+    },
+    "filters": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "project_status" }, "operator": { "enum": ["eq", "in"] },
+              "value": {
+                "oneOf": [
+                  { "enum": ["active", "inactive", "planned", "what_if"] },
+                  { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["active", "inactive", "planned", "what_if"] } }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "membership_status" }, "operator": { "enum": ["eq", "in"] },
+              "value": {
+                "oneOf": [
+                  { "enum": ["included", "on_hold", "excluded"] },
+                  { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["included", "on_hold", "excluded"] } }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "decision_status" }, "operator": { "enum": ["eq", "in"] },
+              "value": {
+                "oneOf": [
+                  { "enum": ["proposed", "under_review", "approved", "rejected", "implemented", "closed", "cancelled"] },
+                  { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["proposed", "under_review", "approved", "rejected", "implemented", "closed", "cancelled"] } }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "generated_after" }, "operator": { "const": "gte" },
+              "value": { "type": "string", "format": "date-time" }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "generated_before" }, "operator": { "const": "lte" },
+              "value": { "type": "string", "format": "date-time" }
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false, "required": ["key", "operator", "value"],
+            "properties": {
+              "key": { "const": "include_stale" }, "operator": { "const": "eq" },
+              "value": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "context": { "const": "portfolio" } }, "required": ["context"] },
+      "then": { "properties": { "context_portfolio_id": { "type": "string", "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "context": { "const": "enterprise_home" } }, "required": ["context"] },
+      "then": { "properties": { "context_portfolio_id": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "visibility": { "const": "private" } }, "required": ["visibility"] },
+      "then": { "properties": { "shared_user_ids": { "maxItems": 0 }, "shared_role_ids": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "visibility": { "const": "users" } }, "required": ["visibility"] },
+      "then": { "properties": { "shared_user_ids": { "minItems": 1 }, "shared_role_ids": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "visibility": { "const": "roles" } }, "required": ["visibility"] },
+      "then": { "properties": { "shared_user_ids": { "maxItems": 0 }, "shared_role_ids": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "visibility": { "const": "users_and_roles" } }, "required": ["visibility"] },
+      "then": { "properties": { "shared_user_ids": { "minItems": 1 }, "shared_role_ids": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "layout": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 0, "maximum": 11 },
+        "y": { "type": "integer", "minimum": 0, "maximum": 99 },
+        "w": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "h": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    }
+  }
+}
