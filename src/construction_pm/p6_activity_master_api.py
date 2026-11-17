@@ -100,7 +100,6 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=0))
 
@@ -120,7 +119,6 @@ class P6ActivityMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
