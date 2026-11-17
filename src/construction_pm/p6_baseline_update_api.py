@@ -14,6 +14,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_baseline_repository import P6Baseline
 from .p6_baseline_update import (
     BASELINE_COMPARISON_STATUS_ADDED,
@@ -255,6 +256,7 @@ class P6BaselineUpdateAPI:
         _require_permission(
             self.authorization_policy, auth_context, Permission.PROJECT_WRITE
         )
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_baselines")
         _require_revision(scope, expected_revision)
         source = _require_identifier(
             source_baseline_id, "BASELINE_UPDATE_SOURCE_INVALID"
