@@ -689,6 +689,46 @@ def test_user_filter_override_is_saved_per_actor_and_reset_without_mutating_dash
     assert reset_read["filters"][0]["key"] == "membership_status"
 
 
+def test_owner_filter_lock_ignores_existing_viewer_override_without_blocking_dashboard_read():
+    service, repository, lifecycle, _ = make_service()
+    created = create_dashboard(
+        service, payload=create_payload(restrict_filter_override=False)
+    )
+    service.assign_share(
+        "alice-session", created.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    override = [{"key": "project_status", "operator": "eq", "value": "active"}]
+    service.save_dashboard_filter_override(
+        "bob-session", created.dashboard.dashboard_id, override
+    )
+    assert repository.list_user_preferences("tenant-a", "bob")[
+        created.dashboard.dashboard_id
+    ]["filter_override"] == override
+
+    service.update_dashboard(
+        "alice-session",
+        created.dashboard.dashboard_id,
+        {"restrict_filter_override": True},
+        expected_revision=2,
+    )
+
+    # The saved user filter is ignored while the owner lock is active; the
+    # shared viewer can still read using the dashboard's default filter.
+    read = service.read_portlets("bob-session", created.dashboard.dashboard_id)
+    assert read["filters"] == read["dashboard"]["filters"]
+    assert read["filters"][0]["key"] == "membership_status"
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="FILTER_OVERRIDE_RESTRICTED"):
+        service.read_portlets(
+            "bob-session", created.dashboard.dashboard_id, filter_overrides=override
+        )
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="FILTER_OVERRIDE_RESTRICTED"):
+        service.save_dashboard_filter_override(
+            "bob-session", created.dashboard.dashboard_id, override
+        )
+
+
 def test_saved_user_filter_override_obeys_owner_restriction():
     service, _, lifecycle, _ = make_service()
     created = service.create_dashboard(
