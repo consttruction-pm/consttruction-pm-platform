@@ -1,0 +1,105 @@
+import sqlite3
+from datetime import datetime, timezone
+
+import pytest
+
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+from construction_pm.p6_associated_resource_api import P6AssociatedResourceAPI
+from construction_pm.p6_associated_resource_repository import (
+    P6AssociatedResource,
+    P6AssociatedResourceError,
+    SQLiteP6AssociatedResourceRepository,
+)
+from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+from construction_pm.p6_resource_master_repository import P6Resource, SQLiteP6ResourceRepository
+
+
+class UserRepository:
+    def __init__(self, users):
+        self.users = set(users)
+
+    def exists(self, tenant_id, user_id):
+        return (tenant_id, user_id) in self.users
+
+
+class AdminPolicy:
+    def __init__(self, allowed=True):
+        self.allowed = allowed
+
+    def allows_global_privilege(self, context, code):
+        return self.allowed and code == "add_edit_delete_users"
+
+
+def setup():
+    connection = sqlite3.connect(":memory:")
+    resources = SQLiteP6ResourceRepository(connection)
+    resources.save(P6Resource("tenant-a", "project-a", 1, "R-100", "Civil Crew"))
+    resources.save(P6Resource("tenant-a", "project-b", 1, "R-200", "Plant Team"))
+    users = UserRepository({("tenant-a", "user-1"), ("tenant-a", "user-2")})
+    repository = SQLiteP6AssociatedResourceRepository(connection, user_exists=users.exists)
+    return connection, resources, repository
+
+
+def context(user_id="admin"):
+    return AuthorizationContext("tenant-a", "project-a", user_id, frozenset())
+
+
+def test_associated_resource_enforces_one_to_one_and_tenant_scoping():
+    connection, _, repo = setup()
+    now = datetime.now(timezone.utc)
+    first = P6AssociatedResource("tenant-a", "user-1", "R-100", 1, "admin", now)
+    assert repo.assign(first) == first
+    assert repo.get_for_user("tenant-a", "user-1") == first
+    assert repo.get_for_resource("tenant-a", "R-100") == first
+
+    second = P6AssociatedResource("tenant-a", "user-2", "R-100", 1, "admin", now)
+    with pytest.raises(P6AssociatedResourceError, match="RESOURCE_ALREADY_ASSOCIATED"):
+        repo.assign(second)
+    assert repo.get_for_user("tenant-a", "user-2") is None
+    assert repo.get_for_user("other-tenant", "user-1") is None
+
+
+def test_associated_resource_reassignment_requires_revision_and_unassign_keeps_resource():
+    _, resources, repo = setup()
+    now = datetime.now(timezone.utc)
+    first = P6AssociatedResource("tenant-a", "user-1", "R-100", 1, "admin", now)
+    repo.assign(first)
+    with pytest.raises(P6AssociatedResourceError, match="ASSOCIATED_RESOURCE_REVISION_CONFLICT"):
+        repo.assign(P6AssociatedResource("tenant-a", "user-1", "R-200", 2, "admin", now))
+    updated = P6AssociatedResource("tenant-a", "user-1", "R-200", 2, "admin", now)
+    assert repo.assign(updated, expected_revision=1) == updated
+    repo.unassign("tenant-a", "user-1", actor_id="admin", expected_revision=2, occurred_at=now)
+    assert repo.get_for_user("tenant-a", "user-1") is None
+    assert resources.get("tenant-a", "project-a", 1, "R-100") is not None
+
+
+def test_associated_resource_requires_existing_user_and_enterprise_resource():
+    _, _, repo = setup()
+    now = datetime.now(timezone.utc)
+    with pytest.raises(P6AssociatedResourceError, match="ASSOCIATED_RESOURCE_USER_NOT_FOUND"):
+        repo.assign(P6AssociatedResource("tenant-a", "missing", "R-100", 1, "admin", now))
+    with pytest.raises(P6AssociatedResourceError, match="ASSOCIATED_RESOURCE_NOT_FOUND"):
+        repo.assign(P6AssociatedResource("tenant-a", "user-1", "R-MISSING", 1, "admin", now))
+
+
+def test_associated_resource_api_requires_add_edit_delete_users_global_privilege():
+    _, _, repo = setup()
+    api = P6AssociatedResourceAPI(repo, AdminPolicy())
+    created = api.assign("user-1", "R-100", auth_context=context())
+    assert created["association"]["resource_id"] == "R-100"
+    assert api.get("user-1", auth_context=context())["association"]["resource_id"] == "R-100"
+    api.unassign("user-1", expected_revision=1, auth_context=context())
+    assert api.get("user-1", auth_context=context()) is None
+
+    denied = P6AssociatedResourceAPI(repo, AdminPolicy(False))
+    with pytest.raises(AuthorizationError, match="ASSOCIATED_RESOURCE_ADMIN_NOT_AUTHORIZED"):
+        denied.assign("user-1", "R-100", auth_context=context())
+
+
+def test_resource_identity_is_registered_tenant_wide_and_not_deleted_with_association():
+    connection, _, _ = setup()
+    row = connection.execute(
+        "SELECT tenant_id,resource_id,name FROM p6_enterprise_resource_identity "
+        "WHERE tenant_id='tenant-a' AND resource_id='R-100'"
+    ).fetchone()
+    assert row == ("tenant-a", "R-100", "Civil Crew")
