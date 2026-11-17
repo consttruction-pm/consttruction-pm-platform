@@ -94,9 +94,11 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
     placeholder = "?"
     audit_json_placeholder = "?"
 
-    def __init__(self, connection: sqlite3.Connection, *, user_exists: Callable[[str, str], bool]):
+    def __init__(self, connection: sqlite3.Connection, *, user_exists: Callable[[str, str], bool] | None = None):
         self.connection = connection
-        self.user_exists = user_exists
+        self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
+            "SELECT 1 FROM p6_user_global_security WHERE tenant_id=? AND user_id=?", (tenant, user)
+        ).fetchone() is not None)
         self.connection.executescript("""
         CREATE TABLE IF NOT EXISTS p6_user_associated_resource (
           tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, resource_id TEXT NOT NULL,
@@ -181,9 +183,11 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
     placeholder = "%s"
     audit_json_placeholder = "%s::jsonb"
 
-    def __init__(self, connection, *, user_exists: Callable[[str, str], bool]):
+    def __init__(self, connection, *, user_exists: Callable[[str, str], bool] | None = None):
         self.connection = connection
-        self.user_exists = user_exists
+        self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
+            "SELECT 1 FROM p6_user_global_security WHERE tenant_id=%s AND user_id=%s", (tenant, user)
+        ).fetchone() is not None)
 
     def initialize(self):
         self.connection.execute("""
