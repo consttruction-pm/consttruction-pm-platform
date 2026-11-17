@@ -110,10 +110,13 @@ def test_v26_global_profile_duplicate_default_edit_delete_and_audit():
                 expected_revision=3, deleted_at=now,
             )
 
-            with pytest.raises(GlobalSecurityError, match="BUILTIN_GLOBAL_SECURITY_PROFILE_CANNOT_BE_DUPLICATED"):
-                repo.duplicate_profile(
-                    tenant, "p6-admin-superuser", new_profile_id="admin-copy",
-                    new_name="Admin Copy", actor_id="bootstrap", created_at=now,
-                )
+            admin_copy = repo.duplicate_profile(
+                tenant, "p6-admin-superuser", new_profile_id="admin-copy",
+                new_name="Admin Copy", actor_id="bootstrap", created_at=now,
+            )
+            # Built-in Admin Superuser semantics are implicit and are not
+            # copied into a custom profile's explicit privilege grants.
+            assert not admin_copy.built_in
+            assert admin_copy.privileges == ()
         finally:
             connection.rollback()
