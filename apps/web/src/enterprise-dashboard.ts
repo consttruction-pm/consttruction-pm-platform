@@ -544,32 +544,45 @@ export async function mountEnterpriseDashboard(
     }
     function renderContent(): void {
       const list = node("div", "ced-section");
-      const current = [...activeDefinition!.portlets];
-      current.forEach((portlet, index) => {
-        const row = node("div", "ced-panel ced-section");
-        row.classList.add("ced-editor-portlet"); row.dataset.existingPortletIndex = String(index);
+      activeDefinition!.portlets.forEach((portlet, index) => {
+        const row = node("div", "ced-panel ced-section ced-editor-portlet");
+        row.dataset.existingPortletIndex = String(index);
         row.append(node("strong", "", portletLabel(portlet.type_id)));
-        const titleInput = input(`portlet-title-${index}`, portlet.title ?? "");
-        row.append(field(t.portletTitle, titleInput));
-        const hide = node("input"); hide.type = "checkbox"; hide.name = `hide-title-${index}`; hide.checked = Boolean(portlet.hide_title);
+        row.append(field(t.portletTitle, input(`portlet-title-${index}`, portlet.title ?? "")));
+        const width = node("select", "ced-select");
+        width.name = `portlet-width-${index}`;
+        for (const [value, label] of [[6, t.narrow], [12, t.wide]] as const) {
+          const option = node("option", "", label);
+          option.value = String(value);
+          option.selected = portlet.layout.w === value;
+          width.append(option);
+        }
+        row.append(field(t.width, width));
+        const hide = node("input");
+        hide.type = "checkbox";
+        hide.name = `hide-title-${index}`;
+        hide.checked = Boolean(portlet.hide_title);
         row.append(field("Hide title", hide));
-        row.append(button(t.remove, () => { row.remove(); }));
+        row.append(button(t.remove, () => row.remove()));
         list.append(row);
       });
       const addType = node("select", "ced-select");
       for (const item of ENTERPRISE_DASHBOARD_PORTLET_CATALOG) {
-        const option = node("option", "", item.label); option.value = item.type_id; addType.append(option);
+        const option = node("option", "", item.label);
+        option.value = item.type_id;
+        addType.append(option);
       }
       const portfolio = input("new-portfolio-id", "");
       const decision = input("new-decision-id", "");
       const add = button(t.addPortlet, () => {
         if (list.querySelectorAll(".ced-editor-portlet").length >= 12) return;
         const type = addType.value as EnterprisePortletType;
-        const config = { portfolio_id: portfolio.value.trim(), ...(type === "portfolio-decision.v1" ? { decision_id: decision.value.trim() } : {}) };
+        const config = {
+          portfolio_id: portfolio.value.trim(),
+          ...(type === "portfolio-decision.v1" ? { decision_id: decision.value.trim() } : {}),
+        };
         if (!config.portfolio_id || (type === "portfolio-decision.v1" && !config.decision_id)) return;
-        const index = list.querySelectorAll(".ced-editor-portlet").length;
-        const row = node("div", "ced-panel ced-section");
-        row.dataset.portletIndex = String(index);
+        const row = node("div", "ced-panel ced-section ced-editor-portlet");
         row.dataset.newPortlet = type;
         row.dataset.portfolioId = config.portfolio_id;
         row.dataset.decisionId = config.decision_id ?? "";
@@ -577,19 +590,21 @@ export async function mountEnterpriseDashboard(
         row.append(button(t.remove, () => row.remove()));
         list.append(row);
       });
-      panel.append(list, node("p", "ced-muted", t.unsupported), addType, field(t.portfolioId, portfolio), field(t.decisionId, decision), add);
+      panel.append(
+        list,
+        node("p", "ced-muted", t.unsupported),
+        addType,
+        field(t.portfolioId, portfolio),
+        field(t.decisionId, decision),
+        add,
+      );
     }
     function renderLayout(): void {
       const list = node("div");
-      activeDefinition!.portlets.forEach((portlet, index) => {
-        const select = node("select", "ced-select");
-        for (const [value, label] of [[6, t.narrow], [12, t.wide]] as const) {
-          const option = node("option", "", label); option.value = String(value); option.selected = portlet.layout.w === value; select.append(option);
-        }
-        select.name = `portlet-width-${index}`;
-        list.append(field(portletLabel(portlet.type_id), select));
+      activeDefinition!.portlets.forEach((portlet) => {
+        list.append(node("p", "ced-muted", `${portletLabel(portlet.type_id)} · ${portlet.layout.w === 12 ? t.wide : t.narrow} · row ${portlet.layout.y + 1}`));
       });
-      panel.append(list, node("p", "ced-muted", "Narrow/Wide layout follows the two-column dashboard grid."));
+      panel.append(list, node("p", "ced-muted", "Narrow/Wide layout follows the two-column dashboard grid. Width can be changed in Content."));
     }
     function renderAccess(): void {
       const mode = node("div", "ced-panel");
@@ -612,16 +627,30 @@ export async function mountEnterpriseDashboard(
       const title = row.querySelector<HTMLInputElement>(`[name="portlet-title-${index}"]`)?.value ?? portlet.title ?? "";
       const hideTitle = row.querySelector<HTMLInputElement>(`[name="hide-title-${index}"]`)?.checked ?? Boolean(portlet.hide_title);
       const width = Number(row.querySelector<HTMLSelectElement>(`[name="portlet-width-${index}"]`)?.value ?? portlet.layout.w);
-      result.push({ ...portlet, title: title.trim() || null, hide_title: hideTitle, layout: { ...portlet.layout, x: width === 12 ? 0 : portlet.layout.x, w: width } });
+      const x = width === 12 ? 0 : (portlet.layout.x === 6 ? 6 : 0);
+      result.push({
+        ...portlet,
+        title: title.trim() || null,
+        hide_title: hideTitle,
+        layout: { ...portlet.layout, x, w: width },
+      });
     }
+    const nextY = Math.max(0, ...result.map((item) => item.layout.y + item.layout.h));
     for (const row of dialog.querySelectorAll<HTMLElement>("[data-new-portlet]")) {
       const type = row.dataset.newPortlet as EnterprisePortletType;
       const index = result.length;
-      const nextY = Math.max(0, ...original.map((item) => item.layout.y + item.layout.h));\n      const layout = { x: 0, y: nextY + index * 4, w: 12, h: 4 };
-      const config = { portfolio_id: row.dataset.portfolioId ?? "", ...(type === "portfolio-decision.v1" ? { decision_id: row.dataset.decisionId ?? "" } : {}) };
+      const config = {
+        portfolio_id: row.dataset.portfolioId ?? "",
+        ...(type === "portfolio-decision.v1" ? { decision_id: row.dataset.decisionId ?? "" } : {}),
+      };
       result.push({
         instance_id: `portlet-${Date.now()}-${index}`,
-        type_id: type, contract_version: type, config, layout, title: null, hide_title: false,
+        type_id: type,
+        contract_version: type,
+        config,
+        layout: { x: 0, y: nextY + (index - original.length) * 4, w: 12, h: 4 },
+        title: null,
+        hide_title: false,
       });
     }
     return result;
