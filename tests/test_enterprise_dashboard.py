@@ -1209,6 +1209,8 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5936.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5975.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44303.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44295.htm",
@@ -1292,7 +1294,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 109
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 111
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     documented_official_urls = {
