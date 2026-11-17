@@ -254,9 +254,14 @@ class EnterpriseOrganizationAccessHttpMiddleware:
 
         if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
                 and parts[4] == "project-access"):
+            target_user_id = parts[3]
+            if method == "GET":
+                return 200, {
+                    "contract_version": "cubi-p6-user-project-access.v1",
+                    "assignments": self._service.list_user_project_access(session_id, target_user_id),
+                }
             if method != "PUT":
                 return 405, {"code": "METHOD_NOT_ALLOWED"}
-            target_user_id = parts[3]
             payload = self._body(environ, "cubi-p6-user-project-access.v1")
             obs_id = payload.get("obs_id")
             expected = payload.get("expected_revision")
