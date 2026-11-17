@@ -454,7 +454,7 @@ class ProjectLifecycleHttpRoutes:
     def _handle_p6_security_admin_route(
         self, method: str, path: str, *, session_id: str, now: datetime, body: bytes
     ) -> tuple[int, dict[str, str], bytes] | None:
-        route = urlsplit(path).path.rstrip("/")
+        route = unquote(urlsplit(path).path).rstrip("/")
         profile_root = "/api/admin/p6/project-security-profiles"
         associated_root = "/api/admin/p6/users/"
         if not (
