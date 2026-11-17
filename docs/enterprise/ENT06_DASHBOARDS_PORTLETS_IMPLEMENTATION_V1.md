@@ -214,12 +214,21 @@ The complete official Professional V26 Help TOC was searched for Dashboard; no d
 
 **Disposition: Not Applicable to dashboard authoring; overlap/non-interference audit completed.** This slice adds no Professional dashboard shell, route, report, duplicate portfolio store or competing portfolio owner. Existing Engineering/Professional portfolio selection and project-loading behavior is untouched.
 
+#### Navigation, screen elements and access notes — P6 Professional V26
+
+The Professional navigation is Enterprise → Project Portfolios → Add → General → (for Shared Users) User Access → Projects → Close. The Project Portfolios dialog has General, User Access and Projects tabs plus Display Options/Details. The Using Portfolios section lists create, add/remove projects, add users, rename, change current portfolio, delete and view details. The Portfolios topic explains that a selected portfolio limits which projects load in Open Project and the Projects window. Manual portfolios are maintained in Professional; filtered portfolios must be created in P6 and cannot be created, modified or deleted in Professional. This is a non-interference boundary only; ENT-06A does not modify this selector or portfolio store.
+
 ### 3.4 P6 Team Member Version 26 — applicability
 
 - [P6 Team Member Web Help TOC](https://docs.oracle.com/cd/G48897_01/team_member/web/help/en/toc.htm) — complete TOC searched for Dashboard; no dashboard or portfolio-dashboard authoring topic is present.
 - [P6 Team Member Web Overview](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-tm/p6-tmw_overview-51690a.html) — describes assigned activities, status updates, steps, codes/UDFs, related activities, discussions, documents and timesheets.
 
 **Disposition: Not Applicable** to dashboard authoring and portlet registry. If a future portlet exposes Team Member activity/status/timesheet facts, it must use the authoritative Engineering/Team Member source boundary and re-authorize the current actor against each underlying project/activity. Dashboard sharing alone never grants that access.
+
+#### Navigation, screen elements and access notes — P6 Team Member V26
+
+The overview describes the activity-list and timesheet surfaces, not a dashboard authoring page. Users see assigned activities, can filter/sort by project/status, update allowed status fields, use steps/codes/UDFs, inspect related activities, discussions and documents, and submit/review timesheets. The project manager configures the status fields and privileges. The complete Help TOC has no Dashboard topic. These activity and timesheet records remain Engineering/Team Member-owned; a future dashboard tile must re-authorize the underlying project/activity and must not inherit access from a dashboard share.
+
 
 ## 4. Acceptance mapping
 
