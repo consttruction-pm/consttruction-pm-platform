@@ -357,7 +357,11 @@ function installDashboardStyles(): void {
   document.head.append(style);
 }
 
-export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options: MountOptions = {}): Promise<void> {\n  return mountEnterpriseDashboard(container, new FetchEnterpriseDashboardClient(), options);\n}\n\nexport async function mountEnterpriseDashboard(
+export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options: MountOptions = {}): Promise<void> {
+  return mountEnterpriseDashboard(container, new FetchEnterpriseDashboardClient(), options);
+}
+
+export async function mountEnterpriseDashboard(
   container: HTMLElement,
   client: EnterpriseDashboardClient,
   options: MountOptions = {},
@@ -891,7 +895,8 @@ export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options
     let draftTitle = activeDefinition.title;
     let draftDescription = activeDefinition.description;
     let draftMaxRows = activeDefinition.max_rows_per_portlet;
-    let draftFilterLock = activeDefinition.restrict_filter_override;\n    let draftDashboardFilters = activeDefinition.filters.map((item) => ({ ...item, value: Array.isArray(item.value) ? [...item.value] : item.value }));
+    let draftFilterLock = activeDefinition.restrict_filter_override;
+    let draftDashboardFilters = activeDefinition.filters.map((item) => ({ ...item, value: Array.isArray(item.value) ? [...item.value] : item.value }));
     let currentSection = -1;
     const dialog = node("dialog", "ced-dialog");
     const inner = node("div", "ced-dialog-inner");
