@@ -789,12 +789,42 @@ class EnterpriseDashboardApplicationService:
                 or decision_data.get("decision_id") != decision_id
             ):
                 raise EnterpriseDashboardSourceError("INVALID_PORTFOLIO_DECISION_SOURCE_RESPONSE")
-            affected_project_ids = tuple(decision_data.get("affected_project_ids", ()))
+            raw_affected_project_ids = decision_data.get("affected_project_ids")
+            if (
+                not isinstance(raw_affected_project_ids, (tuple, list))
+                or not raw_affected_project_ids
+                or any(
+                    not isinstance(project_id, str) or not project_id.strip()
+                    for project_id in raw_affected_project_ids
+                )
+            ):
+                # The decision read API enforces tenant and permission scope,
+                # but only this boundary can enforce the project-level grants
+                # required by a dashboard share. Portfolio-only decisions with
+                # no project scope are therefore not exposed by this portlet.
+                raise EnterpriseDashboardAuthorizationError(
+                    "PORTFOLIO_DECISION_PROJECT_SCOPE_REQUIRED"
+                )
+            affected_project_ids = tuple(dict.fromkeys(raw_affected_project_ids))
             self._authorize_source_projects(
                 session_id, session, affected_project_ids
             )
             source_revision = decision_data.get("revision")
+            if (
+                isinstance(source_revision, bool)
+                or not isinstance(source_revision, int)
+                or source_revision < 0
+            ):
+                raise EnterpriseDashboardSourceError(
+                    "INVALID_PORTFOLIO_DECISION_SOURCE_REVISION"
+                )
             source_snapshot_id = decision_data.get("source_snapshot_id")
+            if source_snapshot_id is not None and (
+                not isinstance(source_snapshot_id, str) or not source_snapshot_id.strip()
+            ):
+                raise EnterpriseDashboardSourceError(
+                    "INVALID_PORTFOLIO_DECISION_SOURCE_SNAPSHOT_ID"
+                )
             raw_generated_at = decision_data.get("generated_at")
             if isinstance(raw_generated_at, str):
                 try:
