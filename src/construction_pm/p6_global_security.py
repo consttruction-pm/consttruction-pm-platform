@@ -172,6 +172,10 @@ class GlobalSecurityProfile:
             raise GlobalSecurityError("UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE")
         if self.name in BUILTIN_GLOBAL_PROFILES and not self.built_in:
             raise GlobalSecurityError("BUILTIN_PROFILE_FLAG_REQUIRED")
+        if not self.built_in and self.profile_id in {
+            "p6-admin-superuser", "p6-no-global-privileges"
+        }:
+            raise GlobalSecurityError("BUILTIN_PROFILE_ID_RESERVED")
         if self.built_in:
             expected_id = ("p6-admin-superuser" if self.name == ADMIN_SUPERUSER
                            else "p6-no-global-privileges")
