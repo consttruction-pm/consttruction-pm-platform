@@ -11,7 +11,12 @@ from construction_pm.p6_global_security import (
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
     user_has_all_resource_access,
-    user_can_access_resource,\n    global_profile_allows_secure_code_action,\n    global_profile_can_view_secure_code,\n    global_profile_can_assign_secure_code,\n    global_profile_can_edit_secure_code,\n    global_profile_can_add_delete_secure_code,
+    user_can_access_resource,
+    global_profile_allows_secure_code_action,
+    global_profile_can_view_secure_code,
+    global_profile_can_assign_secure_code,
+    global_profile_can_edit_secure_code,
+    global_profile_can_add_delete_secure_code,
     P6_GLOBAL_PRIVILEGE_DEFINITIONS,
     normalize_global_privileges,
 )
