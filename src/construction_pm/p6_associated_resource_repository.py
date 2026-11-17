@@ -237,7 +237,7 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
         association.validate()
         if not self.user_exists(association.tenant_id, association.user_id):
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_USER_NOT_FOUND")
-        self._require_resource(association.tenant_id, association.resource_id)
+        resource_name = self._require_resource(association.tenant_id, association.resource_id)
         resource_owner = self.get_for_resource(association.tenant_id, association.resource_id)
         if resource_owner is not None and resource_owner.user_id != association.user_id:
             raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED")
@@ -269,6 +269,8 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
             if getattr(exc, "sqlstate", None) == "23505":
                 raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED") from exc
             raise
+        if self.native_auth_name_sync is not None:
+            self.native_auth_name_sync(association.tenant_id, association.user_id, resource_name)
         self._audit(association, action, before)
         return association
 
