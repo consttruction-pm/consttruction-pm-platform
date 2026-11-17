@@ -920,7 +920,7 @@ Evidence: `docs/workspace/evidence/p0i-offline-runtime-2026-11-16/`.
 
 ## 16. P0-J execution record (2026-11-17)
 
-P0-J is the continuation registered as [Issue #2020](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2020) and linked to #1992. It starts from merged main after #1998/#1999/#2000 and does not re-implement P0-A … P0-I. Phases 1–2 (profiling, leveling, closed forms) were merged as `92a62afd`; phases 3–5 (parallel float, job path, stress) were measured on `87fc5c4a`. Nothing below removes a capability, option, validation, calendar rule, relationship type, float/critical-path rule, leveling decision or calculation output.
+P0-J is the continuation registered as [Issue #2020](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2020) and linked to #1992. It starts from merged main after #1998/#1999/#2000 and does not re-implement P0-A … P0-I. Phases 1–2 (profiling, leveling, closed forms) were merged as `92a62afd` (PR #2021); phases 3–5 (parallel float, job path, stress) were merged as `b6b3cb71` (PR #2022) and measured on `87fc5c4a`. Nothing below removes a capability, option, validation, calendar rule, relationship type, float/critical-path rule, leveling decision or calculation output.
 
 ### 16.1 Measured profiling (phase 1)
 
@@ -1038,7 +1038,7 @@ The scripted cancels are exact (every `cancel_requested` reached terminal `CANCE
 
 ### 16.8 Verification
 
-* Full suite on `87fc5c4a`: 4,873 passed, 131 skipped (Python 3.12, local PostgreSQL 14.24).
+* Full suite on `87fc5c4a`: 4,873 passed, 131 skipped; post-merge on `b6b3cb71`: 4,889 passed, 131 skipped (Python 3.12, local PostgreSQL 14.24).
 * New tests: `tests/scheduling/test_time_float_execution_policy.py` (11) and `tests/scheduling/test_scheduling_job_authoritative_path.py` (3), plus the existing differential suites (`test_free_float_closed_form.py`, `test_time_float_search.py`, `test_leveling_incremental_equivalence.py`).
 * Required CI: GitHub Actions Python 3.11/3.12/3.13, PostgreSQL integration and the four typechecks. Vercel deployments are infrastructure-only for this change (no Web/UI change).
 

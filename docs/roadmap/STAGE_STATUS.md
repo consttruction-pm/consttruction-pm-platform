@@ -20,9 +20,9 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 **Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 
-Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021), phases 3–5 measured at `87fc5c4a` and in review.** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
 
-Phase record (measured evidence under `docs/workspace/evidence/`; P0-J phases 3–5 are measured at `87fc5c4a` and in review):
+Phase record (measured evidence under `docs/workspace/evidence/`; all listed phases are merged):
 
 | Phase | Delivered | Evidence |
 |---|---|---|
@@ -45,7 +45,7 @@ Mandatory order:
 
 **Non-subtractive rule:** No Scheduling/P6 Version 26 capability, option, calculation, validation, calendar behavior, relationship, Float/critical-path behavior, Resource Leveling rule or cost result may be removed, simplified or weakened for performance. P6 Professional Version 26 HTML Help is the normative parity reference. A performance claim requires measured evidence on the exact tested commit; no unmeasured timing or user-capacity estimate is accepted.
 
-**P0-J continuation (registered under Issue #2020, linked to #1992).** Phases 1–2 (measured profiling, incremental leveling ledger, closed-form float limits) merged as `92a62afd`. Phases 3–5 measured at `87fc5c4a`: safe parallel time-float execution (fork-only, budget-admitted, identical canonical hash; sequential inside the threaded executor because spawn costs 25 µs/activity of context transfer against 169 µs of work), a real PostgreSQL Scheduling Job stress matrix (100/500/1000 virtual users × 1/2/4 workers, 0 errors, 0 pending, identical hashes) and honest oversubscription runs (8/16/32/64 processes on 4 CPUs: 177.4/173.9/144.1/98.4 jobs/s, so no gain past real capacity). No capability, validation, calendar, relationship, float, critical-path or leveling rule was removed.
+**P0-J continuation (registered under Issue #2020, linked to #1992).** Phases 1–2 (measured profiling, incremental leveling ledger, closed-form float limits) merged as `92a62afd`. Phases 3–5 merged as `b6b3cb71` (measured at `87fc5c4a`): safe parallel time-float execution (fork-only, budget-admitted, identical canonical hash; sequential inside the threaded executor because spawn costs 25 µs/activity of context transfer against 169 µs of work), a real PostgreSQL Scheduling Job stress matrix (100/500/1000 virtual users × 1/2/4 workers, 0 errors, 0 pending, identical hashes) and honest oversubscription runs (8/16/32/64 processes on 4 CPUs: 177.4/173.9/144.1/98.4 jobs/s, so no gain past real capacity). No capability, validation, calendar, relationship, float, critical-path or leveling rule was removed.
 
 The remaining P0 gaps are packaging/runtime gates, not engine behavior: no desktop installer supervision test and no portable mobile runtime for the Python engine have been proven. Those require a new, explicitly scoped change.
 
