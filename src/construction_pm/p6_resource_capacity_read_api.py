@@ -14,6 +14,8 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import resource_is_accessible
 from .p6_resource_capacity_repository import (
     P6ResourceCapacityApplicationService,
     P6ResourceCapacityRecord,
@@ -75,6 +77,12 @@ def _segment_dto(record: P6ResourceCapacityRecord) -> dict[str, Any]:
 class P6ResourceCapacityReadAPI:
     service: P6ResourceCapacityApplicationService
     authorization_policy: AuthorizationPolicy
+    resource_repository: P6ResourceRepository | None = None
+
+    def _visible(self, scope: BackendScope, resource_id: str, auth_context: AuthorizationContext) -> bool:
+        return resource_is_accessible(
+            self.authorization_policy, self.resource_repository, scope, resource_id, auth_context
+        )
 
     def list_segments(
         self,
@@ -88,6 +96,7 @@ class P6ResourceCapacityReadAPI:
         return tuple(
             _segment_dto(record)
             for record in self.service.list(scope, resource_id)
+            if self._visible(scope, record.segment.resource_id, auth_context)
         )
 
     def get_profile(
@@ -100,6 +109,8 @@ class P6ResourceCapacityReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         records = self.service.list(scope, resource_id)
+        if records and not self._visible(scope, records[0].segment.resource_id, auth_context):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         if not records:
             raise ResourceCapacityError("RESOURCE_CAPACITY_NOT_REGISTERED")
         profile = ResourceMaxUnitsTimeProfile(
@@ -127,6 +138,8 @@ class P6ResourceCapacityReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         records = self.service.list(scope, resource_id)
+        if records and not self._visible(scope, records[0].segment.resource_id, auth_context):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         if not records:
             raise ResourceCapacityError("RESOURCE_CAPACITY_NOT_REGISTERED")
         profile = ResourceMaxUnitsTimeProfile(
