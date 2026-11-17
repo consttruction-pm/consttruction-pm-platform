@@ -105,7 +105,7 @@
     },
     "portlets": {
       "type": "array",
-      "minItems": 0,
+      "minItems": 1,
       "maxItems": 12,
       "items": {
         "oneOf": [
@@ -474,12 +474,18 @@
                     "const": "project_id"
                   },
                   "operator": {
-                    "const": "eq"
+                    "const": "in"
                   },
                   "value": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
                   }
                 }
               }
@@ -1139,12 +1145,18 @@
                         "const": "project_id"
                       },
                       "operator": {
-                        "const": "eq"
+                        "const": "in"
                       },
                       "value": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 200,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
                       }
                     }
                   }
@@ -1421,12 +1433,18 @@
                         "const": "project_id"
                       },
                       "operator": {
-                        "const": "eq"
+                        "const": "in"
                       },
                       "value": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 200,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
                       }
                     }
                   }
