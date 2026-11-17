@@ -58,6 +58,8 @@ def _profile_from_row(row: tuple[object, ...]) -> P6ProjectSecurityProfile:
 
 
 class _ProjectSecurityRepositoryBase:
+    audit_payload_placeholder = "?"
+
     def _profile_row(self, tenant_id: str, profile_id: str):
         return self.connection.execute(
             f"SELECT tenant_id,profile_id,name,privileges,active,revision,is_default "
@@ -184,7 +186,7 @@ class _ProjectSecurityRepositoryBase:
         self.connection.execute(
             f"INSERT INTO p6_project_security_audit "
             f"(audit_id,tenant_id,actor_id,action,payload) "
-            f"VALUES({self.placeholders5})",
+            f"VALUES({self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.audit_payload_placeholder})",
             (f"p6-project-security-{uuid4().hex}", tenant_id, actor_id, action,
              json.dumps(payload, sort_keys=True)),
         )
@@ -247,12 +249,14 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
-            self.connection.execute(
+            changed = self.connection.execute(
                 "UPDATE p6_project_security_profile SET name=?,privileges=?,active=?,revision=? "
                 "WHERE tenant_id=? AND profile_id=? AND revision=?",
                 (profile.name, json.dumps(list(profile.privileges)), int(profile.active),
                  profile.revision, profile.tenant_id, profile.profile_id, current.revision),
             )
+            if changed.rowcount != 1:
+                raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
         self._audit(profile.tenant_id, actor_id, "project_profile_saved",
                     {"profile_id": profile.profile_id, "revision": profile.revision})
         return profile
@@ -310,6 +314,7 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
 
 class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
     placeholder = "%s"
+    audit_payload_placeholder = "%s::jsonb"
     placeholders4 = "%s,%s,%s,%s"
     placeholders5 = "%s,%s,%s,%s,%s"
 
