@@ -138,6 +138,30 @@ export function moveDashboardPortletHorizontally(
   return validateDashboardLayout(result) ? result : portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
 }
 
+export function moveDashboardPortletVertically(
+  portlets: readonly EnterpriseDashboardPortlet[],
+  index: number,
+  direction: "up" | "down",
+): EnterpriseDashboardPortlet[] {
+  const clone = (): EnterpriseDashboardPortlet[] => portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  if (!Number.isInteger(index) || index < 0 || index >= portlets.length) return clone();
+  const current = portlets[index];
+  const targetY = current.layout.y + (direction === "up" ? -current.layout.h : current.layout.h);
+  if (targetY < 0 || targetY + current.layout.h > 100) return clone();
+  const candidate = { ...current.layout, y: targetY };
+  const overlaps = (a: EnterpriseDashboardLayout, b: EnterpriseDashboardLayout): boolean =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const collisionIndex = portlets.findIndex((item, itemIndex) => itemIndex !== index && overlaps(candidate, item.layout));
+  const result = clone();
+  if (collisionIndex >= 0) {
+    const other = result[collisionIndex];
+    if (other.layout.x !== current.layout.x || other.layout.w !== current.layout.w || other.layout.h !== current.layout.h) return result;
+    other.layout.y = current.layout.y;
+  }
+  result[index].layout.y = targetY;
+  return validateDashboardLayout(result) ? result : clone();
+}
+
 export function reorderDashboardPortlets<T>(items: readonly T[], fromIndex: number, toIndex: number): T[] {
   if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return [...items];
   const result = [...items];
@@ -637,8 +661,7 @@ export async function mountEnterpriseDashboard(
         draftPortlets = readEditorPortlets(dialog, draftPortlets, layoutOrder);
         layoutOrder = draftPortlets.map((_, index) => index);
       } else if (currentSection === 2) {
-        draftPortlets = layoutOrder.map((index) => draftPortlets[index]).filter((item): item is EnterpriseDashboardPortlet => Boolean(item));
-        draftPortlets.forEach((item, index) => { item.layout = { ...item.layout, y: index * 4 }; });
+        // Layout coordinates are authoritative. Switching tabs must never flatten the 2-D grid.
         layoutOrder = draftPortlets.map((_, index) => index);
       }
     }
@@ -723,20 +746,20 @@ export async function mountEnterpriseDashboard(
     function renderLayout(): void {
       panel.replaceChildren();
       const list = node("div", "ced-section");
-      const move = (from: number, to: number): void => {
-        if (to < 0 || to >= layoutOrder.length) return;
-        layoutOrder = reorderDashboardPortlets(layoutOrder, from, to);
-        renderLayout();
-      };
-      layoutOrder.forEach((originalIndex, position) => {
-        const portlet = draftPortlets[originalIndex];
+      draftPortlets.forEach((portlet, originalIndex) => {
         const row = node("div", "ced-panel ced-row ced-section");
         row.append(node("strong", "", portletLabel(portlet.type_id)));
         row.append(node("span", "ced-muted", portlet.layout.w === 12 ? t.wide : t.narrow));
-        const up = button(t.moveUp, () => move(position, position - 1));
-        const down = button(t.moveDown, () => move(position, position + 1));
-        up.disabled = position === 0;
-        down.disabled = position === layoutOrder.length - 1;
+        const up = button(t.moveUp, () => {
+          draftPortlets = moveDashboardPortletVertically(draftPortlets, originalIndex, "up");
+          renderLayout();
+        });
+        const down = button(t.moveDown, () => {
+          draftPortlets = moveDashboardPortletVertically(draftPortlets, originalIndex, "down");
+          renderLayout();
+        });
+        up.disabled = portlet.layout.y === 0;
+        down.disabled = portlet.layout.y + portlet.layout.h >= 100;
         const left = button(t.moveLeft, () => {
           draftPortlets = moveDashboardPortletHorizontally(draftPortlets, originalIndex, "left");
           renderLayout();
@@ -748,20 +771,9 @@ export async function mountEnterpriseDashboard(
         left.disabled = portlet.layout.w !== 6 || portlet.layout.x === 0;
         right.disabled = portlet.layout.w !== 6 || portlet.layout.x === 6;
         row.append(up, down, left, right);
-        row.draggable = true;
-        row.addEventListener("dragstart", (event) => {
-          event.dataTransfer?.setData("text/plain", String(position));
-          if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-        });
-        row.addEventListener("dragover", (event) => event.preventDefault());
-        row.addEventListener("drop", (event) => {
-          event.preventDefault();
-          const from = Number(event.dataTransfer?.getData("text/plain"));
-          move(from, position);
-        });
         list.append(row);
       });
-      panel.append(list, node("p", "ced-muted", "Use the arrow controls or drag and drop to reorder portlets. Narrow/Wide sizing is configured in Content."));
+      panel.append(list, node("p", "ced-muted", "Arrow controls move portlets within the two-column layout; horizontal controls move Narrow portlets between columns. Narrow/Wide sizing is configured in Content."));
     }
     function renderAccess(): void {
       const mode = node("div", "ced-panel");
@@ -794,7 +806,7 @@ export async function mountEnterpriseDashboard(
         layout: { ...portlet.layout, x, w: width },
       });
     }
-    result.forEach((item, index) => { item.layout = { ...item.layout, y: index * 4 }; });
+    // Preserve existing x/y coordinates; the P6-style layout is a two-dimensional grid.
     const nextY = Math.max(0, ...result.map((item) => item.layout.y + item.layout.h));
     let addedIndex = 0;
     for (const row of dialog.querySelectorAll<HTMLElement>("[data-new-portlet]")) {
