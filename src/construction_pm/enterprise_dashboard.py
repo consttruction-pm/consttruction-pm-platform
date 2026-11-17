@@ -233,6 +233,7 @@ class DashboardFilter:
             elif (
                 not isinstance(self.value, (tuple, list))
                 or not self.value
+                or len(self.value) > 200
                 or any(not isinstance(item, str) or not item.strip() for item in self.value)
                 or len(set(self.value)) != len(self.value)
             ):
