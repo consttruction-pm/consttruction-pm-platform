@@ -1099,8 +1099,8 @@ Status: **merged; exact-head CI verified**
 
 ## 2026-11-17 — Stage 34.2.9 direct implementation reconciliation
 
-- Issue #2033 was implemented directly by Jalal and merged in PR #2035 (merge commit `bf156f686d4d8cfe4efafb088638e68841b451e9`).
+- Issue #2033 was implemented directly by Jalal and merged in PR #2035 (`bf156f686d4d8cfe4efafb088638e68841b451e9`), then corrected in PR #2036 (`de51211a2f551623540c43dc89ce8155c9146efd`) to keep source-reference revisions independent from Engineering project revisions.
 - Hasan is not asked to duplicate this implementation or create a competing membership store. His general Backend/Database/API ownership remains unchanged; review/consume the merged canonical contract only if a later explicit handoff is requested.
 - The merged implementation adds the Enterprise portfolio lifecycle/membership store and a read-only adapter over the existing Engineering `project_lifecycle_projects` source. It does not infer membership from project listings and does not calculate project KPIs.
 - README and Stage Status claims were corrected to say implementation in progress, not runtime-verified. Do not restore a completed status until exact-head Python and PostgreSQL CI evidence exists.
-- Exact tested head `3f6bdf6a6adedaac870ed397daab801d6af63d22`: ConstructionPM CI `44114358321`, PostgreSQL Integration `44114358305`, Client Typecheck `44114358228` all SUCCESS. Do not reimplement this provider. The remaining next point is production composition injection in ENT-06B #2032.
+- Exact tested head `3f6bdf6a6adedaac870ed397daab801d6af63d22`: ConstructionPM CI `44114358321`, PostgreSQL Integration `44114358305`, Client Typecheck `44114358228` all SUCCESS. Follow-up tested head `f32a5c30683de56b02920662a99bf118ff6310fa`: ConstructionPM CI `44116159684`, PostgreSQL Integration `44116159722`, Client Typecheck `44116159781` all SUCCESS. Do not reimplement this provider. The remaining next point is production composition injection of the authoritative source-reference validator and current-actor project authorizer in ENT-06B #2032.
