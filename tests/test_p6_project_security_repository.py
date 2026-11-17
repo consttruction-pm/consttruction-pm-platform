@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 
-from construction_pm.application.authorization import AuthorizationContext, AuthorizationError
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, Permission
 from construction_pm.p6_obs_repository import P6OBSNode, P6OBSApplicationService, SQLiteP6OBSRepository
 from construction_pm.p6_project_security import P6ProjectSecurityProfile, normalize_project_privileges
 from construction_pm.p6_project_security_api import P6ProjectSecurityAPI
@@ -193,6 +193,7 @@ def test_global_policy_enforces_project_profile_privileges_through_obs_grant():
         GlobalRepository(), object(), obs_project_access=project_repo
     )
     auth = AuthorizationContext("tenant-a", "project-civil", "user-1", frozenset())
+    assert policy.is_allowed(auth, Permission.PROJECT_READ)
     assert policy.has_project_privilege(auth, "add_edit_activities_except_relationships")
     policy.require_project_privilege(auth, "add_edit_activities_except_relationships")
     assert not policy.has_project_privilege(auth, "delete_projects")
