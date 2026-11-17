@@ -147,3 +147,19 @@ def test_builtin_project_superuser_is_provisioned_idempotently_and_immutable():
         repo.delete_profile("tenant-a", first.profile_id, actor_id="admin-user", expected_revision=1)
     with pytest.raises(P6ProjectSecurityPersistenceError, match="BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE"):
         repo.save_profile(replace(first, revision=2), actor_id="admin-user", expected_revision=1)
+
+
+def test_project_profile_duplicate_copies_privileges_but_not_default_or_identity():
+    _, repo = setup_repository()
+    source = profile()
+    repo.save_profile(source, actor_id="admin-user")
+    duplicate = repo.duplicate_profile(
+        "tenant-a", source.profile_id, new_profile_id="profile-copy",
+        new_name="Project Manager Copy", actor_id="admin-user",
+    )
+    assert duplicate.profile_id == "profile-copy"
+    assert duplicate.name == "Project Manager Copy"
+    assert duplicate.privileges == source.privileges
+    assert duplicate.revision == 1
+    assert duplicate.is_default is False
+    assert duplicate.built_in is False
