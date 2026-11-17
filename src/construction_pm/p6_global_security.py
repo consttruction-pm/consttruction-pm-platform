@@ -300,6 +300,53 @@ def user_can_access_resource(
         return False
 
 
+P6_SECURE_CODE_PRIVILEGES = {
+    "view": "secure_codes_view",
+    "assign": "secure_codes_assign",
+    "edit": "secure_codes_edit",
+    "add_delete": "secure_codes_add_delete",
+}
+
+
+def global_profile_allows_secure_code_action(
+    profile: GlobalSecurityProfile, action: str
+) -> bool:
+    """Check V26 secure-code visibility/mutation privilege for a profile.
+
+    Admin Superuser is the documented exception. No Global Privileges and
+    inactive profiles fail closed. Callers must apply this before serializing,
+    filtering, searching, aggregating, exporting, or mutating secure-code data.
+    """
+    try:
+        profile.validate()
+        if not profile.active:
+            return False
+        if global_profile_is_admin_superuser(profile):
+            return True
+        privilege = P6_SECURE_CODE_PRIVILEGES.get(action)
+        if privilege is None or global_profile_has_global_read_only(profile):
+            return False
+        return privilege in profile.privileges
+    except (GlobalSecurityError, TypeError, ValueError):
+        return False
+
+
+def global_profile_can_view_secure_code(profile: GlobalSecurityProfile) -> bool:
+    return global_profile_allows_secure_code_action(profile, "view")
+
+
+def global_profile_can_assign_secure_code(profile: GlobalSecurityProfile) -> bool:
+    return global_profile_allows_secure_code_action(profile, "assign")
+
+
+def global_profile_can_edit_secure_code(profile: GlobalSecurityProfile) -> bool:
+    return global_profile_allows_secure_code_action(profile, "edit")
+
+
+def global_profile_can_add_delete_secure_code(profile: GlobalSecurityProfile) -> bool:
+    return global_profile_allows_secure_code_action(profile, "add_delete")
+
+
 class P6GlobalSecurityRepository(Protocol):
     def initialize(self) -> None: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> GlobalSecurityProfile | None: ...
