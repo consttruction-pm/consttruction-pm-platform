@@ -531,7 +531,7 @@ class PostgresPortfolioControlSnapshotProvider:
             "projects": [project.as_dict() for project in projects],
             "source_refs": [self._source_dict(source) for source in source_refs],
         }
-        snapshot_id = "pcs-" + hashlib.sha256(
+        snapshot_id = f"pcs-r{portfolio.revision}-" + hashlib.sha256(
             json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         snapshot = PortfolioControlSnapshot(
