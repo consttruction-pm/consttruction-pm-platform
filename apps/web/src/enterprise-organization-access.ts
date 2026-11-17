@@ -647,6 +647,35 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         notice = t.profileSaved; await loadProfiles();
       });
     });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-project-user")?.addEventListener("change", (event) => {
+      selectedProjectUserId = (event.currentTarget as HTMLSelectElement).value;
+      selectedProjectObsId = "";
+      void run(async () => { await loadUserProjectAssignments(); });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-project-obs")?.addEventListener("change", (event) => {
+      selectedProjectObsId = (event.currentTarget as HTMLSelectElement).value;
+      render();
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-project-default-assign")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedProjectUserId || !selectedProjectObsId) return;
+      const rawRevision = String(new FormData(event.currentTarget as HTMLFormElement).get("expected_revision") ?? "").trim();
+      const expectedRevision = rawRevision ? Number(rawRevision) : undefined;
+      if (expectedRevision !== undefined && (!Number.isInteger(expectedRevision) || expectedRevision < 1)) return;
+      void run(async () => {
+        const path = "/api/enterprise/users/" + encodeURIComponent(selectedProjectUserId) + "/project-access";
+        await api(path, "PUT", {
+          contract_version: "cubi-p6-user-project-access.v1",
+          obs_id: selectedProjectObsId,
+          ...(expectedRevision === undefined ? {} : { expected_revision: expectedRevision }),
+        });
+        const defaultProject = profiles.find((profile) => profile.scope === "project" && profile.is_default);
+        if (defaultProject) selectedProfileId = defaultProject.profile_id;
+        notice = t.defaultProjectAssigned;
+        await loadProfiles();
+        await loadUserProjectAssignments();
+      });
+    });
     container.querySelector<HTMLFormElement>("#cubi-oa-profile-assign")?.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!selectedProfile) return;
