@@ -20,6 +20,8 @@ from construction_pm.scheduling.benchmark_fixtures import (
     time_schedule_payload,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.relationships import RelationshipType
+from construction_pm.scheduling.time_duration import LagQuantity
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver
 time_schedule_module = importlib.import_module("construction_pm.scheduling.time_schedule")
 
@@ -179,3 +181,138 @@ def test_slack_network_has_large_free_float_on_the_short_activities():
         float_item.free_float_value for float_item in result.floats.values()
     )
     assert free_floats[-1] > Decimal("300")
+
+
+# ---------------------------------------------------------------------------
+# P0-J: exact interval bound instead of the delay search
+# ---------------------------------------------------------------------------
+
+
+def _time_floats(fixture):
+    return time_schedule_module.time_schedule(
+        fixture.activities,
+        fixture.relationships,
+        fixture.project_start,
+        fixture.project_finish,
+        fixture.registry,
+    )
+
+
+@pytest.mark.parametrize("shape", ["dag", "mixed", "fan", "slack", "wide", "chain"])
+@pytest.mark.parametrize("float_days", [0, 1, 3, 20])
+def test_interval_bound_produces_the_same_floats_as_the_delay_search(
+    monkeypatch, shape, float_days
+):
+    fixture = time_network(80, shape, seed=17, float_days=float_days)
+    with_bound = _time_floats(fixture)
+    monkeypatch.setattr(
+        time_schedule_module, "_float_limit_interval_bound", lambda *a, **k: None
+    )
+    with_search = _time_floats(fixture)
+    assert canonical_hash(time_schedule_payload(with_bound)) == canonical_hash(
+        time_schedule_payload(with_search)
+    )
+    assert with_bound == with_search
+
+
+def test_interval_bound_is_used_for_the_hour_based_fixture(monkeypatch):
+    fixture = time_network(40, "dag", seed=5)
+    calls = {"bound": 0, "search": 0}
+    real_bound = time_schedule_module._float_limit_interval_bound
+    real_search = time_schedule_module._free_float_limit
+
+    def counting_bound(*args, **kwargs):
+        value = real_bound(*args, **kwargs)
+        if value is not None:
+            calls["bound"] += 1
+        return value
+
+    def counting_search(predicate):
+        calls["search"] += 1
+        return real_search(predicate)
+
+    monkeypatch.setattr(time_schedule_module, "_float_limit_interval_bound", counting_bound)
+    monkeypatch.setattr(time_schedule_module, "_free_float_limit", counting_search)
+    _time_floats(fixture)
+    assert calls["bound"] > 0
+    assert calls["search"] == 0
+
+
+def test_interval_bound_matches_the_search_for_signed_lags_and_all_types(monkeypatch):
+    from construction_pm.scheduling.relationships import RelationshipType
+    from construction_pm.scheduling.time_duration import LagQuantity
+    from construction_pm.scheduling.time_forward_pass import TimeRelationship
+
+    base = time_network(7, "chain", seed=23, float_days=12)
+    for relationship_type in RelationshipType:
+        for lag_hours in (-24, -8, 0, 8, 16, 40):
+            relationships = tuple(
+                TimeRelationship(
+                    rel.predecessor_id,
+                    rel.successor_id,
+                    relationship_type,
+                    LagQuantity.working_hours(Decimal(lag_hours)),
+                )
+                for rel in base.relationships
+            )
+            fixture = type(base)(
+                activities=base.activities,
+                relationships=relationships,
+                registry=base.registry,
+                project_start=base.project_start,
+                project_finish=base.project_finish,
+                size=base.size,
+                shape=base.shape,
+                seed=base.seed,
+            )
+            try:
+                with_bound = _time_floats(fixture)
+            except ValueError:
+                # An infeasible combination is not a float-calculation input.
+                continue
+            monkeypatch.setattr(
+                time_schedule_module, "_float_limit_interval_bound", lambda *a, **k: None
+            )
+            with_search = _time_floats(fixture)
+            monkeypatch.undo()
+            assert with_bound.floats == with_search.floats, (
+                relationship_type,
+                lag_hours,
+            )
+
+
+def test_interval_bound_falls_back_for_working_day_units():
+    from construction_pm.scheduling.benchmark_fixtures import time_context
+    from construction_pm.scheduling.time_duration import TimeQuantity
+    from construction_pm.scheduling.time_forward_pass import (
+        TimeActivity,
+        TimeRelationship,
+        TimeScheduledActivity,
+    )
+
+    fixture = time_network(4, "chain", seed=3)
+    activity = TimeActivity("A", TimeQuantity.working_days(3), time_context())
+    resolver = time_schedule_module._resolver(activity, fixture.registry)
+    successor = TimeScheduledActivity(
+        "B",
+        datetime(2026, 1, 8, 8, tzinfo=timezone.utc),
+        datetime(2026, 1, 12, 17, tzinfo=timezone.utc),
+        TimeQuantity.working_days(3),
+    )
+    relationship = TimeRelationship(
+        "A",
+        "B",
+        RelationshipType.FS,
+        LagQuantity.working_hours(Decimal("8")),
+    )
+    bound = time_schedule_module._float_limit_interval_bound(
+        relationship,
+        activity=activity,
+        base_start=datetime(2026, 1, 5, 8, tzinfo=timezone.utc),
+        base_finish=datetime(2026, 1, 7, 17, tzinfo=timezone.utc),
+        successor=successor,
+        resolver=resolver,
+        lag_resolver=resolver,
+    )
+    assert bound is None
+

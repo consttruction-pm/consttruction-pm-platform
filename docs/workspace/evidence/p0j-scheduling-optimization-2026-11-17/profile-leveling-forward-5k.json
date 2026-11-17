@@ -1,0 +1,180 @@
+{
+  "counts": {
+    "activities": 5000,
+    "capacities": 2538,
+    "resources": 2
+  },
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "leveling",
+  "output_counts": {
+    "shifts": 4976
+  },
+  "output_sha256": "4f34b042dd57e539bc6c1f528044e7e25b2be13cc3e9a20ea7f4720581241f59",
+  "peak_rss_kb": 99420,
+  "phases": {
+    "leveling.cpm_pass": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.final_validation": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.propose_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.propose_forward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.rebase_floats": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_date_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_date_forward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_demands": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_demands_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.working_days_between": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    }
+  },
+  "profile_top": [
+    {
+      "calls": 1,
+      "cumulative_ms": 2775.464,
+      "file": "benchmark_fixtures.py",
+      "function": "run_leveling",
+      "line": 978,
+      "self_ms": 8.326
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 2767.138,
+      "file": "resource_leveling.py",
+      "function": "propose_forward_leveling_within_float",
+      "line": 530,
+      "self_ms": 721.425
+    },
+    {
+      "calls": 322744,
+      "cumulative_ms": 499.028,
+      "file": "fractions.py",
+      "function": "__new__",
+      "line": 186,
+      "self_ms": 243.89
+    },
+    {
+      "calls": 209040,
+      "cumulative_ms": 313.381,
+      "file": "fractions.py",
+      "function": "forward",
+      "line": 613,
+      "self_ms": 76.141
+    },
+    {
+      "calls": 54760,
+      "cumulative_ms": 305.065,
+      "file": "resource_leveling.py",
+      "function": "demand_index",
+      "line": 634,
+      "self_ms": 131.339
+    },
+    {
+      "calls": 907180,
+      "cumulative_ms": 270.187,
+      "file": "~",
+      "function": "<built-in method builtins.isinstance>",
+      "line": 0,
+      "self_ms": 133.988
+    },
+    {
+      "calls": 152084,
+      "cumulative_ms": 255.569,
+      "file": "fractions.py",
+      "function": "__gt__",
+      "line": 959,
+      "self_ms": 36.969
+    },
+    {
+      "calls": 152084,
+      "cumulative_ms": 218.599,
+      "file": "fractions.py",
+      "function": "_richcmp",
+      "line": 933,
+      "self_ms": 93.717
+    },
+    {
+      "calls": 1362092,
+      "cumulative_ms": 211.861,
+      "file": "~",
+      "function": "<method 'get' of 'dict' objects>",
+      "line": 0,
+      "self_ms": 211.861
+    },
+    {
+      "calls": 209040,
+      "cumulative_ms": 148.375,
+      "file": "resource_leveling.py",
+      "function": "advance",
+      "line": 383,
+      "self_ms": 61.911
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": null,
+  "size": 5000,
+  "status": "ok",
+  "wall": {
+    "count": 3,
+    "max_ms": 989.293,
+    "median_ms": 980.081,
+    "min_ms": 970.678,
+    "p95_ms": 989.293
+  },
+  "warmup": 1
+}

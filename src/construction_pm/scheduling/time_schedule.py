@@ -337,6 +337,79 @@ def _free_float_limit(holds) -> Decimal:
     return high - Decimal("1")
 
 
+def _float_limit_interval_bound(
+    relationship: TimeRelationship,
+    *,
+    activity: TimeActivity,
+    base_start: datetime,
+    base_finish: datetime,
+    successor: TimeScheduledActivity,
+    resolver: CalendarAwareResolver,
+    lag_resolver: CalendarAwareResolver,
+) -> Decimal | None:
+    """Exact Free Float delay bound from working-time interval arithmetic.
+
+    Delaying the predecessor and lengthening it by the activity duration are
+    both working-time translations, so the delayed event is
+    ``add(base, delay)`` and ``required = add(event, lag)``.  The relationship
+    holds exactly when ``delay + lag <= working_hours(base, target)``, which
+    makes the largest delay a single interval measurement instead of a search.
+
+    Returns ``None`` when the identity is not provable from these inputs:
+    day-unit arithmetic, a lag measured in a different calendar, or a lag
+    resolver wrapping a different underlying calendar.  The caller then keeps
+    the monotone probe search unchanged.
+    """
+    if activity.duration.unit is not DurationUnit.WORKING_HOUR:
+        return None
+    if relationship.lag.unit is not DurationUnit.WORKING_HOUR:
+        return None
+    if resolver.is_working_day_calendar or lag_resolver.is_working_day_calendar:
+        return None
+    if lag_resolver.resolver is not resolver.resolver:
+        return None
+
+    if relationship.type is RelationshipType.FS:
+        base, target = base_finish, successor.start
+    elif relationship.type is RelationshipType.SS:
+        base, target = base_start, successor.start
+    elif relationship.type is RelationshipType.FF:
+        base, target = base_finish, successor.finish
+    elif relationship.type is RelationshipType.SF:
+        base, target = base_start, successor.finish
+    else:
+        return None
+
+    if target < base:
+        return Decimal("-1")
+    return (
+        resolver.calculate_duration(base, target, DurationUnit.WORKING_HOUR)
+        - relationship.lag.value
+    )
+
+
+def _verified_float_limit(holds_at, bound: Decimal | None) -> Decimal:
+    """Turn an interval bound into the last holding integer delay.
+
+    The bound is exact mathematics on measured intervals; the two boundary
+    probes make the published value independent of Decimal rounding at the
+    boundary.  Without a provable bound the historical monotone search runs
+    unchanged.
+    """
+    if bound is None:
+        return _free_float_limit(holds_at)
+
+    ceiling = _FREE_FLOAT_SEARCH_CEILING - Decimal("1")
+    candidate = Decimal(int(bound)) if bound > 0 else Decimal("0")
+    if candidate > ceiling:
+        candidate = ceiling
+    if not holds_at(candidate):
+        candidate -= 1
+    if candidate < ceiling and holds_at(candidate + 1):
+        candidate += 1
+    return max(Decimal("0"), candidate)
+
+
 @dataclass(frozen=True)
 class _TimeFloatContext:
     """Everything one activity's float calculation needs, and nothing mutable."""
@@ -390,19 +463,31 @@ def _time_float_for_activity(
     resolver = _resolver(activity, registry)
     e = early[activity_id]
     l = late[activity_id]
+    # P6 reports negative Total Float when the late dates precede the early
+    # dates.  Compute the magnitude from the earlier/later pair instead of
+    # asking the calendar for a reversed interval.
     if activity.duration.unit is DurationUnit.WORKING_DAY:
-        total = Decimal(resolver.resolver.working_days_between(e.start.date(), l.start.date()))
-        if l.start < e.start:
-            total = -Decimal(resolver.resolver.working_days_between(l.start.date(), e.start.date()))
+        if l.start >= e.start:
+            total = Decimal(
+                resolver.resolver.working_days_between(e.start.date(), l.start.date())
+            )
+        else:
+            total = -Decimal(
+                resolver.resolver.working_days_between(l.start.date(), e.start.date())
+            )
     else:
-        total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
-        if l.start < e.start:
+        if l.start >= e.start:
+            total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
+        else:
             total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
 
     if not outgoing[activity_id]:
         free = Decimal("0")
     else:
         limits: list[Decimal] = []
+        # Delay 0 is a no-op on the early dates, so the candidate finish used by
+        # the interval bound is the activity's own early finish.
+        zero_finish = _add_duration(e.start, activity.duration, resolver)
         for rel in outgoing[activity_id]:
             successor = early[rel.successor_id]
             if rel.lag.unit not in {DurationUnit.WORKING_HOUR, DurationUnit.WORKING_DAY}:
@@ -450,7 +535,16 @@ def _time_float_for_activity(
                     required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
                     return successor.finish >= required
 
-                limits.append(_free_float_limit(holds_at))
+                bound = _float_limit_interval_bound(
+                    rel,
+                    activity=activity,
+                    base_start=e.start,
+                    base_finish=zero_finish,
+                    successor=successor,
+                    resolver=resolver,
+                    lag_resolver=lag_resolver,
+                )
+                limits.append(_verified_float_limit(holds_at, bound))
         free = min(limits) if limits else Decimal("0")
 
     return TimeFloatActivity(

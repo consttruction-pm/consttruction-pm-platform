@@ -1,0 +1,181 @@
+{
+  "counts": {
+    "activities": 5000,
+    "capacities": 2532,
+    "demand_periods": 1250,
+    "resources": 2
+  },
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "backward-leveling",
+  "output_counts": {
+    "shifts": 59712
+  },
+  "output_sha256": "2e0f484453c2eb663922fcc317ad7004ea38f694ff8960615ee0955763c1f6eb",
+  "peak_rss_kb": 134184,
+  "phases": {
+    "leveling.cpm_pass": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.final_validation": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.propose_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.propose_forward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.rebase_floats": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_date_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_date_forward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_demands": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.shift_demands_backward": {
+      "calls_median": 0,
+      "median_ms": 0.0,
+      "p95_ms": 0.0,
+      "share_of_wall": 0.0
+    },
+    "leveling.working_days_between": {
+      "calls_median": 4996,
+      "median_ms": 54.744,
+      "p95_ms": 54.902,
+      "share_of_wall": 0.0382
+    }
+  },
+  "profile_top": [
+    {
+      "calls": 1,
+      "cumulative_ms": 3662.695,
+      "file": "benchmark_fixtures.py",
+      "function": "run_backward_leveling",
+      "line": 1000,
+      "self_ms": 11.954
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 3650.741,
+      "file": "resource_leveling.py",
+      "function": "propose_backward_leveling",
+      "line": 1031,
+      "self_ms": 896.309
+    },
+    {
+      "calls": 380796,
+      "cumulative_ms": 568.41,
+      "file": "fractions.py",
+      "function": "__new__",
+      "line": 186,
+      "self_ms": 290.576
+    },
+    {
+      "calls": 64712,
+      "cumulative_ms": 402.677,
+      "file": "resource_leveling.py",
+      "function": "demand_index",
+      "line": 1147,
+      "self_ms": 202.99
+    },
+    {
+      "calls": 248848,
+      "cumulative_ms": 380.552,
+      "file": "fractions.py",
+      "function": "forward",
+      "line": 613,
+      "self_ms": 93.064
+    },
+    {
+      "calls": 1361636,
+      "cumulative_ms": 325.773,
+      "file": "~",
+      "function": "<built-in method builtins.isinstance>",
+      "line": 0,
+      "self_ms": 181.579
+    },
+    {
+      "calls": 181636,
+      "cumulative_ms": 314.343,
+      "file": "fractions.py",
+      "function": "__gt__",
+      "line": 959,
+      "self_ms": 45.539
+    },
+    {
+      "calls": 181636,
+      "cumulative_ms": 268.804,
+      "file": "fractions.py",
+      "function": "_richcmp",
+      "line": 933,
+      "self_ms": 117.088
+    },
+    {
+      "calls": 1669600,
+      "cumulative_ms": 253.912,
+      "file": "~",
+      "function": "<method 'get' of 'dict' objects>",
+      "line": 0,
+      "self_ms": 253.912
+    },
+    {
+      "calls": 171588,
+      "cumulative_ms": 234.484,
+      "file": "resource_leveling.py",
+      "function": "push_candidate",
+      "line": 1273,
+      "self_ms": 68.597
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": null,
+  "size": 5000,
+  "status": "ok",
+  "wall": {
+    "count": 3,
+    "max_ms": 1436.773,
+    "median_ms": 1432.447,
+    "min_ms": 1429.533,
+    "p95_ms": 1436.773
+  },
+  "warmup": 1
+}

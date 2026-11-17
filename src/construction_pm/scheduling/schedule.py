@@ -387,25 +387,110 @@ def _free_float(
     limits: list[int] = []
     activity_resolver = (activity_resolvers or {}).get(activity.id, resolver)
     duration = _remaining_cpm_duration(activity)
+    # Zero-delay candidate dates are computed exactly as the probe predicate
+    # computes them, so the closed-form boundary works from the same dates.
+    zero_start = activity_resolver.add_working_duration(early.start, 0)
+    zero_finish = activity_resolver.add_working_duration(zero_start, duration)
     for rel in successors:
         successor = early_schedule[rel.successor_id]
         lag_resolver = (relationship_lag_resolvers or {}).get(
             (rel.predecessor_id, rel.successor_id)
         )
 
-        def holds(delay: int) -> bool:
-            candidate_start = activity_resolver.add_working_duration(early.start, delay)
-            candidate = ScheduledActivity(
-                activity_id=early.activity_id,
-                start=candidate_start,
-                finish=activity_resolver.add_working_duration(candidate_start, duration),
-                duration=duration,
-            )
-            return _relationship_holds(rel, candidate, successor, activity_resolver, lag_resolver)
+        boundary = _holding_delay_boundary(
+            rel,
+            base_start=zero_start,
+            base_finish=zero_finish,
+            successor=successor,
+            resolver=activity_resolver,
+            lag_resolver=lag_resolver,
+        )
+        if boundary is None:
+            def holds(delay: int) -> bool:
+                candidate_start = activity_resolver.add_working_duration(early.start, delay)
+                candidate = ScheduledActivity(
+                    activity_id=early.activity_id,
+                    start=candidate_start,
+                    finish=activity_resolver.add_working_duration(candidate_start, duration),
+                    duration=duration,
+                )
+                return _relationship_holds(
+                    rel, candidate, successor, activity_resolver, lag_resolver
+                )
 
-        boundary = _max_holding_delay(holds)
+            boundary = _max_holding_delay(holds)
         limits.append(min(boundary, _MAX_FLOAT_SEARCH - 1))
     return max(0, min(limits))
+
+
+def _holding_delay_boundary(
+    relationship: Relationship,
+    *,
+    base_start: date,
+    base_finish: date,
+    successor: ScheduledActivity,
+    resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None,
+) -> int | None:
+    """Exact Free Float boundary in O(1) calendar operations.
+
+    For a whole-working-day engine the delayed candidate is a pure working-day
+    index shift: ``start(d)`` is the ``d``-th working day from the early start
+    and ``finish(d)`` the ``d``-th working day from the early finish, because
+    ``add(add(start, d), duration) == add(start, d + duration - 1)``.  Every
+    relationship requirement is the same index shift by ``lag`` (plus one
+    working day for non-negative FS lag, which is how P6 finish-to-start places
+    the successor).  The predicate therefore reduces to
+    ``index(delayed_event) <= index(required_event)`` and its last true delay is
+    a calendar subtraction, not a search.
+
+    Returns ``None`` when the relationship is measured in a different calendar
+    from the candidate dates: there the index identity is not provable from
+    this resolver alone, so the caller keeps the monotone probe search.
+    """
+    lag_resolver = lag_resolver or resolver
+    if lag_resolver is not resolver:
+        return None
+
+    if relationship.type is RelationshipType.FS:
+        base = base_finish
+        event_target = successor.start
+        index_offset = relationship.lag + 1 if relationship.lag >= 0 else relationship.lag
+    elif relationship.type is RelationshipType.SS:
+        base = base_start
+        event_target = successor.start
+        index_offset = relationship.lag
+    elif relationship.type is RelationshipType.FF:
+        base = base_finish
+        event_target = successor.finish
+        index_offset = relationship.lag
+    elif relationship.type is RelationshipType.SF:
+        base = base_start
+        event_target = successor.finish
+        index_offset = relationship.lag
+    else:
+        return None
+
+    # Last working day Y whose lag-shifted index still reaches the successor
+    # event: index(Y) = index(event_target) - index_offset.
+    if index_offset >= 0:
+        boundary_date = resolver.subtract_working_duration(
+            event_target, index_offset + 1
+        )
+    else:
+        boundary_date = resolver.add_working_duration(event_target, 1 - index_offset)
+
+    base_date = resolver.normalize_start(base)
+    if boundary_date < base_date:
+        return -1
+    # delay 0 and delay 1 both map to the base working day; the d-th delay has
+    # index(base) + d - 1, so the last delay that still holds is
+    # working_days_between(base, Y) + 1.  The published boundary is capped at
+    # the probe search's last probed delay, exactly as the probe path is.
+    return min(
+        resolver.working_days_between(base_date, boundary_date) + 1,
+        _MAX_FLOAT_SEARCH - 1,
+    )
 
 
 

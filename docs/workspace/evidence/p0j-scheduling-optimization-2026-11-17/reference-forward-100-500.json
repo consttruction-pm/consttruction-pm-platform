@@ -1,0 +1,184 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "forward",
+  "records": [
+    {
+      "counts": {
+        "activities": 100,
+        "capacities": 86,
+        "resources": 2
+      },
+      "current": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 14.324,
+          "median_ms": 14.324,
+          "min_ms": 14.324,
+          "p95_ms": 14.324
+        },
+        "peak_rss_kb": 52876,
+        "wall": {
+          "count": 1,
+          "max_ms": 14.324,
+          "median_ms": 14.324,
+          "min_ms": 14.324,
+          "p95_ms": 14.324
+        }
+      },
+      "current_hash": "ef51580f8fc28cf6bba71a7c3473d9b7941418eb56665e24d918624c397afed8",
+      "elapsed_s": 1.104,
+      "identical": true,
+      "mode": "forward",
+      "output_counts": {
+        "current": 84,
+        "reference": 84
+      },
+      "reference": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 1119.026,
+          "median_ms": 1119.026,
+          "min_ms": 1119.026,
+          "p95_ms": 1119.026
+        },
+        "wall": {
+          "count": 1,
+          "max_ms": 1074.213,
+          "median_ms": 1074.213,
+          "min_ms": 1074.213,
+          "p95_ms": 1074.213
+        }
+      },
+      "reference_hash": "ef51580f8fc28cf6bba71a7c3473d9b7941418eb56665e24d918624c397afed8",
+      "repeat": 1,
+      "seed": 20261116,
+      "size": 100,
+      "speedup_median": 74.99,
+      "status": "ok",
+      "warmup": 0
+    },
+    {
+      "counts": {
+        "activities": 250,
+        "capacities": 162,
+        "resources": 2
+      },
+      "current": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 48.16,
+          "median_ms": 48.16,
+          "min_ms": 48.16,
+          "p95_ms": 48.16
+        },
+        "peak_rss_kb": 54784,
+        "wall": {
+          "count": 1,
+          "max_ms": 48.168,
+          "median_ms": 48.168,
+          "min_ms": 48.168,
+          "p95_ms": 48.168
+        }
+      },
+      "current_hash": "d811889a1fb403101e2c4d2fb90cbca80dd605332fbe1736ebebc9cd27d7fee8",
+      "elapsed_s": 18.382,
+      "identical": true,
+      "mode": "forward",
+      "output_counts": {
+        "current": 226,
+        "reference": 226
+      },
+      "reference": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 18316.699,
+          "median_ms": 18316.699,
+          "min_ms": 18316.699,
+          "p95_ms": 18316.699
+        },
+        "wall": {
+          "count": 1,
+          "max_ms": 18317.613,
+          "median_ms": 18317.613,
+          "min_ms": 18317.613,
+          "p95_ms": 18317.613
+        }
+      },
+      "reference_hash": "d811889a1fb403101e2c4d2fb90cbca80dd605332fbe1736ebebc9cd27d7fee8",
+      "repeat": 1,
+      "seed": 20261116,
+      "size": 250,
+      "speedup_median": 380.29,
+      "status": "ok",
+      "warmup": 0
+    },
+    {
+      "counts": {
+        "activities": 500,
+        "capacities": 286,
+        "resources": 2
+      },
+      "current": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 83.129,
+          "median_ms": 83.129,
+          "min_ms": 83.129,
+          "p95_ms": 83.129
+        },
+        "peak_rss_kb": 57424,
+        "wall": {
+          "count": 1,
+          "max_ms": 83.13,
+          "median_ms": 83.13,
+          "min_ms": 83.13,
+          "p95_ms": 83.13
+        }
+      },
+      "current_hash": "23b7318418d94a5aff43e7d3fa27f671235fc7c3d2d33313960d32fd7575ff12",
+      "elapsed_s": 157.088,
+      "identical": true,
+      "mode": "forward",
+      "output_counts": {
+        "current": 476,
+        "reference": 476
+      },
+      "reference": {
+        "cpu": {
+          "count": 1,
+          "max_ms": 156975.136,
+          "median_ms": 156975.136,
+          "min_ms": 156975.136,
+          "p95_ms": 156975.136
+        },
+        "wall": {
+          "count": 1,
+          "max_ms": 156983.427,
+          "median_ms": 156983.427,
+          "min_ms": 156983.427,
+          "p95_ms": 156983.427
+        }
+      },
+      "reference_hash": "23b7318418d94a5aff43e7d3fa27f671235fc7c3d2d33313960d32fd7575ff12",
+      "repeat": 1,
+      "seed": 20261116,
+      "size": 500,
+      "speedup_median": 1888.41,
+      "status": "ok",
+      "warmup": 0
+    }
+  ],
+  "reference_rev": "ee9753e6",
+  "repeat": 1,
+  "seed": 20261116,
+  "warmup": 0
+}

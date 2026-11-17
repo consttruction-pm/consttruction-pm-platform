@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import heapq
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from fractions import Fraction
 from typing import Mapping
 
 from .calendar import WorkingTimeResolver
@@ -297,6 +299,114 @@ class LevelingShift:
     remaining_float: int
 
 
+class _WorkingDaySeries:
+    """O(1) working-day offsets for one resolver.
+
+    A leveling pass shifts the same dates again and again (once per accepted
+    working-day step), and walking ``next_working_day`` every time makes that
+    quadratic in the shift distance.  The series keeps one contiguous
+    working-day chain and answers a shift by index, extending the chain in
+    either direction when a date outside the current window is requested.  A
+    non-working input date — whose legacy behaviour starts from the *next*
+    (forward) or *previous* (backward) working day — falls back to the
+    authoritative resolver loop, so the calendar semantics are exactly the
+    walking implementation.
+    """
+
+    __slots__ = ("_resolver", "_dates", "_positions", "_low", "_high")
+
+    def __init__(self, resolver: WorkingTimeResolver) -> None:
+        self._resolver = resolver
+        self._dates: dict[int, date] = {}
+        self._positions: dict[date, int] = {}
+        self._low = 0
+        self._high = -1
+
+    def _position(self, value: date) -> int | None:
+        """Index of ``value`` in the chain, or ``None`` for a non-working day."""
+        position = self._positions.get(value)
+        if position is not None:
+            return position
+        resolver = self._resolver
+        gregorian = resolver.calendar.to_gregorian(value)
+        if not resolver.is_working_day(gregorian):
+            return None
+        if not self._dates:
+            self._dates[0] = gregorian
+            self._positions[gregorian] = 0
+            self._low = self._high = 0
+            return 0
+        if gregorian < self._dates[self._low]:
+            cursor = self._dates[self._low]
+            index = self._low
+            while cursor > gregorian:
+                cursor = resolver.previous_working_day(cursor)
+                index -= 1
+                self._dates[index] = cursor
+                self._positions[cursor] = index
+            self._low = index
+        else:
+            cursor = self._dates[self._high]
+            index = self._high
+            while cursor < gregorian:
+                cursor = resolver.next_working_day(cursor)
+                index += 1
+                self._dates[index] = cursor
+                self._positions[cursor] = index
+            self._high = index
+        return self._positions[gregorian]
+
+    def _forward_to(self, target: int) -> date:
+        resolver = self._resolver
+        index = self._high
+        cursor = self._dates[index]
+        while index < target:
+            cursor = resolver.next_working_day(cursor)
+            index += 1
+            self._dates[index] = cursor
+            self._positions[cursor] = index
+        self._high = index
+        return self._dates[target]
+
+    def _backward_to(self, target: int) -> date:
+        resolver = self._resolver
+        index = self._low
+        cursor = self._dates[index]
+        while index > target:
+            cursor = resolver.previous_working_day(cursor)
+            index -= 1
+            self._dates[index] = cursor
+            self._positions[cursor] = index
+        self._low = index
+        return self._dates[target]
+
+    def advance(self, value: date, count: int) -> date:
+        if count < 0:
+            raise ResourceLevelingError("INVALID_FORWARD_SHIFT")
+        if count == 0:
+            return value
+        position = self._position(value)
+        if position is None:
+            return _shift_date_forward(value, count, self._resolver)
+        target = position + count
+        if target > self._high:
+            return self._forward_to(target)
+        return self._dates[target]
+
+    def retreat(self, value: date, count: int) -> date:
+        if count < 0:
+            raise ResourceLevelingError("INVALID_BACKWARD_SHIFT")
+        if count == 0:
+            return value
+        position = self._position(value)
+        if position is None:
+            return _shift_date_backward(value, -count, self._resolver)
+        target = position - count
+        if target < self._low:
+            return self._backward_to(target)
+        return self._dates[target]
+
+
 def _shift_date_forward(
     value: date,
     shift_working_days: int,
@@ -315,11 +425,16 @@ def _shift_demands(
     demands: tuple[ResourceDemand, ...],
     shift_working_days: int,
     resolver: WorkingTimeResolver,
+    series: _WorkingDaySeries | None = None,
 ) -> tuple[ResourceDemand, ...]:
     return tuple(
         ResourceDemand(
             d.resource_id,
-            _shift_date_forward(d.period, shift_working_days, resolver),
+            (
+                series.advance(d.period, shift_working_days)
+                if series is not None
+                else _shift_date_forward(d.period, shift_working_days, resolver)
+            ),
             d.units,
             d.activity_id,
             d.assignment_id,
@@ -507,6 +622,14 @@ def propose_forward_leveling_within_float(
         )
 
     demand_cache: dict[tuple[str, int], dict[tuple[str, date], Decimal]] = {}
+    series_cache: dict[int, _WorkingDaySeries] = {}
+
+    def series_for(selected_resolver: WorkingTimeResolver) -> _WorkingDaySeries:
+        series = series_cache.get(id(selected_resolver))
+        if series is None:
+            series = _WorkingDaySeries(selected_resolver)
+            series_cache[id(selected_resolver)] = series
+        return series
 
     def demand_index(activity: LevelingActivity, shift: int) -> dict[tuple[str, date], Decimal]:
         """Selected-resource demand units for one activity at one shift.
@@ -525,75 +648,175 @@ def propose_forward_leveling_within_float(
             activity.activity_id, resolver, activity_resolvers
         )
         merged: dict[tuple[str, date], Decimal] = {}
-        for demand in _shift_demands(activity.resource_demands, shift, activity_resolver):
+        series = series_for(activity_resolver)
+        # Same filtering, same demand order and the same Decimal additions as
+        # shifting ``ResourceDemand`` objects and then filtering them, without
+        # allocating one object per request on every accepted shift.
+        for demand in activity.resource_demands:
             if demand.resource_id not in selected_resources:
                 continue
-            unit_key = (demand.resource_id, demand.period)
+            unit_key = (demand.resource_id, series.advance(demand.period, shift))
             merged[unit_key] = merged.get(unit_key, Decimal("0")) + demand.units
         demand_cache[key] = merged
         return merged
 
-    shifts: list[LevelingShift] = []
-    while True:
-        # Rebuild the (resource, period) ledger in activity order.  The value
-        # for each key is exactly the Decimal sum the previous O(n^2) scan
-        # recomputed on every iteration, but without repeating date arithmetic
-        # for every (activity, overloaded period) pair.
-        totals: dict[tuple[str, date], Decimal] = {}
-        for activity in levelable_activities:
-            for unit_key, units in demand_index(
-                activity, selected[activity.activity_id]
-            ).items():
-                totals[unit_key] = totals.get(unit_key, Decimal("0")) + units
-        overloaded = [
-            unit_key
-            for unit_key in sorted(totals, key=lambda key: (key[1], key[0]))
-            if totals[unit_key] > effective_capacity(unit_key[0], unit_key[1])
-        ]
-        if not overloaded:
+    # P0-J incremental ledger.
+    #
+    # The decision sequence is unchanged: the same candidates, the same
+    # ordering rule and the same one-working-day step are used.  What changes
+    # is bookkeeping.  The previous loop rebuilt the whole (resource, period)
+    # ledger and rescanned every activity for every overloaded period on every
+    # accepted shift, which is O(shifts x overloaded periods x activities).
+    #
+    # The ledger below keeps, for each (resource, period), the exact units of
+    # every activity currently contributing to it, and keeps the sum as an
+    # exact rational (``Fraction`` of the Decimal units) so a subtract/add
+    # update can never round differently from a rebuild.  Over-allocation is a
+    # maintained set, and candidate selection uses a lazy min-heap so each
+    # accepted shift costs O(changed cells + log candidates), not a full scan.
+    active_index: dict[str, dict[tuple[str, date], Decimal]] = {}
+    key_members: dict[tuple[str, date], dict[str, Decimal]] = {}
+    totals: dict[tuple[str, date], Fraction] = {}
+    capacity_fraction: dict[tuple[str, date], Fraction] = {}
+
+    def capacity_limit(unit_key: tuple[str, date]) -> Fraction:
+        cached = capacity_fraction.get(unit_key)
+        if cached is None:
+            cached = Fraction(effective_capacity(unit_key[0], unit_key[1]))
+            capacity_fraction[unit_key] = cached
+        return cached
+
+    for activity in levelable_activities:
+        index = demand_index(activity, 0)
+        active_index[activity.activity_id] = index
+        for unit_key, units in index.items():
+            key_members.setdefault(unit_key, {})[activity.activity_id] = units
+            totals[unit_key] = totals.get(unit_key, Fraction(0)) + Fraction(units)
+
+    overloaded: set[tuple[str, date]] = {
+        unit_key for unit_key, total in totals.items() if total > capacity_limit(unit_key)
+    }
+
+    # Heap entries: (priority key, -units, activity id, resource/period, version).
+    # A version bump invalidates every older entry for that activity, and each
+    # pop re-checks the entry against the live ledger before it can be chosen.
+    priority_keys: dict[str, tuple] = {
+        activity.activity_id: _priority_sort_key(activity, priorities)
+        for activity in levelable_activities
+    }
+
+    def candidate_entry(
+        activity: LevelingActivity, units: Decimal, unit_key: tuple[str, date]
+    ) -> tuple | None:
+        # The previous scan only produced candidates for positive demand.
+        if units <= 0:
+            return None
+        return (
+            priority_keys[activity.activity_id],
+            -units,
+            activity.activity_id,
+            unit_key,
+            versions[activity.activity_id],
+        )
+
+    def push_candidate(
+        activity: LevelingActivity, units: Decimal, unit_key: tuple[str, date]
+    ) -> None:
+        entry = candidate_entry(activity, units, unit_key)
+        if entry is not None:
+            heapq.heappush(heap, entry)
+
+    activity_by_id: dict[str, LevelingActivity] = {
+        a.activity_id: a for a in levelable_activities
+    }
+    versions: dict[str, int] = {a.activity_id: 0 for a in levelable_activities}
+    heap: list[tuple] = []
+    for unit_key in overloaded:
+        for member_id, units in key_members[unit_key].items():
+            entry = candidate_entry(activity_by_id[member_id], units, unit_key)
+            if entry is not None:
+                heap.append(entry)
+    heapq.heapify(heap)
+
+    def shift_limit_reached(activity: LevelingActivity) -> bool:
+        current_shift = selected[activity.activity_id]
+        if allow_beyond_float:
+            return max_shift_working_days is not None and current_shift >= max_shift_working_days
+        return current_shift >= max(0, activity.total_float - min_float_to_preserve)
+
+    final_shifts: dict[str, LevelingShift] = {}
+    while overloaded:
+        chosen: tuple | None = None
+        while heap:
+            entry = heap[0]
+            priority_key, negative_units, activity_id, unit_key, version = entry
+            activity = activity_by_id[activity_id]
+            live_units = active_index[activity_id].get(unit_key)
+            if (
+                version != versions[activity_id]
+                or live_units is None
+                or live_units != -negative_units
+                or unit_key not in overloaded
+                or shift_limit_reached(activity)
+            ):
+                heapq.heappop(heap)
+                continue
+            chosen = entry
+            break
+        if chosen is None:
             break
 
-        candidates: list[tuple[tuple, Decimal, str]] = []
-        for resource_id, period in overloaded:
-            for activity in levelable_activities:
-                current_shift = selected[activity.activity_id]
-                if allow_beyond_float:
-                    if (
-                        max_shift_working_days is not None
-                        and current_shift >= max_shift_working_days
-                    ):
-                        continue
-                elif current_shift >= max(0, activity.total_float - min_float_to_preserve):
-                    continue
-                units = demand_index(activity, current_shift).get(
-                    (resource_id, period), Decimal("0")
-                )
-                if units > 0:
-                    priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
-                    candidates.append((priority_key, -units, activity.activity_id))
-        if not candidates:
-            break
-
-        _, _, activity_id = sorted(candidates, key=lambda item: (item[0], item[1], item[2]))[0]
-        activity = next(a for a in activity_list if a.activity_id == activity_id)
+        _, _, activity_id, _, _ = chosen
+        activity = activity_by_id[activity_id]
         next_shift = selected[activity_id] + 1
         selected[activity_id] = next_shift
+        versions[activity_id] += 1
+
+        # Replace this activity's ledger contribution: only the cells that
+        # actually changed are touched.
+        previous = active_index[activity_id]
+        current = demand_index(activity, next_shift)
+        active_index[activity_id] = current
+        touched = set(previous) | set(current)
+        for unit_key in touched:
+            old_units = previous.get(unit_key)
+            new_units = current.get(unit_key)
+            if old_units is not None:
+                members = key_members[unit_key]
+                del members[activity_id]
+                totals[unit_key] -= Fraction(old_units)
+                if not members:
+                    del key_members[unit_key]
+                    totals.pop(unit_key, None)
+                    overloaded.discard(unit_key)
+                    if new_units is None:
+                        continue
+            if new_units is not None:
+                key_members.setdefault(unit_key, {})[activity_id] = new_units
+                totals[unit_key] = totals.get(unit_key, Fraction(0)) + Fraction(new_units)
+            if totals[unit_key] > capacity_limit(unit_key):
+                if unit_key not in overloaded:
+                    # Newly over-allocated: every current member is a candidate.
+                    overloaded.add(unit_key)
+                    for member_id, units in key_members[unit_key].items():
+                        push_candidate(activity_by_id[member_id], units, unit_key)
+                elif new_units is not None:
+                    push_candidate(activity, new_units, unit_key)
+            else:
+                overloaded.discard(unit_key)
+
         activity_resolver = _resolver_for_activity(
             activity.activity_id, resolver, activity_resolvers
         )
-        shifts.append(
-            LevelingShift(
-                activity_id,
-                next_shift,
-                _shift_date_forward(activity.start, next_shift, activity_resolver),
-                _shift_date_forward(activity.finish, next_shift, activity_resolver),
-                next_shift,
-                activity.total_float - next_shift,
-            )
+        series = series_for(activity_resolver)
+        final_shifts[activity_id] = LevelingShift(
+            activity_id,
+            next_shift,
+            series.advance(activity.start, next_shift),
+            series.advance(activity.finish, next_shift),
+            next_shift,
+            activity.total_float - next_shift,
         )
-    final_shifts: dict[str, LevelingShift] = {}
-    for shift in shifts:
-        final_shifts[shift.activity_id] = shift
     return tuple(final_shifts.values())
 
 
@@ -911,96 +1134,225 @@ def propose_backward_leveling(
             Decimal("1") + over_allocation_percentage / Decimal("100")
         )
 
-    def current_demands() -> list[ResourceDemand]:
-        result: list[ResourceDemand] = []
-        for activity in levelable_activities:
-            result.extend(
-                d for d in _shift_demands_backward(
-                    activity.resource_demands,
-                    shifts[activity.activity_id],
-                    _resolver_for_activity(activity.activity_id, resolver, activity_resolvers),
-                ) if d.resource_id in selected_resources
-            )
-        return result
+    demand_cache: dict[tuple[str, int], dict[tuple[str, date], Decimal]] = {}
+    series_cache: dict[int, _WorkingDaySeries] = {}
 
-    result: list[BackwardLevelingShift] = []
-    while True:
-        demands = current_demands()
-        overloaded = [
-            (resource_id, period)
-            for resource_id, period in sorted(
-                {(d.resource_id, d.period) for d in demands},
-                key=lambda item: (item[1], item[0]),
-            )
-            if sum(
-                (d.units for d in demands if d.resource_id == resource_id and d.period == period),
-                Decimal("0"),
-            ) > effective_capacity(resource_id, period)
-        ]
-        if not overloaded:
-            break
+    def series_for(selected_resolver: WorkingTimeResolver) -> _WorkingDaySeries:
+        series = series_cache.get(id(selected_resolver))
+        if series is None:
+            series = _WorkingDaySeries(selected_resolver)
+            series_cache[id(selected_resolver)] = series
+        return series
 
-        candidates: list[tuple[tuple, Decimal, str]] = []
-        for resource_id, period in overloaded:
-            for activity in levelable_activities:
-                if activity.activity_id in protected_activity_ids:
-                    continue
-                current_shift = shifts[activity.activity_id]
-                activity_resolver = _resolver_for_activity(
-                    activity.activity_id, resolver, activity_resolvers
-                )
-                max_advance = _working_days_between(
-                    activity.early_start, activity.late_start, activity_resolver
-                )
-                if -current_shift >= max_advance:
-                    continue
-                current = _shift_demands_backward(
-                    activity.resource_demands, current_shift, activity_resolver
-                )
-                units = sum(
-                    (d.units for d in current if d.resource_id == resource_id and d.period == period),
-                    Decimal("0"),
-                )
-                if units <= 0:
-                    continue
-                values = {
-                    "activity_id": activity.activity_id,
-                    "activity_priority": activity.activity_priority,
-                    "early_start": activity.early_start,
-                    "early_finish": activity.early_finish,
-                    "late_start": activity.late_start,
-                    "late_finish": activity.late_finish,
-                    "total_float": activity.total_float,
-                    "free_float": activity.free_float,
-                }
-                key: list[tuple[int, object]] = []
-                for priority in priorities:
-                    value = values[priority.field_name.strip().lower().replace(" ", "_")]
-                    if value is None:
-                        key.append((1, ""))
-                    elif priority.sort_order is SortOrder.ASCENDING:
-                        key.append((0, value))
-                    else:
-                        key.append((0, _Descending(value)))
-                key.append((0, activity.activity_id))
-                candidates.append((tuple(key), -units, activity.activity_id))
+    def demand_index(
+        activity: BackwardLevelingActivity, shift: int
+    ) -> dict[tuple[str, date], Decimal]:
+        """Selected-resource demand units for one activity at one backward shift.
 
-        if not candidates:
-            break
-
-        _, _, activity_id = min(candidates, key=lambda item: (item[0], item[1], item[2]))
-        activity = next(a for a in activity_list if a.activity_id == activity_id)
-        next_shift = shifts[activity_id] - 1
-        shifts[activity_id] = next_shift
+        ``shift`` is the cumulative late-date offset (``<= 0``).  The cache
+        holds exactly what the rebuild produced: demands moved with the
+        activity resolver and filtered to the selected resources, with units
+        for the same ``(resource, period)`` summed in demand order so Decimal
+        behaviour matches the direct ``sum`` it replaces.
+        """
+        key = (activity.activity_id, shift)
+        cached = demand_cache.get(key)
+        if cached is not None:
+            return cached
         activity_resolver = _resolver_for_activity(
             activity.activity_id, resolver, activity_resolvers
         )
+        series = series_for(activity_resolver)
+        merged: dict[tuple[str, date], Decimal] = {}
+        for demand in activity.resource_demands:
+            if demand.resource_id not in selected_resources:
+                continue
+            unit_key = (demand.resource_id, series.retreat(demand.period, -shift))
+            merged[unit_key] = merged.get(unit_key, Decimal("0")) + demand.units
+        demand_cache[key] = merged
+        return merged
+
+    # P0-J incremental ledger (backward pass).
+    #
+    # Decision sequence is unchanged: same candidate set, same
+    # ``(priority key, -units, activity id)`` minimum, same one-working-day
+    # backward step, same cumulative shift records.  The rebuild-per-iteration
+    # bookkeeping is replaced by a maintained (resource, period) ledger with
+    # exact Fraction totals, a maintained over-allocation set and a
+    # version-stamped lazy min-heap.
+    active_index: dict[str, dict[tuple[str, date], Decimal]] = {}
+    key_members: dict[tuple[str, date], dict[str, Decimal]] = {}
+    totals: dict[tuple[str, date], Fraction] = {}
+    capacity_fraction: dict[tuple[str, date], Fraction] = {}
+
+    def capacity_limit(unit_key: tuple[str, date]) -> Fraction:
+        cached = capacity_fraction.get(unit_key)
+        if cached is None:
+            cached = Fraction(effective_capacity(unit_key[0], unit_key[1]))
+            capacity_fraction[unit_key] = cached
+        return cached
+
+    for activity in levelable_activities:
+        index = demand_index(activity, 0)
+        active_index[activity.activity_id] = index
+        for unit_key, units in index.items():
+            key_members.setdefault(unit_key, {})[activity.activity_id] = units
+            totals[unit_key] = totals.get(unit_key, Fraction(0)) + Fraction(units)
+
+    overloaded: set[tuple[str, date]] = {
+        unit_key for unit_key, total in totals.items() if total > capacity_limit(unit_key)
+    }
+
+    protected = set(protected_activity_ids)
+    activity_by_id: dict[str, BackwardLevelingActivity] = {
+        a.activity_id: a for a in levelable_activities
+    }
+    versions: dict[str, int] = {a.activity_id: 0 for a in levelable_activities}
+    heap: list[tuple] = []
+
+    def backward_priority_key(activity: BackwardLevelingActivity) -> tuple:
+        values = {
+            "activity_id": activity.activity_id,
+            "activity_priority": activity.activity_priority,
+            "early_start": activity.early_start,
+            "early_finish": activity.early_finish,
+            "late_start": activity.late_start,
+            "late_finish": activity.late_finish,
+            "total_float": activity.total_float,
+            "free_float": activity.free_float,
+        }
+        key: list[tuple[int, object]] = []
+        for priority in priorities:
+            value = values[priority.field_name.strip().lower().replace(" ", "_")]
+            if value is None:
+                key.append((1, ""))
+            elif priority.sort_order is SortOrder.ASCENDING:
+                key.append((0, value))
+            else:
+                key.append((0, _Descending(value)))
+        key.append((0, activity.activity_id))
+        return tuple(key)
+
+    priority_keys: dict[str, tuple] = {
+        activity.activity_id: backward_priority_key(activity)
+        for activity in levelable_activities
+    }
+    max_advance_cache: dict[str, int] = {}
+
+    def max_advance_for(activity: BackwardLevelingActivity) -> int:
+        cached = max_advance_cache.get(activity.activity_id)
+        if cached is None:
+            cached = _working_days_between(
+                activity.early_start,
+                activity.late_start,
+                _resolver_for_activity(activity.activity_id, resolver, activity_resolvers),
+            )
+            max_advance_cache[activity.activity_id] = cached
+        return cached
+
+    def shift_limit_reached(activity: BackwardLevelingActivity) -> bool:
+        # The rebuild skipped an activity once it had used its whole
+        # early-start..late-start window.
+        return -shifts[activity.activity_id] >= max_advance_for(activity)
+
+    def candidate_entry(
+        activity_id: str, units: Decimal, unit_key: tuple[str, date]
+    ) -> tuple | None:
+        # The rebuild only produced candidates for positive demand and never
+        # for protected activities (they stay in the ledger).
+        if units <= 0 or activity_id in protected:
+            return None
+        return (
+            priority_keys[activity_id],
+            -units,
+            activity_id,
+            unit_key,
+            versions[activity_id],
+        )
+
+    def push_candidate(activity_id: str, units: Decimal, unit_key: tuple[str, date]) -> None:
+        entry = candidate_entry(activity_id, units, unit_key)
+        if entry is not None:
+            heapq.heappush(heap, entry)
+
+    for unit_key in overloaded:
+        for member_id, units in key_members[unit_key].items():
+            entry = candidate_entry(member_id, units, unit_key)
+            if entry is not None:
+                heap.append(entry)
+    heapq.heapify(heap)
+
+    result: list[BackwardLevelingShift] = []
+    while overloaded:
+        chosen: tuple | None = None
+        while heap:
+            entry = heap[0]
+            priority_key, negative_units, activity_id, unit_key, version = entry
+            activity = activity_by_id[activity_id]
+            live_units = active_index[activity_id].get(unit_key)
+            if (
+                version != versions[activity_id]
+                or live_units is None
+                or live_units != -negative_units
+                or unit_key not in overloaded
+                or shift_limit_reached(activity)
+            ):
+                heapq.heappop(heap)
+                continue
+            chosen = entry
+            break
+        if chosen is None:
+            break
+
+        _, _, activity_id, _, _ = chosen
+        activity = activity_by_id[activity_id]
+        next_shift = shifts[activity_id] - 1
+        shifts[activity_id] = next_shift
+        versions[activity_id] += 1
+
+        # Replace this activity's ledger contribution: only the cells that
+        # actually changed are touched.
+        previous = active_index[activity_id]
+        current = demand_index(activity, next_shift)
+        active_index[activity_id] = current
+        touched = set(previous) | set(current)
+        for unit_key in touched:
+            old_units = previous.get(unit_key)
+            new_units = current.get(unit_key)
+            if old_units is not None:
+                members = key_members[unit_key]
+                del members[activity_id]
+                totals[unit_key] -= Fraction(old_units)
+                if not members:
+                    del key_members[unit_key]
+                    totals.pop(unit_key, None)
+                    overloaded.discard(unit_key)
+                    if new_units is None:
+                        continue
+            if new_units is not None:
+                key_members.setdefault(unit_key, {})[activity_id] = new_units
+                totals[unit_key] = totals.get(unit_key, Fraction(0)) + Fraction(new_units)
+            if totals[unit_key] > capacity_limit(unit_key):
+                if unit_key not in overloaded:
+                    # Newly over-allocated: every current member is a candidate.
+                    overloaded.add(unit_key)
+                    for member_id, units in key_members[unit_key].items():
+                        push_candidate(member_id, units, unit_key)
+                elif new_units is not None:
+                    push_candidate(activity_id, new_units, unit_key)
+            else:
+                overloaded.discard(unit_key)
+
+        activity_resolver = _resolver_for_activity(
+            activity.activity_id, resolver, activity_resolvers
+        )
+        series = series_for(activity_resolver)
         result.append(
             BackwardLevelingShift(
                 activity_id=activity_id,
                 shift_working_days=next_shift,
-                new_start=_shift_date_backward(activity.late_start, next_shift, activity_resolver),
-                new_finish=_shift_date_backward(activity.late_finish, next_shift, activity_resolver),
+                new_start=series.retreat(activity.late_start, -next_shift),
+                new_finish=series.retreat(activity.late_finish, -next_shift),
                 advanced_days=-next_shift,
             )
         )
