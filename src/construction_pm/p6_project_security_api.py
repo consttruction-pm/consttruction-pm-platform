@@ -14,12 +14,23 @@ from .p6_project_security_repository import (
 
 P6_PROJECT_SECURITY_API_VERSION = "p6-project-security-api.v1"
 _PROFILE_MANAGEMENT_PRIVILEGE = "add_edit_delete_security_profiles"
+_USER_ACCESS_MANAGEMENT_PRIVILEGE = "add_edit_delete_users"
 
 
-def _require_admin(policy: Any, context: AuthorizationContext) -> None:
+def _require_privilege(policy: Any, context: AuthorizationContext, privilege: str, error: str) -> None:
     checker = getattr(policy, "allows_global_privilege", None)
-    if not callable(checker) or not checker(context, _PROFILE_MANAGEMENT_PRIVILEGE):
-        raise AuthorizationError("P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED")
+    if not callable(checker) or not checker(context, privilege):
+        raise AuthorizationError(error)
+
+
+def _require_profile_admin(policy: Any, context: AuthorizationContext) -> None:
+    _require_privilege(policy, context, _PROFILE_MANAGEMENT_PRIVILEGE,
+                       "P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED")
+
+
+def _require_user_admin(policy: Any, context: AuthorizationContext) -> None:
+    _require_privilege(policy, context, _USER_ACCESS_MANAGEMENT_PRIVILEGE,
+                       "P6_PROJECT_ACCESS_ADMIN_NOT_AUTHORIZED")
 
 
 def _profile_dto(profile: P6ProjectSecurityProfile) -> dict[str, Any]:
@@ -46,7 +57,7 @@ class P6ProjectSecurityAPI:
 
     def ensure_builtin_profile(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         profile = self.repository.ensure_builtin_profile(
             auth_context.tenant_id, actor_id=auth_context.user_id
         )
