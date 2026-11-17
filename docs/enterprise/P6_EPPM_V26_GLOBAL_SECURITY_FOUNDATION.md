@@ -145,3 +145,25 @@ cross-tenant and stale-revision error precedence. The shared integration test
 file is owned by PR #1983; a detailed handoff comment was posted there, and
 this branch did not modify that file. Re-run all workflows after the fixture
 handoff and the new resource policy commits.
+
+
+## Secure-code authorization policy increment — 2026-11-17
+
+The global-profile domain now exposes explicit predicates for View, Assign,
+Edit, and Add/Delete Secure Codes. The checks are fail-closed for unknown
+actions, inactive profiles, and No Global Privileges; only the application-
+generated Admin Superuser bypasses the individual secure-code grants. Custom
+profiles must carry the exact normalized privilege for the requested action.
+
+Oracle V26 Help defines secure-code protection across project, activity,
+resource, role, and issue codes and their values. The hierarchy is Add/Delete
+⇒ Edit + Assign + View; Edit ⇒ Assign + View; Assign ⇒ View. See:
+- [Working with Security Profiles — Secure Codes](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/workingwithsecurityprofiles-36451a.html)
+- [Global Security Profile Privileges Detail](https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm)
+
+This is a domain authorization seam, not yet route enforcement. Every code
+producer/consumer must invoke the predicate before detail serialization,
+list/search/filter, counts/aggregations, assignment pickers, import/export,
+and mutation. The Associated Resource user mapping and the full Project
+Security Profile privilege-to-route matrix remain separate open work items;
+no parity claim is made for them in this increment.
