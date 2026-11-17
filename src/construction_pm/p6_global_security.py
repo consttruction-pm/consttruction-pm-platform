@@ -920,13 +920,15 @@ class P6GlobalSecurityAuthorizationPolicy:
         try:
             context.validate()
             assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
-            if assignment is None or "projects" not in assignment.module_access:
+            if assignment is None:
                 return False
             profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
             if profile is None or not profile.active:
                 return False
             if global_profile_has_project_access_bypass(profile):
                 return True
+            if "projects" not in assignment.module_access:
+                return False
             checker = getattr(self._obs_project_access, "has_project_privilege", None)
             if not callable(checker):
                 return False
