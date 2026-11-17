@@ -173,9 +173,7 @@ class DashboardPortlet:
         if context == "portfolio" and self.config.get("portfolio_id") != context_portfolio_id:
             raise EnterpriseDashboardError("PORTLET_PORTFOLIO_CONTEXT_MISMATCH")
         if self.title is not None:
-            _required_text(self.title, "PORTLET_TITLE")
-            if len(self.title) > 255:
-                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE")
+            _required_text(self.title, "PORTLET_TITLE", maximum=255)
         if not isinstance(self.hide_title, bool):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE_VISIBILITY")
         self.layout.validate()
