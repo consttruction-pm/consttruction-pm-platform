@@ -428,31 +428,45 @@
             }
           },
           {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "key",
-              "operator",
-              "value"
-            ],
-            "properties": {
-              "key": {
-                "const": "project_id"
-              },
-              "operator": {
-                "enum": [
-                  "eq",
-                  "in"
-                ]
-              },
-              "value": {
-                "oneOf": [
-                  {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_id"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_id"
                   },
-                  {
+                  "operator": {
+                    "const": "in"
+                  },
+                  "value": {
                     "type": "array",
                     "minItems": 1,
                     "uniqueItems": true,
@@ -462,9 +476,9 @@
                       "maxLength": 200
                     }
                   }
-                ]
+                }
               }
-            }
+            ]
           }
         ]
       }
@@ -732,7 +746,8 @@
         "freshness_state",
         "data",
         "drill_through_refs",
-        "saved_filters"
+        "saved_filters",
+        "filtered_out"
       ],
       "properties": {
         "instance_id": {
@@ -822,6 +837,9 @@
           "items": {
             "type": "object"
           }
+        },
+        "filtered_out": {
+          "type": "boolean"
         }
       }
     },
