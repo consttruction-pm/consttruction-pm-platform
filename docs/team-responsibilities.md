@@ -254,3 +254,8 @@ For the Enterprise Portfolio & Executive Center, Hasan is the accountable backen
 - If the repository has no existing canonical membership persistence, its creation is part of Hasan's assigned Enterprise source task—not a blocker requiring another owner decision. Hasan must document the chosen canonical paths and contract in the PR before implementation is considered complete.
 
 This assignment resolves the source-owner ambiguity recorded in Issue #2033. It does not authorize changes to Engineering's authoritative project records or calculations, nor does it authorize duplicate schedule, progress/EVM, cost, resource, risk, claim or procurement logic.
+
+
+### Execution exception — Issue #2033 (2026-11-17)
+
+At the user's explicit direction, the active implementation of Issue #2033 is being executed directly by Jalal on branch `fix/portfolio-control-provider-owned-implementation`, rather than waiting on the Hasan handoff. This is a task-specific execution override only; it does not transfer the general Backend/Database/API role or the long-term Enterprise portfolio ownership model. Hasan is not a prerequisite or blocker for this implementation. Jalal owns this branch's code, tests, documentation reconciliation and technical completion until the provider is proven and the work is merged.

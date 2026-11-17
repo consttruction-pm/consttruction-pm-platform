@@ -19,10 +19,19 @@ class PortfolioQueryProvider(Protocol):
     def get_snapshot(self, portfolio_id: str, *, tenant_id: str) -> PortfolioControlSnapshot: ...
 
 
+class PortfolioProjectAuthorizer(Protocol):
+    """Current-actor project authorization used for every project in a portfolio snapshot."""
+
+    def is_project_read_allowed(
+        self, auth_context: AuthorizationContext, project_id: str
+    ) -> bool: ...
+
+
 @dataclass(frozen=True)
 class PortfolioQueryApplicationService:
     provider: PortfolioQueryProvider
     authorization_policy: AuthorizationPolicy
+    project_authorizer: PortfolioProjectAuthorizer | None = None
 
     def get_snapshot(
         self,
@@ -36,7 +45,30 @@ class PortfolioQueryApplicationService:
                 "INVALID_PORTFOLIO_ID",
                 "Portfolio id is required",
             )
-        snapshot = self.provider.get_snapshot(portfolio_id, tenant_id=auth_context.tenant_id)
+        try:
+            snapshot = self.provider.get_snapshot(
+                portfolio_id, tenant_id=auth_context.tenant_id
+            )
+        except KeyError as exc:
+            raise BackendApplicationError(
+                ErrorCategory.NOT_FOUND,
+                "PORTFOLIO_SOURCE_NOT_FOUND",
+                "Portfolio or an authoritative source record was not found",
+            ) from exc
+        except ValueError as exc:
+            raw_code = str(exc)
+            code = (
+                raw_code if raw_code.startswith(("PORTFOLIO_", "ENGINEERING_"))
+                else "PORTFOLIO_SOURCE_INVALID"
+            )
+            category = (
+                ErrorCategory.CONFLICT
+                if "STALE" in code or "REVISION_CONFLICT" in code
+                else ErrorCategory.VALIDATION
+            )
+            raise BackendApplicationError(
+                category, code, "Portfolio source data is invalid or out of date"
+            ) from exc
         if not isinstance(snapshot, PortfolioControlSnapshot):
             raise BackendApplicationError(
                 ErrorCategory.VALIDATION,
@@ -56,6 +88,21 @@ class PortfolioQueryApplicationService:
                 "FORBIDDEN",
                 "Operation is not authorized",
             )
+        if self.project_authorizer is None:
+            raise BackendApplicationError(
+                ErrorCategory.AUTHORIZATION,
+                "PROJECT_AUTHORIZATION_NOT_CONFIGURED",
+                "Project-level authorization is not configured for portfolio reads",
+            )
+        for project in snapshot.projects:
+            if not self.project_authorizer.is_project_read_allowed(
+                auth_context, project.project_id
+            ):
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "FORBIDDEN",
+                    "Operation is not authorized for every project in this portfolio",
+                )
         return snapshot
 
 
@@ -79,5 +126,6 @@ __all__ = [
     "PORTFOLIO_CONTROL_SNAPSHOT_VERSION",
     "PortfolioQueryAPI",
     "PortfolioQueryApplicationService",
+    "PortfolioProjectAuthorizer",
     "PortfolioQueryProvider",
 ]
