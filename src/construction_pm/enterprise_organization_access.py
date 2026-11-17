@@ -355,6 +355,22 @@ class EnterpriseOrganizationAccessService:
             actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
+    def assign_default_project_profile(
+        self, session_id: str, target_user_id: str, *, obs_id: str,
+        expected_revision: int | None = None,
+    ):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_users")
+        if target_user_id == session.user_id:
+            raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.assign_default_project_profile(
+            tenant_id=session.tenant_id, user_id=target_user_id, obs_id=obs_id,
+            expected_revision=expected_revision, actor_user_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
     def get_user_global_access(self, session_id: str, target_user_id: str):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
