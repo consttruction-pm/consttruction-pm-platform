@@ -210,7 +210,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
     projectFilter: "Filter by project ID", applyFilter: "Apply filter", resetFilter: "Reset filter",
-    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", filterLocked: "The dashboard owner has restricted filter overrides.",
+    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -232,7 +232,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
     projectFilter: "فیلتر بر اساس شناسه پروژه", applyFilter: "اعمال فیلتر", resetFilter: "پاک‌کردن فیلتر",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
 
@@ -379,6 +379,21 @@ export async function mountEnterpriseDashboard(
           await client.setDisplayPreference(dashboard.dashboard_id, !displayed, displayed ? undefined : catalog!.displayed_dashboards.length);
           await loadCatalog();
         }));
+        if (displayed) {
+          const moveUp = button(t.moveDashboardUp, async () => {
+            if (itemIndex === 0) return;
+            await client.setDisplayPreference(dashboard.dashboard_id, true, itemIndex - 1);
+            await loadCatalog();
+          });
+          const moveDown = button(t.moveDashboardDown, async () => {
+            if (itemIndex >= items.length - 1) return;
+            await client.setDisplayPreference(dashboard.dashboard_id, true, itemIndex + 1);
+            await loadCatalog();
+          });
+          moveUp.disabled = itemIndex === 0;
+          moveDown.disabled = itemIndex === items.length - 1;
+          actions.append(moveUp, moveDown);
+        }
         actions.append(button(t.duplicate, async () => { await client.duplicateDashboard(dashboard.dashboard_id); await loadCatalog(); }));
         actions.append(button(t.archive, async () => {
           if (!window.confirm(t.archiveConfirm)) return;
