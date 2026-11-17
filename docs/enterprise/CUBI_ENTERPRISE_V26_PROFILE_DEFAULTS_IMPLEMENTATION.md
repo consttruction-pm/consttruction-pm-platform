@@ -41,6 +41,9 @@ Each scope has one active default profile. The defaults are independent: changin
 - Stores Module Access and Resource Access on the same `p6_security_profile_assignments` row as the Global profile; it does not create `p6_user_global_security` or a second profile assignment store.
 - Validates the V26 module list and Contributor exclusivity; the bilingual administration UI edits module access. Server-side project and global resource authorization checks the corresponding module access.
 - Uses No Resources as the default Resource Access mode; All Resources is supported, and Admin Superuser always receives all-resource access.
+- Applies the Users Page visibility boundary: Admin Superuser can see all tenant users; a user with Add/Edit/Delete Users but without All Resources can see only their own account. Cross-user profile assignment, account activation/deactivation, and user-access reads require All Resources until selected-resource ancestry is available.
+- Deactivating an account clears its Module Access on the same canonical Global assignment and records a revisioned audit event; reactivation does not silently restore removed modules. The database default-profile trigger does not override an existing assignment.
+- Admin Superuser still obeys independent Module Access for project/resource modules; its Global profile does not re-enable modules removed by user deactivation.
 - Deliberately rejects Select Resources until CUBI has an enterprise-wide resource hierarchy with authoritative root/descendant resolution. The existing resource master is project/revision scoped and cannot safely be used as a substitute for the V26 global resource hierarchy.
 - During operator bootstrap, provisions a protected, read-only `p6-default-project-readonly` profile as the Project default when a tenant has not selected one.
 - Adds a canonical OBS assignment operation: assigning an OBS without an explicit Project profile resolves the current Project default and records the profile in `p6_security_profile_assignments`; the operation shares the Project-default advisory lock so a concurrent default change cannot race the assignment.
@@ -59,6 +62,7 @@ Each scope has one active default profile. The defaults are independent: changin
 - automatic safe Global-default assignment for existing/new users and bootstrap Admin module/resource settings;
 - Module Access normalization, Contributor exclusivity, revisioned updates, immutable audit, and project-module authorization gating;
 - rejection of arbitrary selected-resource IDs while no enterprise-wide resource hierarchy exists;
+- Resource Access-based user-directory visibility, cross-user administration guard, and module removal on deactivation;
 - safe Project default bootstrap, automatic default profile application on OBS assignment, single user/OBS profile enforcement, and revisioned replacement.
 
 ## Explicitly not claimed by this slice
