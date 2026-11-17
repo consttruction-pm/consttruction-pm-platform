@@ -102,6 +102,32 @@ class P6ResourceWriteAPI:
         stored = self.assignment_service.save(value)
         return _assignment_dto(stored)
 
+    def create_resource_planning_assignment(
+        self,
+        value: P6ResourceAssignment,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Create a Resources > Planning assignment under its dedicated V26 grant.
+
+        Activity Details assignments continue to use ``save_assignment`` and
+        Add/Edit Activities Except Relationships. The Resources Planning page
+        is a separate V26 privilege and must not inherit that grant implicitly.
+        """
+        _require_scope(value.scope, auth_context)
+        _require_activity_permission(
+            self.authorization_policy,
+            auth_context,
+            Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN,
+            value.scope,
+            value.activity_id,
+            self.activity_repository,
+        )
+        if self.assignment_service is None:
+            raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
+        stored = self.assignment_service.save(value)
+        return _assignment_dto(stored)
+
     def save_assignment_period(
         self,
         value: P6ResourceAssignmentPeriodValue,
