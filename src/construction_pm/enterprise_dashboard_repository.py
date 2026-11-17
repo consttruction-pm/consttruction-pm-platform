@@ -84,6 +84,15 @@ class PostgresEnterpriseDashboardRepository:
             )"""
         )
         self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS enterprise_dashboard_tenant_policies (
+                tenant_id TEXT PRIMARY KEY,
+                max_dashboard_portlets INTEGER NOT NULL
+                    CHECK (max_dashboard_portlets BETWEEN 1 AND 50),
+                updated_by TEXT NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )"""
+        )
+        self.connection.execute(
             """CREATE TABLE IF NOT EXISTS enterprise_dashboard_display_preferences (
                 tenant_id TEXT NOT NULL,
                 user_id TEXT NOT NULL,
@@ -145,6 +154,46 @@ class PostgresEnterpriseDashboardRepository:
             BEFORE UPDATE OR DELETE ON enterprise_dashboard_audit
             FOR EACH ROW EXECUTE FUNCTION cubi_enterprise_dashboard_audit_reject_mutation()"""
         )
+
+    def get_dashboard_portlet_limit(self, tenant_id: str) -> int | None:
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise EnterpriseDashboardError("TENANT_ID_REQUIRED")
+        row = self.connection.execute(
+            "SELECT max_dashboard_portlets FROM enterprise_dashboard_tenant_policies "
+            "WHERE tenant_id=%s",
+            (tenant_id,),
+        ).fetchone()
+        return None if row is None else int(row[0])
+
+    def set_dashboard_portlet_limit(
+        self,
+        tenant_id: str,
+        max_dashboard_portlets: int,
+        *,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> int:
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise EnterpriseDashboardError("TENANT_ID_REQUIRED")
+        if (
+            isinstance(max_dashboard_portlets, bool)
+            or not isinstance(max_dashboard_portlets, int)
+            or not 1 <= max_dashboard_portlets <= 50
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
+        _required_text(actor_id, "ACTOR_ID")
+        _aware_datetime(occurred_at, "OCCURRED_AT")
+        row = self.connection.execute(
+            "INSERT INTO enterprise_dashboard_tenant_policies "
+            "(tenant_id,max_dashboard_portlets,updated_by,updated_at) "
+            "VALUES (%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id) DO UPDATE SET "
+            "max_dashboard_portlets=EXCLUDED.max_dashboard_portlets, "
+            "updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at "
+            "RETURNING max_dashboard_portlets",
+            (tenant_id, max_dashboard_portlets, actor_id, occurred_at),
+        ).fetchone()
+        return int(row[0])
 
     def create(
         self,
