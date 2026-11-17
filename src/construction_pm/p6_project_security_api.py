@@ -6,7 +6,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError
 from .p6_project_security import (
-    P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS,
+    P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS, normalize_project_privileges,
     P6_PROJECT_PRIVILEGE_DEPENDENCIES, P6_PROJECT_PRIVILEGE_REQUIREMENTS,
     P6_PROJECT_SUPERUSER_PROFILE_ID,
 )
@@ -111,6 +111,8 @@ class P6ProjectSecurityAPI:
         if profile.tenant_id != auth_context.tenant_id:
             raise AuthorizationError("CROSS_TENANT_ACCESS")
         _require_profile_admin(self.authorization_policy, auth_context)
+        # V26 automatically selects prerequisite privileges in the profile editor.
+        profile = replace(profile, privileges=normalize_project_privileges(profile.privileges))
         current = self.repository.get_profile(auth_context.tenant_id, profile.profile_id)
         if current is not None and profile.is_default != current.is_default:
             profile = replace(profile, is_default=current.is_default)
