@@ -43,9 +43,10 @@ def normalize_module_access(values: Iterable[str]) -> tuple[str, ...]:
 ADMIN_SUPERUSER_PROFILE_ID = "p6-admin-superuser"
 NO_GLOBAL_PRIVILEGES_PROFILE_ID = "p6-no-global-privileges"
 PROJECT_SUPERUSER_PROFILE_ID = "p6-project-superuser"
+DEFAULT_PROJECT_PROFILE_ID = "p6-default-project-readonly"
 _RESERVED_PROFILE_IDS = frozenset({
     ADMIN_SUPERUSER_PROFILE_ID, NO_GLOBAL_PRIVILEGES_PROFILE_ID,
-    PROJECT_SUPERUSER_PROFILE_ID,
+    PROJECT_SUPERUSER_PROFILE_ID, DEFAULT_PROJECT_PROFILE_ID,
 })
 _ADMIN_ONLY_PROFILE_IDS = frozenset({
     ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID,
@@ -664,6 +665,55 @@ def bootstrap_first_admin_superuser(
         ):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
 
+    # Provide a safe read-only Project default for future OBS assignments.
+    project_default = connection.execute(
+        "SELECT name,scope,active,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+        (tenant_id, DEFAULT_PROJECT_PROFILE_ID),
+    ).fetchone()
+    if project_default is None:
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,description,scope,active,is_default,revision,"
+            "created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,%s,'Default Project Read Only',"
+            "'Safe read-only project profile used when OBS responsibility is assigned.',"
+            "'project',TRUE,FALSE,1,%s,%s,%s,%s)",
+            (tenant_id, DEFAULT_PROJECT_PROFILE_ID, user_id, user_id, occurred_at, occurred_at),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_created',NULL,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,DEFAULT_PROJECT_PROFILE_ID,
+             json.dumps({"name":"Default Project Read Only","scope":"project",
+                         "active":True,"is_default":False,"revision":1}),occurred_at),
+        )
+    elif (str(project_default[0]) != "Default Project Read Only"
+          or str(project_default[1]) != "project" or not bool(project_default[2])):
+        raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
+    project_default_row = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND scope='project' AND is_default=TRUE AND active=TRUE FOR UPDATE",
+        (tenant_id,),
+    ).fetchone()
+    if project_default_row is None:
+        current_revision = int(project_default[3]) if project_default is not None else 1
+        next_revision = current_revision + 1
+        connection.execute(
+            "UPDATE p6_security_profiles SET is_default=TRUE,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (next_revision,user_id,occurred_at,tenant_id,DEFAULT_PROJECT_PROFILE_ID),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_default_changed',%s::jsonb,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,DEFAULT_PROJECT_PROFILE_ID,
+             json.dumps({"is_default":False,"revision":current_revision}),
+             json.dumps({"is_default":True,"revision":next_revision}),occurred_at),
+        )
+
     default_row = connection.execute(
         "SELECT profile_id,revision FROM p6_security_profiles "
         "WHERE tenant_id=%s AND scope='global' AND is_default=TRUE AND active=TRUE FOR UPDATE",
@@ -916,14 +966,15 @@ class PostgresSecurityProfileRepository:
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if (profile_id in _ADMIN_ONLY_PROFILE_IDS
-                or (profile_id == NO_GLOBAL_PRIVILEGES_PROFILE_ID and not is_default)):
+                or (profile_id in {NO_GLOBAL_PRIVILEGES_PROFILE_ID, DEFAULT_PROJECT_PROFILE_ID}
+                    and not is_default)):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if str(row[1]) != scope:
             raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
         if not bool(row[2]) and is_default:
             raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
-        if scope == "global" and bool(row[5]) and not is_default:
-            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_DEFAULT_REQUIRED")
+        if bool(row[5]) and not is_default:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_REQUIRED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         before = self.get_profile(tenant_id, profile_id)
