@@ -60,6 +60,36 @@ class RecordingConnection:
         return self
 
 
+class IdentityLookupConnection:
+    def __init__(self, row):
+        self.row = row
+        self.statements = []
+
+    def execute(self, statement, params=None):
+        self.statements.append((statement, params))
+        return self
+
+    def fetchone(self):
+        return self.row
+
+
+def test_user_share_target_lookup_requires_active_same_tenant_identity():
+    same_tenant = PostgresEnterpriseDashboardRepository(
+        IdentityLookupConnection(("tenant-a", True))
+    )
+    assert same_tenant.user_belongs_to_tenant("tenant-a", "bob") is True
+
+    cross_tenant = PostgresEnterpriseDashboardRepository(
+        IdentityLookupConnection(("tenant-b", True))
+    )
+    assert cross_tenant.user_belongs_to_tenant("tenant-a", "bob") is False
+
+    inactive = PostgresEnterpriseDashboardRepository(
+        IdentityLookupConnection(("tenant-a", False))
+    )
+    assert inactive.user_belongs_to_tenant("tenant-a", "bob") is False
+
+
 def test_dashboard_repository_serialization_round_trip_is_lossless():
     original = dashboard()
     encoded = PostgresEnterpriseDashboardRepository._serialize(original)
