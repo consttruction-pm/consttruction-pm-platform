@@ -16,8 +16,8 @@ class Service:
             "name":"Root","manager_user_id":"admin","sequence_number":1})(),)
 
     def list_privilege_definitions(self, session_id):
-        return (type("Privilege",(),{"key":"activity.view","group":type("Group",(),{"value":"activities"})(),
-            "label":"View Activities","description":"View activity data.",
+        return (type("Privilege",(),{"key":"activity.add_edit_except_relationships","group":type("Group",(),{"value":"activities"})(),
+            "label":"Add/Edit Activities Except Relationships","description":"Create and edit activities without changing relationships.",
             "help_url":"https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html",
             "definitions_help_url":"https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/projectprivilegedefinitions-47746a.html"})(),)
 
