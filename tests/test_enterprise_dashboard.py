@@ -629,6 +629,18 @@ def test_dashboard_share_never_bypasses_source_project_authorization():
     assert result["portlets"][0]["source_revision"] == "source-1:7"
 
 
+def test_portlet_read_rejects_cross_tenant_source_snapshot():
+    service, _, _, _ = make_service(
+        source=FakePortfolioQuery(snapshot(tenant_id="tenant-b"))
+    )
+    created = create_dashboard(service)
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="PORTFOLIO_SNAPSHOT_SCOPE_MISMATCH",
+    ):
+        service.read_portlets("alice-session", created.dashboard.dashboard_id)
+
+
 def test_stale_and_missing_source_states_are_explicit():
     stale_query = FakePortfolioQuery(
         snapshot(generated_at=NOW - timedelta(days=3))
