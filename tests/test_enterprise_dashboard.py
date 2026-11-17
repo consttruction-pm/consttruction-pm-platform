@@ -838,8 +838,12 @@ def test_p6_max_rows_limits_displayed_snapshot_rows_without_changing_source_summ
     assert portlet["data"]["summary"]["total_projects"] == 3
     assert portlet["data"]["summary"]["displayed_projects"] == 2
     assert portlet["truncated"] is True
-    assert portlet["display_limit"] == 2
-    assert {project for _, project, _ in lifecycle.authorized} == set()
+    assert portlet["row_limit"] == 2
+    assert set(lifecycle.authorized_project_ids) == {
+        ("alice-session", "project-1"),
+        ("alice-session", "project-2"),
+        ("alice-session", "project-3"),
+    }
 
 
 def test_stale_and_missing_source_states_are_explicit():
