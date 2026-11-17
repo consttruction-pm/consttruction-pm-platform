@@ -388,7 +388,7 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Unknown fields, portlet types, filters and invalid layout rejected | Domain validators and negative unit cases | Run exact-head CI |
 | Tenant/actor server-derived | Application service reads authenticated session; caller authority fields rejected | Run authorization tests |
 | Private/user/role/global sharing | Explicit share fields, active same-tenant identity lookup for user shares, and admin-only global access | Run unit and PostgreSQL tests |
-| Owner/admin mutation boundaries | Application boundary; global dashboards are admin-only | Run unit and PostgreSQL tests |
+| Creator/admin mutation boundaries | Creator-only private/multi-user mutation; Enterprise-admin-only Global/All Users mutation; admin read-only tenant oversight | Run unit and PostgreSQL tests |
 | Revocation | Share removal is revision-guarded and audited | Run unit and PostgreSQL tests |
 | Optimistic revision conflicts | Row lock + expected revision + guarded update | Run PostgreSQL integration |
 | Idempotent create/duplicate | Tenant/owner/key uniqueness, advisory lock and stable fingerprint | Run PostgreSQL integration |
