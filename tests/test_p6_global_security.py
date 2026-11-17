@@ -178,6 +178,20 @@ def test_custom_profile_rejects_unknown_global_privilege_and_missing_dependencie
     profile("Custom", built_in=False, privileges=normalized).validate()
 
 
+@pytest.mark.parametrize("admin_count", [0, 1])
+def test_last_admin_superuser_guard_rejects_removal_when_none_would_remain(admin_count):
+    from construction_pm.p6_global_security import PostgresP6GlobalSecurityRepository
+
+    with pytest.raises(GlobalSecurityError, match="LAST_ADMIN_SUPERUSER_REQUIRED"):
+        PostgresP6GlobalSecurityRepository._require_remaining_admin_superuser(admin_count)
+
+
+def test_last_admin_superuser_guard_allows_removal_when_another_admin_remains():
+    from construction_pm.p6_global_security import PostgresP6GlobalSecurityRepository
+
+    PostgresP6GlobalSecurityRepository._require_remaining_admin_superuser(2)
+
+
 def test_custom_profile_cannot_preempt_reserved_builtin_profile_ids():
     forged = GlobalSecurityProfile(
         "tenant-a", "p6-admin-superuser", "Portfolio Admin",
