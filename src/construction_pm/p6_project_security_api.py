@@ -27,6 +27,12 @@ def _require_privilege(policy: Any, context: AuthorizationContext, privilege: st
         raise AuthorizationError(error)
 
 
+def _require_any_privilege(policy: Any, context: AuthorizationContext, privileges: tuple[str, ...], error: str) -> None:
+    checker = getattr(policy, "allows_global_privilege", None)
+    if not callable(checker) or not any(checker(context, code) for code in privileges):
+        raise AuthorizationError(error)
+
+
 def _require_profile_admin(policy: Any, context: AuthorizationContext) -> None:
     _require_privilege(policy, context, _PROFILE_MANAGEMENT_PRIVILEGE,
                        "P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED")
@@ -87,7 +93,11 @@ class P6ProjectSecurityAPI:
 
     def list_profiles(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         auth_context.validate()
-        _require_profile_admin(self.authorization_policy, auth_context)
+        _require_any_privilege(
+            self.authorization_policy, auth_context,
+            (_PROFILE_MANAGEMENT_PRIVILEGE, _USER_ACCESS_MANAGEMENT_PRIVILEGE),
+            "P6_PROJECT_SECURITY_PROFILE_READ_NOT_AUTHORIZED",
+        )
         return {
             "contract_version": P6_PROJECT_SECURITY_API_VERSION,
             "profiles": [_profile_dto(item) for item in self.repository.list_profiles(auth_context.tenant_id)],
