@@ -22,6 +22,7 @@ from construction_pm.enterprise_dashboard import (
     DashboardPortlet,
     EnterpriseDashboard,
     EnterpriseDashboardError,
+    EnterpriseDashboardNotFound,
     PORTFOLIO_CONTROL_SNAPSHOT,
     PORTFOLIO_DECISION,
 )
