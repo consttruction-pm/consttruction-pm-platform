@@ -23,15 +23,29 @@ from construction_pm.postgres_project_lifecycle import initialize_project_lifecy
 NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
 
 
+class LiveSourceReferenceReader:
+    def __init__(self, current_revisions):
+        self.current_revisions = current_revisions
+
+    def is_current(self, tenant_id, project_id, source_ref):
+        key = (tenant_id, project_id, source_ref.source_id, source_ref.locator)
+        if key not in self.current_revisions:
+            raise KeyError("PORTFOLIO_SOURCE_REFERENCE_NOT_FOUND")
+        return self.current_revisions[key] == source_ref.revision
+
+
 def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable():
     suffix = uuid.uuid4().hex
     tenant_id = f"portfolio-tenant-{suffix}"
     portfolio_id = f"portfolio-{suffix}"
     project_id = f"project-{suffix}"
     source = SourceReference(
-        f"schedule-{suffix}", "schedule", f"schedule://{project_id}/3", 3,
+        f"schedule-{suffix}", "schedule", f"schedule://{project_id}/snapshot-11", 11,
         content_hash="a" * 64,
     )
+    source_reader = LiveSourceReferenceReader({
+        (tenant_id, project_id, source.source_id, source.locator): 11
+    })
 
     with psycopg.connect(DSN) as connection:
         initialize_project_lifecycle_schema(connection)
@@ -73,16 +87,17 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
         assert persisted[0].source_refs == (source,)
 
         provider = PostgresPortfolioControlSnapshotProvider(
-            repository, PostgresProjectLifecycleFactsReader(connection)
+            repository, PostgresProjectLifecycleFactsReader(connection), source_reader
         )
         snapshot = provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
         assert snapshot.portfolio_revision == 2
         assert snapshot.projects[0].project_id == project_id
         assert snapshot.projects[0].schedule_result_ref == source.locator
+        assert snapshot.source_refs[0].revision == 11
         assert snapshot.summary["included_projects"] == 1
 
         changed_source = SourceReference(
-            f"schedule-{suffix}", "schedule", f"schedule://{project_id}/4", 4
+            f"schedule-{suffix}", "schedule", f"schedule://{project_id}/snapshot-12", 12
         )
         updated = repository.update_membership(
             tenant_id, portfolio_id, project_id, membership_status="on_hold",
@@ -97,8 +112,9 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
     with psycopg.connect(DSN) as connection:
         repository = PostgresPortfolioControlRepository(connection)
         provider = PostgresPortfolioControlSnapshotProvider(
-            repository, PostgresProjectLifecycleFactsReader(connection)
+            repository, PostgresProjectLifecycleFactsReader(connection), source_reader
         )
+        # The Engineering project revision is independently stale (3 vs 4).
         with pytest.raises(ValueError, match="PORTFOLIO_PROJECT_SOURCE_STALE"):
             provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
 
