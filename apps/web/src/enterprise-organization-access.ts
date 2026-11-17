@@ -328,8 +328,20 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const projectUserOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}" ${account.user_id === selectedProjectUserId ? "selected" : ""}>${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
     ).join("");
+    const obsNodeById = new Map(obsNodes.map((node) => [node.obs_id, node]));
+    const obsDepth = (node: OBSNode) => {
+      let depth = 0;
+      let parentId = node.parent_obs_id;
+      const visited = new Set([node.obs_id]);
+      while (parentId && depth < 16 && !visited.has(parentId)) {
+        visited.add(parentId);
+        depth += 1;
+        parentId = obsNodeById.get(parentId)?.parent_obs_id ?? null;
+      }
+      return depth;
+    };
     const obsOptions = obsNodes.map((node) => {
-      const prefix = node.parent_obs_id ? "↳ " : "";
+      const prefix = "\u00a0\u00a0".repeat(obsDepth(node)) + (node.parent_obs_id ? "↳ " : "");
       const label = [node.code, node.name].filter(Boolean).join(" · ") || node.obs_id;
       return `<option value="${escapeHtml(node.obs_id)}" ${node.obs_id === selectedProjectObsId ? "selected" : ""}>${escapeHtml(prefix + label)}</option>`;
     }).join("");
