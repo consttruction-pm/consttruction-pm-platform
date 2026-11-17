@@ -37,7 +37,7 @@ def test_tenant_admin_routes_create_project_profile_assign_obs_and_associated_re
     project_security_repository = SQLiteP6ProjectSecurityRepository(
         connection,
         project_obs_lookup=lambda tenant, project: projects.get(project),
-        obs_repository=obs,
+        obs_repository=obs, user_exists=lambda tenant, user: tenant == "tenant-a",
     )
     project_security_api = P6ProjectSecurityAPI(project_security_repository, AdminPolicy())
 
