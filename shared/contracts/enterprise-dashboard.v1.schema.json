@@ -147,6 +147,18 @@
               },
               "layout": {
                 "$ref": "#/$defs/layout"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "hide_title": {
+                "type": "boolean",
+                "default": false
               }
             }
           },
@@ -194,6 +206,18 @@
               },
               "layout": {
                 "$ref": "#/$defs/layout"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "hide_title": {
+                "type": "boolean",
+                "default": false
               }
             }
           }
@@ -795,7 +819,10 @@
         "filtered_out",
         "applied_filters",
         "row_limit",
-        "truncated"
+        "truncated",
+        "title",
+        "hide_title",
+        "source_data_mode"
       ],
       "properties": {
         "instance_id": {
@@ -1450,6 +1477,25 @@
         },
         "truncated": {
           "type": "boolean"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "hide_title": {
+          "type": "boolean"
+        },
+        "source_data_mode": {
+          "enum": [
+            "live",
+            "published",
+            "summarized",
+            "not_exposed"
+          ]
         }
       }
     },
