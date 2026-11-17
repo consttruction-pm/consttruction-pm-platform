@@ -1552,7 +1552,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 116
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 115
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     documented_official_urls = {
