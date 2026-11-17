@@ -1,0 +1,1624 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/enterprise-dashboard.v1",
+  "title": "CUBI Enterprise Dashboard v1",
+  "description": "Tenant-scoped dashboard definition and read-only portlet response contract. Source business facts remain owned by their source domains.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "dashboard_id",
+    "tenant_id",
+    "context",
+    "context_portfolio_id",
+    "owner_user_id",
+    "title",
+    "description",
+    "status",
+    "visibility",
+    "shared_user_ids",
+    "shared_role_ids",
+    "portlets",
+    "filters",
+    "revision",
+    "created_at",
+    "updated_at",
+    "restrict_filter_override",
+    "max_rows_per_portlet"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "cubi-enterprise-dashboard.v1"
+    },
+    "dashboard_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "context": {
+      "enum": [
+        "enterprise_home",
+        "portfolio"
+      ]
+    },
+    "context_portfolio_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "owner_user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "status": {
+      "enum": [
+        "active",
+        "archived"
+      ]
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "users",
+        "roles",
+        "users_and_roles",
+        "global"
+      ]
+    },
+    "shared_user_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "shared_role_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "enterprise_admin",
+          "enterprise_user",
+          "enterprise_viewer"
+        ]
+      }
+    },
+    "portlets": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 12,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "instance_id",
+              "type_id",
+              "contract_version",
+              "config",
+              "layout"
+            ],
+            "properties": {
+              "instance_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type_id": {
+                "const": "portfolio-control-snapshot.v1"
+              },
+              "contract_version": {
+                "const": "portfolio-control-snapshot.v1"
+              },
+              "config": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "portfolio_id"
+                ],
+                "properties": {
+                  "portfolio_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              "layout": {
+                "$ref": "#/$defs/layout"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "hide_title": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "instance_id",
+              "type_id",
+              "contract_version",
+              "config",
+              "layout"
+            ],
+            "properties": {
+              "instance_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type_id": {
+                "const": "portfolio-decision.v1"
+              },
+              "contract_version": {
+                "const": "portfolio-decision.v1"
+              },
+              "config": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "portfolio_id",
+                  "decision_id"
+                ],
+                "properties": {
+                  "portfolio_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "decision_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              "layout": {
+                "$ref": "#/$defs/layout"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "hide_title": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    "filters": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "oneOf": [
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
+                  },
+                  "operator": {
+                    "const": "in"
+                  },
+                  "value": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "maxItems": 200
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "membership_status"
+              },
+              "operator": {
+                "enum": [
+                  "eq",
+                  "in"
+                ]
+              },
+              "value": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "included",
+                      "on_hold",
+                      "excluded"
+                    ]
+                  },
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "included",
+                        "on_hold",
+                        "excluded"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "decision_status"
+              },
+              "operator": {
+                "enum": [
+                  "eq",
+                  "in"
+                ]
+              },
+              "value": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "proposed",
+                      "under_review",
+                      "approved",
+                      "rejected",
+                      "implemented",
+                      "closed",
+                      "cancelled"
+                    ]
+                  },
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "proposed",
+                        "under_review",
+                        "approved",
+                        "rejected",
+                        "implemented",
+                        "closed",
+                        "cancelled"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "generated_after"
+              },
+              "operator": {
+                "const": "gte"
+              },
+              "value": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "generated_before"
+              },
+              "operator": {
+                "const": "lte"
+              },
+              "value": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "include_stale"
+              },
+              "operator": {
+                "const": "eq"
+              },
+              "value": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "const": "portfolio_id"
+              },
+              "operator": {
+                "const": "eq"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            }
+          },
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_id"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_id"
+                  },
+                  "operator": {
+                    "const": "in"
+                  },
+                  "value": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "maxItems": 200
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "restrict_filter_override": {
+      "type": "boolean",
+      "default": false
+    },
+    "max_rows_per_portlet": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 500,
+      "description": "Maximum number of rows returned for each dashboard portlet; CUBI default is 100.",
+      "default": 100
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "context": {
+            "const": "portfolio"
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "then": {
+        "properties": {
+          "context_portfolio_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "context": {
+            "const": "enterprise_home"
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "then": {
+        "properties": {
+          "context_portfolio_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "visibility": {
+            "const": "private"
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_user_ids": {
+            "maxItems": 0
+          },
+          "shared_role_ids": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "visibility": {
+            "const": "users"
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_user_ids": {
+            "minItems": 1
+          },
+          "shared_role_ids": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "visibility": {
+            "const": "roles"
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_user_ids": {
+            "maxItems": 0
+          },
+          "shared_role_ids": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "visibility": {
+            "const": "users_and_roles"
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_user_ids": {
+            "minItems": 1
+          },
+          "shared_role_ids": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "visibility": {
+            "const": "global"
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_user_ids": {
+            "maxItems": 0
+          },
+          "shared_role_ids": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "not": {
+        "properties": {
+          "filters": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "enum": [
+                    "portfolio_id",
+                    "project_id"
+                  ]
+                }
+              },
+              "required": [
+                "key"
+              ]
+            },
+            "minContains": 2
+          }
+        },
+        "required": [
+          "filters"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "enum": [
+            0,
+            6
+          ]
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "w": {
+          "type": "integer",
+          "enum": [
+            6,
+            12
+          ]
+        },
+        "h": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "x": {
+                "const": 6
+              }
+            },
+            "required": [
+              "x"
+            ]
+          },
+          "then": {
+            "properties": {
+              "w": {
+                "const": 6
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "w": {
+                "const": 12
+              }
+            },
+            "required": [
+              "w"
+            ]
+          },
+          "then": {
+            "properties": {
+              "x": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "portlet_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instance_id",
+        "type_id",
+        "source_owner",
+        "required_read_permission",
+        "source_snapshot_id",
+        "source_revision",
+        "generated_at",
+        "freshness_state",
+        "data",
+        "drill_through_refs",
+        "saved_filters",
+        "filtered_out",
+        "applied_filters",
+        "row_limit",
+        "truncated",
+        "title",
+        "hide_title",
+        "source_data_mode"
+      ],
+      "properties": {
+        "instance_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type_id": {
+          "enum": [
+            "portfolio-control-snapshot.v1",
+            "portfolio-decision.v1"
+          ]
+        },
+        "source_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_read_permission": {
+          "const": "project.read"
+        },
+        "source_snapshot_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_revision": {
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ]
+        },
+        "generated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "freshness_state": {
+          "enum": [
+            "fresh",
+            "stale",
+            "missing",
+            "unknown"
+          ]
+        },
+        "data": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "drill_through_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "id",
+              "source_revision"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "project",
+                  "portfolio_decision"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_revision": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "saved_filters": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "membership_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "included",
+                          "on_hold",
+                          "excluded"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "included",
+                            "on_hold",
+                            "excluded"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "decision_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "proposed",
+                          "under_review",
+                          "approved",
+                          "rejected",
+                          "implemented",
+                          "closed",
+                          "cancelled"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "proposed",
+                            "under_review",
+                            "approved",
+                            "rejected",
+                            "implemented",
+                            "closed",
+                            "cancelled"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "generated_after"
+                  },
+                  "operator": {
+                    "const": "gte"
+                  },
+                  "value": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "generated_before"
+                  },
+                  "operator": {
+                    "const": "lte"
+                  },
+                  "value": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "include_stale"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "portfolio_id"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "eq"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "in"
+                      },
+                      "value": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "filtered_out": {
+          "type": "boolean"
+        },
+        "applied_filters": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "membership_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "included",
+                          "on_hold",
+                          "excluded"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "included",
+                            "on_hold",
+                            "excluded"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "decision_status"
+                  },
+                  "operator": {
+                    "enum": [
+                      "eq",
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "proposed",
+                          "under_review",
+                          "approved",
+                          "rejected",
+                          "implemented",
+                          "closed",
+                          "cancelled"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "proposed",
+                            "under_review",
+                            "approved",
+                            "rejected",
+                            "implemented",
+                            "closed",
+                            "cancelled"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "generated_after"
+                  },
+                  "operator": {
+                    "const": "gte"
+                  },
+                  "value": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "generated_before"
+                  },
+                  "operator": {
+                    "const": "lte"
+                  },
+                  "value": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "include_stale"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "portfolio_id"
+                  },
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "eq"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "in"
+                      },
+                      "value": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "row_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "hide_title": {
+          "type": "boolean"
+        },
+        "source_data_mode": {
+          "enum": [
+            "live",
+            "published",
+            "summarized",
+            "not_exposed"
+          ]
+        }
+      }
+    },
+    "dashboard_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "dashboard",
+        "filters",
+        "portlets",
+        "read_at"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "cubi-enterprise-dashboard-read.v1"
+        },
+        "dashboard": {
+          "type": "object"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "portlets": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/portlet_read_response"
+          }
+        },
+        "read_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "dashboard_catalog_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard",
+        "revision",
+        "display_order"
+      ],
+      "properties": {
+        "dashboard": {
+          "$ref": "#"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "display_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 499
+        }
+      }
+    },
+    "dashboard_catalog_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "displayed_dashboards",
+        "available_dashboards",
+        "read_at"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "cubi-enterprise-dashboard-catalog.v1"
+        },
+        "displayed_dashboards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dashboard_catalog_item"
+          }
+        },
+        "available_dashboards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dashboard_catalog_item"
+          }
+        },
+        "read_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "dashboard_display_preference_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_id",
+        "displayed"
+      ],
+      "properties": {
+        "dashboard_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayed": {
+          "type": "boolean"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 499
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
