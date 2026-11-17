@@ -319,6 +319,47 @@ def create_dashboard(service, *, session_id="alice-session", payload=None):
     )
 
 
+def test_dashboard_portlet_limit_defaults_to_twelve_and_is_configurable():
+    service, _, _, _ = make_service()
+    thirteen = [
+        snapshot_portlet(
+            instance_id=f"portlet-{index}",
+            layout={"x": (index % 2) * 6, "y": (index // 2) * 4, "w": 6, "h": 4},
+        )
+        for index in range(13)
+    ]
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT_EXCEEDED"):
+        create_dashboard(
+            service,
+            payload=create_payload(title="Over default limit", portlets=thirteen),
+        )
+
+    lifecycle = FakeLifecycle()
+    repository = FakeRepository()
+    configured = EnterpriseDashboardApplicationService(
+        repository,
+        lifecycle,
+        portfolio_query_service=FakePortfolioQuery(),
+        portfolio_decision_api=FakePortfolioDecisionAPI(),
+        clock=lambda: NOW,
+        max_dashboard_portlets=13,
+    )
+    created = create_dashboard(
+        configured,
+        payload=create_payload(title="Configured portlet limit", portlets=thirteen),
+    )
+    assert len(created.dashboard.portlets) == 13
+
+
+def test_dashboard_portlet_limit_rejects_invalid_configuration():
+    with pytest.raises(ValueError, match="PORTLET_LIMIT"):
+        EnterpriseDashboardApplicationService(
+            FakeRepository(),
+            FakeLifecycle(),
+            max_dashboard_portlets=51,
+        )
+
+
 def test_create_derives_tenant_and_owner_from_authenticated_session():
     service, _, _, _ = make_service()
     stored = create_dashboard(service)
