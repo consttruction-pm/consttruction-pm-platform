@@ -277,7 +277,7 @@ export async function mountEnterpriseDashboard(
   let activeDefinition: EnterpriseDashboardDefinition | null = null;
   let searchTerm = "";
 
-  async function loadCatalog(): Promise<void> {
+  async function loadCatalog(): Promise<EnterpriseDashboardCatalog | null> {
     status.textContent = t.loading;
     try {
       catalog = await client.listCatalog(searchTerm);
@@ -286,9 +286,11 @@ export async function mountEnterpriseDashboard(
       if (activeDashboardId && catalog.displayed_dashboards.some((item) => item.dashboard.dashboard_id === activeDashboardId)) {
         await openDashboard(activeDashboardId);
       }
+      return catalog;
     } catch {
       status.textContent = t.error;
       content.replaceChildren(node("div", "ced-error", t.error));
+      return null;
     }
   }
   function renderTabs(): void {
@@ -673,8 +675,7 @@ export async function mountEnterpriseDashboard(
     return wrapper;
   }
 
-  await loadCatalog();
-  const loadedCatalog = catalog;
+  const loadedCatalog = await loadCatalog();
   if (loadedCatalog && loadedCatalog.displayed_dashboards.length) {
     await openDashboard(loadedCatalog.displayed_dashboards[0].dashboard.dashboard_id);
   }
