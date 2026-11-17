@@ -1203,6 +1203,29 @@ def test_portfolio_decision_portlet_reauthorizes_affected_projects_and_preserves
         service.read_portlets("alice-session", created.dashboard.dashboard_id)
 
 
+@pytest.mark.parametrize("affected_project_ids", [[], "project-1", [""]])
+def test_portfolio_decision_portlet_fails_closed_without_valid_project_scope(
+    affected_project_ids,
+):
+    class UnscopedDecision:
+        def get(self, request, *, auth_context):
+            result = dict(FakePortfolioDecisionAPI().result)
+            result["affected_project_ids"] = affected_project_ids
+            return result
+
+    service, _, _, _ = make_service(decision_api=UnscopedDecision())
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(portlets=[decision_portlet()]),
+        idempotency_key="unscoped-decision-dashboard",
+    )
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="PORTFOLIO_DECISION_PROJECT_SCOPE_REQUIRED",
+    ):
+        service.read_portlets("alice-session", created.dashboard.dashboard_id)
+
+
 def test_missing_portfolio_decision_source_is_explicitly_missing():
     class MissingDecision:
         def get(self, request, *, auth_context):
