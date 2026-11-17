@@ -37,6 +37,7 @@ class P6OBSProjectGrant:
 
 
 class P6ProjectSecurityRepository(Protocol):
+    def ensure_builtin_profile(self, tenant_id: str, *, actor_id: str) -> P6ProjectSecurityProfile: ...
     def save_profile(self, profile: P6ProjectSecurityProfile, *, actor_id: str, expected_revision: int | None = None) -> P6ProjectSecurityProfile: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> P6ProjectSecurityProfile | None: ...
     def list_profiles(self, tenant_id: str) -> tuple[P6ProjectSecurityProfile, ...]: ...
@@ -63,6 +64,28 @@ def _profile_from_row(row: tuple[object, ...]) -> P6ProjectSecurityProfile:
 
 class _ProjectSecurityRepositoryBase:
     audit_payload_placeholder = "?"
+
+    def ensure_builtin_profile(self, tenant_id: str, *, actor_id: str):
+        if not tenant_id.strip() or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
+        profile = P6ProjectSecurityProfile(
+            tenant_id, P6_PROJECT_SUPERUSER_PROFILE_ID, P6_PROJECT_SUPERUSER_PROFILE_NAME,
+            normalize_project_privileges(tuple(P6_PROJECT_PRIVILEGE_IDS)),
+            built_in=True, description="Predefined profile with all project privileges.",
+        )
+        profile.validate()
+        self.connection.execute(
+            f"INSERT INTO p6_project_security_profile "
+            f"(tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description) "
+            f"VALUES({self.placeholder},{self.placeholder},{self.placeholder},{self.audit_payload_placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder}) "
+            f"ON CONFLICT (tenant_id,profile_id) DO NOTHING",
+            (tenant_id, profile.profile_id, profile.name, json.dumps(list(profile.privileges)),
+             True, 1, False, True, profile.description),
+        )
+        stored = self.get_profile(tenant_id, profile.profile_id)
+        if stored is None or not stored.built_in or set(stored.privileges) != set(profile.privileges):
+            raise P6ProjectSecurityPersistenceError("PROJECT_SUPERUSER_PROFILE_INTEGRITY_ERROR")
+        return stored
 
     def _profile_row(self, tenant_id: str, profile_id: str):
         return self.connection.execute(
@@ -241,8 +264,6 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         profile.validate()
         if profile.built_in:
             raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
-        if profile.built_in:
-            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(profile.tenant_id, profile.profile_id)
@@ -382,6 +403,8 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
 
     def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
+        if profile.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(profile.tenant_id, profile.profile_id)
@@ -448,6 +471,8 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         current = self.get_profile(tenant_id, profile_id)
         if current is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
+        if current.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if current.is_default:
             raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DELETED")
         if current.revision != expected_revision:
