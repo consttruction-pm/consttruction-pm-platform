@@ -1392,6 +1392,21 @@ class PostgresSecurityProfileRepository:
                     occurred_at)
         return revision
 
+    def list_obs_nodes(self, tenant_id: str) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute(
+            "SELECT obs_id,parent_obs_id,code,name,manager_user_id,sequence_number "
+            "FROM p6_obs_node WHERE tenant_id=%s ORDER BY sequence_number,obs_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple({
+            "obs_id": str(row[0]),
+            "parent_obs_id": None if row[1] is None else str(row[1]),
+            "code": str(row[2]),
+            "name": str(row[3]),
+            "manager_user_id": str(row[4]),
+            "sequence_number": int(row[5]),
+        } for row in rows)
+
     def assign_default_project_profile(
         self, *, tenant_id: str, user_id: str, obs_id: str,
         actor_user_id: str, occurred_at: Any, expected_revision: int | None = None,
