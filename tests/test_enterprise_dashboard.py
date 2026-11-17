@@ -487,6 +487,8 @@ def test_multi_value_filters_are_immutable_after_parse():
     raw_values.append("project-2")
     assert parsed.value == ("active",)
     assert parsed.as_dict()["value"] == ["active"]
+    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE"):
+        DashboardFilter("project_status", "in", ("x" * 201,)).validate()
 
 
 def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
@@ -1326,6 +1328,9 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["properties"]["portlets"]["maxItems"] == 12
     project_id_filter = schema["properties"]["filters"]["items"]["oneOf"][-1]["oneOf"]
     assert {item["properties"]["operator"]["const"] for item in project_id_filter} == {"eq", "in"}
+    project_status_filter = schema["properties"]["filters"]["items"]["oneOf"][0]["oneOf"]
+    assert project_status_filter[0]["properties"]["value"]["type"] == "string"
+    assert project_status_filter[1]["properties"]["value"]["items"]["maxLength"] == 200
     for key in ("saved_filters", "applied_filters"):
         response_project_filter = schema["$defs"]["portlet_read_response"]["properties"][key]["items"]["oneOf"][-1]["oneOf"]
         assert {item["properties"]["operator"]["const"] for item in response_project_filter} == {"eq", "in"}
