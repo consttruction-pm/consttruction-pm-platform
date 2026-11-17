@@ -163,3 +163,38 @@ def test_project_profile_duplicate_copies_privileges_but_not_default_or_identity
     assert duplicate.revision == 1
     assert duplicate.is_default is False
     assert duplicate.built_in is False
+
+
+def test_global_policy_enforces_project_profile_privileges_through_obs_grant():
+    from datetime import datetime, timezone
+    from construction_pm.application.authorization import AuthorizationContext
+    from construction_pm.p6_global_security import (
+        GlobalSecurityProfile, UserGlobalSecurity, P6GlobalSecurityAuthorizationPolicy,
+    )
+
+    _, project_repo = setup_repository()
+    project_repo.save_profile(profile(), actor_id="admin-user")
+    project_repo.assign_obs(
+        P6OBSProjectGrant("tenant-a", "user-1", "OBS-ROOT", "profile-pm"),
+        actor_id="admin-user",
+    )
+    global_profile = GlobalSecurityProfile("tenant-a", "global-pm", "Global PM", ())
+    global_assignment = UserGlobalSecurity(
+        "tenant-a", "user-1", "global-pm", ("projects",), "none", (),
+        1, "admin-user", datetime.now(timezone.utc),
+    )
+    class GlobalRepository:
+        def get_user_security(self, tenant_id, user_id):
+            return global_assignment if (tenant_id, user_id) == ("tenant-a", "user-1") else None
+        def get_profile(self, tenant_id, profile_id):
+            return global_profile if (tenant_id, profile_id) == ("tenant-a", "global-pm") else None
+
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        GlobalRepository(), object(), obs_project_access=project_repo
+    )
+    auth = AuthorizationContext("tenant-a", "project-civil", "user-1", frozenset())
+    assert policy.has_project_privilege(auth, "add_edit_activities_except_relationships")
+    policy.require_project_privilege(auth, "add_edit_activities_except_relationships")
+    assert not policy.has_project_privilege(auth, "delete_projects")
+    with pytest.raises(AuthorizationError, match="P6_PROJECT_PRIVILEGE_REQUIRED:delete_projects"):
+        policy.require_project_privilege(auth, "delete_projects")
