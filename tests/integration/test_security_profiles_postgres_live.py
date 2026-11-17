@@ -1315,6 +1315,7 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
     with _connect() as connection:
         identity = PostgresIdentityStore(connection)
         identity.initialize()
+        initialize_project_lifecycle_schema(connection)
         PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(user_id, tenant))
@@ -1943,6 +1944,24 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
         assert existing_access["module_access"] == ["projects"]
         assert existing_access["resource_access_mode"] == "none"
 
+        obs_id = f"global-default-obs-{suffix}"
+        project_id = f"global-default-project-{suffix}"
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, obs_id, name="Global Default OBS")
+        )
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, existing_id, project_id, "Global Default Project", obs_id=obs_id
+        )
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"global-default-project-profile-{suffix}",
+            name="Global Default Project Read", scope="project",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id, user_id=existing_id,
+            obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
+        )
+
         admin_access = profiles.get_global_user_access(tenant, admin_id)
         assert admin_access["profile_id"] == "p6-admin-superuser"
         assert set(admin_access["module_access"]) == {
@@ -1955,13 +1974,13 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
         # Module access is an additional gate, not a substitute for OBS/project
         # privileges. Removing Projects immediately denies project reads.
         context = AuthorizationContext(
-            tenant_id=tenant, user_id=existing_id, project_id=f"no-project-{suffix}",
+            tenant_id=tenant, user_id=existing_id, project_id=project_id,
             roles=frozenset({"planner"}),
         )
         policy = PostgresSecurityProfileAuthorizationPolicy(
             connection, RoleBasedAuthorizationPolicy(default_role_permissions())
         )
-        assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        assert policy.is_allowed(context, Permission.PROJECT_READ)
         existing_access = profiles.set_global_user_access(
             tenant_id=tenant, user_id=existing_id, module_access=(),
             resource_access_mode="none", expected_revision=existing_access["revision"],
