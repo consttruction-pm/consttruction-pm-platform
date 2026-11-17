@@ -118,6 +118,24 @@ class DelayEventFragnet:
             pair = (item.predecessor_id, item.successor_id)
             if pair in pairs:
                 raise FragnetValidationError("FRAGNET_RELATIONSHIP_COLLIDES_WITH_EXISTING")
+        adjacency = {activity_id: set() for activity_id in allowed}
+        tie_in_sources: set[str] = set()
+        for item in self.relationships:
+            adjacency[item.predecessor_id].add(item.successor_id)
+            adjacency[item.successor_id].add(item.predecessor_id)
+            if item.predecessor_id in existing and item.successor_id in new_ids:
+                tie_in_sources.add(item.predecessor_id)
+            elif item.successor_id in existing and item.predecessor_id in new_ids:
+                tie_in_sources.add(item.successor_id)
+        visited = set(tie_in_sources)
+        frontier = list(tie_in_sources)
+        while frontier:
+            current = frontier.pop()
+            for neighbor in adjacency[current] - visited:
+                visited.add(neighbor)
+                frontier.append(neighbor)
+        if not new_ids.issubset(visited):
+            raise FragnetValidationError("FRAGNET_DISCONNECTED_ACTIVITY_NETWORK")
         for item in self.constraints:
             if item.activity_id not in new_ids:
                 raise FragnetValidationError("FRAGNET_CONSTRAINT_UNKNOWN_ACTIVITY")
