@@ -39,6 +39,7 @@ class P6AssociatedResourceRepository(Protocol):
     def get_for_user(self, tenant_id: str, user_id: str) -> P6AssociatedResource | None: ...
     def get_for_resource(self, tenant_id: str, resource_id: str) -> P6AssociatedResource | None: ...
     def has_resource_assignment_for_project(self, tenant_id: str, user_id: str, project_id: str) -> bool: ...
+    def list_resources(self, tenant_id: str) -> tuple[dict[str, object], ...]: ...
 
 
 def _from_row(row) -> P6AssociatedResource:
@@ -77,6 +78,20 @@ class _AssociatedResourceBase:
             f"AND resource_id={self.placeholder}", (tenant_id, resource_id),
         ).fetchone()
         return None if row is None else _from_row(row)
+
+    def list_resources(self, tenant_id: str) -> tuple[dict[str, object], ...]:
+        rows = self.connection.execute(
+            f"SELECT r.resource_id,r.name,r.resource_type,r.is_active,a.user_id "
+            f"FROM p6_enterprise_resource_identity r LEFT JOIN p6_user_associated_resource a "
+            f"ON a.tenant_id=r.tenant_id AND a.resource_id=r.resource_id "
+            f"WHERE r.tenant_id={self.placeholder} ORDER BY r.name,r.resource_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple({
+            "resource_id": str(row[0]), "name": str(row[1]),
+            "resource_type": str(row[2]), "is_active": bool(row[3]),
+            "associated_user_id": None if row[4] is None else str(row[4]),
+        } for row in rows)
 
     def has_resource_assignment_for_project(self, tenant_id: str, user_id: str, project_id: str) -> bool:
         association = self.get_for_user(tenant_id, user_id)
