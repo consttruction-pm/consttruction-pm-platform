@@ -31,7 +31,7 @@ Each scope has one active default profile. The defaults are independent: changin
 
 ## Acceptance evidence added
 
-`tests/integration/test_security_profile_scope_defaults_postgres_live.py` covers:
+`tests/integration/test_security_profiles_postgres_live.py` covers:
 - simultaneous Global and Project defaults for one tenant;
 - switching each default independently;
 - revision changes on the displaced default;
