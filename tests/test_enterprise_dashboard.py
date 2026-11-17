@@ -1235,8 +1235,12 @@ def test_p6_max_rows_limits_displayed_snapshot_rows_without_changing_source_summ
     assert [row["project_id"] for row in portlet["data"]["projects"]] == [
         "project-1", "project-2"
     ]
-    assert portlet["data"]["summary"]["total_projects"] == 3
-    assert portlet["data"]["summary"]["displayed_projects"] == 2
+    assert portlet["data"]["summary"] == {
+        "total_projects": 3,
+        "included_projects": 3,
+        "on_hold_projects": 0,
+        "excluded_projects": 0,
+    }
     assert portlet["truncated"] is True
     assert portlet["row_limit"] == 2
     assert set(lifecycle.authorized_project_ids) == {
