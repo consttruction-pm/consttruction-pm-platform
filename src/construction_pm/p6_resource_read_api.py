@@ -12,6 +12,8 @@ from .p6_resource_assignment_repository import (
     P6ResourceAssignmentPeriodValue,
 )
 from .p6_resource_spread_repository import P6ResourceSpreadApplicationService, P6ResourceSpreadBucket
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import resource_is_accessible
 
 P6_RESOURCE_READ_API_VERSION = "p6-resource-read-api.v1"
 
@@ -36,12 +38,20 @@ class P6ResourceReadAPI:
     period_service: P6ResourceAssignmentPeriodApplicationService
     spread_service: P6ResourceSpreadApplicationService
     authorization_policy: AuthorizationPolicy
+    resource_repository: P6ResourceRepository | None = None
+
+    def _visible(self, scope: BackendScope, resource_id: str, auth_context: AuthorizationContext) -> bool:
+        return resource_is_accessible(
+            self.authorization_policy, self.resource_repository, scope, resource_id, auth_context
+        )
 
     def get_assignment(self, scope: BackendScope, assignment_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         item = self.assignment_service.read(scope, assignment_id)
-        return None if item is None else _assignment_dto(item)
+        if item is None or not self._visible(scope, item.resource_id, auth_context):
+            return None
+        return _assignment_dto(item)
 
     def list_assignments(
         self, scope: BackendScope, *, activity_id: str | None = None,
@@ -49,7 +59,10 @@ class P6ResourceReadAPI:
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
-        return tuple(_assignment_dto(item) for item in self.assignment_service.list(scope, activity_id, resource_id))
+        return tuple(
+            _assignment_dto(item) for item in self.assignment_service.list(scope, activity_id, resource_id)
+            if self._visible(scope, item.resource_id, auth_context)
+        )
 
     def get_assignment_period(
         self, scope: BackendScope, assignment_id: str, period_start: str, *,
@@ -58,7 +71,9 @@ class P6ResourceReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         item = self.period_service.read(scope, assignment_id, period_start)
-        return None if item is None else _period_dto(item)
+        if item is None or not self._visible(scope, item.resource_id, auth_context):
+            return None
+        return _period_dto(item)
 
     def list_assignment_periods(
         self, scope: BackendScope, *, assignment_id: str | None = None,
@@ -66,7 +81,10 @@ class P6ResourceReadAPI:
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
-        return tuple(_period_dto(item) for item in self.period_service.list(scope, assignment_id))
+        return tuple(
+            _period_dto(item) for item in self.period_service.list(scope, assignment_id)
+            if self._visible(scope, item.resource_id, auth_context)
+        )
 
     def get_spread(
         self, scope: BackendScope, spread_id: str, period_id: str, *,
@@ -75,7 +93,9 @@ class P6ResourceReadAPI:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
         item = self.spread_service.read(scope, spread_id, period_id)
-        return None if item is None else _spread_dto(item)
+        if item is None or not self._visible(scope, item.resource_id, auth_context):
+            return None
+        return _spread_dto(item)
 
     def list_spreads(
         self, scope: BackendScope, *, spread_id: str | None = None,
@@ -83,7 +103,10 @@ class P6ResourceReadAPI:
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_read(self.authorization_policy, auth_context)
-        return tuple(_spread_dto(item) for item in self.spread_service.list(scope, spread_id))
+        return tuple(
+            _spread_dto(item) for item in self.spread_service.list(scope, spread_id)
+            if self._visible(scope, item.resource_id, auth_context)
+        )
 
 
 def _scope_dto(scope: BackendScope) -> dict[str, Any]:
