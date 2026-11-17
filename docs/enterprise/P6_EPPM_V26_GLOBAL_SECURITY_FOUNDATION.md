@@ -19,7 +19,7 @@ Status: implementation foundation; **not full V26 security parity**.
 3. No Global Privileges is a distinct application-generated profile. It has no explicit global privilege grants but is represented as read-only for global data; an OBS/project profile may still grant scoped project access.
 4. Every user-global-security record has one global profile assignment, an explicit module-access set, and an explicit resource-access mode: none, all, or selected hierarchy roots.
 5. Global profile definitions and user assignments are tenant-scoped, revisioned, and append-audited. Audit rows are protected from update/delete.
-6. Built-in profile provisioning is idempotent. Custom profile creation cannot create or impersonate a built-in profile.
+6. Built-in profile provisioning is idempotent. Custom profile creation cannot create or impersonate a built-in profile ID/name. Custom profiles persist descriptions and the default-profile indicator; duplicate, edit, default selection, and guarded delete operations are audited and revision-checked.
 
 ## Additional V26 user-access constraints now enforced
 
@@ -28,6 +28,7 @@ Status: implementation foundation; **not full V26 security parity**.
 - Selected Resource Access accepts at most five resource roots; each selected root is intended to include its descendants. Admin Superuser retains all-resource access regardless of the stored setting.
 
 Official HTML references:
+- [Global Security Profiles Page — Add, Delete, Set As Default, Duplicate, Description and Default Profile indicator](https://docs.oracle.com/cd/G48897_01/p6help/en/9003.htm)
 - [Global Privileges Detail Window — all 72 global privilege definitions and dependencies](https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm)
 - [Module Access Detail Window — exact module names and Contributor exclusivity](https://docs.oracle.com/cd/G48897_01/p6help/en/6184.htm)
 - [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm)
@@ -53,7 +54,7 @@ This increment deliberately does **not** claim complete V26 parity:
 - Selected resource access now enforces the V26 maximum of five roots. Resource hierarchy selection still needs canonical Resource/WBS repositories, ancestry resolution, secure-code filtering, and exhaustive API enforcement.
 - Project Owner and Contributor exceptions require the exact applicable EPPM V26 module-access rules and resource-assignment provenance before implementation; no broad role shortcut is allowed.
 - Project OBS responsibility must be evaluated at EPS, project, WBS, issue, risk, and threshold levels. The documented higher-level OBS override behavior must be represented without weakening tenant boundaries.
-- UI pages, user assignment workflows, revocation, full audit views, PostgreSQL live integration, and browser E2E remain acceptance gates.
+- UI pages, user assignment workflows, revocation, full audit views, and browser E2E remain acceptance gates. The PostgreSQL lifecycle tests now cover profile duplicate/default/edit/delete, revisions, and audit behavior.
 
 ## Required acceptance gates
 
