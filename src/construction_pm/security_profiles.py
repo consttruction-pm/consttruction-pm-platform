@@ -1399,11 +1399,12 @@ class PostgresSecurityProfileRepository:
         default_profile = self.get_default_project_profile(tenant_id)
         if default_profile is None or not default_profile.active:
             raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_PROFILE_REQUIRED")
-        return self.assign(
+        revision = self.assign(
             tenant_id=tenant_id, profile_id=default_profile.profile_id,
             user_id=user_id, obs_id=obs_id, expected_revision=expected_revision,
             actor_user_id=actor_user_id, occurred_at=occurred_at,
         )
+        return {"profile_id": default_profile.profile_id, "obs_id": obs_id, "revision": revision}
 
     def get_global_user_access(self, tenant_id: str, user_id: str) -> dict[str, Any]:
         row = self._connection.execute(
