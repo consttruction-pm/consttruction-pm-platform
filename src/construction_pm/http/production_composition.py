@@ -54,6 +54,8 @@ from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
 from construction_pm.project_checkout import ProjectCheckoutLease
 from construction_pm.p6_obs_api import P6OBSNodeAPI
+from construction_pm.p6_project_security_api import P6ProjectSecurityAPI
+from construction_pm.p6_associated_resource_api import P6AssociatedResourceAPI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
@@ -149,6 +151,8 @@ def build_project_lifecycle_wsgi_app(
     p6_expense_api: P6ExpenseAPI | None = None,
     p6_cost_account_api: P6CostAccountAPI | None = None,
     p6_obs_node_api: P6OBSNodeAPI | None = None,
+    p6_project_security_api: P6ProjectSecurityAPI | None = None,
+    p6_associated_resource_api: P6AssociatedResourceAPI | None = None,
     p6_financial_period_api: P6FinancialPeriodAPI | None = None,
     p6_issue_api: P6IssueAPI | None = None,
     p6_activity_step_api: P6ActivityStepReadAPI | None = None,
@@ -452,6 +456,8 @@ def build_project_lifecycle_wsgi_app(
         p6_expense_api=p6_expense_api,
         p6_cost_account_api=p6_cost_account_api,
         p6_obs_node_api=p6_obs_node_api,
+        p6_project_security_api=p6_project_security_api,
+        p6_associated_resource_api=p6_associated_resource_api,
         p6_financial_period_api=p6_financial_period_api,
         p6_issue_api=p6_issue_api,
         p6_activity_step_api=p6_activity_step_api,
