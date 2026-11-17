@@ -151,21 +151,10 @@ class _ProjectSecurityRepositoryBase:
         ).fetchone() is not None
 
     def project_permission(self, tenant_id: str, user_id: str, project_id: str, permission_code: str) -> bool:
-        """Compatibility resolver for the global-policy OBS seam.
-
-        Project read access is granted only by an exact project OBS assignment.
-        Fine-grained writes must call has_project_privilege with the route's
-        explicit V26 privilege code; a generic PROJECT_WRITE is never elevated.
-        """
-        obs_id = self.project_obs_lookup(tenant_id, project_id)
-        if not isinstance(obs_id, str) or not obs_id.strip():
-            return False
-        grant = self.connection.execute(
-            f"SELECT 1 FROM p6_user_obs_project_profile WHERE tenant_id={self.placeholder} "
-            f"AND user_id={self.placeholder} AND obs_id={self.placeholder}",
-            (tenant_id, user_id, obs_id),
-        ).fetchone()
-        return grant is not None and permission_code in {"project.read", "project.view"}
+        """Only grant the generic project-read permission from an OBS assignment."""
+        return permission_code in {"project.read", "project.view"} and self.has_project_access(
+            tenant_id, user_id, project_id
+        )
 
     def has_project_privilege(self, tenant_id: str, user_id: str, project_id: str, privilege_code: str) -> bool:
         ancestry = self._project_obs_ancestry(tenant_id, project_id)
