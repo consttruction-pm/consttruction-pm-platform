@@ -228,9 +228,9 @@ class _SQLDelayAnalysisRecordRepository:
         if self.postgres:
             self.connection.execute("""
                 CREATE OR REPLACE FUNCTION eng_delay_analysis_reject_mutation()
-                RETURNS trigger LANGUAGE plpgsql AS $
+                RETURNS trigger LANGUAGE plpgsql AS $$
                 BEGIN RAISE EXCEPTION 'APPEND_ONLY_DELAY_ANALYSIS_RECORD'; END;
-                $
+                $$
             """)
             for table in ("eng_delay_analysis_case", "eng_delay_analysis_revision", "eng_delay_analysis_review"):
                 self.connection.execute("DROP TRIGGER IF EXISTS " + table + "_append_only ON " + table)
