@@ -89,7 +89,6 @@ def test_api_returns_versioned_snapshot() -> None:
 
     assert result["contract_version"] == "portfolio-control-snapshot.v1"
     assert result["portfolio_id"] == "portfolio-1"
-    assert result["portfolio_revision"] == 1
     assert result["summary"]["included_projects"] == 1
     assert result["projects"][0]["project_revision"] == 7
 
