@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Mapping
 
-from .schedule import ScheduleResult
+from ..scheduling.schedule import ScheduleResult
 
 
 class ScheduleMovementAnalysisError(ValueError):
@@ -201,8 +201,8 @@ def assess_schedule_movement(
     if current_reference.data_date < baseline_reference.data_date:
         raise ScheduleMovementAnalysisError("CURRENT_DATA_DATE_PRECEDES_BASELINE")
     if (
-        baseline_reference.snapshot_id == current_reference.snapshot_id
-        or baseline_reference.snapshot_hash == current_reference.snapshot_hash
+        baseline_reference.snapshot_hash == current_reference.snapshot_hash
+        and baseline_reference.calculation_identity == current_reference.calculation_identity
     ):
         raise ScheduleMovementAnalysisError("IDENTICAL_INPUT_SNAPSHOTS")
     if baseline_result.mode != current_result.mode:
