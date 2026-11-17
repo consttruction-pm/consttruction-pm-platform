@@ -100,17 +100,6 @@ def _from_row(row: tuple[object, ...]) -> P6Resource:
 
 
 class SQLiteP6ResourceRepository:
-    def _validate_enterprise_identity(self, resource: P6Resource) -> None:
-        row = self.connection.execute(
-            "SELECT name,resource_type,parent_resource_id,email,is_active "
-            "FROM p6_enterprise_resource_identity WHERE tenant_id=? AND resource_id=?",
-            (resource.tenant_id, resource.resource_id),
-        ).fetchone()
-        expected = (resource.name, resource.resource_type, resource.parent_resource_id,
-                    resource.email, int(resource.is_active))
-        if row is not None and tuple(row) != expected:
-            raise ValueError("ENTERPRISE_RESOURCE_IDENTITY_CONFLICT")
-
     def _persist_enterprise_identity(self, resource: P6Resource) -> None:
         self.connection.execute(
             "INSERT OR IGNORE INTO p6_enterprise_resource_identity "
@@ -273,17 +262,6 @@ class SQLiteP6ResourceRepository:
 
 
 class PostgresP6ResourceRepository:
-    def _validate_enterprise_identity(self, resource: P6Resource) -> None:
-        row = self.connection.execute(
-            "SELECT name,resource_type,parent_resource_id,email,is_active "
-            "FROM p6_enterprise_resource_identity WHERE tenant_id=%s AND resource_id=%s",
-            (resource.tenant_id, resource.resource_id),
-        ).fetchone()
-        expected = (resource.name, resource.resource_type, resource.parent_resource_id,
-                    resource.email, resource.is_active)
-        if row is not None and tuple(row) != expected:
-            raise ValueError("ENTERPRISE_RESOURCE_IDENTITY_CONFLICT")
-
     def _persist_enterprise_identity(self, resource: P6Resource) -> None:
         self.connection.execute(
             "INSERT INTO p6_enterprise_resource_identity "
@@ -333,7 +311,6 @@ class PostgresP6ResourceRepository:
         self, resource: P6Resource, *, expected_revision: int | None = None
     ) -> P6Resource:
         resource.validate()
-        self._validate_enterprise_identity(resource)
         row = self.connection.execute(
             "SELECT project_revision,record_revision FROM p6_resource_master "
             "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
