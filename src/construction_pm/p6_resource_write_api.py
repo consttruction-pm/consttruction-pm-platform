@@ -10,6 +10,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_resource_master_repository import P6ResourceRepository
 from .p6_resource_access import require_resource_access
 from .p6_resource_assignment_repository import (
@@ -60,6 +61,7 @@ class P6ResourceWriteAPI:
     ) -> dict[str, Any]:
         _require_scope(value.scope, auth_context)
         _require_write(self.authorization_policy, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         if self.assignment_service is None:
             raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
         require_resource_access(
@@ -77,6 +79,7 @@ class P6ResourceWriteAPI:
     ) -> dict[str, Any]:
         _require_scope(value.scope, auth_context)
         _require_write(self.authorization_policy, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "edit_period_performance")
         require_resource_access(
             self.authorization_policy, self.resource_repository, value.scope,
             value.resource_id, auth_context,
