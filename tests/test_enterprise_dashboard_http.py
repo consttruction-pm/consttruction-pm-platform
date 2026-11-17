@@ -188,7 +188,7 @@ def test_dashboard_http_source_failures_are_safe_503_not_client_errors():
 
     status, payload, _ = request(app, "GET", "/api/enterprise/dashboards")
 
-    assert status.startswith("503")
+    assert status == "503 Service Unavailable"
     assert payload == {"code": "DASHBOARD_SOURCE_UNAVAILABLE"}
     assert "internal-secret" not in json.dumps(payload)
     assert service.calls == [("list", "actor-session", 200, None)]
