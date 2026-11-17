@@ -152,6 +152,8 @@ class DashboardPortlet:
     contract_version: str
     config: Mapping[str, object]
     layout: DashboardLayout
+    title: str | None = None
+    hide_title: bool = False
 
     def validate(self, *, context: str, context_portfolio_id: str | None) -> None:
         _required_text(self.instance_id, "PORTLET_INSTANCE_ID")
@@ -170,6 +172,12 @@ class DashboardPortlet:
             _required_text(self.config.get(name), f"PORTLET_{name.upper()}")
         if context == "portfolio" and self.config.get("portfolio_id") != context_portfolio_id:
             raise EnterpriseDashboardError("PORTLET_PORTFOLIO_CONTEXT_MISMATCH")
+        if self.title is not None:
+            _required_text(self.title, "PORTLET_TITLE")
+            if len(self.title) > 255:
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE")
+        if not isinstance(self.hide_title, bool):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE_VISIBILITY")
         self.layout.validate()
 
     def as_dict(self) -> dict[str, object]:
@@ -179,6 +187,8 @@ class DashboardPortlet:
             "contract_version": self.contract_version,
             "config": dict(self.config),
             "layout": self.layout.as_dict(),
+            "title": self.title,
+            "hide_title": self.hide_title,
         }
 
     @classmethod
@@ -186,7 +196,12 @@ class DashboardPortlet:
         cls, value: object, *, context: str, context_portfolio_id: str | None
     ) -> DashboardPortlet:
         required = {"instance_id", "type_id", "contract_version", "config", "layout"}
-        if not isinstance(value, Mapping) or set(value) != required:
+        optional = {"title", "hide_title"}
+        if (
+            not isinstance(value, Mapping)
+            or not required.issubset(value)
+            or set(value).difference(required | optional)
+        ):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET")
         portlet = cls(
             instance_id=value["instance_id"],
@@ -194,6 +209,8 @@ class DashboardPortlet:
             contract_version=value["contract_version"],
             config=value["config"],
             layout=DashboardLayout.from_dict(value["layout"]),
+            title=value.get("title"),
+            hide_title=value.get("hide_title", False),
         )
         portlet.validate(context=context, context_portfolio_id=context_portfolio_id)
         return portlet
