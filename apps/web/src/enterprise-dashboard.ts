@@ -107,6 +107,14 @@ export function orderDashboardCatalog(items: readonly EnterpriseDashboardCatalog
   );
 }
 
+export function reorderDashboardPortlets<T>(items: readonly T[], fromIndex: number, toIndex: number): T[] {
+  if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return [...items];
+  const result = [...items];
+  const [moved] = result.splice(fromIndex, 1);
+  result.splice(toIndex, 0, moved);
+  return result;
+}
+
 export function supportedDashboardPortlets(items: readonly EnterpriseDashboardPortlet[]): EnterpriseDashboardPortlet[] {
   const supported = new Set(ENTERPRISE_DASHBOARD_PORTLET_CATALOG.map((item) => item.type_id));
   return items.filter((item) => supported.has(item.type_id));
@@ -170,6 +178,8 @@ const COPY = {
     drill: "Open source record", projects: "Projects", status: "Status", membership: "Membership", total: "Total",
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
+    projectFilter: "Filter by project ID", applyFilter: "Apply filter", resetFilter: "Reset filter",
+    moveUp: "Move up", moveDown: "Move down", print: "Print", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -190,6 +200,8 @@ const COPY = {
     drill: "بازکردن رکورد منبع", projects: "پروژه‌ها", status: "وضعیت", membership: "عضویت", total: "مجموع",
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
+    projectFilter: "فیلتر بر اساس شناسه پروژه", applyFilter: "اعمال فیلتر", resetFilter: "پاک‌کردن فیلتر",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", print: "چاپ", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
 
