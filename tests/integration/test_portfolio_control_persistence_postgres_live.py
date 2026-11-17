@@ -76,6 +76,7 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
             repository, PostgresProjectLifecycleFactsReader(connection)
         )
         snapshot = provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
+        assert snapshot.portfolio_revision == 2
         assert snapshot.projects[0].project_id == project_id
         assert snapshot.projects[0].schedule_result_ref == source.locator
         assert snapshot.summary["included_projects"] == 1
