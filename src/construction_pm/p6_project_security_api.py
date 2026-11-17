@@ -72,6 +72,18 @@ class P6ProjectSecurityAPI:
         )
         return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(stored)}
 
+    def duplicate_profile(
+        self, source_profile_id: str, new_profile_id: str, new_name: str, *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        _require_admin(self.authorization_policy, auth_context)
+        profile = self.repository.duplicate_profile(
+            auth_context.tenant_id, source_profile_id, new_profile_id=new_profile_id,
+            new_name=new_name, actor_id=auth_context.user_id,
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
+
     def set_default(
         self, profile_id: str, *, expected_revision: int,
         auth_context: AuthorizationContext,
