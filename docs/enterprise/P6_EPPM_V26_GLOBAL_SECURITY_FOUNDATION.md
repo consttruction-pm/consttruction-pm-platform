@@ -106,5 +106,5 @@ so two concurrent requests cannot both remove the final pair of administrators.
 This protects the last-admin invariant for profile reassignment. It does not
 create the first Admin Superuser: initial tenant bootstrap still requires a
 controlled operator provisioning path, and no public bootstrap endpoint is
-introduced by this change. The focused guard tests cover zero, one, and two
-remaining administrators.
+introduced by this change. The focused guard tests reject zero remaining administrators and allow
+one or more remaining administrators.
