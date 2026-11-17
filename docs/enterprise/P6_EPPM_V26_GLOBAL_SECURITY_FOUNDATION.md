@@ -81,8 +81,10 @@ policy applies these rules:
 3. Application-generated Admin Superuser: allow the project permission without
    falling through to the coarse CUBI role map, matching the documented global
    project bypass.
-4. No Global Privileges: deny project API access until the OBS assignment
-   resolver is available; do not infer OBS scope from generic CUBI roles.
+4. No Global Privileges: require Projects module access and delegate to the
+   authoritative OBS/project-profile resolver seam. The policy denies if that
+   resolver is not injected; generic CUBI roles are never OBS grants. The
+   production composition still needs the shared-runtime handoff from PR #1983.
 5. Other profiles: require the Projects module and then the existing project
    policy. This is an interim composition; the project privilege catalogue and
    per-resource OBS/WBS scope still need to replace broad role permissions.
