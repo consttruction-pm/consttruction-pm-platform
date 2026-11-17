@@ -458,7 +458,7 @@ class ProjectLifecycleHttpRoutes:
         profile_root = "/api/admin/p6/project-security-profiles"
         associated_root = "/api/admin/p6/users/"
         if not (
-            (self._p6_project_security_api is not None and route.startswith(profile_root))
+            (self._p6_project_security_api is not None and (route == "/api/admin/p6/obs" or route.startswith(profile_root)))
             or (self._p6_associated_resource_api is not None and (route == "/api/admin/p6/associated-resources" or (route.startswith(associated_root) and route.endswith("/associated-resource"))))
         ):
             return None
@@ -472,6 +472,8 @@ class ProjectLifecycleHttpRoutes:
             if not isinstance(payload, dict):
                 return self._error(400, "P6_SECURITY_REQUEST_INVALID", "error.request.invalid")
 
+            if route == "/api/admin/p6/obs" and self._p6_project_security_api is not None and method == "GET":
+                return self._json(200, self._p6_project_security_api.list_obs_nodes(auth_context=auth))
             if route == profile_root and self._p6_project_security_api is not None:
                 if method == "GET":
                     return self._json(200, self._p6_project_security_api.list_profiles(auth_context=auth))
