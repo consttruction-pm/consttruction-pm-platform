@@ -70,6 +70,25 @@ class PostgresEnterpriseDashboardRepository:
             )"""
         )
         self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS enterprise_dashboard_display_preferences (
+                tenant_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                dashboard_id TEXT NOT NULL,
+                displayed BOOLEAN NOT NULL,
+                display_order INTEGER NOT NULL CHECK (display_order >= 0),
+                updated_at TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (tenant_id, user_id, dashboard_id),
+                FOREIGN KEY (tenant_id, dashboard_id)
+                    REFERENCES enterprise_dashboards (tenant_id, dashboard_id)
+                    ON DELETE RESTRICT
+            )"""
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS enterprise_dashboard_display_order "
+            "ON enterprise_dashboard_display_preferences "
+            "(tenant_id,user_id,displayed,display_order,dashboard_id)"
+        )
+        self.connection.execute(
             """CREATE TABLE IF NOT EXISTS enterprise_dashboard_audit (
                 tenant_id TEXT NOT NULL,
                 dashboard_id TEXT NOT NULL,
@@ -233,6 +252,84 @@ class PostgresEnterpriseDashboardRepository:
                 raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_STORED_SCOPE_OR_REVISION_MISMATCH")
             result.append(StoredEnterpriseDashboard(dashboard, revision))
         return tuple(result)
+
+    def list_display_preferences(
+        self, tenant_id: str, user_id: str
+    ) -> dict[str, tuple[bool, int]]:
+        """Return only the current actor's dashboard display preferences."""
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_TENANT_ID")
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
+        rows = self.connection.execute(
+            "SELECT dashboard_id,displayed,display_order "
+            "FROM enterprise_dashboard_display_preferences "
+            "WHERE tenant_id=%s AND user_id=%s "
+            "ORDER BY display_order,dashboard_id",
+            (tenant_id, user_id),
+        ).fetchall()
+        return {
+            str(row[0]): (bool(row[1]), int(row[2]))
+            for row in rows
+        }
+
+    def replace_display_preferences(
+        self,
+        tenant_id: str,
+        user_id: str,
+        preferences: tuple[tuple[str, bool, int], ...],
+        *,
+        updated_at: datetime,
+    ) -> None:
+        """Persist one actor's complete visible/available ordering atomically."""
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_TENANT_ID")
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
+        if (
+            not isinstance(updated_at, datetime)
+            or updated_at.tzinfo is None
+            or updated_at.utcoffset() is None
+        ):
+            raise EnterpriseDashboardError(
+                "ENTERPRISE_DASHBOARD_PREFERENCE_TIMESTAMP_MUST_BE_TIMEZONE_AWARE"
+            )
+        if not isinstance(preferences, tuple):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_PREFERENCES")
+        seen: set[str] = set()
+        for dashboard_id, displayed, display_order in preferences:
+            self._validate_scope(tenant_id, dashboard_id)
+            if dashboard_id in seen:
+                raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_DISPLAY_PREFERENCE")
+            if not isinstance(displayed, bool):
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_STATE")
+            if (
+                isinstance(display_order, bool)
+                or not isinstance(display_order, int)
+                or not 0 <= display_order <= 499
+            ):
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_ORDER")
+            saved = self.connection.execute(
+                "INSERT INTO enterprise_dashboard_display_preferences "
+                "(tenant_id,user_id,dashboard_id,displayed,display_order,updated_at) "
+                "SELECT %s,%s,dashboard_id,%s,%s,%s FROM enterprise_dashboards "
+                "WHERE tenant_id=%s AND dashboard_id=%s "
+                "ON CONFLICT (tenant_id,user_id,dashboard_id) DO UPDATE SET "
+                "displayed=EXCLUDED.displayed,display_order=EXCLUDED.display_order,"
+                "updated_at=EXCLUDED.updated_at RETURNING dashboard_id",
+                (
+                    tenant_id,
+                    user_id,
+                    displayed,
+                    display_order,
+                    updated_at,
+                    tenant_id,
+                    dashboard_id,
+                ),
+            ).fetchone()
+            if saved is None:
+                raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+            seen.add(dashboard_id)
 
     def update(
         self,
