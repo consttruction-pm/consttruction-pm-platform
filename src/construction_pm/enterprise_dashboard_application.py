@@ -766,7 +766,8 @@ class EnterpriseDashboardApplicationService:
                 )
             except KeyError:
                 return self._missing_portlet(
-                    portlet, definition.source_owner, dashboard_filters, applied_filters
+                    portlet, definition.source_owner, dashboard_filters, applied_filters,
+                    max_rows_per_portlet,
                 )
             snapshot.validate()
             if snapshot.tenant_id != session.tenant_id or snapshot.portfolio_id != portfolio_id:
@@ -971,6 +972,7 @@ class EnterpriseDashboardApplicationService:
         source_owner: str,
         dashboard_filters: tuple[DashboardFilter, ...],
         applied_filters: tuple[DashboardFilter, ...],
+        max_rows_per_portlet: int,
     ) -> dict[str, object]:
         return {
             "instance_id": portlet.instance_id,
@@ -986,7 +988,7 @@ class EnterpriseDashboardApplicationService:
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": False,
-            "row_limit": None,
+            "row_limit": max_rows_per_portlet,
             "truncated": False,
         }
 
