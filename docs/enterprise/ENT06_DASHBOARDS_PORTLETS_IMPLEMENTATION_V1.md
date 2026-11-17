@@ -58,7 +58,7 @@ Only these source contracts are registered in v1:
 | portfolio-control-snapshot.v1 | Enterprise Portfolio Control read model; Engineering remains authoritative for project facts | project.read | portfolio_id | project_id + project_revision |
 | portfolio-decision.v1 | Enterprise Portfolio Decision | project.read | portfolio_id + decision_id | decision_id + source revision |
 
-Registry metadata includes source owner, permission, supported contexts, contract version and drill-through reference shape. Portlet title/hide-title values affect presentation only; they never change source permissions or query semantics.
+These are CUBI registry types, not a claim that P6 EPPM ships a portlet named Portfolio Control Snapshot or Portfolio Decision. The snapshot is a read-only CUBI projection aligned to the P6 Portfolio View/Portfolio Analysis information domain; it does not reproduce P6 chart/scorecard authoring. Portfolio Decision is a CUBI-native extension over the existing decision boundary, not an EPPM portlet. Portlet title/hide-title values affect presentation only; they never change source permissions or query semantics.
 
 The registry is closed. Unknown portlet types and extra configuration keys fail validation. Arbitrary SQL, user-supplied code, formulas, arbitrary external URLs, custom report execution and new KPI/calculation engines are prohibited.
 
