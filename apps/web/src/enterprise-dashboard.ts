@@ -256,7 +256,7 @@ const COPY = {
     drill: "Open source record", projects: "Projects", status: "Status", membership: "Membership", total: "Total",
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
-    projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
+    projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterScopeConflict: "Choose either a portfolio or project filter, not both.", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
     moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
@@ -278,7 +278,7 @@ const COPY = {
     drill: "بازکردن رکورد منبع", projects: "پروژه‌ها", status: "وضعیت", membership: "عضویت", total: "مجموع",
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
-    projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
+    projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterScopeConflict: "فیلتر سبد پروژه و فیلتر پروژه را هم‌زمان انتخاب نکنید.", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
     moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
@@ -547,14 +547,14 @@ export async function mountEnterpriseDashboard(
     }
     const operatorSelect = node("select", "ced-select");
     const valueHost = node("div", "ced-field");
-    const valueInput = node("input", "ced-input");
-    valueInput.type = "text";
     function renderValueControl(): void {
       const definition = dashboardFilterDefinition(fieldSelect.value)!;
+      const previousOperator = operatorSelect.value;
       operatorSelect.replaceChildren();
       for (const operator of definition.operators) {
         const option = node("option", "", operatorLabel(operator));
         option.value = operator;
+        option.selected = operator === previousOperator;
         operatorSelect.append(option);
       }
       valueHost.replaceChildren(node("span", "ced-muted", t.value));
@@ -593,6 +593,11 @@ export async function mountEnterpriseDashboard(
       const definition = dashboardFilterDefinition(fieldSelect.value);
       const control = valueHost.querySelector<HTMLInputElement | HTMLSelectElement>("[data-filter-value]");
       if (!definition || !control || draft.some((item) => item.key === definition.key)) return;
+      if (["portfolio_id", "project_id"].includes(definition.key)
+        && draft.some((item) => ["portfolio_id", "project_id"].includes(item.key))) {
+        status.textContent = t.filterScopeConflict;
+        return;
+      }
       let value: unknown;
       if (definition.value_kind === "boolean") value = (control as HTMLSelectElement).value === "true";
       else if (definition.value_kind === "enum" && operatorSelect.value === "in") value = Array.from((control as HTMLSelectElement).selectedOptions).map((option) => option.value);
