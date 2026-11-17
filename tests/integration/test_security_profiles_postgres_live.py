@@ -969,7 +969,8 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         )["responsible_obs_id"] == obs_id
         visible_wbs = wbs_api.list(wbs_scope, auth_context=context)
         assert {item["wbs"]["wbs_id"] for item in visible_wbs} == {
-            f"eps-wbs-{suffix}", f"eps-wbs-override-{suffix}"
+            f"eps-wbs-{suffix}", f"eps-wbs-inherit-{suffix}",
+            f"eps-wbs-override-{suffix}",
         }
         changed = wbs_api.assign_responsible_obs(
             wbs_scope, f"eps-wbs-{suffix}", obs_id,
