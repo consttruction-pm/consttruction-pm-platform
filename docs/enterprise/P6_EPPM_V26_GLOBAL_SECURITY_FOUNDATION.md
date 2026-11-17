@@ -91,3 +91,20 @@ Focused policy tests cover missing assignment, Admin Superuser bypass,
 No Global Privileges fail-closed behavior, missing Projects module, and the
 normal project-role conjunction. These changes are committed in the PR branch;
 the exact-SHA GitHub checks are pending at the time of this update.
+
+
+## Last-Admin Superuser concurrency invariant — 2026-11-17
+
+Global assignment mutations now take a tenant-scoped PostgreSQL transaction
+advisory lock before reading or changing assignments. When an existing
+Admin Superuser assignment is changed to another profile, the repository
+counts active, application-generated Admin Superuser assignments and rejects
+the change if it would leave the tenant with none
+(`LAST_ADMIN_SUPERUSER_REQUIRED`). The lock serializes competing revocations,
+so two concurrent requests cannot both remove the final pair of administrators.
+
+This protects the last-admin invariant for profile reassignment. It does not
+create the first Admin Superuser: initial tenant bootstrap still requires a
+controlled operator provisioning path, and no public bootstrap endpoint is
+introduced by this change. The focused guard tests cover zero, one, and two
+remaining administrators.
