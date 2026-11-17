@@ -42,6 +42,14 @@ class P6AssociatedResourceAPI:
     authorization_policy: Any
     clock: Any = lambda: datetime.now(timezone.utc)
 
+    def list_resources(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_admin(self.authorization_policy, auth_context)
+        return {
+            "contract_version": P6_ASSOCIATED_RESOURCE_API_VERSION,
+            "resources": list(self.repository.list_resources(auth_context.tenant_id)),
+        }
+
     def get(self, user_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         auth_context.validate()
         _require_admin(self.authorization_policy, auth_context)
