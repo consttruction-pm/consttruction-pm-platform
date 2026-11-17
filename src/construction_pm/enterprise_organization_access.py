@@ -355,6 +355,31 @@ class EnterpriseOrganizationAccessService:
             actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
+    def get_user_global_access(self, session_id: str, target_user_id: str):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_users")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.get_global_user_access(session.tenant_id, target_user_id)
+
+    def set_user_global_access(
+        self, session_id: str, target_user_id: str, *, module_access: Sequence[str],
+        resource_access_mode: str, resource_root_ids: Sequence[str] = (),
+        expected_revision: int,
+    ):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_users")
+        if target_user_id == session.user_id:
+            raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.set_global_user_access(
+            tenant_id=session.tenant_id, user_id=target_user_id,
+            module_access=module_access, resource_access_mode=resource_access_mode,
+            resource_root_ids=resource_root_ids, expected_revision=expected_revision,
+            actor_user_id=session.user_id, occurred_at=self._now(),
+        )
+
     def unassign_security_profile(
         self, session_id: str, profile_id: str, *, user_id: str,
         obs_id: str = "", expected_revision: int,
