@@ -1,10 +1,10 @@
 # Stage 34.2.9 — Portfolio Control Read Model
 
-Status: **implemented, merged and runtime-verified through PR #2035.** Production dashboard route mounting remains in ENT-06B #2032.
+Status: **implemented, corrected, merged and runtime-verified through PRs #2035 and #2036.** Production dashboard route mounting remains in ENT-06B #2032.
 
 ## Scope
 
-Provide a cross-project Portfolio Control read model backed by a canonical, tenant-scoped Enterprise portfolio lifecycle/membership source. It preserves authoritative Engineering project revisions and opaque revision-pinned references to existing Schedule, Progress/EVM, Cost, Resource, Risk, Claim and Procurement results. Project status and revision are read from the existing Engineering project lifecycle source; this stage does not calculate or duplicate them.
+Provide a cross-project Portfolio Control read model backed by a canonical, tenant-scoped Enterprise portfolio lifecycle/membership source. It preserves authoritative Engineering project revisions and opaque revision-pinned references to existing Schedule, Progress/EVM, Cost, Resource, Risk, Claim and Procurement results. Project status and revision are read from the existing Engineering project lifecycle source; this stage does not calculate or duplicate them. Source-reference revisions are independently validated against their authoritative domain sources.
 
 ## Canonical persistence boundary
 
@@ -44,9 +44,11 @@ The provider composes these persisted membership records with read-only project 
 - `tests/test_portfolio_control_persistence.py`: provider isolation, authoritative facts, stable identity/time and stale-source coverage.
 - `tests/integration/test_portfolio_control_persistence_postgres_live.py`: live PostgreSQL persistence, revision, audit and source freshness coverage.
 - PR #2035 merged to `main` with merge commit `bf156f686d4d8cfe4efafb088638e68841b451e9`.
+- PR #2036 corrected independent source-reference revision semantics and merged with commit `de51211a2f551623540c43dc89ce8155c9146efd`.
 - Exact tested implementation head: `3f6bdf6a6adedaac870ed397daab801d6af63d22`.
 - ConstructionPM CI run `44114358321`: SUCCESS — Python 3.11, 3.12 and 3.13 full-suite jobs passed.
 - PostgreSQL Integration run `44114358305`: SUCCESS — live PostgreSQL suite including this stage's integration test passed.
 - Client Typecheck run `44114358228`: SUCCESS — Web, Desktop, Mobile and Client Sync jobs passed.
-- The production provider is injectable through the `PortfolioQueryProvider` boundary; the application service requires per-project authorization and fails closed if it is not configured.
+- PR #2036 exact-head follow-up `f32a5c30683de56b02920662a99bf118ff6310fa`: ConstructionPM CI `44116159684`, PostgreSQL Integration `44116159722`, and Client Typecheck `44116159781` all SUCCESS.
+- The production provider is injectable through the `PortfolioQueryProvider` boundary; it requires an authoritative source-reference validator, and the application service requires per-project authorization. Both fail closed when missing or stale.
 - Remaining integration: mount this provider in the approved ENT-06A production composition and verify the mounted dashboard consumer; tracked in #2032. This is not a reason to recreate the source store or provider.
