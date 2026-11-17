@@ -34,11 +34,11 @@ class P6OBSProjectGrant:
 
 
 class P6ProjectSecurityRepository(Protocol):
-    def save_profile(self, profile: P6ProjectSecurityProfile, *, expected_revision: int | None = None) -> P6ProjectSecurityProfile: ...
+    def save_profile(self, profile: P6ProjectSecurityProfile, *, actor_id: str, expected_revision: int | None = None) -> P6ProjectSecurityProfile: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> P6ProjectSecurityProfile | None: ...
     def list_profiles(self, tenant_id: str) -> tuple[P6ProjectSecurityProfile, ...]: ...
-    def set_default_profile(self, tenant_id: str, profile_id: str, *, expected_revision: int) -> P6ProjectSecurityProfile: ...
-    def delete_profile(self, tenant_id: str, profile_id: str, *, expected_revision: int) -> None: ...
+    def set_default_profile(self, tenant_id: str, profile_id: str, *, actor_id: str, expected_revision: int) -> P6ProjectSecurityProfile: ...
+    def delete_profile(self, tenant_id: str, profile_id: str, *, actor_id: str, expected_revision: int) -> None: ...
     def assign_obs(self, grant: P6OBSProjectGrant, *, actor_id: str) -> P6OBSProjectGrant: ...
     def revoke_obs(self, tenant_id: str, user_id: str, obs_id: str, *, actor_id: str) -> None: ...
     def list_user_grants(self, tenant_id: str, user_id: str) -> tuple[P6OBSProjectGrant, ...]: ...
@@ -317,10 +317,14 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           action TEXT NOT NULL, payload JSONB NOT NULL, occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""")
 
-    def save_profile(self, profile, *, expected_revision=None):
+    def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(profile.tenant_id, profile.profile_id)
         if current is None:
+            if profile.is_default:
+                raise P6ProjectSecurityPersistenceError("SET_DEFAULT_PROFILE_SEPARATELY")
             if expected_revision not in (None, 0) or profile.revision != 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             self.connection.execute(
@@ -344,7 +348,7 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
             ).fetchone()
             if row is None:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
-        self._audit(profile.tenant_id, "system", "project_profile_saved",
+        self._audit(profile.tenant_id, actor_id, "project_profile_saved",
                     {"profile_id": profile.profile_id, "revision": profile.revision})
         return profile
 
