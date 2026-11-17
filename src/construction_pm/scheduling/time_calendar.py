@@ -74,6 +74,28 @@ class WorkingTimeCalendar:
                     raise ValueError("working intervals must not overlap")
                 previous_end = end
 
+    def __reduce__(self):
+        """Make the immutable calendar cross a ``spawn`` process boundary.
+
+        ``daily_intervals`` is a read-only mapping proxy, which the default
+        pickle protocol cannot serialize. Only that container shape is
+        replaced; the reconstructed value re-runs ``__post_init__`` and is
+        therefore exactly as validated and immutable as the original.
+        """
+        return (
+            _restore_working_time_calendar,
+            (
+                tuple(sorted(self.working_weekdays)),
+                tuple(sorted(self.holidays)),
+                tuple(
+                    (weekday, tuple(tuple(interval) for interval in intervals))
+                    for weekday, intervals in sorted(self.daily_intervals.items())
+                ),
+                self.time_period_factors,
+                self.system,
+            ),
+        )
+
     def canonical_snapshot(self) -> dict[str, object]:
         """Return a deterministic, JSON-safe working-time calendar snapshot."""
         return {
@@ -174,6 +196,23 @@ def _duration_microseconds(value: Decimal | int | float, *, unit: str) -> int:
     return int(microseconds)
 
 
+def _restore_working_time_calendar(
+    working_weekdays: tuple[int, ...],
+    holidays: tuple[date, ...],
+    daily_intervals: tuple[tuple[int, tuple[tuple[time, time], ...]], ...],
+    time_period_factors: CalendarTimePeriodFactors,
+    system: CalendarSystem,
+) -> WorkingTimeCalendar:
+    """Pickle reconstruction seam for :class:`WorkingTimeCalendar`."""
+    return WorkingTimeCalendar(
+        working_weekdays=frozenset(working_weekdays),
+        holidays=frozenset(holidays),
+        daily_intervals={weekday: intervals for weekday, intervals in daily_intervals},
+        time_period_factors=time_period_factors,
+        system=system,
+    )
+
+
 def _timedelta_microseconds(value: timedelta) -> int:
     return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
 
@@ -189,6 +228,14 @@ class TimeAwareWorkingTimeResolver:
         # function of the date.  Caching it removes most of the repeated work
         # from the day-by-day working-time loops without changing any result.
         self._intervals: dict[date, tuple[tuple[time, time], ...]] = {}
+
+    def __reduce__(self):
+        """Recreate the resolver from its immutable calendar.
+
+        The per-date interval memo is a pure cache, so dropping it on the
+        process boundary changes no result.
+        """
+        return (TimeAwareWorkingTimeResolver, (self.calendar,))
 
     def intervals_for(self, value: date) -> tuple[tuple[time, time], ...]:
         cached = self._intervals.get(value)

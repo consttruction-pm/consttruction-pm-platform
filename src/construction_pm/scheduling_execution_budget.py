@@ -24,6 +24,7 @@ from __future__ import annotations
 import math
 import os
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -369,6 +370,9 @@ class GlobalExecutionBudget:
         self._active = 0
         self._peak = 0
         self._acquired = 0
+        self._extra_active = 0
+        self._extra_peak = 0
+        self._extra_acquired = 0
 
     @property
     def workers(self) -> int:
@@ -418,6 +422,67 @@ class GlobalExecutionBudget:
         finally:
             self.release()
 
+    @property
+    def extra_active(self) -> int:
+        with self._lock:
+            return self._extra_active
+
+    @property
+    def extra_peak(self) -> int:
+        with self._lock:
+            return self._extra_peak
+
+    @property
+    def extra_acquired_total(self) -> int:
+        with self._lock:
+            return self._extra_acquired
+
+    @contextmanager
+    def admit_extra(self, requested: int, timeout: float = 0.0) -> Iterator[int]:
+        """Reserve up to ``requested - 1`` additional in-process slots.
+
+        The caller already holds one ``permit`` for its calculation, so
+        ``requested`` is a total slot count: the yielded value is the total
+        number of slots the calculation may use, between 1 and ``requested``.
+
+        Extra slots are permits of this same budget, so a float pool can never
+        push the process above the capacity-derived worker count. The default
+        ``timeout=0.0`` is deliberately non-blocking: a permit holder that
+        waited for extras could wait on peers that are themselves waiting, and
+        the exact sequential fallback is always available. A bounded positive
+        ``timeout`` is allowed for callers that can afford to wait.
+        """
+        if isinstance(requested, bool) or not isinstance(requested, int) or requested < 1:
+            raise SchedulingBudgetError("INVALID_EXTRA_PERMIT_REQUEST")
+        if timeout < 0:
+            raise SchedulingBudgetError("INVALID_EXTRA_PERMIT_TIMEOUT")
+        wanted = requested - 1
+        granted = 0
+        deadline = time.monotonic() + timeout
+        try:
+            while granted < wanted:
+                remaining = deadline - time.monotonic()
+                if timeout <= 0:
+                    acquired = self._permits.acquire(blocking=False)
+                elif remaining > 0:
+                    acquired = self._permits.acquire(timeout=remaining)
+                else:
+                    break
+                if not acquired:
+                    break
+                granted += 1
+                with self._lock:
+                    self._extra_active += 1
+                    self._extra_peak = max(self._extra_peak, self._extra_active)
+                    self._extra_acquired += 1
+            yield 1 + granted
+        finally:
+            if granted:
+                with self._lock:
+                    self._extra_active -= granted
+                for _ in range(granted):
+                    self._permits.release()
+
     def as_dict(self) -> dict[str, object]:
         with self._lock:
             return {
@@ -425,6 +490,9 @@ class GlobalExecutionBudget:
                 "active": self._active,
                 "peak": self._peak,
                 "acquired_total": self._acquired,
+                "extra_active": self._extra_active,
+                "extra_peak": self._extra_peak,
+                "extra_acquired_total": self._extra_acquired,
             }
 
 

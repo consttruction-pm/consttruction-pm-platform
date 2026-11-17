@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import multiprocessing
+import pickle
 import threading
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 from .calendar_context import (
     CalendarReference,
@@ -562,11 +564,18 @@ def _time_float_for_activity(
     )
 
 
-# Forked children inherit this context at process creation. Nothing else is
-# shared: each child computes independent activities and returns immutable
+# Forked or spawned children inherit this context at pool creation. Nothing else
+# is shared: each child computes independent activities and returns immutable
 # records, so the merged mapping is exactly the sequential mapping.
 _FLOAT_CONTEXT: _TimeFloatContext | None = None
-_FLOAT_FORK_LOCK = threading.Lock()
+# One float pool per process at a time. Nested pools would oversubscribe the CPU
+# budget and, under ``spawn``, fork bombs.
+_FLOAT_POOL_GUARD = threading.Lock()
+
+
+def _float_pool_initializer(context: _TimeFloatContext) -> None:
+    global _FLOAT_CONTEXT
+    _FLOAT_CONTEXT = context
 
 
 def _float_chunk(activity_ids: list[str]) -> list[TimeFloatActivity]:
@@ -583,42 +592,144 @@ def _chunk_activity_ids(activity_ids: list[str], workers: int) -> list[list[str]
     return [activity_ids[index : index + size] for index in range(0, len(activity_ids), size)]
 
 
-def _parallel_time_floats(
-    context: _TimeFloatContext, activity_ids: list[str], workers: int
-) -> dict[str, TimeFloatActivity]:
-    """Evaluate independent activities in forked children, then merge by id.
+def _select_float_start_method(
+    context: _TimeFloatContext, *, allow_spawn: bool = False
+) -> str | None:
+    """Return a *safe* process start method for the current process state.
 
-    Falls back to the sequential loop when the platform has no ``fork`` or when
-    the caller is multithreaded, because forking a threaded process is not safe.
-    Both paths are exactly equivalent; the fallback changes only speed.
+    ``fork`` is only safe while the process has a single thread: a forked child
+    of a threaded process can inherit a held lock and deadlock, and the job
+    executor always runs calculations on a worker thread.
+
+    In a threaded process ``spawn`` is the only safe alternative, and it is
+    only considered when the caller explicitly allows it: on the measured
+    reference host the serial cost of transferring the float context to each
+    child (~25 us per activity, 11.6 MB at 25k activities) exceeds the
+    parallel work (~169 us per activity divided by the slot count), so an
+    automatic spawn pool would be slower than the exact sequential loop. A
+    platform without ``fork`` (Windows, macOS default) can opt in with
+    ``FloatExecutionPolicy(allow_spawn=True)`` when its own transfer cost is
+    lower. Anything else — a daemonic child, no usable start method, an
+    unpicklable calendar registry — returns ``None`` and the caller uses the
+    exact sequential loop.
     """
-    global _FLOAT_CONTEXT
-    chunks = _chunk_activity_ids(activity_ids, workers)
-    if len(chunks) <= 1:
-        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
-    if threading.active_count() > 1:
-        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
-    try:
-        fork_context = multiprocessing.get_context("fork")
-    except ValueError:
-        return {activity_id: _time_float_for_activity(context, activity_id) for activity_id in activity_ids}
-
-    with _FLOAT_FORK_LOCK:
-        previous = _FLOAT_CONTEXT
-        _FLOAT_CONTEXT = context
-        pool = fork_context.Pool(processes=len(chunks))
+    if multiprocessing.current_process().daemon:
+        return None
+    methods = set(multiprocessing.get_all_start_methods())
+    if "fork" in methods and threading.active_count() == 1 and multiprocessing.parent_process() is None:
+        return "fork"
+    if allow_spawn and "spawn" in methods:
         try:
-            chunks_out = pool.map(_float_chunk, chunks)
-        finally:
-            pool.close()
-            pool.join()
-            _FLOAT_CONTEXT = previous
+            pickle.dumps(context)
+        except Exception:  # noqa: BLE001 - any pickling failure means "not safe"
+            return None
+        return "spawn"
+    return None
+
+
+def _parallel_time_floats(
+    context: _TimeFloatContext,
+    activity_ids: list[str],
+    workers: int,
+    admission: Callable[[int], AbstractContextManager[int]] | None = None,
+    *,
+    allow_spawn: bool = False,
+) -> dict[str, TimeFloatActivity]:
+    """Evaluate independent activities in child processes, then merge by id.
+
+    The merge is keyed by activity id and returned in the canonical sorted id
+    order, so the result is byte-identical to the sequential loop for any
+    worker count. The pool is only used when it is provably safe:
+
+    * never ``fork`` a process that has more than one thread (the job executor
+      runs calculations on worker threads); ``spawn`` is only used there when
+      the caller explicitly allows it, because its serial context transfer was
+      measured to exceed the parallel work;
+    * never create a second float pool from inside a float pool;
+    * never exceed the granted CPU budget — ``admission`` reserves extra slots
+      from the process-wide budget and the pass stays sequential when fewer
+      than two slots are granted.
+
+    Every unsuitable state falls back to the exact sequential loop, which
+    changes only speed.
+    """
+
+    def sequential() -> dict[str, TimeFloatActivity]:
+        return {
+            activity_id: _time_float_for_activity(context, activity_id)
+            for activity_id in activity_ids
+        }
+
+    if workers <= 1 or len(activity_ids) <= 1:
+        return sequential()
+    start_method = _select_float_start_method(context, allow_spawn=allow_spawn)
+    if start_method is None:
+        return sequential()
+    if not _FLOAT_POOL_GUARD.acquire(blocking=False):
+        return sequential()
+    try:
+        requested = min(workers, len(activity_ids))
+        manager = admission(requested) if admission is not None else nullcontext(requested)
+        with manager as granted:
+            granted = min(requested, int(granted))
+            if granted <= 1:
+                return sequential()
+            chunks = _chunk_activity_ids(activity_ids, granted)
+            if len(chunks) <= 1:
+                return sequential()
+            pool_context = multiprocessing.get_context(start_method)
+            try:
+                pool = pool_context.Pool(
+                    processes=len(chunks),
+                    initializer=_float_pool_initializer,
+                    initargs=(context,),
+                )
+            except (OSError, RuntimeError):
+                # Process creation is unavailable in this environment.
+                return sequential()
+            try:
+                chunks_out = pool.map(_float_chunk, chunks)
+            finally:
+                pool.close()
+                pool.join()
+    finally:
+        _FLOAT_POOL_GUARD.release()
 
     merged: dict[str, TimeFloatActivity] = {}
     for chunk in chunks_out:
         for item in chunk:
             merged[item.activity_id] = item
     return {activity_id: merged[activity_id] for activity_id in activity_ids}
+
+
+@dataclass(frozen=True)
+class FloatExecutionPolicy:
+    """Execution-only settings for the per-activity float pass.
+
+    ``workers`` is an upper bound; ``admission`` lets the caller cap it against
+    the one process-wide execution budget. The admission callable returns a
+    context manager whose value is the number of slots actually granted. A
+    policy never changes a float value: two granted slots and one slot produce
+    the same merged mapping.
+
+    ``allow_spawn`` opts a threaded process into a ``spawn`` pool. It defaults
+    to ``False`` because transferring the immutable float context to each child
+    is serial work that, on the reference host, is larger than the parallel
+    gain; the pass then runs the exact sequential loop. Processes that cannot
+    ``fork`` at all can enable it when their own transfer cost is lower.
+    """
+
+    workers: int = 1
+    admission: Callable[[int], AbstractContextManager[int]] | None = None
+    allow_spawn: bool = False
+
+    def __post_init__(self) -> None:
+        if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers < 1:
+            raise ValueError("INVALID_FLOAT_WORKERS")
+        if self.admission is not None and not callable(self.admission):
+            raise ValueError("INVALID_FLOAT_ADMISSION")
+        if not isinstance(self.allow_spawn, bool):
+            raise ValueError("INVALID_FLOAT_ALLOW_SPAWN")
 
 
 def calculate_time_floats(
@@ -630,26 +741,34 @@ def calculate_time_floats(
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
     *,
     workers: int = 1,
+    policy: FloatExecutionPolicy | None = None,
 ) -> Mapping[str, TimeFloatActivity]:
     """Calculate every activity's float.
 
-    ``workers`` is an execution-only parameter: it splits independent activity
-    calculations across forked processes and merges them in sorted id order.
-    It cannot change a value, and the default (1) is the historical sequential
-    loop.
+    Execution is the only thing ``workers``/``policy`` can change. Independent
+    activities are evaluated in child processes when the process state allows it
+    and merged in sorted id order; every other state uses the historical
+    sequential loop. Neither parameter can change a value.
     """
     if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
         raise ValueError("INVALID_FLOAT_WORKERS")
+    selected_policy = policy if policy is not None else FloatExecutionPolicy(workers=workers)
     context = _time_float_context(
         activities, relationships, early, late, registry, relationship_lag_calendar
     )
     activity_ids = sorted(context.activity_map)
-    if workers == 1:
+    if selected_policy.workers == 1:
         return {
             activity_id: _time_float_for_activity(context, activity_id)
             for activity_id in activity_ids
         }
-    return _parallel_time_floats(context, activity_ids, workers)
+    return _parallel_time_floats(
+        context,
+        activity_ids,
+        selected_policy.workers,
+        selected_policy.admission,
+        allow_spawn=selected_policy.allow_spawn,
+    )
 
 
 def time_schedule(
@@ -662,6 +781,7 @@ def time_schedule(
     options: TimeScheduleOptions | None = None,
     *,
     float_workers: int = 1,
+    float_policy: FloatExecutionPolicy | None = None,
 ) -> TimeScheduleResult:
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
@@ -699,6 +819,7 @@ def time_schedule(
         registry,
         selected_options.relationship_lag_calendar,
         workers=float_workers,
+        policy=float_policy,
     )
     return TimeScheduleResult(
         activities=early,
