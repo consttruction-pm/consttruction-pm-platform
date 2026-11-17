@@ -116,8 +116,8 @@ class DelayAnalysisRevision:
             raise DelayAnalysisRecordError("BASELINE_AND_CURRENT_SNAPSHOT_IDENTICAL")
         if self.data_date_basis not in {"APPROVED_CONTEMPORANEOUS_UPDATE", "RECONSTRUCTED"}:
             raise DelayAnalysisRecordError("INVALID_DATA_DATE_BASIS")
-        if self.data_date_basis == "RECONSTRUCTED" and not self.data_date_rationale.strip():
-            raise DelayAnalysisRecordError("RECONSTRUCTED_DATA_DATE_REQUIRES_RATIONALE")
+        if self.data_date_basis == "RECONSTRUCTED":
+            _text(self.data_date_rationale, "RECONSTRUCTED_DATA_DATE_REQUIRES_RATIONALE")
         _aware(self.created_at, "INVALID_CREATED_AT")
         if self.current_data_date > self.created_at.date():
             raise DelayAnalysisRecordError("DATA_DATE_IN_FUTURE")
@@ -347,6 +347,8 @@ class _SQLDelayAnalysisRecordRepository:
 
     def list_revisions(self, scope: BackendScope, case_id: str) -> tuple[DelayAnalysisRevision, ...]:
         scope.validate()
+        if self.get_case(scope, case_id) is None:
+            return ()
         rows = self.connection.execute(self._q("""
             SELECT payload_json FROM eng_delay_analysis_revision
             WHERE tenant_id=? AND project_id=? AND case_id=? ORDER BY revision
@@ -354,6 +356,9 @@ class _SQLDelayAnalysisRecordRepository:
         return tuple(_revision_from_payload(scope, json.loads(row[0])) for row in rows)
 
     def is_review_approved(self, scope: BackendScope, case_id: str, revision: int) -> bool:
+        scope.validate()
+        if self.get_case(scope, case_id) is None:
+            return False
         row = self.connection.execute(self._q("""
             SELECT 1 FROM eng_delay_analysis_review
             WHERE tenant_id=? AND project_id=? AND case_id=? AND revision=? AND decision='APPROVE'
