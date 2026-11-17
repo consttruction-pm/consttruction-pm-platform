@@ -323,3 +323,58 @@ def test_production_policy_preserves_require_contract_for_lifecycle_callers():
     with pytest.raises(AuthorizationError, match="authorization denied"):
         denied.require(_authorization_context(), Permission.PROJECT_READ)
 
+class _FakeOBSProjectAccess:
+    def __init__(self, allowed):
+        self.allowed = allowed
+        self.calls = []
+
+    def project_permission(self, tenant_id, user_id, project_id, permission):
+        self.calls.append((tenant_id, user_id, project_id, permission))
+        return self.allowed
+
+
+def test_no_global_privileges_uses_authoritative_obs_project_profile_resolver():
+    from construction_pm.application.authorization import Permission
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+
+    no_global = profile(NO_GLOBAL_PRIVILEGES)
+    resolver = _FakeOBSProjectAccess(True)
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(
+            _user_assignment("p6-no-global-privileges", modules=("projects",)),
+            no_global,
+        ),
+        _FakeProjectPolicy(False),
+        obs_project_access=resolver,
+    )
+
+    assert policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert resolver.calls == [("tenant-a", "user-1", "project-1", "project.read")]
+
+
+def test_no_global_privileges_fails_closed_without_obs_assignment_or_projects_module():
+    from construction_pm.application.authorization import Permission
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+
+    no_global = profile(NO_GLOBAL_PRIVILEGES)
+    resolver = _FakeOBSProjectAccess(True)
+    no_module = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(
+            _user_assignment("p6-no-global-privileges", modules=("resources",)),
+            no_global,
+        ),
+        _FakeProjectPolicy(True),
+        obs_project_access=resolver,
+    )
+    no_resolver = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(
+            _user_assignment("p6-no-global-privileges", modules=("projects",)),
+            no_global,
+        ),
+        _FakeProjectPolicy(True),
+    )
+
+    assert not no_module.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+    assert resolver.calls == []
+    assert not no_resolver.is_allowed(_authorization_context(), Permission.PROJECT_READ)
+
