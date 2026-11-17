@@ -90,7 +90,7 @@ The authenticated session is the sole authority for actor and tenant. Caller-sup
 A dashboard share grants access to the dashboard definition only. For each portlet read:
 
 1. The existing Portfolio Control Snapshot or Portfolio Decision boundary is called with an AuthorizationContext derived from the current authenticated session.
-2. Portfolio snapshot filters are applied to source-backed project rows; only the rows returned are separately re-authorized through the existing project lifecycle authorize_project(..., PROJECT_READ) boundary. Portfolio Decision affected-project references are all re-authorized before decision data is returned.
+2. Portfolio snapshot filters are applied to source-backed project rows. Before returning the filtered projection and its preserved source_refs, every project referenced by the original snapshot is re-authorized through the existing project lifecycle authorize_project(..., PROJECT_READ) boundary. Portfolio Decision affected-project references are all re-authorized before decision data is returned.
 3. Tenant, portfolio and source contract identity are checked before returning data.
 4. The response preserves source snapshot identity and source revision. Snapshot source revision is represented by the ordered source-reference revision set; a decision uses its persisted decision revision.
 5. Snapshot age is explicitly classified as fresh or stale. Missing source records return missing; source contracts without a generated timestamp return unknown.
@@ -111,7 +111,7 @@ Filters are stored and validated against a closed key/operator/value catalogue:
 
 The owner may set `restrict_filter_override=true`. When false, a reader may supply request-scoped filter overrides; when true, only the owner or Enterprise administrator may override. Overrides are not persisted. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
 
-Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered before project-level authorization and only returned rows are authorized. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
+Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered for presentation, but every project in the underlying source snapshot is re-authorized before any snapshot or source-reference metadata is returned. Filtering never bypasses source-record authorization. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
 
 ## 3. Oracle Help crosswalk
 
