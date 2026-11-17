@@ -32,6 +32,8 @@ def test_postgres_associated_resource_one_to_one_and_revision():
         resources.initialize()
         resources.save(P6Resource(tenant, project, 1, "R-1", "Crew"))
         resources.save(P6Resource(tenant, project, 1, "R-2", "Plant"))
+        resources.save(P6Resource(tenant, f"{project}-other", 1, "R-1", "Crew Updated"))
+        assert resources.get(tenant, project, 1, "R-1").name == "Crew Updated"
         associations = PostgresP6AssociatedResourceRepository(
             conn, user_exists=lambda _tenant, _user: True
         )
