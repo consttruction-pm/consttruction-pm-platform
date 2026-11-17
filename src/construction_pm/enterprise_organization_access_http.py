@@ -246,6 +246,12 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                              "unassigned": True}
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
+        if parts == ["api", "enterprise", "obs"] and method == "GET":
+            return 200, {
+                "contract_version": "cubi-p6-obs-options.v1",
+                "obs_nodes": self._service.list_obs_nodes(session_id),
+            }
+
         if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
                 and parts[4] == "project-access"):
             if method != "PUT":
