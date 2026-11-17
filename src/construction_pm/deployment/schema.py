@@ -14,6 +14,9 @@ from ..enterprise_organization_access_repository import PostgresEnterpriseOrgani
 from ..identity_session import PostgresIdentityStore
 from ..p6_cost_account_repository import PostgresP6CostAccountRepository
 from ..p6_obs_repository import PostgresP6OBSRepository
+from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
+from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
+from ..p6_resource_master_repository import PostgresP6ResourceRepository
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_global_security import PostgresP6GlobalSecurityRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
@@ -40,8 +43,20 @@ def initialize_production_schema(connection: Any) -> None:
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
     PostgresP6CostAccountRepository(connection).initialize()
-    PostgresP6OBSRepository(connection).initialize()
+    obs_repository = PostgresP6OBSRepository(connection)
+    obs_repository.initialize()
     PostgresP6GlobalSecurityRepository(connection).initialize()
+    PostgresP6ResourceRepository(connection).initialize()
+    def project_obs_lookup(tenant_id: str, project_id: str) -> str | None:
+        row = connection.execute(
+            "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        ).fetchone()
+        return None if row is None or not row[0] else str(row[0])
+    PostgresP6ProjectSecurityRepository(
+        connection, project_obs_lookup=project_obs_lookup, obs_repository=obs_repository
+    ).initialize()
+    PostgresP6AssociatedResourceRepository(connection).initialize()
     PostgresWBSMasterRepository(connection).initialize()
     PostgresRelationshipMasterRepository(connection).initialize()
     PostgresP6FieldRegistryRepository(connection).initialize()
