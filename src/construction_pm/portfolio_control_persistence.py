@@ -302,6 +302,34 @@ class PostgresPortfolioControlRepository:
             for row in rows
         )
 
+    def get_snapshot_records(
+        self, tenant_id: str, portfolio_id: str
+    ) -> tuple[PortfolioRecord, tuple[PortfolioMembershipRecord, ...]]:
+        """Read portfolio revision and its ordered memberships in one MVCC statement."""
+        rows = self._connection.execute(
+            "SELECT p.tenant_id,p.portfolio_id,p.revision,p.created_at,p.updated_at,"
+            "m.project_id,m.membership_status,m.project_revision,m.source_refs_json,"
+            "m.membership_revision,m.updated_at "
+            "FROM enterprise_portfolios p LEFT JOIN enterprise_portfolio_memberships m "
+            "ON m.tenant_id=p.tenant_id AND m.portfolio_id=p.portfolio_id "
+            "WHERE p.tenant_id=%s AND p.portfolio_id=%s ORDER BY m.project_id",
+            (tenant_id, portfolio_id),
+        ).fetchall()
+        if not rows:
+            raise KeyError("PORTFOLIO_NOT_FOUND")
+        first = rows[0]
+        portfolio = PortfolioRecord(
+            str(first[0]), str(first[1]), int(first[2]), first[3], first[4]
+        )
+        memberships = tuple(
+            PortfolioMembershipRecord(
+                str(row[0]), str(row[1]), str(row[5]), str(row[6]), int(row[7]),
+                self._decode_sources(row[8]), int(row[9]), row[10],
+            )
+            for row in rows if row[5] is not None
+        )
+        return portfolio, memberships
+
     def _lock_portfolio(
         self, tenant_id: str, portfolio_id: str, expected_revision: int
     ) -> PortfolioRecord:
@@ -439,8 +467,9 @@ class PostgresPortfolioControlSnapshotProvider:
     def get_snapshot(self, portfolio_id: str, *, tenant_id: str) -> PortfolioControlSnapshot:
         if not isinstance(tenant_id, str) or not tenant_id.strip():
             raise PortfolioControlPersistenceError("INVALID_PORTFOLIO_TENANT_ID")
-        portfolio = self._repository.get_portfolio(tenant_id, portfolio_id)
-        memberships = self._repository.list_memberships(tenant_id, portfolio_id)
+        portfolio, memberships = self._repository.get_snapshot_records(
+            tenant_id, portfolio_id
+        )
         if not memberships:
             raise PortfolioControlPersistenceError("PORTFOLIO_SNAPSHOT_PROJECTS_REQUIRED")
         projects: list[PortfolioProjectControlInput] = []
