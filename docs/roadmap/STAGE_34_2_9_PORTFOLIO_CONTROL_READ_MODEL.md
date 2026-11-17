@@ -15,7 +15,7 @@ The implementation introduces one Enterprise-owned persistence boundary:
 
 The repository is PostgreSQL-backed and transaction-neutral: the caller owns commit/rollback. Portfolio and membership writes use row locks and expected revisions. Duplicate membership is rejected by the primary key. Audit UPDATE/DELETE is rejected by a database trigger.
 
-The provider composes these persisted membership records with read-only project status/revision from `project_lifecycle_projects`. It rejects unknown/cross-tenant portfolios, missing projects, stale Engineering project revisions and source-reference revision mismatches. It derives only the membership-state counts; it does not calculate engineering KPIs.
+The provider composes these persisted membership records with read-only project status/revision from `project_lifecycle_projects`. Project revisions and opaque source-reference revisions are independent version axes; they are never forced to be numerically equal. A required injected `PortfolioSourceReferenceReader` validates the exact tenant/project/source locator and source revision. Missing or stale references fail closed. The provider also rejects unknown/cross-tenant portfolios and stale Engineering project revisions. It derives only the membership-state counts; it does not calculate engineering KPIs.
 
 ## Acceptance criteria
 
@@ -24,8 +24,8 @@ The provider composes these persisted membership records with read-only project 
 - Duplicate projects/memberships are rejected.
 - Summary counts are derived only from persisted membership status.
 - Result references remain opaque links to authoritative project/domain results; no project calculations are duplicated.
-- Source references are mandatory and revision-safe.
-- Snapshot identity, timestamp and ordered content are deterministic for the same persisted revision set.
+- Source references are mandatory and revision-safe; their revisions are independently validated through the injected authoritative source-reference reader, not compared to project revision.
+- Snapshot identity, timestamp and ordered content are deterministic for the same persisted revision set; the stable snapshot ID is revision-bound while the v1 wire schema remains unchanged.
 - Read-model code remains independent from Backend P0 project-list adapters.
 - The Portfolio Query application service re-authorizes every referenced project through an injected current-actor project authorizer; a missing authorizer fails closed.
 - Provider unit tests, API authorization/error tests and PostgreSQL live integration pass on the exact final SHA before merge. ENT-06A production composition/browser consumer acceptance remains in #2032.
@@ -40,7 +40,7 @@ The provider composes these persisted membership records with read-only project 
 
 ## Verified implementation evidence
 
-- `src/construction_pm/portfolio_control_persistence.py`: canonical PostgreSQL repository, optimistic revisions, append-only audit, read-only Engineering project facts adapter and concrete snapshot provider.
+- `src/construction_pm/portfolio_control_persistence.py`: canonical PostgreSQL repository, optimistic revisions, append-only audit, read-only Engineering project facts adapter, injected source-reference validator contract and concrete snapshot provider.
 - `tests/test_portfolio_control_persistence.py`: provider isolation, authoritative facts, stable identity/time and stale-source coverage.
 - `tests/integration/test_portfolio_control_persistence_postgres_live.py`: live PostgreSQL persistence, revision, audit and source freshness coverage.
 - PR #2035 merged to `main` with merge commit `bf156f686d4d8cfe4efafb088638e68841b451e9`.
