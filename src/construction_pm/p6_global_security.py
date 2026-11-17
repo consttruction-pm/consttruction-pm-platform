@@ -259,6 +259,47 @@ def global_profile_has_global_read_only(profile: GlobalSecurityProfile) -> bool:
             and profile.profile_id == "p6-no-global-privileges")
 
 
+def user_can_access_resource(
+    profile: GlobalSecurityProfile,
+    assignment: UserGlobalSecurity,
+    *,
+    tenant_id: str,
+    user_id: str,
+    resource_id: str,
+    ancestor_resource_ids: tuple[str, ...],
+) -> bool:
+    """Apply V26 Resource Access to a resource and its authoritative ancestry.
+
+    ``ancestor_resource_ids`` must be resolved by the tenant-scoped resource
+    repository and include the resource itself plus every parent up to the
+    hierarchy root. A selected resource grants access to that resource and
+    descendants only; malformed or mismatched scope fails closed.
+    """
+    try:
+        profile.validate()
+        assignment.validate()
+        if (
+            assignment.tenant_id != tenant_id
+            or assignment.user_id != user_id
+            or not isinstance(resource_id, str)
+            or not resource_id.strip()
+            or not ancestor_resource_ids
+            or any(not isinstance(value, str) or not value.strip()
+                   for value in ancestor_resource_ids)
+            or resource_id not in ancestor_resource_ids
+        ):
+            return False
+        if global_profile_is_admin_superuser(profile):
+            return True
+        if assignment.resource_access_mode == "all":
+            return True
+        if assignment.resource_access_mode == "none":
+            return False
+        return any(root_id in ancestor_resource_ids for root_id in assignment.resource_root_ids)
+    except (GlobalSecurityError, TypeError, ValueError):
+        return False
+
+
 class P6GlobalSecurityRepository(Protocol):
     def initialize(self) -> None: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> GlobalSecurityProfile | None: ...
