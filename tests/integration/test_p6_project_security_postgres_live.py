@@ -34,7 +34,7 @@ def test_postgres_project_profile_obs_grants_and_hierarchy_round_trip():
         project_obs = {project: "OBS-CHILD"}
         repo = PostgresP6ProjectSecurityRepository(
             conn, project_obs_lookup=lambda _tenant, _project: project_obs.get(_project),
-            obs_repository=obs,
+            obs_repository=obs, user_exists=lambda _tenant, _user: True,
         )
         repo.initialize()
         profile = P6ProjectSecurityProfile(
