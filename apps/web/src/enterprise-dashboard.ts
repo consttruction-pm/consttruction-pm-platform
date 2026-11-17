@@ -39,10 +39,17 @@ export type EnterpriseDashboardCatalogItem = {
 };
 export type EnterpriseDashboardCatalog = {
   contract_version: "cubi-enterprise-dashboard-catalog.v1";
+  /** Effective tenant policy. Optional only for older v1 servers; default is 12. */
+  max_portlets?: number;
   displayed_dashboards: EnterpriseDashboardCatalogItem[];
   available_dashboards: EnterpriseDashboardCatalogItem[];
   read_at: string;
 };
+
+export function effectiveDashboardPortletLimit(catalog: Pick<EnterpriseDashboardCatalog, "max_portlets"> | null | undefined): number {
+  const value = catalog?.max_portlets;
+  return Number.isInteger(value) && typeof value === "number" && value >= 1 && value <= 50 ? value : 12;
+}
 export type EnterprisePortletRead = {
   instance_id: string;
   type_id: string;
@@ -120,8 +127,8 @@ export function supportedDashboardPortlets(items: readonly EnterpriseDashboardPo
   return items.filter((item) => supported.has(item.type_id));
 }
 
-export function validateDashboardLayout(portlets: readonly EnterpriseDashboardPortlet[]): boolean {
-  if (portlets.length > 12) return false;
+export function validateDashboardLayout(portlets: readonly EnterpriseDashboardPortlet[], maxPortlets = 12): boolean {
+  if (!Number.isInteger(maxPortlets) || maxPortlets < 1 || maxPortlets > 50 || portlets.length > maxPortlets) return false;
   for (let i = 0; i < portlets.length; i += 1) {
     const a = portlets[i].layout;
     if (![a.x, a.y, a.w, a.h].every(Number.isInteger)
@@ -556,7 +563,7 @@ export async function mountEnterpriseDashboard(
       if (!activeDefinition) return;
       captureActiveSection();
       const nextPortlets = draftPortlets;
-      if (!validateDashboardLayout(nextPortlets)) {
+      if (!validateDashboardLayout(nextPortlets, effectiveDashboardPortletLimit(catalog))) {
         panel.prepend(node("p", "ced-error", "Invalid or overlapping portlet layout."));
         return;
       }
@@ -650,7 +657,7 @@ export async function mountEnterpriseDashboard(
       const portfolio = input("new-portfolio-id", "");
       const decision = input("new-decision-id", "");
       const add = button(t.addPortlet, () => {
-        if (list.querySelectorAll(".ced-editor-portlet").length >= 12) return;
+        if (list.querySelectorAll(".ced-editor-portlet").length >= effectiveDashboardPortletLimit(catalog)) return;
         const type = addType.value as EnterprisePortletType;
         const config = {
           portfolio_id: portfolio.value.trim(),
