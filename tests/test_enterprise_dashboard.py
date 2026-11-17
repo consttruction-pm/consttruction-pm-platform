@@ -509,32 +509,38 @@ def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
 
 def test_global_dashboard_access_is_all_users_and_admin_controlled():
     service, _, _, _ = make_service()
-    created = create_dashboard(service)
+    owner_dashboard = create_dashboard(service)
     with pytest.raises(EnterpriseDashboardAuthorizationError, match="GLOBAL_DASHBOARD_ADMIN_REQUIRED"):
         service.assign_share(
-            "alice-session", created.dashboard.dashboard_id,
+            "alice-session", owner_dashboard.dashboard.dashboard_id,
             target_type="all_users", target_id="", expected_revision=1,
         )
+
+    admin_dashboard = create_dashboard(
+        service,
+        session_id="admin-session",
+        payload=create_payload(title="Admin global dashboard"),
+    )
     global_dashboard = service.assign_share(
-        "admin-session", created.dashboard.dashboard_id,
+        "admin-session", admin_dashboard.dashboard.dashboard_id,
         target_type="all_users", target_id="", expected_revision=1,
     )
     assert global_dashboard.dashboard.visibility == "global"
     assert global_dashboard.dashboard.shared_user_ids == ()
     assert global_dashboard.dashboard.shared_role_ids == ()
-    assert service.get_dashboard("bob-session", created.dashboard.dashboard_id).revision == 2
+    assert service.get_dashboard("bob-session", admin_dashboard.dashboard.dashboard_id).revision == 2
     with pytest.raises(EnterpriseDashboardAuthorizationError, match="GLOBAL_DASHBOARD_ADMIN_REQUIRED"):
         service.update_dashboard(
-            "alice-session", created.dashboard.dashboard_id,
-            {"title": "Owner cannot edit global"}, expected_revision=2,
+            "alice-session", admin_dashboard.dashboard.dashboard_id,
+            {"title": "Non-admin cannot edit global"}, expected_revision=2,
         )
     private_again = service.revoke_share(
-        "admin-session", created.dashboard.dashboard_id,
+        "admin-session", admin_dashboard.dashboard.dashboard_id,
         target_type="all_users", target_id="", expected_revision=2,
     )
     assert private_again.dashboard.visibility == "private"
     with pytest.raises(Exception):
-        service.get_dashboard("bob-session", created.dashboard.dashboard_id)
+        service.get_dashboard("bob-session", admin_dashboard.dashboard.dashboard_id)
 
 
 def test_project_filters_are_applied_without_bypassing_source_project_authorization():
