@@ -460,12 +460,17 @@ This is a manual semantic review of the linked HTML topics, not an automated liv
 
 ## ENT-06B UI increment — HTML Help traceability update (2026-11-17)
 
+### UI follow-up — dashboard creation and localized Filter by controls
+
+The create action now opens a modal instead of using a browser prompt. It offers a blank dashboard or a copy of an accessible dashboard through the existing authenticated duplicate operation. The Default Dashboard choice is visible but disabled with an explicit explanation because no canonical default-template definition has been approved/configured; the UI does not fabricate one. Filter By field, operator and allow-listed value labels are localized for English and Persian. The editor rejects simultaneous portfolio and project scope filters client-side, matching the backend's mutually-exclusive scope rule. These are source-level changes only; authenticated browser flows, save/reload behavior and exact-head CI remain unverified.
+
+
 This addendum records the current isolated UI implementation branch `feat/ent06-dashboard-ui-isolated-v2`. It does not upgrade the overall ENT-06 status to complete.
 
 | Official P6 EPPM V26 HTML topic | Required behavior from Help | Current CUBI UI disposition |
 |---|---|---|
 | [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Dashboard tabs, displayed/available dashboards, module/project security remains authoritative | Partial: catalog, displayed/available lists and source permission states exist; canonical shell mounting and user-interface-view assignment remain open. |
-| [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Create dashboard, copy from Default Dashboard or existing dashboard, then save/close | Partial: blank creation and duplicate-existing actions exist; Default Dashboard template selection and Save and Close page flow are not implemented. |
+| [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Create dashboard, copy from Default Dashboard or existing dashboard, then save/close | Partial: a create dialog now offers blank creation and copying an accessible existing dashboard using the authenticated duplicate service. The Default Dashboard template is visibly disabled because no approved template source is configured; Save and Close page flow remains different. |
 | [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm) | Content, Layout and Access tabs, then Save and Close | Partial: four CUBI editor sections (General, Content, Layout, Access) exist and draft state is retained across tabs; Access is currently read-only and save is not the full P6 page flow. |
 | [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm) | General settings, dashboard filter, maximum displayed rows, portlet catalogue and per-portlet options | Partial: max rows, filter lock, two governed portlet types, title and width controls exist. The full P6 catalogue and all per-portlet options remain deferred until authoritative source contracts and permissions exist. |
 | [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Private/user, global/all users, or specified list of users; security privilege required | Partial: backend contract supports private, explicit users/roles and admin-only global visibility. UI currently displays access metadata but does not yet edit user/role assignments. |
