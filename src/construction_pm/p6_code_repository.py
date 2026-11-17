@@ -230,7 +230,7 @@ class PostgresP6CodeRepository:
 
     def list(self, scope: BackendScope, subject_area: str | None = None) -> tuple[P6CodeDefinition, ...]:
         scope.validate()
-        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json "
+        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure "
                  "FROM p6_code_definition WHERE tenant_id=%s AND project_id=%s AND project_revision=%s")
         params: tuple[object, ...] = (scope.tenant_id,scope.project_id,scope.project_revision)
         if subject_area is not None:
