@@ -240,3 +240,17 @@ For release completion it must have:
 12. A usable end-to-end Web workflow.
 
 The immediate objective is therefore **not to increase the Stage number**. It is to convert the already-developed capabilities into a coherent, tested, usable Web product and close only the real remaining gaps.
+
+
+## 2A. Hasan — CUBI Enterprise Portfolio Lifecycle source ownership (2026-11-17)
+
+For the Enterprise Portfolio & Executive Center, Hasan is the accountable backend/database/API implementation owner for the canonical portfolio lifecycle persistence boundary, including tenant-scoped portfolio identity, project membership, membership state, portfolio revisions and revision-pinned opaque Engineering source references. This ownership is within the CUBI Enterprise domain and does not transfer portfolio management to Engineering.
+
+- Hasan owns the canonical persistence schema, repository, application/API contracts, migrations and database-backed tests for portfolio lifecycle and membership.
+- Hasan also owns read-only provider implementations that expose those canonical persisted records to Enterprise consumers through approved application boundaries.
+- Do not create a parallel/shadow membership store, infer membership from an Engineering project list, or use action/decision history as membership.
+- Jalal owns cross-domain contract review, Shared Core/Engineering boundary protection and final technical acceptance; he does not become the persistence implementer.
+- Javad owns Enterprise dashboard/client presentation and consumes the approved API; he does not create membership or portfolio data authority in the client.
+- If the repository has no existing canonical membership persistence, its creation is part of Hasan's assigned Enterprise source task—not a blocker requiring another owner decision. Hasan must document the chosen canonical paths and contract in the PR before implementation is considered complete.
+
+This assignment resolves the source-owner ambiguity recorded in Issue #2033. It does not authorize changes to Engineering's authoritative project records or calculations, nor does it authorize duplicate schedule, progress/EVM, cost, resource, risk, claim or procurement logic.
