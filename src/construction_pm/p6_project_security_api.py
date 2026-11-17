@@ -71,6 +71,7 @@ class P6ProjectSecurityAPI:
         return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
 
     def list_profiles(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
         _require_profile_admin(self.authorization_policy, auth_context)
         return {
             "contract_version": P6_PROJECT_SECURITY_API_VERSION,
