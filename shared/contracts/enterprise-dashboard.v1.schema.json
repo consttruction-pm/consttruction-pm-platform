@@ -205,49 +205,57 @@
       "items": {
         "oneOf": [
           {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "key",
-              "operator",
-              "value"
-            ],
-            "properties": {
-              "key": {
-                "const": "project_status"
-              },
-              "operator": {
-                "enum": [
-                  "eq",
-                  "in"
-                ]
-              },
-              "value": {
-                "oneOf": [
-                  {
-                    "enum": [
-                      "active",
-                      "inactive",
-                      "planned",
-                      "what_if"
-                    ]
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
                   },
-                  {
+                  "operator": {
+                    "const": "eq"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_status"
+                  },
+                  "operator": {
+                    "const": "in"
+                  },
+                  "value": {
                     "type": "array",
                     "minItems": 1,
                     "uniqueItems": true,
                     "items": {
-                      "enum": [
-                        "active",
-                        "inactive",
-                        "planned",
-                        "what_if"
-                      ]
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
                     }
                   }
-                ]
+                }
               }
-            }
+            ]
           },
           {
             "type": "object",
