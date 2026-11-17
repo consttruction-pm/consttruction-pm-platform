@@ -758,8 +758,10 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         )
         connection.execute(
             "INSERT INTO p6_security_profile_assignments "
-            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
-            "VALUES (%s,'p6-admin-superuser',%s,'',1,%s,%s)",
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,'p6-admin-superuser',%s,'',1,%s,%s,"
+            "'[\"projects\",\"resources\"]'::jsonb,'all','[]'::jsonb)",
             (tenant, admin_id, admin_id, now),
         )
         connection.commit()
