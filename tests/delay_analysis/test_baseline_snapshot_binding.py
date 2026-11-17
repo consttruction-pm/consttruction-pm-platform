@@ -103,7 +103,7 @@ def test_binding_requires_existing_baseline_and_exact_source_revision_snapshot()
     service.snapshot_repository.save(wrong_revision)
     with pytest.raises(
         BaselineScheduleSnapshotBindingError,
-        match="BASELINE_SOURCE_SNAPSHOT_NOT_FOUND",
+        match="BASELINE_SOURCE_SNAPSHOT_REVISION_MISMATCH",
     ):
         service.bind(scope(), baseline.baseline_id, wrong_revision.snapshot_id)
 
