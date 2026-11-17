@@ -419,8 +419,9 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         )""")
         self.connection.execute("""
         CREATE OR REPLACE FUNCTION p6_project_security_audit_immutable()
-        RETURNS trigger LANGUAGE plpgsql AS $
-        BEGIN RAISE EXCEPTION 'P6_PROJECT_SECURITY_AUDIT_APPEND_ONLY'; END; $""")
+        RETURNS trigger LANGUAGE plpgsql AS $p6_project_security$
+        BEGIN RAISE EXCEPTION 'P6_PROJECT_SECURITY_AUDIT_APPEND_ONLY'; END;
+        $p6_project_security$""")
         self.connection.execute("DROP TRIGGER IF EXISTS p6_project_security_audit_immutable ON p6_project_security_audit")
         self.connection.execute("""
         CREATE TRIGGER p6_project_security_audit_immutable
