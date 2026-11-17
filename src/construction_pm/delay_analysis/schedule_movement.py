@@ -10,8 +10,10 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Mapping
+from typing import Iterable, Mapping
 
+from ..p6_baseline_activity_repository import P6BaselineActivity
+from ..p6_baseline_repository import P6Baseline
 from ..scheduling.schedule import ScheduleResult
 
 
@@ -269,4 +271,179 @@ def assess_schedule_movement(
         removed_activity_ids=removed,
         activity_movements=movements_tuple,
         analysis_hash=digest,
+    )
+
+
+
+@dataclass(frozen=True)
+class BaselineActivityVariance:
+    """Date variance for one activity against stored P6 baseline planned dates."""
+
+    activity_id: str
+    baseline_planned_start: date
+    current_early_start: date
+    start_variance_calendar_days: int
+    baseline_planned_finish: date
+    current_early_finish: date
+    finish_variance_calendar_days: int
+    baseline_budgeted_cost: str
+    baseline_currency: str
+    current_total_float_native_units: int
+    current_critical: bool
+    current_float_path: int | None
+
+
+@dataclass(frozen=True)
+class BaselineVarianceAssessment:
+    """Native baseline-date variance facts, not a forensic delay opinion."""
+
+    baseline_id: str
+    baseline_type: str
+    baseline_source_revision: int
+    current: ScheduleRunReference
+    activity_variances: tuple[BaselineActivityVariance, ...]
+    added_activity_ids: tuple[str, ...]
+    missing_activity_ids: tuple[str, ...]
+    analysis_hash: str
+    method: str = "P6_BASELINE_ACTIVITY_DATE_VARIANCE"
+    limitations: tuple[str, ...] = (
+        "Baseline persistence supplies planned activity dates and selected EVM facts, not the full frozen schedule network.",
+        "Baseline relationships, constraints, calendars, schedule options, baseline float and baseline critical path are not present in this activity-value record.",
+        "Date differences are calendar-day variances, not working-day delay or proof of critical delay.",
+        "The assessment does not establish causation, concurrency, responsibility, entitlement, EOT, damages, or cost.",
+        "This is not Time Impact Analysis and does not insert or model an event fragnet.",
+    )
+
+
+def assess_baseline_activity_variance(
+    baseline: P6Baseline,
+    baseline_activities: Iterable[P6BaselineActivity],
+    current_reference: ScheduleRunReference,
+    current_result: ScheduleResult,
+) -> BaselineVarianceAssessment:
+    """Compare stored P6 baseline planned windows with current Shared Core dates.
+
+    The baseline metadata and activity rows must come from the existing
+    server-side P6 baseline repositories. Current dates and float are consumed
+    from Shared Core output without recalculation. This is an EPPM-style
+    baseline variance assessment, not a forensic delay method.
+    """
+    baseline.validate()
+    current_reference.validate()
+    if (
+        baseline.scope.tenant_id != current_reference.tenant_id
+        or baseline.scope.project_id != current_reference.project_id
+    ):
+        raise ScheduleMovementAnalysisError("BASELINE_SCOPE_MISMATCH")
+    if current_reference.project_revision < max(
+        baseline.scope.project_revision, baseline.source_revision
+    ):
+        raise ScheduleMovementAnalysisError("STALE_CURRENT_PROJECT_REVISION")
+    if not isinstance(current_result.floats, Mapping) or not current_result.floats:
+        raise ScheduleMovementAnalysisError("CURRENT_SCHEDULER_OUTPUTS_MISSING")
+
+    rows = tuple(baseline_activities)
+    if not rows:
+        raise ScheduleMovementAnalysisError("BASELINE_ACTIVITIES_MISSING")
+    by_id: dict[str, P6BaselineActivity] = {}
+    for row in rows:
+        if not isinstance(row, P6BaselineActivity):
+            raise ScheduleMovementAnalysisError("INVALID_BASELINE_ACTIVITY")
+        row.validate()
+        if row.scope != baseline.scope or row.baseline_id != baseline.baseline_id:
+            raise ScheduleMovementAnalysisError("BASELINE_ACTIVITY_SCOPE_MISMATCH")
+        if row.activity_id in by_id:
+            raise ScheduleMovementAnalysisError("DUPLICATE_BASELINE_ACTIVITY")
+        by_id[row.activity_id] = row
+
+    current_ids = set(current_result.floats)
+    baseline_ids = set(by_id)
+    common_ids = sorted(current_ids & baseline_ids)
+    added = tuple(sorted(current_ids - baseline_ids))
+    missing = tuple(sorted(baseline_ids - current_ids))
+    variances: list[BaselineActivityVariance] = []
+
+    for activity_id in common_ids:
+        baseline_row = by_id[activity_id]
+        current_row = current_result.floats[activity_id]
+        variances.append(
+            BaselineActivityVariance(
+                activity_id=activity_id,
+                baseline_planned_start=baseline_row.planned_start,
+                current_early_start=current_row.early_start,
+                start_variance_calendar_days=(
+                    current_row.early_start - baseline_row.planned_start
+                ).days,
+                baseline_planned_finish=baseline_row.planned_finish,
+                current_early_finish=current_row.early_finish,
+                finish_variance_calendar_days=(
+                    current_row.early_finish - baseline_row.planned_finish
+                ).days,
+                baseline_budgeted_cost=str(baseline_row.budgeted_cost),
+                baseline_currency=baseline_row.currency,
+                current_total_float_native_units=current_row.total_float,
+                current_critical=current_row.critical,
+                current_float_path=current_row.float_path,
+            )
+        )
+
+    variances_tuple = tuple(variances)
+    payload = json.dumps(
+        {
+            "method": "P6_BASELINE_ACTIVITY_DATE_VARIANCE",
+            "baseline": {
+                "tenant_id": baseline.scope.tenant_id,
+                "project_id": baseline.scope.project_id,
+                "project_revision": baseline.scope.project_revision,
+                "baseline_id": baseline.baseline_id,
+                "baseline_type": baseline.baseline_type,
+                "source_revision": baseline.source_revision,
+                "created_at": baseline.created_at,
+            },
+            "current": {
+                "tenant_id": current_reference.tenant_id,
+                "project_id": current_reference.project_id,
+                "project_revision": current_reference.project_revision,
+                "snapshot_id": current_reference.snapshot_id,
+                "snapshot_hash": current_reference.snapshot_hash,
+                "calculation_identity": current_reference.calculation_identity,
+                "data_date": current_reference.data_date.isoformat(),
+                "engine_version": current_reference.engine_version,
+                "calendar_context_hash": current_reference.calendar_context_hash,
+                "scheduling_settings_hash": current_reference.scheduling_settings_hash,
+                "schedule_log_hash": current_reference.schedule_log_hash,
+            },
+            "added_activity_ids": list(added),
+            "missing_activity_ids": list(missing),
+            "activity_variances": [
+                {
+                    "activity_id": item.activity_id,
+                    "baseline_planned_start": item.baseline_planned_start.isoformat(),
+                    "current_early_start": item.current_early_start.isoformat(),
+                    "start_variance_calendar_days": item.start_variance_calendar_days,
+                    "baseline_planned_finish": item.baseline_planned_finish.isoformat(),
+                    "current_early_finish": item.current_early_finish.isoformat(),
+                    "finish_variance_calendar_days": item.finish_variance_calendar_days,
+                    "baseline_budgeted_cost": item.baseline_budgeted_cost,
+                    "baseline_currency": item.baseline_currency,
+                    "current_total_float_native_units": item.current_total_float_native_units,
+                    "current_critical": item.current_critical,
+                    "current_float_path": item.current_float_path,
+                }
+                for item in variances_tuple
+            ],
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return BaselineVarianceAssessment(
+        baseline_id=baseline.baseline_id,
+        baseline_type=baseline.baseline_type,
+        baseline_source_revision=baseline.source_revision,
+        current=current_reference,
+        activity_variances=variances_tuple,
+        added_activity_ids=added,
+        missing_activity_ids=missing,
+        analysis_hash=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
     )
