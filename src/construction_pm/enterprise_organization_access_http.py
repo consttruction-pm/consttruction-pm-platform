@@ -246,6 +246,39 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                              "unassigned": True}
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
+        if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
+                and parts[4] == "global-access"):
+            target_user_id = parts[3]
+            if method == "GET":
+                access = self._service.get_user_global_access(session_id, target_user_id)
+                return 200, {
+                    "contract_version": "cubi-p6-user-global-access.v1",
+                    "access": access,
+                }
+            if method == "PATCH":
+                payload = self._body(environ, "cubi-p6-user-global-access.v1")
+                modules = payload.get("module_access")
+                roots = payload.get("resource_root_ids", [])
+                mode = payload.get("resource_access_mode")
+                expected = payload.get("expected_revision")
+                if (not isinstance(modules, list)
+                        or any(not isinstance(item, str) for item in modules)
+                        or not isinstance(roots, list)
+                        or any(not isinstance(item, str) for item in roots)
+                        or not isinstance(mode, str)
+                        or isinstance(expected, bool) or not isinstance(expected, int)):
+                    raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ACCESS_REQUEST_INVALID")
+                access = self._service.set_user_global_access(
+                    session_id, target_user_id, module_access=modules,
+                    resource_access_mode=mode, resource_root_ids=roots,
+                    expected_revision=expected,
+                )
+                return 200, {
+                    "contract_version": "cubi-p6-user-global-access.v1",
+                    "access": access,
+                }
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
         if parts == ["api", "enterprise", "users"]:
             if method == "GET":
                 users = self._service.list_accounts(session_id)
