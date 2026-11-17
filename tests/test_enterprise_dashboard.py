@@ -276,7 +276,7 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
                 "type_id": "arbitrary-sql.v1",
                 "contract_version": "arbitrary-sql.v1",
                 "config": {},
-                "layout": {"x": 0, "y": 0, "w": 1, "h": 1},
+                "layout": {"x": 0, "y": 0, "w": 6, "h": 1},
             },
             context="enterprise_home",
             context_portfolio_id=None,
