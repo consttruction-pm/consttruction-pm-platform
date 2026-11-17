@@ -179,7 +179,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
     projectFilter: "Filter by project ID", applyFilter: "Apply filter", resetFilter: "Reset filter",
-    moveUp: "Move up", moveDown: "Move down", print: "Print", filterLocked: "The dashboard owner has restricted filter overrides.",
+    moveUp: "Move up", moveDown: "Move down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -201,7 +201,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
     projectFilter: "فیلتر بر اساس شناسه پروژه", applyFilter: "اعمال فیلتر", resetFilter: "پاک‌کردن فیلتر",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", print: "چاپ", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
 
