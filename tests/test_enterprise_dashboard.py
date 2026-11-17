@@ -497,6 +497,18 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
         DashboardLayout(10, 0, 3, 1).validate()
     with pytest.raises(EnterpriseDashboardError, match="UNKNOWN_ENTERPRISE_DASHBOARD_FILTER"):
         DashboardFilter("external_url", "eq", "https://example.com").validate()
+    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE"):
+        DashboardPortlet.from_dict(
+            snapshot_portlet(title="x" * 256),
+            context="enterprise_home",
+            context_portfolio_id=None,
+        )
+    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_PORTLET_TITLE_VISIBILITY"):
+        DashboardPortlet.from_dict(
+            snapshot_portlet(hide_title="yes"),
+            context="enterprise_home",
+            context_portfolio_id=None,
+        )
     with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_OPERATOR"):
         DashboardFilter("project_id", "in", ("project-1",)).validate()
 
@@ -1229,6 +1241,7 @@ def test_stale_and_missing_source_states_are_explicit():
         "alice-session", missing_dashboard.dashboard.dashboard_id
     )
     assert missing["portlets"][0]["freshness_state"] == "missing"
+    assert missing["portlets"][0]["source_data_mode"] == "not_exposed"
     assert missing["portlets"][0]["data"] is None
 
 
@@ -1357,6 +1370,9 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
         response_project_filter = schema["$defs"]["portlet_read_response"]["properties"][key]["items"]["oneOf"][-1]["oneOf"]
         assert {item["properties"]["operator"]["const"] for item in response_project_filter} == {"eq", "in"}
     assert schema["properties"]["max_rows_per_portlet"]["default"] == 100
+    for portlet_schema in schema["properties"]["portlets"]["items"]["oneOf"]:
+        assert portlet_schema["properties"]["title"]["maxLength"] == 255
+        assert portlet_schema["properties"]["hide_title"]["type"] == "boolean"
     assert schema["$defs"]["dashboard_read_response"]["properties"]["portlets"]["minItems"] == 0
     assert schema["$defs"]["dashboard_display_preference_request"]["required"] == [
         "dashboard_id", "displayed"
