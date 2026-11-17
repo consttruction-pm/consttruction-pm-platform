@@ -72,7 +72,7 @@ PORTLET_REGISTRY: Mapping[str, PortletDefinition] = {
 
 
 _FILTER_RULES: Mapping[str, tuple[str, frozenset[str] | None]] = {
-    "project_status": ("enum", frozenset({"active", "inactive", "planned", "what_if"})),
+    "project_status": ("text_list", None),
     "membership_status": ("enum", frozenset({"included", "on_hold", "excluded"})),
     "decision_status": (
         "enum",
