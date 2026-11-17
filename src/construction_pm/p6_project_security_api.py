@@ -108,6 +108,10 @@ class P6ProjectSecurityAPI:
     ) -> dict[str, Any]:
         auth_context.validate()
         _require_profile_admin(self.authorization_policy, auth_context)
+        if profile_id == P6_PROJECT_SUPERUSER_PROFILE_ID:
+            is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+            if not callable(is_superuser) or not is_superuser(auth_context):
+                raise AuthorizationError("PROJECT_SUPERUSER_PROFILE_DEFAULT_REQUIRES_ADMIN_SUPERUSER")
         stored = self.repository.set_default_profile(
             auth_context.tenant_id, profile_id, actor_id=auth_context.user_id,
             expected_revision=expected_revision,
