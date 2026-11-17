@@ -38,7 +38,9 @@ test("dashboard HTTP client maps every UI command to the authenticated HTTP cont
     title: "Board", description: "", portlets: [], filters: [],
     restrict_filter_override: false, max_rows_per_portlet: 50,
   }, 2);
-  await client.archiveDashboard("d-1", 2);\n  await client.saveFilterOverride("d-1", [{ key: "project_id", operator: "eq", value: "p-1" }]);\n  await client.resetFilterOverride("d-1");
+  await client.archiveDashboard("d-1", 2);
+  await client.saveFilterOverride("d-1", [{ key: "project_id", operator: "eq", value: "p-1" }]);
+  await client.resetFilterOverride("d-1");
   await client.assignShare("d-1", "user", "u-2", 2);
   await client.revokeShare("d-1", "role", "enterprise_viewer", 3);
   assert.deepEqual(calls.map((call) => [call.init.method ?? "GET", call.url]), [
@@ -49,15 +51,18 @@ test("dashboard HTTP client maps every UI command to the authenticated HTTP cont
     ["POST", "/api/enterprise/dashboards/d-1/duplicate"],
     ["PATCH", "/api/enterprise/dashboards/d-1"],
     ["POST", "/api/enterprise/dashboards/d-1/archive"],
-    ["POST", "/api/enterprise/dashboards/d-1/filter-override"],\n    ["DELETE", "/api/enterprise/dashboards/d-1/filter-override"],\n    ["POST", "/api/enterprise/dashboards/d-1/shares"],
+    ["POST", "/api/enterprise/dashboards/d-1/filter-override"],
+    ["DELETE", "/api/enterprise/dashboards/d-1/filter-override"],
+    ["POST", "/api/enterprise/dashboards/d-1/shares"],
     ["DELETE", "/api/enterprise/dashboards/d-1/shares"],
   ]);
   assert.equal(new Headers(calls[3].init.headers).get("Idempotency-Key")?.length, 36);
   assert.equal(new Headers(calls[4].init.headers).get("Idempotency-Key")?.length, 36);
-  assert.deepEqual(JSON.parse(String(calls[7].init.body)), {
+  assert.deepEqual(JSON.parse(String(calls[7].init.body)), { filters: [{ key: "project_id", operator: "eq", value: "p-1" }] });
+  assert.deepEqual(JSON.parse(String(calls[9].init.body)), {
     target_type: "user", target_id: "u-2", expected_revision: 2,
   });
-  assert.deepEqual(JSON.parse(String(calls[8].init.body)), {
+  assert.deepEqual(JSON.parse(String(calls[10].init.body)), {
     target_type: "role", target_id: "enterprise_viewer", expected_revision: 3,
   });
 });
