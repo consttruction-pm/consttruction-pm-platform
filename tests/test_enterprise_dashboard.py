@@ -107,6 +107,7 @@ class FakeRepository:
             ("tenant-b", "other"),
         }
         self.preferences: dict[tuple[str, str, str], tuple[bool, int]] = {}
+        self.filter_overrides: dict[tuple[str, str, str], list[dict[str, object]]] = {}
 
     def user_belongs_to_tenant(self, tenant_id, user_id):
         return (tenant_id, user_id) in self.users
@@ -159,6 +160,41 @@ class FakeRepository:
         for dashboard_id, displayed, display_order in preferences:
             self.get(tenant_id, dashboard_id)
             self.preferences[(tenant_id, user_id, dashboard_id)] = (displayed, display_order)
+
+    def list_user_preferences(self, tenant_id, user_id):
+        keys = {
+            key[2] for key in self.preferences if key[:2] == (tenant_id, user_id)
+        } | {
+            key[2] for key in self.filter_overrides if key[:2] == (tenant_id, user_id)
+        }
+        return {
+            dashboard_id: {
+                "displayed": self.preferences.get(
+                    (tenant_id, user_id, dashboard_id), (True, 0)
+                )[0],
+                "display_order": self.preferences.get(
+                    (tenant_id, user_id, dashboard_id), (True, 0)
+                )[1],
+                "filter_override": self.filter_overrides.get(
+                    (tenant_id, user_id, dashboard_id)
+                ),
+            }
+            for dashboard_id in keys
+        }
+
+    def set_dashboard_filter_override(self, tenant_id, user_id, dashboard_id, filters):
+        self.get(tenant_id, dashboard_id)
+        key = (tenant_id, user_id, dashboard_id)
+        if filters is None:
+            self.filter_overrides.pop(key, None)
+        else:
+            self.filter_overrides[key] = filters
+            self.preferences.setdefault(key, (True, len(self.preferences)))
+
+    def reset_dashboard_preferences(self, tenant_id, user_id, dashboard_id):
+        key = (tenant_id, user_id, dashboard_id)
+        self.preferences.pop(key, None)
+        self.filter_overrides.pop(key, None)
 
     def update(self, dashboard, *, expected_revision, actor_id, occurred_at, event_type="updated"):
         current = self.get(dashboard.tenant_id, dashboard.dashboard_id)
