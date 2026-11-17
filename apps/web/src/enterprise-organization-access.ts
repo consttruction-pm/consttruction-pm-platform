@@ -5,7 +5,8 @@ type Membership = { team_id: string; user_id: string; role: string; status: stri
 type EligibleUser = { user_id: string; email: string; display_name: string };
 type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
 type SecurityProfile = { profile_id: string; name: string; description: string; scope: "global" | "project"; active: boolean; is_default: boolean; revision: number; privileges: string[] };
-type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string };
+type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[] };
+type GlobalUserAccess = { tenant_id: string; user_id: string; profile_id: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[]; revision: number; assigned_by: string; assigned_at: string };
 type PrivilegeCatalogs = { global: string[]; project: string[] };
 type Locale = "en" | "fa";
 
@@ -50,6 +51,11 @@ const COPY = {
     profileInactive: "Inactive", profileActivate: "Activate", profileDeactivate: "Deactivate",
     profileStatusSaved: "Profile status updated.", removeAssignment: "Remove assignment",
     profileHelp: "Every user requires one Global profile. Project profiles are assigned to OBS responsibility and do not replace project membership.",
+    globalAccessTitle: "Global user access", selectGlobalUser: "Assigned user", moduleAccess: "Module access",
+    resourceAccess: "Resource access", noResources: "No resources", allResources: "All resources",
+    selectResources: "Select up to five resource roots (unavailable until the global resource hierarchy is configured)",
+    resourceAccessNote: "Module access controls which application modules are available. Project data still requires the matching OBS/project security profile. Selected resource access is not enabled until CUBI has an enterprise-wide resource hierarchy.",
+    saveGlobalAccess: "Save user access", globalAccessSaved: "Global user access updated.",
     selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
@@ -93,6 +99,11 @@ const COPY = {
     profileInactive: "غیرفعال", profileActivate: "فعال‌سازی", profileDeactivate: "غیرفعال‌سازی",
     profileStatusSaved: "وضعیت پروفایل به‌روزرسانی شد.", removeAssignment: "حذف تخصیص",
     profileHelp: "هر کاربر به یک پروفایل سراسری نیاز دارد. پروفایل پروژه به مسئولیت OBS اختصاص می‌یابد و جایگزین عضویت پروژه نیست.",
+    globalAccessTitle: "دسترسی سراسری کاربر", selectGlobalUser: "کاربر تخصیص‌یافته", moduleAccess: "دسترسی ماژول‌ها",
+    resourceAccess: "دسترسی منابع", noResources: "بدون دسترسی به منابع", allResources: "همه منابع",
+    selectResources: "انتخاب حداکثر پنج ریشه منابع (تا زمان پیکربندی سلسله‌مراتب سراسری منابع غیرفعال است)",
+    resourceAccessNote: "دسترسی ماژول‌ها بخش‌های قابل استفاده برنامه را تعیین می‌کند. دسترسی به داده پروژه همچنان به پروفایل امنیتی OBS/پروژه نیاز دارد. انتخاب منابع تا ایجاد سلسله‌مراتب سراسری منابع کوبی فعال نیست.",
+    saveGlobalAccess: "ذخیره دسترسی کاربر", globalAccessSaved: "دسترسی سراسری کاربر به‌روزرسانی شد.",
     selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
@@ -185,18 +196,39 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let profileAssignments: ProfileAssignment[] = [];
   let privilegeCatalogs: PrivilegeCatalogs = { global: [], project: [] };
   let selectedProfileId = "";
+  let selectedGlobalAccessUserId = "";
+  let globalUserAccess: GlobalUserAccess | null = null;
   let canManageSecurityProfiles = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
   let failure = "";
 
+  const loadGlobalUserAccess = async () => {
+    if (!selectedGlobalAccessUserId) { globalUserAccess = null; return; }
+    const result = await api<{ access: GlobalUserAccess }>(
+      `/api/enterprise/users/${encodeURIComponent(selectedGlobalAccessUserId)}/global-access`,
+    );
+    globalUserAccess = result.access;
+  };
+
   const loadProfileAssignments = async () => {
-    if (!selectedProfileId) { profileAssignments = []; return; }
+    if (!selectedProfileId) { profileAssignments = []; globalUserAccess = null; return; }
     const result = await api<{ assignments: ProfileAssignment[] }>(
       `/api/enterprise/security-profiles/${encodeURIComponent(selectedProfileId)}/assignments`,
     );
     profileAssignments = Array.isArray(result.assignments) ? result.assignments : [];
+    const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
+    if (selectedProfile?.scope === "global") {
+      const globalAssignments = profileAssignments.filter((assignment) => !assignment.obs_id);
+      if (!globalAssignments.some((assignment) => assignment.user_id === selectedGlobalAccessUserId)) {
+        selectedGlobalAccessUserId = globalAssignments[0]?.user_id ?? "";
+      }
+      await loadGlobalUserAccess();
+    } else {
+      selectedGlobalAccessUserId = "";
+      globalUserAccess = null;
+    }
   };
 
   const loadProfiles = async () => {
@@ -248,6 +280,24 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const activeAccountOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}">${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
     ).join("");
+    const globalAssignmentOptions = profileAssignments.filter((assignment) => !assignment.obs_id).map((assignment) =>
+      `<option value="${escapeHtml(assignment.user_id)}" ${assignment.user_id === selectedGlobalAccessUserId ? "selected" : ""}>${escapeHtml(assignment.display_name || assignment.email)} · ${escapeHtml(assignment.email)}</option>`
+    ).join("");
+    const moduleLabels: Record<string, string> = locale === "fa" ? {
+      projects: "پروژه‌ها", portfolios: "پورتفولیوها", resources: "منابع", contributor: "همکار",
+      enterprise_reports: "گزارش‌های سازمانی", integration_api: "رابط یکپارچه‌سازی",
+      p6_analytics: "تحلیل‌ها", p6_professional: "محیط حرفه‌ای", team_member: "عضو تیم",
+      timesheet: "کاربرگ زمان", visualizer: "Visualizer", web_services: "وب‌سرویس‌ها",
+    } : {
+      projects: "Projects", portfolios: "Portfolios", resources: "Resources", contributor: "Contributor",
+      enterprise_reports: "Enterprise Reports", integration_api: "Integration API",
+      p6_analytics: "P6 Analytics", p6_professional: "P6 Professional", team_member: "Team Member",
+      timesheet: "Timesheet", visualizer: "Visualizer", web_services: "Web Services",
+    };
+    const moduleOptions = Object.entries(moduleLabels).map(([value, label]) =>
+      `<option value="${value}" ${globalUserAccess?.module_access.includes(value) ? "selected" : ""}>${escapeHtml(label)}</option>`
+    ).join("");
+    const selectedResourceAccess = globalUserAccess?.resource_access_mode ?? "none";
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
@@ -348,6 +398,22 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             <h3>${t.assignedUsers}</h3>
             <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
               <tbody>${profileAssignmentRows || `<tr><td colspan="4">${t.noEligible}</td></tr>`}</tbody></table></div>
+            ${selectedProfile?.scope === "global" && canAdminAccounts && globalAssignmentOptions ? `<form class="cubi-oa-form" id="cubi-oa-global-access">
+              <h3>${t.globalAccessTitle}</h3>
+              <div class="cubi-oa-field"><label for="cubi-oa-global-access-user">${t.selectGlobalUser}</label>
+                <select id="cubi-oa-global-access-user" name="user_id">${globalAssignmentOptions}</select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-module-access">${t.moduleAccess}</label>
+                <select id="cubi-oa-module-access" name="module_access" multiple size="7">${moduleOptions}</select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-resource-access">${t.resourceAccess}</label>
+                <select id="cubi-oa-resource-access" name="resource_access_mode">
+                  <option value="none" ${selectedResourceAccess === "none" ? "selected" : ""}>${t.noResources}</option>
+                  <option value="all" ${selectedResourceAccess === "all" ? "selected" : ""}>${t.allResources}</option>
+                  <option value="selected" disabled ${selectedResourceAccess === "selected" ? "selected" : ""}>${t.selectResources}</option>
+                </select></div>
+              <p class="cubi-oa-note">${t.resourceAccessNote}</p>
+              <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy || !globalUserAccess ? "disabled" : ""}>${t.saveGlobalAccess}</button>
+              <small>Revision ${globalUserAccess?.revision ?? "—"}</small>
+            </form>` : ""}
             ${canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
               ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><input id="cubi-oa-profile-obs" name="obs_id" required></div>` : ""}
@@ -472,7 +538,28 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     });
     container.querySelector<HTMLSelectElement>("#cubi-oa-profile-selected")?.addEventListener("change", (event) => {
       selectedProfileId = (event.currentTarget as HTMLSelectElement).value;
+      selectedGlobalAccessUserId = "";
       void run(async () => { await loadProfileAssignments(); });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-global-access-user")?.addEventListener("change", (event) => {
+      selectedGlobalAccessUserId = (event.currentTarget as HTMLSelectElement).value;
+      void run(async () => { await loadGlobalUserAccess(); });
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-global-access")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!globalUserAccess || !selectedGlobalAccessUserId) return;
+      const moduleSelect = container.querySelector<HTMLSelectElement>("#cubi-oa-module-access");
+      const modules = moduleSelect ? Array.from(moduleSelect.selectedOptions).map((option) => option.value) : [];
+      const resourceMode = String(new FormData(event.currentTarget as HTMLFormElement).get("resource_access_mode") ?? "none");
+      void run(async () => {
+        await api(`/api/enterprise/users/${encodeURIComponent(selectedGlobalAccessUserId)}/global-access`, "PATCH", {
+          contract_version: "cubi-p6-user-global-access.v1",
+          module_access: modules, resource_access_mode: resourceMode,
+          resource_root_ids: [], expected_revision: globalUserAccess.revision,
+        });
+        notice = t.globalAccessSaved;
+        await loadProfileAssignments();
+      });
     });
     container.querySelector<HTMLButtonElement>("[data-profile-status]")?.addEventListener("click", (event) => {
       const button = event.currentTarget as HTMLButtonElement;
