@@ -8,6 +8,14 @@ from urllib.parse import urlsplit
 from .authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 
 
+def _require_project_privilege_or_admin(policy, auth_context: AuthorizationContext, privilege_code: str) -> None:
+    checker = getattr(policy, "require_project_privilege", None)
+    if callable(checker):
+        checker(auth_context, privilege_code)
+        return
+    policy.require(auth_context, Permission.PROJECT_ADMIN)
+
+
 class SessionError(ValueError):
     """Raised when a session is invalid or expired."""
 
@@ -703,15 +711,16 @@ class ProjectLifecycleService:
         now: datetime,
     ) -> ProjectContext:
         session = self.session(session_id, now=now)
-        if not self._policy.is_allowed(
-            AuthorizationContext(
-                tenant_id=session.tenant_id,
-                project_id=project_id,
-                user_id=session.user_id,
-                roles=session.roles,
-            ),
-            Permission.PROJECT_ADMIN,
-        ):
+        auth_context = AuthorizationContext(
+            tenant_id=session.tenant_id,
+            project_id=project_id,
+            user_id=session.user_id,
+            roles=session.roles,
+        )
+        obs_privilege_checker = getattr(self._policy, "require_project_privilege_for_obs", None)
+        if callable(obs_privilege_checker):
+            obs_privilege_checker(auth_context, obs_id, "add_projects")
+        elif not self._policy.is_allowed(auth_context, Permission.PROJECT_ADMIN):
             raise AuthorizationError("authorization denied for permission=project.admin")
         if not isinstance(project_id, str) or not project_id.strip():
             raise ProjectLifecycleError("PROJECT_ID_REQUIRED")
@@ -841,14 +850,15 @@ class ProjectLifecycleService:
         )
         if existing is None:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
-        self._policy.require(
+        _require_project_privilege_or_admin(
+            self._policy,
             ProjectContext(
                 tenant_id=existing.tenant_id,
                 project_id=existing.project_id,
                 revision=existing.revision,
                 user_id=session.user_id,
             ).authorization_context(session.roles),
-            Permission.PROJECT_ADMIN,
+            "edit_project_details_except_costs_financials",
         )
         # A checked-out project is editable only by the session that checked it
         # out. This guard runs before validation so a blocked editor gets the
@@ -1001,14 +1011,15 @@ class ProjectLifecycleService:
         )
         if existing is None:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
-        self._policy.require(
+        _require_project_privilege_or_admin(
+            self._policy,
             ProjectContext(
                 tenant_id=existing.tenant_id,
                 project_id=existing.project_id,
                 revision=existing.revision,
                 user_id=session.user_id,
             ).authorization_context(session.roles),
-            Permission.PROJECT_ADMIN,
+            "edit_project_details_except_costs_financials",
         )
         if (
             existing.checkout_state == "checked_out"
@@ -1062,14 +1073,15 @@ class ProjectLifecycleService:
         )
         if existing is None:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
-        self._policy.require(
+        _require_project_privilege_or_admin(
+            self._policy,
             ProjectContext(
                 tenant_id=existing.tenant_id,
                 project_id=existing.project_id,
                 revision=existing.revision,
                 user_id=session.user_id,
             ).authorization_context(session.roles),
-            Permission.PROJECT_ADMIN,
+            "check_in_out_projects_open_exclusively",
         )
         revision = normalize_expected_revision(expected_revision)
         if checked_out:
