@@ -121,24 +121,8 @@ class PostgresEnterpriseDashboardRepository:
             )"""
         )
         self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS enterprise_dashboard_user_preferences (
-                tenant_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                dashboard_id TEXT NOT NULL,
-                displayed BOOLEAN NOT NULL DEFAULT TRUE,
-                display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
-                filter_override_json JSONB,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (tenant_id, user_id, dashboard_id),
-                FOREIGN KEY (tenant_id, dashboard_id)
-                    REFERENCES enterprise_dashboards (tenant_id, dashboard_id)
-                    ON DELETE RESTRICT
-            )"""
-        )
-        self.connection.execute(
-            "CREATE INDEX IF NOT EXISTS enterprise_dashboard_user_preferences_order "
-            "ON enterprise_dashboard_user_preferences "
-            "(tenant_id, user_id, displayed, display_order, dashboard_id)"
+            "ALTER TABLE enterprise_dashboard_display_preferences "
+            "ADD COLUMN IF NOT EXISTS filter_override_json JSONB"
         )
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS enterprise_dashboards_tenant_updated "
@@ -476,7 +460,7 @@ class PostgresEnterpriseDashboardRepository:
         self._validate_scope(tenant_id, user_id)
         rows = self.connection.execute(
             "SELECT dashboard_id,displayed,display_order,filter_override_json "
-            "FROM enterprise_dashboard_user_preferences "
+            "FROM enterprise_dashboard_display_preferences "
             "WHERE tenant_id=%s AND user_id=%s",
             (tenant_id, user_id),
         ).fetchall()
@@ -500,19 +484,19 @@ class PostgresEnterpriseDashboardRepository:
         if not isinstance(displayed, bool):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_PREFERENCE")
         self.connection.execute(
-            """INSERT INTO enterprise_dashboard_user_preferences
-               (tenant_id,user_id,dashboard_id,displayed,display_order)
-               VALUES (
-                   %s,%s,%s,%s,
+            """INSERT INTO enterprise_dashboard_display_preferences
+               (tenant_id,user_id,dashboard_id,displayed,display_order,updated_at)
+               SELECT %s,%s,dashboard_id,%s,
                    COALESCE((
                        SELECT MAX(display_order)+1
-                       FROM enterprise_dashboard_user_preferences
+                       FROM enterprise_dashboard_display_preferences
                        WHERE tenant_id=%s AND user_id=%s
-                   ),0)
-               )
+                   ),0),CURRENT_TIMESTAMP
+               FROM enterprise_dashboards
+               WHERE tenant_id=%s AND dashboard_id=%s
                ON CONFLICT (tenant_id,user_id,dashboard_id)
                DO UPDATE SET displayed=EXCLUDED.displayed,updated_at=CURRENT_TIMESTAMP""",
-            (tenant_id, user_id, dashboard_id, displayed, tenant_id, user_id),
+            (tenant_id, user_id, displayed, tenant_id, user_id, tenant_id, dashboard_id),
         )
 
     def reorder_dashboard_tabs(
@@ -524,13 +508,15 @@ class PostgresEnterpriseDashboardRepository:
         for position, dashboard_id in enumerate(dashboard_ids):
             self._validate_scope(tenant_id, dashboard_id)
             self.connection.execute(
-                """INSERT INTO enterprise_dashboard_user_preferences
-                   (tenant_id,user_id,dashboard_id,displayed,display_order)
-                   VALUES (%s,%s,%s,TRUE,%s)
+                """INSERT INTO enterprise_dashboard_display_preferences
+                   (tenant_id,user_id,dashboard_id,displayed,display_order,updated_at)
+                   SELECT %s,%s,dashboard_id,TRUE,%s,CURRENT_TIMESTAMP
+                   FROM enterprise_dashboards
+                   WHERE tenant_id=%s AND dashboard_id=%s
                    ON CONFLICT (tenant_id,user_id,dashboard_id)
                    DO UPDATE SET display_order=EXCLUDED.display_order,
                                  updated_at=CURRENT_TIMESTAMP""",
-                (tenant_id, user_id, dashboard_id, position),
+                (tenant_id, user_id, position, tenant_id, dashboard_id),
             )
 
     def set_dashboard_filter_override(
@@ -545,7 +531,7 @@ class PostgresEnterpriseDashboardRepository:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
         if filters is None:
             self.connection.execute(
-                "UPDATE enterprise_dashboard_user_preferences "
+                "UPDATE enterprise_dashboard_display_preferences "
                 "SET filter_override_json=NULL,updated_at=CURRENT_TIMESTAMP "
                 "WHERE tenant_id=%s AND user_id=%s AND dashboard_id=%s",
                 (tenant_id, user_id, dashboard_id),
@@ -555,21 +541,21 @@ class PostgresEnterpriseDashboardRepository:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTERS")
         encoded = json.dumps(filters, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         self.connection.execute(
-            """INSERT INTO enterprise_dashboard_user_preferences
-               (tenant_id,user_id,dashboard_id,displayed,display_order,filter_override_json)
-               VALUES (
-                   %s,%s,%s,TRUE,
+            """INSERT INTO enterprise_dashboard_display_preferences
+               (tenant_id,user_id,dashboard_id,displayed,display_order,updated_at,filter_override_json)
+               SELECT %s,%s,dashboard_id,TRUE,
                    COALESCE((
                        SELECT MAX(display_order)+1
-                       FROM enterprise_dashboard_user_preferences
+                       FROM enterprise_dashboard_display_preferences
                        WHERE tenant_id=%s AND user_id=%s
-                   ),0),
-                   %s::jsonb
-               )
+                   ),0),CURRENT_TIMESTAMP,%s::jsonb
+               FROM enterprise_dashboards
+               WHERE tenant_id=%s AND dashboard_id=%s
                ON CONFLICT (tenant_id,user_id,dashboard_id)
                DO UPDATE SET filter_override_json=EXCLUDED.filter_override_json,
-                             updated_at=CURRENT_TIMESTAMP""",
-            (tenant_id, user_id, dashboard_id, tenant_id, user_id, encoded),
+                             updated_at=CURRENT_TIMESTAMP
+               RETURNING dashboard_id""",
+            (tenant_id, user_id, tenant_id, user_id, encoded, tenant_id, dashboard_id),
         )
 
     def reset_dashboard_preferences(
@@ -579,7 +565,7 @@ class PostgresEnterpriseDashboardRepository:
         if not isinstance(user_id, str) or not user_id.strip():
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
         self.connection.execute(
-            "DELETE FROM enterprise_dashboard_user_preferences "
+            "DELETE FROM enterprise_dashboard_display_preferences "
             "WHERE tenant_id=%s AND user_id=%s AND dashboard_id=%s",
             (tenant_id, user_id, dashboard_id),
         )
