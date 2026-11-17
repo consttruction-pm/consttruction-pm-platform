@@ -922,6 +922,8 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
         if not bool(row[2]) and is_default:
             raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
+        if scope == "global" and bool(row[5]) and not is_default:
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_DEFAULT_REQUIRED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         before = self.get_profile(tenant_id, profile_id)
