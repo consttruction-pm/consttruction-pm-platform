@@ -1,4 +1,5 @@
 import sqlite3
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
@@ -192,3 +193,26 @@ def test_native_associated_resource_assignment_syncs_user_personal_name():
         "tenant-a", "user-1", "R-100", 1, "admin", datetime.now(timezone.utc)
     ))
     assert synced == [("tenant-a", "user-1", "Civil Crew")]
+
+
+def test_resource_name_changes_propagate_to_associated_native_user():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE identity_users (tenant_id TEXT NOT NULL,user_id TEXT NOT NULL,display_name TEXT NOT NULL,PRIMARY KEY(tenant_id,user_id))"
+    )
+    connection.execute(
+        "INSERT INTO identity_users VALUES('tenant-a','user-1','Old Name')"
+    )
+    resources = SQLiteP6ResourceRepository(connection)
+    stored = resources.save(P6Resource("tenant-a", "project-a", 1, "R-100", "Civil Crew"))
+    associated = SQLiteP6AssociatedResourceRepository(
+        connection, user_exists=lambda tenant, user: True
+    )
+    associated.assign(P6AssociatedResource(
+        "tenant-a", "user-1", "R-100", 1, "admin", datetime.now(timezone.utc)
+    ))
+    updated = resources.save(replace(stored, name="Civil Delivery Team"), expected_revision=1)
+    assert updated.name == "Civil Delivery Team"
+    assert connection.execute(
+        "SELECT display_name FROM identity_users WHERE tenant_id='tenant-a' AND user_id='user-1'"
+    ).fetchone()[0] == "Civil Delivery Team"
