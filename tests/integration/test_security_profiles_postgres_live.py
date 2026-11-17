@@ -650,7 +650,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-assignment.v1",
-                "user_id": target_id, "obs_id": f"obs-{suffix}",
+                "user_id": target_id, "obs_id": f"obs-{suffix}", "expected_revision": 1,
             },
         )
         assert status == 200 and assigned["revision"] == 1
@@ -860,7 +860,7 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
             profiles.assign(
                 tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
-                actor_user_id=admin_id, occurred_at=now, expected_revision=1,
+                actor_user_id=admin_id, occurred_at=now, expected_revision=3,
             )
         connection.execute(
             "INSERT INTO p6_security_profiles "
