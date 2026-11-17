@@ -602,24 +602,25 @@ class EnterpriseDashboardApplicationService:
         )
         preference = preferences.get(dashboard_id, {})
         persisted_override = preference.get("filter_override")
-        if filter_overrides is None:
-            effective_filters = (
-                self._filters(persisted_override)
-                if persisted_override is not None
-                else stored.dashboard.filters
-            )
-        else:
-            effective_filters = self._filters(filter_overrides)
-        has_override = filter_overrides is not None or persisted_override is not None
-        if (
-            has_override
-            and stored.dashboard.restrict_filter_override
+        override_restricted = (
+            stored.dashboard.restrict_filter_override
             and session.user_id != stored.dashboard.owner_user_id
             and not self._is_admin(session)
-        ):
-            raise EnterpriseDashboardAuthorizationError(
-                "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
-            )
+        )
+        if override_restricted:
+            if filter_overrides is not None:
+                raise EnterpriseDashboardAuthorizationError(
+                    "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
+                )
+            # P6's owner lock disables a viewer's User Filter; it must not
+            # prevent the viewer from opening the shared dashboard.
+            effective_filters = stored.dashboard.filters
+        elif filter_overrides is not None:
+            effective_filters = self._filters(filter_overrides)
+        elif persisted_override is not None:
+            effective_filters = self._filters(persisted_override)
+        else:
+            effective_filters = stored.dashboard.filters
         portfolio_filter = next(
             (item for item in effective_filters if item.key == "portfolio_id"), None
         )
