@@ -257,3 +257,24 @@ def test_project_creation_privilege_resolves_from_target_obs_before_project_exis
     auth = AuthorizationContext("tenant-a", "new-project-not-created-yet", "creator", frozenset())
     policy.require_project_privilege_for_obs(auth, "OBS-CIVIL", "add_projects")
     assert not policy.has_project_privilege_for_obs(auth, "OBS-CIVIL", "delete_projects")
+
+
+def test_assigned_profile_cannot_be_deactivated_and_api_preserves_default_flag():
+    _, repo = setup_repository()
+    saved = repo.save_profile(profile(), actor_id="admin-user")
+    repo.assign_obs(
+        P6OBSProjectGrant("tenant-a", "user-1", "OBS-CIVIL", saved.profile_id),
+        actor_id="admin-user",
+    )
+    with pytest.raises(P6ProjectSecurityPersistenceError, match="PROJECT_SECURITY_PROFILE_HAS_ASSIGNMENTS"):
+        repo.save_profile(replace(saved, active=False, revision=2), actor_id="admin-user", expected_revision=1)
+
+    repo.set_default_profile(
+        "tenant-a", saved.profile_id, actor_id="admin-user", expected_revision=1
+    )
+    api = P6ProjectSecurityAPI(repo, GlobalAdminPolicy())
+    updated = api.save_profile(
+        replace(saved, name="Project Manager Revised", revision=3),
+        expected_revision=2, auth_context=context(),
+    )
+    assert updated["profile"]["is_default"] is True
