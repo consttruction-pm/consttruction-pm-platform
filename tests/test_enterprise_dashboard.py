@@ -367,6 +367,42 @@ def test_project_filters_are_applied_without_bypassing_source_project_authorizat
     }
 
 
+def test_portfolio_filter_override_selects_portfolio_without_mutating_definition():
+    query = FakePortfolioQuery(snapshot(portfolio_id="portfolio-2"))
+    service, _, _, _ = make_service(source=query)
+    created = create_dashboard(service)
+    result = service.read_portlets(
+        "alice-session",
+        created.dashboard.dashboard_id,
+        filter_overrides=[
+            {"key": "portfolio_id", "operator": "eq", "value": "portfolio-2"}
+        ],
+    )
+    assert query.calls[-1][0] == "portfolio-2"
+    assert result["dashboard"]["filters"][0]["key"] == "membership_status"
+    assert result["filters"][0]["key"] == "portfolio_id"
+    assert result["portlets"][0]["data"]["portfolio_id"] == "portfolio-2"
+
+
+def test_generated_at_filter_bounds_exclude_out_of_window_source_data():
+    service, _, _, _ = make_service()
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(filters=[
+            {
+                "key": "generated_after",
+                "operator": "gte",
+                "value": (NOW + timedelta(hours=1)).isoformat(),
+            }
+        ]),
+        idempotency_key="generated-after-filter",
+    )
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert result["portlets"][0]["freshness_state"] == "fresh"
+    assert result["portlets"][0]["filtered_out"] is True
+    assert result["portlets"][0]["data"] is None
+
+
 def test_project_status_filter_uses_canonical_source_status_literal():
     source = replace(
         snapshot(),
