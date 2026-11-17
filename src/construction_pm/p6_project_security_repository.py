@@ -50,6 +50,7 @@ class P6ProjectSecurityRepository(Protocol):
     def has_project_access(self, tenant_id: str, user_id: str, project_id: str) -> bool: ...
     def project_permission(self, tenant_id: str, user_id: str, project_id: str, permission_code: str) -> bool: ...
     def has_project_privilege(self, tenant_id: str, user_id: str, project_id: str, privilege_code: str) -> bool: ...
+    def has_obs_project_privilege(self, tenant_id: str, user_id: str, obs_id: str, privilege_code: str) -> bool: ...
 
 
 def _profile_from_row(row: tuple[object, ...]) -> P6ProjectSecurityProfile:
@@ -234,6 +235,37 @@ class _ProjectSecurityRepositoryBase:
         if isinstance(privileges, str):
             privileges = json.loads(privileges)
         return privilege_code in set(privileges or ())
+
+    def has_obs_project_privilege(self, tenant_id: str, user_id: str, obs_id: str, privilege_code: str) -> bool:
+        ancestry = []
+        seen = set()
+        cursor = self.obs_repository.get(tenant_id, obs_id)
+        while cursor is not None:
+            if cursor.obs_id in seen:
+                return False
+            seen.add(cursor.obs_id)
+            ancestry.append(cursor.obs_id)
+            if cursor.parent_obs_id is None:
+                break
+            cursor = self.obs_repository.get(tenant_id, cursor.parent_obs_id)
+        if not ancestry or cursor is None:
+            return False
+        for node_id in ancestry:
+            row = self.connection.execute(
+                f"SELECT p.privileges,p.active FROM p6_user_obs_project_profile g "
+                f"JOIN p6_project_security_profile p ON p.tenant_id=g.tenant_id "
+                f"AND p.profile_id=g.profile_id WHERE g.tenant_id={self.placeholder} "
+                f"AND g.user_id={self.placeholder} AND g.obs_id={self.placeholder}",
+                (tenant_id, user_id, node_id),
+            ).fetchone()
+            if row is not None:
+                if not bool(row[1]):
+                    return False
+                privileges = row[0]
+                if isinstance(privileges, str):
+                    privileges = json.loads(privileges)
+                return privilege_code in set(privileges or ())
+        return False
 
     def _audit(self, tenant_id: str, actor_id: str, action: str, payload: dict[str, object]):
         self.connection.execute(
