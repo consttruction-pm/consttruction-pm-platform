@@ -1,7 +1,7 @@
 """Authenticated API for V26 project profiles and user↔OBS project access."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError
@@ -86,6 +86,9 @@ class P6ProjectSecurityAPI:
         if profile.tenant_id != auth_context.tenant_id:
             raise AuthorizationError("CROSS_TENANT_ACCESS")
         _require_profile_admin(self.authorization_policy, auth_context)
+        current = self.repository.get_profile(auth_context.tenant_id, profile.profile_id)
+        if current is not None and profile.is_default != current.is_default:
+            profile = replace(profile, is_default=current.is_default)
         stored = self.repository.save_profile(
             profile, actor_id=auth_context.user_id, expected_revision=expected_revision
         )
