@@ -421,6 +421,14 @@ def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order()
         )
 
 
+def test_empty_dashboard_is_a_valid_p6_manageable_definition():
+    service, _, _, _ = make_service()
+    created = create_dashboard(service, payload=create_payload(portlets=[]))
+    assert created.dashboard.portlets == ()
+    read = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert read["portlets"] == []
+
+
 def test_create_rejects_caller_supplied_authority_fields():
     service, _, _, _ = make_service()
     payload = create_payload(tenant_id="tenant-forged", owner_user_id="attacker")
@@ -1066,7 +1074,12 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     )
     assert schema["additionalProperties"] is False
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
+    assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert schema["$defs"]["dashboard_read_response"]["properties"]["portlets"]["minItems"] == 0
+    assert schema["$defs"]["dashboard_display_preference_request"]["required"] == [
+        "dashboard_id", "displayed"
+    ]
     assert "restrict_filter_override" in schema["required"]
     assert "max_rows_per_portlet" in schema["required"]
     assert schema["properties"]["max_rows_per_portlet"]["default"] == 100
