@@ -10,6 +10,7 @@ from construction_pm.p6_global_security import (
     UserGlobalSecurity,
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
+    user_has_all_resource_access,
 )
 
 
@@ -101,3 +102,20 @@ def test_builtin_profile_privileges_are_implicit_or_empty():
         profile(NO_GLOBAL_PRIVILEGES, privileges=("global.user.view",)).validate()
     with pytest.raises(GlobalSecurityError, match="UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE"):
         profile("Custom", privileges=()).validate()
+
+def test_admin_superuser_always_has_all_resource_access():
+    from construction_pm.p6_global_security import UserGlobalSecurity
+
+    assignment = UserGlobalSecurity(
+        tenant_id="tenant-a",
+        user_id="user-1",
+        profile_id="p6-admin-superuser",
+        module_access=("p6-web",),
+        resource_access_mode="none",
+        resource_root_ids=(),
+        revision=1,
+        updated_by="admin",
+        updated_at=datetime.now(timezone.utc),
+    )
+    assert user_has_all_resource_access(profile(ADMIN_SUPERUSER), assignment)
+    assert not user_has_all_resource_access(profile(NO_GLOBAL_PRIVILEGES), assignment)
