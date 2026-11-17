@@ -114,6 +114,30 @@ export function orderDashboardCatalog(items: readonly EnterpriseDashboardCatalog
   );
 }
 
+export function moveDashboardPortletHorizontally(
+  portlets: readonly EnterpriseDashboardPortlet[],
+  index: number,
+  direction: "left" | "right",
+): EnterpriseDashboardPortlet[] {
+  if (!Number.isInteger(index) || index < 0 || index >= portlets.length) return portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  const current = portlets[index];
+  if (current.layout.w !== 6) return portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  const targetX = direction === "left" ? 0 : 6;
+  if (current.layout.x === targetX) return portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  const overlaps = (a: EnterpriseDashboardLayout, b: EnterpriseDashboardLayout): boolean =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const candidate = { ...current.layout, x: targetX };
+  const collisionIndex = portlets.findIndex((item, itemIndex) => itemIndex !== index && overlaps(candidate, item.layout));
+  const result = portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+  if (collisionIndex >= 0) {
+    const other = result[collisionIndex];
+    if (other.layout.w !== 6 || other.layout.x !== targetX) return result;
+    other.layout.x = current.layout.x;
+  }
+  result[index].layout.x = targetX;
+  return validateDashboardLayout(result) ? result : portlets.map((item) => ({ ...item, layout: { ...item.layout } }));
+}
+
 export function reorderDashboardPortlets<T>(items: readonly T[], fromIndex: number, toIndex: number): T[] {
   if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return [...items];
   const result = [...items];
@@ -186,7 +210,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
     projectFilter: "Filter by project ID", applyFilter: "Apply filter", resetFilter: "Reset filter",
-    moveUp: "Move up", moveDown: "Move down", filterLocked: "The dashboard owner has restricted filter overrides.",
+    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -208,7 +232,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
     projectFilter: "فیلتر بر اساس شناسه پروژه", applyFilter: "اعمال فیلتر", resetFilter: "پاک‌کردن فیلتر",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
 
@@ -698,7 +722,17 @@ export async function mountEnterpriseDashboard(
         const down = button(t.moveDown, () => move(position, position + 1));
         up.disabled = position === 0;
         down.disabled = position === layoutOrder.length - 1;
-        row.append(up, down);
+        const left = button(t.moveLeft, () => {
+          draftPortlets = moveDashboardPortletHorizontally(draftPortlets, originalIndex, "left");
+          renderLayout();
+        });
+        const right = button(t.moveRight, () => {
+          draftPortlets = moveDashboardPortletHorizontally(draftPortlets, originalIndex, "right");
+          renderLayout();
+        });
+        left.disabled = portlet.layout.w !== 6 || portlet.layout.x === 0;
+        right.disabled = portlet.layout.w !== 6 || portlet.layout.x === 6;
+        row.append(up, down, left, right);
         row.draggable = true;
         row.addEventListener("dragstart", (event) => {
           event.dataTransfer?.setData("text/plain", String(position));
