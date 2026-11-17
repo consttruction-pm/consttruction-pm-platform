@@ -954,6 +954,9 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
     assert schema["properties"]["portlets"]["maxItems"] == 12
     assert "restrict_filter_override" in schema["required"]
+    assert "max_rows_per_portlet" in schema["required"]
+    assert schema["properties"]["max_rows_per_portlet"]["default"] == 100
+    assert schema["properties"]["max_rows_per_portlet"]["maximum"] == 500
     assert "global" in schema["properties"]["visibility"]["enum"]
     assert schema["$defs"]["layout"]["properties"]["x"]["enum"] == [0, 6]
     assert schema["$defs"]["layout"]["properties"]["w"]["enum"] == [6, 12]
@@ -966,6 +969,123 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
         "cubi-enterprise-dashboard-read.v1"
     )
+
+
+def test_p6_max_rows_per_portlet_is_validated_saved_and_updated():
+    service, _, _, _ = make_service()
+    created = create_dashboard(
+        service, payload=create_payload(max_rows_per_portlet=2)
+    )
+    assert created.dashboard.max_rows_per_portlet == 2
+
+    updated = service.update_dashboard(
+        "alice-session",
+        created.dashboard.dashboard_id,
+        {"max_rows_per_portlet": 1},
+        expected_revision=1,
+    )
+    assert updated.dashboard.max_rows_per_portlet == 1
+
+    for invalid in (True, 0, 501, "10"):
+        with pytest.raises(EnterpriseDashboardError, match="MAX_ROWS_PER_PORTLET"):
+            create_dashboard(
+                service,
+                payload=create_payload(max_rows_per_portlet=invalid),
+            )
+
+
+def test_p6_max_rows_per_portlet_truncates_only_the_display_projection():
+    projects = tuple(
+        PortfolioProjectControlInput(
+            f"project-{index}", index, "included", "active",
+            name_key=f"project.{index}",
+        )
+        for index in range(1, 4)
+    )
+    refs = tuple(
+        SourceReference(
+            f"source-{index}", "portfolio", f"/portfolio/project-{index}", index
+        )
+        for index in range(1, 4)
+    )
+    source_snapshot = PortfolioControlSnapshot(
+        snapshot_id="snapshot-many",
+        portfolio_id="portfolio-1",
+        tenant_id="tenant-a",
+        generated_at=NOW,
+        projects=projects,
+        source_refs=refs,
+    )
+    service, _, lifecycle, _ = make_service(source=FakePortfolioQuery(source_snapshot))
+    lifecycle.project_grants.update(
+        {("alice-session", f"project-{index}") for index in range(1, 4)}
+    )
+    created = create_dashboard(
+        service, payload=create_payload(max_rows_per_portlet=2)
+    )
+    portlet = service.read_portlets(
+        "alice-session", created.dashboard.dashboard_id
+    )["portlets"][0]
+
+    assert len(portlet["data"]["projects"]) == 2
+    assert portlet["data"]["summary"]["total_projects"] == 3
+    assert portlet["data"]["summary"]["displayed_projects"] == 2
+    assert portlet["data"]["summary"]["truncated"] is True
+    assert portlet["row_limit"] == 2
+    assert portlet["truncated"] is True
+    assert [item["id"] for item in portlet["drill_through_refs"]] == [
+        "project-1", "project-2"
+    ]
+    assert set(lifecycle.authorized_project_ids) == {
+        ("alice-session", "project-1"),
+        ("alice-session", "project-2"),
+        ("alice-session", "project-3"),
+    }
+
+
+def test_p6_dashboard_catalog_show_hide_search_and_reorder_are_actor_scoped():
+    service, repository, _, _ = make_service()
+    first = create_dashboard(service)
+    second = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Portfolio Decisions"),
+        idempotency_key="create-dashboard-2",
+    )
+
+    initial = service.list_dashboard_catalog("alice-session")
+    assert [item["dashboard"]["dashboard_id"] for item in initial["displayed_dashboards"]] == [
+        first.dashboard.dashboard_id, second.dashboard.dashboard_id
+    ]
+    assert initial["available_dashboards"] == []
+
+    reordered = service.set_dashboard_display_preference(
+        "alice-session", second.dashboard.dashboard_id, displayed=True, position=0
+    )
+    assert [item["dashboard"]["dashboard_id"] for item in reordered["displayed_dashboards"]] == [
+        second.dashboard.dashboard_id, first.dashboard.dashboard_id
+    ]
+
+    hidden = service.set_dashboard_display_preference(
+        "alice-session", first.dashboard.dashboard_id, displayed=False
+    )
+    assert [item["dashboard"]["dashboard_id"] for item in hidden["displayed_dashboards"]] == [
+        second.dashboard.dashboard_id
+    ]
+    assert [item["dashboard"]["dashboard_id"] for item in hidden["available_dashboards"]] == [
+        first.dashboard.dashboard_id
+    ]
+    assert service.list_dashboard_catalog("alice-session", search="decisions")["available_dashboards"] == []
+    assert service.list_dashboard_catalog("alice-session", search="decisions")["displayed_dashboards"][0]["dashboard"]["dashboard_id"] == second.dashboard.dashboard_id
+    assert repository.list_display_preferences("tenant-a", "bob") == {}
+
+    with pytest.raises(EnterpriseDashboardNotFound):
+        service.set_dashboard_display_preference(
+            "bob-session", first.dashboard.dashboard_id, displayed=False
+        )
+    with pytest.raises(EnterpriseDashboardError, match="DISPLAY_ORDER"):
+        service.set_dashboard_display_preference(
+            "alice-session", second.dashboard.dashboard_id, displayed=True, position=99
+        )
 
 
 ORACLE_HELP_TRACEABILITY_URLS = (
