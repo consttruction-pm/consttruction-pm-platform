@@ -28,6 +28,7 @@ Each scope has one active default profile. The defaults are independent: changin
 - Revision-bumps and append-audits both the newly selected profile and the previously selected profile in the same scope.
 - Exposes `get_default_global_profile` alongside the existing `get_default_project_profile`.
 - Rejects deletion of a currently selected default profile.
+- Keeps reserved built-in profile identities immutable; this default-selection operation does not convert Admin Superuser or Project Superuser into an editable custom profile.
 
 ## Acceptance evidence added
 
