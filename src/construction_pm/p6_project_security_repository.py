@@ -116,6 +116,16 @@ class _ProjectSecurityRepositoryBase:
         ).fetchall()
         return tuple(P6OBSProjectGrant(*(str(value) for value in row)) for row in rows)
 
+    def has_project_access(self, tenant_id: str, user_id: str, project_id: str) -> bool:
+        obs_id = self.project_obs_lookup(tenant_id, project_id)
+        if not isinstance(obs_id, str) or not obs_id.strip():
+            return False
+        return self.connection.execute(
+            f"SELECT 1 FROM p6_user_obs_project_profile WHERE tenant_id={self.placeholder} "
+            f"AND user_id={self.placeholder} AND obs_id={self.placeholder}",
+            (tenant_id, user_id, obs_id),
+        ).fetchone() is not None
+
     def project_permission(self, tenant_id: str, user_id: str, project_id: str, permission_code: str) -> bool:
         """Compatibility resolver for the global-policy OBS seam.
 
