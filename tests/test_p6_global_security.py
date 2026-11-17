@@ -305,3 +305,21 @@ def test_production_authorization_composes_project_module_and_role_policy():
     )
     assert policy.is_allowed(_authorization_context(), Permission.PROJECT_READ)
     assert role_policy.calls == 1
+
+def test_production_policy_preserves_require_contract_for_lifecycle_callers():
+    from construction_pm.application.authorization import AuthorizationError, Permission
+    from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
+
+    allowed = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(_user_assignment("project-access"), profile("Project Access", built_in=False)),
+        _FakeProjectPolicy(True),
+    )
+    allowed.require(_authorization_context(), Permission.PROJECT_READ)
+
+    denied = P6GlobalSecurityAuthorizationPolicy(
+        _FakeGlobalSecurityRepository(None, None),
+        _FakeProjectPolicy(True),
+    )
+    with pytest.raises(AuthorizationError, match="authorization denied"):
+        denied.require(_authorization_context(), Permission.PROJECT_READ)
+
