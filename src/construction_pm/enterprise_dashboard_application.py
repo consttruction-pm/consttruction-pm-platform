@@ -522,8 +522,8 @@ class EnterpriseDashboardApplicationService:
                 self._authorize_source_projects(
                     session_id, session, tuple(item.project_id for item in snapshot.projects)
                 )
-                data = snapshot.as_dict()
-                data["projects"] = [item.as_dict() for item in project_rows]
+                snapshot_data = snapshot.as_dict()
+                snapshot_data["projects"] = [item.as_dict() for item in project_rows]
                 summary = {
                     "total_projects": len(project_rows),
                     "included_projects": 0,
@@ -532,7 +532,8 @@ class EnterpriseDashboardApplicationService:
                 }
                 for item in project_rows:
                     summary[f"{item.membership_status}_projects"] += 1
-                data["summary"] = summary
+                snapshot_data["summary"] = summary
+                data = snapshot_data
                 drill_refs = [
                     {
                         "type": "project",
