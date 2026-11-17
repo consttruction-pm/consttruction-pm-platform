@@ -591,9 +591,21 @@ class PostgresP6GlobalSecurityRepository:
         result.validate()
         return result
 
+    @staticmethod
+    def _require_remaining_admin_superuser(admin_count: int) -> None:
+        if admin_count <= 1:
+            raise GlobalSecurityError("LAST_ADMIN_SUPERUSER_REQUIRED")
+
     def assign_user_security(self, assignment: UserGlobalSecurity, *,
                              expected_revision: int | None = None) -> UserGlobalSecurity:
         assignment.validate()
+        # Serialize every tenant assignment change before reading the current
+        # administrator set. This prevents two concurrent requests from each
+        # observing two admins and revoking one apiece.
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-global-security:{assignment.tenant_id}",),
+        )
         profile = self.get_profile(assignment.tenant_id, assignment.profile_id)
         if profile is None or not profile.active:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
@@ -628,6 +640,17 @@ class PostgresP6GlobalSecurityRepository:
                 raise GlobalSecurityError("USER_GLOBAL_SECURITY_REVISION_CONFLICT")
             if assignment.revision != current.revision + 1:
                 raise GlobalSecurityError("USER_GLOBAL_SECURITY_REVISION_INVALID")
+            # The built-in Admin Superuser is a tenant-wide recovery boundary.
+            # A profile change may not remove the final active assignment.
+            if current.profile_id == "p6-admin-superuser" and not global_profile_is_admin_superuser(profile):
+                admin_row = self._connection.execute(
+                    "SELECT COUNT(*) FROM p6_user_global_security u "
+                    "JOIN p6_global_security_profiles p ON p.tenant_id=u.tenant_id "
+                    "AND p.profile_id=u.profile_id WHERE u.tenant_id=%s "
+                    "AND p.profile_id='p6-admin-superuser' AND p.built_in=TRUE AND p.active=TRUE",
+                    (assignment.tenant_id,),
+                ).fetchone()
+                self._require_remaining_admin_superuser(int(admin_row[0]) - 1)
             row = self._connection.execute(
                 "UPDATE p6_user_global_security SET profile_id=%s,module_access=%s::jsonb,"
                 "resource_access_mode=%s,resource_root_ids=%s::jsonb,revision=%s,"
