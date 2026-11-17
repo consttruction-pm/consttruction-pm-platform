@@ -930,6 +930,8 @@ class P6GlobalSecurityAuthorizationPolicy:
         """Resolve one explicit V26 project privilege through the user's OBS grant."""
         try:
             context.validate()
+            if privilege_code not in P6_PROJECT_PRIVILEGE_IDS:
+                return False
             assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
             if assignment is None:
                 return False
@@ -962,6 +964,7 @@ class P6GlobalSecurityAuthorizationPolicy:
     def require_project_privilege(self, context: Any, privilege_code: str) -> None:
         if not self.has_project_privilege(context, privilege_code):
             from .application.authorization import AuthorizationError
+from .p6_project_security import P6_PROJECT_PRIVILEGE_IDS
             raise AuthorizationError(f"P6_PROJECT_PRIVILEGE_REQUIRED:{privilege_code}")
 
     def is_allowed(self, context: Any, permission: Any) -> bool:
