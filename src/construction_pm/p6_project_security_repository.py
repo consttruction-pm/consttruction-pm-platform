@@ -77,7 +77,7 @@ class _ProjectSecurityRepositoryBase:
             built_in=True, description="Predefined profile with all project privileges.",
         )
         profile.validate()
-        self.connection.execute(
+        inserted = self.connection.execute(
             f"INSERT INTO p6_project_security_profile "
             f"(tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description) "
             f"VALUES({self.placeholder},{self.placeholder},{self.placeholder},{self.audit_payload_placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder}) "
@@ -296,6 +296,8 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
             if current.revision != expected_revision or profile.revision != current.revision + 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
+            if profile.is_default != current.is_default:
+                raise P6ProjectSecurityPersistenceError("SET_DEFAULT_PROFILE_SEPARATELY")
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
             if not profile.active:
@@ -327,6 +329,9 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
             if current.revision != expected_revision:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
+            if current.is_default:
+                self.connection.execute("RELEASE SAVEPOINT p6_project_security_default")
+                return current
             self.connection.execute(
                 "UPDATE p6_project_security_profile SET is_default=0,revision=revision+1 "
                 "WHERE tenant_id=? AND is_default=1", (tenant_id,),
@@ -486,6 +491,8 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
         if current.revision != expected_revision:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
+        if current.is_default:
+            return current
         self.connection.execute(
             "UPDATE p6_project_security_profile SET is_default=FALSE,revision=revision+1 "
             "WHERE tenant_id=%s AND is_default=TRUE", (tenant_id,),
