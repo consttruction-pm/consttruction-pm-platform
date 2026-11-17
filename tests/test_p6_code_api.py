@@ -139,3 +139,77 @@ def test_code_and_assignment_apis_reject_cross_scope_and_read_without_permission
         assignment_api.get(
             scope(), "ACTIVITY_STATUS", "IN_PROGRESS", "ACTIVITY", "A1", auth_context=auth(role="writer")
         )
+
+
+class SecureCodePolicy:
+    def __init__(self, allowed_actions):
+        self.allowed_actions = set(allowed_actions)
+
+    def is_allowed(self, context, permission):
+        return True
+
+    def allows_secure_code_action(self, context, action):
+        return action in self.allowed_actions
+
+
+def test_secure_code_definition_is_persisted_and_hidden_without_view_privilege():
+    connection = sqlite3.connect(":memory:")
+    manager = TransactionManager(connection)
+    code_service = P6CodeApplicationService(SQLiteP6CodeRepository(connection), manager)
+    admin_api = P6CodeAPI(code_service, SecureCodePolicy({"view", "add_delete"}))
+    secure_definition = __import__("dataclasses").replace(code(), is_secure=True)
+    created = admin_api.create(secure_definition, auth_context=auth())
+    assert created["code"]["is_secure"] is True
+
+    reader_api = P6CodeAPI(code_service, SecureCodePolicy(set()))
+    assert reader_api.get(scope(), "ACTIVITY_STATUS", auth_context=auth()) is None
+    assert reader_api.list(scope(), subject_area="ACTIVITY", auth_context=auth()) == ()
+    with pytest.raises(AuthorizationError, match="SECURE_CODE_ADD_DELETE_NOT_AUTHORIZED"):
+        reader_api.create(
+            __import__("dataclasses").replace(code(), code_id="SECURE-OTHER", is_secure=True),
+            auth_context=auth(),
+        )
+
+
+def test_secure_code_assignment_requires_assign_and_view_privileges():
+    connection = sqlite3.connect(":memory:")
+    manager = TransactionManager(connection)
+    code_service = P6CodeApplicationService(SQLiteP6CodeRepository(connection), manager)
+    assignment_service = P6CodeAssignmentApplicationService(
+        SQLiteP6CodeAssignmentRepository(connection), manager
+    )
+    definition = __import__("dataclasses").replace(code(), is_secure=True)
+    code_service.save(definition)
+
+    admin_api = P6CodeAssignmentAPI(
+        assignment_service, SecureCodePolicy({"assign", "view"}), code_service=code_service
+    )
+    admin_api.create(assignment(), auth_context=auth())
+
+    reader_api = P6CodeAssignmentAPI(
+        assignment_service, SecureCodePolicy(set()), code_service=code_service
+    )
+    assert reader_api.get(
+        scope(), "ACTIVITY_STATUS", "IN_PROGRESS", "ACTIVITY", "A1", auth_context=auth()
+    ) is None
+    assert reader_api.list(scope(), auth_context=auth()) == ()
+
+    viewer_only = P6CodeAssignmentAPI(
+        assignment_service, SecureCodePolicy({"view"}), code_service=code_service
+    )
+    with pytest.raises(AuthorizationError, match="SECURE_CODE_ASSIGN_NOT_AUTHORIZED"):
+        viewer_only.create(
+            P6CodeAssignment(scope(), "ACTIVITY_STATUS", "NOT_STARTED", "ACTIVITY", "A2"),
+            auth_context=auth(),
+        )
+
+
+def test_secure_code_assignment_policy_fails_closed_without_definition_lookup():
+    connection = sqlite3.connect(":memory:")
+    manager = TransactionManager(connection)
+    service = P6CodeAssignmentApplicationService(
+        SQLiteP6CodeAssignmentRepository(connection), manager
+    )
+    restricted = P6CodeAssignmentAPI(service, SecureCodePolicy({"assign", "view"}))
+    with pytest.raises(AuthorizationError, match="SECURE_CODE_DEFINITION_LOOKUP_REQUIRED"):
+        restricted.create(assignment(), auth_context=auth())
