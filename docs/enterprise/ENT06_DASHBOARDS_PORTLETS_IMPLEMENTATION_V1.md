@@ -7,6 +7,15 @@
 
 This document describes the bounded backend slice only. It is not a claim that the complete P6 EPPM dashboard experience, dashboard designer UI, production HTTP routes, browser workflows, or full Oracle parity are complete.
 
+## 0. Preflight and non-interference record
+
+- Base main SHA: 20778a0394dfad0686e2854a4dd043f3b1189172.
+- All eight issue-allowed target paths were absent from the base recursive Git tree.
+- Current changed-file lists for all 122 open pull requests (including this PR) were checked. None of the other 121 open PRs touches any of the eight target paths.
+- The protected shared security, identity, deployment schema, production composition, workspace UI, portfolio-source and Engineering calculation paths are not part of this change.
+- The recursive base Git tree contains no root or nested AGENTS.md. This environment does not provide an actual local repository checkout, so the issue's separate actual-checkout AGENTS inspection remains an explicit pre-merge verification gate; no claim that this local-checkout step was completed is made.
+
+
 ## 1. Delivery boundary and ownership
 
 The dashboard is a presentation/configuration aggregate. It stores dashboard identity, context, owner, sharing, ordered portlet instances, layout, allow-listed filters, lifecycle state and revision. It does not own portfolio facts, project facts, KPIs, formulas, schedules, cost, progress, EVM, resources or risk calculations.
