@@ -657,7 +657,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
                 "user_id": target_id, "obs_id": f"obs-{suffix}", "expected_revision": 1,
             },
         )
-        assert status == 200 and assigned["revision"] == 1
+        assert status == 200 and assigned["revision"] == 2
 
         status, assigned_delete = _http_request(
             app, "DELETE", "/api/enterprise/security-profiles/http-project-reader",
