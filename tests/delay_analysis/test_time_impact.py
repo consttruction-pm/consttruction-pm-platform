@@ -88,7 +88,7 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
     assert result.impacted_snapshot_id == "IMPACTED-SNAPSHOT"
     assert result.added_activity_ids == ("EVT-ACCESS-01-A",)
     assert result.impacted_run.snapshot_hash == result.impacted_snapshot_hash
-    assert result.baseline_run.snapshot_hash == source_snapshot.snapshot_hash
+    assert result.unimpacted_run.snapshot_hash == source_snapshot.snapshot_hash
     assert result.project_finish_delta_calendar_days > 0
     assert len(result.analysis_hash) == 64
     assert snapshot_repository.get(source_snapshot.scope, "IMPACTED-SNAPSHOT") is not None
