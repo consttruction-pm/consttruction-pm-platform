@@ -270,3 +270,52 @@ def test_postgres_dashboard_exact_update_retry_is_idempotent_without_duplicate_a
         )
         assert retry == first
         assert len(repository.history(tenant, dashboard_id)) == 2
+
+
+def test_postgres_dashboard_display_preferences_are_actor_and_tenant_scoped():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    other_tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+    other_dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        created = repository.create(
+            make_dashboard(tenant, dashboard_id),
+            idempotency_key="display-pref-owner",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        other_created = repository.create(
+            make_dashboard(other_tenant, other_dashboard_id),
+            idempotency_key="display-pref-other",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        repository.replace_display_preferences(
+            tenant,
+            "integration-owner",
+            ((dashboard_id, False, 0),),
+            updated_at=NOW + timedelta(minutes=1),
+        )
+        repository.replace_display_preferences(
+            other_tenant,
+            "integration-owner",
+            ((other_dashboard_id, True, 0),),
+            updated_at=NOW + timedelta(minutes=1),
+        )
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        assert repository.list_display_preferences(tenant, "integration-owner") == {
+            dashboard_id: (False, 0)
+        }
+        assert repository.list_display_preferences(tenant, "another-user") == {}
+        assert repository.list_display_preferences(other_tenant, "integration-owner") == {
+            other_dashboard_id: (True, 0)
+        }
+        assert repository.get(tenant, dashboard_id).revision == created.revision
+        assert repository.get(other_tenant, other_dashboard_id).revision == other_created.revision
