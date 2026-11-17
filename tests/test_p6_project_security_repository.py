@@ -130,7 +130,7 @@ def test_profile_privilege_dependency_is_enforced_at_persistence_boundary():
     invalid = P6ProjectSecurityProfile(
         "tenant-a", "invalid", "Invalid", ("edit_activity_id",)
     )
-    with pytest.raises(ValueError, match="PROJECT_SECURITY_PRIVILEGE_DEPENDENCY_MISSING"):
+    with pytest.raises(ValueError, match="PROJECT_SECURITY_PRIVILEGE_REQUIREMENT_MISSING"):
         repo.save_profile(invalid, actor_id="admin-user")
 
 
