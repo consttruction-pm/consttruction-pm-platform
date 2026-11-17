@@ -131,3 +131,11 @@ test("the authenticated workspace shell loads the workspace bundle directly", ()
   assert.doesNotMatch(appShell, /landing-entry\.bundle\.js/);
   assert.match(appShell, /global-assistant-launcher\.bundle\.js/);
 });
+
+test("Vercel rewrites nested Enterprise pages to the authenticated shell", () => {
+  const config = JSON.parse(readFileSync(new URL("./vercel.json", import.meta.url), "utf8"));
+  for (const source of ["/enterprise/:path*", "/enterprise/:path*/"]) {
+    const route = config.rewrites.find((item) => item.source === source);
+    assert.equal(route?.destination, "/api/shell");
+  }
+});

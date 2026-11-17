@@ -214,3 +214,61 @@ def test_api_update_delete_and_stale_conflict(api) -> None:
         context=context(),
     )
     assert missing["code"] == "THRESHOLD_NOT_FOUND"
+
+
+def test_threshold_responsible_obs_is_enforced_and_round_tripped(api):
+    from dataclasses import replace
+
+    created = api.create_threshold(
+        threshold(responsible_obs_id="OBS-CONTROLS"),
+        idempotency_key="k-obs",
+        context=context(),
+        actor_id="u-1",
+        occurred_at=NOW,
+    )
+    assert created["responsible_obs_id"] == "OBS-CONTROLS"
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return obs_id == "OBS-CONTROLS" and permission == "threshold.view"
+
+    scoped = ThresholdAPI(replace(api.service, responsible_obs_access=OBSAccess()))
+    listed = scoped.list_thresholds(
+        tenant_id="T-1", project_id="P-1", context=context("viewer", user="v-1")
+    )
+    assert [item["threshold_id"] for item in listed["thresholds"]] == ["TH-1"]
+    read = scoped.read_threshold(
+        tenant_id="T-1", project_id="P-1", threshold_id="TH-1", context=context()
+    )
+    assert read["responsible_obs_id"] == "OBS-CONTROLS"
+    denied = scoped.update_threshold(
+        threshold(responsible_obs_id="OBS-CONTROLS", name="Unauthorized"),
+        expected_revision=1, context=context(), actor_id="u-1", occurred_at=NOW,
+    )
+    assert denied["code"] == "THRESHOLD_OBS_ACCESS_DENIED"
+
+
+def test_threshold_responsible_obs_does_not_inherit_project_only_read(api):
+    from dataclasses import replace
+
+    api.create_threshold(
+        threshold(responsible_obs_id="OBS-LEGAL"),
+        idempotency_key="k-legal",
+        context=context(),
+        actor_id="u-1",
+        occurred_at=NOW,
+    )
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return False
+
+    scoped = ThresholdAPI(replace(api.service, responsible_obs_access=OBSAccess()))
+    listed = scoped.list_thresholds(
+        tenant_id="T-1", project_id="P-1", context=context("viewer", user="v-1")
+    )
+    assert listed["thresholds"] == []
+    denied = scoped.read_threshold(
+        tenant_id="T-1", project_id="P-1", threshold_id="TH-1", context=context()
+    )
+    assert denied["code"] == "THRESHOLD_OBS_ACCESS_DENIED"

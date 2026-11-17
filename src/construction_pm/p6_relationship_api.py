@@ -64,7 +64,7 @@ class P6RelationshipAPI:
 
     def create(self, relationship: RelationshipMaster, *, auth_context: AuthorizationContext, expected_revision: int | None = None) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ACTIVITY_RELATIONSHIP_MANAGE)
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -73,7 +73,7 @@ class P6RelationshipAPI:
 
     def update(self, relationship: RelationshipMaster, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ACTIVITY_RELATIONSHIP_MANAGE)
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -114,18 +114,18 @@ class P6RelationshipAPI:
 
     def get(self, scope: BackendScope, relationship_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.ACTIVITY_VIEW)
         result = self.repository.get(scope, relationship_id)
         return None if result is None else _dto(result)
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.ACTIVITY_VIEW)
         return tuple(_dto(item) for item in self.repository.list(scope))
 
     def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.ACTIVITY_RELATIONSHIP_MANAGE)
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         deleted = self.repository.delete(scope, relationship_id, expected_revision=expected_revision)
         return {

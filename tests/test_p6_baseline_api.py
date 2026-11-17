@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy, Permission, RoleBasedAuthorizationPolicy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_baseline_api import P6_BASELINE_API_VERSION, P6BaselineAPI
 from construction_pm.p6_baseline_repository import P6Baseline, P6BaselineApplicationService, SQLiteP6BaselineRepository
@@ -57,3 +57,24 @@ def test_cross_scope_and_missing_permission_are_rejected() -> None:
         instance.create(baseline(), auth_context=auth(tenant_id="other"))
     with pytest.raises(AuthorizationError, match="authorization denied"):
         instance.get(scope(), "b-1", auth_context=auth(role="writer"))
+
+
+def test_baseline_create_and_read_use_independent_granular_privileges():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6BaselineRepository(connection)
+    service = P6BaselineApplicationService(repository, TransactionManager(connection))
+    policy = RoleBasedAuthorizationPolicy({
+        "baseline_creator": frozenset({Permission.BASELINE_CREATE_UPDATE}),
+        "baseline_reader": frozenset({Permission.BASELINE_VIEW}),
+    })
+    instance = P6BaselineAPI(service, policy)
+    creator = AuthorizationContext("tenant-a", "project-a", "creator", frozenset({"baseline_creator"}))
+    reader = AuthorizationContext("tenant-a", "project-a", "reader", frozenset({"baseline_reader"}))
+
+    created = instance.create(baseline(), auth_context=creator)
+    assert created["baseline"]["baseline_id"] == "b-1"
+    with pytest.raises(AuthorizationError, match="baseline.view"):
+        instance.get(scope(), "b-1", auth_context=creator)
+    assert instance.get(scope(), "b-1", auth_context=reader) == created
+    with pytest.raises(AuthorizationError, match="baseline.create_update"):
+        instance.create(baseline("b-2"), auth_context=reader)

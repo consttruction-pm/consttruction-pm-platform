@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
@@ -303,6 +304,7 @@ def build_project_lifecycle_wsgi_app(
             activity_master_repository,
             authorization_policy,
             checkout_lease=checkout_lease,
+            wbs_access_repository=wbs_master_repository,
         )
     )
     if (
@@ -368,6 +370,34 @@ def build_project_lifecycle_wsgi_app(
             ),
             authorization_policy=authorization_policy,
         )
+    if wbs_master_repository is not None:
+        if p6_issue_api is not None and hasattr(p6_issue_api, "wbs_access_repository"):
+            p6_issue_api = replace(p6_issue_api, wbs_access_repository=wbs_master_repository)
+        if p6_expense_api is not None and hasattr(p6_expense_api, "wbs_access_repository"):
+            p6_expense_api = replace(p6_expense_api, wbs_access_repository=wbs_master_repository)
+        if (
+            threshold_api is not None
+            and hasattr(threshold_api, "service")
+            and callable(getattr(wbs_master_repository, "has_responsible_obs_permission", None))
+        ):
+            threshold_api = replace(
+                threshold_api,
+                service=replace(threshold_api.service, responsible_obs_access=wbs_master_repository),
+            )
+        # The PostgreSQL WBS repository exposes the authoritative OBS
+        # permission resolver. The SQLite preview repository intentionally does
+        # not model enterprise OBS assignments, so do not inject it as though it
+        # were an authorization provider (Risk would correctly fail closed).
+        if (
+            risk_api is not None
+            and hasattr(risk_api, "service")
+            and callable(getattr(wbs_master_repository, "has_wbs_permission", None))
+        ):
+            risk_api = replace(
+                risk_api,
+                service=replace(risk_api.service, wbs_access_repository=wbs_master_repository),
+            )
+
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,

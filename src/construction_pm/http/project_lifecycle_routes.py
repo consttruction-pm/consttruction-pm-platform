@@ -2207,6 +2207,10 @@ class ProjectLifecycleHttpRoutes:
                         record_revision=0 if existing is None else existing.record_revision,
                         status=status,
                         percent_complete_technique=technique,
+                        responsible_obs_id=payload.get(
+                            "responsible_obs_id",
+                            existing.responsible_obs_id if existing is not None else None,
+                        ),
                     )
 
                 try:
@@ -2342,9 +2346,6 @@ class ProjectLifecycleHttpRoutes:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
                             raise ValueError("EXPECTED_REVISION_REQUIRED")
-                        activity_action = payload.get("activity_action", "reject")
-                        if not isinstance(activity_action, str):
-                            raise ValueError("WBS_DELETE_ACTIVITY_ACTION_INVALID")
                         return self._json(
                             200,
                             self._p6_wbs_master_api.delete(
@@ -2352,7 +2353,6 @@ class ProjectLifecycleHttpRoutes:
                                 parts[0],
                                 expected_revision=expected_revision,
                                 auth_context=auth,
-                                activity_action=activity_action,
                             ),
                         )
                     return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
@@ -2365,8 +2365,6 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
                     if str(exc) == "WBS_IN_USE":
                         return self._error(409, _stable_error_code(exc, "RESOURCE_IN_USE"), "error.resource.in_use")
-                    if str(exc) == "WBS_REASSIGN_PARENT_REQUIRED":
-                        return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
@@ -3690,6 +3688,9 @@ class ProjectLifecycleHttpRoutes:
                                 responsible_manager=(
                                     payload.get("responsible_manager") or None
                                 ),
+                                responsible_obs_id=(
+                                    payload.get("responsible_obs_id") or None
+                                ),
                                 status=str(payload.get("status") or "active"),
                             )
 
@@ -4941,6 +4942,7 @@ class ProjectLifecycleHttpRoutes:
                                 priority=payload.get("priority", "normal"),
                                 owner=payload.get("owner", ""),
                                 responsible_manager=payload.get("responsible_manager"),
+                                responsible_obs_id=payload.get("responsible_obs_id"),
                                 date_identified=payload.get("date_identified", ""),
                                 due_date=payload.get("due_date"),
                                 wbs_id=payload.get("wbs_id"),
@@ -4962,6 +4964,7 @@ class ProjectLifecycleHttpRoutes:
                                 priority=payload.get("priority", ""),
                                 owner=payload.get("owner", ""),
                                 responsible_manager=payload.get("responsible_manager"),
+                                responsible_obs_id=payload.get("responsible_obs_id"),
                                 date_identified=payload.get("date_identified", ""),
                                 due_date=payload.get("due_date"),
                                 wbs_id=payload.get("wbs_id"),

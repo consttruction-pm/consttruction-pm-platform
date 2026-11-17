@@ -44,6 +44,7 @@ def _risk(**overrides):
         "impact": 4,
         "response_strategy": "mitigate",
         "owner": "preview-planner",
+        "wbs_id": "WBS-RPS-CIVIL",
         "date_identified": "2026-11-01",
         "response_owner": "preview-planner",
         "response_due_date": "2026-12-01",

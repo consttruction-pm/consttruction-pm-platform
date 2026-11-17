@@ -442,7 +442,7 @@ test("Issues are filtered by the stored activity reference and Update History re
       issues: {
         status: "loaded" as const, errorCode: null,
         records: [
-          { issueId: "IS-1", title: "Late concrete", activityId: "act-1", issueType: "schedule", priority: "high", status: "open", owner: "planner", updatedAt: "2026-10-08", description: "", responsibleManager: null, dateIdentified: "2026-10-08", dueDate: null, wbsId: null, documentRefs: [], resolutionNote: null, recordRevision: 1, createdAt: "2026-10-08" },
+          { issueId: "IS-1", title: "Late concrete", activityId: "act-1", issueType: "schedule", priority: "high", status: "open", owner: "planner", updatedAt: "2026-10-08", description: "", responsibleManager: null, responsibleObsId: null, dateIdentified: "2026-10-08", dueDate: null, wbsId: null, documentRefs: [], resolutionNote: null, recordRevision: 1, createdAt: "2026-10-08" },
           { issueId: "IS-2", title: "Other activity", activityId: "act-2", issueType: "cost", priority: "low", status: "closed", owner: "planner", updatedAt: "2026-10-09", description: "", responsibleManager: null, dateIdentified: "2026-10-09", dueDate: null, wbsId: null, documentRefs: [], resolutionNote: null, recordRevision: 1, createdAt: "2026-10-09" },
         ],
       },

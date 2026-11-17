@@ -25,11 +25,12 @@ def auth(tenant="t1", project="p1", roles=("planner",)):
     return AuthorizationContext(tenant, project, "u1", frozenset(roles))
 
 
-def api(connection):
+def api(connection, wbs_access_repository=None):
     repo = SQLiteP6ExpenseRepository(connection)
     return P6ExpenseAPI(
         P6ExpenseApplicationService(repo, SQLiteTransactionManager(connection)),
         default_project_policy(),
+        wbs_access_repository=wbs_access_repository,
     )
 
 
@@ -59,3 +60,47 @@ def test_p6_expense_api_rejects_cross_scope_and_read_write_permissions():
 
     with pytest.raises(AuthorizationError):
         service.create(expense(scope), auth_context=auth(roles=("viewer",)))
+
+
+def test_expense_access_is_scoped_by_responsible_wbs_obs():
+    import sqlite3
+    connection = sqlite3.connect(":memory:")
+    scope = BackendScope("t1", "p1", 1)
+    base = api(connection)
+    base.create(expense(scope), auth_context=auth())
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return permission == "expense.view"
+
+    scoped = api(connection, WBSAccess())
+    assert scoped.get(scope, "e-1", auth_context=auth())["expense"]["wbs_id"] == "wbs-1"
+    assert [item["expense"]["expense_id"] for item in scoped.list(scope, auth_context=auth())] == ["e-1"]
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        scoped.create(expense(scope), auth_context=auth())
+
+
+def test_expense_operations_use_independent_granular_privileges():
+    import sqlite3
+    from construction_pm.application.authorization import Permission, RoleBasedAuthorizationPolicy
+
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6ExpenseRepository(connection)
+    policy = RoleBasedAuthorizationPolicy({
+        "expense_writer": frozenset({Permission.EXPENSE_ADD_EDIT}),
+        "expense_reader": frozenset({Permission.EXPENSE_VIEW}),
+    })
+    service = P6ExpenseAPI(
+        P6ExpenseApplicationService(repository, SQLiteTransactionManager(connection)), policy
+    )
+    scope = BackendScope("t1", "p1", 1)
+    writer = AuthorizationContext("t1", "p1", "writer", frozenset({"expense_writer"}))
+    reader = AuthorizationContext("t1", "p1", "reader", frozenset({"expense_reader"}))
+
+    created = service.create(expense(scope), auth_context=writer)
+    assert created["expense"]["expense_id"] == "e-1"
+    with pytest.raises(AuthorizationError, match="expense.view"):
+        service.get(scope, "e-1", auth_context=writer)
+    assert service.get(scope, "e-1", auth_context=reader) == created
+    with pytest.raises(AuthorizationError, match="expense.add_edit"):
+        service.create(expense(scope), auth_context=reader)

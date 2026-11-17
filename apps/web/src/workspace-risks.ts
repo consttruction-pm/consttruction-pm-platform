@@ -47,6 +47,7 @@ export type RiskRecord = {
   responseDueDate: string | null;
   owner: string;
   responsibleManager: string | null;
+  wbsId: string | null;
   dateIdentified: string;
   closureNote: string | null;
   revision: number;
@@ -75,6 +76,7 @@ export type RiskInput = {
   responseDueDate: string | null;
   owner: string;
   responsibleManager: string | null;
+  wbsId?: string | null;
   dateIdentified: string;
   closureNote: string | null;
 };
@@ -230,6 +232,7 @@ export function parseRisk(value: unknown): RiskRecord {
         : isoDate(value.response_due_date, "INVALID_RISK_RECORD"),
     owner,
     responsibleManager: optionalText(value.responsible_manager, "INVALID_RISK_RECORD"),
+    wbsId: optionalText(value.wbs_id, "INVALID_RISK_RECORD"),
     dateIdentified: isoDate(value.date_identified, "INVALID_RISK_RECORD"),
     closureNote,
     revision: revision(value.revision, "INVALID_RISK_RECORD"),
@@ -369,10 +372,11 @@ export function buildRiskPayload(input: RiskInput): Record<string, unknown> {
     probability: input.probability,
     impact: input.impact,
     response_strategy: strategy,
-    response_owner: trimmedOrNull(input.responseOwner),
+    response_owner: trimmedOrNull(input.responseOwner ?? null),
     response_due_date: due,
     owner,
-    responsible_manager: trimmedOrNull(input.responsibleManager),
+    responsible_manager: trimmedOrNull(input.responsibleManager ?? null),
+    wbs_id: trimmedOrNull(input.wbsId ?? null),
     date_identified: dateIdentified,
     closure_note: closureNote,
   };
@@ -459,6 +463,7 @@ function emptyDraft(): RiskInput {
     responseDueDate: null,
     owner: "",
     responsibleManager: null,
+    wbsId: null,
     dateIdentified: new Date().toISOString().slice(0, 10),
     closureNote: null,
   };
@@ -478,6 +483,7 @@ function draftFromRisk(item: RiskRecord): RiskInput {
     responseDueDate: item.responseDueDate,
     owner: item.owner,
     responsibleManager: item.responsibleManager,
+    wbsId: item.wbsId,
     dateIdentified: item.dateIdentified,
     closureNote: item.closureNote,
   };
@@ -637,7 +643,7 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       <label>${escapeHtml(say("Owner", "مسئول"))}<input name="risk-owner" value="${escapeHtml(draft.owner)}" required></label>
       <label>${escapeHtml(say("Response Owner", "مسئول پاسخ"))}<input name="risk-response-owner" value="${escapeHtml(draft.responseOwner ?? "")}"></label>
       <label>${escapeHtml(say("Response Due", "مهلت پاسخ"))}<input type="date" name="risk-response-due" value="${escapeHtml(draft.responseDueDate ?? "")}"></label>
-      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="risk-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>
+      <label>${escapeHtml(say("Responsible Manager", "مدیر مسئول"))}<input name="risk-manager" value="${escapeHtml(draft.responsibleManager ?? "")}"></label>\n      <label>${escapeHtml(say("WBS ID", "شناسه ساختار شکست"))}<input name="risk-wbs" value="${escapeHtml(draft.wbsId ?? "")}"></label>
       <label>${escapeHtml(say("Date Identified", "تاریخ شناسایی"))}<input type="date" name="risk-identified" value="${escapeHtml(draft.dateIdentified)}" required></label>
       <label class="cp-field-wide">${escapeHtml(say("Description", "شرح"))}<textarea name="risk-description" rows="2">${escapeHtml(draft.description)}</textarea></label>
       <label class="cp-field-wide">${escapeHtml(say("Closure Note", "یادداشت بستن"))}<input name="risk-closure-note" value="${escapeHtml(draft.closureNote ?? "")}"></label>
@@ -679,6 +685,7 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       ${row(say("Response Owner", "مسئول پاسخ"), item.responseOwner)}
       ${row(say("Response Due", "مهلت پاسخ"), item.responseDueDate)}
       ${row(say("Responsible Manager", "مدیر مسئول"), item.responsibleManager)}
+      ${row(say("WBS ID", "شناسه ساختار شکست"), item.wbsId)}
       ${row(say("Date Identified", "تاریخ شناسایی"), item.dateIdentified)}
       ${row(say("Closure Note", "یادداشت بستن"), item.closureNote)}
       ${row(say("Revision", "نسخه"), String(item.revision))}
@@ -822,6 +829,7 @@ export function mountWorkspaceRisksPage(host: HTMLElement, options: RiskPageOpti
       case "risk-response-owner": state.draft.responseOwner = target.value; break;
       case "risk-response-due": state.draft.responseDueDate = target.value; break;
       case "risk-manager": state.draft.responsibleManager = target.value; break;
+      case "risk-wbs": state.draft.wbsId = target.value; break;
       case "risk-identified": state.draft.dateIdentified = target.value; break;
       case "risk-closure-note": state.draft.closureNote = target.value; break;
       default: break;

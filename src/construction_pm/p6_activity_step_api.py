@@ -64,7 +64,7 @@ class P6ActivityStepReadAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_VIEW):
             raise AuthorizationError("ACTIVITY_STEP_READ_NOT_AUTHORIZED")
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise P6ActivityStepPersistenceError("INVALID_ACTIVITY_ID")

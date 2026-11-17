@@ -93,6 +93,7 @@ class Threshold:
     issue_level: Decimal | None = None
     responsible_manager: str | None = None
     status: str = "active"
+    responsible_obs_id: str | None = None
 
     def validate(self) -> None:
         for value, code in (
@@ -109,6 +110,8 @@ class Threshold:
             raise ThresholdPersistenceError("INVALID_THRESHOLD_PARAMETER")
         if self.status not in THRESHOLD_STATUSES:
             raise ThresholdPersistenceError("INVALID_THRESHOLD_STATUS")
+        if self.responsible_obs_id is not None and (not isinstance(self.responsible_obs_id, str) or not self.responsible_obs_id.strip()):
+            raise ThresholdPersistenceError("INVALID_THRESHOLD_RESPONSIBLE_OBS")
         if self.responsible_manager is not None and (
             not isinstance(self.responsible_manager, str) or not self.responsible_manager.strip()
         ):
@@ -156,6 +159,7 @@ class Threshold:
             "warning_level": number(self.warning_level),
             "issue_level": number(self.issue_level),
             "responsible_manager": self.responsible_manager,
+            "responsible_obs_id": self.responsible_obs_id,
             "status": self.status,
         }
 
@@ -653,6 +657,7 @@ class SQLiteThresholdStore:
             issue_level=number("issue_level"),
             responsible_manager=data.get("responsible_manager"),
             status=data.get("status", "active"),
+            responsible_obs_id=data.get("responsible_obs_id"),
         )
 
     @staticmethod

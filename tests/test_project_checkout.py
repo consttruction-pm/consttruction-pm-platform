@@ -12,6 +12,8 @@ from construction_pm.activity_master_repository import (
 from construction_pm.application.authorization import (
     AuthorizationContext,
     default_project_policy,
+    Permission,
+    RoleBasedAuthorizationPolicy,
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -261,3 +263,74 @@ def test_cost_account_writes_are_rejected_before_any_mutation():
     )
     allowed.create(cost_account(), auth_context=auth())
     assert repository.get(scope(), "C-1") is not None
+
+
+def test_activity_list_uses_activity_view_not_legacy_project_read():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteActivityMasterRepository(connection)
+    repository.save(activity())
+    policy = RoleBasedAuthorizationPolicy({
+        "activity_reader": frozenset({Permission.ACTIVITY_VIEW}),
+    })
+    service = P6ActivityMasterAPI(repository, policy)
+    context = AuthorizationContext(TENANT, PROJECT, OTHER, frozenset({"activity_reader"}))
+
+    assert len(service.list(scope(), auth_context=context)) == 1
+
+
+def test_activity_create_and_edit_are_distinct_operation_grants():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteActivityMasterRepository(connection)
+    policy = RoleBasedAuthorizationPolicy({
+        "activity_creator": frozenset({Permission.ACTIVITY_ADD_EDIT}),
+    })
+    service = P6ActivityMasterAPI(repository, policy)
+    context = AuthorizationContext(TENANT, PROJECT, OTHER, frozenset({"activity_creator"}))
+    created = service.create(activity(), auth_context=context)
+    assert created["activity"]["record_revision"] == 1
+
+    with pytest.raises(PermissionError, match="activity.edit"):
+        service.update(activity(1), expected_revision=1, auth_context=context)
+    assert repository.get(scope(), "A-1").record_revision == 1
+
+
+
+def test_wbs_operations_use_wbs_specific_profile_privileges():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteWBSMasterRepository(connection)
+    reader_policy = RoleBasedAuthorizationPolicy({
+        "wbs_reader": frozenset({Permission.WBS_VIEW}),
+    })
+    reader = P6WBSMasterAPI(repository, reader_policy)
+    reader_context = AuthorizationContext(
+        TENANT, PROJECT, OTHER, frozenset({"wbs_reader"})
+    )
+    assert reader.list(scope(), auth_context=reader_context) == ()
+
+    writer_policy = RoleBasedAuthorizationPolicy({
+        "wbs_writer": frozenset({Permission.WBS_ADD_EDIT}),
+    })
+    writer = P6WBSMasterAPI(repository, writer_policy)
+    writer_context = AuthorizationContext(
+        TENANT, PROJECT, OTHER, frozenset({"wbs_writer"})
+    )
+    created = writer.create(wbs(), auth_context=writer_context)
+    assert created["wbs"]["wbs_id"] == "W-1"
+    assert reader.get(scope(), "W-1", auth_context=reader_context)["wbs"]["wbs_id"] == "W-1"
+
+    editor_policy = RoleBasedAuthorizationPolicy({
+        "wbs_editor": frozenset({Permission.WBS_EDIT}),
+    })
+    editor = P6WBSMasterAPI(repository, editor_policy)
+    editor_context = AuthorizationContext(
+        TENANT, PROJECT, OTHER, frozenset({"wbs_editor"})
+    )
+    revised = editor.update(
+        wbs(revision=1), expected_revision=1, auth_context=editor_context
+    )
+    assert revised["wbs"]["record_revision"] == 2
+
+    with pytest.raises(PermissionError, match="wbs.delete"):
+        reader.delete(
+            scope(), "W-1", expected_revision=1, auth_context=reader_context
+        )

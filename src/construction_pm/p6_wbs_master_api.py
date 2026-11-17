@@ -24,8 +24,7 @@ from .wbs_master_repository import (
 
 
 P6_WBS_MASTER_API_VERSION = "p6-wbs-master-api.v1"
-
-DELETE_ACTIVITY_ACTIONS = ("reject", "reassign_to_parent")
+_WBS_OBS_UNSET = object()
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -77,6 +76,7 @@ def _dto(
             "record_revision": item.record_revision,
             "status": item.status.value,
             "percent_complete_technique": item.percent_complete_technique.value,
+            "responsible_obs_id": item.responsible_obs_id,
             "percent_complete": percent,
         },
         "milestones": [_milestone_dto(entry) for entry in loaded],
@@ -91,11 +91,45 @@ class P6WBSMasterAPI:
     authorization_policy: AuthorizationPolicy
     checkout_lease: ProjectCheckoutLease | None = None
 
+    def _require_obs_permission(
+        self,
+        scope: BackendScope,
+        auth_context: AuthorizationContext,
+        permission: str,
+        *,
+        wbs_id: str | None = None,
+        responsible_obs_id: object = _WBS_OBS_UNSET,
+    ) -> None:
+        checker = getattr(self.repository, "has_wbs_permission", None)
+        if wbs_id is not None and callable(checker):
+            if responsible_obs_id is _WBS_OBS_UNSET:
+                allowed = checker(scope, auth_context.user_id, wbs_id, permission)
+            else:
+                allowed = checker(
+                    scope, auth_context.user_id, wbs_id, permission,
+                    responsible_obs_id_override=responsible_obs_id,
+                )
+        else:
+            checker = getattr(self.repository, "has_responsible_obs_permission", None)
+            if not callable(checker):
+                return
+            effective_obs_id = responsible_obs_id
+            if wbs_id is not None and responsible_obs_id is _WBS_OBS_UNSET:
+                current = self.repository.get(scope, wbs_id)
+                effective_obs_id = None if current is None else current.responsible_obs_id
+            allowed = checker(scope, auth_context.user_id, effective_obs_id, permission)
+        if not allowed:
+            raise AuthorizationError("WBS_OBS_ACCESS_DENIED")
+
     def create(self, item: WBSMaster, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(item.scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
-            raise AuthorizationError("authorization denied for permission=project.write")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
+            raise AuthorizationError("authorization denied for permission=wbs.add_edit")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        if callable(getattr(self.repository, "has_wbs_permission", None)) and not item.responsible_obs_id:
+            raise AuthorizationError("WBS_RESPONSIBLE_OBS_REQUIRED")
+        self._require_obs_permission(item.scope, auth_context, Permission.WBS_ADD_EDIT.value,
+                                     responsible_obs_id=item.responsible_obs_id)
         return _dto(self.repository.save(item, expected_revision=0))
 
     def update(
@@ -112,9 +146,16 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
+        existing = self.repository.get(item.scope, item.wbs_id)
+        if existing is None:
+            raise ValueError("WBS_NOT_FOUND")
+        self._require_obs_permission(item.scope, auth_context, Permission.WBS_ADD_EDIT.value,
+                                     wbs_id=item.wbs_id)
+        self._require_obs_permission(item.scope, auth_context, Permission.WBS_ADD_EDIT.value,
+                                     wbs_id=item.wbs_id, responsible_obs_id=item.responsible_obs_id)
         stored = self.repository.save(item, expected_revision=expected_revision)
         return _dto(stored, self.repository.list_milestones(item.scope, stored.wbs_id))
 
@@ -125,17 +166,8 @@ class P6WBSMasterAPI:
         *,
         expected_revision: int,
         auth_context: AuthorizationContext,
-        activity_action: str = "reject",
     ) -> dict[str, Any]:
-        """Delete a WBS node for a current, authorized revision.
-
-        ``activity_action`` selects the V26 delete prompt branch. ``reject``
-        refuses an element that still has activity assignments; the CUBI
-        extension ``reassign_to_parent`` moves those assignments to the parent
-        WBS element in the same transaction before deleting the element. The
-        documented "delete the element and its activities" branch is not offered
-        because no audited activity-delete capability exists yet.
-        """
+        """Delete an unused WBS node only for a current, authorized revision."""
         _require_scope(scope, auth_context)
         if (
             isinstance(expected_revision, bool)
@@ -143,25 +175,17 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if activity_action not in DELETE_ACTIVITY_ACTIONS:
-            raise ValueError("WBS_DELETE_ACTIVITY_ACTION_INVALID")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
-            raise AuthorizationError("authorization denied for permission=project.write")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_DELETE):
+            raise AuthorizationError("authorization denied for permission=wbs.delete")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
-        reassigned = self.repository.delete(
-            scope,
-            wbs_id,
-            expected_revision=expected_revision,
-            reassign_activities_to_parent=activity_action == "reassign_to_parent",
-        )
+        self._require_obs_permission(scope, auth_context, Permission.WBS_DELETE.value, wbs_id=wbs_id)
+        self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
         return {
             "contract_version": P6_WBS_MASTER_API_VERSION,
             "kind": "p6_wbs_master_delete",
             "scope": _scope_dto(scope),
             "wbs_id": wbs_id,
             "deleted": True,
-            "activity_action": activity_action,
-            "reassigned_activities": reassigned,
         }
 
     def copy(
@@ -182,9 +206,11 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_ADD_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        self._require_obs_permission(scope, auth_context, Permission.WBS_VIEW.value, wbs_id=wbs_id)
+        self._require_obs_permission(scope, auth_context, Permission.WBS_ADD_EDIT.value, wbs_id=target_parent_wbs_id)
         nodes = self.repository.copy_subtree(
             scope,
             wbs_id,
@@ -213,12 +239,19 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
-            raise AuthorizationError("authorization denied for permission=project.read")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_VIEW):
+            raise AuthorizationError("authorization denied for permission=wbs.view")
         item = self.repository.get(scope, wbs_id)
         if item is None:
             return None
+        self._require_obs_permission(scope, auth_context, Permission.WBS_VIEW.value, wbs_id=wbs_id)
         return _dto(item, self.repository.list_milestones(scope, wbs_id))
+
+    def _can_read_wbs(self, scope: BackendScope, auth_context: AuthorizationContext, wbs_id: str) -> bool:
+        checker = getattr(self.repository, "has_wbs_permission", None)
+        return True if not callable(checker) else bool(
+            checker(scope, auth_context.user_id, wbs_id, Permission.WBS_VIEW.value)
+        )
 
     def list(
         self,
@@ -227,11 +260,12 @@ class P6WBSMasterAPI:
         auth_context: AuthorizationContext,
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_VIEW):
             raise AuthorizationError("authorization denied for permission=project.read")
         return tuple(
             _dto(item, self.repository.list_milestones(scope, item.wbs_id))
             for item in self.repository.list(scope)
+            if self._can_read_wbs(scope, auth_context, item.wbs_id)
         )
 
     def replace_milestones(
@@ -250,9 +284,10 @@ class P6WBSMasterAPI:
             or expected_revision < 1
         ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.WBS_EDIT):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
+        self._require_obs_permission(scope, auth_context, Permission.WBS_ADD_EDIT.value, wbs_id=wbs_id)
         item, stored = self.repository.replace_milestones(
             scope, wbs_id, milestones, expected_revision=expected_revision
         )

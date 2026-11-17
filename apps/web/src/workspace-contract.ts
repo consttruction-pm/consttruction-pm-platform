@@ -52,6 +52,7 @@ export type WorkspaceControlRoomWbsNode = {
   name: string;
   sequence_number: number;
   record_revision: number;
+  responsible_obs_id?: string | null;
   status?: WorkspaceWbsStatus;
   percent_complete_technique?: WorkspaceWbsPercentCompleteTechnique;
   percent_complete?: number | null;
@@ -117,6 +118,7 @@ export function createWorkspaceControlRoomSnapshot(
       name: node.name,
       sequence_number: node.sequenceNumber,
       record_revision: node.recordRevision,
+      ...(node.responsibleObsId !== undefined ? { responsible_obs_id: node.responsibleObsId } : {}),
       ...(node.status ? { status: node.status } : {}),
       ...(node.percentCompleteTechnique
         ? { percent_complete_technique: node.percentCompleteTechnique }
@@ -159,6 +161,7 @@ export function workspaceWbsNodesFromSnapshot(
     name: node.name,
     sequenceNumber: node.sequence_number,
     recordRevision: node.record_revision,
+    ...(node.responsible_obs_id !== undefined ? { responsibleObsId: node.responsible_obs_id } : {}),
     ...(node.status ? { status: node.status } : {}),
     ...(node.percent_complete_technique
       ? { percentCompleteTechnique: node.percent_complete_technique }

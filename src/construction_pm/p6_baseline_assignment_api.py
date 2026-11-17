@@ -86,7 +86,7 @@ class P6BaselineAssignmentAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            self.authorization_policy, auth_context, Permission.BASELINE_ASSIGN
         )
         _require_revision(scope, expected_revision)
         role = require_baseline_role(role)
@@ -120,7 +120,7 @@ class P6BaselineAssignmentAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_READ
+            self.authorization_policy, auth_context, Permission.BASELINE_VIEW
         )
         payload = self.service.summary(scope).to_payload()
         return {
@@ -140,7 +140,7 @@ class P6BaselineAssignmentAPI:
         _require_contract(contract_version)
         _require_scope(scope, auth_context)
         _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_READ
+            self.authorization_policy, auth_context, Permission.BASELINE_VIEW
         )
         role = require_baseline_role(role)
         rows = self.service.history(scope, role)

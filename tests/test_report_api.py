@@ -280,6 +280,7 @@ def test_report_runs_read_resource_and_risk_subjects(tmp_path: Path) -> None:
                 "impact": 4,
                 "response_strategy": "mitigate",
                 "owner": "u-owner",
+                "wbs_id": "WBS-RPS-CIVIL",
                 "date_identified": "2026-11-01",
             },
             headers={"Idempotency-Key": "risk-report-1"},

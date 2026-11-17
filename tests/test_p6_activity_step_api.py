@@ -103,7 +103,7 @@ def test_cross_scope_authorization_is_rejected() -> None:
         service.list(BackendScope("t2", "p1", 3), "A130", auth_context=viewer())
 
 
-def test_read_requires_project_read_permission() -> None:
+def test_read_requires_activity_view_permission() -> None:
     with pytest.raises(AuthorizationError):
         api().list(
             SCOPE,

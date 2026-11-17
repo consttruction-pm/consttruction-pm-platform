@@ -52,11 +52,15 @@ class P6EarnedValueReadModelAPI:
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(
-            auth_context, Permission.PROJECT_READ
+            auth_context, Permission.BASELINE_VIEW
         ):
             raise AuthorizationError(
                 "authorization denied for permission=project.read"
             )
+        if not self.authorization_policy.is_allowed(auth_context, Permission.ACTIVITY_VIEW):
+            raise AuthorizationError("authorization denied for permission=activity.view")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_COSTS_VIEW):
+            raise AuthorizationError("authorization denied for permission=project.view_costs_financials")
         if (
             contract_version is not None
             and contract_version != P6_EARNED_VALUE_READ_MODEL_VERSION

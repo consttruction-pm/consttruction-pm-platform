@@ -40,6 +40,7 @@ def issue(**overrides) -> P6Issue:
         "priority": "normal",
         "owner": "u-owner",
         "date_identified": "2026-11-05",
+        "responsible_obs_id": "OBS-OPERATIONS",
     }
     payload.update(overrides)
     return P6Issue(**payload)  # type: ignore[arg-type]
@@ -102,3 +103,106 @@ def test_update_and_history_payloads_keep_identity_and_revision() -> None:
     assert [item["event"]["event_type"] for item in history] == ["created", "updated"]
     assert history[-1]["event"]["detail"]["fields"] == ["priority", "responsible_manager"]
     assert history[-1]["event"]["actor_id"] == "planner-1"
+
+
+def test_issue_access_is_scoped_by_responsible_wbs_obs():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(issue(wbs_id="W-FOREIGN"), auth_context=planner(), occurred_at=AT)
+
+    class WBSAccess:
+        def has_wbs_permission(self, scope, user_id, wbs_id, permission):
+            return permission == "issue.view"
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=WBSAccess())
+    assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["wbs_id"] == "W-FOREIGN"
+    assert [item["issue"]["issue_id"] for item in scoped.list(SCOPE, auth_context=planner())] == ["ISSUE-API-1"]
+    with pytest.raises(AuthorizationError, match="WBS_OBS_ACCESS_DENIED"):
+        scoped.update(
+            issue(wbs_id="W-FOREIGN", title="Unauthorized"),
+            expected_revision=1, auth_context=planner(), occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError, match="ISSUE_RESPONSIBLE_OBS_REQUIRED"):
+        scoped.create(
+            issue(issue_id="ISSUE-DENIED", wbs_id="W-FOREIGN", responsible_obs_id=None),
+            auth_context=planner(), occurred_at=AT,
+        )
+
+
+def test_issue_own_responsible_obs_overrides_project_scope_for_write():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(
+        issue(responsible_obs_id="OBS-QUALITY"),
+        auth_context=planner(),
+        occurred_at=AT,
+    )
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return obs_id == "OBS-QUALITY" and permission == "issue.view"
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=OBSAccess())
+    assert scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())["issue"]["responsible_obs_id"] == "OBS-QUALITY"
+    assert [item["issue"]["issue_id"] for item in scoped.list(SCOPE, auth_context=planner())] == ["ISSUE-API-1"]
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.update(
+            issue(responsible_obs_id="OBS-QUALITY", title="Unauthorized edit"),
+            expected_revision=1,
+            auth_context=planner(),
+            occurred_at=AT,
+        )
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.add_comment(
+            SCOPE, "ISSUE-API-1", comment="Unauthorized", expected_revision=1,
+            auth_context=planner(), occurred_at=AT,
+        )
+
+
+def test_issue_responsible_obs_does_not_inherit_project_only_read():
+    repository = SQLiteP6IssueRepository(sqlite3.connect(":memory:"))
+    base = P6IssueAPI(repository, default_project_policy())
+    base.create(issue(responsible_obs_id="OBS-LEGAL"), auth_context=planner(), occurred_at=AT)
+
+    class OBSAccess:
+        def has_responsible_obs_permission(self, scope, user_id, obs_id, permission):
+            return False
+
+    scoped = P6IssueAPI(repository, default_project_policy(), wbs_access_repository=OBSAccess())
+    with pytest.raises(AuthorizationError, match="ISSUE_OBS_ACCESS_DENIED"):
+        scoped.get(SCOPE, "ISSUE-API-1", auth_context=planner())
+    assert scoped.list(SCOPE, auth_context=planner()) == ()
+
+
+def test_issue_operations_use_independent_granular_privileges():
+    from construction_pm.application.authorization import Permission, RoleBasedAuthorizationPolicy
+
+    policy = RoleBasedAuthorizationPolicy({
+        "issue_creator": frozenset({Permission.ISSUE_ADD_EDIT}),
+        "issue_editor": frozenset({Permission.ISSUE_EDIT}),
+        "issue_reader": frozenset({Permission.ISSUE_VIEW}),
+        "issue_deleter": frozenset({Permission.ISSUE_DELETE}),
+    })
+    service = P6IssueAPI(SQLiteP6IssueRepository(sqlite3.connect(":memory:")), policy)
+    def actor(role: str) -> AuthorizationContext:
+        return AuthorizationContext("t1", "p1", role, frozenset({role}))
+
+    created = service.create(issue(), auth_context=actor("issue_creator"), occurred_at=AT)
+    assert created["issue"]["record_revision"] == 1
+    with pytest.raises(AuthorizationError, match="issue.view"):
+        service.get(SCOPE, "ISSUE-API-1", auth_context=actor("issue_creator"))
+    assert service.get(SCOPE, "ISSUE-API-1", auth_context=actor("issue_reader")) is not None
+
+    updated = service.update(
+        issue(title="Granular edit"), expected_revision=1,
+        auth_context=actor("issue_editor"), occurred_at=AT,
+    )
+    assert updated["issue"]["record_revision"] == 2
+    with pytest.raises(AuthorizationError, match="issue.delete"):
+        service.delete(SCOPE, "ISSUE-API-1", expected_revision=2,
+                       auth_context=actor("issue_editor"), occurred_at=AT)
+    deleted = service.delete(
+        SCOPE, "ISSUE-API-1", expected_revision=2,
+        auth_context=actor("issue_deleter"), occurred_at=AT,
+    )
+    assert deleted["deleted"] is True

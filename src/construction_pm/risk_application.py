@@ -14,6 +14,7 @@ from .application.authorization import (
     AuthorizationPolicy,
     Permission,
 )
+from .backend_p0.models import BackendScope
 from .risk_persistence import (
     Risk,
     RiskAuditEvent,
@@ -36,6 +37,7 @@ class RiskApplicationService:
     store: RiskStore
     authorization_policy: AuthorizationPolicy
     transaction_manager: object
+    wbs_access_repository: object | None = None
 
     # -- reads ------------------------------------------------------------
     def list_risks(
@@ -50,15 +52,12 @@ class RiskApplicationService:
         exposure: str | None = None,
         search: str | None = None,
     ) -> tuple[StoredRisk, ...]:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
-        return self.store.list_risks(
-            tenant_id,
-            project_id,
-            category=category,
-            status=status,
-            response_strategy=response_strategy,
-            exposure=exposure,
-            search=search,
+        self._check(context, tenant_id, project_id, Permission.RISK_VIEW)
+        return tuple(
+            item for item in self.store.list_risks(
+                tenant_id, project_id, category=category, status=status,
+                response_strategy=response_strategy, exposure=exposure, search=search,
+            ) if self._can_access_wbs(tenant_id, project_id, item.risk.wbs_id, context, Permission.RISK_VIEW)
         )
 
     def read_risk(
@@ -69,8 +68,10 @@ class RiskApplicationService:
         risk_id: str,
         context: AuthorizationContext,
     ) -> StoredRisk:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
-        return self.store.get_risk(tenant_id, project_id, risk_id)
+        self._check(context, tenant_id, project_id, Permission.RISK_VIEW)
+        stored = self.store.get_risk(tenant_id, project_id, risk_id)
+        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.RISK_VIEW)
+        return stored
 
     def risk_history(
         self,
@@ -80,8 +81,9 @@ class RiskApplicationService:
         risk_id: str,
         context: AuthorizationContext,
     ) -> tuple[RiskAuditEvent, ...]:
-        self._check(context, tenant_id, project_id, Permission.PROJECT_READ)
-        self.store.get_risk(tenant_id, project_id, risk_id)
+        self._check(context, tenant_id, project_id, Permission.RISK_VIEW)
+        stored = self.store.get_risk(tenant_id, project_id, risk_id)
+        self._require_wbs_access(tenant_id, project_id, stored.risk.wbs_id, context, Permission.RISK_VIEW)
         return self.store.risk_history(tenant_id, project_id, risk_id)
 
     # -- writes -----------------------------------------------------------
@@ -94,7 +96,10 @@ class RiskApplicationService:
         actor_id: str,
         occurred_at: datetime,
     ) -> StoredRisk:
-        self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id)
+        self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id, Permission.RISK_ADD_EDIT)
+        if self.wbs_access_repository is not None and not risk.wbs_id:
+            raise RiskAuthorizationError("RISK_WBS_REQUIRED")
+        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_ADD_EDIT)
         with self.transaction_manager.transaction():
             return self.store.create_risk(
                 risk,
@@ -113,7 +118,12 @@ class RiskApplicationService:
         occurred_at: datetime,
         reason: str = "",
     ) -> StoredRisk:
-        self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id)
+        self._authorize_write(risk.tenant_id, risk.project_id, context, actor_id, Permission.RISK_EDIT)
+        current = self.store.get_risk(risk.tenant_id, risk.project_id, risk.risk_id)
+        if self.wbs_access_repository is not None and not risk.wbs_id:
+            raise RiskAuthorizationError("RISK_WBS_REQUIRED")
+        self._require_wbs_access(risk.tenant_id, risk.project_id, current.risk.wbs_id, context, Permission.RISK_EDIT)
+        self._require_wbs_access(risk.tenant_id, risk.project_id, risk.wbs_id, context, Permission.RISK_EDIT)
         with self.transaction_manager.transaction():
             return self.store.update_risk(
                 risk,
@@ -135,7 +145,9 @@ class RiskApplicationService:
         occurred_at: datetime,
         reason: str = "",
     ) -> None:
-        self._authorize_write(tenant_id, project_id, context, actor_id)
+        self._authorize_write(tenant_id, project_id, context, actor_id, Permission.RISK_DELETE)
+        current = self.store.get_risk(tenant_id, project_id, risk_id)
+        self._require_wbs_access(tenant_id, project_id, current.risk.wbs_id, context, Permission.RISK_DELETE)
         with self.transaction_manager.transaction():
             self.store.delete_risk(
                 tenant_id=tenant_id,
@@ -148,6 +160,27 @@ class RiskApplicationService:
             )
 
     # -- helpers ----------------------------------------------------------
+
+    def _can_access_wbs(
+        self, tenant_id: str, project_id: str, wbs_id: str | None,
+        context: AuthorizationContext, permission: Permission,
+    ) -> bool:
+        if wbs_id is None or self.wbs_access_repository is None:
+            return True
+        checker = getattr(self.wbs_access_repository, "has_wbs_permission", None)
+        if not callable(checker):
+            return False
+        return bool(checker(
+            BackendScope(tenant_id, project_id, 1), context.user_id, wbs_id, permission.value
+        ))
+
+    def _require_wbs_access(
+        self, tenant_id: str, project_id: str, wbs_id: str | None,
+        context: AuthorizationContext, permission: Permission,
+    ) -> None:
+        if not self._can_access_wbs(tenant_id, project_id, wbs_id, context, permission):
+            raise RiskAuthorizationError("RISK_WBS_OBS_ACCESS_DENIED")
+
     def _check(
         self,
         context: AuthorizationContext,
@@ -166,10 +199,11 @@ class RiskApplicationService:
         project_id: str,
         context: AuthorizationContext,
         actor_id: str,
+        permission: Permission,
     ) -> None:
         if actor_id != context.user_id:
             raise RiskAuthorizationError("RISK_ACTOR_MISMATCH")
-        self._check(context, tenant_id, project_id, Permission.PROJECT_WRITE)
+        self._check(context, tenant_id, project_id, permission)
 
     @staticmethod
     def error_dto(exc: Exception) -> APIError:

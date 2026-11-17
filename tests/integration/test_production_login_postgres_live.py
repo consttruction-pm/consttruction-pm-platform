@@ -16,6 +16,7 @@ import io
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,10 @@ from construction_pm.deployment.production_runtime import (
     ProductionSettings,
 )
 from construction_pm.identity_session import IdentityUser, PostgresIdentityStore, hash_password
+from construction_pm.enterprise_project_access import (
+    PostgresProjectAccessRepository, ProjectSecurityProfile, UserOBSAssignment,
+)
+from construction_pm.p6_obs_repository import P6OBSApplicationService, P6OBSNode, PostgresP6OBSRepository
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("CONSTRUCTION_PM_POSTGRES_DSN"),
@@ -103,16 +108,52 @@ def runtime() -> ProductionRuntime:
         store = PostgresIdentityStore(connection)
         for user in users.values():
             store.upsert_user(user)
-        for tenant, project, name in (
-            (tenant_a, project_a, "Authorized Project"),
-            (tenant_b, project_b, "Other Tenant Project"),
+        now = datetime.now(timezone.utc)
+        obs_repo = PostgresP6OBSRepository(connection)
+        obs_repo.initialize()
+        obs_service = P6OBSApplicationService(obs_repo)
+        obs_a = f"obs-root-a-{suffix}"
+        obs_b = f"obs-root-b-{suffix}"
+        obs_service.save(P6OBSNode(tenant_a, obs_a, None, "ROOT-A", "Tenant A root", users["admin"].user_id, 1))
+        obs_service.save(P6OBSNode(tenant_b, obs_b, None, "ROOT-B", "Tenant B root", users["outsider"].user_id, 1))
+
+        for tenant, project, name, obs_id in (
+            (tenant_a, project_a, "Authorized Project", obs_a),
+            (tenant_b, project_b, "Other Tenant Project", obs_b),
         ):
             connection.execute(
                 "INSERT INTO project_lifecycle_projects "
-                "(tenant_id, project_id, name) VALUES (%s, %s, %s) "
+                "(tenant_id, project_id, name, obs_id) VALUES (%s, %s, %s, %s) "
                 "ON CONFLICT (tenant_id, project_id) DO NOTHING",
-                (tenant, project, name),
+                (tenant, project, name, obs_id),
             )
+
+        access = PostgresProjectAccessRepository(connection)
+        access.initialize()
+        profiles = {
+            "admin": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
+            "viewer": ("viewer-profile", ("project.read",)),
+            "planner": ("planner-profile", ("project.read", "project.write", "project.schedule")),
+            "outsider": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
+            "unentitled": ("admin-profile", ("project.read", "project.write", "project.schedule", "project.admin")),
+        }
+        created_profiles: set[tuple[str, str]] = set()
+        for key, (profile_id, permissions) in profiles.items():
+            user = users[key]
+            profile_key = (user.tenant_id, profile_id)
+            if profile_key not in created_profiles:
+                profile = ProjectSecurityProfile(
+                    user.tenant_id, profile_id, profile_id.replace("-", " ").title(),
+                    permissions, True, 1, now,
+                )
+                access.create_profile(profile, user.user_id)
+                created_profiles.add(profile_key)
+            access.assign_user_obs(UserOBSAssignment(
+                user.tenant_id, user.user_id,
+                obs_a if user.tenant_id == tenant_a else obs_b,
+                profile_id, True, 1, user.user_id, now,
+            ))
+
         for user in users.values():
             connection.execute(
                 "INSERT INTO project_lifecycle_memberships "

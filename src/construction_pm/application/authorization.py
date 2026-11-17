@@ -14,6 +14,36 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    PROJECT_COSTS_VIEW = "project.view_costs_financials"
+    # P6 V26 project-security capabilities used at operation boundaries.
+    ACTIVITY_VIEW = "activity.view"
+    ACTIVITY_ADD_EDIT = "activity.add_edit"
+    ACTIVITY_EDIT = "activity.edit"
+    ACTIVITY_DELETE = "activity.delete"
+    ACTIVITY_RELATIONSHIP_MANAGE = "activity.relationship.add_edit_delete"
+    ISSUE_VIEW = "issue.view"
+    ISSUE_ADD_EDIT = "issue.add_edit"
+    ISSUE_EDIT = "issue.edit"
+    ISSUE_DELETE = "issue.delete"
+    EXPENSE_VIEW = "expense.view"
+    EXPENSE_ADD_EDIT = "expense.add_edit"
+    RISK_VIEW = "risk.view"
+    RISK_ADD_EDIT = "risk.add_edit"
+    RISK_EDIT = "risk.edit"
+    RISK_DELETE = "risk.delete"
+    THRESHOLD_VIEW = "threshold.view"
+    THRESHOLD_ADD_EDIT = "threshold.add_edit"
+    THRESHOLD_EDIT = "threshold.edit"
+    THRESHOLD_DELETE = "threshold.delete"
+    THRESHOLD_MONITOR = "threshold.monitor"
+    BASELINE_VIEW = "baseline.view"
+    BASELINE_CREATE_UPDATE = "baseline.create_update"
+    BASELINE_ASSIGN = "baseline.assign"
+    BASELINE_UPDATE = "baseline.update"
+    WBS_VIEW = "wbs.view"
+    WBS_EDIT = "wbs.edit"
+    WBS_ADD_EDIT = "wbs.add_edit"
+    WBS_DELETE = "wbs.delete"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -65,10 +95,46 @@ class RoleBasedAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
-        return any(
-            permission in self._role_permissions.get(role, frozenset())
-            for role in context.roles
-        )
+        # Application roles remain coarse organizational guardrails. The
+        # EnterpriseProjectAuthorizationPolicy separately requires the exact
+        # granular P6 project-profile grant (or an explicit legacy grant).
+        role_grants = frozenset().union(*(
+            self._role_permissions.get(role, frozenset()) for role in context.roles
+        ))
+        if permission in role_grants:
+            return True
+        legacy_guardrail = {
+            Permission.ACTIVITY_VIEW: Permission.PROJECT_READ,
+            Permission.ACTIVITY_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_EDIT: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_DELETE: Permission.PROJECT_WRITE,
+            Permission.ACTIVITY_RELATIONSHIP_MANAGE: Permission.PROJECT_WRITE,
+            Permission.ISSUE_VIEW: Permission.PROJECT_READ,
+            Permission.ISSUE_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_EDIT: Permission.PROJECT_WRITE,
+            Permission.ISSUE_DELETE: Permission.PROJECT_WRITE,
+            Permission.EXPENSE_VIEW: Permission.PROJECT_READ,
+            Permission.EXPENSE_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.RISK_VIEW: Permission.PROJECT_READ,
+            Permission.RISK_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.RISK_EDIT: Permission.PROJECT_WRITE,
+            Permission.RISK_DELETE: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_VIEW: Permission.PROJECT_READ,
+            Permission.THRESHOLD_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_EDIT: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_DELETE: Permission.PROJECT_WRITE,
+            Permission.THRESHOLD_MONITOR: Permission.PROJECT_WRITE,
+            Permission.BASELINE_VIEW: Permission.PROJECT_READ,
+            Permission.BASELINE_CREATE_UPDATE: Permission.PROJECT_WRITE,
+            Permission.BASELINE_ASSIGN: Permission.PROJECT_WRITE,
+            Permission.BASELINE_UPDATE: Permission.PROJECT_WRITE,
+            Permission.PROJECT_COSTS_VIEW: Permission.PROJECT_READ,
+            Permission.WBS_VIEW: Permission.PROJECT_READ,
+            Permission.WBS_EDIT: Permission.PROJECT_WRITE,
+            Permission.WBS_ADD_EDIT: Permission.PROJECT_WRITE,
+            Permission.WBS_DELETE: Permission.PROJECT_WRITE,
+        }.get(permission)
+        return legacy_guardrail in role_grants if legacy_guardrail is not None else False
 
     def require(self, context: AuthorizationContext, permission: Permission) -> None:
         if not self.is_allowed(context, permission):

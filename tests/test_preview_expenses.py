@@ -40,7 +40,7 @@ def _expense(**overrides):
         "name": "Concrete pump rental",
         "category": "Equipment",
         "activity_id": "A100",
-        "wbs_id": None,
+        "wbs_id": "WBS-RPS-PM",
         "expense_date": "2026-10-01",
         "planned_cost": "1250.50",
         "actual_cost": None,

@@ -56,18 +56,18 @@ class P6BaselineAPI:
 
     def create(self, baseline: P6Baseline, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(baseline.scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_permission(self.authorization_policy, auth_context, Permission.BASELINE_CREATE_UPDATE)
         return _dto(self.service.save(baseline))
 
     def get(self, scope: BackendScope, baseline_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.BASELINE_VIEW)
         result = self.service.read(scope, baseline_id)
         return None if result is None else _dto(result)
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
-        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        _require_permission(self.authorization_policy, auth_context, Permission.BASELINE_VIEW)
         return tuple(_dto(item) for item in self.service.list(scope))
 
 

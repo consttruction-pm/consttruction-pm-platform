@@ -87,7 +87,11 @@ def test_administration_defaults_matrix_and_viewer_read(tmp_path: Path) -> None:
         assert "project.admin" not in roles["planner"]
         assert "form.approve" in roles["project_admin"]
         assert matrix["permissions"] == sorted(matrix["permissions"])
-        assert len(matrix["permissions"]) == 19
+        assert len(matrix["permissions"]) == 48
+        assert {
+            "activity.view", "activity.add_edit", "activity.edit",
+            "activity.delete", "activity.relationship.add_edit_delete",
+        }.issubset(matrix["permissions"])
     finally:
         runtime.close()
 

@@ -103,6 +103,7 @@ function input(overrides: Partial<ThresholdInput> = {}): ThresholdInput {
     warningLevel: "10",
     issueLevel: "50",
     responsibleManager: "preview-planner",
+    responsibleObsId: null,
     status: "active",
     ...overrides,
   };
@@ -128,6 +129,7 @@ test("threshold list reads the p6-threshold-api contract and carries filters", a
     warningLevel: "10",
     issueLevel: "50",
     responsibleManager: "preview-planner",
+    responsibleObsId: null,
     status: "active",
     revision: 2,
   }]);
@@ -192,6 +194,7 @@ test("threshold payload trims fields and serializes decimal text", () => {
       warning_level: "10",
       issue_level: "50",
       responsible_manager: "preview-planner",
+      responsible_obs_id: null,
       status: "active",
     },
   );
@@ -215,6 +218,7 @@ test("threshold payload trims fields and serializes decimal text", () => {
       warning_level: "1",
       issue_level: "3",
       responsible_manager: "preview-planner",
+      responsible_obs_id: null,
       status: "active",
     },
   );
