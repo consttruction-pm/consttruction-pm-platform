@@ -290,7 +290,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     }).join("");
     const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
     const selectedProfileIsBuiltIn = selectedProfile !== null && [
-      "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser",
+      "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser", "p6-default-project-readonly",
     ].includes(selectedProfile.profile_id);
     const profileOptions = profiles.map((profile) =>
       `<option value="${escapeHtml(profile.profile_id)}" ${profile.profile_id === selectedProfileId ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(profile.scope)}${profile.is_default ? " · " + escapeHtml(t.profileDefault) : ""}</option>`
@@ -424,10 +424,11 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <button class="cubi-oa-button" type="submit" ${busy ? "disabled" : ""}>${t.saveProfileDetails}</button>
             </form>`}
             <div class="cubi-oa-actions">
-              ${selectedProfile && (!selectedProfileIsBuiltIn || selectedProfile.profile_id === "p6-no-global-privileges")
-                && (selectedProfile.scope !== "global" || !selectedProfile.is_default)
-                && (selectedProfile.profile_id !== "p6-no-global-privileges" || !selectedProfile.is_default)
-                ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile.is_default}" ${busy || selectedProfile.active !== true ? "disabled" : ""}>${selectedProfile.is_default ? t.profileClearDefault : t.profileSetDefault}</button>`
+              ${selectedProfile && (!selectedProfileIsBuiltIn
+                || selectedProfile.profile_id === "p6-no-global-privileges"
+                || selectedProfile.profile_id === "p6-default-project-readonly")
+                && !selectedProfile.is_default
+                ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="false" ${busy || selectedProfile.active !== true ? "disabled" : ""}>${t.profileSetDefault}</button>`
                 : ""}
               ${!selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-duplicate="true" ${busy ? "disabled" : ""}>${t.profileDuplicate}</button>
               <button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-delete="true" ${busy || profileAssignments.length > 0 ? "disabled" : ""}>${t.profileDelete}</button>` : ""}
@@ -459,7 +460,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             </form>` : ""}
             ${canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
-              ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><input id="cubi-oa-profile-obs" name="obs_id" required></div>` : ""}
+              ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><select id="cubi-oa-profile-obs" name="obs_id" required><option value="">—</option>${obsOptions}</select></div>` : ""}
               <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
               <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
             </form>` : `<p class="cubi-oa-note">${t.userAdminRequired}</p>`}
