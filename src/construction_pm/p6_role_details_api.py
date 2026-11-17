@@ -19,6 +19,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_resource_master_repository import P6ResourceRepository
 from .p6_resource_access import require_resource_access, resource_is_accessible
 from .p6_role_dictionary_repository import (
@@ -263,6 +264,7 @@ class P6RoleDetailsAPI:
     ) -> dict[str, Any]:
         role_id = _identifier(role_id, "INVALID_ROLE_ID")
         self._write_scope(tenant_id, project_id, project_revision, role_id, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_role_assignments_resource_planning")
         resource_id = _identifier(resource_id, "INVALID_ROLE_RESOURCE_ID")
         resource = self.resources.get(tenant_id, project_id, project_revision, resource_id)
         if resource is None:
@@ -309,6 +311,7 @@ class P6RoleDetailsAPI:
         role_id = _identifier(role_id, "INVALID_ROLE_ID")
         resource_id = _identifier(resource_id, "INVALID_ROLE_RESOURCE_ID")
         self._write_scope(tenant_id, project_id, project_revision, role_id, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_role_assignments_resource_planning")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise ValueError("INVALID_EXPECTED_REVISION")
         require_resource_access(
