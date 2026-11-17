@@ -222,3 +222,38 @@ def test_project_superuser_cannot_be_defaulted_or_duplicated_by_profile_admin():
             "tenant-a", builtin.profile_id, new_profile_id="copy", new_name="Copy",
             actor_id="admin-user",
         )
+
+
+def test_project_creation_privilege_resolves_from_target_obs_before_project_exists():
+    from datetime import datetime, timezone
+    from construction_pm.application.authorization import AuthorizationContext
+    from construction_pm.p6_global_security import (
+        GlobalSecurityProfile, UserGlobalSecurity, P6GlobalSecurityAuthorizationPolicy,
+    )
+
+    _, project_repo = setup_repository()
+    create_profile = P6ProjectSecurityProfile(
+        "tenant-a", "profile-create", "Project Creator", ("add_projects",)
+    )
+    project_repo.save_profile(create_profile, actor_id="admin-user")
+    project_repo.assign_obs(
+        P6OBSProjectGrant("tenant-a", "creator", "OBS-ROOT", "profile-create"),
+        actor_id="admin-user",
+    )
+    global_profile = GlobalSecurityProfile("tenant-a", "global-projects", "Projects", ())
+    global_assignment = UserGlobalSecurity(
+        "tenant-a", "creator", "global-projects", ("projects",), "none", (),
+        1, "admin-user", datetime.now(timezone.utc),
+    )
+    class GlobalRepository:
+        def get_user_security(self, tenant_id, user_id):
+            return global_assignment if (tenant_id, user_id) == ("tenant-a", "creator") else None
+        def get_profile(self, tenant_id, profile_id):
+            return global_profile if (tenant_id, profile_id) == ("tenant-a", "global-projects") else None
+
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        GlobalRepository(), object(), obs_project_access=project_repo
+    )
+    auth = AuthorizationContext("tenant-a", "new-project-not-created-yet", "creator", frozenset())
+    policy.require_project_privilege_for_obs(auth, "OBS-CIVIL", "add_projects")
+    assert not policy.has_project_privilege_for_obs(auth, "OBS-CIVIL", "delete_projects")
