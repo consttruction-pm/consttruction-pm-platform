@@ -1016,9 +1016,9 @@ class P6GlobalSecurityAuthorizationPolicy:
                 return self._has_authoritative_obs_project_access(context, permission)
             # A CUBI role is not a substitute for P6 OBS project assignment.
             has_project_access = getattr(self._obs_project_access, "has_project_access", None)
-            if callable(has_project_access) and not has_project_access(
-                context.tenant_id, context.user_id, context.project_id
-            ):
+            if not callable(has_project_access):
+                return False
+            if not has_project_access(context.tenant_id, context.user_id, context.project_id):
                 return False
             # V26 project visibility is conferred by the OBS + Project Security
             # Profile assignment; CUBI project roles are not a second read gate.
