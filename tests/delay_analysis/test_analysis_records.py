@@ -145,3 +145,60 @@ def test_reusing_idempotency_key_with_different_payload_is_rejected():
     )
     with pytest.raises(DelayAnalysisRecordError, match="CASE_IDEMPOTENCY_CONFLICT"):
         repository.create_case(conflicting)
+
+
+@pytest.fixture(scope="module")
+def postgres_dsn():
+    import os
+    value = os.getenv("P6_TEST_POSTGRES_DSN")
+    if not value:
+        pytest.skip("P6_TEST_POSTGRES_DSN is not configured")
+    return value
+
+
+def test_postgres_analysis_records_round_trip_and_append_only(postgres_dsn):
+    psycopg = pytest.importorskip("psycopg")
+    from uuid import uuid4
+    from construction_pm.delay_analysis.analysis_records import PostgresDelayAnalysisRecordRepository
+
+    suffix = uuid4().hex
+    scope = BackendScope(f"T-{suffix}", f"P-{suffix}", 1)
+    now = NOW
+    case = DelayAnalysisCase(
+        scope=scope, case_id=f"CASE-{suffix}", idempotency_key=f"REQ-{suffix}",
+        request_hash=HASH_A, created_by="analyst", created_at=now,
+    )
+    revision = DelayAnalysisRevision(
+        scope=scope, case_id=case.case_id, revision=1, revision_key=f"REV-{suffix}",
+        method="P6_EPPM_STYLE_INSERTED_FRAGNET_WHAT_IF",
+        baseline_snapshot_id="SOURCE", baseline_snapshot_hash=HASH_A,
+        baseline_data_date=date(2026, 11, 10),
+        current_snapshot_id="IMPACTED", current_snapshot_hash=HASH_B,
+        current_data_date=date(2026, 11, 17),
+        data_date_basis="APPROVED_CONTEMPORANEOUS_UPDATE",
+        data_date_rationale="Approved update evidence linked.",
+        statused_update_evidence_hash=HASH_C,
+        event_evidence_manifest_hash=HASH_B,
+        result_hash=HASH_A, created_by="analyst", created_at=now,
+    )
+    connection = psycopg.connect(postgres_dsn)
+    try:
+        repository = PostgresDelayAnalysisRecordRepository(connection)
+        repository.initialize()
+        repository.create_case(case)
+        repository.append_revision(revision)
+        assert repository.list_revisions(scope, case.case_id) == (revision,)
+        repository.record_review(DelayAnalysisReview(
+            scope=scope, case_id=case.case_id, revision=1, reviewer_id="reviewer",
+            decision="APPROVE", rationale="Independent review completed.", reviewed_at=now,
+        ))
+        assert repository.is_review_approved(scope, case.case_id, 1)
+        with pytest.raises(psycopg.errors.RaiseException, match="APPEND_ONLY_DELAY_ANALYSIS_RECORD"):
+            connection.execute(
+                "UPDATE eng_delay_analysis_revision SET payload_json='{}' "
+                "WHERE tenant_id=%s AND project_id=%s AND case_id=%s AND revision=1",
+                (scope.tenant_id, scope.project_id, case.case_id),
+            )
+    finally:
+        connection.rollback()
+        connection.close()
