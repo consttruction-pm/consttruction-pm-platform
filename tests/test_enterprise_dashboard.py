@@ -413,6 +413,21 @@ def test_decision_status_and_freshness_filters_suppress_nonmatching_data():
     assert result["portlets"][0]["filtered_out"] is True
     assert result["portlets"][0]["data"] is None
 
+    unsupported_service, _, _, _ = make_service()
+    unsupported_created = unsupported_service.create_dashboard(
+        "alice-session",
+        create_payload(
+            portlets=[decision_portlet()],
+            filters=[{"key": "project_status", "operator": "eq", "value": "active"}],
+        ),
+        idempotency_key="unsupported-decision-filter",
+    )
+    unsupported = unsupported_service.read_portlets(
+        "alice-session", unsupported_created.dashboard.dashboard_id
+    )
+    assert unsupported["portlets"][0]["filtered_out"] is True
+    assert unsupported["portlets"][0]["data"] is None
+
     stale_service, _, _, _ = make_service(
         source=FakePortfolioQuery(snapshot(generated_at=NOW - timedelta(days=3)))
     )
@@ -645,6 +660,23 @@ def test_portfolio_decision_portlet_reauthorizes_affected_projects_and_preserves
     lifecycle.project_grants.remove(("alice-session", "project-1"))
     with pytest.raises(EnterpriseDashboardAuthorizationError):
         service.read_portlets("alice-session", created.dashboard.dashboard_id)
+
+
+def test_missing_portfolio_decision_source_is_explicitly_missing():
+    class MissingDecision:
+        def get(self, request, *, auth_context):
+            raise KeyError("PORTFOLIO_DECISION_NOT_FOUND")
+
+    service, _, _, _ = make_service(decision_api=MissingDecision())
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(portlets=[decision_portlet()]),
+        idempotency_key="missing-decision-dashboard",
+    )
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert result["portlets"][0]["freshness_state"] == "missing"
+    assert result["portlets"][0]["data"] is None
+    assert result["portlets"][0]["filtered_out"] is False
 
 
 def test_portfolio_context_creation_requires_authorized_source_scope():
