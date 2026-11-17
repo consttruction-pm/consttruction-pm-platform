@@ -11,7 +11,7 @@ from construction_pm.p6_global_security import (
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
     user_has_all_resource_access,
-    user_can_access_resource,
+    user_can_access_resource,\n    global_profile_allows_secure_code_action,\n    global_profile_can_view_secure_code,\n    global_profile_can_assign_secure_code,\n    global_profile_can_edit_secure_code,\n    global_profile_can_add_delete_secure_code,
     P6_GLOBAL_PRIVILEGE_DEFINITIONS,
     normalize_global_privileges,
 )
@@ -445,3 +445,46 @@ def test_v26_resource_access_fails_closed_for_tenant_identity_and_ancestry_misma
         resource_id="resource-child",
         ancestor_resource_ids=("resource-root",),
     )
+
+
+@pytest.mark.parametrize(
+    ("privileges", "action", "expected"),
+    [
+        (("secure_codes_view",), "view", True),
+        (("secure_codes_assign", "secure_codes_view"), "assign", True),
+        (("secure_codes_edit", "secure_codes_assign", "secure_codes_view"), "edit", True),
+        (("secure_codes_add_delete", "secure_codes_edit", "secure_codes_assign", "secure_codes_view"), "add_delete", True),
+        (("secure_codes_assign", "secure_codes_view"), "edit", False),
+        ((), "view", False),
+    ],
+)
+def test_v26_secure_code_actions_require_the_exact_normalized_global_privilege(
+    privileges, action, expected
+):
+    custom = profile("Codes", built_in=False, privileges=privileges)
+    assert global_profile_allows_secure_code_action(custom, action) is expected
+
+
+def test_v26_secure_code_builtin_profile_exceptions_and_unknown_action_fail_closed():
+    assert global_profile_can_view_secure_code(profile(ADMIN_SUPERUSER))
+    assert global_profile_can_assign_secure_code(profile(ADMIN_SUPERUSER))
+    assert not global_profile_can_view_secure_code(profile(NO_GLOBAL_PRIVILEGES))
+    assert not global_profile_allows_secure_code_action(
+        profile("Codes", built_in=False), "export_all"
+    )
+    inactive = GlobalSecurityProfile(
+        "tenant-a", "codes", "Codes", ("secure_codes_view",), False, False, 1
+    )
+    assert not global_profile_can_view_secure_code(inactive)
+
+
+def test_v26_secure_code_action_shortcuts_match_named_predicates():
+    custom = profile(
+        "Codes", built_in=False,
+        privileges=("secure_codes_add_delete", "secure_codes_edit",
+                    "secure_codes_assign", "secure_codes_view"),
+    )
+    assert global_profile_can_view_secure_code(custom)
+    assert global_profile_can_assign_secure_code(custom)
+    assert global_profile_can_edit_secure_code(custom)
+    assert global_profile_can_add_delete_secure_code(custom)
