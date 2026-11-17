@@ -747,7 +747,8 @@
         "data",
         "drill_through_refs",
         "saved_filters",
-        "filtered_out"
+        "filtered_out",
+        "applied_filters"
       ],
       "properties": {
         "instance_id": {
@@ -840,6 +841,29 @@
         },
         "filtered_out": {
           "type": "boolean"
+        },
+        "applied_filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "operator": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {}
+            }
+          }
         }
       }
     },
