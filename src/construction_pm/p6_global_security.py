@@ -593,7 +593,7 @@ class PostgresP6GlobalSecurityRepository:
 
     @staticmethod
     def _require_remaining_admin_superuser(admin_count: int) -> None:
-        if admin_count <= 1:
+        if admin_count < 1:
             raise GlobalSecurityError("LAST_ADMIN_SUPERUSER_REQUIRED")
 
     def assign_user_security(self, assignment: UserGlobalSecurity, *,
