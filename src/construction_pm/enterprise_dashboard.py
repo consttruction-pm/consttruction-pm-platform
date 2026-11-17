@@ -81,6 +81,8 @@ _FILTER_RULES: Mapping[str, tuple[str, frozenset[str] | None]] = {
     "generated_after": ("datetime", None),
     "generated_before": ("datetime", None),
     "include_stale": ("boolean", None),
+    "portfolio_id": ("text", None),
+    "project_id": ("text_list", None),
 }
 
 
@@ -118,12 +120,13 @@ class DashboardLayout:
             if isinstance(value, bool) or not isinstance(value, int):
                 raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_LAYOUT")
         if (
-            self.x < 0
+            self.x not in {0, 6}
             or self.y < 0
-            or self.w < 1
+            or self.w not in {6, 12}
             or self.h < 1
             or self.x + self.w > DASHBOARD_GRID_COLUMNS
             or self.y + self.h > DASHBOARD_GRID_ROWS
+            or (self.x == 6 and self.w != 6)
         ):
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_LAYOUT_OUT_OF_BOUNDS")
 
@@ -221,6 +224,19 @@ class DashboardFilter:
                     raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE")
             else:
                 raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_OPERATOR")
+        elif value_type in {"text", "text_list"}:
+            expected_operators = {"eq"} if value_type == "text" else {"eq", "in"}
+            if self.operator not in expected_operators:
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_OPERATOR")
+            if value_type == "text" or self.operator == "eq":
+                _required_text(self.value, "FILTER_VALUE")
+            elif (
+                not isinstance(self.value, (tuple, list))
+                or not self.value
+                or any(not isinstance(item, str) or not item.strip() for item in self.value)
+                or len(set(self.value)) != len(self.value)
+            ):
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE")
         elif value_type == "datetime":
             expected_operator = "gte" if self.key == "generated_after" else "lte"
             if self.operator != expected_operator or not isinstance(self.value, str):
@@ -266,6 +282,7 @@ class EnterpriseDashboard:
     revision: int
     created_at: datetime
     updated_at: datetime | None = None
+    restrict_filter_override: bool = False
 
     def validate(self) -> None:
         for name, value in (
@@ -287,8 +304,10 @@ class EnterpriseDashboard:
             raise EnterpriseDashboardError("UNEXPECTED_ENTERPRISE_DASHBOARD_PORTFOLIO_CONTEXT")
         if not isinstance(self.status, str) or self.status not in {"active", "archived"}:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_STATUS")
-        if not isinstance(self.visibility, str):
+        if not isinstance(self.visibility, str) or self.visibility not in {"private", "users", "roles", "users_and_roles", "global"}:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_VISIBILITY")
+        if not isinstance(self.restrict_filter_override, bool):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_OVERRIDE_POLICY")
         if not isinstance(self.shared_user_ids, tuple) or not isinstance(self.shared_role_ids, tuple):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARES")
         for user_id in self.shared_user_ids:
@@ -302,7 +321,9 @@ class EnterpriseDashboard:
         if len(set(self.shared_role_ids)) != len(self.shared_role_ids):
             raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_ROLE_SHARE")
         expected_visibility = (
-            "users_and_roles"
+            "global"
+            if self.visibility == "global" and not self.shared_user_ids and not self.shared_role_ids
+            else "users_and_roles"
             if self.shared_user_ids and self.shared_role_ids
             else "users"
             if self.shared_user_ids
@@ -330,6 +351,15 @@ class EnterpriseDashboard:
             if portlet.instance_id in seen:
                 raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_PORTLET_INSTANCE")
             seen.add(portlet.instance_id)
+        for index, left in enumerate(self.portlets):
+            for right in self.portlets[index + 1:]:
+                a, b = left.layout, right.layout
+                overlaps = (
+                    a.x < b.x + b.w and b.x < a.x + a.w
+                    and a.y < b.y + b.h and b.y < a.y + a.h
+                )
+                if overlaps:
+                    raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_LAYOUT_OVERLAP")
         if not isinstance(self.filters, tuple) or len(self.filters) > 20:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_FILTER_COUNT_INVALID")
         filter_keys: set[str] = set()
@@ -339,6 +369,8 @@ class EnterpriseDashboard:
             item.validate()
             if item.key in filter_keys:
                 raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_FILTER")
+            if item.key == "portfolio_id" and self.context == "portfolio" and item.value != self.context_portfolio_id:
+                raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_FILTER_PORTFOLIO_CONTEXT_MISMATCH")
             filter_keys.add(item.key)
 
     def as_dict(self) -> dict[str, object]:
@@ -361,6 +393,7 @@ class EnterpriseDashboard:
             "revision": self.revision,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "restrict_filter_override": self.restrict_filter_override,
         }
 
     @classmethod
@@ -369,6 +402,7 @@ class EnterpriseDashboard:
             "contract_version", "dashboard_id", "tenant_id", "context", "context_portfolio_id",
             "owner_user_id", "title", "description", "status", "visibility", "shared_user_ids",
             "shared_role_ids", "portlets", "filters", "revision", "created_at", "updated_at",
+            "restrict_filter_override",
         }
         if not isinstance(value, Mapping) or set(value) != required:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FIELDS")
@@ -416,6 +450,7 @@ class EnterpriseDashboard:
             revision=value["revision"],
             created_at=created_at,
             updated_at=updated_at,
+            restrict_filter_override=value["restrict_filter_override"],
         )
         dashboard.validate()
         return dashboard
