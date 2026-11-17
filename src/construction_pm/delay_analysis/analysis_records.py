@@ -244,6 +244,15 @@ class _SQLDelayAnalysisRecordRepository:
         case = self.get_case(revision.scope, revision.case_id)
         if case is None:
             raise DelayAnalysisRecordError("ANALYSIS_CASE_NOT_FOUND")
+        existing_revision = self.connection.execute(self._q("""
+            SELECT payload_json FROM eng_delay_analysis_revision
+            WHERE tenant_id=? AND project_id=? AND case_id=? AND revision_key=?
+        """), (revision.scope.tenant_id, revision.scope.project_id, revision.case_id, revision.revision_key)).fetchone()
+        payload = _revision_payload(revision)
+        if existing_revision is not None:
+            if existing_revision[0] != payload:
+                raise DelayAnalysisRecordError("ANALYSIS_REVISION_IDEMPOTENCY_CONFLICT")
+            return revision
         rows = self.connection.execute(self._q("""
             SELECT revision FROM eng_delay_analysis_revision
             WHERE tenant_id=? AND project_id=? AND case_id=? ORDER BY revision
@@ -251,7 +260,6 @@ class _SQLDelayAnalysisRecordRepository:
         expected = (int(rows[-1][0]) + 1) if rows else 1
         if revision.revision != expected:
             raise DelayAnalysisRecordError("ANALYSIS_REVISION_SEQUENCE_CONFLICT")
-        payload = _revision_payload(revision)
         inserted = self.connection.execute(self._q("""
             INSERT INTO eng_delay_analysis_revision
             (tenant_id,project_id,case_id,revision,revision_key,payload_json,author_id,created_at)
@@ -303,6 +311,8 @@ class _SQLDelayAnalysisRecordRepository:
         """), (scope.tenant_id, scope.project_id, case_id)).fetchone()
         if row is None:
             return None
+        if int(row[0]) != scope.project_revision:
+            raise DelayAnalysisRecordError("PROJECT_REVISION_SCOPE_CONFLICT")
         return DelayAnalysisCase(scope, row[1], row[2], row[3], row[4],
                                  datetime.fromisoformat(row[5]))
 
@@ -325,7 +335,7 @@ class _SQLDelayAnalysisRecordRepository:
 
 def _revision_payload(item: DelayAnalysisRevision) -> str:
     return _json({
-        "revision": item.revision, "revision_key": item.revision_key, "method": item.method,
+        "case_id": item.case_id, "revision": item.revision, "revision_key": item.revision_key, "method": item.method,
         "baseline_snapshot_id": item.baseline_snapshot_id,
         "baseline_snapshot_hash": item.baseline_snapshot_hash,
         "baseline_data_date": item.baseline_data_date.isoformat(),
