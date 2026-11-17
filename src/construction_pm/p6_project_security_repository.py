@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Callable, Protocol
 from uuid import uuid4
 
 from .p6_obs_repository import P6OBSRepository
@@ -132,6 +132,8 @@ class _ProjectSecurityRepositoryBase:
         grant.validate()
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
+        if not self.user_exists(grant.tenant_id, grant.user_id):
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_USER_NOT_FOUND")
         if not self.obs_repository.obs_node_exists(grant.tenant_id, grant.obs_id):
             raise P6ProjectSecurityPersistenceError("OBS_NODE_NOT_FOUND")
         profile_id = grant.profile_id.strip() or next((item.profile_id for item in self.list_profiles(grant.tenant_id) if item.is_default), "")
@@ -246,10 +248,13 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
     placeholders4 = "?,?,?,?"
     placeholders5 = "?,?,?,?,?"
 
-    def __init__(self, connection: sqlite3.Connection, *, project_obs_lookup, obs_repository: P6OBSRepository):
+    def __init__(self, connection: sqlite3.Connection, *, project_obs_lookup, obs_repository: P6OBSRepository, user_exists: Callable[[str, str], bool] | None = None):
         self.connection = connection
         self.project_obs_lookup = project_obs_lookup
         self.obs_repository = obs_repository
+        self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
+            "SELECT 1 FROM p6_user_global_security WHERE tenant_id=? AND user_id=?", (tenant, user)
+        ).fetchone() is not None)
         self.connection.executescript("""
         CREATE TABLE IF NOT EXISTS p6_project_security_profile (
           tenant_id TEXT NOT NULL, profile_id TEXT NOT NULL, name TEXT NOT NULL,
@@ -397,10 +402,13 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
     placeholders4 = "%s,%s,%s,%s"
     placeholders5 = "%s,%s,%s,%s,%s"
 
-    def __init__(self, connection, *, project_obs_lookup, obs_repository: P6OBSRepository):
+    def __init__(self, connection, *, project_obs_lookup, obs_repository: P6OBSRepository, user_exists: Callable[[str, str], bool] | None = None):
         self.connection = connection
         self.project_obs_lookup = project_obs_lookup
         self.obs_repository = obs_repository
+        self.user_exists = user_exists or (lambda tenant, user: self.connection.execute(
+            "SELECT 1 FROM p6_user_global_security WHERE tenant_id=%s AND user_id=%s", (tenant, user)
+        ).fetchone() is not None)
 
     def initialize(self):
         self.connection.execute("""
