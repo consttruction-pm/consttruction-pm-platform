@@ -323,7 +323,7 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     ALTER TABLE p6_security_profile_assignments
-    ADD COLUMN IF NOT EXISTS module_access JSONB NOT NULL DEFAULT '[]'::jsonb
+    ADD COLUMN IF NOT EXISTS module_access JSONB NOT NULL DEFAULT '["projects"]'::jsonb
     """,
     """
     ALTER TABLE p6_security_profile_assignments
@@ -332,6 +332,39 @@ SECURITY_PROFILE_SCHEMA = (
     """
     ALTER TABLE p6_security_profile_assignments
     ADD COLUMN IF NOT EXISTS resource_root_ids JSONB NOT NULL DEFAULT '[]'::jsonb
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ALTER COLUMN module_access SET DEFAULT '["projects"]'::jsonb
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS p6_security_profile_migrations (
+        migration_key TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL
+    )
+    """,
+    """
+    DO $cubi$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM p6_security_profile_migrations
+            WHERE migration_key='global-module-access-defaults-v1'
+        ) THEN
+            UPDATE p6_security_profile_assignments
+            SET module_access='["projects"]'::jsonb
+            WHERE obs_id='' AND module_access='[]'::jsonb
+              AND profile_id<>'p6-admin-superuser';
+            UPDATE p6_security_profile_assignments
+            SET module_access='["projects","portfolios","resources","enterprise_reports",'
+                '"integration_api","p6_analytics","p6_professional","team_member",'
+                '"timesheet","visualizer","web_services"]'::jsonb,
+                resource_access_mode='all',resource_root_ids='[]'::jsonb
+            WHERE obs_id='' AND profile_id='p6-admin-superuser';
+            INSERT INTO p6_security_profile_migrations(migration_key,applied_at)
+            VALUES('global-module-access-defaults-v1',now());
+        END IF;
+    END;
+    $cubi$
     """,
     """
     ALTER TABLE p6_security_profile_assignments
@@ -473,7 +506,7 @@ SECURITY_PROFILE_SCHEMA = (
              module_access,resource_access_mode,resource_root_ids)
         VALUES
             (NEW.tenant_id,default_profile_id,NEW.user_id,'',1,
-             'cubi-security-default',now(),'[]'::jsonb,'none','[]'::jsonb)
+             'cubi-security-default',now(),'["projects"]'::jsonb,'none','[]'::jsonb)
         ON CONFLICT DO NOTHING
         RETURNING profile_id INTO inserted_profile_id;
         IF inserted_profile_id IS NOT NULL THEN
@@ -687,7 +720,7 @@ def bootstrap_first_admin_superuser(
             "INSERT INTO p6_security_profile_assignments "
             "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
             "module_access,resource_access_mode,resource_root_ids) "
-            "VALUES (%s,%s,%s,'',1,'cubi-security-default',%s,'[]'::jsonb,'none','[]'::jsonb)",
+            "VALUES (%s,%s,%s,'',1,'cubi-security-default',%s,'[\"projects\"]'::jsonb,'none','[]'::jsonb)",
             (tenant_id, default_profile_id, existing_user_id, occurred_at),
         )
         connection.execute(
@@ -1523,7 +1556,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
             "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps) "
-            "SELECT p.scope,p.active,a.obs_id,p.profile_id "
+            "SELECT p.scope,p.active,a.obs_id,p.profile_id,a.module_access,a.resource_access_mode "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id "
             "AND p.profile_id=a.profile_id "
@@ -1541,6 +1574,20 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # requires an active Project profile assigned to the project's responsible
         # OBS. A project profile does not create project membership.
         if not any(bool(row[1]) for row in global_rows):
+            return False
+        module_rows = [row for row in global_rows if bool(row[1])]
+        module_access = module_rows[0][4] if module_rows else []
+        if isinstance(module_access, str):
+            module_access = json.loads(module_access)
+        module_access = set(module_access or ())
+        if permission in p6_project_permissions and "projects" not in module_access:
+            return False
+        if permission in {Permission.P6_RESOURCE_ADD, Permission.P6_RESOURCE_EDIT,
+                          Permission.P6_RESOURCE_DELETE}:
+            resource_mode = str(module_rows[0][5]) if module_rows else "none"
+            if "resources" not in module_access or resource_mode == "none":
+                return False
+        if permission == Permission.P6_ROLE_ADMIN and "resources" not in module_access:
             return False
         if (permission in p6_project_permissions and any(
             bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
@@ -1594,13 +1641,18 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if admin is not None:
             return True
         global_profile = self._connection.execute(
-            "SELECT 1 FROM p6_security_profile_assignments a "
+            "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
         ).fetchone()
         if global_profile is None:
+            return False
+        modules = global_profile[0]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if "projects" not in set(modules or ()):
             return False
         obs_rows = self._connection.execute(
             "WITH RECURSIVE eps_path(eps_id,parent_eps_id,responsible_obs_id,path) AS ("
@@ -1689,13 +1741,18 @@ class PostgresSecurityProfileAuthorizationPolicy:
             return True
 
         global_profile = self._connection.execute(
-            "SELECT 1 FROM p6_security_profile_assignments a "
+            "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
         ).fetchone()
         if global_profile is None:
+            return False
+        modules = global_profile[0]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if "projects" not in set(modules or ()):
             return False
 
         project_obs_rows = self._connection.execute(
