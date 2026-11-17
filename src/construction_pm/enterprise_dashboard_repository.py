@@ -41,7 +41,7 @@ class PostgresEnterpriseDashboardRepository:
     def initialize(self) -> None:
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            ("enterprise-dashboard-schema-v1",),
+            ("enterprise-dashboard-schema-v2",),
         )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS enterprise_dashboards (
@@ -105,6 +105,26 @@ class PostgresEnterpriseDashboardRepository:
                     REFERENCES enterprise_dashboards (tenant_id, dashboard_id)
                     ON DELETE RESTRICT
             )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS enterprise_dashboard_user_preferences (
+                tenant_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                dashboard_id TEXT NOT NULL,
+                displayed BOOLEAN NOT NULL DEFAULT TRUE,
+                display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+                filter_override_json JSONB,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (tenant_id, user_id, dashboard_id),
+                FOREIGN KEY (tenant_id, dashboard_id)
+                    REFERENCES enterprise_dashboards (tenant_id, dashboard_id)
+                    ON DELETE RESTRICT
+            )"""
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS enterprise_dashboard_user_preferences_order "
+            "ON enterprise_dashboard_user_preferences "
+            "(tenant_id, user_id, displayed, display_order, dashboard_id)"
         )
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS enterprise_dashboards_tenant_updated "
@@ -396,6 +416,120 @@ class PostgresEnterpriseDashboardRepository:
             before_state=current.as_dict(),
         )
         return StoredEnterpriseDashboard(updated, updated.revision)
+
+    def list_user_preferences(
+        self, tenant_id: str, user_id: str
+    ) -> dict[str, dict[str, object]]:
+        self._validate_scope(tenant_id, user_id)
+        rows = self.connection.execute(
+            "SELECT dashboard_id,displayed,display_order,filter_override_json "
+            "FROM enterprise_dashboard_user_preferences "
+            "WHERE tenant_id=%s AND user_id=%s",
+            (tenant_id, user_id),
+        ).fetchall()
+        return {
+            str(row[0]): {
+                "displayed": bool(row[1]),
+                "display_order": int(row[2]),
+                "filter_override": (
+                    self._json_value(row[3]) if row[3] is not None else None
+                ),
+            }
+            for row in rows
+        }
+
+    def set_dashboard_display_preference(
+        self, tenant_id: str, user_id: str, dashboard_id: str, displayed: bool
+    ) -> None:
+        self._validate_scope(tenant_id, dashboard_id)
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
+        if not isinstance(displayed, bool):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_PREFERENCE")
+        self.connection.execute(
+            """INSERT INTO enterprise_dashboard_user_preferences
+               (tenant_id,user_id,dashboard_id,displayed,display_order)
+               VALUES (
+                   %s,%s,%s,%s,
+                   COALESCE((
+                       SELECT MAX(display_order)+1
+                       FROM enterprise_dashboard_user_preferences
+                       WHERE tenant_id=%s AND user_id=%s
+                   ),0)
+               )
+               ON CONFLICT (tenant_id,user_id,dashboard_id)
+               DO UPDATE SET displayed=EXCLUDED.displayed,updated_at=CURRENT_TIMESTAMP""",
+            (tenant_id, user_id, dashboard_id, displayed, tenant_id, user_id),
+        )
+
+    def reorder_dashboard_tabs(
+        self, tenant_id: str, user_id: str, dashboard_ids: tuple[str, ...]
+    ) -> None:
+        self._validate_scope(tenant_id, user_id)
+        if not isinstance(dashboard_ids, tuple) or len(set(dashboard_ids)) != len(dashboard_ids):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_TAB_ORDER")
+        for position, dashboard_id in enumerate(dashboard_ids):
+            self._validate_scope(tenant_id, dashboard_id)
+            self.connection.execute(
+                """INSERT INTO enterprise_dashboard_user_preferences
+                   (tenant_id,user_id,dashboard_id,displayed,display_order)
+                   VALUES (%s,%s,%s,TRUE,%s)
+                   ON CONFLICT (tenant_id,user_id,dashboard_id)
+                   DO UPDATE SET display_order=EXCLUDED.display_order,
+                                 updated_at=CURRENT_TIMESTAMP""",
+                (tenant_id, user_id, dashboard_id, position),
+            )
+
+    def set_dashboard_filter_override(
+        self,
+        tenant_id: str,
+        user_id: str,
+        dashboard_id: str,
+        filters: list[dict[str, object]] | None,
+    ) -> None:
+        self._validate_scope(tenant_id, dashboard_id)
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
+        if filters is None:
+            self.connection.execute(
+                "UPDATE enterprise_dashboard_user_preferences "
+                "SET filter_override_json=NULL,updated_at=CURRENT_TIMESTAMP "
+                "WHERE tenant_id=%s AND user_id=%s AND dashboard_id=%s",
+                (tenant_id, user_id, dashboard_id),
+            )
+            return
+        if not isinstance(filters, list):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTERS")
+        encoded = json.dumps(filters, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        self.connection.execute(
+            """INSERT INTO enterprise_dashboard_user_preferences
+               (tenant_id,user_id,dashboard_id,displayed,display_order,filter_override_json)
+               VALUES (
+                   %s,%s,%s,TRUE,
+                   COALESCE((
+                       SELECT MAX(display_order)+1
+                       FROM enterprise_dashboard_user_preferences
+                       WHERE tenant_id=%s AND user_id=%s
+                   ),0),
+                   %s::jsonb
+               )
+               ON CONFLICT (tenant_id,user_id,dashboard_id)
+               DO UPDATE SET filter_override_json=EXCLUDED.filter_override_json,
+                             updated_at=CURRENT_TIMESTAMP""",
+            (tenant_id, user_id, dashboard_id, tenant_id, user_id, encoded),
+        )
+
+    def reset_dashboard_preferences(
+        self, tenant_id: str, user_id: str, dashboard_id: str
+    ) -> None:
+        self._validate_scope(tenant_id, dashboard_id)
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_USER_ID")
+        self.connection.execute(
+            "DELETE FROM enterprise_dashboard_user_preferences "
+            "WHERE tenant_id=%s AND user_id=%s AND dashboard_id=%s",
+            (tenant_id, user_id, dashboard_id),
+        )
 
     def history(
         self, tenant_id: str, dashboard_id: str
