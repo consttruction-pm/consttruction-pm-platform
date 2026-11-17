@@ -170,6 +170,52 @@
         "w": { "type": "integer", "minimum": 1, "maximum": 12 },
         "h": { "type": "integer", "minimum": 1, "maximum": 100 }
       }
+    },
+    "portlet_read_response": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "instance_id", "type_id", "source_owner", "required_read_permission",
+        "source_snapshot_id", "source_revision", "generated_at", "freshness_state",
+        "data", "drill_through_refs", "saved_filters"
+      ],
+      "properties": {
+        "instance_id": { "type": "string", "minLength": 1 },
+        "type_id": { "enum": ["portfolio-control-snapshot.v1", "portfolio-decision.v1"] },
+        "source_owner": { "type": "string", "minLength": 1 },
+        "required_read_permission": { "const": "project.read" },
+        "source_snapshot_id": { "type": ["string", "null"] },
+        "source_revision": { "type": ["string", "integer", "null"] },
+        "generated_at": { "type": ["string", "null"], "format": "date-time" },
+        "freshness_state": { "enum": ["fresh", "stale", "missing", "unknown"] },
+        "data": { "type": ["object", "null"] },
+        "drill_through_refs": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["type", "id", "source_revision"],
+            "properties": {
+              "type": { "enum": ["project", "portfolio_decision"] },
+              "id": { "type": "string", "minLength": 1 },
+              "source_revision": { "type": ["string", "integer", "null"] }
+            }
+          }
+        },
+        "saved_filters": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "dashboard_read_response": {
+      "type": "object", "additionalProperties": false,
+      "required": ["contract_version", "dashboard", "filters", "portlets", "read_at"],
+      "properties": {
+        "contract_version": { "const": "cubi-enterprise-dashboard-read.v1" },
+        "dashboard": { "type": "object" },
+        "filters": { "type": "array", "items": { "type": "object" } },
+        "portlets": {
+          "type": "array", "minItems": 1, "maxItems": 12,
+          "items": { "$ref": "#/$defs/portlet_read_response" }
+        },
+        "read_at": { "type": "string", "format": "date-time" }
+      }
     }
   }
 }
