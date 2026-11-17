@@ -65,6 +65,15 @@ Each scope has one active default profile. The defaults are independent: changin
 - Resource Access-based user-directory visibility, cross-user administration guard, and module removal on deactivation;
 - safe Project default bootstrap, automatic default profile application on OBS assignment, single user/OBS profile enforcement, and revisioned replacement.
 
+## Remaining V26 Users Page parity
+
+This focused slice is not a claim that the entire V26 Users Page has been replicated. The following Help-defined areas remain open:
+- Associated Resource field and resource-to-user association.
+- Select Resources dialog with up to five resource roots and recursive descendant visibility; it remains disabled/fail-closed until the canonical enterprise-wide resource hierarchy is implemented.
+- User Interface View assignment and copy-user-settings behavior.
+- Full V26 dialog, toolbar, context-menu, hierarchy and keyboard interaction parity for the User Access and Security Profiles administration surfaces.
+- Full integrated mainline acceptance after #1974, #1983 and #1984 are reconciled into one authority.
+
 ## Explicitly not claimed by this slice
 
 Automatic Global-default assignment is wired to user insertion/reactivation and the operator bootstrap. Automatic Project-default assignment is wired through the canonical Enterprise user-access endpoint and UI; however, the existing #1983 branch still contains a second project-profile/OBS assignment store and must be reconciled before E0 can merge. Select Resources remains unavailable until the enterprise-wide resource hierarchy exists; do not treat the project-scoped resource master as an equivalent. The work does not introduce a second `p6_global_security_profiles` table or a second project-profile/OBS assignment authority.
