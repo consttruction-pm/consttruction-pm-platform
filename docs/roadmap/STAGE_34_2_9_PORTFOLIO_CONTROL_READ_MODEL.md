@@ -1,6 +1,6 @@
 # Stage 34.2.9 — Portfolio Control Read Model
 
-Status: **implementation in progress — canonical PostgreSQL persistence and provider are under active implementation on branch `fix/portfolio-control-provider-owned-implementation`; not merged or runtime-verified.**
+Status: **implemented, merged and runtime-verified through PR #2035.** Production dashboard route mounting remains in ENT-06B #2032.
 
 ## Scope
 
@@ -43,5 +43,10 @@ The provider composes these persisted membership records with read-only project 
 - `src/construction_pm/portfolio_control_persistence.py`: canonical PostgreSQL repository, optimistic revisions, append-only audit, read-only Engineering project facts adapter and concrete snapshot provider.
 - `tests/test_portfolio_control_persistence.py`: provider isolation, authoritative facts, stable identity/time and stale-source coverage.
 - `tests/integration/test_portfolio_control_persistence_postgres_live.py`: live PostgreSQL persistence, revision, audit and source freshness coverage.
-- Branch base: `326a6ab9a5b36617f7b04e04b13cb329ff0d3a13`.
-- Latest implementation commits must be read from the branch head; no CI/runtime pass is claimed until exact-head workflows complete.
+- PR #2035 merged to `main` with merge commit `bf156f686d4d8cfe4efafb088638e68841b451e9`.
+- Exact tested implementation head: `3f6bdf6a6adedaac870ed397daab801d6af63d22`.
+- ConstructionPM CI run `44114358321`: SUCCESS — Python 3.11, 3.12 and 3.13 full-suite jobs passed.
+- PostgreSQL Integration run `44114358305`: SUCCESS — live PostgreSQL suite including this stage's integration test passed.
+- Client Typecheck run `44114358228`: SUCCESS — Web, Desktop, Mobile and Client Sync jobs passed.
+- The production provider is injectable through the `PortfolioQueryProvider` boundary; the application service requires per-project authorization and fails closed if it is not configured.
+- Remaining integration: mount this provider in the approved ENT-06A production composition and verify the mounted dashboard consumer; tracked in #2032. This is not a reason to recreate the source store or provider.
