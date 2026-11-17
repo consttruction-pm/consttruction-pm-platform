@@ -502,9 +502,10 @@ export async function mountEnterpriseDashboard(
     titleRow.append(button(t.duplicate, async () => { await client.duplicateDashboard(activeDefinition!.dashboard_id); await loadCatalog(); }));
     content.append(titleRow);
     const filterRow = node("div", "ced-toolbar ced-section");
-    const filterSummary = activeFilterOverrides?.length
-      ? activeFilterOverrides.map((item) => `${dashboardFilterDefinition(item.key) ? filterLabel(item.key) : item.key} ${operatorLabel(item.operator)} ${Array.isArray(item.value) ? item.value.map((value) => filterValueLabel(String(value))).join(", ") : filterValueLabel(String(item.value))}`).join(" · ")
-      : activeDefinition.filters.length ? activeDefinition.filters.map((item) => item.key).join(" · ") : t.noFilters;
+    const filtersForSummary = activeFilterOverrides === null ? activeDefinition.filters : activeFilterOverrides;
+    const filterSummary = filtersForSummary.length
+      ? filtersForSummary.map((item) => `${dashboardFilterDefinition(item.key) ? filterLabel(item.key) : item.key} ${operatorLabel(item.operator)} ${Array.isArray(item.value) ? item.value.map((value) => filterValueLabel(String(value))).join(", ") : filterValueLabel(String(item.value))}`).join(" · ")
+      : t.noFilters;
     filterRow.append(node("span", "ced-muted", filterSummary));
     const configureFilters = button(t.projectFilter, () => openFilterDialog(), "ced-button");
     configureFilters.disabled = activeDefinition.restrict_filter_override;
