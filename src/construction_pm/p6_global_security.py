@@ -379,6 +379,183 @@ class PostgresP6GlobalSecurityRepository:
         )
         return profile
 
+    def duplicate_profile(self, tenant_id: str, source_profile_id: str, *,
+                          new_profile_id: str, new_name: str, actor_id: str,
+                          created_at: datetime) -> GlobalSecurityProfile:
+        source = self.get_profile(tenant_id, source_profile_id)
+        if source is None or not source.active:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
+        if source.built_in:
+            raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_CANNOT_BE_DUPLICATED")
+        duplicate = GlobalSecurityProfile(
+            tenant_id=tenant_id, profile_id=new_profile_id, name=new_name,
+            privileges=source.privileges, built_in=False, active=True, revision=1,
+            description=source.description, is_default=False,
+        )
+        self.create_profile(duplicate, actor_id=actor_id, created_at=created_at)
+        self._connection.execute(
+            "INSERT INTO p6_global_security_audit "
+            "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+            "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_profile_duplicated',"
+            "%s::jsonb,%s::jsonb,%s)",
+            (f"p6-global-{uuid4().hex}", tenant_id, actor_id, new_profile_id,
+             json.dumps({"source_profile_id": source_profile_id}),
+             json.dumps({"name": duplicate.name, "revision": duplicate.revision}),
+             created_at),
+        )
+        return duplicate
+
+    def update_profile(self, profile: GlobalSecurityProfile, *, actor_id: str,
+                       expected_revision: int, updated_at: datetime) -> GlobalSecurityProfile:
+        profile.validate()
+        if (not actor_id.strip() or updated_at.tzinfo is None
+                or updated_at.utcoffset() is None):
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
+        current = self.get_profile(profile.tenant_id, profile.profile_id)
+        if current is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
+        if current.built_in:
+            raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
+        if current.revision != expected_revision or profile.revision != expected_revision + 1:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_CONFLICT")
+        if profile.is_default != current.is_default:
+            raise GlobalSecurityError("SET_DEFAULT_PROFILE_SEPARATELY")
+        if current.is_default and not profile.active:
+            raise GlobalSecurityError("DEFAULT_PROFILE_CANNOT_BE_DEACTIVATED")
+        if not profile.active:
+            assigned = self._connection.execute(
+                "SELECT 1 FROM p6_user_global_security WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+                (profile.tenant_id, profile.profile_id),
+            ).fetchone()
+            if assigned is not None:
+                raise GlobalSecurityError("PROFILE_HAS_USER_ASSIGNMENTS")
+        row = self._connection.execute(
+            "UPDATE p6_global_security_profiles SET name=%s,description=%s,privileges=%s::jsonb,"
+            "active=%s,revision=%s WHERE tenant_id=%s AND profile_id=%s AND revision=%s "
+            "RETURNING profile_id",
+            (profile.name, profile.description, json.dumps(list(profile.privileges)),
+             profile.active, profile.revision, profile.tenant_id, profile.profile_id,
+             expected_revision),
+        ).fetchone()
+        if row is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_CONFLICT")
+        self._connection.execute(
+            "INSERT INTO p6_global_security_audit "
+            "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+            "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_profile_updated',"
+            "%s::jsonb,%s::jsonb,%s)",
+            (f"p6-global-{uuid4().hex}", profile.tenant_id, actor_id, profile.profile_id,
+             json.dumps({"name": current.name, "description": current.description,
+                         "privileges": list(current.privileges), "active": current.active,
+                         "revision": current.revision}),
+             json.dumps({"name": profile.name, "description": profile.description,
+                         "privileges": list(profile.privileges), "active": profile.active,
+                         "revision": profile.revision}), updated_at),
+        )
+        return profile
+
+    def set_default_profile(self, tenant_id: str, profile_id: str, *, actor_id: str,
+                            expected_revision: int, updated_at: datetime) -> GlobalSecurityProfile:
+        if (not actor_id.strip() or updated_at.tzinfo is None
+                or updated_at.utcoffset() is None):
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
+        # Lock the tenant's profile rows so concurrent default changes serialize.
+        self._connection.execute(
+            "SELECT profile_id FROM p6_global_security_profiles "
+            "WHERE tenant_id=%s FOR UPDATE", (tenant_id,),
+        ).fetchall()
+        target = self.get_profile(tenant_id, profile_id)
+        if target is None or not target.active:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
+        if target.revision != expected_revision:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_CONFLICT")
+        if target.is_default:
+            return target
+        previous_rows = self._connection.execute(
+            "SELECT profile_id,name,revision FROM p6_global_security_profiles "
+            "WHERE tenant_id=%s AND is_default=TRUE", (tenant_id,),
+        ).fetchall()
+        self._connection.execute(
+            "UPDATE p6_global_security_profiles SET is_default=FALSE,revision=revision+1 "
+            "WHERE tenant_id=%s AND is_default=TRUE", (tenant_id,),
+        )
+        updated = self._connection.execute(
+            "UPDATE p6_global_security_profiles SET is_default=TRUE,revision=revision+1 "
+            "WHERE tenant_id=%s AND profile_id=%s AND active=TRUE "
+            "RETURNING tenant_id,profile_id,name,privileges,built_in,active,revision,description,is_default",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if updated is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
+        for old_id, old_name, old_revision in previous_rows:
+            self._connection.execute(
+                "INSERT INTO p6_global_security_audit "
+                "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+                "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_default_profile_cleared',"
+                "%s::jsonb,%s::jsonb,%s)",
+                (f"p6-global-{uuid4().hex}", tenant_id, actor_id, old_id,
+                 json.dumps({"name": old_name, "is_default": True, "revision": old_revision}),
+                 json.dumps({"name": old_name, "is_default": False,
+                             "revision": old_revision + 1}), updated_at),
+            )
+        privileges = updated[3]
+        if isinstance(privileges, str):
+            privileges = json.loads(privileges)
+        result = GlobalSecurityProfile(
+            str(updated[0]), str(updated[1]), str(updated[2]), tuple(privileges or ()),
+            bool(updated[4]), bool(updated[5]), int(updated[6]),
+            str(updated[7] or ""), bool(updated[8]),
+        )
+        result.validate()
+        self._connection.execute(
+            "INSERT INTO p6_global_security_audit "
+            "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+            "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_default_profile_set',"
+            "%s::jsonb,%s::jsonb,%s)",
+            (f"p6-global-{uuid4().hex}", tenant_id, actor_id, profile_id,
+             json.dumps({"is_default": False, "revision": target.revision}),
+             json.dumps({"is_default": True, "revision": result.revision}), updated_at),
+        )
+        return result
+
+    def delete_profile(self, tenant_id: str, profile_id: str, *, actor_id: str,
+                       expected_revision: int, deleted_at: datetime) -> None:
+        if (not actor_id.strip() or deleted_at.tzinfo is None
+                or deleted_at.utcoffset() is None):
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
+        current = self.get_profile(tenant_id, profile_id)
+        if current is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
+        if current.built_in:
+            raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
+        if current.is_default:
+            raise GlobalSecurityError("DEFAULT_PROFILE_CANNOT_BE_DELETED")
+        if current.revision != expected_revision:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_CONFLICT")
+        assigned = self._connection.execute(
+            "SELECT 1 FROM p6_user_global_security WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if assigned is not None:
+            raise GlobalSecurityError("PROFILE_HAS_USER_ASSIGNMENTS")
+        row = self._connection.execute(
+            "DELETE FROM p6_global_security_profiles WHERE tenant_id=%s AND profile_id=%s "
+            "AND revision=%s RETURNING profile_id",
+            (tenant_id, profile_id, expected_revision),
+        ).fetchone()
+        if row is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_CONFLICT")
+        self._connection.execute(
+            "INSERT INTO p6_global_security_audit "
+            "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+            "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_profile_deleted',"
+            "%s::jsonb,%s::jsonb,%s)",
+            (f"p6-global-{uuid4().hex}", tenant_id, actor_id, profile_id,
+             json.dumps({"name": current.name, "description": current.description,
+                         "privileges": list(current.privileges), "revision": current.revision}),
+             json.dumps({"deleted": True}), deleted_at),
+        )
+
     def get_profile(self, tenant_id: str, profile_id: str) -> GlobalSecurityProfile | None:
         row = self._connection.execute(
             "SELECT tenant_id,profile_id,name,privileges,built_in,active,revision,description,is_default "
