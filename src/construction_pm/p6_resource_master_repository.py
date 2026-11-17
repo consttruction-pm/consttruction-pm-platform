@@ -102,11 +102,21 @@ def _from_row(row: tuple[object, ...]) -> P6Resource:
 class SQLiteP6ResourceRepository:
     def _persist_enterprise_identity(self, resource: P6Resource) -> None:
         self.connection.execute(
-            "INSERT OR IGNORE INTO p6_enterprise_resource_identity "
+            "INSERT INTO p6_enterprise_resource_identity "
             "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
-            "VALUES(?,?,?,?,?,?,?,1)",
+            "VALUES(?,?,?,?,?,?,?,1) ON CONFLICT(tenant_id,resource_id) DO UPDATE SET "
+            "name=excluded.name,resource_type=excluded.resource_type,"
+            "parent_resource_id=excluded.parent_resource_id,email=excluded.email,"
+            "is_active=excluded.is_active,record_revision=p6_enterprise_resource_identity.record_revision+1",
             (resource.tenant_id, resource.resource_id, resource.name, resource.resource_type,
              resource.parent_resource_id, resource.email, int(resource.is_active)),
+        )
+        self.connection.execute(
+            "UPDATE p6_resource_master SET name=?,resource_type=?,parent_resource_id=?,email=?,"
+            "is_active=?,record_revision=record_revision+1 WHERE tenant_id=? AND resource_id=? "
+            "AND project_id<>?",
+            (resource.name, resource.resource_type, resource.parent_resource_id, resource.email,
+             int(resource.is_active), resource.tenant_id, resource.resource_id, resource.project_id),
         )
 
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -266,9 +276,19 @@ class PostgresP6ResourceRepository:
         self.connection.execute(
             "INSERT INTO p6_enterprise_resource_identity "
             "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
-            "VALUES(%s,%s,%s,%s,%s,%s,%s,1) ON CONFLICT (tenant_id,resource_id) DO NOTHING",
+            "VALUES(%s,%s,%s,%s,%s,%s,%s,1) ON CONFLICT (tenant_id,resource_id) DO UPDATE SET "
+            "name=EXCLUDED.name,resource_type=EXCLUDED.resource_type,"
+            "parent_resource_id=EXCLUDED.parent_resource_id,email=EXCLUDED.email,"
+            "is_active=EXCLUDED.is_active,record_revision=p6_enterprise_resource_identity.record_revision+1",
             (resource.tenant_id, resource.resource_id, resource.name, resource.resource_type,
              resource.parent_resource_id, resource.email, resource.is_active),
+        )
+        self.connection.execute(
+            "UPDATE p6_resource_master SET name=%s,resource_type=%s,parent_resource_id=%s,email=%s,"
+            "is_active=%s,record_revision=record_revision+1 WHERE tenant_id=%s AND resource_id=%s "
+            "AND project_id<>%s",
+            (resource.name, resource.resource_type, resource.parent_resource_id, resource.email,
+             resource.is_active, resource.tenant_id, resource.resource_id, resource.project_id),
         )
 
     def __init__(self, connection: object) -> None:
