@@ -515,6 +515,7 @@ class PostgresPortfolioControlSnapshotProvider:
         snapshot = PortfolioControlSnapshot(
             snapshot_id=snapshot_id, portfolio_id=portfolio_id, tenant_id=tenant_id,
             generated_at=generated_at, projects=tuple(projects), source_refs=tuple(source_refs),
+            portfolio_revision=portfolio.revision,
         )
         snapshot.validate()
         return snapshot
