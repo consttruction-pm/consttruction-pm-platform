@@ -438,6 +438,8 @@ class EnterpriseDashboardApplicationService:
         source = self._get_in_tenant(session, dashboard_id)
         if not self._can_view(source.dashboard, session):
             raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        if len(source.dashboard.portlets) > self._portlet_limit(session.tenant_id):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_LIMIT_EXCEEDED")
         new_title = title.strip() if isinstance(title, str) and title.strip() else f"{source.dashboard.title} (copy)"
         if len(new_title) > 200:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_TOO_LONG")
