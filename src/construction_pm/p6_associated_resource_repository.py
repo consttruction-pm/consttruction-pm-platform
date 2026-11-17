@@ -41,8 +41,11 @@ class P6AssociatedResourceRepository(Protocol):
 
 
 def _from_row(row) -> P6AssociatedResource:
+    occurred_at = row[5]
+    if isinstance(occurred_at, str):
+        occurred_at = datetime.fromisoformat(occurred_at)
     item = P6AssociatedResource(
-        str(row[0]), str(row[1]), str(row[2]), int(row[3]), str(row[4]), row[5]
+        str(row[0]), str(row[1]), str(row[2]), int(row[3]), str(row[4]), occurred_at
     )
     item.validate()
     return item
