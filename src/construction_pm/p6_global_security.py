@@ -17,6 +17,14 @@ ADMIN_SUPERUSER = "Admin Superuser"
 NO_GLOBAL_PRIVILEGES = "No Global Privileges"
 BUILTIN_GLOBAL_PROFILES = frozenset({ADMIN_SUPERUSER, NO_GLOBAL_PRIVILEGES})
 
+P6_MODULE_ACCESS_OPTIONS = frozenset({
+    "projects", "portfolios", "resources", "contributor",
+    "enterprise_reporting", "integration_api", "p6_analytics",
+    "p6_professional", "team_member", "timesheet", "visualizer",
+    "web_services",
+})
+P6_MAX_SELECTED_RESOURCE_ROOTS = 5
+
 
 class GlobalSecurityError(ValueError):
     """Invalid or unauthorized P6 global-security operation."""
@@ -91,6 +99,12 @@ class UserGlobalSecurity:
             raise GlobalSecurityError("DUPLICATE_RESOURCE_ROOT")
         if len(set(self.module_access)) != len(self.module_access):
             raise GlobalSecurityError("DUPLICATE_MODULE_ACCESS")
+        if any(value not in P6_MODULE_ACCESS_OPTIONS for value in self.module_access):
+            raise GlobalSecurityError("MODULE_ACCESS_INVALID")
+        if "contributor" in self.module_access and len(self.module_access) > 1:
+            raise GlobalSecurityError("CONTRIBUTOR_MODULE_ACCESS_EXCLUSIVE")
+        if len(self.resource_root_ids) > P6_MAX_SELECTED_RESOURCE_ROOTS:
+            raise GlobalSecurityError("RESOURCE_ROOT_LIMIT_EXCEEDED")
         if (self.revision < 1 or self.updated_at.tzinfo is None
                 or self.updated_at.utcoffset() is None):
             raise GlobalSecurityError("USER_GLOBAL_SECURITY_REVISION_INVALID")
