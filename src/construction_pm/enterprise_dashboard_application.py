@@ -239,6 +239,8 @@ class EnterpriseDashboardApplicationService:
     ) -> StoredEnterpriseDashboard:
         session = self._session(session_id)
         self._require_enterprise(session, write=True)
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_EXPECTED_REVISION")
         current = self._get_in_tenant(session, dashboard_id)
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
@@ -289,6 +291,10 @@ class EnterpriseDashboardApplicationService:
     ) -> StoredEnterpriseDashboard:
         session = self._session(session_id)
         self._require_enterprise(session, write=True)
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_EXPECTED_REVISION")
+        if not isinstance(target_id, str) or not target_id.strip():
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET")
         current = self._get_in_tenant(session, dashboard_id)
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
@@ -328,6 +334,8 @@ class EnterpriseDashboardApplicationService:
     ) -> StoredEnterpriseDashboard:
         session = self._session(session_id)
         self._require_enterprise(session, write=True)
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_EXPECTED_REVISION")
         current = self._get_in_tenant(session, dashboard_id)
         self._require_manage(current.dashboard, session)
         if current.dashboard.status == "archived":
