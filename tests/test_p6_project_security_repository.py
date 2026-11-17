@@ -198,3 +198,13 @@ def test_global_policy_enforces_project_profile_privileges_through_obs_grant():
     assert not policy.has_project_privilege(auth, "delete_projects")
     with pytest.raises(AuthorizationError, match="P6_PROJECT_PRIVILEGE_REQUIRED:delete_projects"):
         policy.require_project_privilege(auth, "delete_projects")
+
+
+def test_project_superuser_profile_assignment_requires_global_admin_superuser():
+    _, repo = setup_repository()
+    repo.ensure_builtin_profile("tenant-a", actor_id="admin-user")
+    api = P6ProjectSecurityAPI(repo, GlobalAdminPolicy())
+    with pytest.raises(AuthorizationError, match="PROJECT_SUPERUSER_ASSIGNMENT_REQUIRES_ADMIN_SUPERUSER"):
+        api.assign_obs(
+            "user-1", "OBS-ROOT", "p6-project-superuser", auth_context=context()
+        )
