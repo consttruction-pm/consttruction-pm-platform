@@ -1467,9 +1467,16 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
 
         assert policy.is_allowed(context, Permission.P6_ACTIVITY_ADMIN)
         assert not policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
+        assert not policy.is_allowed(context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN)
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN, root_wbs
+        )
         assert not policy.is_allowed(
             unassigned_context, Permission.P6_ACTIVITY_ADMIN
         ), "a planner/team role without an OBS-assigned Project Profile must not grant project writes"
+        assert not policy.is_allowed(
+            unassigned_context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN
+        ), "a planner/team role must not grant Resource Planning assignment access"
 
         root_assignment = P6ResourceAssignment(
             scope, f"resource-assignment-root-{suffix}", root_activity, "resource-1"
@@ -1482,6 +1489,41 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
             write_api.save_assignment(restricted_assignment, auth_context=context)
 
+        # Resource Planning uses its own V26 privilege; it is not implied by
+        # Add/Edit Activities. The same grant is still evaluated at each
+        # assignment activity WBS rather than project-wide.
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_activities_except_relationships",
+                "add_edit_delete_resource_assignments_resource_planning",
+            },
+            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN, restricted_wbs
+        )
+        planning_assignment = P6ResourceAssignment(
+            scope, f"resource-planning-root-{suffix}", root_activity, "resource-planning-1"
+        )
+        write_api.create_resource_planning_assignment(
+            planning_assignment, auth_context=context
+        )
+        restricted_planning_assignment = P6ResourceAssignment(
+            scope, f"resource-planning-restricted-{suffix}",
+            restricted_activity, "resource-planning-1",
+        )
+        with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+            write_api.create_resource_planning_assignment(
+                restricted_planning_assignment, auth_context=context
+            )
+        write_api.create_resource_planning_assignment(
+            restricted_planning_assignment, auth_context=restricted_context
+        )
+
         root_period = P6ResourceAssignmentPeriodValue(
             scope, root_assignment.assignment_id, root_activity, "resource-1",
             "2026-11-15", Decimal("4"), Decimal("40"),
@@ -1493,10 +1535,11 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             tenant_id=tenant, profile_id=project_profile.profile_id,
             privileges={
                 "add_edit_activities_except_relationships",
+                "add_edit_delete_resource_assignments_resource_planning",
                 "edit_period_performance",
                 "view_project_costs_financials",
             },
-            expected_revision=2, actor_user_id=user_id, occurred_at=now,
+            expected_revision=3, actor_user_id=user_id, occurred_at=now,
         )
         assert policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
         assert policy.is_allowed_for_wbs(
@@ -1534,6 +1577,9 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             f"{tenant}-foreign", project_id, user_id, frozenset({"planner"})
         )
         assert not policy.is_allowed(foreign_context, Permission.P6_ACTIVITY_ADMIN)
+        assert not policy.is_allowed(
+            foreign_context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN
+        )
         connection.rollback()
 
 
