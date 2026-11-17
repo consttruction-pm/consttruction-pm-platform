@@ -164,7 +164,7 @@ const COPY = {
     create: "New dashboard", search: "Search dashboards", displayed: "Displayed", available: "Available",
     open: "Open", hide: "Hide", show: "Show", duplicate: "Duplicate", manage: "Customize", archive: "Archive",
     refresh: "Refresh", expand: "Expand", collapse: "Collapse", maximize: "Maximize", restore: "Restore",
-    close: "Close", help: "Help", noDashboards: "No dashboards are available.", noPortlets: "This dashboard has no portlets.",
+    close: "Close", help: "Help", print: "Print", noDashboards: "No dashboards are available.", noPortlets: "This dashboard has no portlets.",
     loading: "Loading source data…", stale: "Source data is stale.", missing: "Source data is unavailable.",
     filtered: "No source rows match the current filters.", denied: "You do not have permission to view this source.",
     error: "The source could not be loaded.", empty: "No project records in this snapshot.", truncated: "Rows limited for display.",
@@ -186,7 +186,7 @@ const COPY = {
     create: "داشبورد جدید", search: "جستجوی داشبوردها", displayed: "نمایش‌داده‌شده", available: "در دسترس",
     open: "باز کردن", hide: "مخفی‌کردن", show: "نمایش", duplicate: "تکثیر", manage: "سفارشی‌سازی", archive: "بایگانی",
     refresh: "تازه‌سازی", expand: "بازکردن", collapse: "بستن", maximize: "بزرگ‌نمایی", restore: "بازگردانی",
-    close: "بستن", help: "راهنما", noDashboards: "داشبوردی در دسترس نیست.", noPortlets: "این داشبورد پورلت ندارد.",
+    close: "بستن", help: "راهنما", print: "چاپ", noDashboards: "داشبوردی در دسترس نیست.", noPortlets: "این داشبورد پورلت ندارد.",
     loading: "دریافت داده منبع…", stale: "داده منبع قدیمی است.", missing: "داده منبع در دسترس نیست.",
     filtered: "رکوردی با فیلترهای فعلی مطابقت ندارد.", denied: "مجوز مشاهده این منبع را ندارید.",
     error: "دریافت منبع انجام نشد.", empty: "رکورد پروژه‌ای در این تصویر وجود ندارد.", truncated: "تعداد ردیف‌ها برای نمایش محدود شده است.",
@@ -473,8 +473,9 @@ export async function mountEnterpriseDashboard(
       renderViewer();
     });
     const help = button(t.help, () => window.alert(`${label}\n${read.source_owner}\n${read.required_read_permission}`));
+    const print = button(t.print, () => window.print());
     const close = button(t.close, () => card.remove());
-    controls.append(collapse, maximize, refresh, help, close);
+    controls.append(collapse, maximize, refresh, help, print, close);
     head.append(headingNode, controls);
     card.append(head, body);
     renderBody();
@@ -674,6 +675,7 @@ export async function mountEnterpriseDashboard(
       );
     }
     function renderLayout(): void {
+      panel.replaceChildren();
       const list = node("div", "ced-section");
       const move = (from: number, to: number): void => {
         if (to < 0 || to >= layoutOrder.length) return;
