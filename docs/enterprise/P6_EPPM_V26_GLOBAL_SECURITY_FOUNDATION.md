@@ -250,3 +250,43 @@ copy/paste, exports, code selectors, reports, and code-value CRUD all consume
 the same policy. The current typed definition API has no full edit/delete
 lifecycle; secure-code parity remains open until those surfaces are wired and
 covered by live PostgreSQL and browser tests.
+
+
+### Project Security Profile catalogue baseline — 2026-11-17
+
+Added `src/construction_pm/p6_project_security.py` with the V26 HTML Help
+Project Security Profile privilege catalogue, grouped in the eight exact Help
+categories: Activities, Codes, EPS and Projects, Project Data, Related
+Applications, Resource Assignments, Tools, and Views and Reports. The module
+contains stable privilege codes, exact display labels, a normalized profile
+value object, and only those prerequisites explicitly stated by Help. Unit
+tests verify category coverage, uniqueness, unknown-code rejection, and the
+main documented dependency chains.
+
+Normative source: [Privileges Detail Window of the Project Security Profiles Page](https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm).
+
+This is the catalogue/domain baseline only. Project-profile PostgreSQL
+persistence, OBS-to-profile assignment lifecycle, project privilege enforcement
+in every route/UI action, full dependency/exception test coverage, and the
+end-to-end traceability matrix remain open. The coarse project authorization
+policy is not yet replaced by this catalogue.
+
+### Associated Resource — exact V26 semantics and implementation blocker
+
+V26 HTML Help states that each user may have at most one Associated Resource,
+and a resource may be associated with at most one user. The association enables
+personal resource-calendar editing and Team Member Web/mobile access; with
+Contributor module access it also participates in visibility of projects where
+the resource is assigned. It is not the same setting as Resource Access.
+Sources: [Assigning Associated Resources](https://docs.oracle.com/cd/G48897_01/p6help/en/35744.htm) and [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm).
+
+The current CUBI P6 resource master is project/revision-scoped
+(`tenant_id, project_id, project_revision, resource_id`), while V26 Associated
+Resource points to a resource in the enterprise resource dictionary. A direct
+one-to-one constraint over the current project-scoped key would not faithfully
+model a single enterprise resource and could allow one person to be mapped to
+project-local duplicates. The association must not be marked complete until a
+tenant-wide resource identity/registry (or an authoritative cross-project
+resource identity) is established and the user↔resource unique constraints,
+calendar/Team Member eligibility, Contributor visibility, reassignment,
+revocation, and audit behavior are implemented against it.
