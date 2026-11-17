@@ -873,6 +873,30 @@ class P6GlobalSecurityAuthorizationPolicy:
         except (GlobalSecurityError, ValueError, AttributeError, TypeError):
             return False
 
+    def has_project_privilege(self, context: Any, privilege_code: str) -> bool:
+        """Resolve one explicit V26 project privilege through the user's OBS grant."""
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None or "projects" not in assignment.module_access:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            if profile is None or not profile.active:
+                return False
+            if global_profile_has_project_access_bypass(profile):
+                return True
+            checker = getattr(self._obs_project_access, "has_project_privilege", None)
+            if not callable(checker):
+                return False
+            return bool(checker(context.tenant_id, context.user_id, context.project_id, privilege_code))
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
+    def require_project_privilege(self, context: Any, privilege_code: str) -> None:
+        if not self.has_project_privilege(context, privilege_code):
+            from .application.authorization import AuthorizationError
+            raise AuthorizationError(f"P6_PROJECT_PRIVILEGE_REQUIRED:{privilege_code}")
+
     def is_allowed(self, context: Any, permission: Any) -> bool:
         try:
             context.validate()
@@ -887,10 +911,16 @@ class P6GlobalSecurityAuthorizationPolicy:
             if "projects" not in assignment.module_access:
                 return False
             if global_profile_has_global_read_only(profile):
-                # V26 No Global Privileges has no global grants, but project
-                # access remains independently possible through OBS + Project
-                # Security Profile assignments. Never infer it from CUBI roles.
+                # No Global Privileges can reach project data only through an
+                # explicit OBS assignment; its project-profile grants are still
+                # required for mutations through require_project_privilege.
                 return self._has_authoritative_obs_project_access(context, permission)
+            # A CUBI role is not a substitute for P6 OBS project assignment.
+            has_project_access = getattr(self._obs_project_access, "has_project_access", None)
+            if callable(has_project_access) and not has_project_access(
+                context.tenant_id, context.user_id, context.project_id
+            ):
+                return False
             return bool(self._project_policy.is_allowed(context, permission))
         except (GlobalSecurityError, ValueError, AttributeError):
             return False
