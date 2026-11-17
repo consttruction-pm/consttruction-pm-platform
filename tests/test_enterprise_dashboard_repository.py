@@ -131,6 +131,7 @@ def test_initialize_creates_tenant_scoped_tables_and_append_only_audit_trigger()
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_idempotency" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_audit" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_display_preferences" in sql
+    assert "ADD COLUMN IF NOT EXISTS filter_override_json JSONB" in sql
     assert "PRIMARY KEY (tenant_id, user_id, dashboard_id)" in sql
     assert "ON DELETE RESTRICT" in sql
     assert "ENTERPRISE_DASHBOARD_AUDIT_APPEND_ONLY" in sql
