@@ -314,6 +314,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             tenant_id=tenant, profile_id=user_admin_profile.profile_id, user_id=user_admin_id,
             actor_user_id=admin_id, occurred_at=now,
         )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=user_admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+        )
         profile_admin_only = profiles.create_profile(
             tenant_id=tenant, profile_id="http-profile-admin-only", name="HTTP Profile Administrator Only",
             scope="global", actor_user_id=admin_id, occurred_at=now,
@@ -422,6 +427,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         )
         assert status == 200 and global_assigned["revision"] == 1
 
+        status, listed_users = _http_request(
+            app, "GET", "/api/enterprise/users", session_id="user-admin-session",
+        )
+        assert status == 200
+        assert {item["user_id"] for item in listed_users["users"]} >= {target_id, user_admin_id}
         status, obs_options = _http_request(
             app, "GET", "/api/enterprise/obs", session_id="user-admin-session",
         )
