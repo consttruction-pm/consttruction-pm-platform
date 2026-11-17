@@ -679,12 +679,6 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
             tenant_id=tenant, profile_id="ordinary-global", name="Ordinary Global",
             scope="global", actor_user_id=admin_id, occurred_at=now,
         )
-        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
-            profiles.assign(
-                tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
-                actor_user_id=admin_id, occurred_at=now, expected_revision=1,
-            )
-
         # No Global Privileges still permits OBS-scoped Project Superuser access.
         connection.execute(
             "INSERT INTO p6_security_profiles "
@@ -694,8 +688,15 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         )
         profiles.assign(
             tenant_id=tenant, profile_id="p6-no-global-privileges", user_id=target_id,
-            actor_user_id=admin_id, occurred_at=now,
+            actor_user_id=admin_id, occurred_at=now, expected_revision=1,
         )
+        # The second Admin Superuser has now been replaced; the remaining
+        # administrator cannot remove their own final Admin Superuser grant.
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
+                actor_user_id=admin_id, occurred_at=now, expected_revision=1,
+            )
         connection.execute(
             "INSERT INTO p6_security_profiles "
             "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
