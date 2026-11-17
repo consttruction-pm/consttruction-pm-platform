@@ -139,6 +139,7 @@ class PostgresP6GlobalSecurityRepository:
                 revision BIGINT NOT NULL CHECK(revision >= 1),
                 updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL,
                 PRIMARY KEY(tenant_id,user_id),
+                FOREIGN KEY(user_id) REFERENCES identity_users(user_id) ON DELETE RESTRICT,
                 FOREIGN KEY(tenant_id,profile_id)
                     REFERENCES p6_global_security_profiles(tenant_id,profile_id),
                 CHECK((resource_access_mode='selected' AND jsonb_array_length(resource_root_ids)>0)
@@ -159,6 +160,23 @@ class PostgresP6GlobalSecurityRepository:
         )
         for statement in statements:
             self._connection.execute(statement)
+
+    def ensure_builtin_profiles(self, tenant_id: str, *, provisioned_by: str,
+                                created_at: datetime) -> None:
+        """Idempotently provision the two application-generated V26 profiles."""
+        if not tenant_id.strip() or not provisioned_by.strip() or created_at.tzinfo is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_BOOTSTRAP_INVALID")
+        for profile_id, name in (
+            ("p6-admin-superuser", ADMIN_SUPERUSER),
+            ("p6-no-global-privileges", NO_GLOBAL_PRIVILEGES),
+        ):
+            self._connection.execute(
+                "INSERT INTO p6_global_security_profiles "
+                "(tenant_id,profile_id,name,privileges,built_in,active,revision,created_by,created_at) "
+                "VALUES(%s,%s,%s,'[]'::jsonb,TRUE,TRUE,1,%s,%s) "
+                "ON CONFLICT(tenant_id,profile_id) DO NOTHING",
+                (tenant_id, profile_id, name, provisioned_by, created_at),
+            )
 
     def create_profile(self, profile: GlobalSecurityProfile, *, actor_id: str,
                        created_at: datetime) -> GlobalSecurityProfile:
