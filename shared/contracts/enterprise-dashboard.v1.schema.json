@@ -460,6 +460,34 @@
                     "maxLength": 200
                   }
                 }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "operator",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "const": "project_id"
+                  },
+                  "operator": {
+                    "const": "in"
+                  },
+                  "value": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "maxItems": 200
+                  }
+                }
               }
             ]
           }
@@ -1103,6 +1131,34 @@
                         "maxLength": 200
                       }
                     }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "in"
+                      },
+                      "value": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
+                      }
+                    }
                   }
                 ]
               }
@@ -1361,6 +1417,34 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "key",
+                      "operator",
+                      "value"
+                    ],
+                    "properties": {
+                      "key": {
+                        "const": "project_id"
+                      },
+                      "operator": {
+                        "const": "in"
+                      },
+                      "value": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "maxItems": 200
                       }
                     }
                   }
