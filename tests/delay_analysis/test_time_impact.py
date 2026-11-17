@@ -12,7 +12,7 @@ from construction_pm.schedule_input_snapshot_repository import (
     SQLiteScheduleInputSnapshotRepository,
     build_snapshot,
 )
-from construction_pm.schedule_run_capture import SQLiteScheduleRunCaptureRepository
+from construction_pm.delay_analysis.schedule_run_capture import SQLiteScheduleRunCaptureRepository
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
