@@ -168,6 +168,25 @@ class P6ProjectSecurityAPI:
             auth_context.tenant_id, user_id, obs_id, actor_id=auth_context.user_id
         )
 
+    def list_obs_nodes(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_user_admin(self.authorization_policy, auth_context)
+        nodes = self.repository.list_obs_nodes(auth_context.tenant_id)
+        return {
+            "contract_version": P6_PROJECT_SECURITY_API_VERSION,
+            "obs_nodes": [
+                {
+                    "obs_id": node.obs_id,
+                    "parent_obs_id": node.parent_obs_id,
+                    "code": node.code,
+                    "name": node.name,
+                    "manager_user_id": node.manager_user_id,
+                    "sequence_number": node.sequence_number,
+                }
+                for node in nodes
+            ],
+        }
+
     def list_user_grants(
         self, user_id: str, *, auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
