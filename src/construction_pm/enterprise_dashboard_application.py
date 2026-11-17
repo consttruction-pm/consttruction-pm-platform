@@ -17,6 +17,7 @@ from .enterprise_dashboard import (
     EnterpriseDashboardError,
     EnterpriseDashboardNotFound,
     EnterpriseDashboardRevisionConflict,
+    PORTLET_REGISTRY,
     visibility_for_shares,
 )
 from .enterprise_dashboard_repository import (
@@ -123,7 +124,7 @@ class EnterpriseDashboardApplicationService:
             item
             for item in items
             if self._can_view(item.dashboard, session)
-            and (item.dashboard.status == "active" or self._is_admin(session))
+            and (item.dashboard.status == "active" or item.dashboard.owner_user_id == session.user_id or self._is_admin(session))
         )
 
     def get_dashboard(
@@ -346,6 +347,8 @@ class EnterpriseDashboardApplicationService:
         self, session_id: str, dashboard_id: str
     ) -> dict[str, object]:
         stored = self.get_dashboard(session_id, dashboard_id)
+        if stored.dashboard.status != "active":
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
         session = self._session(session_id)
         auth_context = AuthorizationContext(
             session.tenant_id,
@@ -354,12 +357,15 @@ class EnterpriseDashboardApplicationService:
             frozenset(session.roles),
         )
         portlets = [
-            self._read_portlet(session_id, session, auth_context, item)
+            self._read_portlet(
+                session_id, session, auth_context, item, stored.dashboard.filters
+            )
             for item in stored.dashboard.portlets
         ]
         return {
             "contract_version": "cubi-enterprise-dashboard-read.v1",
             "dashboard": stored.dashboard.as_dict(),
+            "filters": [item.as_dict() for item in stored.dashboard.filters],
             "portlets": portlets,
             "read_at": self._now().isoformat(),
         }
@@ -370,10 +376,9 @@ class EnterpriseDashboardApplicationService:
         session: object,
         auth_context: AuthorizationContext,
         portlet: DashboardPortlet,
+        dashboard_filters: tuple[DashboardFilter, ...],
     ) -> dict[str, object]:
-        definition = __import__(
-            "construction_pm.enterprise_dashboard", fromlist=["PORTLET_REGISTRY"]
-        ).PORTLET_REGISTRY[portlet.type_id]
+        definition = PORTLET_REGISTRY[portlet.type_id]
         try:
             if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT:
                 if self._portfolio_query is None:
@@ -440,7 +445,7 @@ class EnterpriseDashboardApplicationService:
             else:
                 raise EnterpriseDashboardSourceError("UNREGISTERED_PORTLET_SOURCE")
         except KeyError:
-            return self._missing_portlet(portlet, definition.source_owner)
+            return self._missing_portlet(portlet, definition.source_owner, dashboard_filters)
 
         if generated_at is not None and (
             not isinstance(generated_at, datetime)
@@ -459,13 +464,15 @@ class EnterpriseDashboardApplicationService:
             "freshness_state": self._freshness(generated_at),
             "data": data,
             "drill_through_refs": drill_refs,
-            "applied_filters": [
-                item.as_dict() for item in self._current_dashboard_filters(portlet)
-            ],
+            "applied_filters": [item.as_dict() for item in dashboard_filters],
         }
 
     @staticmethod
-    def _missing_portlet(portlet: DashboardPortlet, source_owner: str) -> dict[str, object]:
+    def _missing_portlet(
+        portlet: DashboardPortlet,
+        source_owner: str,
+        dashboard_filters: tuple[DashboardFilter, ...],
+    ) -> dict[str, object]:
         return {
             "instance_id": portlet.instance_id,
             "type_id": portlet.type_id,
@@ -477,15 +484,8 @@ class EnterpriseDashboardApplicationService:
             "freshness_state": "missing",
             "data": None,
             "drill_through_refs": [],
-            "applied_filters": [],
+            "applied_filters": [item.as_dict() for item in dashboard_filters],
         }
-
-    @staticmethod
-    def _current_dashboard_filters(portlet: DashboardPortlet) -> tuple[DashboardFilter, ...]:
-        # Filter values are persisted in the dashboard definition. The read source
-        # contracts do not yet accept a common filter AST, so no source-side filtering
-        # or KPI recomputation is performed in this backend slice.
-        return ()
 
     def _freshness(self, generated_at: datetime | None) -> str:
         if generated_at is None:
@@ -567,9 +567,11 @@ class EnterpriseDashboardApplicationService:
 
     @staticmethod
     def _can_view(dashboard: EnterpriseDashboard, session: object) -> bool:
-        if dashboard.tenant_id != session.tenant_id or dashboard.status != "active":
+        if dashboard.tenant_id != session.tenant_id:
             return False
         roles = frozenset(getattr(session, "roles", ()))
+        if dashboard.status == "archived":
+            return dashboard.owner_user_id == session.user_id or "enterprise_admin" in roles
         return (
             dashboard.owner_user_id == session.user_id
             or "enterprise_admin" in roles
