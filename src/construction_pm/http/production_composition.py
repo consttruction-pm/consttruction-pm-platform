@@ -217,7 +217,12 @@ def build_project_lifecycle_wsgi_app(
             p6_resource_capacity_read_api, p6_resource_capacity_write_api,
             p6_resource_rate_read_api, p6_resource_rate_write_api,
         )
-        if any(api is not None for api in resource_apis) and tracking_resource_repository is None:
+        resource_master_repository = (
+            tracking_resource_repository
+            if tracking_resource_repository is not None
+            else getattr(p6_resource_api, "repository", None)
+        )
+        if any(api is not None for api in resource_apis) and resource_master_repository is None:
             raise ValueError("P6_RESOURCE_ACCESS_REPOSITORY_REQUIRED")
         if p6_resource_api is not None:
             p6_resource_api = replace(
@@ -226,7 +231,7 @@ def build_project_lifecycle_wsgi_app(
         if resource_read_api is not None:
             resource_read_api = replace(
                 resource_read_api, authorization_policy=authorization_policy,
-                resource_repository=tracking_resource_repository,
+                resource_repository=resource_master_repository,
             )
         if resource_write_api is not None:
             resource_write_api = replace(
