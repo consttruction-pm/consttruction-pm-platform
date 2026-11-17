@@ -38,6 +38,7 @@ class P6AssociatedResourceRepository(Protocol):
     def unassign(self, tenant_id: str, user_id: str, *, actor_id: str, expected_revision: int, occurred_at: datetime) -> None: ...
     def get_for_user(self, tenant_id: str, user_id: str) -> P6AssociatedResource | None: ...
     def get_for_resource(self, tenant_id: str, resource_id: str) -> P6AssociatedResource | None: ...
+    def has_resource_assignment_for_project(self, tenant_id: str, user_id: str, project_id: str) -> bool: ...
 
 
 def _from_row(row) -> P6AssociatedResource:
@@ -75,6 +76,20 @@ class _AssociatedResourceBase:
             f"AND resource_id={self.placeholder}", (tenant_id, resource_id),
         ).fetchone()
         return None if row is None else _from_row(row)
+
+    def has_resource_assignment_for_project(self, tenant_id: str, user_id: str, project_id: str) -> bool:
+        association = self.get_for_user(tenant_id, user_id)
+        if association is None:
+            return False
+        try:
+            row = self.connection.execute(
+                f"SELECT 1 FROM p6_resource_assignment WHERE tenant_id={self.placeholder} "
+                f"AND project_id={self.placeholder} AND resource_id={self.placeholder} LIMIT 1",
+                (tenant_id, project_id, association.resource_id),
+            ).fetchone()
+        except Exception:
+            return False
+        return row is not None
 
     def _audit(self, item: P6AssociatedResource, action: str, before: str | None):
         self.connection.execute(
