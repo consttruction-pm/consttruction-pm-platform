@@ -99,11 +99,7 @@ class SQLiteP6BaselineScheduleSnapshotBindingRepository:
                 snapshot_id TEXT NOT NULL,
                 snapshot_hash TEXT NOT NULL,
                 calculation_identity TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, baseline_id),
-                FOREIGN KEY (tenant_id, project_id, baseline_id)
-                    REFERENCES p6_baseline (tenant_id, project_id, baseline_id),
-                FOREIGN KEY (tenant_id, project_id, snapshot_id)
-                    REFERENCES schedule_input_snapshot (tenant_id, project_id, snapshot_id)
+                PRIMARY KEY (tenant_id, project_id, baseline_id)
             )
             """
         )
@@ -177,11 +173,7 @@ class PostgresP6BaselineScheduleSnapshotBindingRepository:
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, baseline_id TEXT NOT NULL, "
             "baseline_project_revision BIGINT NOT NULL, source_revision BIGINT NOT NULL, "
             "snapshot_id TEXT NOT NULL, snapshot_hash TEXT NOT NULL, calculation_identity TEXT NOT NULL, "
-            "PRIMARY KEY (tenant_id,project_id,baseline_id), "
-            "FOREIGN KEY (tenant_id,project_id,baseline_id) "
-            "REFERENCES p6_baseline (tenant_id,project_id,baseline_id), "
-            "FOREIGN KEY (tenant_id,project_id,snapshot_id) "
-            "REFERENCES schedule_input_snapshot (tenant_id,project_id,snapshot_id))"
+            "PRIMARY KEY (tenant_id,project_id,baseline_id))"
         )
 
     def save(
