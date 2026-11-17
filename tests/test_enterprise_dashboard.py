@@ -63,6 +63,8 @@ def snapshot_portlet(
     instance_id: str = "portlet-1",
     portfolio_id: str = "portfolio-1",
     layout: dict[str, int] | None = None,
+    title: str | None = None,
+    hide_title: bool = False,
 ) -> dict[str, object]:
     return {
         "instance_id": instance_id,
@@ -70,6 +72,8 @@ def snapshot_portlet(
         "contract_version": PORTFOLIO_CONTROL_SNAPSHOT,
         "config": {"portfolio_id": portfolio_id},
         "layout": layout or {"x": 0, "y": 0, "w": 6, "h": 4},
+        "title": title,
+        "hide_title": hide_title,
     }
 
 
@@ -322,6 +326,24 @@ def test_create_derives_tenant_and_owner_from_authenticated_session():
     assert stored.dashboard.owner_user_id == "alice"
     assert stored.dashboard.revision == 1
     assert stored.dashboard.visibility == "private"
+
+
+def test_portlet_title_and_title_visibility_are_persisted_and_returned():
+    service, _, _, _ = make_service()
+    created = create_dashboard(
+        service,
+        payload=create_payload(
+            portlets=[snapshot_portlet(title="Portfolio health", hide_title=True)]
+        ),
+    )
+    stored = created.dashboard.portlets[0]
+    assert stored.title == "Portfolio health"
+    assert stored.hide_title is True
+
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert result["portlets"][0]["title"] == "Portfolio health"
+    assert result["portlets"][0]["hide_title"] is True
+    assert result["portlets"][0]["source_data_mode"] == "not_exposed"
 
 
 def test_p6_dashboard_max_rows_setting_defaults_and_validates_bounds():
@@ -1353,6 +1375,11 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert "filtered_out" in schema["$defs"]["portlet_read_response"]["required"]
     assert "applied_filters" in schema["$defs"]["portlet_read_response"]["required"]
     assert "row_limit" in schema["$defs"]["portlet_read_response"]["required"]
+    assert "source_data_mode" in schema["$defs"]["portlet_read_response"]["required"]
+    assert schema["$defs"]["portlet_read_response"]["properties"]["source_data_mode"]["enum"] == [
+        "live", "published", "summarized", "not_exposed"
+    ]
+    assert schema["$defs"]["portlet_read_response"]["properties"]["title"]["maxLength"] == 255
     assert "truncated" in schema["$defs"]["portlet_read_response"]["required"]
     assert schema["$defs"]["portlet_read_response"]["properties"]["row_limit"]["type"] == "integer"
     assert schema["$defs"]["portlet_read_response"]["properties"]["row_limit"]["maximum"] == 500
