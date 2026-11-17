@@ -3,7 +3,7 @@
 **Issue:** #2028  
 **Implementation branch:** feat/ent06-dashboard-portlet-backend-v1  
 **Scope:** isolated CUBI Enterprise backend foundation  
-**Status:** implementation candidate; exact-head CI and PostgreSQL evidence pending
+**Status:** implementation expanded against the complete P6 EPPM V26 dashboard/portlet topic family; exact-head CI rerun pending after the parity changes
 
 This document describes the bounded backend slice only. It is not a claim that the complete P6 EPPM dashboard experience, dashboard designer UI, production HTTP routes, browser workflows, or full Oracle parity are complete.
 
@@ -39,13 +39,14 @@ The closed contract is **cubi-enterprise-dashboard.v1**. It rejects unknown fiel
 
 - Tenant, dashboard, owner and context identity.
 - enterprise_home or a specific portfolio context.
-- Private, explicitly assigned user, explicitly assigned Enterprise role, or combined sharing.
+- Private, explicitly assigned user, explicitly assigned Enterprise role, combined sharing, and P6-style all-tenant global visibility (admin-only).
+- An owner-controlled `restrict_filter_override` policy matching the P6 shared-dashboard filter lock.
 - Active/archived lifecycle state and optimistic revision.
-- Ordered portlet instances with stable instance IDs, exact registered type/version, typed configuration and bounded layout placement.
-- Typed, allow-listed filter metadata.
+- Ordered portlet instances with stable instance IDs, exact registered type/version, typed configuration and a two-column Narrow/Wide-compatible layout.
+- Typed, allow-listed filters for portfolio/project selection, source status and freshness.
 - Creation and update timestamps.
 
-The default portlet ceiling is twelve, matching the EPPM dashboard default documented in Help. The layout model is a bounded 12-column grid and is presentation-only.
+The default portlet ceiling is twelve, matching the EPPM Content tab default. Layout coordinates model the EPPM two-column Narrow/Wide choices (six columns for Narrow, twelve for Wide), left/right placement and vertical ordering. Overlapping portlet rectangles and unsupported widths are rejected. This remains presentation-only; the drag/drop and arrow controls are UI work.
 
 ### 2.2 Governed registry
 
@@ -77,17 +78,19 @@ The application service provides:
 - Update title, description, portlets and filters.
 - Duplicate into a new private dashboard owned by the current actor.
 - Assign and revoke explicit user or Enterprise-role shares.
+- Assign/revoke all-tenant global visibility; only an Enterprise administrator can create, edit, or revoke a global dashboard.
+- Enforce the owner-controlled filter-override restriction.
 - Archive.
 - Read portlet data through existing source boundaries.
 
-The authenticated session is the sole authority for actor and tenant. Caller-supplied owner or tenant fields are rejected. Enterprise viewers can read but cannot mutate. Owners and Enterprise administrators can manage dashboards; Enterprise administrators can manage tenant dashboards.
+The authenticated session is the sole authority for actor and tenant. Caller-supplied owner or tenant fields are rejected. Enterprise viewers can read but cannot mutate. Owners and Enterprise administrators can manage private/user/role-shared dashboards; global dashboards require Enterprise-administrator mutation, matching the P6 All Users privilege boundary.
 
 ### 2.4 Source authorization and freshness
 
 A dashboard share grants access to the dashboard definition only. For each portlet read:
 
 1. The existing Portfolio Control Snapshot or Portfolio Decision boundary is called with an AuthorizationContext derived from the current authenticated session.
-2. Each affected project ID is separately re-authorized through the existing project lifecycle authorize_project(..., PROJECT_READ) boundary.
+2. Portfolio snapshot filters are applied to source-backed project rows; only the rows returned are separately re-authorized through the existing project lifecycle authorize_project(..., PROJECT_READ) boundary. Portfolio Decision affected-project references are all re-authorized before decision data is returned.
 3. Tenant, portfolio and source contract identity are checked before returning data.
 4. The response preserves source snapshot identity and source revision. Snapshot source revision is represented by the ordered source-reference revision set; a decision uses its persisted decision revision.
 5. Snapshot age is explicitly classified as fresh or stale. Missing source records return missing; source contracts without a generated timestamp return unknown.
@@ -95,18 +98,20 @@ A dashboard share grants access to the dashboard definition only. For each portl
 
 No cache is introduced. Drill-through references are emitted as typed IDs and revisions, but no UI navigation or route is mounted in this slice.
 
-### 2.5 Filter contract boundary
+### 2.5 Filter contract and P6 override semantics
 
 Filters are stored and validated against a closed key/operator/value catalogue:
 
-- project_status
-- membership_status
-- decision_status
-- generated_after
-- generated_before
-- include_stale
+- `portfolio_id` (selects the portfolio used by configured portlets; in portfolio context it must equal the context portfolio);
+- `project_id` (eq/in selection);
+- `project_status` and `membership_status` (applied to Portfolio Control Snapshot project rows);
+- `decision_status` (applied to Portfolio Decision);
+- `generated_after` / `generated_before` (source timestamp bounds);
+- `include_stale` (when false, stale and unknown source data are suppressed while freshness remains explicit).
 
-They are returned with the dashboard read response. The existing Portfolio Control and Portfolio Decision source contracts do not yet expose a common filter AST. This slice therefore does not pretend to apply source-side filters or recompute KPIs; that integration is deferred until an approved source-query contract exists.
+The owner may set `restrict_filter_override=true`. When false, a reader may supply request-scoped filter overrides; when true, only the owner or Enterprise administrator may override. Overrides are not persisted. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
+
+Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered before project-level authorization and only returned rows are authorized. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
 
 ## 3. Oracle Help crosswalk
 
@@ -117,7 +122,7 @@ Official HTML Help is the normative source. Each disposition below is limited to
 | Source topic | Backend disposition | Evidence / gap |
 |---|---|---|
 | [EPPM V26 Help TOC](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm) | Partial | The Dashboards and Portlets sections identify dashboard management, content, access, filters, layout and the portfolio-view portlet family. The backend implements the bounded definition and read-model foundation, not the full UI inventory. |
-| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Partial | Private and explicitly shared dashboards are represented. EPPM global dashboards and user-interface-view assignment are not implemented in this slice. The Help notes that module access, privileges and project role continue to govern the displayed data; source reauthorization is retained. |
+| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Partial | Private, explicit-user, explicit-role and global-to-all-enterprise-users visibility are represented. Global mutation is administrator-only. User-interface-view assignment, dashboard tabs and display preferences remain deferred. The Help notes that module access, privileges and project role continue to govern displayed data; source reauthorization is retained. |
 | [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Partial | Create and duplicate use cases are implemented. The context selector, copy-from-existing dialog and Save and Close UI are deferred. |
 | [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm) | Partial | Content, layout, access and filters are persisted in one definition. Content/Layout/Access tabs and Save and Close interaction are UI work and are not claimed. |
 | [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm) | Partial | Registered portlet selection and typed configuration are implemented. The full P6 portlet catalogue, per-portlet options/fields and administrative portlet-count configuration are not implemented. The v1 ceiling is twelve. |
@@ -133,9 +138,9 @@ Official HTML Help is the normative source. Each disposition below is limited to
 
 | Related topic | Disposition | Traceability |
 |---|---|---|
-| [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Partial | Private/user/role sharing and owner/admin mutation boundaries are persisted. Global dashboard access and UI privilege controls are deferred. |
-| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Partial | Allow-listed filters are persisted. P6 filter-locking and per-user filter overrides are not implemented; the source read contract must be extended before filters are applied to source data. |
-| [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm) | Partial | Ordered bounded grid placement is persisted. P6 Narrow/Wide and drag/drop UI are deferred. |
+| [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Partial | Current User maps to private; List of Users maps to explicit user shares; All Users maps to global visibility, restricted to Enterprise administrators. Explicit Enterprise-role sharing is a CUBI extension. The Access tab and user-picker UI remain deferred. |
+| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Partial | Owner-controlled filter restriction and request-scoped per-user overrides are implemented. Portfolio/project selection and source-backed status/date filters are applied without KPI recalculation. Project-code filtering is deferred because the canonical snapshot contract has no project-code field. |
+| [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm) | Partial | Narrow/Wide width and left/right/up/down-compatible coordinates are validated; overlap is rejected and read ordering follows saved coordinates. Drag/drop and arrow controls remain UI work. |
 | [Working with Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm) | Partial | Portlet identity, layout and typed read response exist. Expand/collapse, help, refresh, maximize/restore, close, print, toolbars and tooltips are UI behavior and are not claimed. |
 | [List of Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm) | Partial | The v1 registry deliberately includes only the two stable portfolio source contracts. Personal, project-performance, resource and custom P6 portlets are not silently represented as implemented. |
 | [Customizing Portfolio View Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/44303.htm) | Partial | Source configuration is typed and closed. Chart/scorecard/histogram-specific customization remains deferred. |
@@ -157,7 +162,7 @@ The source-family TOC and each required topic were inspected for the path, page 
 - **Opening Projects from Dashboard Portlets:** Navigation Menu → Dashboard → select dashboard → expand portlet → select project. P6 requires OBS access, project ownership, resource assignment or activity ownership; only certain project-related portlets expose project links. The backend re-authorizes every referenced project, while rendered link navigation is deferred.
 - **Portfolio Reports:** The V26 Reports Help topic is Portfolio Reports. It describes report content, not a dashboard editor path; reports remain in the existing reporting capability and no parallel report engine is added.
 
-Related EPPM screen topics were also checked: Configuring Dashboard Access uses the Customize page's Access tab and a List of Users control; Configuring Dashboard Filters uses the Filter by control at the top of a dashboard or General on the Content tab; Configuring Dashboard Layout uses the Layout tab with Narrow/Wide and up/down/left/right or drag/drop controls; Working with Portlets documents the dashboard-wide filter and titlebar expand/collapse/help/refresh/maximize/restore/close/print controls, plus toolbars and mouseover tips. The List of Portlets groups Personal Data, Portfolio Views, Project Performance, Resources, Custom Portlets and Project Collaboration. The two Portfolio View Portlet customization/creation topics expose chart/scorecard settings, fields and grouping; these remain outside the read-only v1 source contract.
+The related EPPM screen topics were checked against their HTML screen definitions. The complete topic-by-topic inventory, every dashboard portlet listed in the V26 Help catalogue, and related action/workflow topics are mapped in the following inventory. The backend implements only the bounded read-only portfolio source slice; it does not claim the rest of the P6 portlet catalogue.
 
 ### 3.2 Primavera Cloud — comparative/additive only
 
@@ -202,6 +207,7 @@ Additional Cloud Manage Dashboards topics inspected from the official HTML links
 | [Assign a Dashboard](https://primavera.oraclecloud.com/help/en/user/142305.htm) | Deferred | Manage Dashboards → object tab → Assign; assigned dashboard is edited only at owner level. Object-to-object assignment is not in the bounded backend slice. |
 | [Duplicate a Dashboard](https://primavera.oraclecloud.com/help/en/user/95937.htm) | Partial | Manage Dashboards → select row → Context menu → Duplicate → enter new Name → Duplicate → Save. Backend duplicate creates a new private dashboard owned by the current actor; UI and workspace-level inheritance are deferred. |
 | [Organize Dashboards](https://primavera.oraclecloud.com/help/en/user/96011.htm) | Deferred | Manage Dashboards → select row → Context menu → Move Up/Move Down → Save; Display checkbox hides a dashboard from the current Dashboard List. Tab ordering and display preferences are not in v1. |
+| [Update the Owning Workspace of a Dashboard](https://primavera.oraclecloud.com/help/en/user/100788.htm) | Not Applicable | Workspace hierarchy ownership transfer is not in the tenant-scoped CUBI dashboard definition contract. No cross-workspace transfer or inheritance is added. |
 
 ### 3.3 P6 Professional Version 26 — overlap and non-interference only
 
