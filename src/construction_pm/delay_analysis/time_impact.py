@@ -60,7 +60,7 @@ def _analysis_hash(event_id, source_hash, impacted_hash, unimpacted_run, impacte
             "event_id": event_id,
             "source_snapshot_hash": source_hash,
             "impacted_snapshot_hash": impacted_hash,
-            "baseline_run_id": unimpacted_run.run_id,
+            "unimpacted_run_id": unimpacted_run.run_id,
             "impacted_run_id": impacted_run.run_id,
             "unimpacted_finish": unimpacted_run.project_finish,
             "impacted_finish": impacted_run.project_finish,
@@ -108,7 +108,11 @@ class TimeImpactAnalysisExecutor:
         source_snapshot.validate()
         if source_context.input_snapshot_id != source_snapshot.snapshot_id:
             raise TimeImpactExecutionError("SOURCE_CONTEXT_SNAPSHOT_MISMATCH")
-        if (\n            source_context.calculation_identity != source_snapshot.calculation_identity\n            if source_snapshot.calculation_identity_version == 2\n            else source_context.legacy_calculation_identity != source_snapshot.calculation_identity\n        ):
+        if (
+            source_context.calculation_identity != source_snapshot.calculation_identity
+            if source_snapshot.calculation_identity_version == 2
+            else source_context.legacy_calculation_identity != source_snapshot.calculation_identity
+        ):
             raise TimeImpactExecutionError("SOURCE_CONTEXT_CALCULATION_IDENTITY_MISMATCH")
         if (
             source_context.project_id != source_snapshot.scope.project_id
