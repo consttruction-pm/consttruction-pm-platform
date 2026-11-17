@@ -6,6 +6,7 @@ from construction_pm.delay_analysis.fragnet import (
     FragnetActivity,
     FragnetRelationship,
 )
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.delay_analysis.time_impact import TimeImpactAnalysisExecutor
 from construction_pm.schedule_input_snapshot_repository import (
     SQLiteScheduleInputSnapshotRepository,
@@ -81,6 +82,7 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
     executor = TimeImpactAnalysisExecutor(
         snapshot_repository=snapshot_repository,
         run_repository=run_repository,
+        transaction_manager=SQLiteTransactionManager(connection),
         snapshot_id_factory=lambda: "IMPACTED-SNAPSHOT",
         clock=lambda: next(clock_values),
     )
