@@ -1951,6 +1951,18 @@ def test_global_and_project_defaults_are_independent_and_protected_from_delete()
         assert global_b.is_default is True
         assert project_b.is_default is True
 
+        for profile in (global_b, project_b):
+            with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_REQUIRED"):
+                profiles.set_active(
+                    tenant_id=tenant, profile_id=profile.profile_id, active=False,
+                    expected_revision=profile.revision, actor_user_id=actor, occurred_at=now,
+                )
+            with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_REQUIRED"):
+                profiles.set_default(
+                    tenant_id=tenant, profile_id=profile.profile_id, is_default=False,
+                    expected_revision=profile.revision, actor_user_id=actor, occurred_at=now,
+                )
+
         default_events = connection.execute(
             "SELECT profile_id FROM p6_security_profile_audit "
             "WHERE tenant_id=%s AND action='profile_default_changed'",
