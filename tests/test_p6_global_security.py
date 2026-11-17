@@ -540,3 +540,18 @@ def test_persisted_global_policy_enforces_resource_module_and_selected_ancestry(
     assert not policy_without_module.can_access_resource(
         context, "R-CHILD", ("R-CHILD", "R-ROOT")
     )
+
+
+def test_persisted_global_policy_fails_closed_without_obs_project_access_resolver():
+    now = datetime.now(timezone.utc)
+    profile = GlobalSecurityProfile("tenant-a", "project-user", "Project User", ())
+    assignment = UserGlobalSecurity(
+        tenant_id="tenant-a", user_id="user-1", profile_id=profile.profile_id,
+        module_access=("projects",), resource_access_mode="all", resource_root_ids=(),
+        revision=1, updated_by="admin", updated_at=now,
+    )
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _PersistedSecurity(profile, assignment), default_project_policy()
+    )
+    context = AuthorizationContext("tenant-a", "project-a", "user-1", frozenset())
+    assert not policy.is_allowed(context, Permission.PROJECT_READ)
