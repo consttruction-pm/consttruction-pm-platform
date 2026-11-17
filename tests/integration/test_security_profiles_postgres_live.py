@@ -1468,6 +1468,9 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         assert policy.is_allowed(context, Permission.P6_ACTIVITY_ADMIN)
         assert not policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
         assert not policy.is_allowed(context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN)
+        assert not policy.is_allowed(context, Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN)
+        assert not policy.is_allowed(context, Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT)
+        assert not policy.is_allowed(context, Permission.P6_EDIT_FUTURE_PERIODS)
         assert not policy.is_allowed_for_wbs(
             context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN, root_wbs
         )
@@ -1477,6 +1480,15 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         assert not policy.is_allowed(
             unassigned_context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN
         ), "a planner/team role must not grant Resource Planning assignment access"
+        assert not policy.is_allowed(
+            unassigned_context, Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN
+        )
+        assert not policy.is_allowed(
+            unassigned_context, Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT
+        )
+        assert not policy.is_allowed(
+            unassigned_context, Permission.P6_EDIT_FUTURE_PERIODS
+        )
 
         root_assignment = P6ResourceAssignment(
             scope, f"resource-assignment-root-{suffix}", root_activity, "resource-1"
@@ -1506,6 +1518,15 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         assert not policy.is_allowed_for_wbs(
             context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN, restricted_wbs
         )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_FUTURE_PERIODS, root_wbs
+        )
         planning_assignment = P6ResourceAssignment(
             scope, f"resource-planning-root-{suffix}", root_activity, "resource-planning-1"
         )
@@ -1524,6 +1545,57 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             restricted_planning_assignment, auth_context=restricted_context
         )
 
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_activities_except_relationships",
+                "add_edit_delete_resource_assignments_resource_planning",
+                "add_edit_delete_role_assignments_resource_planning",
+            },
+            expected_revision=3, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_FUTURE_PERIODS, root_wbs
+        )
+
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_activities_except_relationships",
+                "add_edit_delete_resource_assignments_resource_planning",
+                "add_edit_delete_role_assignments_resource_planning",
+                "edit_committed_flag_resource_planning",
+            },
+            expected_revision=4, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT, root_wbs
+        )
+        assert not policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_FUTURE_PERIODS, root_wbs
+        )
+
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=project_profile.profile_id,
+            privileges={
+                "add_edit_activities_except_relationships",
+                "add_edit_delete_resource_assignments_resource_planning",
+                "add_edit_delete_role_assignments_resource_planning",
+                "edit_committed_flag_resource_planning",
+                "edit_future_periods",
+            },
+            expected_revision=5, actor_user_id=user_id, occurred_at=now,
+        )
+        assert policy.is_allowed_for_wbs(
+            context, Permission.P6_EDIT_FUTURE_PERIODS, root_wbs
+        )
+
         root_period = P6ResourceAssignmentPeriodValue(
             scope, root_assignment.assignment_id, root_activity, "resource-1",
             "2026-11-15", Decimal("4"), Decimal("40"),
@@ -1539,7 +1611,7 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
                 "edit_period_performance",
                 "view_project_costs_financials",
             },
-            expected_revision=3, actor_user_id=user_id, occurred_at=now,
+            expected_revision=6, actor_user_id=user_id, occurred_at=now,
         )
         assert policy.is_allowed(context, Permission.P6_EDIT_PERIOD_PERFORMANCE)
         assert policy.is_allowed_for_wbs(
@@ -1561,6 +1633,15 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             restricted_period, auth_context=restricted_context
         )
 
+        with pytest.raises(
+            SecurityProfileError, match="SECURITY_PROFILE_PRIVILEGE_DEPENDENCY_REQUIRED"
+        ):
+            profiles.set_privileges(
+                tenant_id=tenant, profile_id=project_profile.profile_id,
+                privileges={"edit_future_periods"},
+                expected_revision=7, actor_user_id=user_id, occurred_at=now,
+            )
+
         # A user assigned to the restricted OBS can write that WBS only, not
         # the project OBS WBS; this is not inferred from team membership.
         write_api.save_assignment(restricted_assignment, auth_context=restricted_context)
@@ -1577,9 +1658,13 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
             f"{tenant}-foreign", project_id, user_id, frozenset({"planner"})
         )
         assert not policy.is_allowed(foreign_context, Permission.P6_ACTIVITY_ADMIN)
-        assert not policy.is_allowed(
-            foreign_context, Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN
-        )
+        for permission in (
+            Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN,
+            Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN,
+            Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT,
+            Permission.P6_EDIT_FUTURE_PERIODS,
+        ):
+            assert not policy.is_allowed(foreign_context, permission)
         connection.rollback()
 
 
