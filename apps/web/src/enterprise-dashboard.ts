@@ -94,6 +94,29 @@ export interface EnterpriseDashboardClient {
   archiveDashboard(dashboardId: string, expectedRevision: number): Promise<unknown>;
 }
 
+export type EnterpriseDashboardFilter = { key: string; operator: string; value: unknown };
+
+export const ENTERPRISE_DASHBOARD_FILTER_CATALOG: ReadonlyArray<{
+  key: string;
+  label: string;
+  value_kind: "text" | "text_list" | "enum" | "datetime" | "boolean";
+  operators: readonly string[];
+  options?: readonly string[];
+}> = Object.freeze([
+  { key: "portfolio_id", label: "Portfolio", value_kind: "text", operators: ["eq"] },
+  { key: "project_id", label: "Project", value_kind: "text_list", operators: ["eq", "in"] },
+  { key: "project_status", label: "Project status", value_kind: "text_list", operators: ["eq", "in"] },
+  { key: "membership_status", label: "Portfolio membership", value_kind: "enum", operators: ["eq", "in"], options: ["included", "on_hold", "excluded"] },
+  { key: "decision_status", label: "Decision status", value_kind: "enum", operators: ["eq", "in"], options: ["proposed", "under_review", "approved", "rejected", "implemented", "closed", "cancelled"] },
+  { key: "generated_after", label: "Generated after", value_kind: "datetime", operators: ["gte"] },
+  { key: "generated_before", label: "Generated before", value_kind: "datetime", operators: ["lte"] },
+  { key: "include_stale", label: "Include stale data", value_kind: "boolean", operators: ["eq"] },
+]);
+
+export function dashboardFilterDefinition(key: string) {
+  return ENTERPRISE_DASHBOARD_FILTER_CATALOG.find((item) => item.key === key);
+}
+
 export type EnterpriseDashboardLocale = "en" | "fa";
 export type EnterprisePortletState = "ready" | "empty" | "stale" | "missing" | "filtered" | "permission_denied" | "error";
 
@@ -233,7 +256,7 @@ const COPY = {
     drill: "Open source record", projects: "Projects", status: "Status", membership: "Membership", total: "Total",
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
-    projectFilter: "Filter by project ID", applyFilter: "Apply filter", resetFilter: "Reset filter",
+    projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.",
     moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
@@ -255,7 +278,7 @@ const COPY = {
     drill: "بازکردن رکورد منبع", projects: "پروژه‌ها", status: "وضعیت", membership: "عضویت", total: "مجموع",
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
-    projectFilter: "فیلتر بر اساس شناسه پروژه", applyFilter: "اعمال فیلتر", resetFilter: "پاک‌کردن فیلتر",
+    projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.",
     moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
@@ -343,6 +366,7 @@ export async function mountEnterpriseDashboard(
   let activeRead: EnterpriseDashboardRead | null = null;
   let activeDefinition: EnterpriseDashboardDefinition | null = null;
   let searchTerm = "";
+  let activeFilterOverrides: EnterpriseDashboardFilter[] | null = null;
 
   async function loadCatalog(): Promise<EnterpriseDashboardCatalog | null> {
     status.textContent = t.loading;
@@ -445,6 +469,7 @@ export async function mountEnterpriseDashboard(
     try {
       const [stored, read] = await Promise.all([client.getDashboard(dashboardId), client.readPortlets(dashboardId)]);
       activeDefinition = stored.dashboard;
+      activeFilterOverrides = null;
       activeRead = read;
       status.textContent = "";
       renderViewer();
@@ -463,29 +488,17 @@ export async function mountEnterpriseDashboard(
     titleRow.append(button(t.duplicate, async () => { await client.duplicateDashboard(activeDefinition!.dashboard_id); await loadCatalog(); }));
     content.append(titleRow);
     const filterRow = node("div", "ced-toolbar ced-section");
-    const projectFilter = input("dashboard-project-filter", "");
-    projectFilter.placeholder = t.projectFilter;
-    projectFilter.setAttribute("aria-label", t.projectFilter);
-    projectFilter.disabled = activeDefinition.restrict_filter_override;
-    const applyFilter = button(t.applyFilter, async () => {
-      const projectId = projectFilter.value.trim();
-      if (!activeDefinition || !projectId || activeDefinition.restrict_filter_override) return;
-      try {
-        status.textContent = t.loading;
-        activeRead = await client.readPortlets(activeDefinition.dashboard_id, [
-          { key: "project_id", operator: "eq", value: projectId },
-        ]);
-        status.textContent = "";
-        renderViewer();
-      } catch (error) {
-        status.textContent = error instanceof Error && error.message.includes("FORBIDDEN") ? t.denied : t.error;
-      }
-    });
-    applyFilter.disabled = activeDefinition.restrict_filter_override;
+    const filterSummary = activeFilterOverrides?.length
+      ? activeFilterOverrides.map((item) => `${dashboardFilterDefinition(item.key)?.label ?? item.key} ${item.operator} ${Array.isArray(item.value) ? item.value.join(", ") : String(item.value)}`).join(" · ")
+      : activeDefinition.filters.length ? activeDefinition.filters.map((item) => item.key).join(" · ") : t.noFilters;
+    filterRow.append(node("span", "ced-muted", filterSummary));
+    const configureFilters = button(t.projectFilter, () => openFilterDialog(), "ced-button");
+    configureFilters.disabled = activeDefinition.restrict_filter_override;
     const resetFilter = button(t.resetFilter, async () => {
       if (!activeDefinition) return;
-      projectFilter.value = "";
       try {
+        status.textContent = t.loading;
+        activeFilterOverrides = null;
         activeRead = await client.readPortlets(activeDefinition.dashboard_id);
         status.textContent = "";
         renderViewer();
@@ -493,7 +506,8 @@ export async function mountEnterpriseDashboard(
         status.textContent = t.error;
       }
     });
-    filterRow.append(projectFilter, applyFilter, resetFilter);
+    resetFilter.disabled = activeDefinition.restrict_filter_override;
+    filterRow.append(configureFilters, resetFilter);
     if (activeDefinition.restrict_filter_override) filterRow.append(node("span", "ced-muted", t.filterLocked));
     content.append(filterRow);
     if (!activeRead.portlets.length) {
@@ -502,6 +516,115 @@ export async function mountEnterpriseDashboard(
     }
     for (const read of activeRead.portlets) content.append(renderPortlet(read));
   }
+  function openFilterDialog(): void {
+    if (!activeDefinition || activeDefinition.restrict_filter_override) return;
+    let draft = (activeFilterOverrides ?? activeRead?.filters ?? activeDefinition.filters).map((item) => ({
+      key: item.key, operator: item.operator, value: Array.isArray(item.value) ? [...item.value] : item.value,
+    }));
+    const dialog = node("dialog", "ced-dialog");
+    const inner = node("div", "ced-dialog-inner");
+    inner.append(node("h2", "", t.filterDialog));
+    const conditions = node("div", "ced-section");
+    const fieldSelect = node("select", "ced-select");
+    for (const definition of ENTERPRISE_DASHBOARD_FILTER_CATALOG) {
+      const option = node("option", "", definition.label);
+      option.value = definition.key;
+      fieldSelect.append(option);
+    }
+    const operatorSelect = node("select", "ced-select");
+    const valueHost = node("div", "ced-field");
+    const valueInput = node("input", "ced-input");
+    valueInput.type = "text";
+    function renderValueControl(): void {
+      const definition = dashboardFilterDefinition(fieldSelect.value)!;
+      operatorSelect.replaceChildren();
+      for (const operator of definition.operators) {
+        const option = node("option", "", operator);
+        option.value = operator;
+        operatorSelect.append(option);
+      }
+      valueHost.replaceChildren(node("span", "ced-muted", t.value));
+      let control: HTMLElement;
+      if (definition.value_kind === "enum") {
+        const select = node("select", "ced-select");
+        if (operatorSelect.value === "in") select.multiple = true;
+        for (const value of definition.options ?? []) {
+          const option = node("option", "", value);
+          option.value = value;
+          select.append(option);
+        }
+        control = select;
+      } else if (definition.value_kind === "boolean") {
+        const select = node("select", "ced-select");
+        for (const [value, label] of [["true", "true"], ["false", "false"]]) {
+          const option = node("option", "", label);
+          option.value = value;
+          select.append(option);
+        }
+        control = select;
+      } else {
+        const inputControl = node("input", "ced-input");
+        inputControl.type = definition.value_kind === "datetime" ? "datetime-local" : "text";
+        if (definition.value_kind === "text_list") inputControl.placeholder = t.filterValueHint;
+        control = inputControl;
+      }
+      control.dataset.filterValue = "true";
+      valueHost.append(control);
+      if (definition.value_kind === "text_list") valueHost.append(node("small", "ced-muted", t.filterValueHint));
+    }
+    fieldSelect.addEventListener("change", renderValueControl);
+    operatorSelect.addEventListener("change", renderValueControl);
+    renderValueControl();
+    const add = button(t.addFilter, () => {
+      const definition = dashboardFilterDefinition(fieldSelect.value);
+      const control = valueHost.querySelector<HTMLInputElement | HTMLSelectElement>("[data-filter-value]");
+      if (!definition || !control || draft.some((item) => item.key === definition.key)) return;
+      let value: unknown;
+      if (definition.value_kind === "boolean") value = (control as HTMLSelectElement).value === "true";
+      else if (definition.value_kind === "enum" && operatorSelect.value === "in") value = Array.from((control as HTMLSelectElement).selectedOptions).map((option) => option.value);
+      else if (definition.value_kind === "text_list" && operatorSelect.value === "in") value = (control as HTMLInputElement).value.split(",").map((item) => item.trim()).filter(Boolean);
+      else if (definition.value_kind === "datetime") {
+        const raw = (control as HTMLInputElement).value;
+        value = raw ? new Date(raw).toISOString() : "";
+      } else value = (control as HTMLInputElement | HTMLSelectElement).value.trim();
+      if (value === "" || (Array.isArray(value) && !value.length)) return;
+      draft.push({ key: definition.key, operator: operatorSelect.value, value });
+      renderConditions();
+    });
+    function renderConditions(): void {
+      conditions.replaceChildren();
+      if (!draft.length) conditions.append(node("p", "ced-muted", t.noFilters));
+      for (const [index, item] of draft.entries()) {
+        const row = node("div", "ced-row ced-panel ced-section");
+        const value = Array.isArray(item.value) ? item.value.join(", ") : String(item.value);
+        row.append(node("span", "", `${dashboardFilterDefinition(item.key)?.label ?? item.key} · ${item.operator} · ${value}`));
+        row.append(button(t.removeFilter, () => { draft = draft.filter((_, itemIndex) => itemIndex !== index); renderConditions(); }));
+        conditions.append(row);
+      }
+    }
+    renderConditions();
+    const footer = node("div", "ced-row");
+    footer.append(button(t.applyFilter, async () => {
+      if (!activeDefinition) return;
+      try {
+        status.textContent = t.loading;
+        activeFilterOverrides = draft;
+        activeRead = await client.readPortlets(activeDefinition.dashboard_id, draft);
+        dialog.close();
+        dialog.remove();
+        status.textContent = "";
+        renderViewer();
+      } catch (error) {
+        status.textContent = error instanceof Error && error.message.includes("FORBIDDEN") ? t.denied : t.error;
+      }
+    }, "ced-button primary"));
+    footer.append(button(t.cancel, () => { dialog.close(); dialog.remove(); }));
+    inner.append(node("div", "ced-form-grid", ""), field(t.field, fieldSelect), field(t.operator, operatorSelect), valueHost, add, conditions, footer);
+    dialog.append(inner);
+    container.append(dialog);
+    dialog.showModal();
+  }
+
   function renderPortlet(read: EnterprisePortletRead): HTMLElement {
     const card = node("article", "ced-portlet");
     const head = node("header", "ced-portlet-head");
