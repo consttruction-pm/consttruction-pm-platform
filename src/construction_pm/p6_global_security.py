@@ -125,6 +125,7 @@ class PostgresP6GlobalSecurityRepository:
                 built_in BOOLEAN NOT NULL DEFAULT FALSE,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
                 revision BIGINT NOT NULL CHECK(revision >= 1),
+                created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL,
                 PRIMARY KEY(tenant_id,profile_id),
                 UNIQUE(tenant_id,name))""",
             """CREATE TABLE IF NOT EXISTS p6_user_global_security (
@@ -158,6 +159,33 @@ class PostgresP6GlobalSecurityRepository:
         )
         for statement in statements:
             self._connection.execute(statement)
+
+    def create_profile(self, profile: GlobalSecurityProfile, *, actor_id: str,
+                       created_at: datetime) -> GlobalSecurityProfile:
+        profile.validate()
+        if not actor_id.strip() or created_at.tzinfo is None:
+            raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
+        if profile.built_in:
+            raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
+        self._connection.execute(
+            "INSERT INTO p6_global_security_profiles "
+            "(tenant_id,profile_id,name,privileges,built_in,active,revision,created_by,created_at) "
+            "VALUES(%s,%s,%s,%s::jsonb,FALSE,%s,%s,%s,%s)",
+            (profile.tenant_id, profile.profile_id, profile.name,
+             json.dumps(list(profile.privileges)), profile.active, profile.revision,
+             actor_id, created_at),
+        )
+        self._connection.execute(
+            "INSERT INTO p6_global_security_audit "
+            "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+            "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,'global_profile_created',"
+            "NULL,%s::jsonb,%s)",
+            (f"p6-global-{uuid4().hex}", profile.tenant_id, actor_id,
+             profile.profile_id, json.dumps({"name": profile.name,
+             "privileges": list(profile.privileges), "revision": profile.revision}),
+             created_at),
+        )
+        return profile
 
     def get_profile(self, tenant_id: str, profile_id: str) -> GlobalSecurityProfile | None:
         row = self._connection.execute(
