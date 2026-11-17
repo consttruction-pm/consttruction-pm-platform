@@ -51,6 +51,10 @@ from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
 )
+from ..p6_global_security import (
+    P6GlobalSecurityAuthorizationPolicy,
+    PostgresP6GlobalSecurityRepository,
+)
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
@@ -290,7 +294,11 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        project_role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        global_security_repository = PostgresP6GlobalSecurityRepository(connection)
+        policy = P6GlobalSecurityAuthorizationPolicy(
+            global_security_repository, project_role_policy
+        )
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
