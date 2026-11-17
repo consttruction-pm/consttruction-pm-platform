@@ -236,7 +236,10 @@ class DashboardFilter:
                 not isinstance(self.value, (tuple, list))
                 or not self.value
                 or len(self.value) > 200
-                or any(not isinstance(item, str) or not item.strip() for item in self.value)
+                or any(
+                    not isinstance(item, str) or not item.strip() or len(item) > 200
+                    for item in self.value
+                )
                 or len(set(self.value)) != len(self.value)
             ):
                 raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE")
