@@ -117,7 +117,7 @@ def test_capture_requires_help_relevant_settings_and_calendar_provenance():
         calculation_identity=snapshot.calculation_identity,
         created_at=snapshot.created_at,
     )
-    with pytest.raises(ScheduleRunCaptureError, match="MISSING_SCHEDULE_OPTIONS"):
+    with pytest.raises(ScheduleRunCaptureError, match="SCHEDULE_SNAPSHOT_MISSING_SCHEDULE_OPTIONS"):
         build_schedule_run_capture(
             broken_snapshot, context, evaluation,
             captured_at=datetime(2026, 11, 18, tzinfo=timezone.utc),
