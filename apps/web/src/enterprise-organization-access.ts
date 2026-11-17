@@ -328,7 +328,8 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const projectUserOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}" ${account.user_id === selectedProjectUserId ? "selected" : ""}>${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
     ).join("");
-    const obsNodeById = new Map(obsNodes.map((node) => [node.obs_id, node]));
+    const obsNodeById = new Map<string, OBSNode>();
+    obsNodes.forEach((node) => obsNodeById.set(node.obs_id, node));
     const obsDepth = (node: OBSNode) => {
       let depth = 0;
       let parentId = node.parent_obs_id;
