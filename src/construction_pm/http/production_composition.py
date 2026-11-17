@@ -45,6 +45,7 @@ from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
+from construction_pm.p6_code_api import P6CodeAPI, P6CodeAssignmentAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.constraint_master_repository import ConstraintMasterRepository
@@ -179,6 +180,8 @@ def build_project_lifecycle_wsgi_app(
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
+    p6_code_api: P6CodeAPI | None = None,
+    p6_code_assignment_api: P6CodeAssignmentAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
     p6_resource_rate_read_api: P6ResourceRateReadAPI | None = None,
@@ -481,6 +484,8 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
         p6_resource_spread_api=p6_resource_spread_api,
+        p6_code_api=p6_code_api,
+        p6_code_assignment_api=p6_code_assignment_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,
         p6_resource_capacity_write_api=p6_resource_capacity_write_api,
         p6_resource_rate_read_api=p6_resource_rate_read_api,
