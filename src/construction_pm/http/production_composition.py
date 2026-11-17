@@ -223,17 +223,36 @@ def build_project_lifecycle_wsgi_app(
             p6_resource_api = replace(
                 p6_resource_api, authorization_policy=authorization_policy
             )
-        for name in (
-            "resource_read_api", "resource_write_api",
-            "p6_resource_capacity_read_api", "p6_resource_capacity_write_api",
-            "p6_resource_rate_read_api", "p6_resource_rate_write_api",
-        ):
-            api = locals()[name]
-            if api is not None:
-                locals()[name] = replace(
-                    api, authorization_policy=authorization_policy,
-                    resource_repository=tracking_resource_repository,
-                )
+        if resource_read_api is not None:
+            resource_read_api = replace(
+                resource_read_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if resource_write_api is not None:
+            resource_write_api = replace(
+                resource_write_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_capacity_read_api is not None:
+            p6_resource_capacity_read_api = replace(
+                p6_resource_capacity_read_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_capacity_write_api is not None:
+            p6_resource_capacity_write_api = replace(
+                p6_resource_capacity_write_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_rate_read_api is not None:
+            p6_resource_rate_read_api = replace(
+                p6_resource_rate_read_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_rate_write_api is not None:
+            p6_resource_rate_write_api = replace(
+                p6_resource_rate_write_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
     resolved_environment = os.environ if environment is None else environment
     assistant_enabled = resolved_environment.get(
         "CUBI_AI_ENABLED", ""
