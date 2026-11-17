@@ -5,6 +5,7 @@ import {
   effectiveDashboardPortletLimit,
   mapEnterprisePortletState,
   moveDashboardPortletHorizontally,
+  moveDashboardPortletVertically,
   orderDashboardCatalog,
   reorderDashboardPortlets,
   supportedDashboardPortlets,
@@ -119,6 +120,19 @@ test("dashboard layout ordering supports bounded move-up and move-down operation
   assert.deepEqual(reorderDashboardPortlets(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
   assert.deepEqual(reorderDashboardPortlets(["a", "b"], -1, 1), ["a", "b"]);
   assert.deepEqual(reorderDashboardPortlets(["a", "b"], 0, 2), ["a", "b"]);
+});
+
+test("dashboard layout preserves two-dimensional positions and supports bounded vertical moves", () => {
+  const items = [portlet("top", 0, 0, 6), portlet("bottom", 0, 4, 6), portlet("right", 6, 0, 6)];
+  const movedDown = moveDashboardPortletVertically(items, 0, "down");
+  assert.deepEqual(movedDown.map((item) => item.layout.y), [4, 0, 0]);
+  assert.equal(validateDashboardLayout(movedDown), true);
+  const movedUp = moveDashboardPortletVertically(movedDown, 0, "up");
+  assert.deepEqual(movedUp.map((item) => item.layout.y), [0, 4, 0]);
+  assert.equal(validateDashboardLayout(movedUp), true);
+  assert.deepEqual(moveDashboardPortletVertically(items, 0, "up").map((item) => item.layout.y), [0, 4, 0]);
+  const wideCollision = [portlet("narrow", 0, 0, 6), portlet("wide", 0, 4, 12)];
+  assert.deepEqual(moveDashboardPortletVertically(wideCollision, 0, "down").map((item) => item.layout.y), [0, 4]);
 });
 
 test("dashboard layout supports bounded left/right movement and preserves valid non-overlapping columns", () => {
