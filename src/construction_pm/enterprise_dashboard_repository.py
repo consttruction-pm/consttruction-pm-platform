@@ -245,15 +245,19 @@ class PostgresEnterpriseDashboardRepository:
             raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
         current = self._deserialize(row[0])
         current_revision = int(row[1])
-        if current_revision != expected_revision:
-            raise EnterpriseDashboardRevisionConflict(
-                "ENTERPRISE_DASHBOARD_REVISION_CONFLICT"
-            )
         if self._identity(current) != self._identity(dashboard):
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_IDENTITY_IMMUTABLE")
         if occurred_at < current.created_at:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_AUDIT_BEFORE_CREATION")
-
+        if current_revision != expected_revision:
+            retry_candidate = replace(
+                dashboard, revision=current_revision, updated_at=current.updated_at
+            )
+            if self._serialize(retry_candidate) == self._serialize(current):
+                return StoredEnterpriseDashboard(current, current_revision)
+            raise EnterpriseDashboardRevisionConflict(
+                "ENTERPRISE_DASHBOARD_REVISION_CONFLICT"
+            )
         updated = replace(dashboard, revision=current_revision + 1, updated_at=occurred_at)
         updated.validate()
         payload = self._serialize(updated)
