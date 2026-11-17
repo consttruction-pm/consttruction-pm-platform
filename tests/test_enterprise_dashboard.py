@@ -1085,6 +1085,8 @@ def test_missing_portfolio_decision_source_is_explicitly_missing():
     assert result["portlets"][0]["freshness_state"] == "missing"
     assert result["portlets"][0]["data"] is None
     assert result["portlets"][0]["filtered_out"] is False
+    assert result["portlets"][0]["row_limit"] == 100
+    assert result["portlets"][0]["truncated"] is False
 
 
 def test_portfolio_context_creation_requires_authorized_source_scope():
