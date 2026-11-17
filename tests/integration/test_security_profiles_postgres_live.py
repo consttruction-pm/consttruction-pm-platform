@@ -1763,6 +1763,16 @@ def test_global_and_project_defaults_are_independent_and_protected_from_delete()
         assert global_b.is_default is True
         assert project_b.is_default is True
 
+        default_events = connection.execute(
+            "SELECT profile_id FROM p6_security_profile_audit "
+            "WHERE tenant_id=%s AND action='profile_default_changed'",
+            (tenant,),
+        ).fetchall()
+        assert sorted(str(row[0]) for row in default_events) == [
+            "global-a", "global-a", "global-b",
+            "project-a", "project-a", "project-b",
+        ]
+
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_CANNOT_DELETE"):
             profiles.delete_profile(
                 tenant_id=tenant, profile_id="global-b", expected_revision=global_b.revision,
