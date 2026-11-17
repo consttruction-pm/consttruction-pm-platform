@@ -12,6 +12,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_baseline_capture import (
     BASELINE_CAPTURE_BASELINE_TYPES,
     P6BaselineCaptureError,
@@ -131,6 +132,7 @@ class P6BaselineCaptureAPI:
             auth_context,
             Permission.PROJECT_WRITE,
         )
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_baselines")
         _require_revision(scope, expected_revision)
         if baseline_type not in BASELINE_CAPTURE_BASELINE_TYPES:
             raise P6BaselineCaptureError("BASELINE_CAPTURE_TYPE_INVALID")
