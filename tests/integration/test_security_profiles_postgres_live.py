@@ -2145,3 +2145,28 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
         assert later_access["profile_id"] == custom.profile_id
         assert profiles.get_global_user_access(tenant, existing_id)["profile_id"] == "p6-no-global-privileges"
         connection.rollback()
+
+
+def test_canonical_security_schema_does_not_create_parallel_profile_or_obs_authorities():
+    suffix = uuid.uuid4().hex
+    tenant = f"canonical-security-schema-{suffix}"
+    with _connect() as connection:
+        PostgresIdentityStore(connection).initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        rows = connection.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema=current_schema() AND table_name = ANY(%s)",
+            ([
+                "p6_global_security_profiles", "p6_user_global_security",
+                "p6_global_security_audit", "enterprise_project_security_profiles",
+                "enterprise_user_obs_assignments", "enterprise_project_access_audit",
+            ],),
+        ).fetchall()
+        assert rows == []
+        assert connection.execute(
+            "SELECT to_regclass('p6_security_profiles'),to_regclass('p6_security_profile_assignments'),"
+            "to_regclass('p6_security_profile_audit')"
+        ).fetchone() == ("p6_security_profiles", "p6_security_profile_assignments", "p6_security_profile_audit")
+        connection.rollback()
