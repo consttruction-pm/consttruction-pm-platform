@@ -374,11 +374,14 @@ export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options
     const labels: Record<string, string> = { eq: t.opEq, in: t.opIn, gte: t.opGte, lte: t.opLte };
     return labels[operator] ?? operator;
   };
-  const roleLabel = (role: string): string => ({
-    enterprise_admin: t.roleAdmin,
-    enterprise_user: t.roleUser,
-    enterprise_viewer: t.roleViewer,
-  }[role] ?? role);
+  const roleLabel = (role: string): string => {
+    const labels: Record<string, string> = {
+      enterprise_admin: t.roleAdmin,
+      enterprise_user: t.roleUser,
+      enterprise_viewer: t.roleViewer,
+    };
+    return labels[role] ?? role;
+  };
   const filterValueLabel = (value: string): string => {
     const labels: Record<string, string> = {
       included: t.statusIncluded, on_hold: t.statusOnHold, excluded: t.statusExcluded,
