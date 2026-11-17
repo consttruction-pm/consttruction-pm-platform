@@ -168,3 +168,23 @@ def test_provider_rejects_missing_project_source_facts():
 
     with pytest.raises(KeyError):
         snapshot_provider.get_snapshot("portfolio-a", tenant_id="tenant-a")
+
+
+def test_provider_rejects_missing_source_reference():
+    repository = FakeRepository()
+    facts = {
+        "project-a": PortfolioProjectFacts("project-a", 7, "active"),
+        "project-b": PortfolioProjectFacts("project-b", 4, "on_hold"),
+    }
+    source_reader = FakeSourceReferenceReader(repository.memberships)
+    del source_reader.current[
+        ("tenant-a", "project-a", "sched-a", "schedule://project-a/7")
+    ]
+    snapshot_provider = PostgresPortfolioControlSnapshotProvider(
+        repository, FakeFactsReader(facts), source_reader
+    )
+
+    with pytest.raises(
+        PortfolioControlPersistenceError, match="PORTFOLIO_SOURCE_REFERENCE_MISSING"
+    ):
+        snapshot_provider.get_snapshot("portfolio-a", tenant_id="tenant-a")
