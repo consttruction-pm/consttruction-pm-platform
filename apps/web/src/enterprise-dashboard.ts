@@ -1,3 +1,5 @@
+import { FetchEnterpriseDashboardClient } from "./enterprise-dashboard-http-client.js";
+
 export type EnterpriseDashboardRole = "enterprise_admin" | "enterprise_user" | "enterprise_viewer";
 export type EnterpriseDashboardVisibility = "private" | "users" | "roles" | "users_and_roles" | "global";
 export type EnterprisePortletType = "portfolio-control-snapshot.v1" | "portfolio-decision.v1";
