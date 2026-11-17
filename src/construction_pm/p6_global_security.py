@@ -12,6 +12,8 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import uuid4
 
+from .p6_project_security import P6_PROJECT_PRIVILEGE_IDS
+
 
 ADMIN_SUPERUSER = "Admin Superuser"
 NO_GLOBAL_PRIVILEGES = "No Global Privileges"
@@ -992,7 +994,6 @@ class P6GlobalSecurityAuthorizationPolicy:
     def require_project_privilege(self, context: Any, privilege_code: str) -> None:
         if not self.has_project_privilege(context, privilege_code):
             from .application.authorization import AuthorizationError
-from .p6_project_security import P6_PROJECT_PRIVILEGE_IDS
             raise AuthorizationError(f"P6_PROJECT_PRIVILEGE_REQUIRED:{privilege_code}")
 
     def is_allowed(self, context: Any, permission: Any) -> bool:
