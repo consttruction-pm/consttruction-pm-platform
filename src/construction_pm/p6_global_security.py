@@ -187,13 +187,22 @@ class PostgresP6GlobalSecurityRepository:
             ("p6-admin-superuser", ADMIN_SUPERUSER),
             ("p6-no-global-privileges", NO_GLOBAL_PRIVILEGES),
         ):
-            self._connection.execute(
+            inserted = self._connection.execute(
                 "INSERT INTO p6_global_security_profiles "
                 "(tenant_id,profile_id,name,privileges,built_in,active,revision,created_by,created_at) "
                 "VALUES(%s,%s,%s,'[]'::jsonb,TRUE,TRUE,1,%s,%s) "
-                "ON CONFLICT(tenant_id,profile_id) DO NOTHING",
+                "ON CONFLICT(tenant_id,profile_id) DO NOTHING RETURNING profile_id",
                 (tenant_id, profile_id, name, provisioned_by, created_at),
-            )
+            ).fetchone()
+            if inserted is not None:
+                self._connection.execute(
+                    "INSERT INTO p6_global_security_audit "
+                    "(audit_id,tenant_id,actor_id,target_user_id,profile_id,action,before_state,"
+                    "after_state,occurred_at) VALUES(%s,%s,%s,NULL,%s,"
+                    "'builtin_global_profile_provisioned',NULL,%s::jsonb,%s)",
+                    (f"p6-global-{uuid4().hex}", tenant_id, provisioned_by, profile_id,
+                     json.dumps({"name": name, "built_in": True, "revision": 1}), created_at),
+                )
 
     def create_profile(self, profile: GlobalSecurityProfile, *, actor_id: str,
                        created_at: datetime) -> GlobalSecurityProfile:
@@ -264,8 +273,16 @@ class PostgresP6GlobalSecurityRepository:
         profile = self.get_profile(assignment.tenant_id, assignment.profile_id)
         if profile is None or not profile.active:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
-        if profile.name == ADMIN_SUPERUSER and not profile.built_in:
-            raise GlobalSecurityError("ADMIN_SUPERUSER_MUST_BE_BUILTIN")
+        if global_profile_is_admin_superuser(profile):
+            actor = self._connection.execute(
+                "SELECT 1 FROM p6_user_global_security u "
+                "JOIN p6_global_security_profiles p ON p.tenant_id=u.tenant_id "
+                "AND p.profile_id=u.profile_id WHERE u.tenant_id=%s AND u.user_id=%s "
+                "AND p.profile_id='p6-admin-superuser' AND p.built_in=TRUE AND p.active=TRUE",
+                (assignment.tenant_id, assignment.updated_by),
+            ).fetchone()
+            if actor is None:
+                raise GlobalSecurityError("ADMIN_SUPERUSER_ASSIGNMENT_REQUIRES_SUPERUSER")
         current = self.get_user_security(assignment.tenant_id, assignment.user_id)
         if current is None:
             if expected_revision not in (None, 0) or assignment.revision != 1:
