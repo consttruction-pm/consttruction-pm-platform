@@ -10,6 +10,8 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import require_resource_access
 from .p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentApplicationService,
@@ -48,6 +50,7 @@ class P6ResourceWriteAPI:
     authorization_policy: AuthorizationPolicy
     # Optional so existing deployments stay read/period-write compatible.
     assignment_service: P6ResourceAssignmentApplicationService | None = None
+    resource_repository: P6ResourceRepository | None = None
 
     def save_assignment(
         self,
@@ -59,6 +62,10 @@ class P6ResourceWriteAPI:
         _require_write(self.authorization_policy, auth_context)
         if self.assignment_service is None:
             raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
+        require_resource_access(
+            self.authorization_policy, self.resource_repository, value.scope,
+            value.resource_id, auth_context,
+        )
         stored = self.assignment_service.save(value)
         return _assignment_dto(stored)
 
@@ -70,6 +77,10 @@ class P6ResourceWriteAPI:
     ) -> dict[str, Any]:
         _require_scope(value.scope, auth_context)
         _require_write(self.authorization_policy, auth_context)
+        require_resource_access(
+            self.authorization_policy, self.resource_repository, value.scope,
+            value.resource_id, auth_context,
+        )
         stored = self.period_service.save(value)
         return _period_dto(stored)
 
