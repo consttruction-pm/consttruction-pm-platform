@@ -463,3 +463,10 @@ This addendum records the current isolated UI implementation branch `feat/ent06-
 - P6 Custom Portlets that accept arbitrary URLs or credential substitution are explicitly excluded.
 - No production route, shared shell, identity, authorization, deployment schema or production composition file is changed by the isolated UI slice. Production mounting remains blocked until the active owners hand off those exact protected paths.
 - Therefore this increment is not a full P6 EPPM V26 parity acceptance. The applicable Help matrix remains open until each supported control and source-backed portlet is implemented and browser-verified.
+
+
+## ENT-06B directional layout increment (2026-11-18)
+
+A follow-up implementation commit adds explicit Left and Right controls to the Layout editor for Narrow (six-column) portlets. Movement swaps the horizontal column with an overlapping Narrow peer when present, otherwise moves into the requested column only when the resulting layout remains valid. Wide portlets cannot be moved horizontally. The helper fails closed by returning an unchanged copy when the requested move is invalid. English and Persian labels are included, and unit coverage asserts left/right swaps, bounds, Wide-portlet behavior, and non-overlap.
+
+This closes only the directional horizontal-control gap for the currently supported portlet contracts. It does **not** complete two-dimensional row/column placement, access assignment editing, Default Dashboard copying, the full Filter by dialog, dashboard-tab ordering, canonical route mounting, or the P6 portlet catalogue. The V26 Help parity status therefore remains partial. Relevant normative topic: [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm), which documents Narrow/Wide sizing and directional/drag-drop positioning.
