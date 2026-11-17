@@ -1238,6 +1238,32 @@ def test_authenticated_resource_assignment_write_persists_driving_and_rate_field
     assert reread["assignment"]["hours_per_units_time_period"] == "8"
 
 
+
+def test_authenticated_resource_planning_assignment_http_boundary_uses_separate_route():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-PLANNING",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "units": "4",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-planning/assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 200
+    saved = json.loads(raw)
+    assert saved["kind"] == "resource_assignment"
+    assert saved["assignment"]["assignment_id"] == "A-R-PLANNING"
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-assignments/A-R-PLANNING",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(raw)["assignment"]["assignment_id"] == "A-R-PLANNING"
+
 def test_resource_assignment_write_rejects_ambiguous_driving_flag_and_missing_contract():
     r = resource_assignment_routes()
     payload = {
