@@ -84,14 +84,15 @@ class UserGlobalSecurity:
             raise GlobalSecurityError("RESOURCE_ROOTS_NOT_ALLOWED")
         if self.resource_access_mode == "selected" and not self.resource_root_ids:
             raise GlobalSecurityError("RESOURCE_ROOTS_REQUIRED")
+        if any(not isinstance(v, str) or not v.strip()
+               for v in (*self.module_access, *self.resource_root_ids)):
+            raise GlobalSecurityError("USER_GLOBAL_SECURITY_VALUE_INVALID")
         if len(set(self.resource_root_ids)) != len(self.resource_root_ids):
             raise GlobalSecurityError("DUPLICATE_RESOURCE_ROOT")
         if len(set(self.module_access)) != len(self.module_access):
             raise GlobalSecurityError("DUPLICATE_MODULE_ACCESS")
-        if any(not isinstance(v, str) or not v.strip()
-               for v in (*self.module_access, *self.resource_root_ids)):
-            raise GlobalSecurityError("USER_GLOBAL_SECURITY_VALUE_INVALID")
-        if self.revision < 1 or self.updated_at.tzinfo is None:
+        if (self.revision < 1 or self.updated_at.tzinfo is None
+                or self.updated_at.utcoffset() is None):
             raise GlobalSecurityError("USER_GLOBAL_SECURITY_REVISION_INVALID")
 
 
@@ -104,6 +105,13 @@ def global_profile_is_admin_superuser(profile: GlobalSecurityProfile) -> bool:
 def global_profile_has_project_access_bypass(profile: GlobalSecurityProfile) -> bool:
     """Only the application-generated Admin Superuser bypasses project grants."""
     return global_profile_is_admin_superuser(profile)
+
+
+def user_has_all_resource_access(profile: GlobalSecurityProfile, assignment: UserGlobalSecurity) -> bool:
+    """Admin Superuser always has all resource access; otherwise honor the user setting."""
+    profile.validate()
+    assignment.validate()
+    return global_profile_is_admin_superuser(profile) or assignment.resource_access_mode == "all"
 
 
 def global_profile_has_global_read_only(profile: GlobalSecurityProfile) -> bool:
