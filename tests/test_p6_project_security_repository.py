@@ -209,3 +209,16 @@ def test_project_superuser_profile_assignment_requires_global_admin_superuser():
         api.assign_obs(
             "user-1", "OBS-ROOT", "p6-project-superuser", auth_context=context()
         )
+
+
+def test_project_superuser_cannot_be_defaulted_or_duplicated_by_profile_admin():
+    _, repo = setup_repository()
+    builtin = repo.ensure_builtin_profile("tenant-a", actor_id="admin-user")
+    api = P6ProjectSecurityAPI(repo, GlobalAdminPolicy())
+    with pytest.raises(AuthorizationError, match="PROJECT_SUPERUSER_PROFILE_DEFAULT_REQUIRES_ADMIN_SUPERUSER"):
+        api.set_default(builtin.profile_id, expected_revision=1, auth_context=context())
+    with pytest.raises(P6ProjectSecurityPersistenceError, match="BUILTIN_PROJECT_SECURITY_PROFILE_CANNOT_BE_DUPLICATED"):
+        repo.duplicate_profile(
+            "tenant-a", builtin.profile_id, new_profile_id="copy", new_name="Copy",
+            actor_id="admin-user",
+        )
