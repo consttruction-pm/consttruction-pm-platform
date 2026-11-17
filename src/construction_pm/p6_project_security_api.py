@@ -64,7 +64,7 @@ class P6ProjectSecurityAPI:
         return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
 
     def list_profiles(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         return {
             "contract_version": P6_PROJECT_SECURITY_API_VERSION,
             "profiles": [_profile_dto(item) for item in self.repository.list_profiles(auth_context.tenant_id)],
@@ -77,7 +77,7 @@ class P6ProjectSecurityAPI:
         auth_context.validate()
         if profile.tenant_id != auth_context.tenant_id:
             raise AuthorizationError("CROSS_TENANT_ACCESS")
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         stored = self.repository.save_profile(
             profile, actor_id=auth_context.user_id, expected_revision=expected_revision
         )
@@ -88,7 +88,7 @@ class P6ProjectSecurityAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         profile = self.repository.duplicate_profile(
             auth_context.tenant_id, source_profile_id, new_profile_id=new_profile_id,
             new_name=new_name, actor_id=auth_context.user_id,
@@ -100,7 +100,7 @@ class P6ProjectSecurityAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         stored = self.repository.set_default_profile(
             auth_context.tenant_id, profile_id, actor_id=auth_context.user_id,
             expected_revision=expected_revision,
@@ -112,7 +112,7 @@ class P6ProjectSecurityAPI:
         auth_context: AuthorizationContext,
     ) -> None:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_profile_admin(self.authorization_policy, auth_context)
         self.repository.delete_profile(
             auth_context.tenant_id, profile_id, actor_id=auth_context.user_id,
             expected_revision=expected_revision,
@@ -123,7 +123,7 @@ class P6ProjectSecurityAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_user_admin(self.authorization_policy, auth_context)
         grant = self.repository.assign_obs(
             P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, profile_id or ""),
             actor_id=auth_context.user_id,
@@ -140,7 +140,7 @@ class P6ProjectSecurityAPI:
         self, user_id: str, obs_id: str, *, auth_context: AuthorizationContext,
     ) -> None:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_user_admin(self.authorization_policy, auth_context)
         self.repository.revoke_obs(
             auth_context.tenant_id, user_id, obs_id, actor_id=auth_context.user_id
         )
@@ -149,7 +149,7 @@ class P6ProjectSecurityAPI:
         self, user_id: str, *, auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         auth_context.validate()
-        _require_admin(self.authorization_policy, auth_context)
+        _require_user_admin(self.authorization_policy, auth_context)
         grants = self.repository.list_user_grants(auth_context.tenant_id, user_id)
         return {
             "contract_version": P6_PROJECT_SECURITY_API_VERSION,
