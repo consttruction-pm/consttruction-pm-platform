@@ -217,11 +217,20 @@ class TimeImpactAnalysisExecutor:
                     raise TimeImpactExecutionError("SOURCE_RUN_CAPTURE_IMMUTABLE_CONFLICT")
                 baseline_capture = existing_baseline
 
+            existing_impacted = self.run_repository.get(
+                impacted_snapshot.scope, impacted_capture.run_id
+            )
+            if existing_impacted is not None:
+                if replace(existing_impacted, captured_at=impacted_capture.captured_at) != impacted_capture:
+                    raise TimeImpactExecutionError("IMPACTED_RUN_CAPTURE_IMMUTABLE_CONFLICT")
+                impacted_capture = existing_impacted
+
             # Persist only after both calculations and provenance records validate.
             self.snapshot_repository.save(impacted_snapshot)
             if existing_baseline is None:
                 self.run_repository.save(baseline_capture)
-            self.run_repository.save(impacted_capture)
+            if existing_impacted is None:
+                self.run_repository.save(impacted_capture)
             digest = _analysis_hash(
                 fragnet.event_id, source_snapshot.snapshot_hash,
                 impacted_snapshot.snapshot_hash, baseline_capture,
