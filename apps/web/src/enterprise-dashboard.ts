@@ -256,7 +256,7 @@ const COPY = {
     drill: "Open source record", projects: "Projects", status: "Status", membership: "Membership", total: "Total",
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
-    projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.",
+    projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
     moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
   fa: {
@@ -278,7 +278,7 @@ const COPY = {
     drill: "بازکردن رکورد منبع", projects: "پروژه‌ها", status: "وضعیت", membership: "عضویت", total: "مجموع",
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
-    projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.",
+    projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
     moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
 } as const;
@@ -340,6 +340,20 @@ export async function mountEnterpriseDashboard(
 ): Promise<void> {
   const locale = options.locale ?? (navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en");
   const t: Copy = COPY[locale];
+  const filterLabel = (key: string): string => ({
+    portfolio_id: t.filterPortfolio, project_id: t.filterProject, project_status: t.filterProjectStatus,
+    membership_status: t.filterMembership, decision_status: t.filterDecisionStatus,
+    generated_after: t.filterGeneratedAfter, generated_before: t.filterGeneratedBefore, include_stale: t.filterIncludeStale,
+  }[key] ?? key);
+  const operatorLabel = (operator: string): string => ({
+    eq: t.opEq, in: t.opIn, gte: t.opGte, lte: t.opLte,
+  }[operator] ?? operator);
+  const filterValueLabel = (value: string): string => ({
+    included: t.statusIncluded, on_hold: t.statusOnHold, excluded: t.statusExcluded,
+    proposed: t.decisionProposed, under_review: t.decisionUnderReview, approved: t.decisionApproved,
+    rejected: t.decisionRejected, implemented: t.decisionImplemented, closed: t.decisionClosed,
+    cancelled: t.decisionCancelled,
+  }[value] ?? value);
   installDashboardStyles();
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
@@ -489,7 +503,7 @@ export async function mountEnterpriseDashboard(
     content.append(titleRow);
     const filterRow = node("div", "ced-toolbar ced-section");
     const filterSummary = activeFilterOverrides?.length
-      ? activeFilterOverrides.map((item) => `${dashboardFilterDefinition(item.key)?.label ?? item.key} ${item.operator} ${Array.isArray(item.value) ? item.value.join(", ") : String(item.value)}`).join(" · ")
+      ? activeFilterOverrides.map((item) => `${dashboardFilterDefinition(item.key) ? filterLabel(item.key) : item.key} ${operatorLabel(item.operator)} ${Array.isArray(item.value) ? item.value.map((value) => filterValueLabel(String(value))).join(", ") : filterValueLabel(String(item.value))}`).join(" · ")
       : activeDefinition.filters.length ? activeDefinition.filters.map((item) => item.key).join(" · ") : t.noFilters;
     filterRow.append(node("span", "ced-muted", filterSummary));
     const configureFilters = button(t.projectFilter, () => openFilterDialog(), "ced-button");
@@ -527,7 +541,7 @@ export async function mountEnterpriseDashboard(
     const conditions = node("div", "ced-section");
     const fieldSelect = node("select", "ced-select");
     for (const definition of ENTERPRISE_DASHBOARD_FILTER_CATALOG) {
-      const option = node("option", "", definition.label);
+      const option = node("option", "", filterLabel(definition.key));
       option.value = definition.key;
       fieldSelect.append(option);
     }
@@ -539,7 +553,7 @@ export async function mountEnterpriseDashboard(
       const definition = dashboardFilterDefinition(fieldSelect.value)!;
       operatorSelect.replaceChildren();
       for (const operator of definition.operators) {
-        const option = node("option", "", operator);
+        const option = node("option", "", operatorLabel(operator));
         option.value = operator;
         operatorSelect.append(option);
       }
@@ -549,7 +563,7 @@ export async function mountEnterpriseDashboard(
         const select = node("select", "ced-select");
         if (operatorSelect.value === "in") select.multiple = true;
         for (const value of definition.options ?? []) {
-          const option = node("option", "", value);
+          const option = node("option", "", filterValueLabel(value));
           option.value = value;
           select.append(option);
         }
@@ -596,8 +610,8 @@ export async function mountEnterpriseDashboard(
       if (!draft.length) conditions.append(node("p", "ced-muted", t.noFilters));
       for (const [index, item] of draft.entries()) {
         const row = node("div", "ced-row ced-panel ced-section");
-        const value = Array.isArray(item.value) ? item.value.join(", ") : String(item.value);
-        row.append(node("span", "", `${dashboardFilterDefinition(item.key)?.label ?? item.key} · ${item.operator} · ${value}`));
+        const value = Array.isArray(item.value) ? item.value.map((entry) => filterValueLabel(String(entry))).join(", ") : filterValueLabel(String(item.value));
+        row.append(node("span", "", `${filterLabel(item.key)} · ${operatorLabel(item.operator)} · ${value}`));
         row.append(button(t.removeFilter, () => { draft = draft.filter((_, itemIndex) => itemIndex !== index); renderConditions(); }));
         conditions.append(row);
       }
