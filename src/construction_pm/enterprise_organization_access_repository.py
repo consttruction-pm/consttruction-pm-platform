@@ -390,6 +390,46 @@ class PostgresEnterpriseOrganizationAccessRepository:
             ).fetchone()
             if int(owned[0]) > 0:
                 raise OrganizationAccessError("TEAM_OWNER_TRANSFER_REQUIRED")
+        if not active and before_active:
+            global_access = self._connection.execute(
+                "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,a.revision "
+                "FROM p6_security_profile_assignments a "
+                "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global' "
+                "FOR UPDATE OF a",
+                (tenant_id, target_user_id),
+            ).fetchone()
+            if global_access is not None:
+                old_modules = global_access[1]
+                if isinstance(old_modules, str):
+                    old_modules = json.loads(old_modules)
+                if old_modules:
+                    new_revision = int(global_access[4]) + 1
+                    self._connection.execute(
+                        "UPDATE p6_security_profile_assignments SET module_access='[]'::jsonb,"
+                        "revision=%s,assigned_by=%s,assigned_at=%s "
+                        "WHERE tenant_id=%s AND user_id=%s AND profile_id=%s AND obs_id='' AND revision=%s",
+                        (new_revision, actor_user_id, occurred_at, tenant_id, target_user_id,
+                         str(global_access[0]), int(global_access[4])),
+                    )
+                    self._connection.execute(
+                        "INSERT INTO p6_security_profile_audit "
+                        "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+                        "VALUES (%s,%s,%s,%s,'user_global_access_updated',%s::jsonb,%s::jsonb,%s)",
+                        (f"user-global-access-{uuid4().hex}", tenant_id, actor_user_id,
+                         str(global_access[0]),
+                         json.dumps({
+                             "user_id":target_user_id,"module_access":old_modules,
+                             "resource_access_mode":str(global_access[2]),
+                             "resource_root_ids":global_access[3],"revision":int(global_access[4]),
+                         }),
+                         json.dumps({
+                             "user_id":target_user_id,"module_access":[],
+                             "resource_access_mode":str(global_access[2]),
+                             "resource_root_ids":global_access[3],"revision":new_revision,
+                             "reason":"account_deactivated",
+                         }), occurred_at),
+                    )
         if before_active != active:
             self._connection.execute(
                 "UPDATE identity_users SET active=%s WHERE tenant_id=%s AND user_id=%s",
