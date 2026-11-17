@@ -1731,9 +1731,9 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # P6 requires a Global Security Profile for every user. Project access
         # requires an active Project profile assigned to the project's responsible
         # OBS. A project profile does not create project membership.
-        if not any(bool(row[1]) for row in global_rows):
+        if not any(row[0] == "global" and bool(row[1]) for row in global_rows):
             return False
-        module_rows = [row for row in global_rows if bool(row[1])]
+        module_rows = [row for row in global_rows if row[0] == "global" and bool(row[1])]
         module_access = module_rows[0][4] if module_rows else []
         if isinstance(module_access, str):
             module_access = json.loads(module_access)
