@@ -260,7 +260,10 @@ class DashboardFilter:
     def from_dict(cls, value: object) -> DashboardFilter:
         if not isinstance(value, Mapping) or set(value) != {"key", "operator", "value"}:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER")
-        item = cls(value["key"], value["operator"], value["value"])
+        filter_value = value["value"]
+        if isinstance(filter_value, list):
+            filter_value = tuple(filter_value)
+        item = cls(value["key"], value["operator"], filter_value)
         item.validate()
         return item
 
