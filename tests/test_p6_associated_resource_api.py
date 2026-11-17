@@ -216,3 +216,17 @@ def test_resource_name_changes_propagate_to_associated_native_user():
     assert connection.execute(
         "SELECT display_name FROM identity_users WHERE tenant_id='tenant-a' AND user_id='user-1'"
     ).fetchone()[0] == "Civil Delivery Team"
+
+
+def test_enterprise_resource_identity_updates_all_project_copies():
+    connection = sqlite3.connect(":memory:")
+    resources = SQLiteP6ResourceRepository(connection)
+    first = resources.save(P6Resource("tenant-a", "project-a", 1, "R-100", "Old Name"))
+    resources.save(P6Resource("tenant-a", "project-b", 1, "R-100", "Canonical Name"))
+    updated = resources.get("tenant-a", "project-a", 1, "R-100")
+    identity = connection.execute(
+        "SELECT name FROM p6_enterprise_resource_identity WHERE tenant_id='tenant-a' AND resource_id='R-100'"
+    ).fetchone()
+    assert identity == ("Canonical Name",)
+    assert updated.name == "Canonical Name"
+    assert updated.record_revision == first.record_revision + 1
