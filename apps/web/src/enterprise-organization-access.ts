@@ -35,7 +35,7 @@ const COPY = {
     transferred: "Team ownership transferred.",
     securityProfiles: "Security profiles", profileId: "Profile ID", profileName: "Profile name", profileDescription: "Description",
     saveProfileDetails: "Save details", profileDetailsSaved: "Profile details saved.", profileDefault: "Default", profileSetDefault: "Set as default",
-    profileClearDefault: "Clear default", profileDefaultSaved: "Default project profile updated.",
+    profileClearDefault: "Clear default", profileDefaultSaved: "Default security profile updated.",
     profileDuplicate: "Duplicate", profileDuplicateId: "New profile ID", profileDuplicateName: "New profile name",
     profileDuplicated: "Profile duplicated with its privileges.", profileDelete: "Delete profile",
     profileDeleteConfirm: "Delete this profile? Profiles with current assignments cannot be deleted.",
@@ -83,7 +83,7 @@ const COPY = {
     securityProfiles: "پروفایل‌های امنیتی", profileId: "شناسه پروفایل", profileName: "نام پروفایل",
     profileDescription: "توضیحات", saveProfileDetails: "ذخیره جزئیات", profileDetailsSaved: "جزئیات پروفایل ذخیره شد.", profileDefault: "پیش‌فرض",
     profileSetDefault: "تنظیم به‌عنوان پیش‌فرض", profileClearDefault: "حذف حالت پیش‌فرض",
-    profileDefaultSaved: "پروفایل پیش‌فرض پروژه به‌روزرسانی شد.", profileDuplicate: "تکثیر",
+    profileDefaultSaved: "پروفایل امنیتی پیش‌فرض به‌روزرسانی شد.", profileDuplicate: "تکثیر",
     profileDuplicateId: "شناسه پروفایل جدید", profileDuplicateName: "نام پروفایل جدید",
     profileDuplicated: "پروفایل همراه با مجوزهایش تکثیر شد.", profileDelete: "حذف پروفایل",
     profileDeleteConfirm: "این پروفایل حذف شود؟ پروفایل دارای تخصیص فعلی قابل حذف نیست.",
@@ -385,7 +385,10 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <button class="cubi-oa-button" type="submit" ${busy ? "disabled" : ""}>${t.saveProfileDetails}</button>
             </form>`}
             <div class="cubi-oa-actions">
-              ${selectedProfile?.scope === "project" && !selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile?.is_default === true}" ${busy || selectedProfile?.active !== true ? "disabled" : ""}>${selectedProfile?.is_default ? t.profileClearDefault : t.profileSetDefault}</button>` : ""}
+              ${selectedProfile && (!selectedProfileIsBuiltIn || selectedProfile.profile_id === "p6-no-global-privileges")
+                && (selectedProfile.profile_id !== "p6-no-global-privileges" || !selectedProfile.is_default)
+                ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile.is_default}" ${busy || selectedProfile.active !== true ? "disabled" : ""}>${selectedProfile.is_default ? t.profileClearDefault : t.profileSetDefault}</button>`
+                : ""}
               ${!selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-duplicate="true" ${busy ? "disabled" : ""}>${t.profileDuplicate}</button>
               <button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-delete="true" ${busy || profileAssignments.length > 0 ? "disabled" : ""}>${t.profileDelete}</button>` : ""}
               <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy || selectedProfileIsBuiltIn ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>
@@ -652,6 +655,12 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         SELF_DEACTIVATION_NOT_ALLOWED: t.selfDeactivateError,
         P6_GLOBAL_PRIVILEGE_REQUIRED: t.privilegeRequired,
         SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE: t.profileDeleteAssigned,
+        SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE: locale === "fa"
+          ? "گزینه همکار را نمی‌توان همراه با ماژول‌های دیگر فعال کرد."
+          : "Contributor access cannot be combined with other modules.",
+        SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED: locale === "fa"
+          ? "برای انتخاب منابع، ابتدا باید سلسله‌مراتب سراسری منابع پیکربندی شود."
+          : "Selected resource access requires the enterprise-wide resource hierarchy.",
       };
       failure = code === "SESSION_REQUIRED" ? t.session : messages[code] ?? (code || t.error);
     } finally { busy = false; render(); }
