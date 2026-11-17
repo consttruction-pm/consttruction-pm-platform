@@ -125,8 +125,12 @@ def test_assessment_reports_movements_and_uses_scheduler_float_without_recalcula
 def test_activity_removals_and_criticality_changes_are_explicit():
     baseline = run(
         date(2026, 10, 20),
-        {"A": activity("A", date(2026, 10, 5), date(2026, 10, 7),
-                       total_float=0, free_float=0, critical=True)},
+        {
+            "A": activity("A", date(2026, 10, 5), date(2026, 10, 7),
+                          total_float=0, free_float=0, critical=True),
+            "B": activity("B", date(2026, 10, 8), date(2026, 10, 9),
+                          total_float=2, free_float=1, critical=False),
+        },
     )
     current = run(
         date(2026, 10, 20),
@@ -139,7 +143,7 @@ def test_activity_removals_and_criticality_changes_are_explicit():
         ref("current", project_revision=5, salt="f"),
         current,
     )
-    assert result.removed_activity_ids == ()
+    assert result.removed_activity_ids == ("B",)
     assert result.activity_movements[0].criticality_changed is True
     assert result.activity_movements[0].total_float_delta_native_units == 3
 
