@@ -1,10 +1,10 @@
 """Production runtime composition for the Vercel deployment.
 
 This module is the only place where the CUBI workspace is wired to a durable
-PostgreSQL database and a real password session. It intentionally composes a
-narrower command surface than the local preview runtime: session, project
-lifecycle, the canonical workspace read, the field registry and the layout
-endpoint. Adding a window to the production surface means adding its
+PostgreSQL database and a real password session. It composes the production
+project lifecycle, canonical workspace read, field registry/layout, tenant
+security administration, and P6 resource assignment/capacity/rate surfaces.
+Adding a window to the production surface means adding its PostgreSQL
 repositories here explicitly, never falling back to preview adapters.
 
 Every HTTP request checks out one pooled connection. Repositories share a
