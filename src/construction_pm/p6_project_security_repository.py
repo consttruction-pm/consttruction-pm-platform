@@ -39,6 +39,7 @@ class P6OBSProjectGrant:
 class P6ProjectSecurityRepository(Protocol):
     def ensure_builtin_profile(self, tenant_id: str, *, actor_id: str) -> P6ProjectSecurityProfile: ...
     def save_profile(self, profile: P6ProjectSecurityProfile, *, actor_id: str, expected_revision: int | None = None) -> P6ProjectSecurityProfile: ...
+    def duplicate_profile(self, tenant_id: str, source_profile_id: str, *, new_profile_id: str, new_name: str, actor_id: str) -> P6ProjectSecurityProfile: ...
     def get_profile(self, tenant_id: str, profile_id: str) -> P6ProjectSecurityProfile | None: ...
     def list_profiles(self, tenant_id: str) -> tuple[P6ProjectSecurityProfile, ...]: ...
     def set_default_profile(self, tenant_id: str, profile_id: str, *, actor_id: str, expected_revision: int) -> P6ProjectSecurityProfile: ...
@@ -92,6 +93,21 @@ class _ProjectSecurityRepositoryBase:
         if stored is None or not stored.built_in or set(stored.privileges) != set(profile.privileges):
             raise P6ProjectSecurityPersistenceError("PROJECT_SUPERUSER_PROFILE_INTEGRITY_ERROR")
         return stored
+
+    def duplicate_profile(self, tenant_id: str, source_profile_id: str, *, new_profile_id: str, new_name: str, actor_id: str):
+        source = self.get_profile(tenant_id, source_profile_id)
+        if source is None or not source.active:
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
+        duplicate = P6ProjectSecurityProfile(
+            tenant_id, new_profile_id, new_name, source.privileges,
+            active=True, revision=1, description=source.description,
+        )
+        duplicate.validate()
+        self.save_profile(duplicate, actor_id=actor_id)
+        self._audit(tenant_id, actor_id, "project_profile_duplicated", {
+            "source_profile_id": source_profile_id, "profile_id": new_profile_id,
+        })
+        return duplicate
 
     def _profile_row(self, tenant_id: str, profile_id: str):
         return self.connection.execute(
