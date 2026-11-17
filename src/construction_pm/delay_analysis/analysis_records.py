@@ -359,12 +359,17 @@ class _SQLDelayAnalysisRecordRepository:
         scope.validate()
         if self.get_case(scope, case_id) is None:
             return False
-        row = self.connection.execute(self._q("""
+        approved = self.connection.execute(self._q("""
             SELECT 1 FROM eng_delay_analysis_review
             WHERE tenant_id=? AND project_id=? AND case_id=? AND revision=? AND decision='APPROVE'
             LIMIT 1
         """), (scope.tenant_id, scope.project_id, case_id, revision)).fetchone()
-        return row is not None
+        rejected = self.connection.execute(self._q("""
+            SELECT 1 FROM eng_delay_analysis_review
+            WHERE tenant_id=? AND project_id=? AND case_id=? AND revision=? AND decision='REJECT'
+            LIMIT 1
+        """), (scope.tenant_id, scope.project_id, case_id, revision)).fetchone()
+        return approved is not None and rejected is None
 
 
 def _revision_payload(item: DelayAnalysisRevision) -> str:
