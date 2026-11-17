@@ -166,6 +166,8 @@ class P6ProjectSecurityProfile:
             raise ProjectSecurityError("PROJECT_SUPERUSER_PROFILE_INVALID")
         if not self.built_in and self.profile_id == P6_PROJECT_SUPERUSER_PROFILE_ID:
             raise ProjectSecurityError("PROJECT_SUPERUSER_PROFILE_ID_RESERVED")
+        if not self.built_in and self.name == P6_PROJECT_SUPERUSER_PROFILE_NAME:
+            raise ProjectSecurityError("PROJECT_SUPERUSER_PROFILE_NAME_RESERVED")
 
 
 def require_project_privilege(policy, auth_context, privilege_code: str) -> None:
