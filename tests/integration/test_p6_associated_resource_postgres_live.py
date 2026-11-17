@@ -45,6 +45,6 @@ def test_postgres_associated_resource_one_to_one_and_revision():
         updated = P6AssociatedResource(tenant, "user-1", "R-2", 2, "admin", now)
         assert associations.assign(updated, expected_revision=1) == updated
         assert associations.get_for_resource(tenant, "R-2") == updated
-        with pytest.raises(Exception):
+        with pytest.raises(P6AssociatedResourceError, match="RESOURCE_ALREADY_ASSOCIATED"):
             associations.assign(P6AssociatedResource(tenant, "user-2", "R-2", 1, "admin", now))
         conn.rollback()
