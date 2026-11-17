@@ -97,7 +97,6 @@ class P6WBSMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
         return _dto(self.repository.save(item, expected_revision=0))
 
@@ -117,7 +116,6 @@ class P6WBSMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_write_ownership(self.checkout_lease, item.scope, auth_context)
         stored = self.repository.save(item, expected_revision=expected_revision)
@@ -152,7 +150,6 @@ class P6WBSMasterAPI:
             raise ValueError("WBS_DELETE_ACTIVITY_ACTION_INVALID")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         reassigned = self.repository.delete(
@@ -191,7 +188,6 @@ class P6WBSMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         nodes = self.repository.copy_subtree(
@@ -261,7 +257,6 @@ class P6WBSMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
-        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_wbs_except_costs_financials")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         item, stored = self.repository.replace_milestones(
