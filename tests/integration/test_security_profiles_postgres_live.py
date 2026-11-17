@@ -905,6 +905,7 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         connection.commit()
 
     with _connect() as connection:
+        eps = PostgresP6EPSRepository(connection)
         profiles = PostgresSecurityProfileRepository(connection)
         global_profile = profiles.create_profile(
             tenant_id=tenant, profile_id=f"eps-global-{suffix}", name="EPS Global",
@@ -1247,7 +1248,6 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         connection.rollback()
     issue_connection.close()
     expense_connection.close()
-    activity_connection.close()
     relationship_connection.close()
 
 
