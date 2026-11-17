@@ -385,8 +385,6 @@ class PostgresP6GlobalSecurityRepository:
         source = self.get_profile(tenant_id, source_profile_id)
         if source is None or not source.active:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_NOT_FOUND")
-        if source.built_in:
-            raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_CANNOT_BE_DUPLICATED")
         duplicate = GlobalSecurityProfile(
             tenant_id=tenant_id, profile_id=new_profile_id, name=new_name,
             privileges=source.privileges, built_in=False, active=True, revision=1,
