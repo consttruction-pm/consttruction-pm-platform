@@ -28,8 +28,8 @@ class P6OBSProjectGrant:
 
     def validate(self) -> None:
         if not all(isinstance(value, str) and value.strip() for value in (
-            self.tenant_id, self.user_id, self.obs_id, self.profile_id
-        )):
+            self.tenant_id, self.user_id, self.obs_id
+        )) or not isinstance(self.profile_id, str):
             raise P6ProjectSecurityPersistenceError("INVALID_OBS_PROJECT_GRANT")
 
 
@@ -83,6 +83,10 @@ class _ProjectSecurityRepositoryBase:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         if not self.obs_repository.obs_node_exists(grant.tenant_id, grant.obs_id):
             raise P6ProjectSecurityPersistenceError("OBS_NODE_NOT_FOUND")
+        profile_id = grant.profile_id.strip() or next((item.profile_id for item in self.list_profiles(grant.tenant_id) if item.is_default), "")
+        if not profile_id:
+            raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_SECURITY_PROFILE_NOT_CONFIGURED")
+        grant = P6OBSProjectGrant(grant.tenant_id, grant.user_id, grant.obs_id, profile_id)
         profile = self.get_profile(grant.tenant_id, grant.profile_id)
         if profile is None or not profile.active:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
@@ -116,14 +120,34 @@ class _ProjectSecurityRepositoryBase:
         ).fetchall()
         return tuple(P6OBSProjectGrant(*(str(value) for value in row)) for row in rows)
 
-    def has_project_access(self, tenant_id: str, user_id: str, project_id: str) -> bool:
+    def _project_obs_ancestry(self, tenant_id: str, project_id: str) -> tuple[str, ...]:
         obs_id = self.project_obs_lookup(tenant_id, project_id)
         if not isinstance(obs_id, str) or not obs_id.strip():
+            return ()
+        ancestry = []
+        seen = set()
+        cursor = self.obs_repository.get(tenant_id, obs_id)
+        while cursor is not None:
+            if cursor.obs_id in seen:
+                return ()
+            seen.add(cursor.obs_id)
+            ancestry.append(cursor.obs_id)
+            if cursor.parent_obs_id is None:
+                break
+            cursor = self.obs_repository.get(tenant_id, cursor.parent_obs_id)
+        if not ancestry or cursor is None:
+            return ()
+        return tuple(ancestry)
+
+    def has_project_access(self, tenant_id: str, user_id: str, project_id: str) -> bool:
+        ancestry = self._project_obs_ancestry(tenant_id, project_id)
+        if not ancestry:
             return False
+        placeholders = ",".join(self.placeholder for _ in ancestry)
         return self.connection.execute(
             f"SELECT 1 FROM p6_user_obs_project_profile WHERE tenant_id={self.placeholder} "
-            f"AND user_id={self.placeholder} AND obs_id={self.placeholder}",
-            (tenant_id, user_id, obs_id),
+            f"AND user_id={self.placeholder} AND obs_id IN ({placeholders}) LIMIT 1",
+            (tenant_id, user_id, *ancestry),
         ).fetchone() is not None
 
     def project_permission(self, tenant_id: str, user_id: str, project_id: str, permission_code: str) -> bool:
@@ -144,16 +168,22 @@ class _ProjectSecurityRepositoryBase:
         return grant is not None and permission_code in {"project.read", "project.view"}
 
     def has_project_privilege(self, tenant_id: str, user_id: str, project_id: str, privilege_code: str) -> bool:
-        obs_id = self.project_obs_lookup(tenant_id, project_id)
-        if not isinstance(obs_id, str) or not obs_id.strip():
+        ancestry = self._project_obs_ancestry(tenant_id, project_id)
+        if not ancestry:
             return False
-        row = self.connection.execute(
-            f"SELECT p.privileges,p.active FROM p6_user_obs_project_profile g "
-            f"JOIN p6_project_security_profile p ON p.tenant_id=g.tenant_id "
-            f"AND p.profile_id=g.profile_id WHERE g.tenant_id={self.placeholder} "
-            f"AND g.user_id={self.placeholder} AND g.obs_id={self.placeholder}",
-            (tenant_id, user_id, obs_id),
-        ).fetchone()
+        # Prefer the nearest matching responsible-manager assignment; an
+        # assignment at an OBS ancestor grants access to descendant projects.
+        row = None
+        for obs_id in ancestry:
+            row = self.connection.execute(
+                f"SELECT p.privileges,p.active FROM p6_user_obs_project_profile g "
+                f"JOIN p6_project_security_profile p ON p.tenant_id=g.tenant_id "
+                f"AND p.profile_id=g.profile_id WHERE g.tenant_id={self.placeholder} "
+                f"AND g.user_id={self.placeholder} AND g.obs_id={self.placeholder}",
+                (tenant_id, user_id, obs_id),
+            ).fetchone()
+            if row is not None:
+                break
         if row is None or not bool(row[1]):
             return False
         privileges = row[0]
@@ -187,6 +217,8 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           revision INTEGER NOT NULL, is_default INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (tenant_id,profile_id)
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_profile_name
+          ON p6_project_security_profile(tenant_id,name);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_default
           ON p6_project_security_profile(tenant_id) WHERE is_default=1;
         CREATE TABLE IF NOT EXISTS p6_user_obs_project_profile (
@@ -305,6 +337,10 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           revision BIGINT NOT NULL, is_default BOOLEAN NOT NULL DEFAULT FALSE,
           PRIMARY KEY (tenant_id,profile_id)
         )""")
+        self.connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_profile_name "
+            "ON p6_project_security_profile(tenant_id,name)"
+        )
         self.connection.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_default "
             "ON p6_project_security_profile(tenant_id) WHERE is_default=TRUE"
