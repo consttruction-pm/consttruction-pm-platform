@@ -279,7 +279,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.", createMode: "Start from", blankDashboard: "Blank dashboard", copyExisting: "Copy existing dashboard", defaultTemplate: "Default Dashboard template", defaultTemplateUnavailable: "The Default Dashboard template is not configured in this release.", sourceDashboard: "Source dashboard", createAction: "Create dashboard",
     projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterScopeConflict: "Choose either a portfolio or project filter, not both.", saveMyFilter: "Save as my filter", resetMyFilter: "Reset to dashboard default", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
-    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.", defaultFilter: "Dashboard default filter", useCurrentAsDefault: "Use current selection as dashboard default", clearDefaultFilter: "Clear dashboard default filter", accessUserId: "User ID", accessAddUser: "Add user", accessAddRole: "Add role", accessRole: "Enterprise role", accessUsers: "Shared users", accessRoles: "Shared roles", accessGlobal: "Share with all Enterprise users", accessRevokeGlobal: "Revoke all-user access", accessDirectoryPending: "User directory search is not connected yet. Enter an account ID; the server verifies that it is active and belongs to this tenant.", accessNoUsers: "No individual users are shared.", accessNoRoles: "No roles are shared.", accessSaveError: "The access change could not be saved.",
+    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.", defaultFilter: "Dashboard default filter", useCurrentAsDefault: "Use current selection as dashboard default", clearDefaultFilter: "Clear dashboard default filter", accessUserId: "User ID", accessAddUser: "Add user", accessAddRole: "Add role", accessRole: "Enterprise role", accessUsers: "Shared users", accessRoles: "Shared roles", accessGlobal: "Share with all Enterprise users", accessRevokeGlobal: "Revoke all-user access", accessDirectoryPending: "User directory search is not connected yet. Enter an account ID; the server verifies that it is active and belongs to this tenant.", accessNoUsers: "No individual users are shared.", accessNoRoles: "No roles are shared.", accessSaveError: "The access change could not be saved.", roleAdmin: "Enterprise administrator", roleUser: "Enterprise user", roleViewer: "Enterprise viewer",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -301,7 +301,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.", createMode: "ایجاد بر پایه", blankDashboard: "داشبورد خالی", copyExisting: "تکثیر داشبورد موجود", defaultTemplate: "الگوی داشبورد پیش‌فرض", defaultTemplateUnavailable: "الگوی داشبورد پیش‌فرض در این نسخه پیکربندی نشده است.", sourceDashboard: "داشبورد مبنا", createAction: "ایجاد داشبورد",
     projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterScopeConflict: "فیلتر سبد پروژه و فیلتر پروژه را هم‌زمان انتخاب نکنید.", saveMyFilter: "ذخیره به‌عنوان فیلتر من", resetMyFilter: "بازنشانی به فیلتر پیش‌فرض داشبورد", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.", defaultFilter: "فیلتر پیش‌فرض داشبورد", useCurrentAsDefault: "استفاده از انتخاب فعلی به‌عنوان فیلتر پیش‌فرض", clearDefaultFilter: "پاک‌کردن فیلتر پیش‌فرض داشبورد", accessUserId: "شناسه کاربر", accessAddUser: "افزودن کاربر", accessAddRole: "افزودن نقش", accessRole: "نقش سازمانی", accessUsers: "کاربران دارای اشتراک", accessRoles: "نقش‌های دارای اشتراک", accessGlobal: "اشتراک با همه کاربران سازمان", accessRevokeGlobal: "لغو دسترسی همگانی", accessDirectoryPending: "جستجوی فهرست کاربران هنوز متصل نشده است. شناسه حساب را وارد کنید؛ سرور فعال‌بودن حساب و عضویت آن در همین سازمان را بررسی می‌کند.", accessNoUsers: "اشتراک کاربری جداگانه‌ای وجود ندارد.", accessNoRoles: "اشتراک نقشی وجود ندارد.", accessSaveError: "ذخیره تغییر دسترسی انجام نشد.",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.", defaultFilter: "فیلتر پیش‌فرض داشبورد", useCurrentAsDefault: "استفاده از انتخاب فعلی به‌عنوان فیلتر پیش‌فرض", clearDefaultFilter: "پاک‌کردن فیلتر پیش‌فرض داشبورد", accessUserId: "شناسه کاربر", accessAddUser: "افزودن کاربر", accessAddRole: "افزودن نقش", accessRole: "نقش سازمانی", accessUsers: "کاربران دارای اشتراک", accessRoles: "نقش‌های دارای اشتراک", accessGlobal: "اشتراک با همه کاربران سازمان", accessRevokeGlobal: "لغو دسترسی همگانی", accessDirectoryPending: "جستجوی فهرست کاربران هنوز متصل نشده است. شناسه حساب را وارد کنید؛ سرور فعال‌بودن حساب و عضویت آن در همین سازمان را بررسی می‌کند.", accessNoUsers: "اشتراک کاربری جداگانه‌ای وجود ندارد.", accessNoRoles: "اشتراک نقشی وجود ندارد.", accessSaveError: "ذخیره تغییر دسترسی انجام نشد.", roleAdmin: "مدیر سازمانی", roleUser: "کاربر سازمانی", roleViewer: "بیننده سازمانی",
   },
 } as const;
 
@@ -374,6 +374,11 @@ export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options
     const labels: Record<string, string> = { eq: t.opEq, in: t.opIn, gte: t.opGte, lte: t.opLte };
     return labels[operator] ?? operator;
   };
+  const roleLabel = (role: string): string => ({
+    enterprise_admin: t.roleAdmin,
+    enterprise_user: t.roleUser,
+    enterprise_viewer: t.roleViewer,
+  }[role] ?? role);
   const filterValueLabel = (value: string): string => {
     const labels: Record<string, string> = {
       included: t.statusIncluded, on_hold: t.statusOnHold, excluded: t.statusExcluded,
@@ -1119,14 +1124,14 @@ export function mountEnterpriseDashboardFromHttp(container: HTMLElement, options
       if (!definition.shared_role_ids.length) roles.append(node("p", "ced-muted", t.accessNoRoles));
       for (const roleId of definition.shared_role_ids) {
         const row = node("div", "ced-row ced-panel");
-        row.append(node("span", "", roleId));
+        row.append(node("span", "", roleLabel(roleId)));
         row.append(button(t.remove, async () => { await changeShare("role", roleId, false); }));
         roles.append(row);
       }
       const roleSelect = node("select", "ced-select");
       for (const roleId of ["enterprise_admin", "enterprise_user", "enterprise_viewer"] as const) {
         if (definition.shared_role_ids.includes(roleId)) continue;
-        const option = node("option", "", roleId);
+        const option = node("option", "", roleLabel(roleId));
         option.value = roleId;
         roleSelect.append(option);
       }
