@@ -103,3 +103,41 @@ def test_resource_identity_is_registered_tenant_wide_and_not_deleted_with_associ
         "WHERE tenant_id='tenant-a' AND resource_id='R-100'"
     ).fetchone()
     assert row == ("tenant-a", "R-100", "Civil Crew")
+
+
+def test_global_policy_requires_associated_resource_for_team_member_and_personal_calendar():
+    from datetime import datetime, timezone
+    from construction_pm.p6_global_security import (
+        GlobalSecurityProfile, UserGlobalSecurity, P6GlobalSecurityAuthorizationPolicy,
+    )
+
+    connection, _, associations = setup()
+    now = datetime.now(timezone.utc)
+    associations.assign(P6AssociatedResource("tenant-a", "user-1", "R-100", 1, "admin", now))
+    profile = GlobalSecurityProfile(
+        "tenant-a", "profile-1", "Team Member + Calendar",
+        ("add_edit_delete_resource_calendars",),
+    )
+    assignment = UserGlobalSecurity(
+        "tenant-a", "user-1", "profile-1", ("team_member", "resources"),
+        "none", (), 1, "admin", now,
+    )
+    class SecurityRepository:
+        def get_user_security(self, tenant_id, user_id):
+            return assignment if (tenant_id, user_id) == ("tenant-a", "user-1") else None
+        def get_profile(self, tenant_id, profile_id):
+            return profile if (tenant_id, profile_id) == ("tenant-a", "profile-1") else None
+
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        SecurityRepository(), object(), associated_resource_access=associations
+    )
+    user_context = AuthorizationContext("tenant-a", "project-a", "user-1", frozenset())
+    assert policy.associated_resource_id(user_context) == "R-100"
+    assert policy.can_use_team_member(user_context)
+    assert policy.can_edit_personal_resource_calendar(user_context)
+
+    without_link = P6GlobalSecurityAuthorizationPolicy(
+        SecurityRepository(), object(), associated_resource_access=None
+    )
+    assert not without_link.can_use_team_member(user_context)
+    assert not without_link.can_edit_personal_resource_calendar(user_context)
