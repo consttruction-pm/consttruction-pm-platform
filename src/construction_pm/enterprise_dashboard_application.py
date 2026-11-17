@@ -122,13 +122,30 @@ class EnterpriseDashboardApplicationService:
     ) -> tuple[StoredEnterpriseDashboard, ...]:
         session = self._session(session_id)
         self._require_enterprise(session, write=False)
-        items = self._repository.list_for_tenant(session.tenant_id, limit=limit)
-        return tuple(
-            item
-            for item in items
-            if self._can_view(item.dashboard, session)
-            and (item.dashboard.status == "active" or item.dashboard.owner_user_id == session.user_id or self._is_admin(session))
-        )
+        if limit <= 0:
+            return ()
+        # The repository is tenant-scoped but cannot apply actor-level sharing.
+        # Expand the ordered prefix until enough accessible dashboards are found;
+        # applying LIMIT before _can_view would hide older dashboards shared with
+        # this actor whenever newer private dashboards fill the first page.
+        fetch_limit = max(200, limit)
+        while True:
+            items = self._repository.list_for_tenant(
+                session.tenant_id, limit=fetch_limit
+            )
+            accessible = tuple(
+                item
+                for item in items
+                if self._can_view(item.dashboard, session)
+                and (
+                    item.dashboard.status == "active"
+                    or item.dashboard.owner_user_id == session.user_id
+                    or self._is_admin(session)
+                )
+            )
+            if len(accessible) >= limit or len(items) < fetch_limit:
+                return accessible[:limit]
+            fetch_limit *= 2
 
     def list_dashboard_catalog(
         self,
@@ -232,10 +249,23 @@ class EnterpriseDashboardApplicationService:
         preferences = self._repository.list_display_preferences(
             session.tenant_id, session.user_id
         )
-        displayed_ids = [
-            item_id for item_id in visible_ids
-            if preferences.get(item_id, (True, visible_ids.index(item_id)))[0]
-        ]
+        default_orders = {
+            item_id: index for index, item_id in enumerate(visible_ids)
+        }
+        displayed_ids = sorted(
+            (
+                item_id
+                for item_id in visible_ids
+                if preferences.get(item_id, (True, default_orders[item_id]))[0]
+            ),
+            key=lambda item_id: (
+                preferences.get(
+                    item_id, (True, default_orders[item_id])
+                )[1],
+                default_orders[item_id],
+                item_id,
+            ),
+        )
         displayed_ids = [item_id for item_id in displayed_ids if item_id != dashboard_id]
         if displayed:
             insert_at = len(displayed_ids) if position is None else position
