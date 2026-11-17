@@ -17,6 +17,7 @@ from ..p6_obs_repository import PostgresP6OBSRepository
 from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
 from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
 from ..p6_resource_master_repository import PostgresP6ResourceRepository
+from ..p6_resource_assignment_repository import PostgresP6ResourceAssignmentRepository
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_global_security import PostgresP6GlobalSecurityRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
@@ -47,6 +48,7 @@ def initialize_production_schema(connection: Any) -> None:
     obs_repository.initialize()
     PostgresP6GlobalSecurityRepository(connection).initialize()
     PostgresP6ResourceRepository(connection).initialize()
+    PostgresP6ResourceAssignmentRepository(connection).initialize()
     def project_obs_lookup(tenant_id: str, project_id: str) -> str | None:
         row = connection.execute(
             "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
