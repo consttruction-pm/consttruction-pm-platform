@@ -1031,10 +1031,15 @@ class EnterpriseDashboardApplicationService:
 
     @classmethod
     def _require_manage(cls, dashboard: EnterpriseDashboard, session: object) -> None:
-        if dashboard.visibility == "global" and not cls._is_admin(session):
-            raise EnterpriseDashboardAuthorizationError("GLOBAL_DASHBOARD_ADMIN_REQUIRED")
-        if dashboard.owner_user_id != session.user_id and not cls._is_admin(session):
-            raise EnterpriseDashboardAuthorizationError("DASHBOARD_OWNER_OR_ADMIN_REQUIRED")
+        # EPPM V26: only the creator can modify a private or multi-user dashboard,
+        # even when another user can view it. Global/All Users dashboards are
+        # governed by the separate administrator security privilege.
+        if dashboard.visibility == "global":
+            if not cls._is_admin(session):
+                raise EnterpriseDashboardAuthorizationError("GLOBAL_DASHBOARD_ADMIN_REQUIRED")
+            return
+        if dashboard.owner_user_id != session.user_id:
+            raise EnterpriseDashboardAuthorizationError("DASHBOARD_OWNER_REQUIRED")
 
     @staticmethod
     def _require_enterprise(session: object, *, write: bool) -> None:
