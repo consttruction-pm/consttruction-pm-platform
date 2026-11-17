@@ -185,6 +185,17 @@ class TimeAwareWorkingTimeResolver:
         self.calendar = calendar
         if not any(calendar.daily_intervals.get(day) for day in calendar.working_weekdays):
             raise ValueError("calendar must define at least one working interval")
+        # The calendar is immutable, so a per-date interval lookup is a pure
+        # function of the date.  Caching it removes most of the repeated work
+        # from the day-by-day working-time loops without changing any result.
+        self._intervals: dict[date, tuple[tuple[time, time], ...]] = {}
+
+    def intervals_for(self, value: date) -> tuple[tuple[time, time], ...]:
+        cached = self._intervals.get(value)
+        if cached is None:
+            cached = self.calendar.intervals_for(value)
+            self._intervals[value] = cached
+        return cached
 
     @staticmethod
     def _combine(value_date: date, value_time: time, reference: datetime) -> datetime:
@@ -200,14 +211,14 @@ class TimeAwareWorkingTimeResolver:
         value = self._require_datetime(value, field="value")
         return any(
             start <= value.time() < end
-            for start, end in self.calendar.intervals_for(value.date())
+            for start, end in self.intervals_for(value.date())
         )
 
     def normalize_start(self, value: datetime) -> datetime:
         value = self._require_datetime(value, field="value")
         cursor = value
         while True:
-            intervals = self.calendar.intervals_for(cursor.date())
+            intervals = self.intervals_for(cursor.date())
             for start, end in intervals:
                 if cursor.time() < start:
                     return self._combine(cursor.date(), start, cursor)
@@ -219,7 +230,7 @@ class TimeAwareWorkingTimeResolver:
         value = self._require_datetime(value, field="value")
         cursor = value
         while True:
-            intervals = self.calendar.intervals_for(cursor.date())
+            intervals = self.intervals_for(cursor.date())
             for start, end in reversed(intervals):
                 if cursor.time() >= end:
                     return self._combine(cursor.date(), end, cursor)
@@ -232,7 +243,7 @@ class TimeAwareWorkingTimeResolver:
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_start(start)
         while True:
-            intervals = self.calendar.intervals_for(cursor.date())
+            intervals = self.intervals_for(cursor.date())
             for interval_start, interval_end in intervals:
                 begin = self._combine(cursor.date(), interval_start, cursor)
                 end = self._combine(cursor.date(), interval_end, cursor)
@@ -255,7 +266,7 @@ class TimeAwareWorkingTimeResolver:
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_finish(finish)
         while True:
-            intervals = self.calendar.intervals_for(cursor.date())
+            intervals = self.intervals_for(cursor.date())
             for interval_start, interval_end in reversed(intervals):
                 begin = self._combine(cursor.date(), interval_start, cursor)
                 end = self._combine(cursor.date(), interval_end, cursor)
@@ -283,7 +294,7 @@ class TimeAwareWorkingTimeResolver:
         cursor_date = start.date()
         last_date = finish.date()
         while cursor_date <= last_date:
-            for interval_start, interval_end in self.calendar.intervals_for(cursor_date):
+            for interval_start, interval_end in self.intervals_for(cursor_date):
                 begin = self._combine(cursor_date, interval_start, start)
                 end = self._combine(cursor_date, interval_end, start)
                 left = max(start, begin)

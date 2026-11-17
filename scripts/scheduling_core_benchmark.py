@@ -30,6 +30,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from construction_pm.scheduling.benchmark_fixtures import (  # noqa: E402
     SHAPES,
+    backward_leveling_case,
+    backward_leveling_payload,
     canonical_hash,
     date_network,
     date_schedule_payload,
@@ -39,6 +41,7 @@ from construction_pm.scheduling.benchmark_fixtures import (  # noqa: E402
     leveling_orchestration_payload,
     leveling_payload,
     measure,
+    run_backward_leveling,
     run_date_schedule,
     run_leveling,
     run_leveling_orchestration,
@@ -47,7 +50,7 @@ from construction_pm.scheduling.benchmark_fixtures import (  # noqa: E402
     time_schedule_payload,
 )
 
-MODES = ("date", "time", "leveling", "leveling-orchestration")
+MODES = ("date", "time", "leveling", "backward-leveling", "leveling-orchestration")
 
 
 def _parse_sizes(value: str) -> list[int]:
@@ -118,6 +121,10 @@ def _measure_one(args, size: int) -> dict[str, object]:
         fixture = leveling_case(size, args.seed)
         operation = lambda: run_leveling(fixture)  # noqa: E731
         payload_builder = leveling_payload
+    elif args.mode == "backward-leveling":
+        fixture = backward_leveling_case(size, args.seed)
+        operation = lambda: run_backward_leveling(fixture)  # noqa: E731
+        payload_builder = backward_leveling_payload
     else:
         fixture = leveling_orchestration_case(size, args.seed)
         operation = lambda: run_leveling_orchestration(fixture)  # noqa: E731

@@ -50,6 +50,7 @@ from .resource_leveling import (
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingOptions,
+    propose_backward_leveling,
     propose_forward_leveling_within_float,
 )
 from .leveling_boundary import SchedulerLevelingInput
@@ -416,6 +417,110 @@ def leveling_case(
 
 
 # ---------------------------------------------------------------------------
+# Backward leveling proposal
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BackwardLevelingFixture:
+    activities: tuple[BackwardLevelingActivity, ...]
+    capacities: tuple[ResourceCapacity, ...]
+    resolver: WorkingTimeResolver
+    size: int
+    seed: int
+
+    @property
+    def counts(self) -> dict[str, int]:
+        return {
+            "activities": len(self.activities),
+            "capacities": len(self.capacities),
+            "resources": len({capacity.resource_id for capacity in self.capacities}),
+            "demand_periods": len(
+                {d.period for a in self.activities for d in a.resource_demands}
+            ),
+        }
+
+
+def backward_leveling_case(
+    size: int,
+    seed: int = 20261116,
+    *,
+    resources: int = 2,
+    activities_per_wave: int = 8,
+    duration_days: int = 2,
+    demand_units: Decimal = Decimal("4"),
+    capacity_units: Decimal = Decimal("8"),
+    late_window: int = 12,
+) -> BackwardLevelingFixture:
+    """Build a deterministic over-allocated *backward* leveling case.
+
+    Every wave of ``activities_per_wave`` activities shares the same late
+    dates, so each late period carries far more demand than capacity and the
+    backward pass has real work to do.  Each activity keeps ``late_window``
+    working days between its early start and its late start, which bounds the
+    retreat exactly like authoritative CPM float does.  The window is wide
+    enough that the wave backlog cannot be resolved inside its own two days, so
+    decisions cascade into neighbouring waves instead of stopping after a
+    single trivial move.
+    """
+
+    if size < 0:
+        raise ValueError("size must be non-negative")
+    if resources < 1 or activities_per_wave < 1 or duration_days < 1:
+        raise ValueError("resources, activities_per_wave and duration_days must be positive")
+    if late_window < 0:
+        raise ValueError("late_window must be non-negative")
+    rng = _StableLcg(seed)
+    resolver = date_resolver()
+    waves = (size + activities_per_wave - 1) // activities_per_wave
+    horizon_days = waves * duration_days + late_window + duration_days + 2
+    days: list[date] = []
+    cursor = resolver.normalize_start(PROJECT_START)
+    for _ in range(horizon_days):
+        days.append(cursor)
+        cursor = resolver.next_working_day(cursor)
+
+    activities: list[BackwardLevelingActivity] = []
+    for index in range(size):
+        wave = index // activities_per_wave
+        early_start = days[wave * duration_days]
+        early_finish = days[wave * duration_days + duration_days - 1]
+        late_start = days[wave * duration_days + late_window]
+        late_finish = days[wave * duration_days + late_window + duration_days - 1]
+        demands = tuple(
+            ResourceDemand(
+                resource_id(index % resources),
+                days[wave * duration_days + late_window + offset],
+                demand_units,
+                activity_id(index),
+            )
+            for offset in range(duration_days)
+        )
+        activities.append(
+            BackwardLevelingActivity(
+                activity_id(index),
+                early_start,
+                early_finish,
+                late_start,
+                late_finish,
+                demands,
+                activity_priority=(index % 4),
+                total_float=late_window,
+                free_float=late_window,
+            )
+        )
+        # Keep the generator exercised without changing today's layout.
+        rng.next()
+
+    capacities = tuple(
+        ResourceCapacity(resource_id(index % resources), day, capacity_units)
+        for day in days
+        for index in range(resources)
+    )
+    return BackwardLevelingFixture(tuple(activities), capacities, resolver, size, seed)
+
+
+# ---------------------------------------------------------------------------
 # Full leveling orchestration (forward proposal + backward acceptance + CPM)
 # ---------------------------------------------------------------------------
 
@@ -702,6 +807,21 @@ def leveling_payload(shifts: Sequence[LevelingShift]) -> dict[str, object]:
     }
 
 
+def backward_leveling_payload(shifts: Sequence[object]) -> dict[str, object]:
+    return {
+        "shifts": [
+            {
+                "activity_id": item.activity_id,
+                "shift_working_days": item.shift_working_days,
+                "new_start": _iso(item.new_start),
+                "new_finish": _iso(item.new_finish),
+                "advanced_days": item.advanced_days,
+            }
+            for item in shifts
+        ]
+    }
+
+
 def leveling_orchestration_payload(
     result: ScheduleResult,
     forward: Sequence[LevelingShift],
@@ -874,6 +994,15 @@ def run_leveling_orchestration(
         fixture.leveling_input,
         project_finish=fixture.project_finish,
         options=fixture.options,
+    )
+
+
+def run_backward_leveling(fixture: BackwardLevelingFixture):
+    return propose_backward_leveling(
+        fixture.activities,
+        fixture.capacities,
+        resolver=fixture.resolver,
+        priorities=(),
     )
 
 
