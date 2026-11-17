@@ -44,9 +44,10 @@ The closed contract is **cubi-enterprise-dashboard.v1**. It rejects unknown fiel
 - Active/archived lifecycle state and optimistic revision.
 - Ordered portlet instances with stable instance IDs, exact registered type/version, typed configuration and a two-column Narrow/Wide-compatible layout.
 - Typed, allow-listed filters for portfolio/project selection, source status and freshness.
+- P6 General-section `max_rows_per_portlet` setting (default 100, bounded 1–500) applied to read projections without changing source totals.
 - Creation and update timestamps.
 
-The default portlet ceiling is twelve, matching the EPPM Content tab default. Layout coordinates model the EPPM two-column Narrow/Wide choices (six columns for Narrow, twelve for Wide), left/right placement and vertical ordering. Overlapping portlet rectangles and unsupported widths are rejected. This remains presentation-only; the drag/drop and arrow controls are UI work.
+The default portlet ceiling is twelve, matching the EPPM Content tab default. The General-section maximum displayed rows setting is persisted as `max_rows_per_portlet` (CUBI default 100; allowed range 1–500) and applied to the returned project rows while source totals remain intact. Layout coordinates model the EPPM two-column Narrow/Wide choices (six columns for Narrow, twelve for Wide), left/right placement and vertical ordering. Overlapping portlet rectangles and unsupported widths are rejected. This remains presentation-only; the drag/drop and arrow controls are UI work.
 
 ### 2.2 Governed registry
 
@@ -68,12 +69,16 @@ PostgresEnterpriseDashboardRepository uses dedicated tenant-scoped tables:
 - enterprise_dashboards
 - enterprise_dashboard_idempotency
 - enterprise_dashboard_audit
+- enterprise_dashboard_display_preferences (actor-scoped display order/visibility and saved filter overrides)
 
 The repository provides create, get, tenant list, optimistic update, revision history, idempotency and append-only audit. It does not commit or roll back; the caller owns the transaction. Dashboard and audit writes occur in the same transaction. The audit table has a database trigger rejecting UPDATE and DELETE, and its foreign key prevents deletion of a dashboard with audit history.
 
 The application service provides:
 
 - Create and list.
+- P6-style displayed/available dashboard catalog, actor-scoped show/hide, deterministic tab reordering, and search.
+- Actor-scoped saved Filter by overrides, reset independently from the shared dashboard definition.
+- P6 General-section maximum rows per portlet; snapshot output is capped while summary totals and source authorization remain based on the full filtered source set.
 - Read dashboard definition.
 - Update title, description, portlets and filters.
 - Duplicate into a new private dashboard owned by the current actor.
@@ -81,6 +86,8 @@ The application service provides:
 - Assign/revoke all-tenant global visibility; only an Enterprise administrator can create, edit, or revoke a global dashboard.
 - Enforce the owner-controlled filter-override restriction.
 - Archive.
+- Actor-specific dashboard tabs: displayed/available catalog, show/hide, search and order.
+- Actor-specific saved Filter by overrides, reset independently from the shared definition.
 - Read portlet data through existing source boundaries.
 
 The authenticated session is the sole authority for actor and tenant. Caller-supplied owner or tenant fields are rejected. Enterprise viewers can read but cannot mutate. Owners and Enterprise administrators can manage private/user/role-shared dashboards; global dashboards require Enterprise-administrator mutation, matching the P6 All Users privilege boundary.
@@ -109,7 +116,7 @@ Filters are stored and validated against a closed key/operator/value catalogue:
 - `generated_after` / `generated_before` (source timestamp bounds);
 - `include_stale` (when false, stale and unknown source data are suppressed while freshness remains explicit).
 
-The filter list is bounded to 20 entries and multi-value selectors to 200 values. The owner may set `restrict_filter_override=true`. When false, a reader may supply request-scoped filter overrides; when true, only the owner or Enterprise administrator may override. Overrides are not persisted. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
+The filter list is bounded to 20 entries and multi-value selectors to 200 values. The owner may set `restrict_filter_override=true`. When false, a reader may supply a request-scoped override or save an actor-only override in the user's dashboard preferences; when true, only the owner or Enterprise administrator may save or apply an override. A saved user override never mutates the shared dashboard definition and can be reset independently. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
 
 Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered for presentation, but every project in the underlying source snapshot is re-authorized before any snapshot or source-reference metadata is returned. Filtering never bypasses source-record authorization. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
 
@@ -122,7 +129,7 @@ Official HTML Help is the normative source. Each disposition below is limited to
 | Source topic | Backend disposition | Evidence / gap |
 |---|---|---|
 | [EPPM V26 Help TOC](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm) | Partial | The Dashboards and Portlets sections identify dashboard management, content, access, filters, layout and the portfolio-view portlet family. The backend implements the bounded definition and read-model foundation, not the full UI inventory. |
-| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Partial | Private, explicit-user, explicit-role and global-to-all-enterprise-users visibility are represented. Global mutation is administrator-only. User-interface-view assignment, dashboard tabs and display preferences remain deferred. The Help notes that module access, privileges and project role continue to govern displayed data; source reauthorization is retained. |
+| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Partial | Private, explicit-user, explicit-role and global-to-all-enterprise-users visibility are represented. Global mutation is administrator-only. Actor-scoped displayed/available tabs, show/hide and ordering are implemented; P6 user-interface-view assignment remains deferred. The Help notes that module access, privileges and project role continue to govern displayed data; source reauthorization is retained. |
 | [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Partial | Create and duplicate use cases are implemented. The context selector, copy-from-existing dialog and Save and Close UI are deferred. |
 | [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm) | Partial | Content, layout, access and filters are persisted in one definition. Content/Layout/Access tabs and Save and Close interaction are UI work and are not claimed. |
 | [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm) | Partial | Registered portlet selection and typed configuration are implemented. The full P6 portlet catalogue, per-portlet options/fields and administrative portlet-count configuration are not implemented. The v1 ceiling is twelve. |
@@ -166,13 +173,13 @@ The related EPPM screen topics were checked against their HTML screen definition
 
 #### Complete EPPM V26 dashboard and portlet HTML inventory
 
-The V26 Dashboard TOC branch and the linked screen/topic pages were inspected as HTML. The traceability test requires all 78 exact official HTML URLs to appear in this crosswalk. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
+The V26 Dashboard, Project Performance Metrics, Portlets and adjacent Portfolio Views TOC branches and linked screen/topic pages were inspected as official HTML. The traceability test requires all 109 exact official HTML URLs to appear in this crosswalk. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
 
 | Official HTML topic | Disposition | Navigation, screen/access note and CUBI mapping |
 |---|---|---|
 | [About Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm) | Partial | Defines User, Multi-user and Global dashboards. CUBI maps User to private, Multi-user to explicit user/role shares, and Global to tenant-wide Enterprise visibility with administrator-only mutation. P6 user-interface-view assignment remains deferred. |
 | [Manage Dashboards Page](https://docs.oracle.com/cd/G48897_01/p6help/en/5937.htm) | Partial | Context selector → Dashboard → Manage Dashboards. The page lists dashboards available in the assigned UI view and currently displayed dashboards; columns include Title, Filter, Available To, Created By and Date Created, plus Create Dashboard, search, Move Up/Down and Delete. CUBI has tenant-scoped list/read and access metadata; UI view assignment, search, display state, tab order and destructive delete are deferred. Archive is the v1 lifecycle operation. |
-| [Showing and Hiding Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm) | Deferred | Manage Dashboards → Displayed Dashboards / Available Dashboards → select to show/hide; ordering is changed with up/down arrows and is automatically applied. These are actor-specific display preferences, not dashboard definition sharing, and are not persisted in this v1 aggregate. |
+| [Showing and Hiding Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm) | Implemented (backend) | Manage Dashboards → Displayed Dashboards / Available Dashboards → show/hide; tab order is actor-scoped and persisted separately from the shared dashboard definition. The visual list and arrow controls remain UI work. |
 | [Customize Dashboard Page](https://docs.oracle.com/cd/G48897_01/p6help/en/34915.htm) | Partial | From Manage Dashboards or Dashboard → select a dashboard → Customize. It exposes Content, Layout and Access tabs. Backend fields are persisted, but the page and its save/restore-default interactions are deferred. |
 | [Content Tab of the Customize Dashboard Page](https://docs.oracle.com/cd/G48897_01/p6help/en/8107.htm) | Partial | Dashboard Details → Content. General, Portfolio Views, Project Performance, Resources, Personal Information and Custom Portlets sections expose selectable portlets; General options depend on Access settings. CUBI validates the two registered source types only; the P6 catalogue and section-specific editors are not implemented. The default 12-portlet limit is enforced. |
 | [Layout Tab of the Customize Dashboard Page](https://docs.oracle.com/cd/G48897_01/p6help/en/8108.htm) | Partial | Dashboard Details → Layout. The work area represents selected portlet size/position; Narrow/Wide and left/up/right/down controls are exposed. CUBI enforces Narrow=6/12 and Wide=12/12 widths, coordinates, ordering and non-overlap. The visual work area, drag/drop and arrow controls are UI work. |
@@ -214,6 +221,52 @@ P6 navigation for each row is Navigation Menu → Dashboard → Dashboards → s
 | [Project Gantt Chart](https://docs.oracle.com/cd/G48897_01/p6help/en/6037.htm) | Project bars, progress, remaining effort, start/finish milestones, baseline milestones, activity-code filters and project navigation. | Not Applicable — no Gantt, schedule or critical-path renderer/calculation is added to Enterprise. |
 | [Open Requests for Resources](https://docs.oracle.com/cd/G48897_01/p6help/en/5935.htm) | Role-team staffing requests, unstaffed/staffed units and links into Resource Staffing. | Not Applicable — staffing and resource assignment remain Engineering-owned actions. |
 
+
+#### Dashboard Content-tab sections — detailed HTML screen mapping
+
+| Official HTML topic | Disposition | Navigation, screen elements, access and CUBI mapping |
+|---|---|---|
+| [General Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31954.htm) | Implemented / Partial | Navigation Menu → Dashboard → Dashboards → Customize → Content → General. P6 exposes Dashboard Title, Dashboard Filter, Restrict users from changing dashboard filter, User Filter and Maximum number of rows displayed. CUBI persists the owner filter lock, actor-scoped saved overrides and `max_rows_per_portlet` (default 100, range 1–500); title/filter editor UI and P6 project-code filtering remain deferred. |
+| [Portfolio Views Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31978.htm) | Partial | Customize → Content → Portfolio Views. P6 exposes Add/Remove, view checkbox, Title, Type, X/Y axes, Group By, Color Theme, 3-D, gridlines, all-axis-values, Bubble Size and Pie data/group labels/percentage. CUBI has typed configuration for two approved portfolio read contracts only; chart/scorecard/histogram designers and field-level portfolio-view customization are not implemented. |
+| [Project Performance Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31955.htm) | Not Applicable / Deferred | Customize → Content → Project Performance exposes Schedule Performance, Earned Value Performance, Index Performance (SPI/CPI/TCPI), Project Statistics, Project Health, Project Notebooks and Project Gantt Chart. These calculations and source records remain Engineering-owned; no duplicate KPI, threshold, schedule or Gantt engine is added. |
+| [Resources Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31964.htm) | Not Applicable | Customize → Content → Resources exposes Open Requests for Resources, all-projects vs dashboard-filter display, Role by Project / Project by Role / Role by Project by Project Codes, Role Team and Project Code. The portlet leads to Resource Staffing and assignment mutations; it is not a read-only Enterprise portlet. |
+| [Personal Information Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31974.htm) | Deferred / Not Applicable | Customize → Content → Personal Information exposes My Projects, My Activities, My Risks, My Issues, Communication Center, My Documents and My Calendar. Access depends on project rights, assignment/resource ownership and project-owner status; My Documents is also shown in this section although it is not listed in the List of Portlets catalogue. These require their own authoritative read contracts and source authorization, and are not implied by dashboard sharing. |
+| [Custom Portlets Section of the Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/31977.htm) | Not Applicable | Customize → Content → Custom Portlets → Add exposes a title and URL content. P6 supports dynamic `{USER}`, `{USER_ID}`, `{PASS}`, `{PROJ}` and `{PROJ_ID}` substitutions. CUBI explicitly rejects arbitrary URL/executable content and especially credential-bearing `{PASS}` substitution; no custom URL portlet is registered. |
+
+#### Project Performance Metrics branch — source ownership and non-interference
+
+| Official HTML topic | Disposition | Navigation / screen / source-owner evidence |
+|---|---|---|
+| [About Project Performance Metrics](https://docs.oracle.com/cd/G48897_01/p6help/en/44844.htm) | Not Applicable | Defines schedule, earned-value and index metrics and project health thresholds. These are Engineering source calculations, not Enterprise dashboard calculations. |
+| [Assessing Project Performance](https://docs.oracle.com/cd/G48897_01/p6help/en/43935.htm) | Not Applicable | Navigation Menu → Dashboard → Dashboards → expand Earned Value Performance, Schedule Performance, Index Performance or Project Statistics. P6 drills from project to WBS performance; this requires authoritative Engineering read models and is not recreated here. |
+| [Assessing Project Health](https://docs.oracle.com/cd/G48897_01/p6help/en/43938.htm) | Not Applicable | Navigation Menu → Dashboard → Dashboards → expand Project Health. Health is derived from schedule-performance thresholds and remains Engineering-owned. |
+| [Customizing Project Statistics](https://docs.oracle.com/cd/G48897_01/p6help/en/43951.htm) | Deferred | Customize → Content → Project Performance → Project Statistics → Customize Project Statistics → Columns / Group. A future projection needs an approved project/WBS source contract; the dashboard registry does not invent it. |
+| [Identifying Critical Activities Behind Schedule](https://docs.oracle.com/cd/G48897_01/p6help/en/43937.htm) | Not Applicable | Projects → Activities → Filters → Manage Filters (Critical = Yes), then Customize View → Columns / Filtering / Sorting. This is activity scheduling/float analysis, not a dashboard portlet contract. |
+| [About Performance Thresholds](https://docs.oracle.com/cd/G48897_01/p6help/en/6634.htm) | Not Applicable | Describes Exceptional, Acceptable, Warning and Critical ranges for WBS/project/portfolio metrics. No threshold calculation or indicator engine is added. |
+| [Working with Performance Thresholds](https://docs.oracle.com/cd/G48897_01/p6help/en/6691.htm) | Not Applicable | User menu → My Preferences → Global → Performance Threshold. Thresholds depend on schedule, earned-value and index calculations; they remain with Engineering. |
+| [About Cost Performance Index (CPI)](https://docs.oracle.com/cd/G48897_01/p6help/en/43460.htm) | Not Applicable | CPI = Earned Value Cost / Actual Cost. The dashboard never recomputes CPI. |
+| [About Schedule Performance Index (SPI)](https://docs.oracle.com/cd/G48897_01/p6help/en/43459.htm) | Not Applicable | SPI = Earned Value Cost / Planned Value Cost. The dashboard never recomputes SPI. |
+| [About To-Complete Performance Index (TCPI)](https://docs.oracle.com/cd/G48897_01/p6help/en/43948.htm) | Not Applicable | TCPI is a projection from remaining work and funds (BAC/EAC). The dashboard never recomputes TCPI. |
+
+#### Portfolio lifecycle and Portfolio View branches — adjacent EPPM HTML
+
+| Official HTML topic | Disposition | Navigation / screen / ownership mapping |
+|---|---|---|
+| [About Portfolios](https://docs.oracle.com/cd/G48897_01/p6help/en/6611.htm) | Partial | Defines portfolios as project collections used to filter dashboards and view group summaries. CUBI consumes the existing Portfolio Control Snapshot; it does not own portfolio membership. |
+| [Working with Portfolios](https://docs.oracle.com/cd/G48897_01/p6help/en/6671.htm) | Not Applicable | Portfolio context requires existing projects and a configured portfolio; filtered portfolios refresh on an administrative stale-period interval. Portfolio lifecycle and refresh remain with the source owner. |
+| [Opening Portfolios](https://docs.oracle.com/cd/G48897_01/p6help/en/7866.htm) | Not Applicable | Context selector → Portfolios → Open Portfolio → Organize By (EPS / Portfolio / Project Code) → select group → Open. This is P6 portfolio selection state, not dashboard state. |
+| [Creating Projects While Working with Portfolios](https://docs.oracle.com/cd/G48897_01/p6help/en/7859.htm) | Not Applicable | P6 permits project creation from dashboard scorecards and Portfolio Analysis. ENT-06A is read-only and cannot create projects. |
+| [Creating Projects in a Portfolio View Scorecard Portlet](https://docs.oracle.com/cd/G48897_01/p6help/en/7870.htm) | Not Applicable | Dashboard → maximize Portfolio View scorecard → Add → set default EPS/Responsible Manager → edit new project row → Save. This is a project-creation workflow and is explicitly excluded. |
+| [Creating Projects on the Portfolio Analysis Page](https://docs.oracle.com/cd/G48897_01/p6help/en/7869.htm) | Not Applicable | Portfolios → Portfolio Analysis → select scorecard row → Add Project → specify project ID/name/EPS/manager/start date → Create. No project creation is exposed by Enterprise dashboards. |
+| [Defining Performance Thresholds](https://docs.oracle.com/cd/G48897_01/p6help/en/7857.htm) | Not Applicable | User menu → My Preferences → Global → Performance Threshold; logical threshold constraints govern schedule/EVM/index indicators. These remain Engineering-owned. |
+| [About Portfolio Views](https://docs.oracle.com/cd/G48897_01/p6help/en/14087.htm) | Partial | Portfolio views are scorecards/charts shared on dashboards or used in Portfolio Analysis. CUBI's two approved read portlets are not asserted to be replacements for named P6 views. |
+| [Working with Portfolio Views](https://docs.oracle.com/cd/G48897_01/p6help/en/14090.htm) | Not Applicable | Manage Portfolio Views supports scorecard, bubble, pie, basic/side-by-side/stacked histogram and editable fields/waterline. Charting and project mutation are not in the v1 registry. |
+| [Creating Portfolio Views](https://docs.oracle.com/cd/G48897_01/p6help/en/7868.htm) | Deferred | Portfolios → Manage Portfolio Views → Create View → select New/Existing → configure Type-specific details → Save. CUBI portlet registry types are fixed by approved source contracts; no separate portfolio-view designer/store is introduced. |
+| [Working with Portfolio View Scorecards](https://docs.oracle.com/cd/G48897_01/p6help/en/9116.htm) | Not Applicable | Scorecards expose up to 30 data columns, waterline analysis, editing, adding and deleting projects. CUBI's Portfolio Control Snapshot is read-only and cannot emulate those mutating scorecard semantics. |
+| [Working with Portfolio View Bubble Charts](https://docs.oracle.com/cd/G48897_01/p6help/en/9113.htm) | Not Applicable | Portfolio Analysis bubble charts map X/Y fields, bubble size and Group By, with legends and source-data tooltips. No chart or metric aggregation engine is introduced. |
+| [Working with Portfolio View Pie Charts](https://docs.oracle.com/cd/G48897_01/p6help/en/9115.htm) | Not Applicable | Portfolio Analysis pie charts group source fields into proportionate slices and legends. This requires chart aggregation and remains outside the read-model projection. |
+| [Working with Portfolio View Histograms](https://docs.oracle.com/cd/G48897_01/p6help/en/9114.htm) | Not Applicable | Portfolio Analysis supports basic, side-by-side (Group By) and stacked (Stack By) histograms. No histogram renderer or calculation is added. |
+| [About What-if Analysis](https://docs.oracle.com/cd/G48897_01/p6help/en/36491.htm) | Not Applicable | P6 What-if projects model scenario impact on costs/investments and business goals. Scenario creation/calculation is not part of this read-only dashboard backend. |
 
 ### 3.2 Primavera Cloud — comparative/additive only
 
@@ -300,7 +353,9 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Immutable audit and idempotent create/update retries | Implemented | Same-transaction audit, append-only trigger, idempotency fingerprint and exact update retry recognition. |
 | Per-project source authorization on every portlet read | Implemented | Existing source API plus project lifecycle PROJECT_READ authorization for every referenced project. |
 | Source freshness and revision reporting | Partial | Snapshot freshness is fresh/stale/missing; Portfolio Decision currently has no generated timestamp and is explicitly unknown. |
-| Applying saved dashboard filters and P6-style per-user overrides | Implemented / Partial | Typed portfolio/project/status/date/freshness filters are applied to existing read-model projections; owner filter lock and request-scoped overrides are implemented. Project-code filter remains deferred because the source contract does not expose that field. No KPI calculation is added. |
+| Applying saved dashboard filters and P6-style per-user overrides | Implemented / Partial | Typed portfolio/project/status/date/freshness filters are applied to existing read-model projections; owner filter lock, request-scoped overrides and actor-only saved/resettable overrides are implemented. Project-code filter remains deferred because the source contract does not expose that field. No KPI calculation is added. |
+| P6 General-section maximum displayed rows | Implemented | `max_rows_per_portlet` is persisted (default 100, range 1–500); response includes `row_limit` and `truncated`, while summary totals remain based on the full filtered source set. |
+| P6 Manage Dashboards display catalog and tabs | Implemented (backend) | Actor-scoped displayed/available lists, show/hide, search and deterministic ordering are stored separately from dashboard definitions. UI view assignment and visual controls remain deferred. |
 | EPPM dashboard UI, route mounting, drill-through navigation and browser acceptance | Deferred | Protected shared composition and UI paths are intentionally not changed in this backend slice. |
 | P6 Professional dashboard authoring and Team Member dashboard authoring | Not Applicable | Their official V26 Help surfaces do not define the EPPM dashboard/portlet authoring capability; overlap/applicability checks are recorded above. |
 
@@ -319,14 +374,15 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Audit atomicity and immutability | Same transaction; append-only trigger; RESTRICT foreign key | Run PostgreSQL integration |
 | Source authorization | Portfolio source boundary plus per-project lifecycle authorization | Run unit and PostgreSQL CI |
 | Stale/missing/filtered-out source states | Explicit fresh/stale/missing/unknown freshness, filtered_out flag and separate saved/applied filter lists | Run unit tests |
-| Exact Oracle traceability | Tables in Section 3 | Review source coverage |
+| Exact Oracle traceability | 109 official HTML URLs across the EPPM dashboard, content, portlet, performance and portfolio branches plus Cloud/Professional/Team Member comparisons | Review source coverage |
+| P6 row limit and actor-specific dashboard display | Domain, repository, application service and unit/PostgreSQL tests | Exact-head CI |
 | Production route/UI/browser parity | Explicitly not included | Later handoff required |
 
 ## 5. Explicit deferrals and non-claims
 
 - No production route or shared composition changes are made in this slice.
 - No web, desktop, mobile or workspace-shell files are changed.
-- No UI dashboard designer, browser acceptance, visual parity screenshot or drill-through navigation is claimed.
+- No UI dashboard designer, browser acceptance, visual parity screenshot, P6 user-interface-view assignment or drill-through navigation is claimed. Actor-specific dashboard display preferences and saved filters are backend-complete only.
 - No caching is implemented.
 - Typed filters are applied at the read-model projection boundary. Project-code filtering and source-specific filters that cannot be evaluated from the registered contracts fail closed / remain deferred; no ungoverned query AST or KPI engine is introduced.
 - The Portfolio Decision read contract does not currently expose a generated timestamp; its freshness state is therefore unknown, not falsely reported as fresh.
