@@ -927,6 +927,18 @@ class P6GlobalSecurityAuthorizationPolicy:
                 return False
             if global_profile_has_project_access_bypass(profile):
                 return True
+            # V26 Contributor access exposes projects on which the user's
+            # Associated Resource has an assignment, even without an OBS grant.
+            if (getattr(permission, "value", permission) == "project.read"
+                    and "contributor" in assignment.module_access):
+                contributor_access = getattr(
+                    self._associated_resource_access,
+                    "has_resource_assignment_for_project", None,
+                )
+                if callable(contributor_access) and contributor_access(
+                    context.tenant_id, context.user_id, context.project_id
+                ):
+                    return True
             if "projects" not in assignment.module_access:
                 return False
             checker = getattr(self._obs_project_access, "has_project_privilege", None)
