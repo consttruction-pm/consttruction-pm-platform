@@ -107,6 +107,11 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
         )
         assert updated.membership_revision == 2
         assert repository.get_portfolio(tenant_id, portfolio_id).revision == 3
+        connection.execute(
+            "UPDATE project_lifecycle_projects SET revision=4 "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
         connection.commit()
 
     with psycopg.connect(DSN) as connection:
@@ -114,8 +119,8 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
         provider = PostgresPortfolioControlSnapshotProvider(
             repository, PostgresProjectLifecycleFactsReader(connection), source_reader
         )
-        # The Engineering project revision is independently stale (3 vs 4).
-        with pytest.raises(ValueError, match="PORTFOLIO_PROJECT_SOURCE_STALE"):
+        # Project revision is current; only the independently pinned source revision is stale.
+        with pytest.raises(ValueError, match="PORTFOLIO_SOURCE_REFERENCE_STALE"):
             provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
 
         count = connection.execute(
