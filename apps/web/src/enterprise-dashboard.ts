@@ -227,7 +227,7 @@ function installDashboardStyles(): void {
     .ced-row{justify-content:space-between}.ced-section{margin:22px 0}.ced-input,.ced-select{border:1px solid var(--cp-border,#d9e0e7);border-radius:8px;padding:9px;background:#fff;max-width:100%}
     .ced-portlet{background:#fff;border:1px solid var(--cp-border,#d9e0e7);border-radius:12px;overflow:hidden;margin:12px 0}
     .ced-portlet-head{padding:10px 14px;background:#f7fafd;border-bottom:1px solid var(--cp-border,#d9e0e7);justify-content:space-between}
-    .ced-portlet-body{padding:14px;overflow:auto}.ced-badge{display:inline-block;border-radius:99px;padding:3px 8px;background:#edf3f9;color:var(--cp-navy,#0f2747);font-size:12px}
+    .ced-portlet-body{padding:14px;overflow:auto}.ced-maximized{position:fixed;inset:12px;z-index:1000;background:#fff;overflow:auto}.ced-badge{display:inline-block;border-radius:99px;padding:3px 8px;background:#edf3f9;color:var(--cp-navy,#0f2747);font-size:12px}
     .ced-table{width:100%;border-collapse:collapse}.ced-table th,.ced-table td{text-align:start;border-bottom:1px solid #e6e9ee;padding:8px;font-size:13px}
     .ced-dialog{border:0;border-radius:14px;width:min(820px,94vw);max-height:90vh;padding:0;box-shadow:0 18px 70px #0f274733}.ced-dialog::backdrop{background:#081a2f77}
     .ced-dialog-inner{padding:20px;overflow:auto;max-height:90vh}.ced-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -547,7 +547,7 @@ export async function mountEnterpriseDashboard(
       const current = [...activeDefinition!.portlets];
       current.forEach((portlet, index) => {
         const row = node("div", "ced-panel ced-section");
-        row.dataset.portletIndex = String(index);
+        row.classList.add("ced-editor-portlet"); row.dataset.existingPortletIndex = String(index);
         row.append(node("strong", "", portletLabel(portlet.type_id)));
         const titleInput = input(`portlet-title-${index}`, portlet.title ?? "");
         row.append(field(t.portletTitle, titleInput));
@@ -563,11 +563,11 @@ export async function mountEnterpriseDashboard(
       const portfolio = input("new-portfolio-id", "");
       const decision = input("new-decision-id", "");
       const add = button(t.addPortlet, () => {
-        if (current.length + list.querySelectorAll("[data-portlet-index]").length >= 12) return;
+        if (list.querySelectorAll(".ced-editor-portlet").length >= 12) return;
         const type = addType.value as EnterprisePortletType;
         const config = { portfolio_id: portfolio.value.trim(), ...(type === "portfolio-decision.v1" ? { decision_id: decision.value.trim() } : {}) };
         if (!config.portfolio_id || (type === "portfolio-decision.v1" && !config.decision_id)) return;
-        const index = list.querySelectorAll("[data-portlet-index]").length + current.length;
+        const index = list.querySelectorAll(".ced-editor-portlet").length;
         const row = node("div", "ced-panel ced-section");
         row.dataset.portletIndex = String(index);
         row.dataset.newPortlet = type;
@@ -607,17 +607,17 @@ export async function mountEnterpriseDashboard(
   function readEditorPortlets(dialog: HTMLDialogElement, original: EnterpriseDashboardPortlet[]): EnterpriseDashboardPortlet[] {
     const result: EnterpriseDashboardPortlet[] = [];
     for (const [index, portlet] of original.entries()) {
-      const row = dialog.querySelector<HTMLElement>(`[data-portlet-index="${index}"]`);
+      const row = dialog.querySelector<HTMLElement>(`[data-existing-portlet-index="${index}"]`);
       if (!row) continue;
       const title = row.querySelector<HTMLInputElement>(`[name="portlet-title-${index}"]`)?.value ?? portlet.title ?? "";
       const hideTitle = row.querySelector<HTMLInputElement>(`[name="hide-title-${index}"]`)?.checked ?? Boolean(portlet.hide_title);
-      const width = Number(dialog.querySelector<HTMLSelectElement>(`[name="portlet-width-${index}"]`)?.value ?? portlet.layout.w);
+      const width = Number(row.querySelector<HTMLSelectElement>(`[name="portlet-width-${index}"]`)?.value ?? portlet.layout.w);
       result.push({ ...portlet, title: title.trim() || null, hide_title: hideTitle, layout: { ...portlet.layout, x: width === 12 ? 0 : portlet.layout.x, w: width } });
     }
     for (const row of dialog.querySelectorAll<HTMLElement>("[data-new-portlet]")) {
       const type = row.dataset.newPortlet as EnterprisePortletType;
       const index = result.length;
-      const layout = { x: index % 2 === 0 ? 0 : 6, y: Math.floor(index / 2) * 4, w: 6, h: 4 };
+      const nextY = Math.max(0, ...original.map((item) => item.layout.y + item.layout.h));\n      const layout = { x: 0, y: nextY + index * 4, w: 12, h: 4 };
       const config = { portfolio_id: row.dataset.portfolioId ?? "", ...(type === "portfolio-decision.v1" ? { decision_id: row.dataset.decisionId ?? "" } : {}) };
       result.push({
         instance_id: `portlet-${Date.now()}-${index}`,
