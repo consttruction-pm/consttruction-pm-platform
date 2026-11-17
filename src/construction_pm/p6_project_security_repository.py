@@ -12,6 +12,9 @@ from .p6_project_security import (
     P6ProjectSecurityProfile,
     ProjectSecurityError,
     normalize_project_privileges,
+    P6_PROJECT_PRIVILEGE_IDS,
+    P6_PROJECT_SUPERUSER_PROFILE_ID,
+    P6_PROJECT_SUPERUSER_PROFILE_NAME,
 )
 
 
@@ -52,6 +55,7 @@ def _profile_from_row(row: tuple[object, ...]) -> P6ProjectSecurityProfile:
         tenant_id=str(row[0]), profile_id=str(row[1]), name=str(row[2]),
         privileges=tuple(privileges or ()), active=bool(row[4]),
         revision=int(row[5]), is_default=bool(row[6]),
+        built_in=bool(row[7]), description=str(row[8] or ""),
     )
     profile.validate()
     return profile
@@ -62,7 +66,7 @@ class _ProjectSecurityRepositoryBase:
 
     def _profile_row(self, tenant_id: str, profile_id: str):
         return self.connection.execute(
-            f"SELECT tenant_id,profile_id,name,privileges,active,revision,is_default "
+            f"SELECT tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description "
             f"FROM p6_project_security_profile WHERE tenant_id={self.placeholder} "
             f"AND profile_id={self.placeholder}", (tenant_id, profile_id),
         ).fetchone()
@@ -206,6 +210,7 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           tenant_id TEXT NOT NULL, profile_id TEXT NOT NULL, name TEXT NOT NULL,
           privileges TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
           revision INTEGER NOT NULL, is_default INTEGER NOT NULL DEFAULT 0,
+          built_in INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '',
           PRIMARY KEY (tenant_id,profile_id)
         );
         CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_profile_name
@@ -226,9 +231,18 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           action TEXT NOT NULL, payload TEXT NOT NULL
         );
         """)
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(p6_project_security_profile)")}
+        if "built_in" not in columns:
+            self.connection.execute("ALTER TABLE p6_project_security_profile ADD COLUMN built_in INTEGER NOT NULL DEFAULT 0")
+        if "description" not in columns:
+            self.connection.execute("ALTER TABLE p6_project_security_profile ADD COLUMN description TEXT NOT NULL DEFAULT ''")
 
     def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
+        if profile.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
+        if profile.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(profile.tenant_id, profile.profile_id)
@@ -239,21 +253,23 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             self.connection.execute(
                 "INSERT INTO p6_project_security_profile "
-                "(tenant_id,profile_id,name,privileges,active,revision,is_default) VALUES(?,?,?,?,?,?,?)",
+                "(tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description) VALUES(?,?,?,?,?,?,?,?,?)",
                 (profile.tenant_id, profile.profile_id, profile.name,
                  json.dumps(list(profile.privileges)), int(profile.active),
-                 profile.revision, int(profile.is_default)),
+                 profile.revision, int(profile.is_default), int(profile.built_in), profile.description),
             )
         else:
+            if current.built_in:
+                raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
             if current.revision != expected_revision or profile.revision != current.revision + 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
             changed = self.connection.execute(
-                "UPDATE p6_project_security_profile SET name=?,privileges=?,active=?,revision=? "
+                "UPDATE p6_project_security_profile SET name=?,privileges=?,active=?,revision=?,description=? "
                 "WHERE tenant_id=? AND profile_id=? AND revision=?",
                 (profile.name, json.dumps(list(profile.privileges)), int(profile.active),
-                 profile.revision, profile.tenant_id, profile.profile_id, current.revision),
+                 profile.revision, profile.description, profile.tenant_id, profile.profile_id, current.revision),
             )
             if changed.rowcount != 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
@@ -295,6 +311,10 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         current = self.get_profile(tenant_id, profile_id)
         if current is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
+        if current.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
+        if current.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE")
         if current.is_default:
             raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DELETED")
         if current.revision != expected_revision:
@@ -329,8 +349,11 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           tenant_id TEXT NOT NULL, profile_id TEXT NOT NULL, name TEXT NOT NULL,
           privileges JSONB NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE,
           revision BIGINT NOT NULL, is_default BOOLEAN NOT NULL DEFAULT FALSE,
+          built_in BOOLEAN NOT NULL DEFAULT FALSE, description TEXT NOT NULL DEFAULT '',
           PRIMARY KEY (tenant_id,profile_id)
         )""")
+        self.connection.execute("ALTER TABLE p6_project_security_profile ADD COLUMN IF NOT EXISTS built_in BOOLEAN NOT NULL DEFAULT FALSE")
+        self.connection.execute("ALTER TABLE p6_project_security_profile ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''")
         self.connection.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_p6_project_security_profile_name "
             "ON p6_project_security_profile(tenant_id,name)"
@@ -369,11 +392,11 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             self.connection.execute(
                 "INSERT INTO p6_project_security_profile "
-                "(tenant_id,profile_id,name,privileges,active,revision,is_default) "
-                "VALUES(%s,%s,%s,%s::jsonb,%s,%s,%s)",
+                "(tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description) "
+                "VALUES(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s)",
                 (profile.tenant_id, profile.profile_id, profile.name,
                  json.dumps(list(profile.privileges)), profile.active,
-                 profile.revision, profile.is_default),
+                 profile.revision, profile.is_default, profile.built_in, profile.description),
             )
         else:
             if current.revision != expected_revision or profile.revision != current.revision + 1:
@@ -381,10 +404,10 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
             if current.is_default and not profile.active:
                 raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_PROFILE_CANNOT_BE_DEACTIVATED")
             row = self.connection.execute(
-                "UPDATE p6_project_security_profile SET name=%s,privileges=%s::jsonb,active=%s,revision=%s "
+                "UPDATE p6_project_security_profile SET name=%s,privileges=%s::jsonb,active=%s,revision=%s,description=%s "
                 "WHERE tenant_id=%s AND profile_id=%s AND revision=%s RETURNING profile_id",
                 (profile.name, json.dumps(list(profile.privileges)), profile.active,
-                 profile.revision, profile.tenant_id, profile.profile_id, current.revision),
+                 profile.revision, profile.description, profile.tenant_id, profile.profile_id, current.revision),
             ).fetchone()
             if row is None:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
@@ -410,7 +433,7 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         )
         row = self.connection.execute(
             "UPDATE p6_project_security_profile SET is_default=TRUE,revision=revision+1 "
-            "WHERE tenant_id=%s AND profile_id=%s RETURNING tenant_id,profile_id,name,privileges,active,revision,is_default",
+            "WHERE tenant_id=%s AND profile_id=%s RETURNING tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description",
             (tenant_id, profile_id),
         ).fetchone()
         if row is None:
