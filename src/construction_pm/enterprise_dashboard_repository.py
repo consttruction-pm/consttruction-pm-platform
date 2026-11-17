@@ -48,6 +48,7 @@ class PostgresEnterpriseDashboardRepository:
                 tenant_id TEXT NOT NULL,
                 dashboard_id TEXT NOT NULL,
                 owner_user_id TEXT NOT NULL,
+                title TEXT NOT NULL,
                 revision BIGINT NOT NULL CHECK (revision >= 1),
                 status TEXT NOT NULL CHECK (status IN ('active','archived')),
                 dashboard_json TEXT NOT NULL,
@@ -55,6 +56,19 @@ class PostgresEnterpriseDashboardRepository:
                 updated_at TIMESTAMPTZ,
                 PRIMARY KEY (tenant_id, dashboard_id)
             )"""
+        )
+        self.connection.execute(
+            "ALTER TABLE enterprise_dashboards ADD COLUMN IF NOT EXISTS title TEXT"
+        )
+        self.connection.execute(
+            "UPDATE enterprise_dashboards SET title = dashboard_json::jsonb ->> 'title' WHERE title IS NULL"
+        )
+        self.connection.execute(
+            "ALTER TABLE enterprise_dashboards ALTER COLUMN title SET NOT NULL"
+        )
+        self.connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS enterprise_dashboards_tenant_title_unique "
+            "ON enterprise_dashboards (tenant_id, lower(btrim(title)))"
         )
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS enterprise_dashboard_idempotency (
@@ -183,15 +197,19 @@ class PostgresEnterpriseDashboardRepository:
                 )
             return self.get(dashboard.tenant_id, str(existing[0]))
 
+        self._lock_title(dashboard.tenant_id, dashboard.title)
+        if self._title_exists(dashboard.tenant_id, dashboard.title):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_ALREADY_EXISTS")
         payload = self._serialize(dashboard)
         self.connection.execute(
             "INSERT INTO enterprise_dashboards "
-            "(tenant_id,dashboard_id,owner_user_id,revision,status,dashboard_json,created_at,updated_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            "(tenant_id,dashboard_id,owner_user_id,title,revision,status,dashboard_json,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 dashboard.tenant_id,
                 dashboard.dashboard_id,
                 dashboard.owner_user_id,
+                dashboard.title,
                 dashboard.revision,
                 dashboard.status,
                 payload,
@@ -220,6 +238,35 @@ class PostgresEnterpriseDashboardRepository:
             before_state=None,
         )
         return StoredEnterpriseDashboard(dashboard, dashboard.revision)
+
+    def _lock_title(self, tenant_id: str, title: str) -> None:
+        normalized = title.strip().lower()
+        lock_key = f"enterprise-dashboard-title:{tenant_id}:{normalized}"
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,)
+        )
+
+    def _title_exists(
+        self,
+        tenant_id: str,
+        title: str,
+        *,
+        exclude_dashboard_id: str | None = None,
+    ) -> bool:
+        if exclude_dashboard_id is None:
+            row = self.connection.execute(
+                "SELECT dashboard_id FROM enterprise_dashboards "
+                "WHERE tenant_id=%s AND lower(btrim(title))=lower(btrim(%s)) LIMIT 1",
+                (tenant_id, title),
+            ).fetchone()
+        else:
+            row = self.connection.execute(
+                "SELECT dashboard_id FROM enterprise_dashboards "
+                "WHERE tenant_id=%s AND lower(btrim(title))=lower(btrim(%s)) "
+                "AND dashboard_id<>%s LIMIT 1",
+                (tenant_id, title, exclude_dashboard_id),
+            ).fetchone()
+        return row is not None
 
     def user_belongs_to_tenant(self, tenant_id: str, user_id: str) -> bool:
         """Resolve a share target against the canonical identity directory."""
@@ -386,14 +433,20 @@ class PostgresEnterpriseDashboardRepository:
             raise EnterpriseDashboardRevisionConflict(
                 "ENTERPRISE_DASHBOARD_REVISION_CONFLICT"
             )
+        self._lock_title(dashboard.tenant_id, dashboard.title)
+        if self._title_exists(
+            dashboard.tenant_id, dashboard.title, exclude_dashboard_id=dashboard.dashboard_id
+        ):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_ALREADY_EXISTS")
         updated = replace(dashboard, revision=current_revision + 1, updated_at=occurred_at)
         updated.validate()
         payload = self._serialize(updated)
         saved = self.connection.execute(
-            "UPDATE enterprise_dashboards SET revision=%s,status=%s,dashboard_json=%s,updated_at=%s "
+            "UPDATE enterprise_dashboards SET title=%s,revision=%s,status=%s,dashboard_json=%s,updated_at=%s "
             "WHERE tenant_id=%s AND dashboard_id=%s AND revision=%s "
             "RETURNING dashboard_json,revision",
             (
+                updated.title,
                 updated.revision,
                 updated.status,
                 payload,
