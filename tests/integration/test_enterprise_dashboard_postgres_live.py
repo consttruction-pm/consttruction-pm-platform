@@ -12,6 +12,7 @@ from construction_pm.enterprise_dashboard import (
     DashboardLayout,
     DashboardPortlet,
     EnterpriseDashboard,
+    EnterpriseDashboardError,
     EnterpriseDashboardNotFound,
     EnterpriseDashboardRevisionConflict,
     PORTFOLIO_CONTROL_SNAPSHOT,
@@ -30,7 +31,13 @@ def new_scope() -> str:
     return f"ent-dashboard-{uuid.uuid4().hex}"
 
 
-def make_dashboard(tenant_id: str, dashboard_id: str, *, created_at=NOW) -> EnterpriseDashboard:
+def make_dashboard(
+    tenant_id: str,
+    dashboard_id: str,
+    *,
+    created_at=NOW,
+    title="Integration dashboard",
+) -> EnterpriseDashboard:
     portlet = DashboardPortlet(
         instance_id="portlet-1",
         type_id=PORTFOLIO_CONTROL_SNAPSHOT,
@@ -44,7 +51,7 @@ def make_dashboard(tenant_id: str, dashboard_id: str, *, created_at=NOW) -> Ente
         context="enterprise_home",
         context_portfolio_id=None,
         owner_user_id="integration-owner",
-        title="Integration dashboard",
+        title=title,
         description="PostgreSQL persistence test",
         status="active",
         visibility="private",
@@ -131,6 +138,59 @@ def test_postgres_dashboard_round_trip_revision_sharing_tenant_isolation_and_app
         assert repository.history(tenant, dashboard_id) == history
 
 
+def test_postgres_dashboard_titles_are_unique_case_insensitively_within_tenant():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    first_id = f"dashboard-{uuid.uuid4().hex}"
+    second_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        first = repository.create(
+            make_dashboard(tenant, first_id, title="Executive Overview"),
+            idempotency_key="unique-title-first",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        second = repository.create(
+            make_dashboard(tenant, second_id, title="Portfolio Metrics"),
+            idempotency_key="unique-title-second",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=2),
+        )
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        with pytest.raises(EnterpriseDashboardError, match="TITLE_ALREADY_EXISTS"):
+            repository.create(
+                make_dashboard(
+                    tenant,
+                    f"dashboard-{uuid.uuid4().hex}",
+                    title=" executive overview ",
+                ),
+                idempotency_key="unique-title-third",
+                actor_id="integration-owner",
+                occurred_at=NOW + timedelta(seconds=3),
+            )
+        connection.rollback()
+
+        with pytest.raises(EnterpriseDashboardError, match="TITLE_ALREADY_EXISTS"):
+            repository.update(
+                replace(second.dashboard, title="EXECUTIVE OVERVIEW"),
+                expected_revision=1,
+                actor_id="integration-owner",
+                occurred_at=NOW + timedelta(minutes=1),
+            )
+        connection.rollback()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        assert repository.get(tenant, first_id).dashboard.title == "Executive Overview"
+        assert repository.get(tenant, second_id).dashboard.title == "Portfolio Metrics"
+
+
 def test_postgres_dashboard_idempotency_returns_original_and_rejects_payload_reuse():
     psycopg = pytest.importorskip("psycopg")
     tenant = new_scope()
@@ -209,13 +269,13 @@ def test_postgres_dashboard_listing_has_deterministic_revision_and_id_order():
         repository = PostgresEnterpriseDashboardRepository(connection)
         repository.initialize()
         second = repository.create(
-            make_dashboard(tenant, "dashboard-b"),
+            make_dashboard(tenant, "dashboard-b", title="Integration dashboard B"),
             idempotency_key="create-b",
             actor_id="integration-owner",
             occurred_at=NOW + timedelta(seconds=1),
         )
         first = repository.create(
-            make_dashboard(tenant, "dashboard-a"),
+            make_dashboard(tenant, "dashboard-a", title="Integration dashboard A"),
             idempotency_key="create-a",
             actor_id="integration-owner",
             occurred_at=NOW + timedelta(seconds=1),
