@@ -51,6 +51,32 @@ from ..p6_project_security_api import P6ProjectSecurityAPI
 from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
 from ..p6_associated_resource_api import P6AssociatedResourceAPI
 from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
+from ..p6_resource_master_repository import PostgresP6ResourceRepository
+from ..p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
+    PostgresP6ResourceAssignmentRepository,
+    PostgresP6ResourceAssignmentPeriodRepository,
+)
+from ..p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    PostgresP6ResourceSpreadRepository,
+)
+from ..p6_resource_capacity_repository import (
+    P6ResourceCapacityApplicationService,
+    PostgresP6ResourceCapacityRepository,
+)
+from ..p6_resource_rate_repository import (
+    P6ResourceRateApplicationService,
+    PostgresP6ResourceRateRepository,
+)
+from ..p6_resource_read_api import P6ResourceReadAPI
+from ..p6_resource_write_api import P6ResourceWriteAPI
+from ..p6_resource_spread_api import P6ResourceSpreadAPI
+from ..p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from ..p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
+from ..p6_resource_rate_read_api import P6ResourceRateReadAPI
+from ..p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -341,13 +367,34 @@ class ProductionRuntime:
             )
         )
         checkout_lease = PostgresProjectCheckoutLease(connection)
+        transaction_manager = _RequestTransactionManager(connection)
+        resource_repository = PostgresP6ResourceRepository(connection)
+        resource_assignment_repository = PostgresP6ResourceAssignmentRepository(connection)
+        resource_period_repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
+        resource_spread_repository = PostgresP6ResourceSpreadRepository(connection)
+        resource_assignment_service = P6ResourceAssignmentApplicationService(
+            resource_assignment_repository, transaction_manager
+        )
+        resource_period_service = P6ResourceAssignmentPeriodApplicationService(
+            resource_period_repository, transaction_manager
+        )
+        resource_spread_service = P6ResourceSpreadApplicationService(
+            resource_spread_repository, transaction_manager
+        )
+        resource_capacity_repository = PostgresP6ResourceCapacityRepository(connection)
+        resource_capacity_service = P6ResourceCapacityApplicationService(
+            resource_capacity_repository, transaction_manager
+        )
+        resource_rate_repository = PostgresP6ResourceRateRepository(connection)
+        resource_rate_service = P6ResourceRateApplicationService(
+            resource_rate_repository, transaction_manager
+        )
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
         udf_field_repository = PostgresP6UserDefinedFieldRepository(connection)
-        transaction_manager = _RequestTransactionManager(connection)
         field_service = P6FieldRegistryApplicationService(
             repository=field_repository,
             transaction_manager=transaction_manager,
@@ -396,6 +443,31 @@ class ProductionRuntime:
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_project_security_api=project_security_api,
             p6_associated_resource_api=associated_resource_api,
+            resource_read_api=P6ResourceReadAPI(
+                resource_assignment_service, resource_period_service,
+                resource_spread_service, policy, resource_repository=resource_repository,
+            ),
+            resource_write_api=P6ResourceWriteAPI(
+                resource_period_service, policy,
+                assignment_service=resource_assignment_service,
+                resource_repository=resource_repository,
+            ),
+            p6_resource_spread_api=P6ResourceSpreadAPI(
+                resource_spread_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
+                resource_capacity_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
+                resource_capacity_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_rate_read_api=P6ResourceRateReadAPI(
+                resource_rate_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_rate_write_api=P6ResourceRateWriteAPI(
+                resource_rate_service, policy, resource_repository=resource_repository,
+            ),
+            tracking_resource_repository=resource_repository,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,
