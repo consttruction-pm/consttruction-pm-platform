@@ -51,7 +51,7 @@ This increment deliberately does **not** claim complete V26 parity:
 - The persisted global assignment/profile is now composed into the production `AuthorizationPolicy` used by the production lifecycle API and the APIs composed with that policy. Missing assignments and inactive/missing profiles fail closed; the V26 Admin Superuser bypass is evaluated from the persisted built-in identity only; non-admin users must have Projects module access before the existing project policy is evaluated. This does not yet prove every non-policy route, report, export, or static navigation surface is gated.
 - Initial Admin Superuser assignment still needs a controlled tenant bootstrap/provisioning path and a tested last-admin protection rule. Until then, the new production policy intentionally denies project API access for users without a persisted assignment.
 - Module-access values now validate against the V26 Users Page options and Contributor exclusivity; route/login enforcement is still required.
-- Selected resource access now enforces the V26 maximum of five roots. Resource hierarchy selection still needs canonical Resource/WBS repositories, ancestry resolution, secure-code filtering, and exhaustive API enforcement.
+- Selected resource access now enforces the V26 maximum of five roots. The user_can_access_resource policy applies none/all/selected semantics, Admin Superuser's all-resource exception, tenant/user identity matching, and selected-root descendant inheritance against authoritative ancestry supplied by a tenant-scoped resource repository. Route-level integration remains required for all resource endpoints and associated-resource visibility.
 - `No Global Privileges` has an explicit resolver seam in `P6GlobalSecurityAuthorizationPolicy`: it requires Projects module access and delegates project permission to an authoritative `project_permission(tenant_id, user_id, project_id, permission)` OBS/project-profile resolver. Without that resolver it remains fail-closed; a CUBI role is never treated as an OBS assignment. The production composition handoff is still pending because the OBS/WBS owner PR #1983 currently owns the shared production-runtime composition path. Project Owner and Contributor exceptions still require exact V26 module-access rules and resource-assignment provenance.
 - Project OBS responsibility must be evaluated at EPS, project, WBS, issue, risk, and threshold levels. The documented higher-level OBS override behavior must be represented without weakening tenant boundaries.
 - UI pages, user assignment workflows, revocation, full audit views, and browser E2E remain acceptance gates. The PostgreSQL lifecycle tests now cover profile duplicate/default/edit/delete, revisions, and audit behavior.
@@ -110,3 +110,38 @@ create the first Admin Superuser: initial tenant bootstrap still requires a
 controlled operator provisioning path, and no public bootstrap endpoint is
 introduced by this change. The focused guard tests reject zero remaining administrators and allow
 one or more remaining administrators.
+
+
+## Resource Access hierarchy policy increment — 2026-11-17
+
+Implemented user_can_access_resource in src/construction_pm/p6_global_security.py.
+The policy consumes authoritative resource ancestry (resource itself plus parents)
+from a tenant-scoped repository and enforces the V26 Users Page semantics:
+- none: deny resource access;
+- all: allow any resource in the caller's tenant-scoped query;
+- selected: allow only selected roots and their descendants;
+- Admin Superuser: all-resource exception;
+- mismatched tenant/user identity, malformed ancestry, or ancestry that omits
+  the requested resource: deny.
+
+Focused unit tests cover descendant inclusion, sibling exclusion, none/all,
+Admin Superuser, tenant mismatch, and malformed ancestry. This is a policy
+slice, not completion of route enforcement: resource list/detail/mutation,
+assignment pickers, associated-resource restrictions, filters, aggregations,
+and exports must all call the same policy with repository-resolved ancestry.
+
+Official V26 HTML Help:
+- Users Page — Resource Access permits all resources, up to five selected resources, or no resources: https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm
+- Module Access Detail Window — Resources module is distinct from Resource Access: https://docs.oracle.com/cd/G48897_01/p6help/en/6184.htm
+
+## Exact-head PostgreSQL CI finding — 2026-11-17
+
+At commit b96b0ae0961123c3c7691df5d23a49a250943085, Python 3.11/3.12/3.13
+and web/desktop/client-sync typechecks passed, but the PostgreSQL workflow failed:
+tests/integration/test_production_login_postgres_live.py had 7 failures
+(175 passed). All seven failures involve fixture actors denied by the newly
+required persisted Global Security assignment / Projects module gate, plus
+cross-tenant and stale-revision error precedence. The shared integration test
+file is owned by PR #1983; a detailed handoff comment was posted there, and
+this branch did not modify that file. Re-run all workflows after the fixture
+handoff and the new resource policy commits.
