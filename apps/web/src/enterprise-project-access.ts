@@ -4,7 +4,7 @@ import { withCsrfHeader } from "./csrf.js";
 type Profile = { profile_id: string; name: string; permissions: string[]; active: boolean; revision: number };
 type OBSNode = { obs_id: string; parent_obs_id: string | null; code: string; name: string; manager_user_id: string | null; sequence_number: number };
 type Assignment = { user_id: string; obs_id: string; profile_id: string; active: boolean; revision: number; assigned_by: string; assigned_at: string };
-type Privilege = { key: string; group: string; label: string; description: string; help_url: string; definitions_help_url: string };
+type Privilege = { key: string; group: string; label: string; description: string; help_url?: string; definitions_help_url?: string };
 type Locale = "en" | "fa";
 const VERSION = "cubi-enterprise-project-access.v1";
 const COPY = {
@@ -182,9 +182,10 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
         input.type="checkbox";input.value=item.key;input.checked=item.key==="project.read";
         groupInputs.push(input);permissionInputs.push(input);
         const caption=el("span","",item.label); caption.title=item.description;
-        const help=el("a","oa-help-inline",t.oracleHelp); help.href=item.help_url; help.target="_blank"; help.rel="noopener noreferrer"; help.setAttribute("aria-label",`${item.label} — ${t.oracleHelp}`);
-        const definition=el("a","oa-help-inline",t.privilegeDefinitions); definition.href=item.definitions_help_url; definition.target="_blank"; definition.rel="noopener noreferrer"; definition.setAttribute("aria-label",`${item.label} — ${t.privilegeDefinitions}`);
-        labelNode.append(input,caption,help,definition);choices.append(labelNode);
+        labelNode.append(input,caption);
+        if(item.help_url){const help=el("a","oa-help-inline",t.oracleHelp);help.href=item.help_url;help.target="_blank";help.rel="noopener noreferrer";help.setAttribute("aria-label",`${item.label} — ${t.oracleHelp}`);labelNode.append(help);}
+        if(item.definitions_help_url){const definition=el("a","oa-help-inline",t.privilegeDefinitions);definition.href=item.definitions_help_url;definition.target="_blank";definition.rel="noopener noreferrer";definition.setAttribute("aria-label",`${item.label} — ${t.privilegeDefinitions}`);labelNode.append(definition);}
+        choices.append(labelNode);
       }
       selectAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=true));
       clearAll.addEventListener("click",()=>groupInputs.forEach(input=>input.checked=false));
