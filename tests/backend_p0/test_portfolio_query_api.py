@@ -84,7 +84,7 @@ def test_application_rejects_cross_tenant_snapshot_and_forbidden_access() -> Non
 
 def test_api_returns_versioned_snapshot() -> None:
     result = PortfolioQueryAPI(
-        PortfolioQueryApplicationService(Provider(snapshot()), policy())
+        PortfolioQueryApplicationService(Provider(snapshot()), policy(), project_authorizer())
     ).get_snapshot("portfolio-1", auth_context=auth())
 
     assert result["contract_version"] == "portfolio-control-snapshot.v1"
