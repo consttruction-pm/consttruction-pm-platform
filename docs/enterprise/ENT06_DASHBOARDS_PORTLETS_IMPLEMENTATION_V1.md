@@ -173,7 +173,7 @@ The related EPPM screen topics were checked against their HTML screen definition
 
 #### Complete EPPM V26 dashboard and portlet HTML inventory
 
-The V26 Dashboard, Project Performance Metrics, Portlets and adjacent Portfolio Views TOC branches and linked screen/topic pages were inspected as official HTML. The traceability test requires all 109 exact official HTML URLs to appear in this crosswalk. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
+The V26 Dashboard, Project Performance Metrics, Portlets and adjacent Portfolio Views TOC branches and linked screen/topic pages were inspected as official HTML. The traceability test requires all 111 exact official HTML URLs to appear in this crosswalk. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
 
 | Official HTML topic | Disposition | Navigation, screen/access note and CUBI mapping |
 |---|---|---|
