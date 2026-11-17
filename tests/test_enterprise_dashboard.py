@@ -1164,6 +1164,9 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     ]
     assert "filtered_out" in schema["$defs"]["portlet_read_response"]["required"]
     assert "applied_filters" in schema["$defs"]["portlet_read_response"]["required"]
+    assert "row_limit" in schema["$defs"]["portlet_read_response"]["required"]
+    assert "truncated" in schema["$defs"]["portlet_read_response"]["required"]
+    assert schema["$defs"]["portlet_read_response"]["properties"]["row_limit"]["maximum"] == 500
     assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
         "cubi-enterprise-dashboard-read.v1"
     )
@@ -1254,6 +1257,31 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://docs.oracle.com/cd/G48897_01/p6help/en/31977.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44292.htm",
     "https://primavera.oraclecloud.com/help/en/user/100788.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44844.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43935.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43938.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43951.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43937.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6634.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6691.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43460.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43459.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/43948.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6611.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6671.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7866.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7859.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7870.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7869.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7857.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/14087.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/14090.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7868.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/9116.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/9113.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/9115.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/9114.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/36491.htm",
 )
 
 
@@ -1262,7 +1290,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 84
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 109
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     for disposition in ("Implemented", "Partial", "Not Applicable", "Deferred"):
