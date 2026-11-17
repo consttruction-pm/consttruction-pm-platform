@@ -8,8 +8,6 @@ MAX_SAFE_REVISION = 9_007_199_254_740_991
 MAX_DASHBOARD_PORTLETS = 12
 DEFAULT_MAX_ROWS_PER_PORTLET = 100
 MAX_ROWS_PER_PORTLET = 500
-MAX_DASHBOARD_ROWS = 1000
-DEFAULT_DASHBOARD_ROWS = 100
 DASHBOARD_GRID_COLUMNS = 12
 DASHBOARD_GRID_ROWS = 100
 ENTERPRISE_ROLES = frozenset({"enterprise_admin", "enterprise_user", "enterprise_viewer"})
@@ -86,7 +84,7 @@ _FILTER_RULES: Mapping[str, tuple[str, frozenset[str] | None]] = {
     "generated_before": ("datetime", None),
     "include_stale": ("boolean", None),
     "portfolio_id": ("text", None),
-    "project_id": ("text_list", None),
+    "project_id": ("text", None),
 }
 
 
@@ -292,7 +290,6 @@ class EnterpriseDashboard:
     updated_at: datetime | None = None
     restrict_filter_override: bool = False
     max_rows_per_portlet: int = DEFAULT_MAX_ROWS_PER_PORTLET
-    max_portlet_rows: int = DEFAULT_DASHBOARD_ROWS
 
     def validate(self) -> None:
         for name, value in (
@@ -324,12 +321,6 @@ class EnterpriseDashboard:
             or not 1 <= self.max_rows_per_portlet <= MAX_ROWS_PER_PORTLET
         ):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_MAX_ROWS_PER_PORTLET")
-        if (
-            isinstance(self.max_portlet_rows, bool)
-            or not isinstance(self.max_portlet_rows, int)
-            or not 1 <= self.max_portlet_rows <= MAX_DASHBOARD_ROWS
-        ):
-            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_MAX_PORTLET_ROWS")
         if not isinstance(self.shared_user_ids, tuple) or not isinstance(self.shared_role_ids, tuple):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARES")
         for user_id in self.shared_user_ids:
@@ -363,7 +354,7 @@ class EnterpriseDashboard:
             _aware_datetime(self.updated_at, "UPDATED_AT")
             if self.updated_at < self.created_at:
                 raise EnterpriseDashboardError("UPDATED_BEFORE_CREATED")
-        if not isinstance(self.portlets, tuple) or not 1 <= len(self.portlets) <= MAX_DASHBOARD_PORTLETS:
+        if not isinstance(self.portlets, tuple) or not 0 <= len(self.portlets) <= MAX_DASHBOARD_PORTLETS:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_COUNT_INVALID")
         seen: set[str] = set()
         for portlet in self.portlets:
@@ -385,15 +376,20 @@ class EnterpriseDashboard:
         if not isinstance(self.filters, tuple) or len(self.filters) > 20:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_FILTER_COUNT_INVALID")
         filter_keys: set[str] = set()
+        scope_filter_keys: set[str] = set()
         for item in self.filters:
             if not isinstance(item, DashboardFilter):
                 raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER")
             item.validate()
             if item.key in filter_keys:
                 raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_FILTER")
+            if item.key in {"portfolio_id", "project_id"}:
+                scope_filter_keys.add(item.key)
             if item.key == "portfolio_id" and self.context == "portfolio" and item.value != self.context_portfolio_id:
                 raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_FILTER_PORTFOLIO_CONTEXT_MISMATCH")
             filter_keys.add(item.key)
+        if len(scope_filter_keys) > 1:
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_SCOPE_FILTERS_MUTUALLY_EXCLUSIVE")
 
     def as_dict(self) -> dict[str, object]:
         self.validate()
@@ -417,7 +413,6 @@ class EnterpriseDashboard:
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "restrict_filter_override": self.restrict_filter_override,
             "max_rows_per_portlet": self.max_rows_per_portlet,
-            "max_portlet_rows": self.max_portlet_rows,
         }
 
     @classmethod
@@ -426,7 +421,7 @@ class EnterpriseDashboard:
             "contract_version", "dashboard_id", "tenant_id", "context", "context_portfolio_id",
             "owner_user_id", "title", "description", "status", "visibility", "shared_user_ids",
             "shared_role_ids", "portlets", "filters", "revision", "created_at", "updated_at",
-            "restrict_filter_override", "max_portlet_rows",
+            "restrict_filter_override", "max_rows_per_portlet",
         }
         if not isinstance(value, Mapping) or set(value) != required:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FIELDS")
@@ -476,7 +471,6 @@ class EnterpriseDashboard:
             updated_at=updated_at,
             restrict_filter_override=value["restrict_filter_override"],
             max_rows_per_portlet=value["max_rows_per_portlet"],
-            max_portlet_rows=value["max_portlet_rows"],
         )
         dashboard.validate()
         return dashboard
