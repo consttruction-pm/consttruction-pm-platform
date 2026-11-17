@@ -192,19 +192,54 @@ class _ActivityLookup:
 
 
 class _WbsScopedWritePolicy:
+    def __init__(self):
+        self.allowed_permissions = {
+            Permission.P6_ACTIVITY_ADMIN,
+            Permission.P6_EDIT_PERIOD_PERFORMANCE,
+        }
+
     def is_allowed(self, context, permission):
         # A broad project grant must not override a WBS-scoped denial.
         return True
 
     def is_allowed_for_wbs(self, context, permission, wbs_id):
-        return (
-            wbs_id == "wbs-authorized"
-            and permission in {
-                Permission.P6_ACTIVITY_ADMIN,
-                Permission.P6_EDIT_PERIOD_PERFORMANCE,
-            }
-        )
+        return wbs_id == "wbs-authorized" and permission in self.allowed_permissions
 
+
+
+def test_resource_planning_assignment_requires_its_own_v26_privilege_and_wbs_scope():
+    connection, _, legacy_api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+    policy = _WbsScopedWritePolicy()
+    activity_repository = _ActivityLookup({
+        "act-authorized": type("Activity", (), {"wbs_id": "wbs-authorized"})(),
+        "act-restricted": type("Activity", (), {"wbs_id": "wbs-restricted"})(),
+    })
+    api = P6ResourceWriteAPI(
+        legacy_api.period_service,
+        policy,
+        assignment_service=legacy_api.assignment_service,
+        activity_repository=activity_repository,
+    )
+    assignment = P6ResourceAssignment(
+        scope, "ra-planning-authorized", "act-authorized", "resource-planning-1"
+    )
+
+    # Add/Edit Activities is not the separate Resources > Planning privilege.
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        api.create_resource_planning_assignment(assignment, auth_context=auth())
+
+    policy.allowed_permissions.add(Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN)
+    created = api.create_resource_planning_assignment(assignment, auth_context=auth())
+    assert created["kind"] == "resource_assignment"
+    assert created["assignment"]["assignment_id"] == assignment.assignment_id
+
+    restricted = P6ResourceAssignment(
+        scope, "ra-planning-restricted", "act-restricted", "resource-planning-1"
+    )
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        api.create_resource_planning_assignment(restricted, auth_context=auth())
+    connection.close()
 
 def test_resource_write_api_uses_activity_wbs_and_v26_privilege_per_operation():
     connection, _, legacy_api = build_api()
