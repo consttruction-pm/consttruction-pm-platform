@@ -76,6 +76,15 @@ def test_project_profile_lifecycle_default_revision_and_assignment_guard():
         repo.delete_profile("tenant-a", "profile-pm", actor_id="admin-user", expected_revision=2)
     assert repo.has_project_access("tenant-a", "user-1", "project-civil")
     assert not repo.has_project_access("tenant-a", "user-1", "project-other")
+    # A user assigned to an ancestor OBS also has access to descendant projects.
+    repo.assign_obs(
+        P6OBSProjectGrant("tenant-a", "user-root", "OBS-ROOT", "profile-pm"),
+        actor_id="admin-user",
+    )
+    assert repo.has_project_access("tenant-a", "user-root", "project-civil")
+    assert repo.has_project_privilege(
+        "tenant-a", "user-root", "project-civil", "add_edit_activities_except_relationships"
+    )
     assert repo.has_project_privilege(
         "tenant-a", "user-1", "project-civil", "add_edit_activities_except_relationships"
     )
@@ -104,7 +113,10 @@ def test_project_security_api_requires_named_global_admin_privilege_and_scopes_t
     api = P6ProjectSecurityAPI(repo, GlobalAdminPolicy())
     created = api.save_profile(profile(), auth_context=context())
     assert created["profile"]["profile_id"] == "profile-pm"
-    grant = api.assign_obs("user-1", "OBS-CIVIL", "profile-pm", auth_context=context())
+    repo.set_default_profile(
+        "tenant-a", "profile-pm", actor_id="admin-user", expected_revision=1
+    )
+    grant = api.assign_obs("user-1", "OBS-CIVIL", auth_context=context())
     assert grant["grant"]["obs_id"] == "OBS-CIVIL"
     assert api.list_user_grants("user-1", auth_context=context())["grants"][0]["profile_id"] == "profile-pm"
 
