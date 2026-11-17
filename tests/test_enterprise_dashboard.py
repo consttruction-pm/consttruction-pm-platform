@@ -967,7 +967,7 @@ def test_share_target_type_is_validated_before_membership_branching():
         )
 
 
-def test_explicit_role_share_and_admin_management():
+def test_explicit_role_share_and_creator_only_management_with_admin_read_oversight():
     service, _, _, _ = make_service()
     created = create_dashboard(service)
     shared = service.assign_share(
@@ -979,13 +979,27 @@ def test_explicit_role_share_and_admin_management():
     )
     assert shared.dashboard.shared_role_ids == ("enterprise_viewer",)
     assert service.get_dashboard("bob-session", created.dashboard.dashboard_id).revision == 2
+    # Enterprise administrators retain read-only tenant oversight, but the
+    # EPPM creator-only rule still governs private and multi-user mutation.
+    assert service.get_dashboard(
+        "admin-session", created.dashboard.dashboard_id
+    ).revision == 2
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError, match="DASHBOARD_OWNER_REQUIRED"
+    ):
+        service.update_dashboard(
+            "admin-session",
+            created.dashboard.dashboard_id,
+            {"title": "Admin revised title"},
+            expected_revision=2,
+        )
     updated = service.update_dashboard(
-        "admin-session",
+        "alice-session",
         created.dashboard.dashboard_id,
-        {"title": "Admin revised title"},
+        {"title": "Owner revised title"},
         expected_revision=2,
     )
-    assert updated.dashboard.title == "Admin revised title"
+    assert updated.dashboard.title == "Owner revised title"
 
 
 def test_shared_viewer_cannot_change_dashboard_and_revision_conflicts_fail():
