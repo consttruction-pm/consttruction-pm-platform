@@ -261,7 +261,7 @@ export async function mountEnterpriseDashboard(
   const heading = node("div");
   heading.append(node("div", "ced-eyebrow", t.eyebrow), node("h1", "ced-title", t.title), node("p", "ced-subtitle", t.subtitle));
   const headActions = node("div", "ced-toolbar");
-  const refreshAll = button(t.refresh, () => loadCatalog());
+  const refreshAll = button(t.refresh, async () => { await loadCatalog(); });
   const create = button(t.create, () => createDashboard(), "ced-button primary");
   headActions.append(refreshAll, create);
   head.append(heading, headActions);
