@@ -10,10 +10,10 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_code_repository import (
     P6CodeApplicationService,
     P6CodeDefinition,
-    P6CodeApplicationService,
 )
 from .p6_code_assignment_repository import (
     P6CodeAssignment,
@@ -22,6 +22,19 @@ from .p6_code_assignment_repository import (
 
 P6_CODE_API_VERSION = "p6-code-api.v1"
 P6_CODE_ASSIGNMENT_API_VERSION = "p6-code-assignment-api.v1"
+
+
+def _require_activity_code_privilege(policy, auth_context, scope_kind: str, subject_area: str, *, create: bool) -> None:
+    if subject_area.upper() != "ACTIVITY":
+        return
+    normalized_scope = scope_kind.upper()
+    if normalized_scope == "PROJECT":
+        privilege = "add_project_activity_codes" if create else "edit_project_activity_codes"
+    elif normalized_scope == "EPS":
+        privilege = "add_eps_activity_codes" if create else "edit_eps_activity_codes"
+    else:
+        return
+    require_project_privilege(policy, auth_context, privilege)
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -106,6 +119,10 @@ class P6CodeAPI:
     ) -> dict[str, Any]:
         _require_scope(definition.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_activity_code_privilege(
+            self.authorization_policy, auth_context, definition.scope_kind,
+            definition.subject_area, create=True,
+        )
         if definition.is_secure and not self._secure_allowed(auth_context, "add_delete"):
             raise AuthorizationError("SECURE_CODE_ADD_DELETE_NOT_AUTHORIZED")
         return _code_dto(self.service.save(definition))
@@ -166,6 +183,13 @@ class P6CodeAssignmentAPI:
     ) -> dict[str, Any]:
         _require_scope(assignment.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if self.code_service is not None:
+            definition = self.code_service.read(assignment.scope, assignment.code_id)
+            if definition is not None:
+                _require_activity_code_privilege(
+                    self.authorization_policy, auth_context, definition.scope_kind,
+                    definition.subject_area, create=False,
+                )
         secure = self._secure_definition(assignment.scope, assignment.code_id)
         if callable(getattr(self.authorization_policy, "allows_secure_code_action", None)):
             if secure is None:
