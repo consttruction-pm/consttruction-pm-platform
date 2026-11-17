@@ -73,6 +73,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             or path == "/api/enterprise/users" or path.startswith("/api/enterprise/users/")
             or path == "/api/enterprise/security-profiles"
             or path.startswith("/api/enterprise/security-profiles/")
+            or path == "/api/enterprise/obs"
         )
 
     def _handle(self, method: str, path: str, environ: Mapping[str, object]):
