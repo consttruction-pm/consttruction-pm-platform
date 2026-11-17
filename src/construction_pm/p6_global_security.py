@@ -734,13 +734,13 @@ class P6GlobalSecurityAuthorizationPolicy:
                 return False
             if global_profile_has_project_access_bypass(profile):
                 return True
+            if "projects" not in assignment.module_access:
+                return False
             if global_profile_has_global_read_only(profile):
                 # V26 No Global Privileges has no global grants, but project
                 # access remains independently possible through OBS + Project
                 # Security Profile assignments. Never infer it from CUBI roles.
                 return self._has_authoritative_obs_project_access(context, permission)
-            if "projects" not in assignment.module_access:
-                return False
             return bool(self._project_policy.is_allowed(context, permission))
         except (GlobalSecurityError, ValueError, AttributeError):
             return False
