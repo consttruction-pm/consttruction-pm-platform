@@ -811,6 +811,20 @@ class P6GlobalSecurityAuthorizationPolicy:
             )
         )
 
+    def allows_secure_code_action(self, context: Any, action: str) -> bool:
+        """Resolve the caller's persisted profile before any secure-code operation."""
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            if profile is None or not profile.active:
+                return False
+            return global_profile_allows_secure_code_action(profile, action)
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
     def can_access_resource(
         self, context: Any, resource_id: str, ancestor_resource_ids: tuple[str, ...]
     ) -> bool:
