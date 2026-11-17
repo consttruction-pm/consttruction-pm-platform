@@ -464,6 +464,23 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
               <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
             </form>` : `<p class="cubi-oa-note">${t.userAdminRequired}</p>`}
+            ${selectedProfile?.scope === "project" && canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-project-default-assign">
+              <h3>${t.assignDefaultProjectTitle}</h3>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-user">${t.user}</label>
+                <select id="cubi-oa-project-user" name="user_id">${projectUserOptions}</select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-obs">${t.obsSelect}</label>
+                <select id="cubi-oa-project-obs" name="obs_id" required>
+                  <option value="">—</option>${obsOptions}
+                </select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-revision">${t.obsAssignmentRevision}</label>
+                <input id="cubi-oa-project-revision" name="expected_revision" type="number" min="1"
+                  value="${selectedProjectAssignment?.revision ?? ""}"></div>
+              <button class="cubi-oa-button" type="submit" ${busy || !obsNodes.length || !selectedProjectUserId ? "disabled" : ""}>${t.assignDefaultProject}</button>
+              <h4>${t.currentObsAssignments}</h4>
+              <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.obsSelect}</th><th>${t.profileName}</th><th>Revision</th></tr></thead>
+                <tbody>${currentProjectAssignmentRows || `<tr><td colspan="3">${t.noObsAssignments}</td></tr>`}</tbody></table></div>
+              ${!obsNodes.length ? `<p class="cubi-oa-note">${t.noObsNodes}</p>` : ""}
+            </form>` : ""}
           ` : `<div class="cubi-oa-muted">${t.noProfiles}</div>`}
         </section>` : ""}
       </div></main>`;
