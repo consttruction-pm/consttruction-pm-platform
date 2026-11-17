@@ -554,7 +554,13 @@ class ProjectLifecycleHttpRoutes:
             return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
         except ValueError as exc:
             code = str(exc)
-            if "REVISION_CONFLICT" in code or code == "RESOURCE_ALREADY_ASSOCIATED":
+            if (
+                "REVISION_CONFLICT" in code
+                or "HAS_ASSIGNMENTS" in code
+                or "DEFAULT_PROJECT_PROFILE" in code
+                or "BUILTIN_PROJECT_SECURITY_PROFILE" in code
+                or code == "RESOURCE_ALREADY_ASSOCIATED"
+            ):
                 return self._error(409, code, "error.conflict")
             return self._error(400, code or "P6_SECURITY_REQUEST_INVALID", "error.request.invalid")
         except (TypeError, KeyError):
