@@ -15,6 +15,7 @@ from construction_pm.control_intelligence.portfolio import (
     PortfolioControlSnapshot,
     PortfolioProjectControlInput,
 )
+from construction_pm.control_intelligence.portfolio_decision import PortfolioDecisionBoundary
 from construction_pm.enterprise_dashboard import (
     DashboardFilter,
     DashboardLayout,
@@ -200,16 +201,20 @@ class FakePortfolioQuery:
 
 class FakePortfolioDecisionAPI:
     def __init__(self):
-        self.result = {
-            "contract_version": "portfolio-decision.v1",
-            "decision_id": "decision-1",
-            "portfolio_id": "portfolio-1",
-            "tenant_id": "tenant-a",
-            "revision": 4,
-            "source_snapshot_id": "snapshot-1",
-            "affected_project_ids": ["project-1"],
-            "status": "proposed",
-        }
+        decision = PortfolioDecisionBoundary(
+            decision_id="decision-1",
+            portfolio_id="portfolio-1",
+            tenant_id="tenant-a",
+            status="proposed",
+            decision_type="review",
+            title_key="decision.review",
+            affected_project_ids=("project-1",),
+            source_snapshot_id="snapshot-1",
+            evidence_refs=(
+                SourceReference("decision-source-1", "portfolio", "/decisions/decision-1", 3),
+            ),
+        )
+        self.result = {**decision.as_dict(), "revision": 4}
 
     def get(self, request, *, auth_context):
         assert request.tenant_id == auth_context.tenant_id
