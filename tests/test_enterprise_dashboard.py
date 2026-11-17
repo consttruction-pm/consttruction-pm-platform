@@ -179,6 +179,7 @@ class FakeLifecycle:
             ("alice-session", "project-1"),
             ("admin-session", "project-1"),
         }
+        self.authorized_project_ids = []
 
     def get_session(self, session_id, *, now):
         if session_id not in self.sessions:
@@ -186,6 +187,7 @@ class FakeLifecycle:
         return self.sessions[session_id]
 
     def authorize_project(self, session_id, project_id, permission, *, now):
+        self.authorized_project_ids.append((session_id, project_id))
         if (session_id, project_id) not in self.project_grants or permission != Permission.PROJECT_READ:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
         session = self.sessions[session_id]
@@ -333,7 +335,7 @@ def test_global_dashboard_access_is_all_users_and_admin_controlled():
         service.get_dashboard("bob-session", created.dashboard.dashboard_id)
 
 
-def test_project_filters_are_applied_before_project_level_authorization():
+def test_project_filters_are_applied_without_bypassing_source_project_authorization():
     source = replace(
         snapshot(),
         projects=(
@@ -358,6 +360,9 @@ def test_project_filters_are_applied_before_project_level_authorization():
         "on_hold_projects": 1, "excluded_projects": 0,
     }
     assert portlet["filtered_out"] is False
+    assert set(lifecycle.authorized_project_ids) == {
+        ("alice-session", "project-1"), ("alice-session", "project-2")
+    }
 
 
 def test_filter_override_obeys_eppm_owner_restriction_and_is_not_persisted():
