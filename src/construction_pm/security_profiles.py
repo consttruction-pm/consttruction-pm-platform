@@ -1426,7 +1426,11 @@ class PostgresSecurityProfileRepository:
     def assign_default_project_profile(
         self, *, tenant_id: str, user_id: str, obs_id: str,
         actor_user_id: str, occurred_at: Any, expected_revision: int | None = None,
-    ) -> int:
+    ) -> dict[str, Any]:
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-project-profile-default:{tenant_id}",),
+        )
         default_profile = self.get_default_project_profile(tenant_id)
         if default_profile is None or not default_profile.active:
             raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_PROFILE_REQUIRED")
