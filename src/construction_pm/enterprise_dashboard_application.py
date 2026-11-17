@@ -430,6 +430,7 @@ class EnterpriseDashboardApplicationService:
                 session,
                 auth_context,
                 item,
+                stored.dashboard.filters,
                 effective_filters,
             )
             for item in ordered_portlets
@@ -449,9 +450,10 @@ class EnterpriseDashboardApplicationService:
         auth_context: AuthorizationContext,
         portlet: DashboardPortlet,
         dashboard_filters: tuple[DashboardFilter, ...],
+        applied_filters: tuple[DashboardFilter, ...],
     ) -> dict[str, object]:
         definition = PORTLET_REGISTRY[portlet.type_id]
-        filters = {item.key: item for item in dashboard_filters}
+        filters = {item.key: item for item in applied_filters}
         portfolio_filter = filters.get("portfolio_id")
         portfolio_id = (
             str(portfolio_filter.value)
@@ -474,7 +476,7 @@ class EnterpriseDashboardApplicationService:
                 )
             except KeyError:
                 return self._missing_portlet(
-                    portlet, definition.source_owner, dashboard_filters
+                    portlet, definition.source_owner, dashboard_filters, applied_filters
                 )
             snapshot.validate()
             if snapshot.tenant_id != session.tenant_id or snapshot.portfolio_id != portfolio_id:
@@ -611,6 +613,7 @@ class EnterpriseDashboardApplicationService:
             "data": data,
             "drill_through_refs": drill_refs,
             "saved_filters": [item.as_dict() for item in dashboard_filters],
+            "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": filtered_out,
         }
 
@@ -653,6 +656,7 @@ class EnterpriseDashboardApplicationService:
         portlet: DashboardPortlet,
         source_owner: str,
         dashboard_filters: tuple[DashboardFilter, ...],
+        applied_filters: tuple[DashboardFilter, ...],
     ) -> dict[str, object]:
         return {
             "instance_id": portlet.instance_id,
@@ -666,6 +670,7 @@ class EnterpriseDashboardApplicationService:
             "data": None,
             "drill_through_refs": [],
             "saved_filters": [item.as_dict() for item in dashboard_filters],
+            "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": False,
         }
 
