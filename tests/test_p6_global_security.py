@@ -176,3 +176,12 @@ def test_custom_profile_rejects_unknown_global_privilege_and_missing_dependencie
         profile("Custom", built_in=False, privileges=("global_activity_codes_add",)).validate()
     normalized = normalize_global_privileges(("global_activity_codes_add",))
     profile("Custom", built_in=False, privileges=normalized).validate()
+
+
+def test_custom_profile_cannot_preempt_reserved_builtin_profile_ids():
+    forged = GlobalSecurityProfile(
+        "tenant-a", "p6-admin-superuser", "Portfolio Admin",
+        ("add_edit_delete_users",), False, True, 1,
+    )
+    with pytest.raises(GlobalSecurityError, match="BUILTIN_PROFILE_ID_RESERVED"):
+        forged.validate()
