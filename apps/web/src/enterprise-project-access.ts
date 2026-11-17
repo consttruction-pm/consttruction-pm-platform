@@ -18,7 +18,7 @@ const COPY = {
     noOBS:"No OBS elements are available.", noAssignments:"No active assignments for this user.",
     required:"Complete all required fields.", created:"Security profile created.", assigned:"OBS access assigned.",
     revoked:"OBS access revoked.", failed:"The request could not be completed.", session:"Your session has expired. Sign in again.",
-    adminOnly:"Enterprise administrator access is required.", rootWarning:"Assigning the root OBS grants access to every project beneath it.",
+    adminOnly:"Enterprise administrator access is required.", rootWarning:"Assigning the root OBS grants access to every project beneath it.", rootConfirm:"The root OBS grants access to every project beneath it. Continue?", hierarchyInvalid:"The OBS hierarchy is invalid or incomplete. Correct the OBS structure before assigning access.",
     select:"Select…", manager:"Responsible manager", status:"Status", active:"Active", inactive:"Revoked",
     oracleHelp:"Oracle V26 HTML Help", privilegeDefinitions:"Privilege definition", helpTopics:"P6 EPPM V26 Help topics",
   },
@@ -32,7 +32,7 @@ const COPY = {
     noOBS:"عنصر OBS در دسترس نیست.", noAssignments:"تخصیص فعالی برای این کاربر وجود ندارد.",
     required:"تمام فیلدهای ضروری را تکمیل کنید.", created:"پروفایل امنیتی ایجاد شد.", assigned:"دسترسی OBS تخصیص یافت.",
     revoked:"دسترسی OBS لغو شد.", failed:"انجام درخواست ممکن نشد.", session:"نشست شما پایان یافته است؛ دوباره وارد شوید.",
-    adminOnly:"دسترسی مدیر سازمانی لازم است.", rootWarning:"تخصیص OBS ریشه، دسترسی به تمام پروژه‌های زیرمجموعه را ایجاد می‌کند.",
+    adminOnly:"دسترسی مدیر سازمانی لازم است.", rootWarning:"تخصیص OBS ریشه، دسترسی به تمام پروژه‌های زیرمجموعه را ایجاد می‌کند.", rootConfirm:"OBS ریشه به تمام پروژه‌های زیرمجموعه دسترسی می‌دهد. ادامه می‌دهید؟", hierarchyInvalid:"ساختار OBS نامعتبر یا ناقص است. پیش از تخصیص دسترسی، ساختار را اصلاح کنید.",
     select:"انتخاب…", manager:"مسئول", status:"وضعیت", active:"فعال", inactive:"لغوشده",
     oracleHelp:"راهنمای HTML پریماورا نسخه ۲۶", privilegeDefinitions:"تعریف مجوز", helpTopics:"موضوعات راهنمای P6 EPPM نسخه ۲۶",
   },
@@ -132,7 +132,7 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
   let profiles: Profile[]=[];
   let nodes: OBSNode[]=[];
   const notify=(text:string)=>{status.textContent=text;status.hidden=false;error.hidden=true;};
-  const fail=(reason:unknown)=>{error.textContent=reason instanceof Error && reason.message==="SESSION_REQUIRED"?t.session:t.failed;error.hidden=false;status.hidden=true;};
+  const fail=(reason:unknown)=>{error.textContent=reason instanceof Error && reason.message==="SESSION_REQUIRED"?t.session:reason instanceof Error&&reason.message==="OBS_HIERARCHY_INVALID"?t.hierarchyInvalid:t.failed;error.hidden=false;status.hidden=true;};
   const loadAssignments=async()=>{
     const id=userId.value.trim(); if(!id){fail(new Error("REQUIRED"));return;}
     try{
@@ -211,7 +211,21 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
         obsList.append(row);append(node.obs_id,depth+1);
       }
     };
+    const visited=new Set<string>();
+    const append=(parent:string|null,depth:number)=>{
+      for(const node of (byParent.get(parent)??[]).sort((a,b)=>a.sequence_number-b.sequence_number)){
+        if(visited.has(node.obs_id))throw new Error("OBS_HIERARCHY_INVALID");
+        visited.add(node.obs_id);
+        const prefix="— ".repeat(depth);
+        const option=el("option","",`${prefix}${node.code} · ${node.name}`) as HTMLOptionElement;option.value=node.obs_id;obsSelect.append(option);
+        const row=el("article","oa-row");row.append(el("div","",`${prefix}${node.code} · ${node.name}`),el("small","oa-muted",node.manager_user_id??""));
+        obsList.append(row);append(node.obs_id,depth+1);
+      }
+    };
+    const ids=new Set(nodes.map(node=>node.obs_id));
+    if(ids.size!==nodes.length||nodes.some(node=>node.parent_obs_id!==null&&!ids.has(node.parent_obs_id)))throw new Error("OBS_HIERARCHY_INVALID");
     append(null,0);
+    if(visited.size!==nodes.length)throw new Error("OBS_HIERARCHY_INVALID");
     if(!nodes.length)obsList.append(el("p","oa-muted",t.noOBS));
   };
   profileForm.addEventListener("submit",async event=>{
@@ -227,6 +241,7 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
     event.preventDefault();
     if(!userId.value.trim()||!obsSelect.value||!profileSelect.value){fail(new Error("REQUIRED"));return;}
     try{
+      if(nodes.find(node=>node.obs_id===obsSelect.value)?.parent_obs_id===null&&!window.confirm(t.rootConfirm))return;
       await api("/api/enterprise/user-obs-access","POST",{contract_version:VERSION,user_id:userId.value.trim(),obs_id:obsSelect.value,profile_id:profileSelect.value});
       rootWarning.hidden=nodes.find(node=>node.obs_id===obsSelect.value)?.parent_obs_id!==null;
       notify(t.assigned);await loadAssignments();
