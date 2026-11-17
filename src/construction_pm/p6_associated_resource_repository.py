@@ -214,10 +214,12 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
             return
         if current.revision != expected_revision:
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_REVISION_CONFLICT")
-        self.connection.execute(
+        deleted = self.connection.execute(
             "DELETE FROM p6_user_associated_resource WHERE tenant_id=? AND user_id=? AND revision=?",
             (tenant_id, user_id, expected_revision),
         )
+        if deleted.rowcount != 1:
+            raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_REVISION_CONFLICT")
         removed = P6AssociatedResource(
             tenant_id, user_id, current.resource_id, current.revision + 1,
             actor_id, occurred_at,
@@ -289,7 +291,11 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
         resource_name = self._require_resource(association.tenant_id, association.resource_id)
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtext(%s))",
-            (f"{association.tenant_id}:{association.resource_id}",),
+            (f"{association.tenant_id}:user:{association.user_id}",),
+        )
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"{association.tenant_id}:resource:{association.resource_id}",),
         )
         resource_owner = self.get_for_resource(association.tenant_id, association.resource_id)
         if resource_owner is not None and resource_owner.user_id != association.user_id:
@@ -323,6 +329,10 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
         return association
 
     def unassign(self, tenant_id, user_id, *, actor_id, expected_revision, occurred_at):
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"{tenant_id}:user:{user_id}",),
+        )
         if not actor_id.strip() or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_ACTOR_REQUIRED")
         current = self.get_for_user(tenant_id, user_id)
@@ -330,10 +340,12 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
             return
         if current.revision != expected_revision:
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_REVISION_CONFLICT")
-        self.connection.execute(
+        deleted = self.connection.execute(
             "DELETE FROM p6_user_associated_resource WHERE tenant_id=%s AND user_id=%s AND revision=%s",
             (tenant_id, user_id, expected_revision),
         )
+        if deleted.rowcount != 1:
+            raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_REVISION_CONFLICT")
         removed = P6AssociatedResource(
             tenant_id, user_id, current.resource_id, current.revision + 1,
             actor_id, occurred_at,
