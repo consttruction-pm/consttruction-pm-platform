@@ -4,6 +4,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_layout_defaults import P6_LAYOUT_DEFAULTS_VERSION, default_layout_columns
 from .p6_layout_definition_repository import PersistedP6Layout, P6LayoutRepository
 
@@ -44,6 +45,7 @@ class P6LayoutDefinitionAPI:
         _require_scope(layout.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied")
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_project_level_layouts")
         return _dto(self.repository.upsert(layout))
 
     def get(self, scope: BackendScope, layout_scope: str, view_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
