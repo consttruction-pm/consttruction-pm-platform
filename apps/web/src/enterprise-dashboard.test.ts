@@ -4,6 +4,7 @@ import {
   displaySummaryMetric,
   mapEnterprisePortletState,
   orderDashboardCatalog,
+  reorderDashboardPortlets,
   supportedDashboardPortlets,
   validateDashboardLayout,
   type EnterpriseDashboardCatalogItem,
@@ -94,4 +95,12 @@ test("missing summary metrics are shown as unavailable, never fabricated zeroes"
   assert.equal(displaySummaryMetric({ total_projects: null }, "total_projects"), "—");
   assert.equal(displaySummaryMetric({ total_projects: 0 }, "total_projects"), "0");
   assert.equal(displaySummaryMetric({ total_projects: 12 }, "total_projects"), "12");
+});
+
+
+test("dashboard layout ordering supports bounded move-up and move-down operations", () => {
+  assert.deepEqual(reorderDashboardPortlets(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
+  assert.deepEqual(reorderDashboardPortlets(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
+  assert.deepEqual(reorderDashboardPortlets(["a", "b"], -1, 1), ["a", "b"]);
+  assert.deepEqual(reorderDashboardPortlets(["a", "b"], 0, 2), ["a", "b"]);
 });
