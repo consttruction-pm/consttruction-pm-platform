@@ -125,6 +125,9 @@ def test_initialize_creates_tenant_scoped_tables_and_append_only_audit_trigger()
     sql = "\n".join(statement for statement, _ in connection.statements)
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboards" in sql
     assert "PRIMARY KEY (tenant_id, dashboard_id)" in sql
+    assert "title TEXT NOT NULL" in sql
+    assert "enterprise_dashboards_tenant_title_unique" in sql
+    assert "lower(btrim(title))" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_idempotency" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_audit" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_display_preferences" in sql
