@@ -912,9 +912,16 @@ class EnterpriseDashboardApplicationService:
 
     @staticmethod
     def _filters(value: object) -> tuple[DashboardFilter, ...]:
-        if not isinstance(value, (tuple, list)):
+        if not isinstance(value, (tuple, list)) or len(value) > 20:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTERS")
-        return tuple(DashboardFilter.from_dict(item) for item in value)
+        filters = tuple(DashboardFilter.from_dict(item) for item in value)
+        keys = [item.key for item in filters]
+        if len(set(keys)) != len(keys):
+            raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_FILTER")
+        scope_keys = set(keys).intersection({"portfolio_id", "project_id"})
+        if len(scope_keys) > 1:
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_SCOPE_FILTERS_MUTUALLY_EXCLUSIVE")
+        return filters
 
     def _get_in_tenant(self, session: object, dashboard_id: str) -> StoredEnterpriseDashboard:
         try:
