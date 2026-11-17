@@ -68,7 +68,7 @@ class EnterpriseDashboardHttpMiddleware:
         reason = {
             200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized",
             403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
-            409: "Conflict", 413: "Payload Too Large",
+            409: "Conflict", 413: "Payload Too Large", 503: "Service Unavailable",
         }.get(status, "Internal Server Error")
         start_response(
             f"{status} {reason}",
