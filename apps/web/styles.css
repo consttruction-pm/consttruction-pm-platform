@@ -10376,3 +10376,9 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
  .oa-row .ce-button { flex:1; }
  .oa-inline .ce-button { flex:1; }
 }
+
+.oa-help-links { display:flex; flex-wrap:wrap; gap:.55rem .9rem; padding:.8rem 1rem; border:1px solid #dce5ef; border-radius:12px; background:#f7f9fc; }
+.oa-help-link,.oa-help-inline { color:#175ea8; font-size:.76rem; text-decoration:underline; text-underline-offset:2px; }
+.oa-help-inline { white-space:nowrap; }
+.oa-privilege-group .oa-inline label { align-items:center; }
+.oa-privilege-group .oa-inline label span { font-size:.82rem; }
