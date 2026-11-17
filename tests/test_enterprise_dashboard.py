@@ -755,6 +755,36 @@ def test_saved_project_id_in_filter_reauthorizes_every_project_before_persisting
     ]
 
 
+def test_saved_project_filter_is_reauthorized_before_persisting_for_shared_viewer():
+    service, repository, lifecycle, _ = make_service()
+    created = create_dashboard(service)
+    service.assign_share(
+        "alice-session", created.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    override = [{"key": "project_id", "operator": "eq", "value": "project-1"}]
+
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="SOURCE_PROJECT_NOT_AUTHORIZED",
+    ):
+        service.save_dashboard_filter_override(
+            "bob-session", created.dashboard.dashboard_id, override
+        )
+    assert repository.list_user_preferences("tenant-a", "bob") == {}
+    assert lifecycle.authorized_project_ids[-1] == ("bob-session", "project-1")
+
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    service.save_dashboard_filter_override(
+        "bob-session", created.dashboard.dashboard_id, override
+    )
+    read = service.read_portlets("bob-session", created.dashboard.dashboard_id)
+    assert read["filters"] == override
+    assert [row["project_id"] for row in read["portlets"][0]["data"]["projects"]] == [
+        "project-1"
+    ]
+
+
 def test_decision_status_and_freshness_filters_suppress_nonmatching_data():
     service, _, _, _ = make_service()
     created = service.create_dashboard(
