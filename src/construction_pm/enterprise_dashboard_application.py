@@ -880,8 +880,11 @@ class EnterpriseDashboardApplicationService:
         return {
             "instance_id": portlet.instance_id,
             "type_id": portlet.type_id,
+            "title": portlet.title,
+            "hide_title": portlet.hide_title,
             "source_owner": definition.source_owner,
             "required_read_permission": definition.required_read_permission,
+            "source_data_mode": "not_exposed",
             "source_snapshot_id": source_snapshot_id,
             "source_revision": source_revision,
             "generated_at": generated_at.isoformat() if generated_at else None,
@@ -940,8 +943,11 @@ class EnterpriseDashboardApplicationService:
         return {
             "instance_id": portlet.instance_id,
             "type_id": portlet.type_id,
+            "title": portlet.title,
+            "hide_title": portlet.hide_title,
             "source_owner": source_owner,
             "required_read_permission": "project.read",
+            "source_data_mode": "not_exposed",
             "source_snapshot_id": None,
             "source_revision": None,
             "generated_at": None,
