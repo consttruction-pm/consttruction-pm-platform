@@ -1265,6 +1265,11 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["maxItems"] == 12
+    project_id_filter = schema["properties"]["filters"]["items"]["oneOf"][-1]["oneOf"]
+    assert {item["properties"]["operator"]["const"] for item in project_id_filter} == {"eq", "in"}
+    for key in ("saved_filters", "applied_filters"):
+        response_project_filter = schema["$defs"]["portlet_read_response"]["properties"][key]["items"]["oneOf"][-1]["oneOf"]
+        assert {item["properties"]["operator"]["const"] for item in response_project_filter} == {"eq", "in"}
     assert schema["properties"]["max_rows_per_portlet"]["default"] == 100
     assert schema["$defs"]["dashboard_read_response"]["properties"]["portlets"]["minItems"] == 0
     assert schema["$defs"]["dashboard_display_preference_request"]["required"] == [
