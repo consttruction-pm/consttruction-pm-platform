@@ -319,6 +319,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                 return 200, {
                     "contract_version": "cubi-enterprise-user-list.v1",
                     "users": list(users),
+                    **self._service.user_directory_context(session_id),
                 }
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
