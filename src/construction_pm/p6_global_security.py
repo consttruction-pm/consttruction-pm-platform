@@ -926,6 +926,34 @@ class P6GlobalSecurityAuthorizationPolicy:
         except (GlobalSecurityError, ValueError, AttributeError, TypeError):
             return False
 
+    def has_project_privilege_for_obs(self, context: Any, obs_id: str, privilege_code: str) -> bool:
+        """Check a project privilege before a new project has a persisted OBS link."""
+        try:
+            context.validate()
+            if privilege_code not in P6_PROJECT_PRIVILEGE_IDS:
+                return False
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            if profile is None or not profile.active:
+                return False
+            if global_profile_has_project_access_bypass(profile):
+                return True
+            if "projects" not in assignment.module_access:
+                return False
+            checker = getattr(self._obs_project_access, "has_obs_project_privilege", None)
+            if not callable(checker):
+                return False
+            return bool(checker(context.tenant_id, context.user_id, obs_id, privilege_code))
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
+    def require_project_privilege_for_obs(self, context: Any, obs_id: str, privilege_code: str) -> None:
+        if not self.has_project_privilege_for_obs(context, obs_id, privilege_code):
+            from .application.authorization import AuthorizationError
+            raise AuthorizationError(f"P6_PROJECT_PRIVILEGE_REQUIRED:{privilege_code}")
+
     def has_project_privilege(self, context: Any, privilege_code: str) -> bool:
         """Resolve one explicit V26 project privilege through the user's OBS grant."""
         try:
