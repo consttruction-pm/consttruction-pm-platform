@@ -132,3 +132,18 @@ def test_profile_privilege_dependency_is_enforced_at_persistence_boundary():
     )
     with pytest.raises(ValueError, match="PROJECT_SECURITY_PRIVILEGE_DEPENDENCY_MISSING"):
         repo.save_profile(invalid, actor_id="admin-user")
+
+
+def test_builtin_project_superuser_is_provisioned_idempotently_and_immutable():
+    _, repo = setup_repository()
+    first = repo.ensure_builtin_profile("tenant-a", actor_id="admin-user")
+    second = repo.ensure_builtin_profile("tenant-a", actor_id="admin-user")
+    assert first == second
+    assert first.built_in is True
+    assert set(first.privileges) == __import__(
+        "construction_pm.p6_project_security", fromlist=["P6_PROJECT_PRIVILEGE_IDS"]
+    ).P6_PROJECT_PRIVILEGE_IDS
+    with pytest.raises(P6ProjectSecurityPersistenceError, match="BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE"):
+        repo.delete_profile("tenant-a", first.profile_id, actor_id="admin-user", expected_revision=1)
+    with pytest.raises(P6ProjectSecurityPersistenceError, match="BUILTIN_PROJECT_SECURITY_PROFILE_IMMUTABLE"):
+        repo.save_profile(replace(first, revision=2), actor_id="admin-user", expected_revision=1)
