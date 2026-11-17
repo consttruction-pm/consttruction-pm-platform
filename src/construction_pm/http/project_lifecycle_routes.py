@@ -508,6 +508,13 @@ class ProjectLifecycleHttpRoutes:
                     return self._json(200, {"revoked": True})
             profile_prefix = f"{profile_root}/"
             if route.startswith(profile_prefix):
+                duplicate_parts = route[len(profile_prefix):].split("/")
+                if len(duplicate_parts) == 2 and duplicate_parts[1] == "duplicate" and method == "POST":
+                    return self._json(200, self._p6_project_security_api.duplicate_profile(
+                        duplicate_parts[0], payload.get("new_profile_id", ""),
+                        payload.get("new_name", ""), auth_context=auth,
+                    ))
+            if route.startswith(profile_prefix):
                 parts = route[len(profile_prefix):].split("/")
                 if len(parts) == 2 and parts[1] == "default" and method == "POST":
                     return self._json(200, self._p6_project_security_api.set_default(
