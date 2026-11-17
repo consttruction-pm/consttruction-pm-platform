@@ -20,12 +20,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _connect():
+    import psycopg
+    return psycopg.connect(os.environ["CONSTRUCTION_PM_POSTGRES_DSN"])
+
+
 def test_global_and_project_defaults_are_independent_and_protected_from_delete():
     tenant = f"security-defaults-{uuid.uuid4().hex}"
     actor = "security-defaults-test-admin"
     now = datetime.now(timezone.utc)
 
-    with __import__("psycopg").connect(os.environ["CONSTRUCTION_PM_POSTGRES_DSN"]) as connection:
+    with _connect() as connection:
         PostgresIdentityStore(connection).initialize()
         initialize_security_profile_schema(connection)
         profiles = PostgresSecurityProfileRepository(connection)
