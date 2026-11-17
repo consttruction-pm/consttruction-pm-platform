@@ -250,6 +250,8 @@ class EnterpriseDashboardApplicationService:
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
+        if current.dashboard.visibility == "global" and target_type != "all_users":
+            raise EnterpriseDashboardError("GLOBAL_DASHBOARD_SHARING_MODE_EXCLUSIVE")
         if not isinstance(target_id, str) or not target_id.strip():
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET")
         users = list(current.dashboard.shared_user_ids)
@@ -309,6 +311,8 @@ class EnterpriseDashboardApplicationService:
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
+        if current.dashboard.visibility == "global" and target_type != "all_users":
+            raise EnterpriseDashboardError("GLOBAL_DASHBOARD_SHARING_MODE_EXCLUSIVE")
         if target_type == "user":
             users = tuple(item for item in current.dashboard.shared_user_ids if item != target_id)
             roles = current.dashboard.shared_role_ids
@@ -321,7 +325,14 @@ class EnterpriseDashboardApplicationService:
             users, roles = (), ()
         else:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET_TYPE")
-        if users == current.dashboard.shared_user_ids and roles == current.dashboard.shared_role_ids:
+        new_visibility = (
+            "private" if target_type == "all_users" else visibility_for_shares(users, roles)
+        )
+        if (
+            users == current.dashboard.shared_user_ids
+            and roles == current.dashboard.shared_role_ids
+            and new_visibility == current.dashboard.visibility
+        ):
             if current.revision != expected_revision:
                 raise EnterpriseDashboardRevisionConflict("ENTERPRISE_DASHBOARD_REVISION_CONFLICT")
             return current
@@ -329,7 +340,7 @@ class EnterpriseDashboardApplicationService:
             current.dashboard,
             shared_user_ids=users,
             shared_role_ids=roles,
-            visibility="private" if target_type == "all_users" else visibility_for_shares(users, roles),
+            visibility=new_visibility,
         )
         return self._repository.update(
             updated,
