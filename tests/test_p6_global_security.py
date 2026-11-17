@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from construction_pm.application.authorization import AuthorizationContext, default_project_policy
+from construction_pm.application.authorization import AuthorizationContext, Permission, default_project_policy
 
 import pytest
 
