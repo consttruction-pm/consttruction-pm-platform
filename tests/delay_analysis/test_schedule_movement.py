@@ -1,13 +1,16 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.delay_analysis.schedule_movement import (
     ScheduleMovementAnalysisError,
     ScheduleRunReference,
+    assess_baseline_activity_variance,
     assess_schedule_movement,
 )
-from construction_pm.scheduling.schedule import FloatActivity, ScheduleMode, ScheduleResult
+from construction_pm.p6_baseline_activity_repository import P6BaselineActivity\nfrom construction_pm.p6_baseline_repository import P6Baseline\nfrom construction_pm.scheduling.schedule import FloatActivity, ScheduleMode, ScheduleResult
 
 
 def ref(
@@ -221,3 +224,113 @@ def test_missing_scheduler_output_is_rejected():
             ref("c", project_revision=5, salt="f"),
             run(date(2026, 10, 21), {"A": activity("A", date(2026, 10, 5), date(2026, 10, 7), total_float=0, free_float=0, critical=True)}),
         )
+
+
+
+def test_baseline_activity_variance_uses_persisted_planned_windows_and_current_scheduler_dates():
+    baseline_scope = BackendScope("tenant-a", "project-a", 7)
+    baseline = P6Baseline(
+        baseline_scope,
+        "b-1",
+        "Approved Baseline",
+        "PRIMARY",
+        6,
+        "2026-10-01T08:00:00Z",
+    )
+    baseline_rows = (
+        P6BaselineActivity(
+            baseline_scope, "b-1", "A", date(2026, 10, 5), date(2026, 10, 7),
+            Decimal("1200"), "USD",
+        ),
+        P6BaselineActivity(
+            baseline_scope, "b-1", "B", date(2026, 10, 8), date(2026, 10, 9),
+            Decimal("800"), "USD",
+        ),
+    )
+    current = run(
+        date(2026, 10, 18),
+        {
+            "A": activity(
+                "A", date(2026, 10, 6), date(2026, 10, 10),
+                total_float=-1, free_float=-1, critical=True, float_path=1,
+            ),
+            "C": activity(
+                "C", date(2026, 10, 11), date(2026, 10, 12),
+                total_float=0, free_float=0, critical=True, float_path=1,
+            ),
+        },
+    )
+    current_ref = ref(
+        "current", project_revision=8, data_date=date(2026, 10, 17), salt="f"
+    )
+
+    result = assess_baseline_activity_variance(
+        baseline, baseline_rows, current_ref, current
+    )
+
+    assert result.baseline_id == "b-1"
+    assert result.added_activity_ids == ("C",)
+    assert result.missing_activity_ids == ("B",)
+    assert result.activity_variances[0].activity_id == "A"
+    assert result.activity_variances[0].start_variance_calendar_days == 1
+    assert result.activity_variances[0].finish_variance_calendar_days == 3
+    assert result.activity_variances[0].current_total_float_native_units == -1
+    assert result.analysis_hash == assess_baseline_activity_variance(
+        baseline, baseline_rows, current_ref, current
+    ).analysis_hash
+    assert "not Time Impact Analysis" in " ".join(result.limitations)
+
+
+def test_baseline_activity_variance_rejects_cross_project_and_stale_scope():
+    baseline_scope = BackendScope("tenant-a", "project-a", 7)
+    baseline = P6Baseline(
+        baseline_scope, "b-1", "Approved", "PRIMARY", 6, "2026-10-01T08:00:00Z"
+    )
+    rows = (
+        P6BaselineActivity(
+            baseline_scope, "b-1", "A", date(2026, 10, 5), date(2026, 10, 7),
+            Decimal("100"), "USD",
+        ),
+    )
+    current = run(
+        date(2026, 10, 12),
+        {"A": activity("A", date(2026, 10, 6), date(2026, 10, 8),
+                       total_float=0, free_float=0, critical=True)},
+    )
+    with pytest.raises(ScheduleMovementAnalysisError, match="BASELINE_SCOPE_MISMATCH"):
+        assess_baseline_activity_variance(
+            baseline,
+            rows,
+            ref("current", project_id="other-project", project_revision=8, salt="f"),
+            current,
+        )
+    with pytest.raises(ScheduleMovementAnalysisError, match="STALE_CURRENT_PROJECT_REVISION"):
+        assess_baseline_activity_variance(
+            baseline,
+            rows,
+            ref("current", project_revision=6, salt="f"),
+            current,
+        )
+
+
+def test_baseline_activity_variance_rejects_empty_or_mismatched_activity_set():
+    baseline_scope = BackendScope("tenant-a", "project-a", 7)
+    baseline = P6Baseline(
+        baseline_scope, "b-1", "Approved", "PRIMARY", 6, "2026-10-01T08:00:00Z"
+    )
+    current = run(
+        date(2026, 10, 12),
+        {"A": activity("A", date(2026, 10, 6), date(2026, 10, 8),
+                       total_float=0, free_float=0, critical=True)},
+    )
+    current_ref = ref("current", project_revision=8, salt="f")
+    with pytest.raises(ScheduleMovementAnalysisError, match="BASELINE_ACTIVITIES_MISSING"):
+        assess_baseline_activity_variance(baseline, (), current_ref, current)
+
+    other_scope = BackendScope("tenant-b", "project-a", 7)
+    wrong_row = P6BaselineActivity(
+        other_scope, "b-1", "A", date(2026, 10, 5), date(2026, 10, 7),
+        Decimal("100"), "USD",
+    )
+    with pytest.raises(ScheduleMovementAnalysisError, match="BASELINE_ACTIVITY_SCOPE_MISMATCH"):
+        assess_baseline_activity_variance(baseline, (wrong_row,), current_ref, current)
