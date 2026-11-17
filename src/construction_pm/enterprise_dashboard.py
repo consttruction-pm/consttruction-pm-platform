@@ -157,7 +157,7 @@ class DashboardPortlet:
             raise EnterpriseDashboardError("UNKNOWN_ENTERPRISE_DASHBOARD_PORTLET_TYPE")
         if self.contract_version != definition.contract_version:
             raise EnterpriseDashboardError("UNSUPPORTED_ENTERPRISE_DASHBOARD_PORTLET_VERSION")
-        if context not in definition.supported_contexts:
+        if not isinstance(context, str) or context not in definition.supported_contexts:
             raise EnterpriseDashboardError("PORTLET_CONTEXT_NOT_SUPPORTED")
         if not isinstance(self.config, Mapping) or set(self.config) != set(definition.config_fields):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_CONFIG")
@@ -291,16 +291,16 @@ class EnterpriseDashboard:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_VISIBILITY")
         if not isinstance(self.shared_user_ids, tuple) or not isinstance(self.shared_role_ids, tuple):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARES")
-        if len(set(self.shared_user_ids)) != len(self.shared_user_ids):
-            raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_USER_SHARE")
-        if len(set(self.shared_role_ids)) != len(self.shared_role_ids):
-            raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_ROLE_SHARE")
         for user_id in self.shared_user_ids:
             _required_text(user_id, "SHARED_USER_ID")
             if user_id == self.owner_user_id:
                 raise EnterpriseDashboardError("DASHBOARD_OWNER_MUST_NOT_BE_SHARED_WITH_SELF")
         if any(not isinstance(role, str) or role not in ENTERPRISE_ROLES for role in self.shared_role_ids):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARED_ROLE")
+        if len(set(self.shared_user_ids)) != len(self.shared_user_ids):
+            raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_USER_SHARE")
+        if len(set(self.shared_role_ids)) != len(self.shared_role_ids):
+            raise EnterpriseDashboardError("DUPLICATE_ENTERPRISE_DASHBOARD_ROLE_SHARE")
         expected_visibility = (
             "users_and_roles"
             if self.shared_user_ids and self.shared_role_ids
