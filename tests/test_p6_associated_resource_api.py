@@ -230,3 +230,33 @@ def test_enterprise_resource_identity_updates_all_project_copies():
     assert identity == ("Canonical Name",)
     assert updated.name == "Canonical Name"
     assert updated.record_revision == first.record_revision + 1
+
+
+def test_associated_resource_unlocks_team_member_and_personal_calendar_with_global_privilege():
+    from construction_pm.p6_global_security import (
+        GlobalSecurityProfile, UserGlobalSecurity, P6GlobalSecurityAuthorizationPolicy,
+    )
+    connection, _, associations = setup()
+    associations.assign(P6AssociatedResource(
+        "tenant-a", "user-1", "R-100", 1, "admin", datetime.now(timezone.utc)
+    ))
+    now = datetime.now(timezone.utc)
+    profile = GlobalSecurityProfile(
+        "tenant-a", "profile-team", "Team Member", ("add_edit_delete_resource_calendars",)
+    )
+    assignment = UserGlobalSecurity(
+        "tenant-a", "user-1", "profile-team", ("team_member", "resources"),
+        "none", (), 1, "admin", now,
+    )
+    class SecurityRepository:
+        def get_user_security(self, tenant_id, user_id):
+            return assignment if (tenant_id, user_id) == ("tenant-a", "user-1") else None
+        def get_profile(self, tenant_id, profile_id):
+            return profile if (tenant_id, profile_id) == ("tenant-a", "profile-team") else None
+
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        SecurityRepository(), object(), associated_resource_access=associations
+    )
+    auth = AuthorizationContext("tenant-a", "project-a", "user-1", frozenset())
+    assert policy.can_use_team_member(auth)
+    assert policy.can_edit_personal_resource_calendar(auth)
