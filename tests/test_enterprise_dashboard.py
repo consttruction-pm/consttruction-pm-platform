@@ -731,6 +731,38 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://primavera.oraclecloud.com/help/en/user/142305.htm",
     "https://primavera.oraclecloud.com/help/en/user/95937.htm",
     "https://primavera.oraclecloud.com/help/en/user/96011.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/36613.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5937.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/34915.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/8106.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/8107.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/8108.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44952.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/41580.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5947.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5954.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5956.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6034.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5946.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5958.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5950.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5968.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5951.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6041.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5962.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5964.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/6037.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/5935.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/37744.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44954.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7904.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/7901.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/44309_1.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/61157.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/8009.htm",
+    "https://primavera.oraclecloud.com/help/en/user/100788.htm",
 )
 
 
@@ -739,7 +771,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 42
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 74
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     for disposition in ("Implemented", "Partial", "Not Applicable", "Deferred"):
@@ -750,5 +782,10 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
         "OBS access",
         "Available Tiles",
         "Manual/Automatic",
+        "All Users",
+        "Narrow option",
+        "Filter by",
+        "restrict_filter_override",
+        "GLOBAL_DASHBOARD_ADMIN_REQUIRED",
     ):
         assert navigation_or_access_term in document
