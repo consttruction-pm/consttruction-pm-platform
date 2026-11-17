@@ -108,7 +108,7 @@ No cache is introduced. Drill-through references are emitted as typed IDs and re
 Filters are stored and validated against a closed key/operator/value catalogue:
 
 - `portfolio_id` (selects the portfolio used by configured portlets; in portfolio context it must equal the context portfolio);
-- `project_id` (single-project eq selection, mutually exclusive with `portfolio_id`);
+- `project_id` (P6-compatible single-project `eq`, mutually exclusive with `portfolio_id`; CUBI also supports a bounded `in` multi-project selector as an additive filter extension, with every selected project re-authorized);
 - `project_status` and `membership_status` (applied to Portfolio Control Snapshot project rows);
 - `decision_status` (applied to Portfolio Decision);
 - `generated_after` / `generated_before` (source timestamp bounds);
