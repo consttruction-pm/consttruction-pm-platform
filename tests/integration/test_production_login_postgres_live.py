@@ -851,6 +851,12 @@ def test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end
             user_id=admin.user_id, actor_user_id=admin.user_id,
             occurred_at=datetime.now(timezone.utc),
         )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin.user_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin.user_id,
+            occurred_at=datetime.now(timezone.utc),
+        )
         connection.commit()
     finally:
         runtime.pool.release(connection, healthy=True)
