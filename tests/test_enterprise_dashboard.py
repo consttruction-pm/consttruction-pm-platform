@@ -369,6 +369,7 @@ def test_duplicate_creates_private_copy_owned_by_current_actor_and_is_idempotent
         target_id="bob",
         expected_revision=1,
     )
+    service._lifecycle.sessions["bob-session"].roles = frozenset({"enterprise_user"})
     first = service.duplicate_dashboard(
         "bob-session", created.dashboard.dashboard_id, idempotency_key="copy-1"
     )
@@ -490,8 +491,9 @@ def test_portlet_read_requires_configured_source_adapter():
     service = EnterpriseDashboardApplicationService(
         FakeRepository(), lifecycle, portfolio_query_service=None, clock=lambda: NOW
     )
+    created = create_dashboard(service)
     with pytest.raises(EnterpriseDashboardSourceError, match="NOT_CONFIGURED"):
-        create_dashboard(service)
+        service.read_portlets("alice-session", created.dashboard.dashboard_id)
 
 
 def test_dashboard_definition_round_trips_and_rejects_unknown_fields():
