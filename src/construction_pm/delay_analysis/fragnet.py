@@ -35,8 +35,12 @@ class FragnetActivity:
             raise FragnetValidationError("FRAGNET_ACTIVITY_NAME_REQUIRED")
         if isinstance(self.duration_working_days, bool) or not isinstance(self.duration_working_days, int) or self.duration_working_days < 0:
             raise FragnetValidationError("INVALID_FRAGNET_ACTIVITY_DURATION")
-        if not isinstance(self.activity_type, ActivityType):
-            raise FragnetValidationError("INVALID_FRAGNET_ACTIVITY_TYPE")
+        if self.activity_type not in (
+            ActivityType.TASK_DEPENDENT,
+            ActivityType.START_MILESTONE,
+            ActivityType.FINISH_MILESTONE,
+        ):
+            raise FragnetValidationError("FRAGNET_ACTIVITY_TYPE_NOT_SUPPORTED_BY_SHARED_CORE")
         if self.activity_type in (ActivityType.START_MILESTONE, ActivityType.FINISH_MILESTONE) and self.duration_working_days != 0:
             raise FragnetValidationError("FRAGNET_MILESTONE_DURATION_MUST_BE_ZERO")
 
