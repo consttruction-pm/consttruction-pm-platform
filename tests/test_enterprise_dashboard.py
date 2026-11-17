@@ -571,6 +571,11 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44303.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44295.htm",
+    "https://primavera.oraclecloud.com/help/en/user/142302.htm",
+    "https://primavera.oraclecloud.com/help/en/user/178503.htm",
+    "https://primavera.oraclecloud.com/help/en/user/142305.htm",
+    "https://primavera.oraclecloud.com/help/en/user/95937.htm",
+    "https://primavera.oraclecloud.com/help/en/user/96011.htm",
 )
 
 
@@ -579,8 +584,16 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 37
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 42
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     for disposition in ("Partial", "Not Applicable", "Deferred"):
         assert disposition in document
+    for navigation_or_access_term in (
+        "Navigation Menu",
+        "Access tab",
+        "OBS access",
+        "Available Tiles",
+        "Manual/Automatic",
+    ):
+        assert navigation_or_access_term in document
