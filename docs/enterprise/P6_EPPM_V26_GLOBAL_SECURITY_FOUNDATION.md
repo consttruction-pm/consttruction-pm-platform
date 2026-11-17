@@ -225,3 +225,28 @@ selected-root descendants, sibling denial, and persisted Resources-module
 requirements. Live PostgreSQL and browser checks are still required; the
 resource-bearing API matrix should be reviewed against every remaining import,
 export, role picker, and reporting surface before acceptance.
+
+
+### Secure-code status and API enforcement — 2026-11-17
+
+The code-definition persistence model now stores an explicit `is_secure`
+flag in SQLite and PostgreSQL, including additive migrations for existing
+databases. The typed code DTO exposes the flag. The P6 code API hides secure
+definitions from callers without View Secure Codes and requires Add/Delete
+Secure Codes before creating a secure definition. The assignment API requires
+Assign Secure Codes before assigning a value to a secure code and filters
+secure assignments from reads without View Secure Codes. When the persisted
+P6 policy is active, assignment operations fail closed if the code-definition
+lookup service is not injected.
+
+Official V26 HTML Help:
+- [Codes Privileges — secure-code privilege meanings and hierarchy](https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/26547.htm)
+- [Project Codes Page — Secure option](https://docs.oracle.com/cd/G48897_01/p6help/en/6178.htm)
+- [Secure Codes — import security status rules](https://docs.oracle.com/cd/G48897_01/p6help/en/103110.htm)
+
+This does not yet prove every code family (activity, project, issue, resource,
+role, and assignment) is routed through these APIs, nor that XER/XML/import,
+copy/paste, exports, code selectors, reports, and code-value CRUD all consume
+the same policy. The current typed definition API has no full edit/delete
+lifecycle; secure-code parity remains open until those surfaces are wired and
+covered by live PostgreSQL and browser tests.
