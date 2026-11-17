@@ -270,6 +270,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
     user_admin_id = f"profile-user-admin-{suffix}"
     profile_admin_only_id = f"profile-profile-admin-only-{suffix}"
     role_only_id = f"profile-role-only-{suffix}"
+    limited_user_admin_id = f"profile-limited-user-admin-{suffix}"
     project_id = f"profile-http-project-{suffix}"
     other_tenant = f"profile-http-other-{suffix}"
     now = datetime.now(timezone.utc)
@@ -286,6 +287,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         identity.upsert_user(_identity_user(user_admin_id, tenant, "planner"))
         identity.upsert_user(_identity_user(profile_admin_only_id, tenant, "planner"))
         identity.upsert_user(_identity_user(role_only_id, tenant, "enterprise_admin"))
+        identity.upsert_user(_identity_user(limited_user_admin_id, tenant, "planner"))
         PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile HTTP OBS"))
         profiles = PostgresSecurityProfileRepository(connection)
         profile_admin = profiles.create_profile(
@@ -300,6 +302,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         profiles.assign(
             tenant_id=tenant, profile_id=profile_admin.profile_id, user_id=admin_id,
             actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
         )
         user_admin_profile = profiles.create_profile(
             tenant_id=tenant, profile_id="http-user-admin", name="HTTP User Administrator",
@@ -332,6 +339,20 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             tenant_id=tenant, profile_id=profile_admin_only.profile_id, user_id=profile_admin_only_id,
             actor_user_id=admin_id, occurred_at=now,
         )
+        limited_user_admin = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-limited-user-admin",
+            name="HTTP User Admin Without Resource Access", scope="global",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=limited_user_admin.profile_id,
+            privileges={"add_edit_delete_users"}, expected_revision=1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=limited_user_admin.profile_id,
+            user_id=limited_user_admin_id, actor_user_id=admin_id, occurred_at=now,
+        )
         profiles.create_profile(
             tenant_id=other_tenant, profile_id="foreign-only", name="Foreign Only",
             scope="project", actor_user_id=admin_id, occurred_at=now,
@@ -362,6 +383,8 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
                 return SimpleNamespace(user_id=profile_admin_only_id, tenant_id=tenant, roles=frozenset({"planner"}))
             if session_id == "role-only-session":
                 return SimpleNamespace(user_id=role_only_id, tenant_id=tenant, roles=frozenset({"enterprise_admin"}))
+            if session_id == "limited-user-admin-session":
+                return SimpleNamespace(user_id=limited_user_admin_id, tenant_id=tenant, roles=frozenset({"planner"}))
             return None
 
     with _connect() as connection:
@@ -390,6 +413,16 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         assert status == 403 and profile_admin_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
         status, role_only_users = _http_request(app, "GET", "/api/enterprise/users", session_id="role-only-session")
         assert status == 403 and role_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, limited_users = _http_request(
+            app, "GET", "/api/enterprise/users", session_id="limited-user-admin-session",
+        )
+        assert status == 200
+        assert [item["user_id"] for item in limited_users["users"]] == [limited_user_admin_id]
+        status, hidden_user_access = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="limited-user-admin-session",
+        )
+        assert status == 403 and hidden_user_access["code"] == "P6_RESOURCE_ACCESS_REQUIRED"
         status, role_only_profiles = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="role-only-session",
             payload={
