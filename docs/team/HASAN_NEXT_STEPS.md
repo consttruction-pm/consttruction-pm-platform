@@ -1099,8 +1099,8 @@ Status: **merged; exact-head CI verified**
 
 ## 2026-11-17 — Stage 34.2.9 direct implementation reconciliation
 
-- Issue #2033 is no longer waiting on a source-owner handoff. Per the user's explicit direction, Jalal is implementing the canonical membership persistence and production snapshot provider directly on branch `fix/portfolio-control-provider-owned-implementation`.
+- Issue #2033 was implemented directly by Jalal and merged in PR #2035 (merge commit `bf156f686d4d8cfe4efafb088638e68841b451e9`).
 - Hasan is not asked to duplicate this implementation or create a competing membership store. His general Backend/Database/API ownership remains unchanged; review/consume the merged canonical contract only if a later explicit handoff is requested.
-- The implementation branch adds the Enterprise portfolio lifecycle/membership store and a read-only adapter over the existing Engineering `project_lifecycle_projects` source. It does not infer membership from project listings and does not calculate project KPIs.
+- The merged implementation adds the Enterprise portfolio lifecycle/membership store and a read-only adapter over the existing Engineering `project_lifecycle_projects` source. It does not infer membership from project listings and does not calculate project KPIs.
 - README and Stage Status claims were corrected to say implementation in progress, not runtime-verified. Do not restore a completed status until exact-head Python and PostgreSQL CI evidence exists.
-- Branch base: `326a6ab9a5b36617f7b04e04b13cb329ff0d3a13`. Current branch head and workflow evidence must be refreshed from GitHub before acceptance.
+- Exact tested head `3f6bdf6a6adedaac870ed397daab801d6af63d22`: ConstructionPM CI `44114358321`, PostgreSQL Integration `44114358305`, Client Typecheck `44114358228` all SUCCESS. Do not reimplement this provider. The remaining next point is production composition injection in ENT-06B #2032.
