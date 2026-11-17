@@ -334,6 +334,15 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         PostgresProjectRepository(connection).create_for_user(
             tenant, target_id, project_id, "Profile HTTP project", obs_id=f"obs-{suffix}"
         )
+        default_project = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-default-project",
+            name="HTTP Default Project", scope="project",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_default(
+            tenant_id=tenant, profile_id=default_project.profile_id, is_default=True,
+            expected_revision=default_project.revision, actor_user_id=admin_id, occurred_at=now,
+        )
         connection.commit()
 
     class Sessions:
@@ -412,6 +421,34 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             },
         )
         assert status == 200 and global_assigned["revision"] == 1
+
+        status, obs_options = _http_request(
+            app, "GET", "/api/enterprise/obs", session_id="user-admin-session",
+        )
+        assert status == 200
+        assert any(node["obs_id"] == f"obs-{suffix}" for node in obs_options["obs_nodes"])
+        status, obs_assignments = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200 and obs_assignments["assignments"] == []
+        status, default_obs_assignment = _http_request(
+            app, "PUT", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-project-access.v1",
+                "obs_id": f"obs-{suffix}",
+            },
+        )
+        assert status == 200
+        assert default_obs_assignment["assignment"] == {
+            "profile_id": "http-default-project", "obs_id": f"obs-{suffix}", "revision": 1,
+        }
+        status, obs_assignments = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200 and obs_assignments["assignments"][0]["profile_id"] == "http-default-project"
 
         # Add/Edit/Delete Users can assign profiles, but does not grant profile CRUD.
         status, user_admin_assignment = _http_request(
