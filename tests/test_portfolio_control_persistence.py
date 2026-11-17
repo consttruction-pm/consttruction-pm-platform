@@ -41,6 +41,11 @@ class FakeRepository:
         self.get_portfolio(tenant_id, portfolio_id)
         return self.memberships
 
+    def get_snapshot_records(self, tenant_id, portfolio_id):
+        return self.get_portfolio(tenant_id, portfolio_id), self.list_memberships(
+            tenant_id, portfolio_id
+        )
+
 
 class FakeFactsReader:
     def __init__(self, facts):
