@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
+  dashboardFilterDefinition,
+  ENTERPRISE_DASHBOARD_FILTER_CATALOG,
   effectiveDashboardPortletLimit,
   mapEnterprisePortletState,
   moveDashboardPortletHorizontally,
@@ -145,4 +147,26 @@ test("dashboard layout supports bounded left/right movement and preserves valid 
   assert.deepEqual(moveDashboardPortletHorizontally(items, 9, "right").map((item) => item.layout.x), [0, 6]);
   const wide = [portlet("wide", 0, 0, 12)];
   assert.deepEqual(moveDashboardPortletHorizontally(wide, 0, "right")[0].layout, wide[0].layout);
+});
+
+test("Filter By catalog mirrors every backend-supported key and operator without inventing fields", () => {
+  assert.deepEqual(
+    ENTERPRISE_DASHBOARD_FILTER_CATALOG.map((item) => [item.key, [...item.operators]]),
+    [
+      ["portfolio_id", ["eq"]],
+      ["project_id", ["eq", "in"]],
+      ["project_status", ["eq", "in"]],
+      ["membership_status", ["eq", "in"]],
+      ["decision_status", ["eq", "in"]],
+      ["generated_after", ["gte"]],
+      ["generated_before", ["lte"]],
+      ["include_stale", ["eq"]],
+    ],
+  );
+  assert.deepEqual(dashboardFilterDefinition("membership_status")?.options, ["included", "on_hold", "excluded"]);
+  assert.deepEqual(dashboardFilterDefinition("decision_status")?.options, [
+    "proposed", "under_review", "approved", "rejected", "implemented", "closed", "cancelled",
+  ]);
+  assert.equal(dashboardFilterDefinition("project_code"), undefined);
+  assert.equal(dashboardFilterDefinition("arbitrary_sql"), undefined);
 });
