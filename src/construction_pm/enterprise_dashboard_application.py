@@ -128,7 +128,9 @@ class EnterpriseDashboardApplicationService:
         # Expand the ordered prefix until enough accessible dashboards are found;
         # applying LIMIT before _can_view would hide older dashboards shared with
         # this actor whenever newer private dashboards fill the first page.
-        fetch_limit = max(200, limit)
+        # The repository currently enforces a maximum page size of 500.
+        # Stop at that boundary rather than issuing an invalid larger query.
+        fetch_limit = min(500, max(200, limit))
         while True:
             items = self._repository.list_for_tenant(
                 session.tenant_id, limit=fetch_limit
@@ -143,9 +145,13 @@ class EnterpriseDashboardApplicationService:
                     or self._is_admin(session)
                 )
             )
-            if len(accessible) >= limit or len(items) < fetch_limit:
+            if (
+                len(accessible) >= limit
+                or len(items) < fetch_limit
+                or fetch_limit >= 500
+            ):
                 return accessible[:limit]
-            fetch_limit *= 2
+            fetch_limit = min(fetch_limit * 2, 500)
 
     def list_dashboard_catalog(
         self,
