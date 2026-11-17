@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -505,3 +507,22 @@ def test_dashboard_definition_round_trips_and_rejects_unknown_fields():
     payload["unexpected"] = "must reject"
     with pytest.raises(EnterpriseDashboardError, match="FIELDS"):
         EnterpriseDashboard.from_dict(payload)
+
+
+def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
+    root = Path(__file__).parents[1]
+    schema = json.loads(
+        (root / "shared" / "contracts" / "enterprise-dashboard.v1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
+    assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert schema["$defs"]["portlet_read_response"]["additionalProperties"] is False
+    assert schema["$defs"]["portlet_read_response"]["properties"]["freshness_state"]["enum"] == [
+        "fresh", "stale", "missing", "unknown"
+    ]
+    assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
+        "cubi-enterprise-dashboard-read.v1"
+    )
