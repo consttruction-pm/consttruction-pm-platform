@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from construction_pm.application.authorization import AuthorizationContext, default_project_policy
+
 import pytest
 
 from construction_pm.p6_global_security import (
@@ -8,6 +10,7 @@ from construction_pm.p6_global_security import (
     GlobalSecurityError,
     GlobalSecurityProfile,
     UserGlobalSecurity,
+    P6GlobalSecurityAuthorizationPolicy,
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
     user_has_all_resource_access,
@@ -493,3 +496,47 @@ def test_v26_secure_code_action_shortcuts_match_named_predicates():
     assert global_profile_can_assign_secure_code(custom)
     assert global_profile_can_edit_secure_code(custom)
     assert global_profile_can_add_delete_secure_code(custom)
+
+
+class _PersistedSecurity:
+    def __init__(self, profile, assignment):
+        self.profile = profile
+        self.assignment = assignment
+
+    def get_user_security(self, tenant_id, user_id):
+        if (tenant_id, user_id) != (self.assignment.tenant_id, self.assignment.user_id):
+            return None
+        return self.assignment
+
+    def get_profile(self, tenant_id, profile_id):
+        if (tenant_id, profile_id) != (self.profile.tenant_id, self.profile.profile_id):
+            return None
+        return self.profile
+
+
+def test_persisted_global_policy_enforces_resource_module_and_selected_ancestry():
+    now = datetime.now(timezone.utc)
+    custom = GlobalSecurityProfile("tenant-a", "resource-user", "Resource User", ())
+    assignment = UserGlobalSecurity(
+        tenant_id="tenant-a", user_id="user-1", profile_id=custom.profile_id,
+        module_access=("projects", "resources"), resource_access_mode="selected",
+        resource_root_ids=("R-ROOT",), revision=1, updated_by="admin", updated_at=now,
+    )
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        _PersistedSecurity(custom, assignment), default_project_policy()
+    )
+    context = AuthorizationContext("tenant-a", "project-a", "user-1", frozenset())
+    assert policy.can_access_resource(context, "R-CHILD", ("R-CHILD", "R-ROOT"))
+    assert not policy.can_access_resource(context, "R-SIBLING", ("R-SIBLING",))
+
+    no_resources_module = UserGlobalSecurity(
+        tenant_id="tenant-a", user_id="user-1", profile_id=custom.profile_id,
+        module_access=("projects",), resource_access_mode="all", resource_root_ids=(),
+        revision=2, updated_by="admin", updated_at=now,
+    )
+    policy_without_module = P6GlobalSecurityAuthorizationPolicy(
+        _PersistedSecurity(custom, no_resources_module), default_project_policy()
+    )
+    assert not policy_without_module.can_access_resource(
+        context, "R-CHILD", ("R-CHILD", "R-ROOT")
+    )
