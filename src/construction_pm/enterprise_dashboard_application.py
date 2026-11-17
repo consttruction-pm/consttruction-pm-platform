@@ -56,7 +56,6 @@ class EnterpriseDashboardApplicationService:
         portfolio_decision_api: object | None = None,
         clock=None,
         freshness_ttl_seconds: int = 86_400,
-        max_dashboard_portlets: int = DEFAULT_MAX_DASHBOARD_PORTLETS,
     ) -> None:
         self._repository = repository
         self._lifecycle = lifecycle_api
@@ -70,14 +69,6 @@ class EnterpriseDashboardApplicationService:
         ):
             raise ValueError("INVALID_ENTERPRISE_DASHBOARD_FRESHNESS_TTL")
         self._freshness_ttl_seconds = freshness_ttl_seconds
-        if (
-            isinstance(max_dashboard_portlets, bool)
-            or not isinstance(max_dashboard_portlets, int)
-            or not 1 <= max_dashboard_portlets <= MAX_DASHBOARD_PORTLETS
-        ):
-            raise ValueError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
-        self._max_dashboard_portlets = max_dashboard_portlets
-
     def create_dashboard(
         self,
         session_id: str,
@@ -95,7 +86,7 @@ class EnterpriseDashboardApplicationService:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_CREATE_FIELDS")
         context = payload.get("context", "enterprise_home")
         context_portfolio_id = payload.get("context_portfolio_id")
-        portlets = self._portlets(payload.get("portlets"), context, context_portfolio_id)
+        portlets = self._portlets(payload.get("portlets"), context, context_portfolio_id, self._portlet_limit(session.tenant_id))
         filters = self._filters(payload.get("filters", ()))
         now = self._now()
         dashboard = EnterpriseDashboard(
@@ -1058,12 +1049,40 @@ class EnterpriseDashboardApplicationService:
             session_id, session, tuple(item.project_id for item in snapshot.projects)
         )
 
+    def get_dashboard_portlet_limit(self, session_id: str) -> int:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        return self._portlet_limit(session.tenant_id)
+
+    def set_dashboard_portlet_limit(self, session_id: str, max_dashboard_portlets: int) -> int:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=True)
+        if "enterprise_admin" not in frozenset(getattr(session, "roles", ())):
+            raise EnterpriseDashboardAuthorizationError("ENTERPRISE_ADMIN_REQUIRED")
+        if (
+            isinstance(max_dashboard_portlets, bool)
+            or not isinstance(max_dashboard_portlets, int)
+            or not 1 <= max_dashboard_portlets <= MAX_DASHBOARD_PORTLETS
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
+        return self._repository.set_dashboard_portlet_limit(
+            session.tenant_id,
+            max_dashboard_portlets,
+            actor_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def _portlet_limit(self, tenant_id: str) -> int:
+        configured = self._repository.get_dashboard_portlet_limit(tenant_id)
+        return DEFAULT_MAX_DASHBOARD_PORTLETS if configured is None else configured
+
     def _portlets(
-        self, value: object, context: str, context_portfolio_id: str | None
+        self, value: object, context: str, context_portfolio_id: str | None,
+        max_portlets: int,
     ) -> tuple[DashboardPortlet, ...]:
         if not isinstance(value, (tuple, list)):
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLETS_REQUIRED")
-        if len(value) > self._max_dashboard_portlets:
+        if len(value) > max_portlets:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_LIMIT_EXCEEDED")
         return tuple(
             DashboardPortlet.from_dict(
