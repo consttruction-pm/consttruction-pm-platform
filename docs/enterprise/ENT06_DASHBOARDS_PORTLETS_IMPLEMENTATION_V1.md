@@ -477,3 +477,13 @@ This closes only the directional horizontal-control gap for the currently suppor
 The displayed-dashboard cards now expose localized Move dashboard tab up/down controls. Each action calls the existing per-user setDisplayPreference operation with the requested display position, then reloads the catalog so the tab order is rendered from the server-confirmed preference. Boundary controls are disabled for the first and last displayed dashboards. This does not grant dashboard or project access and does not change shared dashboard content.
 
 Help traceability: [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) documents the Displayed Dashboards and Available Dashboards lists; [Showing and Hiding Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm) is the normative topic for per-user display preference and ordering. This closes the missing visible tab-order control, subject to authenticated browser verification of the backend position semantics. It does not close the other listed ENT-06 parity gaps.
+
+
+
+## ENT-06B two-dimensional layout correction (2026-11-18)
+
+A source review found that the previous editor flattened all portlet Y coordinates when switching from Layout to another tab and again while reading Content. That behavior contradicted the V26 Layout topic even though directional controls were visible. The UI now preserves stored X/Y coordinates when switching sections and saving Content changes. Up/Down controls move a portlet vertically in the 12-column grid; when an equal-sized portlet occupies the destination slot, the two exchange rows. A move that would overlap an incompatible portlet or violate bounds is rejected without changing the draft. Left/Right controls continue to exchange Narrow portlets across columns. The layout editor no longer treats a vertical move as a simple list reorder.
+
+Regression coverage now includes vertical swaps, top boundary behavior, incompatible-width collision rejection and non-overlap validation. This is still a source-level/unit-test increment: the exact-head browser workflow must verify that the server persists the X/Y grid unchanged after switching tabs, saving, reloading and reopening the dashboard.
+
+Normative reference: [Configuring Dashboard Layout — P6 EPPM V26 HTML Help](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm). P6's documented Narrow/Wide sizing, directional arrows and drag/drop layout are treated as two-dimensional placement rather than a one-dimensional display-order list. Full authenticated browser parity remains unverified.
