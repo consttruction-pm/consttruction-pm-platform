@@ -64,6 +64,26 @@ def make_dashboard(
     )
 
 
+def test_postgres_tenant_dashboard_portlet_policy_is_persisted_and_tenant_scoped():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    other_tenant = new_scope()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        assert repository.get_dashboard_portlet_limit(tenant) is None
+        assert repository.set_dashboard_portlet_limit(
+            tenant, 18, actor_id="enterprise-admin", occurred_at=NOW
+        ) == 18
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        assert repository.get_dashboard_portlet_limit(tenant) == 18
+        assert repository.get_dashboard_portlet_limit(other_tenant) is None
+
+
 def test_postgres_dashboard_round_trip_revision_sharing_tenant_isolation_and_append_only_audit():
     psycopg = pytest.importorskip("psycopg")
     tenant = new_scope()
