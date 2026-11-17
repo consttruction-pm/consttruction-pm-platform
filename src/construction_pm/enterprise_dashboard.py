@@ -84,7 +84,7 @@ _FILTER_RULES: Mapping[str, tuple[str, frozenset[str] | None]] = {
     "generated_before": ("datetime", None),
     "include_stale": ("boolean", None),
     "portfolio_id": ("text", None),
-    "project_id": ("text", None),
+    "project_id": ("text_list", None),
 }
 
 
