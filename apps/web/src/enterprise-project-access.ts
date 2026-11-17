@@ -203,14 +203,6 @@ export async function mountEnterpriseProjectAccess(container: HTMLElement): Prom
     const placeholder=el("option","",t.select) as HTMLOptionElement;placeholder.value="";placeholder.disabled=true;placeholder.selected=true;obsSelect.append(placeholder);
     const byParent=new Map<string|null,OBSNode[]>();
     for(const node of nodes){const key=node.parent_obs_id;const bucket=byParent.get(key)??[];bucket.push(node);byParent.set(key,bucket);}
-    const append=(parent:string|null,depth:number)=>{
-      for(const node of (byParent.get(parent)??[]).sort((a,b)=>a.sequence_number-b.sequence_number)){
-        const prefix="— ".repeat(depth);
-        const option=el("option","",`${prefix}${node.code} · ${node.name}`) as HTMLOptionElement;option.value=node.obs_id;obsSelect.append(option);
-        const row=el("article","oa-row");row.append(el("div","",`${prefix}${node.code} · ${node.name}`),el("small","oa-muted",node.manager_user_id??""));
-        obsList.append(row);append(node.obs_id,depth+1);
-      }
-    };
     const visited=new Set<string>();
     const append=(parent:string|null,depth:number)=>{
       for(const node of (byParent.get(parent)??[]).sort((a,b)=>a.sequence_number-b.sequence_number)){
