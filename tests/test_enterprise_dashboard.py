@@ -285,6 +285,8 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
         DashboardLayout(10, 0, 3, 1).validate()
     with pytest.raises(EnterpriseDashboardError, match="UNKNOWN_ENTERPRISE_DASHBOARD_FILTER"):
         DashboardFilter("external_url", "eq", "https://example.com").validate()
+    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE"):
+        DashboardFilter("project_id", "in", tuple(f"project-{i}" for i in range(201))).validate()
 
 
 def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
