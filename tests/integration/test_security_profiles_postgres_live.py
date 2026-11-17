@@ -432,7 +432,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         )
         assert status == 200
         assert access_before["access"]["profile_id"] == "http-global"
-        assert access_before["access"]["module_access"] == []
+        assert access_before["access"]["module_access"] == ["projects"]
         assert access_before["access"]["resource_access_mode"] == "none"
         status, access_saved = _http_request(
             app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
@@ -1940,7 +1940,7 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
         assert default_profile.is_default is True
         existing_access = profiles.get_global_user_access(tenant, existing_id)
         assert existing_access["profile_id"] == "p6-no-global-privileges"
-        assert existing_access["module_access"] == []
+        assert existing_access["module_access"] == ["projects"]
         assert existing_access["resource_access_mode"] == "none"
 
         admin_access = profiles.get_global_user_access(tenant, admin_id)
@@ -1951,6 +1951,29 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
             "team_member", "timesheet", "visualizer", "web_services",
         }
         assert admin_access["resource_access_mode"] == "all"
+
+        # Module access is an additional gate, not a substitute for OBS/project
+        # privileges. Removing Projects immediately denies project reads.
+        context = AuthorizationContext(
+            tenant_id=tenant, user_id=existing_id, project_id=f"no-project-{suffix}",
+            roles=frozenset({"planner"}),
+        )
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        existing_access = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=existing_id, module_access=(),
+            resource_access_mode="none", expected_revision=existing_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        existing_access = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=existing_id, module_access=("projects",),
+            resource_access_mode="none", expected_revision=existing_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert profiles.get_global_user_access(tenant, existing_id)["module_access"] == ["projects"]
 
         identity.upsert_user(_identity_user(new_id, tenant, "planner"))
         new_access = profiles.get_global_user_access(tenant, new_id)
