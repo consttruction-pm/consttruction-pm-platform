@@ -196,6 +196,16 @@ class _SQLDelayAnalysisRecordRepository:
         """))
         if not self.postgres:
             self.connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS eng_delay_case_no_update
+                BEFORE UPDATE ON eng_delay_analysis_case
+                BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_ANALYSIS_CASE'); END
+            """)
+            self.connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS eng_delay_case_no_delete
+                BEFORE DELETE ON eng_delay_analysis_case
+                BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_ANALYSIS_CASE'); END
+            """)
+            self.connection.execute("""
                 CREATE TRIGGER IF NOT EXISTS eng_delay_revision_no_update
                 BEFORE UPDATE ON eng_delay_analysis_revision
                 BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_ANALYSIS_REVISION'); END
@@ -215,7 +225,20 @@ class _SQLDelayAnalysisRecordRepository:
                 BEFORE DELETE ON eng_delay_analysis_review
                 BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_ANALYSIS_REVIEW'); END
             """)
-        if not self.postgres:
+        if self.postgres:
+            self.connection.execute("""
+                CREATE OR REPLACE FUNCTION eng_delay_analysis_reject_mutation()
+                RETURNS trigger LANGUAGE plpgsql AS $
+                BEGIN RAISE EXCEPTION 'APPEND_ONLY_DELAY_ANALYSIS_RECORD'; END;
+                $
+            """)
+            for table in ("eng_delay_analysis_case", "eng_delay_analysis_revision", "eng_delay_analysis_review"):
+                self.connection.execute("DROP TRIGGER IF EXISTS " + table + "_append_only ON " + table)
+                self.connection.execute(
+                    "CREATE TRIGGER " + table + "_append_only BEFORE UPDATE OR DELETE ON " + table +
+                    " FOR EACH ROW EXECUTE FUNCTION eng_delay_analysis_reject_mutation()"
+                )
+        else:
             self.connection.commit()
 
     def create_case(self, case: DelayAnalysisCase) -> DelayAnalysisCase:
