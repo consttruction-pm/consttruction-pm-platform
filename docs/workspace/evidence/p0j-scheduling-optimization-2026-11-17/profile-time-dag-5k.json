@@ -1,0 +1,139 @@
+{
+  "counts": {
+    "activities": 5000,
+    "relationships": 9575
+  },
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "float_days": 0,
+  "mode": "time",
+  "output_counts": {
+    "activities": 5000
+  },
+  "output_sha256": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+  "peak_rss_kb": 75668,
+  "phases": {
+    "time.backward_pass": {
+      "calls_median": 1,
+      "median_ms": 600.695,
+      "p95_ms": 607.55,
+      "share_of_wall": 0.373
+    },
+    "time.calculate_floats": {
+      "calls_median": 1,
+      "median_ms": 833.95,
+      "p95_ms": 834.858,
+      "share_of_wall": 0.5178
+    },
+    "time.forward_pass": {
+      "calls_median": 1,
+      "median_ms": 173.034,
+      "p95_ms": 173.448,
+      "share_of_wall": 0.1074
+    }
+  },
+  "profile_top": [
+    {
+      "calls": 1,
+      "cumulative_ms": 4316.746,
+      "file": "p0j_profile.py",
+      "function": "<lambda>",
+      "line": 204,
+      "self_ms": 0.002
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 4316.744,
+      "file": "benchmark_fixtures.py",
+      "function": "run_time_schedule",
+      "line": 965,
+      "self_ms": 0.043
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 4316.701,
+      "file": "time_schedule.py",
+      "function": "time_schedule",
+      "line": 655,
+      "self_ms": 0.999
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 2136.05,
+      "file": "time_schedule.py",
+      "function": "calculate_time_floats",
+      "line": 624,
+      "self_ms": 4.091
+    },
+    {
+      "calls": 5000,
+      "cumulative_ms": 2127.374,
+      "file": "time_schedule.py",
+      "function": "_time_float_for_activity",
+      "line": 447,
+      "self_ms": 45.419
+    },
+    {
+      "calls": 82024,
+      "cumulative_ms": 1789.68,
+      "file": "time_calendar.py",
+      "function": "add_working_hours",
+      "line": 241,
+      "self_ms": 674.536
+    },
+    {
+      "calls": 1,
+      "cumulative_ms": 1683.097,
+      "file": "time_schedule.py",
+      "function": "time_backward_pass",
+      "line": 156,
+      "self_ms": 56.415
+    },
+    {
+      "calls": 53299,
+      "cumulative_ms": 1561.766,
+      "file": "time_unit_resolver.py",
+      "function": "add_duration",
+      "line": 54,
+      "self_ms": 45.189
+    },
+    {
+      "calls": 9575,
+      "cumulative_ms": 1448.792,
+      "file": "time_schedule.py",
+      "function": "_verified_float_limit",
+      "line": 391,
+      "self_ms": 16.162
+    },
+    {
+      "calls": 19150,
+      "cumulative_ms": 1430.752,
+      "file": "time_schedule.py",
+      "function": "holds_at",
+      "line": 514,
+      "self_ms": 24.35
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "size": 5000,
+  "status": "ok",
+  "time_float_workers": 1,
+  "wall": {
+    "count": 3,
+    "max_ms": 1618.935,
+    "median_ms": 1610.537,
+    "min_ms": 1592.816,
+    "p95_ms": 1618.935
+  },
+  "warmup": 1
+}

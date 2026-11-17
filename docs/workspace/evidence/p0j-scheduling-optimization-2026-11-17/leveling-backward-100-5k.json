@@ -1,0 +1,169 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "backward-leveling",
+  "records": [
+    {
+      "counts": {
+        "activities": 100,
+        "capacities": 84,
+        "demand_periods": 26,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 7,
+        "max_ms": 23.032,
+        "median_ms": 16.835,
+        "min_ms": 16.76,
+        "p95_ms": 23.032
+      },
+      "fixture_build_ms": 1.067,
+      "mode": "backward-leveling",
+      "output_sha256": "53429109d834ffb926a2e338c47b0d3f5fa0d53f6460d37f26e2f212ecc2194e",
+      "peak_rss_kb": 50516,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100,
+      "status": "ok",
+      "wall": {
+        "count": 7,
+        "max_ms": 23.032,
+        "median_ms": 16.835,
+        "min_ms": 16.76,
+        "p95_ms": 23.032
+      }
+    },
+    {
+      "counts": {
+        "activities": 250,
+        "capacities": 160,
+        "demand_periods": 64,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 7,
+        "max_ms": 58.96,
+        "median_ms": 52.91,
+        "min_ms": 52.381,
+        "p95_ms": 58.96
+      },
+      "fixture_build_ms": 2.16,
+      "mode": "backward-leveling",
+      "output_sha256": "a83ad988f9ddd01d92e0f3cd42bb2a4d538497496cbba33a924a4364247b4cb7",
+      "peak_rss_kb": 52820,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 250,
+      "status": "ok",
+      "wall": {
+        "count": 7,
+        "max_ms": 58.977,
+        "median_ms": 52.911,
+        "min_ms": 52.383,
+        "p95_ms": 58.977
+      }
+    },
+    {
+      "counts": {
+        "activities": 500,
+        "capacities": 284,
+        "demand_periods": 126,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 7,
+        "max_ms": 120.758,
+        "median_ms": 113.021,
+        "min_ms": 112.617,
+        "p95_ms": 120.758
+      },
+      "fixture_build_ms": 4.248,
+      "mode": "backward-leveling",
+      "output_sha256": "954c64c63eae5d7ec26421af72d03b7affca71e1e51809d3eba7f552eff88279",
+      "peak_rss_kb": 56456,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 500,
+      "status": "ok",
+      "wall": {
+        "count": 7,
+        "max_ms": 120.76,
+        "median_ms": 113.024,
+        "min_ms": 112.619,
+        "p95_ms": 120.76
+      }
+    },
+    {
+      "counts": {
+        "activities": 1000,
+        "capacities": 532,
+        "demand_periods": 250,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 7,
+        "max_ms": 248.126,
+        "median_ms": 244.91,
+        "min_ms": 237.538,
+        "p95_ms": 248.126
+      },
+      "fixture_build_ms": 8.483,
+      "mode": "backward-leveling",
+      "output_sha256": "20498dac3063a17c760f3fa7b3a5528a2df311af5b0ddb93b9e7b68e6ec40d3d",
+      "peak_rss_kb": 63652,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "wall": {
+        "count": 7,
+        "max_ms": 248.155,
+        "median_ms": 244.926,
+        "min_ms": 237.544,
+        "p95_ms": 248.155
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "capacities": 2532,
+        "demand_periods": 1250,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 7,
+        "max_ms": 1461.86,
+        "median_ms": 1412.734,
+        "min_ms": 1345.46,
+        "p95_ms": 1461.86
+      },
+      "fixture_build_ms": 42.755,
+      "mode": "backward-leveling",
+      "output_sha256": "2e0f484453c2eb663922fcc317ad7004ea38f694ff8960615ee0955763c1f6eb",
+      "peak_rss_kb": 119600,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 7,
+        "max_ms": 1461.985,
+        "median_ms": 1412.887,
+        "min_ms": 1345.6,
+        "p95_ms": 1461.985
+      }
+    }
+  ],
+  "repeat": 7,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 2
+}

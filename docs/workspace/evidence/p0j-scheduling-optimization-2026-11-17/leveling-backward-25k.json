@@ -1,0 +1,49 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "81ffed5f",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "backward-leveling",
+  "records": [
+    {
+      "counts": {
+        "activities": 25000,
+        "capacities": 12532,
+        "demand_periods": 6250,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 7842.366,
+        "median_ms": 7689.287,
+        "min_ms": 7349.67,
+        "p95_ms": 7842.366
+      },
+      "fixture_build_ms": 224.551,
+      "mode": "backward-leveling",
+      "output_sha256": "7509be0b470e340e07cd6dceffeecb12eca692cec5cd06ed0092c078065c2391",
+      "peak_rss_kb": 397840,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 25000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 7842.988,
+        "median_ms": 7689.755,
+        "min_ms": 7350.188,
+        "p95_ms": 7842.988
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}
