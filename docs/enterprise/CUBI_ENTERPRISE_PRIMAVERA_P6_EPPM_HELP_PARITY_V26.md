@@ -100,3 +100,26 @@ For every Enterprise work package:
 - The Oracle V26 User Guides and All Guides indexes establish the V26 release family and the available HTML Help set.
 
 **Owner decision recorded:** all future CUBI Enterprise design and implementation must be checked against the Oracle P6 EPPM Help V26 HTML reference set above. This rule is part of the project delivery baseline and must be preserved in future plans, issues, PR descriptions and acceptance reviews.
+
+
+## 2026-11-17 implementation update — Project Security Profiles and Associated Resource
+
+The security foundation implementation now includes the following V26-aligned server-side behaviors:
+
+| V26 capability | Implementation | Parity state |
+|---|---|---|
+| Project Security Profile privilege catalogue | 57 privilege options, exact Help labels/categories, stable codes | Domain baseline implemented |
+| Hierarchical privilege behavior | Explicit auto-select rules separated from mandatory co-grants | Implemented for documented catalogue rules; dynamic delete-data checks remain |
+| Project profile lifecycle | Create, update, duplicate, set default, deactivate/delete guards, optimistic revisions | API/repository implemented |
+| Project Superuser | Immutable built-in profile; only Admin Superuser can provision/assign/set default | Implemented server-side |
+| OBS project access | User↔OBS profile grants, default profile, inherited ancestor OBS access | Implemented for project-level OBS assignments |
+| Project lifecycle authorization | Add Projects by target OBS; Edit Project Details; Check In/Out privilege | Implemented in lifecycle service |
+| Project API privilege enforcement | Activities, WBS, relationships, constraints, calendars, baselines, expenses, issues, activity codes, resource periods/spreads, role planning, layouts and export | Broad coverage; full route matrix still open |
+| Associated Resource | Tenant-wide resource identity, one user↔one resource uniqueness, optimistic revisions, append-only audit | Repository/API implemented |
+| Native authentication name sync | User display name follows associated resource name on assignment and resource rename | Implemented for native identity runtime |
+| Contributor project visibility | Read access to projects with an assignment for the user's Associated Resource | Implemented at policy layer |
+| Team Member / personal calendar | Eligibility policy methods check module access, association and calendar privilege | Runtime route/UI integration remains open |
+
+Official source anchors: [Project Security Profile Privileges](https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm), [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm), and [Assigning Associated Resources](https://docs.oracle.com/cd/G48897_01/p6help/en/35744.htm).
+
+**Acceptance is not complete.** The repository's project record currently carries a single project-level OBS id, so EPS/WBS-specific OBS inheritance is not represented. LDAP/SSO name synchronization, Team Member web/mobile UI, personal calendar UI, project deletion, and complete route-level enforcement for all import/export/copy/report/UDF/cost/integration surfaces remain open. PostgreSQL CI and browser E2E must pass on the exact final SHA before this row can be marked complete.
