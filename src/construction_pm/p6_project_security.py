@@ -126,8 +126,15 @@ class P6ProjectSecurityProfile:
             self.tenant_id, self.profile_id, self.name
         )):
             raise ProjectSecurityError("PROJECT_SECURITY_PROFILE_REQUIRED")
-        if len(self.profile_id) > 120 or len(self.name) > 160 or self.revision < 1:
+        if (len(self.profile_id) > 120 or len(self.name) > 160
+                or isinstance(self.revision, bool) or not isinstance(self.revision, int)
+                or self.revision < 1 or not isinstance(self.active, bool)
+                or not isinstance(self.is_default, bool)):
             raise ProjectSecurityError("PROJECT_SECURITY_PROFILE_INVALID")
+        if not isinstance(self.privileges, tuple) or any(
+            not isinstance(code, str) or not code.strip() for code in self.privileges
+        ):
+            raise ProjectSecurityError("PROJECT_SECURITY_PRIVILEGE_INVALID")
         if len(set(self.privileges)) != len(self.privileges):
             raise ProjectSecurityError("DUPLICATE_PROJECT_SECURITY_PRIVILEGE")
         if set(self.privileges) != set(normalize_project_privileges(self.privileges)):
