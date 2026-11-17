@@ -16,7 +16,9 @@ from construction_pm.p6_global_security import (
 def profile(name, *, built_in=True, privileges=()):
     return GlobalSecurityProfile(
         tenant_id="tenant-a",
-        profile_id=name.lower().replace(" ", "-"),
+        profile_id=("p6-admin-superuser" if name == ADMIN_SUPERUSER else
+                    "p6-no-global-privileges" if name == NO_GLOBAL_PRIVILEGES else
+                    name.lower().replace(" ", "-")),
         name=name,
         privileges=tuple(privileges),
         built_in=built_in,
@@ -44,10 +46,11 @@ def test_inactive_or_forged_admin_profile_cannot_bypass():
         "tenant-a", "admin", ADMIN_SUPERUSER, (), True, False, 1
     )
     forged = GlobalSecurityProfile(
-        "tenant-a", "fake-admin", ADMIN_SUPERUSER, (), False, True, 1
+        "tenant-a", "fake-admin", ADMIN_SUPERUSER, (), True, True, 1
     )
     assert not global_profile_has_project_access_bypass(inactive)
-    assert not global_profile_has_project_access_bypass(forged)
+    with pytest.raises(GlobalSecurityError, match="BUILTIN_PROFILE_ID_INVALID"):
+        global_profile_has_project_access_bypass(forged)
 
 
 @pytest.mark.parametrize(
