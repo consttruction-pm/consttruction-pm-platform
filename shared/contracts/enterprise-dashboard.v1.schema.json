@@ -251,7 +251,8 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 200
-                    }
+                    },
+                    "maxItems": 200
                   }
                 }
               }
@@ -482,7 +483,8 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 200
-                    }
+                    },
+                    "maxItems": 200
                   }
                 }
               }
