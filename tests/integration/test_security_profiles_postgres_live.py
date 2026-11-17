@@ -424,6 +424,59 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         )
         assert status == 200 and user_admin_assignment["revision"] == 2
 
+        # V26 Module Access and Resource Access are user attributes attached to
+        # the same canonical Global profile assignment, not a second profile store.
+        status, access_before = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200
+        assert access_before["access"]["profile_id"] == "http-global"
+        assert access_before["access"]["module_access"] == []
+        assert access_before["access"]["resource_access_mode"] == "none"
+        status, access_saved = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["resources", "projects"],
+                "resource_access_mode": "all",
+                "resource_root_ids": [],
+                "expected_revision": 2,
+            },
+        )
+        assert status == 200, access_saved
+        assert access_saved["access"]["revision"] == 3
+        assert access_saved["access"]["module_access"] == ["projects", "resources"]
+        assert access_saved["access"]["resource_access_mode"] == "all"
+        status, denied_global_access = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="profile-admin-only-session",
+        )
+        assert status == 403 and denied_global_access["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, denied_global_access = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="role-only-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["projects"],
+                "resource_access_mode": "none",
+                "expected_revision": 3,
+            },
+        )
+        assert status == 403 and denied_global_access["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, invalid_contributor = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["contributor", "projects"],
+                "resource_access_mode": "none",
+                "expected_revision": 3,
+            },
+        )
+        assert status == 400 and invalid_contributor["code"] == "SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE"
+
         status, created = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
             payload={
@@ -1793,4 +1846,67 @@ def test_global_and_project_defaults_are_independent_and_protected_from_delete()
                 actor_user_id=actor, occurred_at=now,
             )
 
+        connection.rollback()
+
+
+def test_global_user_module_access_is_revisioned_and_shares_canonical_assignment():
+    suffix = uuid.uuid4().hex
+    tenant = f"global-user-access-{suffix}"
+    user_id = f"global-user-access-user-{suffix}"
+    now = datetime.now(timezone.utc)
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant, "planner"))
+        profiles = PostgresSecurityProfileRepository(connection)
+        profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"global-access-profile-{suffix}",
+            name="Global Access", scope="global",
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        saved = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=user_id,
+            module_access=("resources", "projects"),
+            resource_access_mode="all", expected_revision=1,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        assert saved["revision"] == 2
+        assert saved["module_access"] == ["projects", "resources"]
+        assert saved["resource_access_mode"] == "all"
+        loaded = profiles.get_global_user_access(tenant, user_id)
+        assert loaded == saved
+        assignment = profiles.list_assignments(tenant, profile.profile_id)[0]
+        assert assignment["module_access"] == ["projects", "resources"]
+        assert assignment["resource_access_mode"] == "all"
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id, module_access=("projects",),
+                resource_access_mode="none", expected_revision=1,
+                actor_user_id=user_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id,
+                module_access=("contributor", "projects"),
+                resource_access_mode="none", expected_revision=2,
+                actor_user_id=user_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id, module_access=("projects",),
+                resource_access_mode="selected", resource_root_ids=("root-a",),
+                expected_revision=2, actor_user_id=user_id, occurred_at=now,
+            )
+        audit = connection.execute(
+            "SELECT action,before_state,after_state FROM p6_security_profile_audit "
+            "WHERE tenant_id=%s AND profile_id=%s AND action='user_global_access_updated'",
+            (tenant, profile.profile_id),
+        ).fetchall()
+        assert len(audit) == 1
+        assert audit[0][2]["module_access"] == ["projects", "resources"]
         connection.rollback()
