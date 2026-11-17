@@ -150,6 +150,8 @@ class DashboardPortlet:
 
     def validate(self, *, context: str, context_portfolio_id: str | None) -> None:
         _required_text(self.instance_id, "PORTLET_INSTANCE_ID")
+        if not isinstance(self.type_id, str) or not isinstance(self.contract_version, str):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_TYPE")
         definition = PORTLET_REGISTRY.get(self.type_id)
         if definition is None:
             raise EnterpriseDashboardError("UNKNOWN_ENTERPRISE_DASHBOARD_PORTLET_TYPE")
@@ -199,6 +201,8 @@ class DashboardFilter:
     value: object
 
     def validate(self) -> None:
+        if not isinstance(self.key, str) or not isinstance(self.operator, str):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER")
         rule = _FILTER_RULES.get(self.key)
         if rule is None:
             raise EnterpriseDashboardError("UNKNOWN_ENTERPRISE_DASHBOARD_FILTER")
@@ -275,14 +279,16 @@ class EnterpriseDashboard:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_TOO_LONG")
         if not isinstance(self.description, str) or len(self.description) > 2000:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DESCRIPTION")
-        if self.context not in {"enterprise_home", "portfolio"}:
+        if not isinstance(self.context, str) or self.context not in {"enterprise_home", "portfolio"}:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_CONTEXT")
         if self.context == "portfolio":
             _required_text(self.context_portfolio_id, "CONTEXT_PORTFOLIO_ID")
         elif self.context_portfolio_id is not None:
             raise EnterpriseDashboardError("UNEXPECTED_ENTERPRISE_DASHBOARD_PORTFOLIO_CONTEXT")
-        if self.status not in {"active", "archived"}:
+        if not isinstance(self.status, str) or self.status not in {"active", "archived"}:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_STATUS")
+        if not isinstance(self.visibility, str):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_VISIBILITY")
         if not isinstance(self.shared_user_ids, tuple) or not isinstance(self.shared_role_ids, tuple):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARES")
         if len(set(self.shared_user_ids)) != len(self.shared_user_ids):
@@ -293,7 +299,7 @@ class EnterpriseDashboard:
             _required_text(user_id, "SHARED_USER_ID")
             if user_id == self.owner_user_id:
                 raise EnterpriseDashboardError("DASHBOARD_OWNER_MUST_NOT_BE_SHARED_WITH_SELF")
-        if any(role not in ENTERPRISE_ROLES for role in self.shared_role_ids):
+        if any(not isinstance(role, str) or role not in ENTERPRISE_ROLES for role in self.shared_role_ids):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARED_ROLE")
         expected_visibility = (
             "users_and_roles"
@@ -381,7 +387,12 @@ class EnterpriseDashboard:
         context_portfolio_id = value["context_portfolio_id"]
         portlets_raw = value["portlets"]
         filters_raw = value["filters"]
-        if not isinstance(portlets_raw, list) or not isinstance(filters_raw, list):
+        if (
+            not isinstance(portlets_raw, list)
+            or not isinstance(filters_raw, list)
+            or not isinstance(value["shared_user_ids"], list)
+            or not isinstance(value["shared_role_ids"], list)
+        ):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_COLLECTIONS")
         dashboard = cls(
             dashboard_id=value["dashboard_id"],
