@@ -539,6 +539,12 @@ export async function mountEnterpriseDashboard(
   function openManageDialog(): void {
     if (!activeDefinition) return;
     let layoutOrder = activeDefinition.portlets.map((_, index) => index);
+    let draftPortlets = activeDefinition.portlets.map((portlet) => ({ ...portlet, layout: { ...portlet.layout }, config: { ...portlet.config } }));
+    let draftTitle = activeDefinition.title;
+    let draftDescription = activeDefinition.description;
+    let draftMaxRows = activeDefinition.max_rows_per_portlet;
+    let draftFilterLock = activeDefinition.restrict_filter_override;
+    let currentSection = -1;
     const dialog = node("dialog", "ced-dialog");
     const inner = node("div", "ced-dialog-inner");
     const title = node("h2", "", t.manage);
@@ -547,22 +553,19 @@ export async function mountEnterpriseDashboard(
     const footer = node("div", "ced-row");
     const save = button(t.save, async () => {
       if (!activeDefinition) return;
-      const titleInput = dialog.querySelector<HTMLInputElement>("[name=dashboard-title]");
-      const descriptionInput = dialog.querySelector<HTMLTextAreaElement>("[name=dashboard-description]");
-      const rowsInput = dialog.querySelector<HTMLInputElement>("[name=max-rows]");
-      const lockInput = dialog.querySelector<HTMLInputElement>("[name=filter-lock]");
-      const nextPortlets = readEditorPortlets(dialog, activeDefinition.portlets, layoutOrder);
+      captureActiveSection();
+      const nextPortlets = draftPortlets;
       if (!validateDashboardLayout(nextPortlets)) {
         panel.prepend(node("p", "ced-error", "Invalid or overlapping portlet layout."));
         return;
       }
       await client.updateDashboard(activeDefinition.dashboard_id, {
-        title: titleInput?.value.trim() || activeDefinition.title,
-        description: descriptionInput?.value ?? activeDefinition.description,
+        title: draftTitle.trim() || activeDefinition.title,
+        description: draftDescription,
         portlets: nextPortlets,
         filters: activeDefinition.filters,
-        restrict_filter_override: lockInput?.checked ?? activeDefinition.restrict_filter_override,
-        max_rows_per_portlet: Math.max(1, Math.min(500, Number(rowsInput?.value) || 100)),
+        restrict_filter_override: draftFilterLock,
+        max_rows_per_portlet: Math.max(1, Math.min(500, draftMaxRows)),
       }, activeDefinition.revision);
       dialog.close();
       dialog.remove();
@@ -577,7 +580,20 @@ export async function mountEnterpriseDashboard(
       [t.layout, () => renderLayout()],
       [t.access, () => renderAccess()],
     ];
+    function captureActiveSection(): void {
+      if (currentSection === 0) {
+        draftTitle = dialog.querySelector<HTMLInputElement>("[name=dashboard-title]")?.value ?? draftTitle;
+        draftDescription = dialog.querySelector<HTMLTextAreaElement>("[name=dashboard-description]")?.value ?? draftDescription;
+        draftMaxRows = Number(dialog.querySelector<HTMLInputElement>("[name=max-rows]")?.value ?? draftMaxRows);
+        draftFilterLock = dialog.querySelector<HTMLInputElement>("[name=filter-lock]")?.checked ?? draftFilterLock;
+      } else if (currentSection === 1) {
+        draftPortlets = readEditorPortlets(dialog, draftPortlets, layoutOrder);
+        layoutOrder = draftPortlets.map((_, index) => index);
+      }
+    }
     function activateSection(index: number): void {
+      captureActiveSection();
+      currentSection = index;
       tabBar.replaceChildren();
       sections.forEach(([label], i) => tabBar.append(button(label, () => activateSection(i), i === index ? "ced-button primary" : "ced-button")));
       panel.replaceChildren();
@@ -585,20 +601,20 @@ export async function mountEnterpriseDashboard(
     }
     function renderGeneral(): void {
       const form = node("div", "ced-form-grid");
-      form.append(field(t.name, input("dashboard-title", activeDefinition!.title)));
+      form.append(field(t.name, input("dashboard-title", draftTitle)));
       const description = node("textarea", "ced-input");
       description.name = "dashboard-description";
-      description.value = activeDefinition!.description;
+      description.value = draftDescription;
       form.append(field(t.description, description));
-      form.append(field(t.maxRows, input("max-rows", String(activeDefinition!.max_rows_per_portlet), "number")));
+      form.append(field(t.maxRows, input("max-rows", String(draftMaxRows), "number")));
       const lock = node("input");
-      lock.type = "checkbox"; lock.name = "filter-lock"; lock.checked = activeDefinition!.restrict_filter_override;
+      lock.type = "checkbox"; lock.name = "filter-lock"; lock.checked = draftFilterLock;
       form.append(field(t.filterLock, lock));
       panel.append(form);
     }
     function renderContent(): void {
       const list = node("div", "ced-section");
-      activeDefinition!.portlets.forEach((portlet, index) => {
+      draftPortlets.forEach((portlet, index) => {
         const row = node("div", "ced-panel ced-section ced-editor-portlet");
         row.dataset.existingPortletIndex = String(index);
         row.append(node("strong", "", portletLabel(portlet.type_id)));
@@ -661,7 +677,7 @@ export async function mountEnterpriseDashboard(
         renderLayout();
       };
       layoutOrder.forEach((originalIndex, position) => {
-        const portlet = activeDefinition!.portlets[originalIndex];
+        const portlet = draftPortlets[originalIndex];
         const row = node("div", "ced-panel ced-row ced-section");
         row.append(node("strong", "", portletLabel(portlet.type_id)));
         row.append(node("span", "ced-muted", portlet.layout.w === 12 ? t.wide : t.narrow));
