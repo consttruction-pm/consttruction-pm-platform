@@ -216,6 +216,7 @@ class EnterpriseDashboardApplicationService:
                 catalog_item(item, preferences.get(item.dashboard.dashboard_id, (False, 0))[1])
                 for item in available_items
             ],
+            "max_portlets": self._portlet_limit(session.tenant_id),
             "read_at": self._now().isoformat(),
         }
 

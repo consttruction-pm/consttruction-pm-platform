@@ -525,6 +525,15 @@ def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order()
         )
 
 
+def test_dashboard_catalog_exposes_effective_tenant_portlet_limit():
+    service, _, _, _ = make_service()
+    assert service.list_dashboard_catalog("alice-session")["max_portlets"] == 12
+
+    service.set_dashboard_portlet_limit("admin-session", 20)
+
+    assert service.list_dashboard_catalog("alice-session")["max_portlets"] == 20
+
+
 def test_dashboard_tab_visibility_changes_preserve_saved_custom_order():
     service, _, _, _ = make_service()
     created = [
