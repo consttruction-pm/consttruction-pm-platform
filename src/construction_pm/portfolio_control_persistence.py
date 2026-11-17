@@ -245,7 +245,7 @@ class PostgresPortfolioControlRepository:
             raise PortfolioControlRevisionConflict("PORTFOLIO_MEMBERSHIP_REVISION_CONFLICT")
         before = {
             "project_id": project_id, "membership_status": row[0],
-            "project_revision": int(row[1]), "source_refs": self._decode_sources(row[2]),
+            "project_revision": int(row[1]), "source_refs": json.loads(\n                self._encode_sources(self._decode_sources(row[2]))\n            ),
             "membership_revision": current_membership_revision,
         }
         next_membership_revision = current_membership_revision + 1
