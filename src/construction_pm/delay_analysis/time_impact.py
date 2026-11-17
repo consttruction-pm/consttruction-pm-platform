@@ -36,7 +36,7 @@ class TimeImpactAssessment:
     source_snapshot_hash: str
     impacted_snapshot_id: str
     impacted_snapshot_hash: str
-    baseline_run: ScheduleRunCapture
+    unimpacted_run: ScheduleRunCapture
     impacted_run: ScheduleRunCapture
     unimpacted_project_finish: str
     impacted_project_finish: str
@@ -53,16 +53,16 @@ class TimeImpactAssessment:
     )
 
 
-def _analysis_hash(event_id, source_hash, impacted_hash, baseline_run, impacted_run, delta):
+def _analysis_hash(event_id, source_hash, impacted_hash, unimpacted_run, impacted_run, delta):
     payload = json.dumps(
         {
             "method": "P6_EPPM_STYLE_INSERTED_FRAGNET_WHAT_IF",
             "event_id": event_id,
             "source_snapshot_hash": source_hash,
             "impacted_snapshot_hash": impacted_hash,
-            "baseline_run_id": baseline_run.run_id,
+            "baseline_run_id": unimpacted_run.run_id,
             "impacted_run_id": impacted_run.run_id,
-            "unimpacted_finish": baseline_run.project_finish,
+            "unimpacted_finish": unimpacted_run.project_finish,
             "impacted_finish": impacted_run.project_finish,
             "project_finish_delta_calendar_days": delta,
         },
@@ -108,7 +108,7 @@ class TimeImpactAnalysisExecutor:
         source_snapshot.validate()
         if source_context.input_snapshot_id != source_snapshot.snapshot_id:
             raise TimeImpactExecutionError("SOURCE_CONTEXT_SNAPSHOT_MISMATCH")
-        if source_context.calculation_identity != source_snapshot.calculation_identity:
+        if (\n            source_context.calculation_identity != source_snapshot.calculation_identity\n            if source_snapshot.calculation_identity_version == 2\n            else source_context.legacy_calculation_identity != source_snapshot.calculation_identity\n        ):
             raise TimeImpactExecutionError("SOURCE_CONTEXT_CALCULATION_IDENTITY_MISMATCH")
         if (
             source_context.project_id != source_snapshot.scope.project_id
@@ -217,7 +217,7 @@ class TimeImpactAnalysisExecutor:
                 source_snapshot_hash=source_snapshot.snapshot_hash,
                 impacted_snapshot_id=impacted_snapshot.snapshot_id,
                 impacted_snapshot_hash=impacted_snapshot.snapshot_hash,
-                baseline_run=baseline_capture,
+                unimpacted_run=baseline_capture,
                 impacted_run=impacted_capture,
                 unimpacted_project_finish=before_finish.isoformat(),
                 impacted_project_finish=after_finish.isoformat(),
