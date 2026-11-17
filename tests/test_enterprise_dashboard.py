@@ -126,6 +126,12 @@ class FakeRepository:
             if fingerprint != existing_fingerprint:
                 raise ValueError("ENTERPRISE_DASHBOARD_IDEMPOTENCY_KEY_REUSE")
             return stored
+        if any(
+            item.dashboard.tenant_id == dashboard.tenant_id
+            and item.dashboard.title.strip().casefold() == dashboard.title.strip().casefold()
+            for item in self.items.values()
+        ):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_ALREADY_EXISTS")
         stored = StoredEnterpriseDashboard(dashboard, 1)
         self.items[(dashboard.tenant_id, dashboard.dashboard_id)] = stored
         self.idempotency[key] = (fingerprint, stored)
@@ -159,6 +165,13 @@ class FakeRepository:
         if current.revision != expected_revision:
             from construction_pm.enterprise_dashboard import EnterpriseDashboardRevisionConflict
             raise EnterpriseDashboardRevisionConflict("ENTERPRISE_DASHBOARD_REVISION_CONFLICT")
+        if any(
+            item.dashboard.tenant_id == dashboard.tenant_id
+            and item.dashboard.dashboard_id != dashboard.dashboard_id
+            and item.dashboard.title.strip().casefold() == dashboard.title.strip().casefold()
+            for item in self.items.values()
+        ):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_ALREADY_EXISTS")
         updated = replace(
             dashboard,
             revision=expected_revision + 1,
@@ -282,7 +295,7 @@ def test_p6_dashboard_max_rows_setting_defaults_and_validates_bounds():
 
     custom = service.create_dashboard(
         "alice-session",
-        create_payload(max_rows_per_portlet=25),
+        create_payload(title="Custom row limit", max_rows_per_portlet=25),
         idempotency_key="dashboard-row-limit",
     )
     assert custom.dashboard.max_rows_per_portlet == 25
@@ -301,6 +314,32 @@ def test_p6_dashboard_max_rows_setting_defaults_and_validates_bounds():
             {"max_rows_per_portlet": 0},
             expected_revision=2,
         )
+
+
+def test_dashboard_titles_are_unique_case_insensitively_within_tenant():
+    service, _, _, _ = make_service()
+    first = create_dashboard(service)
+    second = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Portfolio metrics"),
+        idempotency_key="unique-title-second",
+    )
+
+    with pytest.raises(EnterpriseDashboardError, match="TITLE_ALREADY_EXISTS"):
+        service.create_dashboard(
+            "alice-session",
+            create_payload(title=" executive overview "),
+            idempotency_key="unique-title-duplicate",
+        )
+
+    with pytest.raises(EnterpriseDashboardError, match="TITLE_ALREADY_EXISTS"):
+        service.update_dashboard(
+            "alice-session",
+            second.dashboard.dashboard_id,
+            {"title": "EXECUTIVE OVERVIEW"},
+            expected_revision=1,
+        )
+    assert first.dashboard.title == "Executive overview"
 
 
 def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order():
