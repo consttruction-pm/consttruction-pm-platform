@@ -12,6 +12,11 @@ from construction_pm.p6_associated_resource_repository import (
 )
 from construction_pm.p6_global_security import P6GlobalSecurityAuthorizationPolicy
 from construction_pm.p6_resource_master_repository import P6Resource, SQLiteP6ResourceRepository
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment, SQLiteP6ResourceAssignmentRepository,
+)
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.application.authorization import Permission
 
 
 class UserRepository:
@@ -33,6 +38,7 @@ class AdminPolicy:
 def setup():
     connection = sqlite3.connect(":memory:")
     resources = SQLiteP6ResourceRepository(connection)
+    SQLiteP6ResourceAssignmentRepository(connection)
     resources.save(P6Resource("tenant-a", "project-a", 1, "R-100", "Civil Crew"))
     resources.save(P6Resource("tenant-a", "project-b", 1, "R-200", "Plant Team"))
     users = UserRepository({("tenant-a", "user-1"), ("tenant-a", "user-2")})
@@ -141,3 +147,34 @@ def test_global_policy_requires_associated_resource_for_team_member_and_personal
     )
     assert not without_link.can_use_team_member(user_context)
     assert not without_link.can_edit_personal_resource_calendar(user_context)
+
+
+def test_contributor_module_sees_projects_where_associated_resource_is_assigned():
+    connection, _, associations = setup()
+    now = datetime.now(timezone.utc)
+    associations.assign(P6AssociatedResource("tenant-a", "user-1", "R-100", 1, "admin", now))
+    assignment_repo = SQLiteP6ResourceAssignmentRepository(connection)
+    assignment_repo.upsert(P6ResourceAssignment(
+        BackendScope("tenant-a", "project-a", 1), "A-1", "ACT-1", "R-100"
+    ))
+    profile = __import__("construction_pm.p6_global_security", fromlist=["GlobalSecurityProfile"]).GlobalSecurityProfile(
+        "tenant-a", "contributor-profile", "Contributor", ()
+    )
+    assignment = __import__("construction_pm.p6_global_security", fromlist=["UserGlobalSecurity"]).UserGlobalSecurity(
+        "tenant-a", "user-1", "contributor-profile", ("contributor",),
+        "none", (), 1, "admin", now,
+    )
+    class SecurityRepository:
+        def get_user_security(self, tenant_id, user_id):
+            return assignment if (tenant_id, user_id) == ("tenant-a", "user-1") else None
+        def get_profile(self, tenant_id, profile_id):
+            return profile if (tenant_id, profile_id) == ("tenant-a", "contributor-profile") else None
+
+    policy = P6GlobalSecurityAuthorizationPolicy(
+        SecurityRepository(), object(), associated_resource_access=associations
+    )
+    user_context = AuthorizationContext("tenant-a", "project-a", "user-1", frozenset())
+    assert policy.is_allowed(user_context, Permission.PROJECT_READ)
+    other_project = AuthorizationContext("tenant-a", "project-b", "user-1", frozenset())
+    assert not policy.is_allowed(other_project, Permission.PROJECT_READ)
+    assert not policy.is_allowed(user_context, Permission.PROJECT_WRITE)
