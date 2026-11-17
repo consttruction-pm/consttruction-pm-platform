@@ -252,8 +252,10 @@ class EnterpriseDashboardApplicationService:
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
         if current.dashboard.visibility == "global" and target_type != "all_users":
             raise EnterpriseDashboardError("GLOBAL_DASHBOARD_SHARING_MODE_EXCLUSIVE")
-        if not isinstance(target_id, str) or not target_id.strip():
+        if target_type in {"user", "role"} and (not isinstance(target_id, str) or not target_id.strip()):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET")
+        if target_type not in {"user", "role", "all_users"}:
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET_TYPE")
         users = list(current.dashboard.shared_user_ids)
         roles = list(current.dashboard.shared_role_ids)
         if target_type == "user":
@@ -305,8 +307,10 @@ class EnterpriseDashboardApplicationService:
         self._require_enterprise(session, write=True)
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_EXPECTED_REVISION")
-        if not isinstance(target_id, str) or not target_id.strip():
+        if target_type in {"user", "role"} and (not isinstance(target_id, str) or not target_id.strip()):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET")
+        if target_type not in {"user", "role", "all_users"}:
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SHARE_TARGET_TYPE")
         current = self._get_in_tenant(session, dashboard_id)
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
