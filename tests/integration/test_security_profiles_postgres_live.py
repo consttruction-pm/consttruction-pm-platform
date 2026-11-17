@@ -1169,8 +1169,10 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
                 auth_context=context,
             )
 
-        activity_connection = sqlite3.connect(":memory:")
-        activity_repository = SQLiteActivityMasterRepository(activity_connection)
+        # Use the same PostgreSQL WBS source as the authorization policy;
+        # a separate SQLite activity store cannot resolve these WBS identifiers.
+        activity_repository = PostgresActivityMasterRepository(connection)
+        activity_repository.initialize()
         activity_api = P6ActivityMasterAPI(activity_repository, policy)
         visible_a = ActivityMaster(
             scope, f"visible-a-{suffix}", Decimal("1"), DurationUnit.WORKING_DAY,
