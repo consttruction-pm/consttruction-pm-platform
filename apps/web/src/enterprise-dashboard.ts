@@ -340,20 +340,27 @@ export async function mountEnterpriseDashboard(
 ): Promise<void> {
   const locale = options.locale ?? (navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en");
   const t: Copy = COPY[locale];
-  const filterLabel = (key: string): string => ({
-    portfolio_id: t.filterPortfolio, project_id: t.filterProject, project_status: t.filterProjectStatus,
-    membership_status: t.filterMembership, decision_status: t.filterDecisionStatus,
-    generated_after: t.filterGeneratedAfter, generated_before: t.filterGeneratedBefore, include_stale: t.filterIncludeStale,
-  }[key] ?? key);
-  const operatorLabel = (operator: string): string => ({
-    eq: t.opEq, in: t.opIn, gte: t.opGte, lte: t.opLte,
-  }[operator] ?? operator);
-  const filterValueLabel = (value: string): string => ({
-    included: t.statusIncluded, on_hold: t.statusOnHold, excluded: t.statusExcluded,
-    proposed: t.decisionProposed, under_review: t.decisionUnderReview, approved: t.decisionApproved,
-    rejected: t.decisionRejected, implemented: t.decisionImplemented, closed: t.decisionClosed,
-    cancelled: t.decisionCancelled,
-  }[value] ?? value);
+  const filterLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      portfolio_id: t.filterPortfolio, project_id: t.filterProject, project_status: t.filterProjectStatus,
+      membership_status: t.filterMembership, decision_status: t.filterDecisionStatus,
+      generated_after: t.filterGeneratedAfter, generated_before: t.filterGeneratedBefore, include_stale: t.filterIncludeStale,
+    };
+    return labels[key] ?? key;
+  };
+  const operatorLabel = (operator: string): string => {
+    const labels: Record<string, string> = { eq: t.opEq, in: t.opIn, gte: t.opGte, lte: t.opLte };
+    return labels[operator] ?? operator;
+  };
+  const filterValueLabel = (value: string): string => {
+    const labels: Record<string, string> = {
+      included: t.statusIncluded, on_hold: t.statusOnHold, excluded: t.statusExcluded,
+      proposed: t.decisionProposed, under_review: t.decisionUnderReview, approved: t.decisionApproved,
+      rejected: t.decisionRejected, implemented: t.decisionImplemented, closed: t.decisionClosed,
+      cancelled: t.decisionCancelled,
+    };
+    return labels[value] ?? value;
+  };
   installDashboardStyles();
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
