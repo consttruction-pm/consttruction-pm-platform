@@ -16,7 +16,7 @@ from uuid import uuid4
 from ..backend_p0.transactions import TransactionManager
 from ..schedule_evaluator import evaluate_schedule_snapshot
 from ..schedule_input_snapshot_repository import ScheduleInputSnapshotRepository, build_snapshot
-from ..schedule_run_capture import ScheduleRunCapture, ScheduleRunCaptureRepository, build_schedule_run_capture
+from .schedule_run_capture import ScheduleRunCapture, ScheduleRunCaptureRepository, build_schedule_run_capture
 from ..schedule_snapshot_materializer import materialize_schedule_snapshot
 from ..scheduling.activity import Activity
 from ..scheduling.authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleMode
