@@ -224,7 +224,7 @@ Do not calculate a single combined “employer loss” or “contractor claim am
 - [Primavera Cloud V26 Help TOC](https://primavera.oraclecloud.com/help/en/user/toc.htm)
 
 ### Forensic methodology references
-- [Society of Construction Law — Delay and Disruption Protocol, 2nd Edition (2017)](https://schdc.cl/web2021/wp-content/uploads/2023/10/SCL_Delay_Protocol_2nd_Edition_Final.pdf)
+- [Society of Construction Law — Delay and Disruption Protocol, 2nd Edition (2017)](https://www.scl.org.uk/sites/default/files/documents/SCL_Delay_Protocol_2nd_Edition_Final.pdf)
 - [AACE International RP 29R-03 — Forensic Schedule Analysis](https://web.aacei.org/docs/default-source/rps/29r-03.pdf)
 
 ### Repository governance
