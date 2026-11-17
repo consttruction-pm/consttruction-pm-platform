@@ -457,10 +457,15 @@ def test_planner_can_write_project_but_not_administer(runtime):
     status, _, body = call(
         runtime,
         "POST",
-        "/api/projects",
+        "/api/enterprise/security-profiles",
         cookie=cookie,
         csrf=csrf,
-        body={"project_id": f"planner-created-{uuid.uuid4().hex[:6]}", "name": "Nope"},
+        body={
+            "contract_version": "cubi-p6-security-profile.v1",
+            "profile_id": f"planner-forbidden-profile-{uuid.uuid4().hex[:6]}",
+            "name": "Planner Must Not Create Global Profiles",
+            "scope": "global",
+        },
     )
     assert status == 403
 
