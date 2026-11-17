@@ -68,7 +68,7 @@ def test_resource_access_scope_is_explicit_and_consistent(mode, roots, error):
         tenant_id="tenant-a",
         user_id="user-1",
         profile_id="no-global",
-        module_access=("p6-web",),
+        module_access=("projects",),
         resource_access_mode=mode,
         resource_root_ids=roots,
         revision=1,
@@ -84,7 +84,7 @@ def test_user_global_security_requires_explicit_module_access_and_aware_timestam
         tenant_id="tenant-a",
         user_id="user-1",
         profile_id="no-global",
-        module_access=("p6-web", "p6-web"),
+        module_access=("projects", "projects"),
         resource_access_mode="none",
         resource_root_ids=(),
         revision=1,
@@ -103,6 +103,33 @@ def test_builtin_profile_privileges_are_implicit_or_empty():
     with pytest.raises(GlobalSecurityError, match="UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE"):
         profile("Custom", privileges=()).validate()
 
+def test_v26_module_access_catalogue_and_contributor_exclusivity():
+    def assignment(modules):
+        return UserGlobalSecurity(
+            tenant_id="tenant-a", user_id="user-1", profile_id="custom",
+            module_access=modules, resource_access_mode="none",
+            resource_root_ids=(), revision=1, updated_by="admin",
+            updated_at=datetime.now(timezone.utc),
+        )
+
+    with pytest.raises(GlobalSecurityError, match="MODULE_ACCESS_INVALID"):
+        assignment(("p6-web",)).validate()
+    with pytest.raises(GlobalSecurityError, match="CONTRIBUTOR_MODULE_ACCESS_EXCLUSIVE"):
+        assignment(("contributor", "projects")).validate()
+    assignment(("projects", "resources", "enterprise_reporting")).validate()
+
+
+def test_selected_resource_access_is_limited_to_five_roots():
+    value = UserGlobalSecurity(
+        tenant_id="tenant-a", user_id="user-1", profile_id="custom",
+        module_access=("projects",), resource_access_mode="selected",
+        resource_root_ids=tuple(f"resource-{i}" for i in range(6)),
+        revision=1, updated_by="admin", updated_at=datetime.now(timezone.utc),
+    )
+    with pytest.raises(GlobalSecurityError, match="RESOURCE_ROOT_LIMIT_EXCEEDED"):
+        value.validate()
+
+
 def test_admin_superuser_always_has_all_resource_access():
     from construction_pm.p6_global_security import UserGlobalSecurity
 
@@ -110,7 +137,7 @@ def test_admin_superuser_always_has_all_resource_access():
         tenant_id="tenant-a",
         user_id="user-1",
         profile_id="p6-admin-superuser",
-        module_access=("p6-web",),
+        module_access=("projects",),
         resource_access_mode="none",
         resource_root_ids=(),
         revision=1,
