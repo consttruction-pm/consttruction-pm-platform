@@ -232,3 +232,41 @@ def test_postgres_dashboard_listing_has_deterministic_revision_and_id_order():
         assert [item.dashboard.dashboard_id for item in repository.list_for_tenant(tenant)] == [
             "dashboard-b", "dashboard-a"
         ]
+
+
+def test_postgres_dashboard_exact_update_retry_is_idempotent_without_duplicate_audit():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        created = repository.create(
+            make_dashboard(tenant, dashboard_id),
+            idempotency_key="create-before-update-retry",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        connection.commit()
+
+    requested_update = replace(created.dashboard, title="Updated once")
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        first = repository.update(
+            requested_update,
+            expected_revision=1,
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(minutes=1),
+        )
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        retry = repository.update(
+            requested_update,
+            expected_revision=1,
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(minutes=2),
+        )
+        assert retry == first
+        assert len(repository.history(tenant, dashboard_id)) == 2
