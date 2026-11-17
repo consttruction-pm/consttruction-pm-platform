@@ -425,6 +425,14 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             session_id="limited-user-admin-session",
         )
         assert status == 403 and hidden_user_access["code"] == "P6_RESOURCE_ACCESS_REQUIRED"
+        target_global_revision = profiles.get_global_user_access(tenant, target_id)["revision"]
+        status, hidden_unassign = _http_request(
+            app, "DELETE",
+            f"/api/enterprise/security-profiles/http-global/assignments/{target_id}",
+            session_id="limited-user-admin-session",
+            query_string=f"expected_revision={target_global_revision}",
+        )
+        assert status == 403 and hidden_unassign["code"] == "P6_RESOURCE_ACCESS_REQUIRED"
         status, role_only_profiles = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="role-only-session",
             payload={
