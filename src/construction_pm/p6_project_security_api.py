@@ -8,6 +8,7 @@ from .application.authorization import AuthorizationContext, AuthorizationError
 from .p6_project_security import (
     P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS,
     P6_PROJECT_PRIVILEGE_DEPENDENCIES, P6_PROJECT_PRIVILEGE_REQUIREMENTS,
+    P6_PROJECT_SUPERUSER_PROFILE_ID,
 )
 from .p6_project_security_repository import (
     P6OBSProjectGrant,
@@ -61,6 +62,9 @@ class P6ProjectSecurityAPI:
     def ensure_builtin_profile(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         auth_context.validate()
         _require_profile_admin(self.authorization_policy, auth_context)
+        is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+        if not callable(is_superuser) or not is_superuser(auth_context):
+            raise AuthorizationError("PROJECT_SUPERUSER_PROFILE_PROVISIONING_REQUIRES_ADMIN_SUPERUSER")
         profile = self.repository.ensure_builtin_profile(
             auth_context.tenant_id, actor_id=auth_context.user_id
         )
@@ -127,8 +131,16 @@ class P6ProjectSecurityAPI:
     ) -> dict[str, Any]:
         auth_context.validate()
         _require_user_admin(self.authorization_policy, auth_context)
+        selected_profile_id = profile_id or next(
+            (item.profile_id for item in self.repository.list_profiles(auth_context.tenant_id) if item.is_default),
+            "",
+        )
+        if selected_profile_id == P6_PROJECT_SUPERUSER_PROFILE_ID:
+            is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+            if not callable(is_superuser) or not is_superuser(auth_context):
+                raise AuthorizationError("PROJECT_SUPERUSER_ASSIGNMENT_REQUIRES_ADMIN_SUPERUSER")
         grant = self.repository.assign_obs(
-            P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, profile_id or ""),
+            P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, selected_profile_id),
             actor_id=auth_context.user_id,
         )
         return {
