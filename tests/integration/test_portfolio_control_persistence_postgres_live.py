@@ -23,42 +23,6 @@ from construction_pm.postgres_project_lifecycle import initialize_project_lifecy
 NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
 
 
-rom __future__ import annotations
-
-import os
-import uuid
-from datetime import datetime, timezone
-
-import pytest
-
-psycopg = pytest.importorskip("psycopg")
-DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
-if not DSN:
-    pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is not configured", allow_module_level=True)
-
-from construction_pm.control_intelligence.contracts import SourceReference
-from construction_pm.portfolio_control_persistence import (
-    PortfolioControlRevisionConflict,
-    PostgresPortfolioControlRepository,
-    PostgresPortfolioControlSnapshotProvider,
-    PostgresProjectLifecycleFactsReader,
-)
-from construction_pm.postgres_project_lifecycle import initialize_project_lifecycle_schema
-
-NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
-
-
-class LiveProjectFactsReader:
-    def __init__(self, facts):
-        self.facts = facts
-
-    def get_project_facts(self, tenant_id, project_id):
-        value = self.facts.get((tenant_id, project_id))
-        if value is None:
-            raise KeyError("ENGINEERING_PROJECT_NOT_FOUND")
-        return value
-
-
 def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable():
     suffix = uuid.uuid4().hex
     tenant_id = f"portfolio-tenant-{suffix}"
@@ -84,7 +48,6 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
             tenant_id, portfolio_id, actor_id="owner-1", occurred_at=NOW
         )
         assert created.revision == 1
-
         member = repository.add_membership(
             tenant_id, portfolio_id, project_id, membership_status="included",
             project_revision=3, source_refs=(source,), expected_portfolio_revision=1,
@@ -143,7 +106,6 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
             (tenant_id, portfolio_id),
         ).fetchone()[0]
         assert count == 3
-
         with pytest.raises(psycopg.Error, match="ENTERPRISE_PORTFOLIO_AUDIT_APPEND_ONLY"):
             connection.execute(
                 "UPDATE enterprise_portfolio_audit SET action='membership_added' "
