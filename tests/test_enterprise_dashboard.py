@@ -278,6 +278,161 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
         DashboardFilter("external_url", "eq", "https://example.com").validate()
 
 
+def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
+    DashboardLayout(0, 0, 6, 4).validate()
+    DashboardLayout(6, 0, 6, 4).validate()
+    DashboardLayout(0, 0, 12, 4).validate()
+    with pytest.raises(EnterpriseDashboardError, match="LAYOUT_OUT_OF_BOUNDS"):
+        DashboardLayout(0, 0, 3, 4).validate()
+    with pytest.raises(EnterpriseDashboardError, match="LAYOUT_OUT_OF_BOUNDS"):
+        DashboardLayout(6, 0, 12, 4).validate()
+
+    service, _, _, _ = make_service()
+    overlapping = [
+        snapshot_portlet(instance_id="left-a", layout={"x": 0, "y": 0, "w": 6, "h": 4}),
+        snapshot_portlet(instance_id="left-b", layout={"x": 0, "y": 2, "w": 6, "h": 4}),
+    ]
+    with pytest.raises(EnterpriseDashboardError, match="LAYOUT_OVERLAP"):
+        create_dashboard(service, payload=create_payload(portlets=overlapping))
+
+
+def test_global_dashboard_access_is_all_users_and_admin_controlled():
+    service, _, _, _ = make_service()
+    created = create_dashboard(service)
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="GLOBAL_DASHBOARD_ADMIN_REQUIRED"):
+        service.assign_share(
+            "alice-session", created.dashboard.dashboard_id,
+            target_type="all_users", target_id="", expected_revision=1,
+        )
+    global_dashboard = service.assign_share(
+        "admin-session", created.dashboard.dashboard_id,
+        target_type="all_users", target_id="", expected_revision=1,
+    )
+    assert global_dashboard.dashboard.visibility == "global"
+    assert global_dashboard.dashboard.shared_user_ids == ()
+    assert global_dashboard.dashboard.shared_role_ids == ()
+    assert service.get_dashboard("bob-session", created.dashboard.dashboard_id).revision == 2
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="GLOBAL_DASHBOARD_ADMIN_REQUIRED"):
+        service.update_dashboard(
+            "alice-session", created.dashboard.dashboard_id,
+            {"title": "Owner cannot edit global"}, expected_revision=2,
+        )
+    private_again = service.revoke_share(
+        "admin-session", created.dashboard.dashboard_id,
+        target_type="all_users", target_id="", expected_revision=2,
+    )
+    assert private_again.dashboard.visibility == "private"
+    with pytest.raises(Exception):
+        service.get_dashboard("bob-session", created.dashboard.dashboard_id)
+
+
+def test_project_filters_are_applied_before_project_level_authorization():
+    source = replace(
+        snapshot(),
+        projects=(
+            PortfolioProjectControlInput("project-1", 7, "included", "active"),
+            PortfolioProjectControlInput("project-2", 3, "on_hold", "planned"),
+        ),
+    )
+    service, _, lifecycle, _ = make_service(source=FakePortfolioQuery(source))
+    lifecycle.project_grants.add(("alice-session", "project-2"))
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(filters=[
+            {"key": "project_id", "operator": "eq", "value": "project-2"}
+        ]),
+        idempotency_key="project-filter-dashboard",
+    )
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    portlet = result["portlets"][0]
+    assert [row["project_id"] for row in portlet["data"]["projects"]] == ["project-2"]
+    assert portlet["data"]["summary"] == {
+        "total_projects": 1, "included_projects": 0,
+        "on_hold_projects": 1, "excluded_projects": 0,
+    }
+    assert portlet["filtered_out"] is False
+
+
+def test_filter_override_obeys_eppm_owner_restriction_and_is_not_persisted():
+    service, _, lifecycle, _ = make_service()
+    created = create_dashboard(service, payload=create_payload(restrict_filter_override=False))
+    service.assign_share(
+        "alice-session", created.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    override = [{"key": "project_status", "operator": "eq", "value": "active"}]
+    result = service.read_portlets(
+        "bob-session", created.dashboard.dashboard_id, filter_overrides=override
+    )
+    assert result["filters"][0]["key"] == "project_status"
+    assert result["dashboard"]["filters"][0]["key"] == "membership_status"
+    assert result["portlets"][0]["data"]["projects"][0]["project_id"] == "project-1"
+
+    restricted_service, _, _, _ = make_service()
+    restricted = restricted_service.create_dashboard(
+        "alice-session",
+        create_payload(restrict_filter_override=True),
+        idempotency_key="restricted-dashboard",
+    )
+    restricted_service.assign_share(
+        "alice-session", restricted.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="FILTER_OVERRIDE_RESTRICTED"):
+        restricted_service.read_portlets(
+            "bob-session", restricted.dashboard.dashboard_id, filter_overrides=override
+        )
+    owner_result = restricted_service.read_portlets(
+        "alice-session", restricted.dashboard.dashboard_id, filter_overrides=override
+    )
+    assert owner_result["filters"][0]["key"] == "project_status"
+
+
+def test_decision_status_and_freshness_filters_suppress_nonmatching_data():
+    service, _, _, _ = make_service()
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(
+            portlets=[decision_portlet()],
+            filters=[{"key": "decision_status", "operator": "eq", "value": "approved"}],
+        ),
+        idempotency_key="decision-status-filter",
+    )
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert result["portlets"][0]["freshness_state"] == "unknown"
+    assert result["portlets"][0]["filtered_out"] is True
+    assert result["portlets"][0]["data"] is None
+
+    stale_service, _, _, _ = make_service(
+        source=FakePortfolioQuery(snapshot(generated_at=NOW - timedelta(days=3)))
+    )
+    stale_created = stale_service.create_dashboard(
+        "alice-session",
+        create_payload(filters=[{"key": "include_stale", "operator": "eq", "value": False}]),
+        idempotency_key="exclude-stale",
+    )
+    stale_result = stale_service.read_portlets(
+        "alice-session", stale_created.dashboard.dashboard_id
+    )
+    assert stale_result["portlets"][0]["freshness_state"] == "stale"
+    assert stale_result["portlets"][0]["filtered_out"] is True
+    assert stale_result["portlets"][0]["data"] is None
+
+
+def test_portlet_read_order_follows_saved_layout_coordinates():
+    service, _, _, _ = make_service()
+    right = snapshot_portlet(
+        instance_id="right", layout={"x": 6, "y": 0, "w": 6, "h": 4}
+    )
+    left = snapshot_portlet(
+        instance_id="left", layout={"x": 0, "y": 0, "w": 6, "h": 4}
+    )
+    created = create_dashboard(service, payload=create_payload(portlets=[right, left]))
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert [item["instance_id"] for item in result["portlets"]] == ["left", "right"]
+
+
 def test_portlet_configuration_is_closed_and_context_bound():
     invalid = snapshot_portlet()
     invalid["config"] = {"portfolio_id": "portfolio-1", "sql": "select 1"}
