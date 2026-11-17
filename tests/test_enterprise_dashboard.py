@@ -683,10 +683,26 @@ def test_user_filter_override_is_saved_per_actor_and_reset_without_mutating_dash
     assert read["filters"] == override
     assert read["portlets"][0]["applied_filters"] == override
 
-    service.reset_dashboard_preferences("bob-session", created.dashboard.dashboard_id)
-    assert repository.list_user_preferences("tenant-a", "bob") == {}
+    service.set_dashboard_display_preference(
+        "bob-session", created.dashboard.dashboard_id, displayed=False
+    )
+    assert repository.list_user_preferences("tenant-a", "bob")[
+        created.dashboard.dashboard_id
+    ]["filter_override"] == override
+
+    # Clearing the User Filter must not unhide or reorder the dashboard.
+    service.save_dashboard_filter_override(
+        "bob-session", created.dashboard.dashboard_id, None
+    )
+    prefs_after_filter_reset = repository.list_user_preferences("tenant-a", "bob")
+    assert prefs_after_filter_reset[created.dashboard.dashboard_id]["filter_override"] is None
+    assert prefs_after_filter_reset[created.dashboard.dashboard_id]["displayed"] is False
     reset_read = service.read_portlets("bob-session", created.dashboard.dashboard_id)
     assert reset_read["filters"][0]["key"] == "membership_status"
+
+    # The explicit all-preferences reset is separate and removes display state too.
+    service.reset_dashboard_preferences("bob-session", created.dashboard.dashboard_id)
+    assert repository.list_user_preferences("tenant-a", "bob") == {}
 
 
 def test_owner_filter_lock_ignores_existing_viewer_override_without_blocking_dashboard_read():
