@@ -74,6 +74,25 @@ def test_fragnet_requires_tie_in_to_existing_schedule():
         )
 
 
+def test_fragnet_rejects_disconnected_event_component():
+    fragnet = DelayEventFragnet(
+        event_id="EVT-007",
+        title="Disconnected event component",
+        description="One valid tie-in plus an unrelated event component.",
+        activities=(
+            FragnetActivity("EVT-007-A", "Connected work", 1),
+            FragnetActivity("EVT-007-B", "Orphan work A", 1),
+            FragnetActivity("EVT-007-C", "Orphan work B", 1),
+        ),
+        relationships=(
+            FragnetRelationship("A-100", "EVT-007-A"),
+            FragnetRelationship("EVT-007-B", "EVT-007-C"),
+        ),
+    )
+    with pytest.raises(FragnetValidationError, match="FRAGNET_DISCONNECTED_ACTIVITY_NETWORK"):
+        fragnet.validate_against({"A-100", "A-200"}, set())
+
+
 def test_fragnet_rejects_milestone_with_nonzero_duration():
     with pytest.raises(FragnetValidationError, match="FRAGNET_MILESTONE_DURATION_MUST_BE_ZERO"):
         FragnetActivity(
