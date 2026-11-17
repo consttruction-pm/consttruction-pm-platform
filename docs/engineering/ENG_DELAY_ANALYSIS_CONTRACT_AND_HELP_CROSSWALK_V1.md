@@ -261,6 +261,51 @@ The following existing components were inspected at main SHA `20e8b6509704c8225b
 
 **Verified gap and implementation path:** the inspected main tree had no dedicated `src/construction_pm/delay_analysis/` domain package or `tests/delay_analysis/` suite. Baseline persistence is not metadata-only: `p6_baseline_activity_repository.py` stores immutable planned-date and selected EVM activity facts, but those rows alone are not a complete baseline network. PR #2045 adds a binding from the baseline ID/source revision to the existing immutable `ScheduleInputSnapshot`, whose canonical payload contains the full authoritative schedule inputs (activities, relationships, calendars, constraints and schedule options). This is the correct non-duplicating path to recover a frozen baseline network when a snapshot exists at the baseline source revision. Remaining forensic prerequisites are a reproducible baseline scheduler run/log, event/fragnet semantics, method-specific analysis persistence and expert review.
 
+
+
+## 15. Data-date, evidence revision and independent review governance — V26 aligned
+
+### Oracle EPPM V26 source semantics
+
+| Native EPPM concept | Help-defined behavior | CUBI control / implementation boundary |
+|---|---|---|
+| Updating progress in a browser | Progress can be entered manually for activities/resources, or computed/applied through Auto-Compute Actuals and Apply Actuals. | Each analysis revision must identify the exact statused source snapshot and the evidence supporting the reported progress. A date alone is not proof that progress was statused contemporaneously. |
+| Applying Actuals | Apply Actuals updates the selected project(s) as of a specified New Data Date and uses a selected Remaining Duration Calculation option. | Persist the selected data date, source snapshot/hash, update evidence hash and calculation context. Do not silently move the cut-off or recompute historical actuals during analysis. |
+| Updating Baselines | Updating a baseline changes only selected data types and can be previewed before committing. | Baseline ID alone is insufficient. Bind the baseline source revision to its immutable schedule snapshot and hash; a later native baseline update must not rewrite a prior analysis revision. |
+| Schedule Project Log | Native sections are Scheduling Settings, Statistics, Errors, Warnings, Scheduling Results and Exceptions. | CUBI records only sections emitted by Shared Core and labels its envelope PARTIAL. Missing native sections are explicit unavailable evidence, never synthesized as empty or successful. |
+| Check Schedule | The report includes relationship/open-end, dangling start/finish, large duration, invalid progress dates, resource/cost, late activity and BEI checks; exclusions and targets are part of the semantics. | Preserve exact evaluator findings and settings that exist. A missing evaluator check is marked unsupported/not run; it is not represented as passed. |
+| Activity relationships and calendars | FS/SS/FF/SF relationship types, lag, activity calendars and typed constraints affect scheduling. | Reuse canonical typed Shared Core inputs and version-pinned calendar resolution. Unsupported activity types or schedule modes fail closed. |
+
+Official V26 HTML Help topics:
+- [Working with Updating Progress in a Browser Running P6](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/6681.htm)
+- [Applying Actuals to a Project](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/7995.htm)
+- [Working with the Apply Actuals Feature](https://docs.oracle.com/cd/G48897_01/p6help/en/32048.htm)
+- [Updating Baselines](https://docs.oracle.com/cd/G48897_01/p6help/en/93166.htm)
+- [Update Baseline Preview](https://docs.oracle.com/cd/G48897_01/p6help/en/100466.htm)
+- [Schedule Project Log](https://docs.oracle.com/cd/G48897_01/p6help/en/99347.htm)
+- [Check Schedule Report](https://docs.oracle.com/cd/G48897_01/p6help/en/101231.htm)
+- [Check Schedule Settings](https://docs.oracle.com/cd/G48897_01/p6help/en/101232.htm)
+
+### New implementation in PR #2045
+
+The isolated Engineering package now adds `analysis_records.py` and `test_analysis_records.py`:
+
+1. **Case idempotency:** tenant/project-scoped immutable case identity; reuse of an idempotency key with a different request hash is rejected.
+2. **Append-only revisions:** monotonically increasing revision number, immutable revision key, exact baseline/current snapshot IDs and SHA-256 hashes, method, result hash, event evidence-manifest hash and statused-update evidence hash.
+3. **Data-date gate:** baseline/current data dates are explicit; current date cannot precede baseline or be in the future relative to record creation. A reconstructed data date requires a written rationale. The `APPROVED_CONTEMPORANEOUS_UPDATE` label is a CUBI governance attestation, not a claim that Oracle P6 provides this exact approval workflow.
+4. **Independent review:** author self-review is rejected; each reviewer has one immutable decision per revision; a rejection blocks approval status for that revision. A changed method, assumption, data date, source or evidence requires a new revision rather than editing the reviewed record.
+5. **Persistence:** SQLite and PostgreSQL repository adapters are provided. SQLite and PostgreSQL database triggers reject UPDATE/DELETE against case, revision and review records; production database roles must additionally be denied direct DDL/trigger bypass privileges.
+
+These records are governance primitives only. They do not yet provide an authenticated application/API route, reviewer identity resolution from the production authorization layer, a publication service, or an ENT-13 result reference. No client may supply trusted tenant identity or snapshot provenance. Those integration steps require the protected application owner and security review; this PR does not create a parallel access boundary.
+
+### Acceptance and honest parity status
+
+- Implemented in this slice: immutable snapshot/run provenance, inserted-fragnet what-if execution through the authoritative scheduler, analysis case/revision/review persistence primitives, data-date validation and evidence hash binding.
+- Still PARTIAL: native Schedule Project Log parity (Shared Core does not emit every native section), complete native Check Schedule settings/targets and exclusions, resource-dependent fragnet semantics, TIME_AWARE execution, window analysis and concurrency diagnostics.
+- Not implemented / not claimed: contractual causation, responsibility allocation, entitlement, EOT, damages, cost determination, formal forensic expert opinion, authenticated reviewer workflow, publication to ENT-13, production browser acceptance.
+
+The V26 Help is the semantic authority for P6 behavior; SCL Delay and Disruption Protocol / AACE RP 29R-03 govern forensic-method choices. Neither source authorizes CUBI to infer legal entitlement from schedule movement alone.
+
 ## 14. Implementation sequencing and release gates
 
 The implementation follow-on is tracked separately in [#2044 — governed Technical Delay Analysis vertical slice](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2044). Its sequencing is deliberate:
