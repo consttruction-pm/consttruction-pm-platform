@@ -321,6 +321,8 @@ class EnterpriseDashboardApplicationService:
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
         if current.dashboard.visibility == "global" and target_type != "all_users":
             raise EnterpriseDashboardError("GLOBAL_DASHBOARD_SHARING_MODE_EXCLUSIVE")
+        if target_type == "all_users" and current.dashboard.visibility != "global":
+            raise EnterpriseDashboardError("GLOBAL_DASHBOARD_NOT_SHARED")
         if target_type == "user":
             users = tuple(item for item in current.dashboard.shared_user_ids if item != target_id)
             roles = current.dashboard.shared_role_ids
