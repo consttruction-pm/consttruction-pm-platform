@@ -1924,6 +1924,7 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
     with _connect() as connection:
         identity = PostgresIdentityStore(connection)
         identity.initialize()
+        initialize_project_lifecycle_schema(connection)
         PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
