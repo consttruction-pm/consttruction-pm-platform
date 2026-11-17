@@ -19,10 +19,19 @@ class PortfolioQueryProvider(Protocol):
     def get_snapshot(self, portfolio_id: str, *, tenant_id: str) -> PortfolioControlSnapshot: ...
 
 
+class PortfolioProjectAuthorizer(Protocol):
+    """Current-actor project authorization used for every project in a portfolio snapshot."""
+
+    def is_project_read_allowed(
+        self, auth_context: AuthorizationContext, project_id: str
+    ) -> bool: ...
+
+
 @dataclass(frozen=True)
 class PortfolioQueryApplicationService:
     provider: PortfolioQueryProvider
     authorization_policy: AuthorizationPolicy
+    project_authorizer: PortfolioProjectAuthorizer | None = None
 
     def get_snapshot(
         self,
@@ -56,6 +65,21 @@ class PortfolioQueryApplicationService:
                 "FORBIDDEN",
                 "Operation is not authorized",
             )
+        if self.project_authorizer is None:
+            raise BackendApplicationError(
+                ErrorCategory.AUTHORIZATION,
+                "PROJECT_AUTHORIZATION_NOT_CONFIGURED",
+                "Project-level authorization is not configured for portfolio reads",
+            )
+        for project in snapshot.projects:
+            if not self.project_authorizer.is_project_read_allowed(
+                auth_context, project.project_id
+            ):
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "FORBIDDEN",
+                    "Operation is not authorized for every project in this portfolio",
+                )
         return snapshot
 
 
