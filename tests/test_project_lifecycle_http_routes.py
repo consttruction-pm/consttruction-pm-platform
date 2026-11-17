@@ -50,8 +50,11 @@ from construction_pm.p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURC
 from construction_pm.p6_resource_assignment_repository import P6ResourceAssignment, P6ResourceAssignmentApplicationService, P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue, SQLiteP6ResourceAssignmentRepository, SQLiteP6ResourceAssignmentPeriodRepository
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService, SQLiteP6ResourceSpreadRepository
-from construction_pm.p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
+from construction_pm.p6_code_api import P6CodeAPI, P6CodeAssignmentAPI, P6_CODE_API_VERSION, P6_CODE_ASSIGNMENT_API_VERSION
 from construction_pm.p6_code_repository import P6CodeApplicationService, P6CodeValue, SQLiteP6CodeRepository
+from construction_pm.p6_code_assignment_repository import (
+    P6CodeAssignmentApplicationService, SQLiteP6CodeAssignmentRepository,
+)
 from construction_pm.p6_mapping_registry import P6MappingFormat
 from construction_pm.p6_xer_codec import P6XerCodec
 from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
@@ -1368,14 +1371,21 @@ def p6_code_routes(roles=frozenset({"project_admin"})):
     )
     connection = sqlite3.connect(":memory:")
     transaction_manager = SQLiteTransactionManager(connection)
-    code_api = P6CodeAPI(
-        P6CodeApplicationService(SQLiteP6CodeRepository(connection), transaction_manager),
-        default_project_policy(),
+    code_service = P6CodeApplicationService(
+        SQLiteP6CodeRepository(connection), transaction_manager
+    )
+    code_api = P6CodeAPI(code_service, default_project_policy())
+    assignment_service = P6CodeAssignmentApplicationService(
+        SQLiteP6CodeAssignmentRepository(connection), transaction_manager
+    )
+    assignment_api = P6CodeAssignmentAPI(
+        assignment_service, default_project_policy(), code_service=code_service
     )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_code_api=code_api,
+        p6_code_assignment_api=assignment_api,
     )
 
 
@@ -1383,7 +1393,7 @@ def test_authenticated_p6_code_http_boundary_round_trips_typed_definition():
     r = p6_code_routes()
     payload = {
         "code_id": "ACT-PHASE", "name": "Activity Phase", "subject_area": "Activity",
-        "scope_kind": "PROJECT", "scope_key": "p1",
+        "scope_kind": "PROJECT", "scope_key": "p1", "is_secure": True,
         "values": [{"value_id": "DES", "value": "Design", "description": "Design phase"}],
     }
     status, _, raw = r.handle("POST", "/api/projects/p1/p6/codes", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
@@ -1391,6 +1401,7 @@ def test_authenticated_p6_code_http_boundary_round_trips_typed_definition():
     created = json.loads(raw)
     assert created["contract_version"] == P6_CODE_API_VERSION
     assert created["code"]["code_id"] == "ACT-PHASE"
+    assert created["code"]["is_secure"] is True
     assert created["code"]["values"][0]["value"] == "Design"
     status, _, raw = r.handle("GET", "/api/projects/p1/p6/codes/ACT-PHASE", cookies={"cp_session": "s1"})
     assert status == 200
@@ -1400,6 +1411,28 @@ def test_authenticated_p6_code_http_boundary_round_trips_typed_definition():
     listed = json.loads(raw)
     assert listed["contract_version"] == P6_CODE_API_VERSION
     assert [item["code"]["code_id"] for item in listed["codes"]] == ["ACT-PHASE"]
+    assignment_payload = {
+        "code_id": "ACT-PHASE", "value_id": "DES",
+        "owner_type": "ACTIVITY", "owner_id": "A-1",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/code-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(assignment_payload).encode(),
+    )
+    assert status == 200
+    assignment_result = json.loads(raw)
+    assert assignment_result["contract_version"] == P6_CODE_ASSIGNMENT_API_VERSION
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/code-assignments", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert len(json.loads(raw)["assignments"]) == 1
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/code-assignments/ACT-PHASE/DES/ACTIVITY/A-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(raw)["assignment"]["owner_id"] == "A-1"
 
 
 def test_p6_code_http_boundary_enforces_scope_permission_and_payload_contract():
