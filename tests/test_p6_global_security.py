@@ -44,7 +44,7 @@ def test_no_global_privileges_is_a_distinct_read_only_global_profile():
 
 def test_inactive_or_forged_admin_profile_cannot_bypass():
     inactive = GlobalSecurityProfile(
-        "tenant-a", "admin", ADMIN_SUPERUSER, (), True, False, 1
+        "tenant-a", "p6-admin-superuser", ADMIN_SUPERUSER, (), True, False, 1
     )
     forged = GlobalSecurityProfile(
         "tenant-a", "fake-admin", ADMIN_SUPERUSER, (), True, True, 1
