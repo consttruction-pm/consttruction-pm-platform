@@ -1,5 +1,3 @@
-from datetime import date
-
 import pytest
 
 from construction_pm.delay_analysis.fragnet import (
