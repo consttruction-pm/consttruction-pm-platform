@@ -486,7 +486,7 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_assign_default_global_profile()
-    RETURNS trigger LANGUAGE plpgsql AS $
+    RETURNS trigger LANGUAGE plpgsql AS $cubi$
     DECLARE default_profile_id TEXT; inserted_profile_id TEXT;
     BEGIN
         IF NOT COALESCE(NEW.active,FALSE) THEN
@@ -520,7 +520,7 @@ SECURITY_PROFILE_SCHEMA = (
         END IF;
         RETURN NEW;
     END;
-    $
+    $cubi$
     """,
     """
     DROP TRIGGER IF EXISTS p6_user_default_global_profile ON identity_users
