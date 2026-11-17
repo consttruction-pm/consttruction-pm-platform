@@ -51,3 +51,10 @@ def test_project_security_profile_accepts_normalized_privilege_set():
         )),
     )
     profile.validate()
+
+
+def test_project_superuser_name_is_reserved_for_the_builtin_profile():
+    with pytest.raises(ProjectSecurityError, match="PROJECT_SUPERUSER_PROFILE_NAME_RESERVED"):
+        P6ProjectSecurityProfile(
+            "tenant-a", "custom-superuser", "Project Superuser", ()
+        ).validate()
