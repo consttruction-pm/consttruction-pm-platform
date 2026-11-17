@@ -1,7 +1,7 @@
 import type {
   EnterpriseDashboardCatalog,
   EnterpriseDashboardClient,
-  EnterpriseDashboardDefinition,
+  EnterpriseDashboardDefinition,\n  EnterpriseDashboardFilter,
   EnterpriseDashboardPortlet,
   EnterpriseDashboardRead,
 } from "./enterprise-dashboard.js";
@@ -99,6 +99,19 @@ export class FetchEnterpriseDashboardClient implements EnterpriseDashboardClient
     return this.request(`/${encodeURIComponent(dashboardId)}/archive`, {
       method: "POST",
       body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+  }
+
+  saveFilterOverride(dashboardId: string, filters: EnterpriseDashboardFilter[]): Promise<unknown> {
+    return this.request(`/${encodeURIComponent(dashboardId)}/filter-override`, {
+      method: "POST",
+      body: JSON.stringify({ filters }),
+    });
+  }
+
+  resetFilterOverride(dashboardId: string): Promise<unknown> {
+    return this.request(`/${encodeURIComponent(dashboardId)}/filter-override`, {
+      method: "DELETE",
     });
   }
 
