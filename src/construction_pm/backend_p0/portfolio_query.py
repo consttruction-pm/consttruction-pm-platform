@@ -103,5 +103,6 @@ __all__ = [
     "PORTFOLIO_CONTROL_SNAPSHOT_VERSION",
     "PortfolioQueryAPI",
     "PortfolioQueryApplicationService",
+    "PortfolioProjectAuthorizer",
     "PortfolioQueryProvider",
 ]
