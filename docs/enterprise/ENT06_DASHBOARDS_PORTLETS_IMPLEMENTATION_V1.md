@@ -438,3 +438,28 @@ The HTML Help confirms the following acceptance-sensitive details: User dashboar
 The complete List of Portlets page was checked for personal, portfolio-view, project-performance, resource, custom and collaboration/document-review categories. Each category remains explicitly dispositioned in the crosswalk. The dashboard registry continues to expose only the two approved source-backed read contracts. P6 custom URL portlets, credential interpolation, document-review actions, resource assignment/email actions, and source-owned Engineering KPI/CPM/EVM/threshold calculations are not silently substituted by CUBI. These require separate approved contracts/owners or are deliberately excluded by the security boundary.
 
 This is a manual semantic review of the linked HTML topics, not an automated live-URL test. The 115-URL regression remains an exact documentation-inventory assertion; it does not claim that CI fetches Oracle pages. No complete UI/production parity claim is made by this backend implementation record.
+
+
+## ENT-06B UI increment — HTML Help traceability update (2026-11-17)
+
+This addendum records the current isolated UI implementation branch `feat/ent06-dashboard-ui-isolated-v2`. It does not upgrade the overall ENT-06 status to complete.
+
+| Official P6 EPPM V26 HTML topic | Required behavior from Help | Current CUBI UI disposition |
+|---|---|---|
+| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | Dashboard tabs, displayed/available dashboards, module/project security remains authoritative | Partial: catalog, displayed/available lists and source permission states exist; canonical shell mounting and user-interface-view assignment remain open. |
+| [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Create dashboard, copy from Default Dashboard or existing dashboard, then save/close | Partial: blank creation and duplicate-existing actions exist; Default Dashboard template selection and Save and Close page flow are not implemented. |
+| [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm) | Content, Layout and Access tabs, then Save and Close | Partial: four CUBI editor sections (General, Content, Layout, Access) exist and draft state is retained across tabs; Access is currently read-only and save is not the full P6 page flow. |
+| [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm) | General settings, dashboard filter, maximum displayed rows, portlet catalogue and per-portlet options | Partial: max rows, filter lock, two governed portlet types, title and width controls exist. The full P6 catalogue and all per-portlet options remain deferred until authoritative source contracts and permissions exist. |
+| [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Private/user, global/all users, or specified list of users; security privilege required | Partial: backend contract supports private, explicit users/roles and admin-only global visibility. UI currently displays access metadata but does not yet edit user/role assignments. |
+| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Owner can restrict viewer overrides; otherwise viewer chooses a filter from Filter by dialog | Partial: owner lock is enforced in UI and a project-ID request override/reset is available. Full filter selection dialog and all supported filter fields/operators remain outstanding. |
+| [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm) | Narrow/Wide sizing, up/down/left/right positioning, drag-and-drop, save/close | Partial: Narrow/Wide and drag/drop plus up/down reorder are present. Left/right movement and complete two-dimensional placement editor remain outstanding. |
+| [Showing and Hiding Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm) | Displayed/Available lists, immediate show/hide, up/down tab ordering | Partial: show/hide and deterministic catalogue ordering exist; interactive tab-order arrows are still outstanding. |
+| [List of Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm) | Personal, Portfolio, Project Performance, Resources and collaboration portlet families | Intentionally partial: only Portfolio Control Snapshot and Portfolio Decision are enabled. All other families remain disabled/deferred until their canonical source owner, versioned read contract and current-actor authorization are available. |
+
+### Non-interference and safety notes
+
+- Portfolio Control Snapshot and Portfolio Decision remain read-only source projections. No dashboard-side KPI, schedule, CPM, cost, progress, EVM, resource or risk calculations are introduced.
+- A dashboard share does not grant access to underlying project records; current actor project authorization remains mandatory at source reads and drill-through.
+- P6 Custom Portlets that accept arbitrary URLs or credential substitution are explicitly excluded.
+- No production route, shared shell, identity, authorization, deployment schema or production composition file is changed by the isolated UI slice. Production mounting remains blocked until the active owners hand off those exact protected paths.
+- Therefore this increment is not a full P6 EPPM V26 parity acceptance. The applicable Help matrix remains open until each supported control and source-backed portlet is implemented and browser-verified.
