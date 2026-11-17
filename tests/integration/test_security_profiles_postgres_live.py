@@ -775,6 +775,21 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"viewer"}))
         assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
         assert policy.is_allowed(admin_context, Permission.PROJECT_WRITE)
+        admin_access = profiles.get_global_user_access(tenant, admin_id)
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id, module_access=(),
+            resource_access_mode="all", expected_revision=admin_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert not policy.is_allowed(admin_context, Permission.PROJECT_READ)
+        assert profiles.has_global_privilege(tenant, admin_id, "add_edit_delete_users")
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=admin_access["revision"] + 1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
 
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
             profiles.create_profile(
