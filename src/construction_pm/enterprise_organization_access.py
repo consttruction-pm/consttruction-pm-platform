@@ -216,6 +216,14 @@ class EnterpriseOrganizationAccessService:
         return tuple(user for user in self._repository.list_active_users(session.tenant_id)
                      if user["user_id"] not in members and user["user_id"] != session.user_id)
 
+    def user_directory_context(self, session_id: str) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_users")
+        return {
+            "current_user_id": session.user_id,
+            "can_manage_other_users": self._has_all_resource_access(session),
+        }
+
     def list_accounts(self, session_id: str) -> tuple[dict[str, object], ...]:
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
