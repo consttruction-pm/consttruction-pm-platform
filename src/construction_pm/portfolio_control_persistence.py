@@ -399,6 +399,29 @@ class PostgresPortfolioControlRepository:
         return tuple(SourceReference(**item) for item in value)
 
 
+class PostgresProjectLifecycleFactsReader:
+    """Reads project identity/status/revision from the existing Engineering lifecycle store.
+
+    It is deliberately read-only and tenant-qualified. Project-level user authorization is
+    still enforced by the Enterprise consumer before any snapshot is exposed.
+    """
+
+    def __init__(self, connection: Any) -> None:
+        self._connection = connection
+
+    def get_project_facts(self, tenant_id: str, project_id: str) -> PortfolioProjectFacts:
+        row = self._connection.execute(
+            "SELECT project_id,revision,status FROM project_lifecycle_projects "
+            "WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("ENGINEERING_PROJECT_NOT_FOUND")
+        facts = PortfolioProjectFacts(str(row[0]), int(row[1]), str(row[2]))
+        facts.validate()
+        return facts
+
+
 class PostgresPortfolioControlSnapshotProvider:
     """Production read provider over canonical membership + authoritative Engineering facts."""
 
@@ -495,6 +518,6 @@ class PostgresPortfolioControlSnapshotProvider:
 __all__ = [
     "PortfolioControlPersistenceError", "PortfolioControlRevisionConflict",
     "PortfolioMembershipRecord", "PortfolioProjectFacts", "PortfolioProjectFactsReader",
-    "PortfolioRecord", "PostgresPortfolioControlRepository",
+    "PortfolioRecord", "PostgresProjectLifecycleFactsReader", "PostgresPortfolioControlRepository",
     "PostgresPortfolioControlSnapshotProvider",
 ]
