@@ -345,6 +345,26 @@ def test_portlet_title_and_title_visibility_are_persisted_and_returned():
     assert result["portlets"][0]["hide_title"] is True
     assert result["portlets"][0]["source_data_mode"] == "not_exposed"
 
+    long_title = service.create_dashboard(
+        "alice-session",
+        create_payload(
+            title="Long portlet title dashboard",
+            portlets=[snapshot_portlet(title="T" * 255)],
+        ),
+        idempotency_key="long-portlet-title",
+    )
+    assert len(long_title.dashboard.portlets[0].title) == 255
+
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_TITLE"):
+        service.create_dashboard(
+            "alice-session",
+            create_payload(
+                title="Too long portlet title dashboard",
+                portlets=[snapshot_portlet(title="T" * 256)],
+            ),
+            idempotency_key="too-long-portlet-title",
+        )
+
 
 def test_p6_dashboard_max_rows_setting_defaults_and_validates_bounds():
     service, _, _, _ = make_service()
