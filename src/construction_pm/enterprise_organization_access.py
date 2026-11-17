@@ -355,6 +355,13 @@ class EnterpriseOrganizationAccessService:
             actor_user_id=session.user_id, occurred_at=self._now(),
         )
 
+    def list_obs_nodes(self, session_id: str):
+        session = self._session(session_id)
+        self._require_global_privilege(session, "add_edit_delete_users")
+        if self._security_profiles is None:
+            raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
+        return self._security_profiles.list_obs_nodes(session.tenant_id)
+
     def assign_default_project_profile(
         self, session_id: str, target_user_id: str, *, obs_id: str,
         expected_revision: int | None = None,
