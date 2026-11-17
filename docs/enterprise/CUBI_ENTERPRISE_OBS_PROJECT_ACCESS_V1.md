@@ -44,7 +44,7 @@ These are Oracle HTML Help topics for P6 EPPM V26. CUBI implements analogous acc
 ## Deliberate boundaries and gaps
 
 - Team roles and team membership do not create or imply OBS assignments. Project membership rows are retained for lifecycle bookkeeping and are not a project-data authorization grant.
-- Project security profile permissions are still limited to the coarse project.read / project.write / project.schedule / project.admin vocabulary. The V26 profile editor supports grouped, individual privileges (Activities, EPS and Projects, Project Data, Resource Assignments, Tools, Views and Reports, and related categories). The complete V26 privilege catalogue, per-privilege endpoint enforcement, and documented privilege inheritance (add/delete ⇒ edit/assign/view; edit ⇒ assign/view; assign ⇒ view) are not yet implemented. Module access remains controlled by the existing global role policy.
+- Project security profiles now accept normalized granular V26 privilege keys and the UI renders the Oracle V26 checkbox catalogue in its documented groups. Operation-level authorization is implemented only for the explicitly mapped API operations listed in the operation-level enforcement section below; unmapped APIs must fail closed and remain outside any parity-complete claim. The legacy project.read / project.write / project.schedule / project.admin grants remain compatibility adapters, not a substitute for granular rights. Module access, global security profiles and resource-level restrictions remain separate outstanding domains.
 - Existing WBS records without an explicit responsible OBS resolve to the project OBS as a migration fallback; new WBS records require an explicit OBS. A WBS OBS text field is present in the editor, but a governed OBS-tree picker and authoritative OBS lookup/validation in the browser remain pending. EPS nodes also require their own responsible OBS in V26 and are not yet modeled here.
 - WBS OBS enforcement is now connected to WBS master, activities, expenses and risks. Issues and thresholds also support their own Responsible OBS fields and authorization. Baseline, document/security-policy, resource, and all other project-data surfaces still need a complete endpoint-by-endpoint authorization matrix and tests.
 - User/resource access, resource-node restrictions, module access administration, global security profiles (including the predefined Admin Superuser and No Global Privileges semantics), UI View assignment/editing restrictions and copy-user-settings are not part of this slice.
@@ -224,3 +224,20 @@ The administrator-facing privilege catalogue is now explicitly separated from CU
 
 
 Oracle Help dependency reconciliation was tightened against the detailed V26 option descriptions: Edit Activity ID inherits Add/Edit Activities Except Relationships; Edit WBS Costs/Financials inherits Add/Edit/Delete WBS Except Costs/Financials and View Project Costs/Financials; Assign Project Baselines inherits Edit Project Details Except Costs/Financials; and Add/Edit/Delete Template Documents inherits Add/Edit/Delete Work Products and Documents. The corresponding focused regression tests assert each dependency and ensure unrelated document grants are not inferred. See the official [V26 Privileges Detail Window](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html).
+
+## Contextual HTML Help in the Project Access UI (2026-11-17)
+
+The administration surface now exposes the normative Oracle P6 EPPM V26 HTML sources at the point where an administrator configures access:
+
+| CUBI surface | Oracle V26 HTML Help |
+|---|---|
+| User and account context | https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm |
+| Assign user to OBS and understand inherited project scope | https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm |
+| OBS hierarchy and responsibility | https://docs.oracle.com/cd/G48897_01/p6help/en/7795.htm |
+| Create project security profiles | https://docs.oracle.com/cd/G48897_01/p6help/en/35278.htm |
+| Each selectable V26 privilege | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/102786.html |
+| Each privilege's definition/reference | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/projectprivilegedefinitions-47746a.html |
+
+The page-level links are available in both English and Persian UI. Each V26 privilege row carries links to the V26 detail-window Help and the privilege-definition reference returned by the authenticated catalogue endpoint. Legacy CUBI compatibility grants are intentionally not presented as Oracle checkboxes and do not receive misleading Oracle Help links. Links open separately with `noopener noreferrer`.
+
+This improves contextual source traceability; it does **not** imply complete P6 V26 security parity. The remaining gaps below are still acceptance blockers.
