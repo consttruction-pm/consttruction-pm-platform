@@ -131,3 +131,16 @@ def test_portfolio_snapshot_is_deterministic_for_same_ordered_inputs():
 
     assert first == second
     assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+
+
+def test_unsafe_portfolio_revision_is_rejected():
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_REVISION"):
+        PortfolioControlSnapshot(
+            snapshot_id="snap-invalid-revision",
+            portfolio_id="portfolio-1",
+            tenant_id="tenant-1",
+            generated_at=datetime(2026, 9, 27, 13, 0, tzinfo=timezone.utc),
+            projects=(project("P-1", "included"),),
+            source_refs=(source(),),
+            portfolio_revision=0,
+        ).validate()

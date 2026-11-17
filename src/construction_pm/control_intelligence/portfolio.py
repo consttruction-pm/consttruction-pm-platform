@@ -78,6 +78,7 @@ class PortfolioControlSnapshot:
     generated_at: datetime
     projects: tuple[PortfolioProjectControlInput, ...]
     source_refs: tuple[SourceReference, ...]
+    portfolio_revision: int = 1
 
     def validate(self) -> None:
         for value, name in (
@@ -89,6 +90,12 @@ class PortfolioControlSnapshot:
                 raise ValueError(f"INVALID_{name.upper()}")
         if self.generated_at.tzinfo is None or self.generated_at.utcoffset() is None:
             raise ValueError("PORTFOLIO_SNAPSHOT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
+        if (
+            isinstance(self.portfolio_revision, bool)
+            or not isinstance(self.portfolio_revision, int)
+            or not 1 <= self.portfolio_revision <= MAX_SAFE_REVISION
+        ):
+            raise ValueError("INVALID_PORTFOLIO_REVISION")
         if not self.projects:
             raise ValueError("PORTFOLIO_SNAPSHOT_PROJECTS_REQUIRED")
         ids: set[str] = set()
@@ -147,6 +154,7 @@ def build_portfolio_control_snapshot(
     generated_at: datetime,
     projects: list[PortfolioProjectControlInput],
     source_refs: list[SourceReference],
+    portfolio_revision: int = 1,
 ) -> dict[str, object]:
     snapshot = PortfolioControlSnapshot(
         snapshot_id=snapshot_id,
@@ -155,5 +163,6 @@ def build_portfolio_control_snapshot(
         generated_at=generated_at,
         projects=tuple(projects),
         source_refs=tuple(source_refs),
+        portfolio_revision=portfolio_revision,
     )
     return snapshot.as_dict()
