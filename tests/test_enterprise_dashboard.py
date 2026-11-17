@@ -429,6 +429,28 @@ def test_empty_dashboard_is_a_valid_p6_manageable_definition():
     assert read["portlets"] == []
 
 
+def test_dashboard_can_be_created_before_any_portlets_are_selected():
+    service, _, _, _ = make_service()
+    created = create_dashboard(service, payload=create_payload(portlets=[]))
+    assert created.dashboard.portlets == ()
+    read = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert read["portlets"] == []
+
+
+def test_p6_scope_filter_is_single_portfolio_or_project_and_not_both():
+    service, _, _, _ = make_service()
+    with pytest.raises(EnterpriseDashboardError, match="SCOPE_FILTERS_MUTUALLY_EXCLUSIVE"):
+        create_dashboard(
+            service,
+            payload=create_payload(
+                filters=[
+                    {"key": "portfolio_id", "operator": "eq", "value": "portfolio-1"},
+                    {"key": "project_id", "operator": "eq", "value": "project-1"},
+                ]
+            ),
+        )
+
+
 def test_create_rejects_caller_supplied_authority_fields():
     service, _, _, _ = make_service()
     payload = create_payload(tenant_id="tenant-forged", owner_user_id="attacker")
@@ -453,18 +475,18 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
         DashboardLayout(10, 0, 3, 1).validate()
     with pytest.raises(EnterpriseDashboardError, match="UNKNOWN_ENTERPRISE_DASHBOARD_FILTER"):
         DashboardFilter("external_url", "eq", "https://example.com").validate()
-    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_VALUE"):
-        DashboardFilter("project_id", "in", tuple(f"project-{i}" for i in range(201))).validate()
+    with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_OPERATOR"):
+        DashboardFilter("project_id", "in", ("project-1",)).validate()
 
 
 def test_multi_value_filters_are_immutable_after_parse():
-    raw_values = ["project-1"]
+    raw_values = ["active"]
     parsed = DashboardFilter.from_dict(
-        {"key": "project_id", "operator": "in", "value": raw_values}
+        {"key": "project_status", "operator": "in", "value": raw_values}
     )
     raw_values.append("project-2")
-    assert parsed.value == ("project-1",)
-    assert parsed.as_dict()["value"] == ["project-1"]
+    assert parsed.value == ("active",)
+    assert parsed.as_dict()["value"] == ["active"]
 
 
 def test_eppm_layout_supports_narrow_wide_columns_and_rejects_overlap():
@@ -637,6 +659,53 @@ def test_filter_override_obeys_eppm_owner_restriction_and_is_not_persisted():
         "alice-session", restricted.dashboard.dashboard_id, filter_overrides=override
     )
     assert owner_result["filters"][0]["key"] == "project_status"
+
+
+def test_user_filter_override_is_saved_per_actor_and_reset_without_mutating_dashboard():
+    service, repository, lifecycle, _ = make_service()
+    created = create_dashboard(service)
+    service.assign_share(
+        "alice-session", created.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    override = [{"key": "project_status", "operator": "eq", "value": "active"}]
+
+    catalog = service.save_dashboard_filter_override(
+        "bob-session", created.dashboard.dashboard_id, override
+    )
+    assert catalog["contract_version"] == "cubi-enterprise-dashboard-catalog.v1"
+    prefs = repository.list_user_preferences("tenant-a", "bob")
+    assert prefs[created.dashboard.dashboard_id]["filter_override"] == override
+
+    read = service.read_portlets("bob-session", created.dashboard.dashboard_id)
+    assert read["dashboard"]["filters"][0]["key"] == "membership_status"
+    assert read["filters"] == override
+    assert read["portlets"][0]["applied_filters"] == override
+
+    service.reset_dashboard_preferences("bob-session", created.dashboard.dashboard_id)
+    assert repository.list_user_preferences("tenant-a", "bob") == {}
+    reset_read = service.read_portlets("bob-session", created.dashboard.dashboard_id)
+    assert reset_read["filters"][0]["key"] == "membership_status"
+
+
+def test_saved_user_filter_override_obeys_owner_restriction():
+    service, _, lifecycle, _ = make_service()
+    created = service.create_dashboard(
+        "alice-session", create_payload(restrict_filter_override=True),
+        idempotency_key="locked-filter-preference",
+    )
+    service.assign_share(
+        "alice-session", created.dashboard.dashboard_id,
+        target_type="user", target_id="bob", expected_revision=1,
+    )
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="FILTER_OVERRIDE_RESTRICTED"):
+        service.save_dashboard_filter_override(
+            "bob-session",
+            created.dashboard.dashboard_id,
+            [{"key": "project_status", "operator": "eq", "value": "active"}],
+        )
 
 
 def test_decision_status_and_freshness_filters_suppress_nonmatching_data():
@@ -1075,7 +1144,9 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["additionalProperties"] is False
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
     assert schema["properties"]["portlets"]["minItems"] == 0
+    assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert schema["properties"]["max_rows_per_portlet"]["default"] == 100
     assert schema["$defs"]["dashboard_read_response"]["properties"]["portlets"]["minItems"] == 0
     assert schema["$defs"]["dashboard_display_preference_request"]["required"] == [
         "dashboard_id", "displayed"
