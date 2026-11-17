@@ -11,7 +11,7 @@ This document describes the bounded backend slice only. It is not a claim that t
 
 - Base main SHA: 20778a0394dfad0686e2854a4dd043f3b1189172.
 - All eight issue-allowed target paths were absent from the base recursive Git tree.
-- Current changed-file lists for all 122 open pull requests (including this PR) were checked. None of the other 121 open PRs touches any of the eight target paths.
+- Current changed-file lists for all 122 open pull requests (including this PR) were checked. None of the other 121 open PRs touches any of the eight target paths. The seven other PRs updated since the original 11:14 preflight were refreshed again; none overlaps the target paths.
 - The protected shared security, identity, deployment schema, production composition, workspace UI, portfolio-source and Engineering calculation paths are not part of this change.
 - The recursive base Git tree contains no root or nested AGENTS.md. This environment does not provide an actual local repository checkout, so the issue's separate actual-checkout AGENTS inspection remains an explicit pre-merge verification gate; no claim that this local-checkout step was completed is made.
 
@@ -109,7 +109,7 @@ Filters are stored and validated against a closed key/operator/value catalogue:
 - `generated_after` / `generated_before` (source timestamp bounds);
 - `include_stale` (when false, stale and unknown source data are suppressed while freshness remains explicit).
 
-The owner may set `restrict_filter_override=true`. When false, a reader may supply request-scoped filter overrides; when true, only the owner or Enterprise administrator may override. Overrides are not persisted. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
+The filter list is bounded to 20 entries and multi-value selectors to 200 values. The owner may set `restrict_filter_override=true`. When false, a reader may supply request-scoped filter overrides; when true, only the owner or Enterprise administrator may override. Overrides are not persisted. The read response distinguishes the dashboard's saved filters from the effective/applied filters. Project-code filtering is explicitly deferred because the existing Portfolio Control Snapshot contract does not carry a canonical project-code field; no guessed lookup or parallel project-code source is introduced.
 
 Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered for presentation, but every project in the underlying source snapshot is re-authorized before any snapshot or source-reference metadata is returned. Filtering never bypasses source-record authorization. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
 
@@ -166,7 +166,7 @@ The related EPPM screen topics were checked against their HTML screen definition
 
 #### Complete EPPM V26 dashboard and portlet HTML inventory
 
-The V26 Dashboard TOC branch and the linked screen/topic pages were inspected as HTML. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
+The V26 Dashboard TOC branch and the linked screen/topic pages were inspected as HTML. The traceability test requires all 78 exact official HTML URLs to appear in this crosswalk. These rows cover the Manage Dashboards page, the Customize page and its three tabs, display preferences, the portlet framework, every portlet in the Help catalogue, and adjacent action/workflow topics.
 
 | Official HTML topic | Disposition | Navigation, screen/access note and CUBI mapping |
 |---|---|---|
