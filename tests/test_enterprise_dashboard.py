@@ -1218,7 +1218,7 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://primavera.oraclecloud.com/help/en/user/95937.htm",
     "https://primavera.oraclecloud.com/help/en/user/96011.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm",
-    "https://docs.oracle.com/cd/G48897_01/p6help/en/36613.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/36613_1.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/5937.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/34915.htm",
