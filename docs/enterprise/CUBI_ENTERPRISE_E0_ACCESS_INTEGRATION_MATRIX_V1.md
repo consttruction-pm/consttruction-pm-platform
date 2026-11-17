@@ -156,3 +156,30 @@ E0 is not complete until all of the following are true on the final integrated m
 - No duplicate identity, team, permission, project-access or audit subsystem is introduced.
 
 **Current disposition:** E0 is in progress. This document records path collisions, dependencies and acceptance controls; it does not approve any PR for merge, claim full P6 V26 parity, or certify production readiness.
+
+
+## 8. Confirmed source-level reconciliation blocker
+
+A direct source inspection of the current #1974 and #1983 branches confirms that the overlap is a **duplicate authorization source of truth**, not only shared-file merge conflict.
+
+### Canonical profile model in #1974
+
+- `src/construction_pm/security_profiles.py:234-249` creates `p6_security_profiles` with one profile entity and an explicit `global` / `project` scope.
+- `security_profiles.py:282-289` creates `p6_security_profile_privileges`.
+- `security_profiles.py:292-313` creates `p6_security_profile_assignments`, including `tenant_id`, `profile_id`, `user_id`, `obs_id`, revision and assignment provenance.
+- `security_profiles.py:356-367` creates `p6_security_profile_audit`.
+
+### Parallel model currently introduced by #1983
+
+- `src/construction_pm/enterprise_project_access.py:147-153` creates `enterprise_project_security_profiles`.
+- `enterprise_project_access.py:154-163` creates `enterprise_user_obs_assignments`.
+- `enterprise_project_access.py:166-170` creates `enterprise_project_access_audit`.
+- `enterprise_project_access.py:171+` defines a second SQL privilege-mapping function.
+
+### Required resolution
+
+Before the E0 tranche can be accepted, #1983 must retain its Responsible OBS fields and record-level checks but use the canonical #1974 profile, privilege, assignment and audit model. Do not keep two live project-profile stores or attempt to synchronize them. If any duplicate tables have already been persisted in a supported environment, define an explicit idempotent migration/reconciliation path and prove that it preserves assignments and audit provenance.
+
+The integrated authorization evaluator must combine the applicable global/module privilege with the exact project/OBS profile grant. Add tests proving denial when either half is absent, plus immediate denial after either grant is revoked. Explicit V26 Admin Superuser / Project Superuser semantics must remain narrowly scoped and tested. CUBI non-P6 permissions continue through their own authorized policy boundary.
+
+This was recorded as a merge-blocking review finding on #1983 and cross-linked to #1974 and #1928 on 2026-11-17. It is a verified source observation; no merge or production readiness is implied.
