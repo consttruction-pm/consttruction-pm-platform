@@ -14,10 +14,36 @@ if not DSN:
 from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.portfolio_control_persistence import (
     PortfolioControlRevisionConflict,
-    PortfolioProjectFacts,
     PostgresPortfolioControlRepository,
     PostgresPortfolioControlSnapshotProvider,
+    PostgresProjectLifecycleFactsReader,
 )
+from construction_pm.postgres_project_lifecycle import initialize_project_lifecycle_schema
+
+NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
+
+
+rom __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime, timezone
+
+import pytest
+
+psycopg = pytest.importorskip("psycopg")
+DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
+if not DSN:
+    pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is not configured", allow_module_level=True)
+
+from construction_pm.control_intelligence.contracts import SourceReference
+from construction_pm.portfolio_control_persistence import (
+    PortfolioControlRevisionConflict,
+    PostgresPortfolioControlRepository,
+    PostgresPortfolioControlSnapshotProvider,
+    PostgresProjectLifecycleFactsReader,
+)
+from construction_pm.postgres_project_lifecycle import initialize_project_lifecycle_schema
 
 NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
 
@@ -44,6 +70,12 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
     )
 
     with psycopg.connect(DSN) as connection:
+        initialize_project_lifecycle_schema(connection)
+        connection.execute(
+            "INSERT INTO project_lifecycle_projects "
+            "(tenant_id,project_id,name,revision,status) VALUES (%s,%s,%s,%s,%s)",
+            (tenant_id, project_id, "Authoritative project", 3, "active"),
+        )
         repository = PostgresPortfolioControlRepository(connection)
         repository.initialize()
         connection.commit()
@@ -78,10 +110,7 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
         assert persisted[0].source_refs == (source,)
 
         provider = PostgresPortfolioControlSnapshotProvider(
-            repository,
-            LiveProjectFactsReader({
-                (tenant_id, project_id): PortfolioProjectFacts(project_id, 3, "active")
-            }),
+            repository, PostgresProjectLifecycleFactsReader(connection)
         )
         snapshot = provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
         assert snapshot.projects[0].project_id == project_id
@@ -103,10 +132,9 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
 
     with psycopg.connect(DSN) as connection:
         repository = PostgresPortfolioControlRepository(connection)
-        facts = LiveProjectFactsReader({
-            (tenant_id, project_id): PortfolioProjectFacts(project_id, 3, "active")
-        })
-        provider = PostgresPortfolioControlSnapshotProvider(repository, facts)
+        provider = PostgresPortfolioControlSnapshotProvider(
+            repository, PostgresProjectLifecycleFactsReader(connection)
+        )
         with pytest.raises(ValueError, match="PORTFOLIO_PROJECT_SOURCE_STALE"):
             provider.get_snapshot(portfolio_id, tenant_id=tenant_id)
 
