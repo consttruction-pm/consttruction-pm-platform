@@ -365,6 +365,13 @@ def test_dashboard_portlet_limit_defaults_to_twelve_and_is_admin_configurable():
         ),
     )
     assert len(created.dashboard.portlets) == 13
+    service.set_dashboard_portlet_limit("admin-session", 12)
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT_EXCEEDED"):
+        service.duplicate_dashboard(
+            "alice-session",
+            created.dashboard.dashboard_id,
+            idempotency_key="duplicate-over-new-limit",
+        )
 
 
 def test_dashboard_portlet_limit_rejects_invalid_configuration():
