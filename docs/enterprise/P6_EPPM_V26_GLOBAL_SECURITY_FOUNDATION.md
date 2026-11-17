@@ -352,3 +352,21 @@ privilege catalogue, including V26 auto-select and required-co-grant metadata,
 at `GET /api/admin/p6/project-security-profiles/catalog`. This gives the
 administration client a single authoritative source for the profile editor
 rather than duplicating privilege definitions in the browser.
+
+
+### Production resource routes — persisted Resource Access enforcement — 2026-11-17
+
+The PostgreSQL production runtime now constructs the persisted resource master,
+resource assignment/period/spread services, capacity and rate services, and
+mounts their read/write APIs through the production HTTP composition. The same
+PostgreSQL resource master is injected into assignment, spread, capacity and
+rate APIs as the authoritative ancestry source. Production schema initialization
+creates the assignment, period, spread, capacity and rate tables before the
+routes are mounted. This closes the previous gap where these resource APIs were
+only composed by the preview runtime.
+
+The production resource master CRUD API itself is still not mounted in this
+narrow runtime; the tenant-wide resource identity is populated by the resource
+master repository migrations and existing resource persistence paths. The
+resource selector for Associated Resource is available through the new tenant
+admin endpoint.
