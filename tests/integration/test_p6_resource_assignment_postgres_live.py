@@ -1,13 +1,24 @@
 import os
+from contextlib import contextmanager
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.application.authorization import AuthorizationContext
+from construction_pm.p6_resource_master_repository import P6Resource, PostgresP6ResourceRepository
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService, PostgresP6ResourceSpreadRepository,
+)
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentPersistenceError,
     PostgresP6ResourceAssignmentRepository,
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
+    PostgresP6ResourceAssignmentPeriodRepository,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -120,3 +131,49 @@ def test_postgres_assignment_period_identical_replay_and_immutable_conflict():
             match="IMMUTABLE_RESOURCE_ASSIGNMENT_PERIOD_VALUE",
         ):
             repo.upsert(changed)
+
+
+class _ReadTransaction:
+    @contextmanager
+    def transaction(self):
+        yield
+
+
+class _SelectedResourcePolicy:
+    def is_allowed(self, context, permission):
+        return True
+
+    def can_access_resource(self, context, resource_id, ancestor_resource_ids):
+        return "res-root" in ancestor_resource_ids
+
+
+def test_postgres_resource_assignment_api_filters_by_selected_resource_ancestry():
+    with connect() as conn:
+        scope = BackendScope("tenant-resource-access-pg", "project-resource-access-pg", 1)
+        resources = PostgresP6ResourceRepository(conn)
+        resources.initialize()
+        resources.save(P6Resource(scope.tenant_id, scope.project_id, 1, "res-root", "Root"))
+        resources.save(P6Resource(scope.tenant_id, scope.project_id, 1, "res-child", "Child", parent_resource_id="res-root"))
+        resources.save(P6Resource(scope.tenant_id, scope.project_id, 1, "res-sibling", "Sibling"))
+
+        assignments = PostgresP6ResourceAssignmentRepository(conn)
+        assignments.initialize()
+        assignments.upsert(replace(assignment(scope, "ra-child"), resource_id="res-child"))
+        assignments.upsert(replace(assignment(scope, "ra-sibling"), resource_id="res-sibling"))
+        periods = PostgresP6ResourceAssignmentPeriodRepository(conn)
+        periods.initialize()
+        spreads = PostgresP6ResourceSpreadRepository(conn)
+        spreads.initialize()
+        transaction = _ReadTransaction()
+        api = P6ResourceReadAPI(
+            P6ResourceAssignmentApplicationService(assignments, transaction),
+            P6ResourceAssignmentPeriodApplicationService(periods, transaction),
+            P6ResourceSpreadApplicationService(spreads, transaction),
+            _SelectedResourcePolicy(), resource_repository=resources,
+        )
+        auth = AuthorizationContext(
+            scope.tenant_id, scope.project_id, "resource-reader", frozenset()
+        )
+        visible = api.list_assignments(scope, auth_context=auth)
+        assert [item["assignment"]["assignment_id"] for item in visible] == ["ra-child"]
+        assert api.get_assignment(scope, "ra-sibling", auth_context=auth) is None
