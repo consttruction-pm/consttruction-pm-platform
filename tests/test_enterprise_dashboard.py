@@ -365,6 +365,26 @@ def test_project_filters_are_applied_without_bypassing_source_project_authorizat
     }
 
 
+def test_project_status_filter_uses_canonical_source_status_literal():
+    source = replace(
+        snapshot(),
+        projects=(
+            PortfolioProjectControlInput("project-1", 7, "included", "in_progress"),
+        ),
+    )
+    service, _, _, _ = make_service(source=FakePortfolioQuery(source))
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(filters=[
+            {"key": "project_status", "operator": "eq", "value": "in_progress"}
+        ]),
+        idempotency_key="source-status-filter",
+    )
+    result = service.read_portlets("alice-session", created.dashboard.dashboard_id)
+    assert result["portlets"][0]["filtered_out"] is False
+    assert result["portlets"][0]["data"]["projects"][0]["status"] == "in_progress"
+
+
 def test_filter_override_obeys_eppm_owner_restriction_and_is_not_persisted():
     service, _, lifecycle, _ = make_service()
     created = create_dashboard(service, payload=create_payload(restrict_filter_override=False))
