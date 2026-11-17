@@ -247,6 +247,28 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
         if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
+                and parts[4] == "project-access"):
+            if method != "PUT":
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            target_user_id = parts[3]
+            payload = self._body(environ, "cubi-p6-user-project-access.v1")
+            obs_id = payload.get("obs_id")
+            expected = payload.get("expected_revision")
+            if (not isinstance(obs_id, str) or not obs_id.strip()
+                    or (expected is not None and (
+                        isinstance(expected, bool) or not isinstance(expected, int) or expected < 1
+                    ))):
+                raise SecurityProfileError("SECURITY_PROFILE_PROJECT_ACCESS_REQUEST_INVALID")
+            assignment = self._service.assign_default_project_profile(
+                session_id, target_user_id, obs_id=obs_id.strip(),
+                expected_revision=expected,
+            )
+            return 200, {
+                "contract_version": "cubi-p6-user-project-access.v1",
+                "assignment": assignment,
+            }
+
+        if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
                 and parts[4] == "global-access"):
             target_user_id = parts[3]
             if method == "GET":
