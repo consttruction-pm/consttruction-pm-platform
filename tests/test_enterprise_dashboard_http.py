@@ -64,7 +64,11 @@ def request(app, method, path, *, body=None, cookie=True, headers=None, query=""
         captured["headers"] = response_headers
 
     payload = b"".join(app(environ, start_response))
-    return captured["status"], json.loads(payload), captured["headers"]
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError:
+        decoded = payload.decode("utf-8")
+    return captured["status"], decoded, captured["headers"]
 
 
 def test_dashboard_http_requires_authenticated_session_and_delegates_catalog():
