@@ -1743,7 +1743,9 @@ class PostgresSecurityProfileAuthorizationPolicy:
         if permission in {Permission.P6_RESOURCE_ADD, Permission.P6_RESOURCE_EDIT,
                           Permission.P6_RESOURCE_DELETE}:
             resource_mode = str(module_rows[0][5]) if module_rows else "none"
-            if "resources" not in module_access or resource_mode == "none":
+            if "resources" not in module_access or resource_mode != "all":
+                # Selected resource roots remain fail-closed until a canonical
+                # enterprise-wide resource hierarchy can resolve descendants.
                 return False
         if permission == Permission.P6_ROLE_ADMIN and "resources" not in module_access:
             return False
