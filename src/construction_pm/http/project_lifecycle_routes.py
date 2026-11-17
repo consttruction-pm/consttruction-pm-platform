@@ -5262,10 +5262,18 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(status, code, "error.p6.activity_period_actual.write_rejected")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
-            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
+            if method == "POST" and path.startswith("/api/projects/") and (
+                path.endswith("/p6/resource-assignments")
+                or path.endswith("/p6/resource-planning/assignments")
+            ):
                 if self._p6_resource_write_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
+                resource_planning_path = path.endswith("/p6/resource-planning/assignments")
+                assignment_suffix = (
+                    "/p6/resource-planning/assignments"
+                    if resource_planning_path else "/p6/resource-assignments"
+                )
+                project_id = path[len("/api/projects/"):-len(assignment_suffix)].rstrip("/")
                 if not project_id:
                     return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
                 try:
@@ -5313,7 +5321,14 @@ class ProjectLifecycleHttpRoutes:
                             else Decimal(str(payload["hours_per_units_time_period"]))
                         ),
                     )
-                    result = self._p6_resource_write_api.save_assignment(assignment, auth_context=auth)
+                    if resource_planning_path:
+                        result = self._p6_resource_write_api.create_resource_planning_assignment(
+                            assignment, auth_context=auth
+                        )
+                    else:
+                        result = self._p6_resource_write_api.save_assignment(
+                            assignment, auth_context=auth
+                        )
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
