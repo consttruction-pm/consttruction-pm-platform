@@ -140,3 +140,25 @@ def test_application_reauthorizes_each_project_and_denies_if_any_project_is_forb
         )
     assert denied.value.code == "FORBIDDEN"
     assert authorizer.calls == [("user-1", "project-1"), ("user-1", "project-2")]
+
+
+def test_api_maps_missing_and_stale_portfolio_sources_without_leaking_source_details():
+    class MissingProvider:
+        def get_snapshot(self, portfolio_id: str, *, tenant_id: str):
+            raise KeyError("ENGINEERING_PROJECT_NOT_FOUND")
+
+    missing = PortfolioQueryAPI(
+        PortfolioQueryApplicationService(MissingProvider(), policy(), project_authorizer())
+    ).get_snapshot("portfolio-1", auth_context=auth())
+    assert missing["error"]["category"] == ErrorCategory.NOT_FOUND.value
+    assert missing["error"]["code"] == "PORTFOLIO_SOURCE_NOT_FOUND"
+
+    class StaleProvider:
+        def get_snapshot(self, portfolio_id: str, *, tenant_id: str):
+            raise ValueError("PORTFOLIO_PROJECT_SOURCE_STALE")
+
+    stale = PortfolioQueryAPI(
+        PortfolioQueryApplicationService(StaleProvider(), policy(), project_authorizer())
+    ).get_snapshot("portfolio-1", auth_context=auth())
+    assert stale["error"]["category"] == ErrorCategory.CONFLICT.value
+    assert stale["error"]["code"] == "PORTFOLIO_PROJECT_SOURCE_STALE"
