@@ -3,7 +3,7 @@
 **Issue:** #2028  
 **Implementation branch:** feat/ent06-dashboard-portlet-backend-v1  
 **Scope:** isolated CUBI Enterprise backend foundation  
-**Status:** implementation expanded against the complete P6 EPPM V26 dashboard/portlet topic family; exact-head CI rerun pending after the parity changes
+**Status:** backend implementation and Help traceability complete; exact-head CI and Client Typecheck status are tracked on PR #2030.
 
 This document describes the bounded backend slice only. It is not a claim that the complete P6 EPPM dashboard experience, dashboard designer UI, production HTTP routes, browser workflows, or full Oracle parity are complete.
 
