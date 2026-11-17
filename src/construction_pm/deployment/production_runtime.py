@@ -51,7 +51,6 @@ from ..p6_project_security_api import P6ProjectSecurityAPI
 from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
 from ..p6_associated_resource_api import P6AssociatedResourceAPI
 from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
-from ..p6_resource_master_repository import PostgresP6ResourceRepository
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -315,7 +314,16 @@ class ProductionRuntime:
             connection, project_obs_lookup=project_obs_lookup,
             obs_repository=obs_node_repository,
         )
-        associated_resource_repository = PostgresP6AssociatedResourceRepository(connection)
+        def sync_native_user_personal_name(tenant_id: str, user_id: str, resource_name: str) -> None:
+            updated = connection.execute(
+                "UPDATE identity_users SET display_name=%s WHERE tenant_id=%s AND user_id=%s",
+                (resource_name, tenant_id, user_id),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("ASSOCIATED_RESOURCE_USER_NOT_FOUND")
+        associated_resource_repository = PostgresP6AssociatedResourceRepository(
+            connection, native_auth_name_sync=sync_native_user_personal_name
+        )
         policy = P6GlobalSecurityAuthorizationPolicy(
             global_security_repository, project_role_policy,
             obs_project_access=project_security_repository,
