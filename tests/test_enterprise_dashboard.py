@@ -523,6 +523,49 @@ def test_dashboard_list_applies_access_before_result_limit():
     ]
 
 
+def test_dashboard_list_caps_access_filter_prefix_at_repository_limit():
+    service, repository, _, _ = make_service()
+    service.create_dashboard(
+        "alice-session",
+        create_payload(title="Private prefix row"),
+        idempotency_key="private-prefix-row",
+    )
+    shared = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Shared tail row"),
+        idempotency_key="shared-tail-row",
+    )
+    service.assign_share(
+        "alice-session",
+        shared.dashboard.dashboard_id,
+        target_type="user",
+        target_id="bob",
+        expected_revision=1,
+    )
+
+    private_row = repository.get("tenant-a", next(
+        dashboard_id
+        for (tenant_id, dashboard_id), item in repository.items.items()
+        if tenant_id == "tenant-a" and item.dashboard.title == "Private prefix row"
+    ))
+    shared_row = repository.get("tenant-a", shared.dashboard.dashboard_id)
+    calls = []
+
+    def bounded_list_for_tenant(tenant_id, *, limit=200):
+        assert limit <= 500
+        calls.append(limit)
+        rows = (private_row,) * 399 + (shared_row,)
+        return rows[:limit]
+
+    repository.list_for_tenant = bounded_list_for_tenant
+    visible = service.list_dashboards("bob-session", limit=2)
+
+    assert [item.dashboard.dashboard_id for item in visible] == [
+        shared.dashboard.dashboard_id
+    ]
+    assert calls == [200, 400, 500]
+
+
 def test_empty_dashboard_is_a_valid_p6_manageable_definition():
     service, _, _, _ = make_service()
     created = create_dashboard(service, payload=create_payload(portlets=[]))
