@@ -86,13 +86,13 @@ class P6ProjectSecurityAPI:
         )
 
     def assign_obs(
-        self, user_id: str, obs_id: str, profile_id: str, *,
+        self, user_id: str, obs_id: str, profile_id: str | None = None, *,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         auth_context.validate()
         _require_admin(self.authorization_policy, auth_context)
         grant = self.repository.assign_obs(
-            P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, profile_id),
+            P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, profile_id or ""),
             actor_id=auth_context.user_id,
         )
         return {
