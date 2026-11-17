@@ -128,7 +128,6 @@ class PortfolioControlSnapshot:
             "contract_version": "portfolio-control-snapshot.v1",
             "snapshot_id": self.snapshot_id,
             "portfolio_id": self.portfolio_id,
-            "portfolio_revision": self.portfolio_revision,
             "tenant_id": self.tenant_id,
             "generated_at": self.generated_at.isoformat(),
             "summary": dict(self.summary),
