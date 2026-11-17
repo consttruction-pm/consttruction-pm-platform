@@ -48,11 +48,11 @@ Official HTML references:
 This increment deliberately does **not** claim complete V26 parity:
 
 - The V26 Global Security privilege catalogue is now encoded as 72 entries across the seven Help categories, with documented code/resource hierarchy dependencies normalized and validated. Route-level authorization still needs to consume this catalogue before the values may be treated as effective grants.
-- The domain predicate is not yet wired into every production API, web route, report, export, or service boundary. Do not use it as a substitute for route-level enforcement.
-- Initial Admin Superuser assignment needs a controlled tenant bootstrap/provisioning path and a tested last-admin protection rule.
+- The persisted global assignment/profile is now composed into the production `AuthorizationPolicy` used by the production lifecycle API and the APIs composed with that policy. Missing assignments and inactive/missing profiles fail closed; the V26 Admin Superuser bypass is evaluated from the persisted built-in identity only; non-admin users must have Projects module access before the existing project policy is evaluated. This does not yet prove every non-policy route, report, export, or static navigation surface is gated.
+- Initial Admin Superuser assignment still needs a controlled tenant bootstrap/provisioning path and a tested last-admin protection rule. Until then, the new production policy intentionally denies project API access for users without a persisted assignment.
 - Module-access values now validate against the V26 Users Page options and Contributor exclusivity; route/login enforcement is still required.
 - Selected resource access now enforces the V26 maximum of five roots. Resource hierarchy selection still needs canonical Resource/WBS repositories, ancestry resolution, secure-code filtering, and exhaustive API enforcement.
-- Project Owner and Contributor exceptions require the exact applicable EPPM V26 module-access rules and resource-assignment provenance before implementation; no broad role shortcut is allowed.
+- `No Global Privileges` is currently denied by the production project policy until an authoritative OBS-to-project assignment resolver exists. This is deliberately fail-closed: a CUBI role is not a substitute for Oracle's OBS assignment. Project Owner and Contributor exceptions still require exact V26 module-access rules and resource-assignment provenance.
 - Project OBS responsibility must be evaluated at EPS, project, WBS, issue, risk, and threshold levels. The documented higher-level OBS override behavior must be represented without weakening tenant boundaries.
 - UI pages, user assignment workflows, revocation, full audit views, and browser E2E remain acceptance gates. The PostgreSQL lifecycle tests now cover profile duplicate/default/edit/delete, revisions, and audit behavior.
 
@@ -60,10 +60,34 @@ This increment deliberately does **not** claim complete V26 parity:
 
 - Machine-reviewed ordered manifest for all 72 global privileges with one official V26 Help URL and dependency/exception test per row (catalogue is now encoded; per-row exhaustive behavior tests and route mapping remain).
 - Built-in profile bootstrap and at-least-one-Admin-Superuser invariants, including concurrent assignment/revocation tests.
-- Module access enforced on login, session resolution, APIs, and navigation.
+- Module access enforced on login, session resolution, APIs, and navigation. The production project-API gate now requires a persisted assignment and Projects module access for non-admin users; remaining modules and navigation still require coverage.
 - Resource access enforced in every resource read/write/query/export and secure-code path.
 - Project profile + OBS responsibility + Project Superuser + documented owner/Contributor exception tests.
 - Cross-tenant, IDOR, revocation, audit immutability, and live PostgreSQL tests.
 - Browser E2E for profile creation, assignment, module access, resource scope, project access, and denied paths.
 
 No completion label should be applied until every gate passes on the same commit SHA.
+
+
+## Production authorization integration — 2026-11-17
+
+The global profile model is no longer only a domain primitive. The production
+runtime now composes `P6GlobalSecurityAuthorizationPolicy` around the existing
+role policy and injects it into the shared production API composition. The
+policy applies these rules:
+
+1. Missing user-global-security assignment: deny.
+2. Missing or inactive assigned profile: deny.
+3. Application-generated Admin Superuser: allow the project permission without
+   falling through to the coarse CUBI role map, matching the documented global
+   project bypass.
+4. No Global Privileges: deny project API access until the OBS assignment
+   resolver is available; do not infer OBS scope from generic CUBI roles.
+5. Other profiles: require the Projects module and then the existing project
+   policy. This is an interim composition; the project privilege catalogue and
+   per-resource OBS/WBS scope still need to replace broad role permissions.
+
+Focused policy tests cover missing assignment, Admin Superuser bypass,
+No Global Privileges fail-closed behavior, missing Projects module, and the
+normal project-role conjunction. These changes are committed in the PR branch;
+the exact-SHA GitHub checks are pending at the time of this update.
