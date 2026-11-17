@@ -10,7 +10,9 @@ from construction_pm.delay_analysis.schedule_movement import (
     assess_baseline_activity_variance,
     assess_schedule_movement,
 )
-from construction_pm.p6_baseline_activity_repository import P6BaselineActivity\nfrom construction_pm.p6_baseline_repository import P6Baseline\nfrom construction_pm.scheduling.schedule import FloatActivity, ScheduleMode, ScheduleResult
+from construction_pm.p6_baseline_activity_repository import P6BaselineActivity
+from construction_pm.p6_baseline_repository import P6Baseline
+from construction_pm.scheduling.schedule import FloatActivity, ScheduleMode, ScheduleResult
 
 
 def ref(
