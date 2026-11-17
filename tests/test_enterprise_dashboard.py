@@ -587,7 +587,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     assert len(ORACLE_HELP_TRACEABILITY_URLS) == 42
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
-    for disposition in ("Partial", "Not Applicable", "Deferred"):
+    for disposition in ("Implemented", "Partial", "Not Applicable", "Deferred"):
         assert disposition in document
     for navigation_or_access_term in (
         "Navigation Menu",
