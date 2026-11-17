@@ -270,6 +270,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
     user_admin_id = f"profile-user-admin-{suffix}"
     profile_admin_only_id = f"profile-profile-admin-only-{suffix}"
     role_only_id = f"profile-role-only-{suffix}"
+    limited_user_admin_id = f"profile-limited-user-admin-{suffix}"
     project_id = f"profile-http-project-{suffix}"
     other_tenant = f"profile-http-other-{suffix}"
     now = datetime.now(timezone.utc)
@@ -286,6 +287,7 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         identity.upsert_user(_identity_user(user_admin_id, tenant, "planner"))
         identity.upsert_user(_identity_user(profile_admin_only_id, tenant, "planner"))
         identity.upsert_user(_identity_user(role_only_id, tenant, "enterprise_admin"))
+        identity.upsert_user(_identity_user(limited_user_admin_id, tenant, "planner"))
         PostgresP6OBSRepository(connection).upsert(P6OBSNode(tenant, f"obs-{suffix}", name="Profile HTTP OBS"))
         profiles = PostgresSecurityProfileRepository(connection)
         profile_admin = profiles.create_profile(
@@ -301,6 +303,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             tenant_id=tenant, profile_id=profile_admin.profile_id, user_id=admin_id,
             actor_user_id=admin_id, occurred_at=now,
         )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+        )
         user_admin_profile = profiles.create_profile(
             tenant_id=tenant, profile_id="http-user-admin", name="HTTP User Administrator",
             scope="global", actor_user_id=admin_id, occurred_at=now,
@@ -313,6 +320,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         profiles.assign(
             tenant_id=tenant, profile_id=user_admin_profile.profile_id, user_id=user_admin_id,
             actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=user_admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
         )
         profile_admin_only = profiles.create_profile(
             tenant_id=tenant, profile_id="http-profile-admin-only", name="HTTP Profile Administrator Only",
@@ -327,12 +339,35 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             tenant_id=tenant, profile_id=profile_admin_only.profile_id, user_id=profile_admin_only_id,
             actor_user_id=admin_id, occurred_at=now,
         )
+        limited_user_admin = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-limited-user-admin",
+            name="HTTP User Admin Without Resource Access", scope="global",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_privileges(
+            tenant_id=tenant, profile_id=limited_user_admin.profile_id,
+            privileges={"add_edit_delete_users"}, expected_revision=1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=limited_user_admin.profile_id,
+            user_id=limited_user_admin_id, actor_user_id=admin_id, occurred_at=now,
+        )
         profiles.create_profile(
             tenant_id=other_tenant, profile_id="foreign-only", name="Foreign Only",
             scope="project", actor_user_id=admin_id, occurred_at=now,
         )
         PostgresProjectRepository(connection).create_for_user(
             tenant, target_id, project_id, "Profile HTTP project", obs_id=f"obs-{suffix}"
+        )
+        default_project = profiles.create_profile(
+            tenant_id=tenant, profile_id="http-default-project",
+            name="HTTP Default Project", scope="project",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.set_default(
+            tenant_id=tenant, profile_id=default_project.profile_id, is_default=True,
+            expected_revision=default_project.revision, actor_user_id=admin_id, occurred_at=now,
         )
         connection.commit()
 
@@ -348,13 +383,16 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
                 return SimpleNamespace(user_id=profile_admin_only_id, tenant_id=tenant, roles=frozenset({"planner"}))
             if session_id == "role-only-session":
                 return SimpleNamespace(user_id=role_only_id, tenant_id=tenant, roles=frozenset({"enterprise_admin"}))
+            if session_id == "limited-user-admin-session":
+                return SimpleNamespace(user_id=limited_user_admin_id, tenant_id=tenant, roles=frozenset({"planner"}))
             return None
 
     with _connect() as connection:
+        profiles = PostgresSecurityProfileRepository(connection)
         service = EnterpriseOrganizationAccessService(
             PostgresEnterpriseOrganizationAccessRepository(connection),
             Sessions(),
-            security_profiles=PostgresSecurityProfileRepository(connection),
+            security_profiles=profiles,
         )
         app = EnterpriseOrganizationAccessHttpMiddleware(lambda environ, start: [], service)
 
@@ -375,6 +413,26 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         assert status == 403 and profile_admin_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
         status, role_only_users = _http_request(app, "GET", "/api/enterprise/users", session_id="role-only-session")
         assert status == 403 and role_only_users["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, limited_users = _http_request(
+            app, "GET", "/api/enterprise/users", session_id="limited-user-admin-session",
+        )
+        assert status == 200
+        assert limited_users["current_user_id"] == limited_user_admin_id
+        assert limited_users["can_manage_other_users"] is False
+        assert [item["user_id"] for item in limited_users["users"]] == [limited_user_admin_id]
+        status, hidden_user_access = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="limited-user-admin-session",
+        )
+        assert status == 403 and hidden_user_access["code"] == "P6_RESOURCE_ACCESS_REQUIRED"
+        target_global_revision = profiles.get_global_user_access(tenant, target_id)["revision"]
+        status, hidden_unassign = _http_request(
+            app, "DELETE",
+            f"/api/enterprise/security-profiles/http-global/assignments/{target_id}",
+            session_id="limited-user-admin-session",
+            query_string=f"expected_revision={target_global_revision}",
+        )
+        assert status == 403 and hidden_unassign["code"] == "P6_RESOURCE_ACCESS_REQUIRED"
         status, role_only_profiles = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="role-only-session",
             payload={
@@ -412,6 +470,41 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         )
         assert status == 200 and global_assigned["revision"] == 1
 
+        status, listed_users = _http_request(
+            app, "GET", "/api/enterprise/users", session_id="user-admin-session",
+        )
+        assert status == 200
+        assert listed_users["current_user_id"] == user_admin_id
+        assert listed_users["can_manage_other_users"] is True
+        assert {item["user_id"] for item in listed_users["users"]} >= {target_id, user_admin_id}
+        status, obs_options = _http_request(
+            app, "GET", "/api/enterprise/obs", session_id="user-admin-session",
+        )
+        assert status == 200
+        assert any(node["obs_id"] == f"obs-{suffix}" for node in obs_options["obs_nodes"])
+        status, obs_assignments = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200 and obs_assignments["assignments"] == []
+        status, default_obs_assignment = _http_request(
+            app, "PUT", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-project-access.v1",
+                "obs_id": f"obs-{suffix}",
+            },
+        )
+        assert status == 200
+        assert default_obs_assignment["assignment"] == {
+            "profile_id": "http-default-project", "obs_id": f"obs-{suffix}", "revision": 1,
+        }
+        status, obs_assignments = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/project-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200 and obs_assignments["assignments"][0]["profile_id"] == "http-default-project"
+
         # Add/Edit/Delete Users can assign profiles, but does not grant profile CRUD.
         status, user_admin_assignment = _http_request(
             app, "PUT", "/api/enterprise/security-profiles/http-global/assignments",
@@ -422,6 +515,59 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             },
         )
         assert status == 200 and user_admin_assignment["revision"] == 2
+
+        # V26 Module Access and Resource Access are user attributes attached to
+        # the same canonical Global profile assignment, not a second profile store.
+        status, access_before = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+        )
+        assert status == 200
+        assert access_before["access"]["profile_id"] == "http-global"
+        assert access_before["access"]["module_access"] == ["projects"]
+        assert access_before["access"]["resource_access_mode"] == "none"
+        status, access_saved = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["resources", "projects"],
+                "resource_access_mode": "all",
+                "resource_root_ids": [],
+                "expected_revision": 2,
+            },
+        )
+        assert status == 200, access_saved
+        assert access_saved["access"]["revision"] == 3
+        assert access_saved["access"]["module_access"] == ["projects", "resources"]
+        assert access_saved["access"]["resource_access_mode"] == "all"
+        status, denied_global_access = _http_request(
+            app, "GET", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="profile-admin-only-session",
+        )
+        assert status == 403 and denied_global_access["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, denied_global_access = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="role-only-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["projects"],
+                "resource_access_mode": "none",
+                "expected_revision": 3,
+            },
+        )
+        assert status == 403 and denied_global_access["code"] == "P6_GLOBAL_PRIVILEGE_REQUIRED"
+        status, invalid_contributor = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/global-access",
+            session_id="user-admin-session",
+            payload={
+                "contract_version": "cubi-p6-user-global-access.v1",
+                "module_access": ["contributor", "projects"],
+                "resource_access_mode": "none",
+                "expected_revision": 3,
+            },
+        )
+        assert status == 400 and invalid_contributor["code"] == "SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE"
 
         status, created = _http_request(
             app, "POST", "/api/enterprise/security-profiles", session_id="admin-session",
@@ -516,10 +662,10 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             session_id="admin-session",
             payload={
                 "contract_version": "cubi-p6-security-profile-assignment.v1",
-                "user_id": target_id, "obs_id": f"obs-{suffix}",
+                "user_id": target_id, "obs_id": f"obs-{suffix}", "expected_revision": 1,
             },
         )
-        assert status == 200 and assigned["revision"] == 1
+        assert status == 200 and assigned["revision"] == 2
 
         status, assigned_delete = _http_request(
             app, "DELETE", "/api/enterprise/security-profiles/http-project-reader",
@@ -574,6 +720,22 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
         context = AuthorizationContext(tenant, project_id, target_id, frozenset({"planner"}))
         assert policy.is_allowed(context, Permission.PROJECT_READ)
         assert not policy.is_allowed(context, Permission.PROJECT_WRITE)
+
+        status, deactivated = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/status",
+            session_id="user-admin-session",
+            payload={"contract_version": "cubi-enterprise-user-admin.v1", "active": False},
+        )
+        assert status == 200 and deactivated["account"]["active"] is False
+        access_after_deactivation = profiles.get_global_user_access(tenant, target_id)
+        assert access_after_deactivation["module_access"] == []
+        status, reactivated = _http_request(
+            app, "PATCH", f"/api/enterprise/users/{target_id}/status",
+            session_id="user-admin-session",
+            payload={"contract_version": "cubi-enterprise-user-admin.v1", "active": True},
+        )
+        assert status == 200 and reactivated["account"]["active"] is True
+        assert profiles.get_global_user_access(tenant, target_id)["module_access"] == []
         connection.commit()
 
 def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
@@ -608,8 +770,10 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         )
         connection.execute(
             "INSERT INTO p6_security_profile_assignments "
-            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
-            "VALUES (%s,'p6-admin-superuser',%s,'',1,%s,%s)",
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,'p6-admin-superuser',%s,'',1,%s,%s,"
+            "'[\"projects\",\"resources\"]'::jsonb,'all','[]'::jsonb)",
             (tenant, admin_id, admin_id, now),
         )
         connection.commit()
@@ -625,6 +789,21 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         admin_context = AuthorizationContext(tenant, project_id, admin_id, frozenset({"viewer"}))
         assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
         assert policy.is_allowed(admin_context, Permission.PROJECT_WRITE)
+        admin_access = profiles.get_global_user_access(tenant, admin_id)
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id, module_access=(),
+            resource_access_mode="all", expected_revision=admin_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert not policy.is_allowed(admin_context, Permission.PROJECT_READ)
+        assert profiles.has_global_privilege(tenant, admin_id, "add_edit_delete_users")
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=admin_access["revision"] + 1,
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert policy.is_allowed(admin_context, Permission.PROJECT_READ)
 
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_BUILTIN_PROTECTED"):
             profiles.create_profile(
@@ -679,12 +858,6 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
             tenant_id=tenant, profile_id="ordinary-global", name="Ordinary Global",
             scope="global", actor_user_id=admin_id, occurred_at=now,
         )
-        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
-            profiles.assign(
-                tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
-                actor_user_id=admin_id, occurred_at=now, expected_revision=1,
-            )
-
         # No Global Privileges still permits OBS-scoped Project Superuser access.
         connection.execute(
             "INSERT INTO p6_security_profiles "
@@ -694,8 +867,15 @@ def test_p6_admin_superuser_builtin_is_protected_and_bypasses_profile_scope():
         )
         profiles.assign(
             tenant_id=tenant, profile_id="p6-no-global-privileges", user_id=target_id,
-            actor_user_id=admin_id, occurred_at=now,
+            actor_user_id=admin_id, occurred_at=now, expected_revision=1,
         )
+        # The second Admin Superuser has now been replaced; the remaining
+        # administrator cannot remove their own final Admin Superuser grant.
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_LAST_ADMIN_SUPERUSER_REQUIRED"):
+            profiles.assign(
+                tenant_id=tenant, profile_id="ordinary-global", user_id=admin_id,
+                actor_user_id=admin_id, occurred_at=now, expected_revision=3,
+            )
         connection.execute(
             "INSERT INTO p6_security_profiles "
             "(tenant_id,profile_id,name,scope,active,revision,created_by,updated_by,created_at,updated_at) "
@@ -886,9 +1066,11 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert eps.get_wbs_responsibility(
             tenant, project_id, f"eps-wbs-{suffix}"
         ) == (obs_id, 1)
+        # The immediate parent WBS has an explicit OBS assignment, so it
+        # takes precedence over the inherited EPS responsibility.
         assert eps.get_effective_wbs_responsibility(
             tenant, project_id, f"eps-wbs-inherit-{suffix}"
-        ) == (obs_id, 0, "eps")
+        ) == (obs_id, 1, "wbs_parent")
         eps.assign_wbs_responsibility(
             tenant, project_id, f"eps-wbs-override-{suffix}", other_obs_id,
             actor_user_id=user_id, occurred_at=now,
@@ -901,6 +1083,7 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         connection.commit()
 
     with _connect() as connection:
+        eps = PostgresP6EPSRepository(connection)
         profiles = PostgresSecurityProfileRepository(connection)
         global_profile = profiles.create_profile(
             tenant_id=tenant, profile_id=f"eps-global-{suffix}", name="EPS Global",
@@ -964,7 +1147,8 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         )["responsible_obs_id"] == obs_id
         visible_wbs = wbs_api.list(wbs_scope, auth_context=context)
         assert {item["wbs"]["wbs_id"] for item in visible_wbs} == {
-            f"eps-wbs-{suffix}", f"eps-wbs-override-{suffix}"
+            f"eps-wbs-{suffix}", f"eps-wbs-inherit-{suffix}",
+            f"eps-wbs-override-{suffix}",
         }
         changed = wbs_api.assign_responsible_obs(
             wbs_scope, f"eps-wbs-{suffix}", obs_id,
@@ -1165,8 +1349,10 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
                 auth_context=context,
             )
 
-        activity_connection = sqlite3.connect(":memory:")
-        activity_repository = SQLiteActivityMasterRepository(activity_connection)
+        # Use the same PostgreSQL WBS source as the authorization policy;
+        # a separate SQLite activity store cannot resolve these WBS identifiers.
+        activity_repository = PostgresActivityMasterRepository(connection)
+        activity_repository.initialize()
         activity_api = P6ActivityMasterAPI(activity_repository, policy)
         visible_a = ActivityMaster(
             scope, f"visible-a-{suffix}", Decimal("1"), DurationUnit.WORKING_DAY,
@@ -1241,7 +1427,6 @@ def test_wbs_linked_issue_and_expense_apis_enforce_postgres_obs_responsibility()
         connection.rollback()
     issue_connection.close()
     expense_connection.close()
-    activity_connection.close()
     relationship_connection.close()
 
 
@@ -1255,6 +1440,7 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
     with _connect() as connection:
         identity = PostgresIdentityStore(connection)
         identity.initialize()
+        initialize_project_lifecycle_schema(connection)
         PostgresP6OBSRepository(connection).initialize()
         initialize_security_profile_schema(connection)
         identity.upsert_user(_identity_user(user_id, tenant))
@@ -1312,11 +1498,12 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
         )
         assert not second.active and not second.is_default
         assert profiles.get_default_project_profile(tenant) is None
-        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_PROJECT_ONLY"):
-            profiles.set_default(
-                tenant_id=tenant, profile_id=global_profile.profile_id, is_default=True,
-                expected_revision=1, actor_user_id=user_id, occurred_at=now,
-            )
+        global_profile = profiles.set_default(
+            tenant_id=tenant, profile_id=global_profile.profile_id, is_default=True,
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        assert global_profile.is_default
+        assert profiles.get_default_global_profile(tenant).profile_id == global_profile.profile_id
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_NOT_FOUND"):
             profiles.get_profile(f"{tenant}-other", first.profile_id)
 
@@ -1365,6 +1552,10 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         eps.initialize()
         wbs = PostgresWBSMasterRepository(connection)
         wbs.initialize()
+        # Activity initialization performs idempotent WBS schema migrations;
+        # run it before this test creates rows that fire deferred WBS triggers.
+        activities = PostgresActivityMasterRepository(connection)
+        activities.initialize()
         initialize_security_profile_schema(connection)
 
         identity.upsert_user(_identity_user(user_id, tenant, "planner"))
@@ -1395,8 +1586,6 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         )
 
         scope = BackendScope(tenant, project_id, 0)
-        activities = PostgresActivityMasterRepository(connection)
-        activities.initialize()
         activities.save(ActivityMaster(
             scope, root_activity, Decimal("1"), DurationUnit.WORKING_DAY,
             name="Root WBS activity", wbs_id=root_wbs,
@@ -1704,3 +1893,300 @@ def test_postgres_project_profiles_gate_risk_and_threshold_services_by_v26_privi
         )
         assert not policy.is_allowed(foreign_context, Permission.P6_RISK_ADMIN)
         assert not policy.is_allowed(foreign_context, Permission.P6_ISSUE_ADMIN)
+
+
+def test_global_and_project_defaults_are_independent_and_protected_from_delete():
+    tenant = f"security-defaults-{uuid.uuid4().hex}"
+    actor = "security-defaults-test-admin"
+    now = datetime.now(timezone.utc)
+
+    with _connect() as connection:
+        PostgresIdentityStore(connection).initialize()
+        initialize_security_profile_schema(connection)
+        profiles = PostgresSecurityProfileRepository(connection)
+
+        global_a = profiles.create_profile(
+            tenant_id=tenant, profile_id="global-a", name="Global A", scope="global",
+            actor_user_id=actor, occurred_at=now,
+        )
+        global_b = profiles.create_profile(
+            tenant_id=tenant, profile_id="global-b", name="Global B", scope="global",
+            actor_user_id=actor, occurred_at=now,
+        )
+        project_a = profiles.create_profile(
+            tenant_id=tenant, profile_id="project-a", name="Project A", scope="project",
+            actor_user_id=actor, occurred_at=now,
+        )
+        project_b = profiles.create_profile(
+            tenant_id=tenant, profile_id="project-b", name="Project B", scope="project",
+            actor_user_id=actor, occurred_at=now,
+        )
+
+        global_a = profiles.set_default(
+            tenant_id=tenant, profile_id=global_a.profile_id, is_default=True,
+            expected_revision=global_a.revision, actor_user_id=actor, occurred_at=now,
+        )
+        project_a = profiles.set_default(
+            tenant_id=tenant, profile_id=project_a.profile_id, is_default=True,
+            expected_revision=project_a.revision, actor_user_id=actor, occurred_at=now,
+        )
+        assert profiles.get_default_global_profile(tenant).profile_id == "global-a"
+        assert profiles.get_default_project_profile(tenant).profile_id == "project-a"
+
+        global_b = profiles.set_default(
+            tenant_id=tenant, profile_id=global_b.profile_id, is_default=True,
+            expected_revision=global_b.revision, actor_user_id=actor, occurred_at=now,
+        )
+        project_b = profiles.set_default(
+            tenant_id=tenant, profile_id=project_b.profile_id, is_default=True,
+            expected_revision=project_b.revision, actor_user_id=actor, occurred_at=now,
+        )
+
+        assert profiles.get_default_global_profile(tenant).profile_id == "global-b"
+        assert profiles.get_default_project_profile(tenant).profile_id == "project-b"
+        assert profiles.get_profile(tenant, "global-a").revision == global_a.revision + 1
+        assert profiles.get_profile(tenant, "project-a").revision == project_a.revision + 1
+        assert profiles.get_profile(tenant, "global-a").is_default is False
+        assert profiles.get_profile(tenant, "project-a").is_default is False
+        assert global_b.is_default is True
+        assert project_b.is_default is True
+
+        for profile in (global_b, project_b):
+            with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_REQUIRED"):
+                profiles.set_active(
+                    tenant_id=tenant, profile_id=profile.profile_id, active=False,
+                    expected_revision=profile.revision, actor_user_id=actor, occurred_at=now,
+                )
+            with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_REQUIRED"):
+                profiles.set_default(
+                    tenant_id=tenant, profile_id=profile.profile_id, is_default=False,
+                    expected_revision=profile.revision, actor_user_id=actor, occurred_at=now,
+                )
+
+        default_events = connection.execute(
+            "SELECT profile_id FROM p6_security_profile_audit "
+            "WHERE tenant_id=%s AND action='profile_default_changed'",
+            (tenant,),
+        ).fetchall()
+        assert sorted(str(row[0]) for row in default_events) == [
+            "global-a", "global-a", "global-b",
+            "project-a", "project-a", "project-b",
+        ]
+
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_CANNOT_DELETE"):
+            profiles.delete_profile(
+                tenant_id=tenant, profile_id="global-b", expected_revision=global_b.revision,
+                actor_user_id=actor, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_CANNOT_DELETE"):
+            profiles.delete_profile(
+                tenant_id=tenant, profile_id="project-b", expected_revision=project_b.revision,
+                actor_user_id=actor, occurred_at=now,
+            )
+
+        connection.rollback()
+
+
+def test_global_user_module_access_is_revisioned_and_shares_canonical_assignment():
+    suffix = uuid.uuid4().hex
+    tenant = f"global-user-access-{suffix}"
+    user_id = f"global-user-access-user-{suffix}"
+    now = datetime.now(timezone.utc)
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(user_id, tenant, "planner"))
+        profiles = PostgresSecurityProfileRepository(connection)
+        profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"global-access-profile-{suffix}",
+            name="Global Access", scope="global",
+            actor_user_id=user_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=profile.profile_id, user_id=user_id,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        saved = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=user_id,
+            module_access=("resources", "projects"),
+            resource_access_mode="all", expected_revision=1,
+            actor_user_id=user_id, occurred_at=now,
+        )
+        assert saved["revision"] == 2
+        assert saved["module_access"] == ["projects", "resources"]
+        assert saved["resource_access_mode"] == "all"
+        loaded = profiles.get_global_user_access(tenant, user_id)
+        assert loaded == saved
+        assignment = profiles.list_assignments(tenant, profile.profile_id)[0]
+        assert assignment["module_access"] == ["projects", "resources"]
+        assert assignment["resource_access_mode"] == "all"
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id, module_access=("projects",),
+                resource_access_mode="none", expected_revision=1,
+                actor_user_id=user_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id,
+                module_access=("contributor", "projects"),
+                resource_access_mode="none", expected_revision=2,
+                actor_user_id=user_id, occurred_at=now,
+            )
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED"):
+            profiles.set_global_user_access(
+                tenant_id=tenant, user_id=user_id, module_access=("projects",),
+                resource_access_mode="selected", resource_root_ids=("root-a",),
+                expected_revision=2, actor_user_id=user_id, occurred_at=now,
+            )
+        audit = connection.execute(
+            "SELECT action,before_state,after_state FROM p6_security_profile_audit "
+            "WHERE tenant_id=%s AND profile_id=%s AND action='user_global_access_updated'",
+            (tenant, profile.profile_id),
+        ).fetchall()
+        assert len(audit) == 1
+        assert audit[0][2]["module_access"] == ["projects", "resources"]
+        connection.rollback()
+
+
+def test_global_default_profile_is_assigned_to_existing_and_new_users():
+    suffix = uuid.uuid4().hex
+    tenant = f"global-default-bootstrap-{suffix}"
+    admin_id = f"global-default-admin-{suffix}"
+    existing_id = f"global-default-existing-{suffix}"
+    new_id = f"global-default-new-{suffix}"
+    later_id = f"global-default-later-{suffix}"
+    now = datetime.now(timezone.utc)
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
+        identity.upsert_user(_identity_user(existing_id, tenant, "planner"))
+
+        bootstrap_first_admin_superuser(
+            connection, tenant_id=tenant, user_id=admin_id,
+            supplied_token="bootstrap-secret-" + "x" * 40,
+            configured_token="bootstrap-secret-" + "x" * 40,
+            occurred_at=now,
+        )
+        profiles = PostgresSecurityProfileRepository(connection)
+        default_profile = profiles.get_default_global_profile(tenant)
+        assert default_profile.profile_id == "p6-no-global-privileges"
+        assert default_profile.is_default is True
+        existing_access = profiles.get_global_user_access(tenant, existing_id)
+        assert existing_access["profile_id"] == "p6-no-global-privileges"
+        assert existing_access["module_access"] == ["projects"]
+        assert existing_access["resource_access_mode"] == "none"
+
+        obs_id = f"global-default-obs-{suffix}"
+        project_id = f"global-default-project-{suffix}"
+        PostgresP6OBSRepository(connection).upsert(
+            P6OBSNode(tenant, obs_id, name="Global Default OBS")
+        )
+        PostgresProjectRepository(connection).create_for_user(
+            tenant, existing_id, project_id, "Global Default Project", obs_id=obs_id
+        )
+        assert profiles.get_default_project_profile(tenant).profile_id == "p6-default-project-readonly"
+        project_profile = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"global-default-project-profile-{suffix}",
+            name="Global Default Project Read", scope="project",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        profiles.assign(
+            tenant_id=tenant, profile_id=project_profile.profile_id, user_id=existing_id,
+            obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
+        )
+        default_project_assignment = profiles.assign_default_project_profile(
+            tenant_id=tenant, user_id=existing_id, obs_id=obs_id,
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+        )
+        assert default_project_assignment == {
+            "profile_id": "p6-default-project-readonly", "obs_id": obs_id, "revision": 2,
+        }
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT"):
+            profiles.assign_default_project_profile(
+                tenant_id=tenant, user_id=existing_id, obs_id=obs_id,
+                expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+            )
+
+        admin_access = profiles.get_global_user_access(tenant, admin_id)
+        assert admin_access["profile_id"] == "p6-admin-superuser"
+        assert set(admin_access["module_access"]) == {
+            "projects", "portfolios", "resources", "enterprise_reports",
+            "integration_api", "p6_analytics", "p6_professional",
+            "team_member", "timesheet", "visualizer", "web_services",
+        }
+        assert admin_access["resource_access_mode"] == "all"
+
+        # Module access is an additional gate, not a substitute for OBS/project
+        # privileges. Removing Projects immediately denies project reads.
+        context = AuthorizationContext(
+            tenant_id=tenant, user_id=existing_id, project_id=project_id,
+            roles=frozenset({"planner"}),
+        )
+        policy = PostgresSecurityProfileAuthorizationPolicy(
+            connection, RoleBasedAuthorizationPolicy(default_role_permissions())
+        )
+        assert policy.is_allowed(context, Permission.PROJECT_READ)
+        existing_access = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=existing_id, module_access=(),
+            resource_access_mode="none", expected_revision=existing_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert not policy.is_allowed(context, Permission.PROJECT_READ)
+        existing_access = profiles.set_global_user_access(
+            tenant_id=tenant, user_id=existing_id, module_access=("projects",),
+            resource_access_mode="none", expected_revision=existing_access["revision"],
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        assert profiles.get_global_user_access(tenant, existing_id)["module_access"] == ["projects"]
+
+        identity.upsert_user(_identity_user(new_id, tenant, "planner"))
+        new_access = profiles.get_global_user_access(tenant, new_id)
+        assert new_access["profile_id"] == "p6-no-global-privileges"
+        assert new_access["revision"] == 1
+
+        custom = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"later-default-{suffix}",
+            name="Later Default", scope="global",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        custom = profiles.set_default(
+            tenant_id=tenant, profile_id=custom.profile_id, is_default=True,
+            expected_revision=custom.revision, actor_user_id=admin_id, occurred_at=now,
+        )
+        assert custom.is_default is True
+        identity.upsert_user(_identity_user(later_id, tenant, "planner"))
+        later_access = profiles.get_global_user_access(tenant, later_id)
+        assert later_access["profile_id"] == custom.profile_id
+        assert profiles.get_global_user_access(tenant, existing_id)["profile_id"] == "p6-no-global-privileges"
+        connection.rollback()
+
+
+def test_canonical_security_schema_does_not_create_parallel_profile_or_obs_authorities():
+    suffix = uuid.uuid4().hex
+    tenant = f"canonical-security-schema-{suffix}"
+    with _connect() as connection:
+        PostgresIdentityStore(connection).initialize()
+        initialize_project_lifecycle_schema(connection)
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        rows = connection.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema=current_schema() AND table_name = ANY(%s)",
+            ([
+                "p6_global_security_profiles", "p6_user_global_security",
+                "p6_global_security_audit", "enterprise_project_security_profiles",
+                "enterprise_user_obs_assignments", "enterprise_project_access_audit",
+            ],),
+        ).fetchall()
+        assert rows == []
+        assert connection.execute(
+            "SELECT to_regclass('p6_security_profiles'),to_regclass('p6_security_profile_assignments'),"
+            "to_regclass('p6_security_profile_audit')"
+        ).fetchone() == ("p6_security_profiles", "p6_security_profile_assignments", "p6_security_profile_audit")
+        connection.rollback()

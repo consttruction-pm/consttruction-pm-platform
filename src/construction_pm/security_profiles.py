@@ -19,14 +19,34 @@ from .application.authorization import (
 
 _PROFILE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
 _PROFILE_SCOPES = frozenset({"global", "project"})
+P6_MODULE_ACCESS_OPTIONS = (
+    "projects", "portfolios", "resources", "contributor",
+    "enterprise_reports", "integration_api", "p6_analytics",
+    "p6_professional", "team_member", "timesheet", "visualizer",
+    "web_services",
+)
+P6_RESOURCE_ACCESS_MODES = frozenset({"none", "all", "selected"})
+P6_MAX_SELECTED_RESOURCE_ROOTS = 5
+
+
+def normalize_module_access(values: Iterable[str]) -> tuple[str, ...]:
+    selected = set(values)
+    if selected - set(P6_MODULE_ACCESS_OPTIONS):
+        raise SecurityProfileError("SECURITY_PROFILE_MODULE_ACCESS_INVALID")
+    if "contributor" in selected and len(selected) > 1:
+        raise SecurityProfileError("SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE")
+    return tuple(value for value in P6_MODULE_ACCESS_OPTIONS if value in selected)
+
+
 # Reserved Oracle P6 V26 built-in. It is provisioned only by a controlled
 # installation bootstrap; tenant administrators cannot create or edit it.
 ADMIN_SUPERUSER_PROFILE_ID = "p6-admin-superuser"
 NO_GLOBAL_PRIVILEGES_PROFILE_ID = "p6-no-global-privileges"
 PROJECT_SUPERUSER_PROFILE_ID = "p6-project-superuser"
+DEFAULT_PROJECT_PROFILE_ID = "p6-default-project-readonly"
 _RESERVED_PROFILE_IDS = frozenset({
     ADMIN_SUPERUSER_PROFILE_ID, NO_GLOBAL_PRIVILEGES_PROFILE_ID,
-    PROJECT_SUPERUSER_PROFILE_ID,
+    PROJECT_SUPERUSER_PROFILE_ID, DEFAULT_PROJECT_PROFILE_ID,
 })
 _ADMIN_ONLY_PROFILE_IDS = frozenset({
     ADMIN_SUPERUSER_PROFILE_ID, PROJECT_SUPERUSER_PROFILE_ID,
@@ -262,11 +282,6 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     ALTER TABLE p6_security_profiles
-    ADD CONSTRAINT p6_security_profiles_default_scope_check
-    CHECK (NOT is_default OR scope='project')
-    """,
-    """
-    ALTER TABLE p6_security_profiles
     DROP CONSTRAINT IF EXISTS p6_security_profiles_description_check
     """,
     """
@@ -277,6 +292,10 @@ SECURITY_PROFILE_SCHEMA = (
     """
     CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profiles_one_default_project
     ON p6_security_profiles (tenant_id) WHERE scope='project' AND is_default=TRUE
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profiles_one_default_global
+    ON p6_security_profiles (tenant_id) WHERE scope='global' AND is_default=TRUE
     """,
     """
     CREATE TABLE IF NOT EXISTS p6_security_profile_privileges (
@@ -304,12 +323,101 @@ SECURITY_PROFILE_SCHEMA = (
     )
     """,
     """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS module_access JSONB NOT NULL DEFAULT '["projects"]'::jsonb
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS resource_access_mode TEXT NOT NULL DEFAULT 'none'
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD COLUMN IF NOT EXISTS resource_root_ids JSONB NOT NULL DEFAULT '[]'::jsonb
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ALTER COLUMN module_access SET DEFAULT '["projects"]'::jsonb
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS p6_security_profile_migrations (
+        migration_key TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL
+    )
+    """,
+    """
+    DO $cubi$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM p6_security_profile_migrations
+            WHERE migration_key='global-module-access-defaults-v1'
+        ) THEN
+            UPDATE p6_security_profile_assignments
+            SET module_access='["projects"]'::jsonb
+            WHERE obs_id='' AND module_access='[]'::jsonb
+              AND profile_id<>'p6-admin-superuser';
+            UPDATE p6_security_profile_assignments
+            SET module_access='["projects","portfolios","resources","enterprise_reports",'
+                '"integration_api","p6_analytics","p6_professional","team_member",'
+                '"timesheet","visualizer","web_services"]'::jsonb,
+                resource_access_mode='all',resource_root_ids='[]'::jsonb
+            WHERE obs_id='' AND profile_id='p6-admin-superuser';
+            INSERT INTO p6_security_profile_migrations(migration_key,applied_at)
+            VALUES('global-module-access-defaults-v1',now());
+        END IF;
+    END;
+    $cubi$
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    DROP CONSTRAINT IF EXISTS p6_security_profile_module_access_check
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD CONSTRAINT p6_security_profile_module_access_check
+    CHECK (jsonb_typeof(module_access)='array')
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    DROP CONSTRAINT IF EXISTS p6_security_profile_resource_access_check
+    """,
+    """
+    ALTER TABLE p6_security_profile_assignments
+    ADD CONSTRAINT p6_security_profile_resource_access_check
+    CHECK (
+        jsonb_typeof(resource_root_ids)='array'
+        AND resource_access_mode IN ('none','all','selected')
+        AND (
+            (resource_access_mode IN ('none','all') AND jsonb_array_length(resource_root_ids)=0)
+            OR
+            (resource_access_mode='selected'
+             AND jsonb_array_length(resource_root_ids) BETWEEN 1 AND 5)
+        )
+    )
+    """,
+    """
     CREATE INDEX IF NOT EXISTS p6_security_profile_assignments_user
     ON p6_security_profile_assignments (tenant_id, user_id, obs_id)
     """,
     """    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_global_per_user
     ON p6_security_profile_assignments (tenant_id, user_id)
     WHERE obs_id=''
+    """,
+    """
+    DO $cubi$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM p6_security_profile_assignments
+            WHERE obs_id<>'' GROUP BY tenant_id,user_id,obs_id HAVING count(*)>1
+        ) THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_DUPLICATE_OBS_ASSIGNMENTS_REQUIRE_RECONCILIATION';
+        END IF;
+    END;
+    $cubi$
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_project_per_user_obs
+    ON p6_security_profile_assignments (tenant_id,user_id,obs_id)
+    WHERE obs_id<>''
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_assignment_guard()
@@ -375,7 +483,7 @@ SECURITY_PROFILE_SCHEMA = (
     ADD CONSTRAINT p6_security_profile_audit_action_check
     CHECK (action IN ('profile_created','privileges_changed','profile_status_changed',
                       'profile_assigned','profile_unassigned','profile_updated',
-                      'profile_default_changed','profile_deleted'))
+                      'profile_default_changed','profile_deleted','user_global_access_updated'))
     """,
     """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_audit_immutable()
@@ -393,6 +501,53 @@ SECURITY_PROFILE_SCHEMA = (
     CREATE TRIGGER p6_security_profile_audit_immutable
     BEFORE UPDATE OR DELETE ON p6_security_profile_audit
     FOR EACH ROW EXECUTE FUNCTION cubi_p6_security_profile_audit_immutable()
+    """,
+    """
+    CREATE OR REPLACE FUNCTION cubi_p6_assign_default_global_profile()
+    RETURNS trigger LANGUAGE plpgsql AS $cubi$
+    DECLARE default_profile_id TEXT; inserted_profile_id TEXT;
+    BEGIN
+        IF NOT COALESCE(NEW.active,FALSE) THEN
+            RETURN NEW;
+        END IF;
+        SELECT profile_id INTO default_profile_id
+        FROM p6_security_profiles
+        WHERE tenant_id=NEW.tenant_id AND scope='global'
+          AND is_default=TRUE AND active=TRUE
+          AND profile_id<>'p6-admin-superuser'
+        LIMIT 1;
+        IF default_profile_id IS NULL THEN
+            RETURN NEW;
+        END IF;
+        INSERT INTO p6_security_profile_assignments
+            (tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,
+             module_access,resource_access_mode,resource_root_ids)
+        VALUES
+            (NEW.tenant_id,default_profile_id,NEW.user_id,'',1,
+             'cubi-security-default',now(),'["projects"]'::jsonb,'none','[]'::jsonb)
+        ON CONFLICT DO NOTHING
+        RETURNING profile_id INTO inserted_profile_id;
+        IF inserted_profile_id IS NOT NULL THEN
+            INSERT INTO p6_security_profile_audit
+                (audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at)
+            VALUES
+                (md5(random()::text || clock_timestamp()::text),NEW.tenant_id,
+                 'cubi-security-default',inserted_profile_id,'profile_assigned',NULL,
+                 jsonb_build_object('user_id',NEW.user_id,'obs_id','','revision',1,
+                                    'source','tenant_default_global_profile'),now());
+        END IF;
+        RETURN NEW;
+    END;
+    $cubi$
+    """,
+    """
+    DROP TRIGGER IF EXISTS p6_user_default_global_profile ON identity_users
+    """,
+    """
+    CREATE TRIGGER p6_user_default_global_profile
+    AFTER INSERT OR UPDATE OF active ON identity_users
+    FOR EACH ROW WHEN (NEW.active=TRUE)
+    EXECUTE FUNCTION cubi_p6_assign_default_global_profile()
     """,
 )
 
@@ -444,14 +599,6 @@ def bootstrap_first_admin_superuser(
     ).fetchone()
     if target is None or str(target[0]) != tenant_id or not bool(target[1]):
         raise SecurityProfileError("SECURITY_PROFILE_USER_NOT_ELIGIBLE")
-    occupied = connection.execute(
-        "SELECT profile_id FROM p6_security_profile_assignments "
-        "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
-        (tenant_id, user_id),
-    ).fetchone()
-    if occupied is not None:
-        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
-
     # Provision the other two Oracle built-ins alongside the first
     # administrator so every tenant has the complete immutable catalog.
     for builtin_id, builtin_name, builtin_scope in (
@@ -535,18 +682,155 @@ def bootstrap_first_admin_superuser(
         ):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
 
-    connection.execute(
-        "INSERT INTO p6_security_profile_assignments "
-        "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
-        "VALUES (%s,%s,%s,'',1,%s,%s)",
-        (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at),
-    )
+    # Provide a safe read-only Project default for future OBS assignments.
+    project_default = connection.execute(
+        "SELECT name,scope,active,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
+        (tenant_id, DEFAULT_PROJECT_PROFILE_ID),
+    ).fetchone()
+    if project_default is None:
+        connection.execute(
+            "INSERT INTO p6_security_profiles "
+            "(tenant_id,profile_id,name,description,scope,active,is_default,revision,"
+            "created_by,updated_by,created_at,updated_at) "
+            "VALUES (%s,%s,'Default Project Read Only',"
+            "'Safe read-only project profile used when OBS responsibility is assigned.',"
+            "'project',TRUE,FALSE,1,%s,%s,%s,%s)",
+            (tenant_id, DEFAULT_PROJECT_PROFILE_ID, user_id, user_id, occurred_at, occurred_at),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_created',NULL,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,DEFAULT_PROJECT_PROFILE_ID,
+             json.dumps({"name":"Default Project Read Only","scope":"project",
+                         "active":True,"is_default":False,"revision":1}),occurred_at),
+        )
+    elif (str(project_default[0]) != "Default Project Read Only"
+          or str(project_default[1]) != "project" or not bool(project_default[2])):
+        raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
+    project_default_row = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND scope='project' AND is_default=TRUE AND active=TRUE FOR UPDATE",
+        (tenant_id,),
+    ).fetchone()
+    if project_default_row is None:
+        current_revision = int(project_default[3]) if project_default is not None else 1
+        next_revision = current_revision + 1
+        connection.execute(
+            "UPDATE p6_security_profiles SET is_default=TRUE,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (next_revision,user_id,occurred_at,tenant_id,DEFAULT_PROJECT_PROFILE_ID),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_default_changed',%s::jsonb,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,DEFAULT_PROJECT_PROFILE_ID,
+             json.dumps({"is_default":False,"revision":current_revision}),
+             json.dumps({"is_default":True,"revision":next_revision}),occurred_at),
+        )
+
+    default_row = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND scope='global' AND is_default=TRUE AND active=TRUE FOR UPDATE",
+        (tenant_id,),
+    ).fetchone()
+    if default_row is None:
+        no_global = connection.execute(
+            "SELECT revision FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s AND scope='global' AND active=TRUE FOR UPDATE",
+            (tenant_id, NO_GLOBAL_PRIVILEGES_PROFILE_ID),
+        ).fetchone()
+        if no_global is None:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_GLOBAL_PROFILE_REQUIRED")
+        next_revision = int(no_global[0]) + 1
+        connection.execute(
+            "UPDATE p6_security_profiles SET is_default=TRUE,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (next_revision, user_id, occurred_at, tenant_id, NO_GLOBAL_PRIVILEGES_PROFILE_ID),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_default_changed',%s::jsonb,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,NO_GLOBAL_PRIVILEGES_PROFILE_ID,
+             json.dumps({"is_default":False,"revision":int(no_global[0])}),
+             json.dumps({"is_default":True,"revision":next_revision}),occurred_at),
+        )
+        default_profile_id = NO_GLOBAL_PRIVILEGES_PROFILE_ID
+    else:
+        default_profile_id = str(default_row[0])
+    if default_profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+        raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_CANNOT_BE_DEFAULT")
+
+    occupied = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profile_assignments "
+        "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
+        (tenant_id, user_id),
+    ).fetchone()
+    if occupied is not None and str(occupied[0]) != default_profile_id:
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
+
+    # Existing active users receive the safe tenant default. The bootstrap
+    # target is excluded and upgraded to Admin Superuser below.
+    existing_users = connection.execute(
+        "SELECT u.user_id FROM identity_users u WHERE u.tenant_id=%s AND u.active=TRUE "
+        "AND u.user_id<>%s AND NOT EXISTS (SELECT 1 FROM p6_security_profile_assignments a "
+        "WHERE a.tenant_id=u.tenant_id AND a.user_id=u.user_id AND a.obs_id='') "
+        "ORDER BY u.user_id",
+        (tenant_id, user_id),
+    ).fetchall()
+    for existing_user in existing_users:
+        existing_user_id = str(existing_user[0])
+        connection.execute(
+            "INSERT INTO p6_security_profile_assignments "
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,%s,%s,'',1,'cubi-security-default',%s,'[\"projects\"]'::jsonb,'none','[]'::jsonb)",
+            (tenant_id, default_profile_id, existing_user_id, occurred_at),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,'cubi-security-default',%s,'profile_assigned',NULL,%s::jsonb,%s)",
+            (str(uuid.uuid4()), tenant_id, default_profile_id,
+             json.dumps({"user_id":existing_user_id,"obs_id":"","revision":1,
+                         "source":"tenant_default_global_profile"}), occurred_at),
+        )
+
+    admin_modules = [value for value in P6_MODULE_ACCESS_OPTIONS if value != "contributor"]
+    if occupied is None:
+        connection.execute(
+            "INSERT INTO p6_security_profile_assignments "
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,%s,%s,'',1,%s,%s,%s::jsonb,'all','[]'::jsonb)",
+            (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at,
+             json.dumps(admin_modules)),
+        )
+        admin_revision = 1
+        before_admin = None
+    else:
+        admin_revision = int(occupied[1]) + 1
+        connection.execute(
+            "UPDATE p6_security_profile_assignments SET profile_id=%s,revision=%s,"
+            "assigned_by=%s,assigned_at=%s,module_access=%s::jsonb,"
+            "resource_access_mode='all',resource_root_ids='[]'::jsonb "
+            "WHERE tenant_id=%s AND user_id=%s AND obs_id='' AND revision=%s",
+            (ADMIN_SUPERUSER_PROFILE_ID, admin_revision, user_id, occurred_at,
+             json.dumps(admin_modules), tenant_id, user_id, int(occupied[1])),
+        )
+        before_admin = {"profile_id":str(occupied[0]),"revision":int(occupied[1])}
     connection.execute(
         "INSERT INTO p6_security_profile_audit "
         "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
-        "VALUES (%s,%s,%s,%s,'profile_assigned',NULL,%s::jsonb,%s)",
+        "VALUES (%s,%s,%s,%s,'profile_assigned',%s::jsonb,%s::jsonb,%s)",
         (str(uuid.uuid4()), tenant_id, user_id, ADMIN_SUPERUSER_PROFILE_ID,
-         json.dumps({"user_id": user_id, "obs_id": "", "revision": 1}), occurred_at),
+         json.dumps(before_admin) if before_admin is not None else None,
+         json.dumps({"user_id": user_id, "obs_id": "", "revision": admin_revision,
+                     "module_access":admin_modules,"resource_access_mode":"all",
+                     "resource_root_ids":[]}), occurred_at),
     )
     return SecurityProfile(
         tenant_id, ADMIN_SUPERUSER_PROFILE_ID, "Admin Superuser",
@@ -669,11 +953,27 @@ class PostgresSecurityProfileRepository:
         self, *, tenant_id: str, profile_id: str, is_default: bool,
         expected_revision: int, actor_user_id: str, occurred_at: Any,
     ) -> SecurityProfile:
+        """Set the V26 default independently for the Global or Project scope."""
         if not isinstance(is_default, bool):
             raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_FLAG_INVALID")
+        scope_row = self._connection.execute(
+            "SELECT scope FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if scope_row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        scope = str(scope_row[0])
+        if scope not in _PROFILE_SCOPES:
+            raise SecurityProfileError("SECURITY_PROFILE_SCOPE_INVALID")
+        # Keep the historical Project lock key stable while adding an
+        # independent Global lock so both scopes can have one default.
+        lock_key = (
+            f"p6-project-profile-default:{tenant_id}"
+            if scope == "project" else f"p6-global-profile-default:{tenant_id}"
+        )
         self._connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            (f"p6-project-profile-default:{tenant_id}",),
+            (lock_key,),
         )
         row = self._connection.execute(
             "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
@@ -682,12 +982,16 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
-        if profile_id in _RESERVED_PROFILE_IDS:
+        if (profile_id in _ADMIN_ONLY_PROFILE_IDS
+                or (profile_id in {NO_GLOBAL_PRIVILEGES_PROFILE_ID, DEFAULT_PROJECT_PROFILE_ID}
+                    and not is_default)):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
-        if str(row[1]) != "project":
-            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_ONLY")
+        if str(row[1]) != scope:
+            raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
         if not bool(row[2]) and is_default:
             raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
+        if bool(row[5]) and not is_default:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_REQUIRED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         before = self.get_profile(tenant_id, profile_id)
@@ -696,9 +1000,9 @@ class PostgresSecurityProfileRepository:
         if is_default:
             previous_rows = self._connection.execute(
                 "SELECT profile_id,revision FROM p6_security_profiles "
-                "WHERE tenant_id=%s AND scope='project' AND is_default=TRUE "
+                "WHERE tenant_id=%s AND scope=%s AND is_default=TRUE "
                 "AND profile_id<>%s FOR UPDATE",
-                (tenant_id, profile_id),
+                (tenant_id, scope, profile_id),
             ).fetchall()
             for previous in previous_rows:
                 previous_id, previous_revision = str(previous[0]), int(previous[1])
@@ -814,7 +1118,7 @@ class PostgresSecurityProfileRepository:
         if profile_id in _RESERVED_PROFILE_IDS:
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         row = self._connection.execute(
-            "SELECT revision FROM p6_security_profiles "
+            "SELECT revision,is_default FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
             (tenant_id, profile_id),
         ).fetchone()
@@ -829,6 +1133,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if assigned is not None:
             raise SecurityProfileError("SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE")
+        if bool(row[1]):
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_CANNOT_DELETE")
         before = self.get_profile(tenant_id, profile_id)
         self._connection.execute(
             "DELETE FROM p6_security_profile_privileges WHERE tenant_id=%s AND profile_id=%s",
@@ -846,6 +1152,14 @@ class PostgresSecurityProfileRepository:
             before.as_dict(), {"profile_id": profile_id, "deleted": True,
                                "revision": expected_revision}, occurred_at,
         )
+
+    def get_default_global_profile(self, tenant_id: str) -> SecurityProfile | None:
+        row = self._connection.execute(
+            "SELECT profile_id FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND scope='global' AND active=TRUE AND is_default=TRUE",
+            (tenant_id,),
+        ).fetchone()
+        return None if row is None else self.get_profile(tenant_id, str(row[0]))
 
     def get_default_project_profile(self, tenant_id: str) -> SecurityProfile | None:
         row = self._connection.execute(
@@ -869,6 +1183,8 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if profile_id in _RESERVED_PROFILE_IDS:
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        if bool(row[5]) and not active:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_REQUIRED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         valid = GLOBAL_PRIVILEGES if str(row[1]) == "global" else PROJECT_PRIVILEGES
@@ -946,6 +1262,7 @@ class PostgresSecurityProfileRepository:
             actor_is_admin_superuser = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
                 "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
                 (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -969,6 +1286,10 @@ class PostgresSecurityProfileRepository:
             ).fetchone()
             if node is None:
                 raise SecurityProfileError("SECURITY_PROFILE_OBS_NOT_FOUND")
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-security-profile-assignment:{tenant_id}:{user_id}:{obs_id}",),
+        )
         existing = self._connection.execute(
             "SELECT revision FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s FOR UPDATE",
@@ -984,8 +1305,44 @@ class PostgresSecurityProfileRepository:
                 (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
             )
         else:
-            if expected_revision not in (None, 0):
-                raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+            if scope == "project":
+                occupied_project = self._connection.execute(
+                    "SELECT profile_id,revision FROM p6_security_profile_assignments "
+                    "WHERE tenant_id=%s AND user_id=%s AND obs_id=%s FOR UPDATE",
+                    (tenant_id, user_id, obs_id),
+                ).fetchone()
+                if occupied_project is not None:
+                    previous_profile_id, previous_revision = str(occupied_project[0]), int(occupied_project[1])
+                    if expected_revision is None or previous_revision != expected_revision:
+                        raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+                    if previous_profile_id in _ADMIN_ONLY_PROFILE_IDS:
+                        actor_is_admin_superuser = self._connection.execute(
+                            "SELECT 1 FROM p6_security_profile_assignments a "
+                            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
+                            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+                            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+                            (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
+                        ).fetchone()
+                        if actor_is_admin_superuser is None:
+                            raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED")
+                    revision = expected_revision + 1
+                    self._connection.execute(
+                        "UPDATE p6_security_profile_assignments SET profile_id=%s,revision=%s,"
+                        "assigned_by=%s,assigned_at=%s "
+                        "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s",
+                        (profile_id, revision, actor_user_id, occurred_at,
+                         tenant_id, previous_profile_id, user_id, obs_id),
+                    )
+                    self._audit(
+                        tenant_id, actor_user_id, profile_id, "profile_assigned",
+                        {"profile_id": previous_profile_id, "user_id": user_id,
+                         "obs_id": obs_id, "revision": previous_revision},
+                        {"profile_id": profile_id, "user_id": user_id,
+                         "obs_id": obs_id, "revision": revision},
+                        occurred_at,
+                    )
+                    return revision
             if scope == "global":
                 occupied = self._connection.execute(
                     "SELECT profile_id,revision FROM p6_security_profile_assignments "
@@ -993,6 +1350,9 @@ class PostgresSecurityProfileRepository:
                     (tenant_id, user_id),
                 ).fetchone()
                 if occupied is not None:
+                    # expected_revision is the current assignment revision when
+                    # replacing a user's existing Global profile, not a new-row
+                    # revision. Check it before enforcing the last-admin guard.
                     if expected_revision is None or int(occupied[1]) != expected_revision:
                         raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
                     if str(occupied[0]) == ADMIN_SUPERUSER_PROFILE_ID and profile_id != ADMIN_SUPERUSER_PROFILE_ID:
@@ -1022,6 +1382,8 @@ class PostgresSecurityProfileRepository:
                         occurred_at,
                     )
                     return revision
+            if expected_revision not in (None, 0):
+                raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
             revision = 1
             self._connection.execute(
                 "INSERT INTO p6_security_profile_assignments "
@@ -1033,6 +1395,153 @@ class PostgresSecurityProfileRepository:
                     {"user_id": user_id, "obs_id": obs_id, "revision": revision},
                     occurred_at)
         return revision
+
+    def list_user_project_assignments(
+        self, tenant_id: str, user_id: str,
+    ) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute(
+            "SELECT p.profile_id,p.name,a.obs_id,a.revision "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id<>'' AND p.scope='project' "
+            "ORDER BY a.obs_id",
+            (tenant_id, user_id),
+        ).fetchall()
+        return tuple({
+            "profile_id": str(row[0]), "profile_name": str(row[1]),
+            "obs_id": str(row[2]), "revision": int(row[3]),
+        } for row in rows)
+
+    def list_obs_nodes(self, tenant_id: str) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute(
+            "SELECT obs_id,parent_obs_id,code,name,manager_user_id,sequence_number "
+            "FROM p6_obs_node WHERE tenant_id=%s ORDER BY sequence_number,obs_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple({
+            "obs_id": str(row[0]),
+            "parent_obs_id": None if row[1] is None else str(row[1]),
+            "code": str(row[2]),
+            "name": str(row[3]),
+            "manager_user_id": str(row[4]),
+            "sequence_number": int(row[5]),
+        } for row in rows)
+
+    def assign_default_project_profile(
+        self, *, tenant_id: str, user_id: str, obs_id: str,
+        actor_user_id: str, occurred_at: Any, expected_revision: int | None = None,
+    ) -> dict[str, Any]:
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-project-profile-default:{tenant_id}",),
+        )
+        default_profile = self.get_default_project_profile(tenant_id)
+        if default_profile is None or not default_profile.active:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_PROFILE_REQUIRED")
+        revision = self.assign(
+            tenant_id=tenant_id, profile_id=default_profile.profile_id,
+            user_id=user_id, obs_id=obs_id, expected_revision=expected_revision,
+            actor_user_id=actor_user_id, occurred_at=occurred_at,
+        )
+        return {"profile_id": default_profile.profile_id, "obs_id": obs_id, "revision": revision}
+
+    def get_global_user_access(self, tenant_id: str, user_id: str) -> dict[str, Any]:
+        row = self._connection.execute(
+            "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,"
+            "a.revision,a.assigned_by,a.assigned_at "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global'",
+            (tenant_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
+        modules, roots = row[1], row[3]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if isinstance(roots, str):
+            roots = json.loads(roots)
+        return {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "profile_id": str(row[0]),
+            "module_access": list(normalize_module_access(tuple(modules or ()))),
+            "resource_access_mode": str(row[2]),
+            "resource_root_ids": list(roots or ()),
+            "revision": int(row[4]),
+            "assigned_by": str(row[5]),
+            "assigned_at": row[6].isoformat(),
+        }
+
+    def set_global_user_access(
+        self, *, tenant_id: str, user_id: str, module_access: Iterable[str],
+        resource_access_mode: str, resource_root_ids: Iterable[str] = (),
+        expected_revision: int, actor_user_id: str, occurred_at: Any,
+    ) -> dict[str, Any]:
+        if (not isinstance(expected_revision, int) or isinstance(expected_revision, bool)
+                or expected_revision < 1):
+            raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_REQUIRED")
+        modules = normalize_module_access(module_access)
+        if resource_access_mode not in P6_RESOURCE_ACCESS_MODES:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ACCESS_INVALID")
+        roots = tuple(resource_root_ids)
+        if any(not isinstance(value, str) or not value.strip() for value in roots):
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOT_INVALID")
+        if len(set(roots)) != len(roots) or len(roots) > P6_MAX_SELECTED_RESOURCE_ROOTS:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOT_LIMIT")
+        if resource_access_mode == "selected":
+            # The current canonical resource master is project/revision scoped;
+            # it is not the enterprise-wide hierarchy required by V26 Resource
+            # Access. Do not accept arbitrary IDs as an authorization boundary.
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED")
+        if roots:
+            raise SecurityProfileError("SECURITY_PROFILE_RESOURCE_ROOTS_NOT_ALLOWED")
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-global-user-access:{tenant_id}:{user_id}",),
+        )
+        current = self._connection.execute(
+            "SELECT a.profile_id,a.module_access,a.resource_access_mode,a.resource_root_ids,a.revision "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id='' AND p.scope='global' "
+            "FOR UPDATE OF a",
+            (tenant_id, user_id),
+        ).fetchone()
+        if current is None:
+            raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ASSIGNMENT_REQUIRED")
+        if int(current[4]) != expected_revision:
+            raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+        profile_id = str(current[0])
+        if profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+            resource_access_mode = "all"
+        before = {
+            "profile_id": profile_id,
+            "module_access": list(current[1] if not isinstance(current[1], str) else json.loads(current[1])),
+            "resource_access_mode": str(current[2]),
+            "resource_root_ids": list(current[3] if not isinstance(current[3], str) else json.loads(current[3])),
+            "revision": int(current[4]),
+        }
+        revision = expected_revision + 1
+        self._connection.execute(
+            "UPDATE p6_security_profile_assignments SET module_access=%s::jsonb,"
+            "resource_access_mode=%s,resource_root_ids='[]'::jsonb,revision=%s,"
+            "assigned_by=%s,assigned_at=%s "
+            "WHERE tenant_id=%s AND user_id=%s AND profile_id=%s AND obs_id='' AND revision=%s",
+            (json.dumps(list(modules)), resource_access_mode, revision, actor_user_id,
+             occurred_at, tenant_id, user_id, profile_id, expected_revision),
+        )
+        after = {
+            "profile_id": profile_id, "module_access": list(modules),
+            "resource_access_mode": resource_access_mode, "resource_root_ids": [],
+            "revision": revision,
+        }
+        self._audit(
+            tenant_id, actor_user_id, profile_id, "user_global_access_updated",
+            {"user_id": user_id, **before}, {"user_id": user_id, **after}, occurred_at,
+        )
+        return {"tenant_id": tenant_id, "user_id": user_id, **after,
+                "assigned_by": actor_user_id, "assigned_at": occurred_at.isoformat()}
 
     def unassign(
         self, *, tenant_id: str, profile_id: str, user_id: str,
@@ -1051,6 +1560,7 @@ class PostgresSecurityProfileRepository:
             actor_is_admin_superuser = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
                 "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
                 (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
@@ -1105,18 +1615,27 @@ class PostgresSecurityProfileRepository:
         if exists is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         rows = self._connection.execute(
-            "SELECT a.user_id,u.email,u.display_name,a.obs_id,a.revision,a.assigned_by,a.assigned_at "
+            "SELECT a.user_id,u.email,u.display_name,a.obs_id,a.revision,a.assigned_by,a.assigned_at,"
+            "a.module_access,a.resource_access_mode,a.resource_root_ids "
             "FROM p6_security_profile_assignments a "
             "JOIN identity_users u ON u.user_id=a.user_id "
             "WHERE a.tenant_id=%s AND a.profile_id=%s ORDER BY u.email,a.obs_id",
             (tenant_id, profile_id),
         ).fetchall()
-        return tuple({
-            "user_id": str(row[0]), "email": str(row[1]),
-            "display_name": str(row[2]), "obs_id": str(row[3]),
-            "revision": int(row[4]), "assigned_by": str(row[5]),
-            "assigned_at": row[6].isoformat(),
-        } for row in rows)
+        result = []
+        for row in rows:
+            modules = row[7] if not isinstance(row[7], str) else json.loads(row[7])
+            roots = row[9] if not isinstance(row[9], str) else json.loads(row[9])
+            result.append({
+                "user_id": str(row[0]), "email": str(row[1]),
+                "display_name": str(row[2]), "obs_id": str(row[3]),
+                "revision": int(row[4]), "assigned_by": str(row[5]),
+                "assigned_at": row[6].isoformat(),
+                "module_access": list(modules or ()),
+                "resource_access_mode": str(row[8]),
+                "resource_root_ids": list(roots or ()),
+            })
+        return tuple(result)
 
     def _description(self, value: Any) -> str:
         if not isinstance(value, str):
@@ -1177,14 +1696,13 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin_superuser = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id, context.user_id, ADMIN_SUPERUSER_PROFILE_ID),
         ).fetchone()
-        # Oracle V26 Admin Superuser has complete P6 global and project access.
-        # Non-P6 CUBI surfaces continue through the injected role policy.
-        if admin_superuser is not None and permission in p6_permissions:
-            return True
+        # Module Access is independent from Global/Project profile privileges.
+        # Even Admin Superuser cannot use a module removed from the user account.
         if permission not in p6_permissions:
             return self._role_policy.is_allowed(context, permission)
         rows = self._connection.execute(
@@ -1202,7 +1720,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             "SELECT NULLIF(project.obs_id,'') FROM project_lifecycle_projects project "
             "WHERE project.tenant_id=%s AND project.project_id=%s "
             "UNION SELECT NULLIF(responsible_obs_id,'') FROM project_eps) "
-            "SELECT p.scope,p.active,a.obs_id,p.profile_id "
+            "SELECT p.scope,p.active,a.obs_id,p.profile_id,a.module_access,a.resource_access_mode "
             "FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id "
             "AND p.profile_id=a.profile_id "
@@ -1219,8 +1737,28 @@ class PostgresSecurityProfileAuthorizationPolicy:
         # P6 requires a Global Security Profile for every user. Project access
         # requires an active Project profile assigned to the project's responsible
         # OBS. A project profile does not create project membership.
-        if not any(bool(row[1]) for row in global_rows):
+        if not any(row[0] == "global" and bool(row[1]) for row in global_rows):
             return False
+        module_rows = [row for row in global_rows if row[0] == "global" and bool(row[1])]
+        module_access = module_rows[0][4] if module_rows else []
+        if isinstance(module_access, str):
+            module_access = json.loads(module_access)
+        module_access = set(module_access or ())
+        if permission in p6_project_permissions and "projects" not in module_access:
+            return False
+        if permission in {Permission.P6_RESOURCE_ADD, Permission.P6_RESOURCE_EDIT,
+                          Permission.P6_RESOURCE_DELETE}:
+            resource_mode = str(module_rows[0][5]) if module_rows else "none"
+            if "resources" not in module_access or resource_mode != "all":
+                # Selected resource roots remain fail-closed until a canonical
+                # enterprise-wide resource hierarchy can resolve descendants.
+                return False
+        if permission == Permission.P6_ROLE_ADMIN and "resources" not in module_access:
+            return False
+        # Admin Superuser bypasses P6 profile privilege checks only after the
+        # independent Module Access and Resource Access gates have passed.
+        if admin_superuser is not None and permission in p6_permissions:
+            return True
         if (permission in p6_project_permissions and any(
             bool(row[1]) and str(row[3]) == PROJECT_SUPERUSER_PROFILE_ID
             for row in project_rows
@@ -1251,6 +1789,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         return self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
@@ -1266,21 +1805,28 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
         ).fetchone()
-        if admin is not None:
-            return True
         global_profile = self._connection.execute(
-            "SELECT 1 FROM p6_security_profile_assignments a "
+            "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
         ).fetchone()
         if global_profile is None:
             return False
+        modules = global_profile[0]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if "projects" not in set(modules or ()):
+            return False
+        if admin is not None:
+            return True
         obs_rows = self._connection.execute(
             "WITH RECURSIVE eps_path(eps_id,parent_eps_id,responsible_obs_id,path) AS ("
             "SELECT eps_id,parent_eps_id,responsible_obs_id,ARRAY[eps_id]::text[] "
@@ -1299,6 +1845,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         profiles = self._connection.execute(
             "SELECT p.profile_id FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
             "AND p.active=TRUE AND a.obs_id=ANY(%s)",
             (context.tenant_id,context.user_id,obs_ids),
@@ -1360,22 +1907,28 @@ class PostgresSecurityProfileAuthorizationPolicy:
         admin = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
             "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
             (context.tenant_id,context.user_id,ADMIN_SUPERUSER_PROFILE_ID),
         ).fetchone()
-        if admin is not None:
-            return True
-
         global_profile = self._connection.execute(
-            "SELECT 1 FROM p6_security_profile_assignments a "
+            "SELECT a.module_access FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='global' "
             "AND a.obs_id='' AND p.active=TRUE LIMIT 1",
             (context.tenant_id,context.user_id),
         ).fetchone()
         if global_profile is None:
             return False
+        modules = global_profile[0]
+        if isinstance(modules, str):
+            modules = json.loads(modules)
+        if "projects" not in set(modules or ()):
+            return False
+        if admin is not None:
+            return True
 
         project_obs_rows = self._connection.execute(
             "WITH RECURSIVE project_eps(eps_id,parent_eps_id,responsible_obs_id,depth,path) AS ("
@@ -1452,6 +2005,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
         profile_rows = self._connection.execute(
             "SELECT p.profile_id,p.active FROM p6_security_profile_assignments a "
             "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
             "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
             "AND a.obs_id=%s",
             (context.tenant_id,context.user_id,effective_obs_id),
@@ -1467,6 +2021,7 @@ class PostgresSecurityProfileAuthorizationPolicy:
             readonly = self._connection.execute(
                 "SELECT 1 FROM p6_security_profile_assignments a "
                 "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                "JOIN identity_users u ON u.tenant_id=a.tenant_id AND u.user_id=a.user_id AND u.active=TRUE "
                 "WHERE a.tenant_id=%s AND a.user_id=%s AND p.scope='project' "
                 "AND p.active=TRUE AND a.obs_id = ANY(%s) LIMIT 1",
                 (context.tenant_id,context.user_id,sorted(project_obs_ids)),

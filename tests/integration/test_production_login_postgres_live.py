@@ -457,10 +457,15 @@ def test_planner_can_write_project_but_not_administer(runtime):
     status, _, body = call(
         runtime,
         "POST",
-        "/api/projects",
+        "/api/enterprise/security-profiles",
         cookie=cookie,
         csrf=csrf,
-        body={"project_id": f"planner-created-{uuid.uuid4().hex[:6]}", "name": "Nope"},
+        body={
+            "contract_version": "cubi-p6-security-profile.v1",
+            "profile_id": f"planner-forbidden-profile-{uuid.uuid4().hex[:6]}",
+            "name": "Planner Must Not Create Global Profiles",
+            "scope": "global",
+        },
     )
     assert status == 403
 
@@ -844,6 +849,12 @@ def test_enterprise_admin_account_directory_and_deactivation_are_live_end_to_end
         profiles.assign(
             tenant_id=tenant, profile_id=global_profile.profile_id,
             user_id=admin.user_id, actor_user_id=admin.user_id,
+            occurred_at=datetime.now(timezone.utc),
+        )
+        profiles.set_global_user_access(
+            tenant_id=tenant, user_id=admin.user_id,
+            module_access=("projects", "resources"), resource_access_mode="all",
+            expected_revision=1, actor_user_id=admin.user_id,
             occurred_at=datetime.now(timezone.utc),
         )
         connection.commit()

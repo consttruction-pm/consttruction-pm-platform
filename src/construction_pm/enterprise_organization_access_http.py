@@ -73,6 +73,7 @@ class EnterpriseOrganizationAccessHttpMiddleware:
             or path == "/api/enterprise/users" or path.startswith("/api/enterprise/users/")
             or path == "/api/enterprise/security-profiles"
             or path.startswith("/api/enterprise/security-profiles/")
+            or path == "/api/enterprise/obs"
         )
 
     def _handle(self, method: str, path: str, environ: Mapping[str, object]):
@@ -246,12 +247,79 @@ class EnterpriseOrganizationAccessHttpMiddleware:
                              "unassigned": True}
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 
+        if parts == ["api", "enterprise", "obs"] and method == "GET":
+            return 200, {
+                "contract_version": "cubi-p6-obs-options.v1",
+                "obs_nodes": self._service.list_obs_nodes(session_id),
+            }
+
+        if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
+                and parts[4] == "project-access"):
+            target_user_id = parts[3]
+            if method == "GET":
+                return 200, {
+                    "contract_version": "cubi-p6-user-project-access.v1",
+                    "assignments": self._service.list_user_project_access(session_id, target_user_id),
+                }
+            if method != "PUT":
+                return 405, {"code": "METHOD_NOT_ALLOWED"}
+            payload = self._body(environ, "cubi-p6-user-project-access.v1")
+            obs_id = payload.get("obs_id")
+            expected = payload.get("expected_revision")
+            if (not isinstance(obs_id, str) or not obs_id.strip()
+                    or (expected is not None and (
+                        isinstance(expected, bool) or not isinstance(expected, int) or expected < 1
+                    ))):
+                raise SecurityProfileError("SECURITY_PROFILE_PROJECT_ACCESS_REQUEST_INVALID")
+            assignment = self._service.assign_default_project_profile(
+                session_id, target_user_id, obs_id=obs_id.strip(),
+                expected_revision=expected,
+            )
+            return 200, {
+                "contract_version": "cubi-p6-user-project-access.v1",
+                "assignment": assignment,
+            }
+
+        if (len(parts) == 5 and parts[:3] == ["api", "enterprise", "users"]
+                and parts[4] == "global-access"):
+            target_user_id = parts[3]
+            if method == "GET":
+                access = self._service.get_user_global_access(session_id, target_user_id)
+                return 200, {
+                    "contract_version": "cubi-p6-user-global-access.v1",
+                    "access": access,
+                }
+            if method == "PATCH":
+                payload = self._body(environ, "cubi-p6-user-global-access.v1")
+                modules = payload.get("module_access")
+                roots = payload.get("resource_root_ids", [])
+                mode = payload.get("resource_access_mode")
+                expected = payload.get("expected_revision")
+                if (not isinstance(modules, list)
+                        or any(not isinstance(item, str) for item in modules)
+                        or not isinstance(roots, list)
+                        or any(not isinstance(item, str) for item in roots)
+                        or not isinstance(mode, str)
+                        or isinstance(expected, bool) or not isinstance(expected, int)):
+                    raise SecurityProfileError("SECURITY_PROFILE_GLOBAL_ACCESS_REQUEST_INVALID")
+                access = self._service.set_user_global_access(
+                    session_id, target_user_id, module_access=modules,
+                    resource_access_mode=mode, resource_root_ids=roots,
+                    expected_revision=expected,
+                )
+                return 200, {
+                    "contract_version": "cubi-p6-user-global-access.v1",
+                    "access": access,
+                }
+            return 405, {"code": "METHOD_NOT_ALLOWED"}
+
         if parts == ["api", "enterprise", "users"]:
             if method == "GET":
                 users = self._service.list_accounts(session_id)
                 return 200, {
                     "contract_version": "cubi-enterprise-user-list.v1",
                     "users": list(users),
+                    **self._service.user_directory_context(session_id),
                 }
             return 405, {"code": "METHOD_NOT_ALLOWED"}
 

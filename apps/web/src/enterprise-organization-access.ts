@@ -4,8 +4,11 @@ type Team = { team_id: string; name: string; owner_user_id: string; status: stri
 type Membership = { team_id: string; user_id: string; role: string; status: string; scope_project_ids: string[]; revision: number; created_at: string; revoked_at: string | null };
 type EligibleUser = { user_id: string; email: string; display_name: string };
 type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
+type OBSNode = { obs_id: string; parent_obs_id: string | null; code: string; name: string; manager_user_id: string; sequence_number: number };
+type ProjectAccessAssignment = { profile_id: string; profile_name: string; obs_id: string; revision: number };
 type SecurityProfile = { profile_id: string; name: string; description: string; scope: "global" | "project"; active: boolean; is_default: boolean; revision: number; privileges: string[] };
-type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string };
+type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[] };
+type GlobalUserAccess = { tenant_id: string; user_id: string; profile_id: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[]; revision: number; assigned_by: string; assigned_at: string };
 type PrivilegeCatalogs = { global: string[]; project: string[] };
 type Locale = "en" | "fa";
 
@@ -34,7 +37,7 @@ const COPY = {
     transferred: "Team ownership transferred.",
     securityProfiles: "Security profiles", profileId: "Profile ID", profileName: "Profile name", profileDescription: "Description",
     saveProfileDetails: "Save details", profileDetailsSaved: "Profile details saved.", profileDefault: "Default", profileSetDefault: "Set as default",
-    profileClearDefault: "Clear default", profileDefaultSaved: "Default project profile updated.",
+    profileClearDefault: "Clear default", profileDefaultSaved: "Default security profile updated.",
     profileDuplicate: "Duplicate", profileDuplicateId: "New profile ID", profileDuplicateName: "New profile name",
     profileDuplicated: "Profile duplicated with its privileges.", profileDelete: "Delete profile",
     profileDeleteConfirm: "Delete this profile? Profiles with current assignments cannot be deleted.",
@@ -50,6 +53,16 @@ const COPY = {
     profileInactive: "Inactive", profileActivate: "Activate", profileDeactivate: "Deactivate",
     profileStatusSaved: "Profile status updated.", removeAssignment: "Remove assignment",
     profileHelp: "Every user requires one Global profile. Project profiles are assigned to OBS responsibility and do not replace project membership.",
+    globalAccessTitle: "Global user access", selectGlobalUser: "Assigned user", moduleAccess: "Module access",
+    resourceAccess: "Resource access", noResources: "No resources", allResources: "All resources",
+    selectResources: "Select up to five resource roots (unavailable until the global resource hierarchy is configured)",
+    resourceAccessNote: "Module access controls which application modules are available. Project data still requires the matching OBS/project security profile. Selected resource access is not enabled until CUBI has an enterprise-wide resource hierarchy.",
+    saveGlobalAccess: "Save user access", globalAccessSaved: "Global user access updated.",
+    assignDefaultProjectTitle: "Assign OBS with the default Project profile",
+    obsSelect: "Responsible OBS", obsAssignmentRevision: "Current assignment revision (for replacement)",
+    assignDefaultProject: "Assign OBS", defaultProjectAssigned: "OBS access assigned using the current default Project profile.",
+    currentObsAssignments: "Current OBS assignments", noObsAssignments: "No OBS assignments for this account.",
+    noObsNodes: "No OBS nodes are available. Configure the tenant OBS hierarchy first.",
     selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
@@ -77,7 +90,7 @@ const COPY = {
     securityProfiles: "پروفایل‌های امنیتی", profileId: "شناسه پروفایل", profileName: "نام پروفایل",
     profileDescription: "توضیحات", saveProfileDetails: "ذخیره جزئیات", profileDetailsSaved: "جزئیات پروفایل ذخیره شد.", profileDefault: "پیش‌فرض",
     profileSetDefault: "تنظیم به‌عنوان پیش‌فرض", profileClearDefault: "حذف حالت پیش‌فرض",
-    profileDefaultSaved: "پروفایل پیش‌فرض پروژه به‌روزرسانی شد.", profileDuplicate: "تکثیر",
+    profileDefaultSaved: "پروفایل امنیتی پیش‌فرض به‌روزرسانی شد.", profileDuplicate: "تکثیر",
     profileDuplicateId: "شناسه پروفایل جدید", profileDuplicateName: "نام پروفایل جدید",
     profileDuplicated: "پروفایل همراه با مجوزهایش تکثیر شد.", profileDelete: "حذف پروفایل",
     profileDeleteConfirm: "این پروفایل حذف شود؟ پروفایل دارای تخصیص فعلی قابل حذف نیست.",
@@ -93,6 +106,16 @@ const COPY = {
     profileInactive: "غیرفعال", profileActivate: "فعال‌سازی", profileDeactivate: "غیرفعال‌سازی",
     profileStatusSaved: "وضعیت پروفایل به‌روزرسانی شد.", removeAssignment: "حذف تخصیص",
     profileHelp: "هر کاربر به یک پروفایل سراسری نیاز دارد. پروفایل پروژه به مسئولیت OBS اختصاص می‌یابد و جایگزین عضویت پروژه نیست.",
+    globalAccessTitle: "دسترسی سراسری کاربر", selectGlobalUser: "کاربر تخصیص‌یافته", moduleAccess: "دسترسی ماژول‌ها",
+    resourceAccess: "دسترسی منابع", noResources: "بدون دسترسی به منابع", allResources: "همه منابع",
+    selectResources: "انتخاب حداکثر پنج ریشه منابع (تا زمان پیکربندی سلسله‌مراتب سراسری منابع غیرفعال است)",
+    resourceAccessNote: "دسترسی ماژول‌ها بخش‌های قابل استفاده برنامه را تعیین می‌کند. دسترسی به داده پروژه همچنان به پروفایل امنیتی OBS/پروژه نیاز دارد. انتخاب منابع تا ایجاد سلسله‌مراتب سراسری منابع کوبی فعال نیست.",
+    saveGlobalAccess: "ذخیره دسترسی کاربر", globalAccessSaved: "دسترسی سراسری کاربر به‌روزرسانی شد.",
+    assignDefaultProjectTitle: "اختصاص OBS با پروفایل پیش‌فرض پروژه",
+    obsSelect: "OBS مسئول", obsAssignmentRevision: "نسخه تخصیص فعلی (برای جایگزینی)",
+    assignDefaultProject: "اختصاص OBS", defaultProjectAssigned: "دسترسی OBS با پروفایل پیش‌فرض فعلی پروژه اختصاص یافت.",
+    currentObsAssignments: "تخصیص‌های فعلی OBS", noObsAssignments: "برای این حساب تخصیص OBS ثبت نشده است.",
+    noObsNodes: "گره OBS موجود نیست. ابتدا ساختار OBS سازمان را پیکربندی کنید.",
     selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
@@ -181,22 +204,60 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let accounts: Account[] = [];
   let canManage = false;
   let canAdminAccounts = false;
+  let canManageOtherAccounts = false;
+  let currentUserId = "";
   let profiles: SecurityProfile[] = [];
   let profileAssignments: ProfileAssignment[] = [];
   let privilegeCatalogs: PrivilegeCatalogs = { global: [], project: [] };
   let selectedProfileId = "";
+  let selectedGlobalAccessUserId = "";
+  let globalUserAccess: GlobalUserAccess | null = null;
+  let obsNodes: OBSNode[] = [];
+  let selectedProjectUserId = "";
+  let selectedProjectObsId = "";
+  let userProjectAssignments: ProjectAccessAssignment[] = [];
   let canManageSecurityProfiles = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
   let failure = "";
 
+  const loadUserProjectAssignments = async () => {
+    if (!selectedProjectUserId) { userProjectAssignments = []; return; }
+    const result = await api<{ assignments: ProjectAccessAssignment[] }>(
+      `/api/enterprise/users/${encodeURIComponent(selectedProjectUserId)}/project-access`,
+    );
+    userProjectAssignments = Array.isArray(result.assignments) ? result.assignments : [];
+    if (!userProjectAssignments.some((item) => item.obs_id === selectedProjectObsId)) {
+      selectedProjectObsId = "";
+    }
+  };
+
+  const loadGlobalUserAccess = async () => {
+    if (!selectedGlobalAccessUserId) { globalUserAccess = null; return; }
+    const result = await api<{ access: GlobalUserAccess }>(
+      `/api/enterprise/users/${encodeURIComponent(selectedGlobalAccessUserId)}/global-access`,
+    );
+    globalUserAccess = result.access;
+  };
+
   const loadProfileAssignments = async () => {
-    if (!selectedProfileId) { profileAssignments = []; return; }
+    if (!selectedProfileId) { profileAssignments = []; globalUserAccess = null; return; }
     const result = await api<{ assignments: ProfileAssignment[] }>(
       `/api/enterprise/security-profiles/${encodeURIComponent(selectedProfileId)}/assignments`,
     );
     profileAssignments = Array.isArray(result.assignments) ? result.assignments : [];
+    const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
+    if (selectedProfile?.scope === "global") {
+      const globalAssignments = profileAssignments.filter((assignment) => !assignment.obs_id);
+      if (!globalAssignments.some((assignment) => assignment.user_id === selectedGlobalAccessUserId)) {
+        selectedGlobalAccessUserId = globalAssignments[0]?.user_id ?? "";
+      }
+      await loadGlobalUserAccess();
+    } else {
+      selectedGlobalAccessUserId = "";
+      globalUserAccess = null;
+    }
   };
 
   const loadProfiles = async () => {
@@ -231,7 +292,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     }).join("");
     const selectedProfile = profiles.find((profile) => profile.profile_id === selectedProfileId) ?? null;
     const selectedProfileIsBuiltIn = selectedProfile !== null && [
-      "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser",
+      "p6-admin-superuser", "p6-no-global-privileges", "p6-project-superuser", "p6-default-project-readonly",
     ].includes(selectedProfile.profile_id);
     const profileOptions = profiles.map((profile) =>
       `<option value="${escapeHtml(profile.profile_id)}" ${profile.profile_id === selectedProfileId ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(profile.scope)}${profile.is_default ? " · " + escapeHtml(t.profileDefault) : ""}</option>`
@@ -243,15 +304,58 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const profileAssignmentRows = profileAssignments.map((assignment) => `<tr>
       <td><strong>${escapeHtml(assignment.display_name || assignment.email)}</strong><small>${escapeHtml(assignment.email)} · ${escapeHtml(assignment.user_id)}</small></td>
       <td>${escapeHtml(assignment.obs_id || "—")}</td><td>${assignment.revision}</td>
-      <td>${selectedProfile?.scope === "project" && canAdminAccounts ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
+      <td>${selectedProfile?.scope === "project" && canManageOtherAccounts && assignment.user_id !== currentUserId ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
     </tr>`).join("");
     const activeAccountOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}">${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
     ).join("");
+    const globalAssignmentOptions = profileAssignments.filter((assignment) => !assignment.obs_id).map((assignment) =>
+      `<option value="${escapeHtml(assignment.user_id)}" ${assignment.user_id === selectedGlobalAccessUserId ? "selected" : ""}>${escapeHtml(assignment.display_name || assignment.email)} · ${escapeHtml(assignment.email)}</option>`
+    ).join("");
+    const moduleLabels: Record<string, string> = locale === "fa" ? {
+      projects: "پروژه‌ها", portfolios: "پورتفولیوها", resources: "منابع", contributor: "همکار",
+      enterprise_reports: "گزارش‌های سازمانی", integration_api: "رابط یکپارچه‌سازی",
+      p6_analytics: "تحلیل‌ها", p6_professional: "مهندسی دسکتاپ", team_member: "عضو تیم",
+      timesheet: "کاربرگ زمان", visualizer: "تحلیل بصری", web_services: "خدمات یکپارچه‌سازی",
+    } : {
+      projects: "Projects", portfolios: "Portfolios", resources: "Resources", contributor: "Contributor",
+      enterprise_reports: "Enterprise Reports", integration_api: "Integration API",
+      p6_analytics: "Analytics", p6_professional: "Desktop Engineering", team_member: "Team Member",
+      timesheet: "Timesheet", visualizer: "Visual Analysis", web_services: "Integration Services",
+    };
+    const moduleOptions = Object.entries(moduleLabels).map(([value, label]) =>
+      `<label class="cubi-oa-module-option"><input type="checkbox" name="module_access" value="${value}" ${globalUserAccess?.module_access.includes(value) ? "checked" : ""}> <span>${escapeHtml(label)}</span></label>`
+    ).join("");
+    const selectedResourceAccess = globalUserAccess?.resource_access_mode ?? "none";
+    const projectUserOptions = accounts.filter((account) => account.active).map((account) =>
+      `<option value="${escapeHtml(account.user_id)}" ${account.user_id === selectedProjectUserId ? "selected" : ""}>${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
+    ).join("");
+    const obsNodeById = new Map<string, OBSNode>();
+    obsNodes.forEach((node) => obsNodeById.set(node.obs_id, node));
+    const obsDepth = (node: OBSNode) => {
+      let depth = 0;
+      let parentId = node.parent_obs_id;
+      const visited = new Set([node.obs_id]);
+      while (parentId && depth < 16 && !visited.has(parentId)) {
+        visited.add(parentId);
+        depth += 1;
+        parentId = obsNodeById.get(parentId)?.parent_obs_id ?? null;
+      }
+      return depth;
+    };
+    const obsOptions = obsNodes.map((node) => {
+      const prefix = "\u00a0\u00a0".repeat(obsDepth(node)) + (node.parent_obs_id ? "↳ " : "");
+      const label = [node.code, node.name].filter(Boolean).join(" · ") || node.obs_id;
+      return `<option value="${escapeHtml(node.obs_id)}" ${node.obs_id === selectedProjectObsId ? "selected" : ""}>${escapeHtml(prefix + label)}</option>`;
+    }).join("");
+    const selectedProjectAssignment = userProjectAssignments.find((item) => item.obs_id === selectedProjectObsId) ?? null;
+    const currentProjectAssignmentRows = userProjectAssignments.map((item) => `<tr>
+      <td>${escapeHtml(item.obs_id)}</td><td>${escapeHtml(item.profile_name)}</td><td>${item.revision}</td>
+    </tr>`).join("");
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
-      <td><button class="cubi-oa-button ${account.active ? "cubi-oa-danger" : ""}" data-account-status="${escapeHtml(account.user_id)}" data-active="${account.active}" type="button">${account.active ? t.deactivate : t.activate}</button></td>
+      <td>${canManageOtherAccounts && account.user_id !== currentUserId ? `<button class="cubi-oa-button ${account.active ? "cubi-oa-danger" : ""}" data-account-status="${escapeHtml(account.user_id)}" data-active="${account.active}" type="button">${account.active ? t.deactivate : t.activate}</button>` : "—"}</td>
     </tr>`).join("");
     container.innerHTML = `
       <style>
@@ -270,6 +374,9 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         .cubi-oa-field input,.cubi-oa-field select,.cubi-oa-field textarea{width:100%;min-height:38px;border:1px solid #ccd7e3;border-radius:7px;padding:8px;background:#fff;color:#172b43}
         .cubi-oa-form{border-top:1px solid #e6ebf1;margin-top:16px;padding-top:14px}.cubi-oa-tablewrap{overflow:auto}
         .cubi-oa-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+        .cubi-oa-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:10px;border:1px solid #e1e8ef;border-radius:8px}
+        .cubi-oa-module-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:#f8fafc;font-weight:500!important}
+        .cubi-oa-module-option input{width:16px;min-height:16px;margin:0}
         .cubi-oa table{width:100%;border-collapse:collapse;min-width:650px}.cubi-oa th,.cubi-oa td{text-align:left;padding:10px;border-bottom:1px solid #e9eef3;vertical-align:middle}
         .cubi-oa th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7b8f}.cubi-oa-status{font-size:11px;border-radius:20px;padding:3px 8px;background:#e7f5ed;color:#23643f}
         .cubi-oa-removed{background:#f1f2f4;color:#6a7481}.cubi-oa-suspended{background:#fff3d8;color:#805a11}
@@ -335,7 +442,12 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <button class="cubi-oa-button" type="submit" ${busy ? "disabled" : ""}>${t.saveProfileDetails}</button>
             </form>`}
             <div class="cubi-oa-actions">
-              ${selectedProfile?.scope === "project" && !selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile?.is_default === true}" ${busy || selectedProfile?.active !== true ? "disabled" : ""}>${selectedProfile?.is_default ? t.profileClearDefault : t.profileSetDefault}</button>` : ""}
+              ${selectedProfile && (!selectedProfileIsBuiltIn
+                || selectedProfile.profile_id === "p6-no-global-privileges"
+                || selectedProfile.profile_id === "p6-default-project-readonly")
+                && !selectedProfile.is_default
+                ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="false" ${busy || selectedProfile.active !== true ? "disabled" : ""}>${t.profileSetDefault}</button>`
+                : ""}
               ${!selectedProfileIsBuiltIn ? `<button class="cubi-oa-button" type="button" data-profile-duplicate="true" ${busy ? "disabled" : ""}>${t.profileDuplicate}</button>
               <button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-delete="true" ${busy || profileAssignments.length > 0 ? "disabled" : ""}>${t.profileDelete}</button>` : ""}
               <button class="cubi-oa-button" type="button" data-profile-status="true" data-active="${selectedProfile?.active === true}" ${busy || selectedProfileIsBuiltIn ? "disabled" : ""}>${selectedProfile?.active ? t.profileDeactivate : t.profileActivate}</button>
@@ -348,12 +460,45 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             <h3>${t.assignedUsers}</h3>
             <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
               <tbody>${profileAssignmentRows || `<tr><td colspan="4">${t.noEligible}</td></tr>`}</tbody></table></div>
-            ${canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
+            ${selectedProfile?.scope === "global" && canManageOtherAccounts && globalAssignmentOptions ? `<form class="cubi-oa-form" id="cubi-oa-global-access">
+              <h3>${t.globalAccessTitle}</h3>
+              <div class="cubi-oa-field"><label for="cubi-oa-global-access-user">${t.selectGlobalUser}</label>
+                <select id="cubi-oa-global-access-user" name="user_id">${globalAssignmentOptions}</select></div>
+              <fieldset class="cubi-oa-field"><legend>${t.moduleAccess}</legend>
+                <div class="cubi-oa-module-grid">${moduleOptions}</div></fieldset>
+              <div class="cubi-oa-field"><label for="cubi-oa-resource-access">${t.resourceAccess}</label>
+                <select id="cubi-oa-resource-access" name="resource_access_mode">
+                  <option value="none" ${selectedResourceAccess === "none" ? "selected" : ""}>${t.noResources}</option>
+                  <option value="all" ${selectedResourceAccess === "all" ? "selected" : ""}>${t.allResources}</option>
+                  <option value="selected" disabled ${selectedResourceAccess === "selected" ? "selected" : ""}>${t.selectResources}</option>
+                </select></div>
+              <p class="cubi-oa-note">${t.resourceAccessNote}</p>
+              <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy || !globalUserAccess ? "disabled" : ""}>${t.saveGlobalAccess}</button>
+              <small>Revision ${globalUserAccess?.revision ?? "—"}</small>
+            </form>` : ""}
+            ${canManageOtherAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
-              ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><input id="cubi-oa-profile-obs" name="obs_id" required></div>` : ""}
+              ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><select id="cubi-oa-profile-obs" name="obs_id" required><option value="">—</option>${obsOptions}</select></div>` : ""}
               <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
               <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
             </form>` : `<p class="cubi-oa-note">${t.userAdminRequired}</p>`}
+            ${selectedProfile?.scope === "project" && canManageOtherAccounts ? `<form class="cubi-oa-form" id="cubi-oa-project-default-assign">
+              <h3>${t.assignDefaultProjectTitle}</h3>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-user">${t.user}</label>
+                <select id="cubi-oa-project-user" name="user_id">${projectUserOptions}</select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-obs">${t.obsSelect}</label>
+                <select id="cubi-oa-project-obs" name="obs_id" required>
+                  <option value="">—</option>${obsOptions}
+                </select></div>
+              <div class="cubi-oa-field"><label for="cubi-oa-project-revision">${t.obsAssignmentRevision}</label>
+                <input id="cubi-oa-project-revision" name="expected_revision" type="number" min="1"
+                  value="${selectedProjectAssignment?.revision ?? ""}"></div>
+              <button class="cubi-oa-button" type="submit" ${busy || !obsNodes.length || !selectedProjectUserId ? "disabled" : ""}>${t.assignDefaultProject}</button>
+              <h4>${t.currentObsAssignments}</h4>
+              <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.obsSelect}</th><th>${t.profileName}</th><th>Revision</th></tr></thead>
+                <tbody>${currentProjectAssignmentRows || `<tr><td colspan="3">${t.noObsAssignments}</td></tr>`}</tbody></table></div>
+              ${!obsNodes.length ? `<p class="cubi-oa-note">${t.noObsNodes}</p>` : ""}
+            </form>` : ""}
           ` : `<div class="cubi-oa-muted">${t.noProfiles}</div>`}
         </section>` : ""}
       </div></main>`;
@@ -472,7 +617,38 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     });
     container.querySelector<HTMLSelectElement>("#cubi-oa-profile-selected")?.addEventListener("change", (event) => {
       selectedProfileId = (event.currentTarget as HTMLSelectElement).value;
+      selectedGlobalAccessUserId = "";
       void run(async () => { await loadProfileAssignments(); });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-global-access-user")?.addEventListener("change", (event) => {
+      selectedGlobalAccessUserId = (event.currentTarget as HTMLSelectElement).value;
+      void run(async () => { await loadGlobalUserAccess(); });
+    });
+    container.querySelectorAll<HTMLInputElement>('input[name="module_access"]').forEach((input) => input.addEventListener("change", () => {
+      if (input.value === "contributor" && input.checked) {
+        container.querySelectorAll<HTMLInputElement>('input[name="module_access"]').forEach((other) => {
+          if (other !== input) other.checked = false;
+        });
+      } else if (input.checked) {
+        const contributor = container.querySelector<HTMLInputElement>('input[name="module_access"][value="contributor"]');
+        if (contributor) contributor.checked = false;
+      }
+    }));
+    container.querySelector<HTMLFormElement>("#cubi-oa-global-access")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!globalUserAccess || !selectedGlobalAccessUserId) return;
+      const modules = Array.from(container.querySelectorAll<HTMLInputElement>('input[name="module_access"]:checked'))
+        .map((input) => input.value);
+      const resourceMode = String(new FormData(event.currentTarget as HTMLFormElement).get("resource_access_mode") ?? "none");
+      void run(async () => {
+        await api(`/api/enterprise/users/${encodeURIComponent(selectedGlobalAccessUserId)}/global-access`, "PATCH", {
+          contract_version: "cubi-p6-user-global-access.v1",
+          module_access: modules, resource_access_mode: resourceMode,
+          resource_root_ids: [], expected_revision: globalUserAccess.revision,
+        });
+        notice = t.globalAccessSaved;
+        await loadProfileAssignments();
+      });
     });
     container.querySelector<HTMLButtonElement>("[data-profile-status]")?.addEventListener("click", (event) => {
       const button = event.currentTarget as HTMLButtonElement;
@@ -497,6 +673,35 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
           expected_revision: selectedProfile.revision, privileges,
         });
         notice = t.profileSaved; await loadProfiles();
+      });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-project-user")?.addEventListener("change", (event) => {
+      selectedProjectUserId = (event.currentTarget as HTMLSelectElement).value;
+      selectedProjectObsId = "";
+      void run(async () => { await loadUserProjectAssignments(); });
+    });
+    container.querySelector<HTMLSelectElement>("#cubi-oa-project-obs")?.addEventListener("change", (event) => {
+      selectedProjectObsId = (event.currentTarget as HTMLSelectElement).value;
+      render();
+    });
+    container.querySelector<HTMLFormElement>("#cubi-oa-project-default-assign")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedProjectUserId || !selectedProjectObsId) return;
+      const rawRevision = String(new FormData(event.currentTarget as HTMLFormElement).get("expected_revision") ?? "").trim();
+      const expectedRevision = rawRevision ? Number(rawRevision) : undefined;
+      if (expectedRevision !== undefined && (!Number.isInteger(expectedRevision) || expectedRevision < 1)) return;
+      void run(async () => {
+        const path = "/api/enterprise/users/" + encodeURIComponent(selectedProjectUserId) + "/project-access";
+        await api(path, "PUT", {
+          contract_version: "cubi-p6-user-project-access.v1",
+          obs_id: selectedProjectObsId,
+          ...(expectedRevision === undefined ? {} : { expected_revision: expectedRevision }),
+        });
+        const defaultProject = profiles.find((profile) => profile.scope === "project" && profile.is_default);
+        if (defaultProject) selectedProfileId = defaultProject.profile_id;
+        notice = t.defaultProjectAssigned;
+        await loadProfiles();
+        await loadUserProjectAssignments();
       });
     });
     container.querySelector<HTMLFormElement>("#cubi-oa-profile-assign")?.addEventListener("submit", (event) => {
@@ -565,6 +770,12 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         SELF_DEACTIVATION_NOT_ALLOWED: t.selfDeactivateError,
         P6_GLOBAL_PRIVILEGE_REQUIRED: t.privilegeRequired,
         SECURITY_PROFILE_ASSIGNED_CANNOT_DELETE: t.profileDeleteAssigned,
+        SECURITY_PROFILE_CONTRIBUTOR_MODULE_EXCLUSIVE: locale === "fa"
+          ? "گزینه همکار را نمی‌توان همراه با ماژول‌های دیگر فعال کرد."
+          : "Contributor access cannot be combined with other modules.",
+        SECURITY_PROFILE_GLOBAL_RESOURCE_HIERARCHY_REQUIRED: locale === "fa"
+          ? "برای انتخاب منابع، ابتدا باید سلسله‌مراتب سراسری منابع پیکربندی شود."
+          : "Selected resource access requires the enterprise-wide resource hierarchy.",
       };
       failure = code === "SESSION_REQUIRED" ? t.session : messages[code] ?? (code || t.error);
     } finally { busy = false; render(); }
@@ -600,10 +811,24 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       if (!teams.some(team => team.team_id === selectedTeamId)) selectedTeamId = teams[0]?.team_id ?? "";
       await loadTeam();
       try {
-        accounts = accountList(await api<unknown>("/api/enterprise/users"));
+        const usersResult = await api<unknown>("/api/enterprise/users");
+        accounts = accountList(usersResult);
         canAdminAccounts = true;
+        if (isRecord(usersResult)) {
+          currentUserId = typeof usersResult.current_user_id === "string" ? usersResult.current_user_id : "";
+          canManageOtherAccounts = usersResult.can_manage_other_users === true;
+        }
+        const obsResult = await api<unknown>("/api/enterprise/obs");
+        if (!isRecord(obsResult) || obsResult.contract_version !== "cubi-p6-obs-options.v1"
+            || !Array.isArray(obsResult.obs_nodes)) throw new Error("INVALID_OBS_OPTIONS");
+        obsNodes = obsResult.obs_nodes as OBSNode[];
+        if (!accounts.some((account) => account.user_id === selectedProjectUserId && account.active)) {
+          selectedProjectUserId = accounts.find((account) => account.active)?.user_id ?? "";
+        }
+        await loadUserProjectAssignments();
       } catch (error) {
-        accounts = []; canAdminAccounts = false;
+        accounts = []; obsNodes = []; userProjectAssignments = []; canAdminAccounts = false;
+        canManageOtherAccounts = false; currentUserId = "";
         if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
       }
       try {
