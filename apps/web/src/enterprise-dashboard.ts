@@ -96,6 +96,8 @@ export interface EnterpriseDashboardClient {
   archiveDashboard(dashboardId: string, expectedRevision: number): Promise<unknown>;
   assignShare(dashboardId: string, targetType: "user" | "role" | "all_users", targetId: string, expectedRevision: number): Promise<unknown>;
   revokeShare(dashboardId: string, targetType: "user" | "role" | "all_users", targetId: string, expectedRevision: number): Promise<unknown>;
+  saveFilterOverride(dashboardId: string, filters: EnterpriseDashboardFilter[]): Promise<unknown>;
+  resetFilterOverride(dashboardId: string): Promise<unknown>;
 }
 
 export type EnterpriseDashboardFilter = { key: string; operator: string; value: unknown };
@@ -1065,7 +1067,9 @@ export async function mountEnterpriseDashboard(
         });
         row.addEventListener("drop", (event) => {
           event.preventDefault();
-          const fromIndex = Number(event.dataTransfer?.getData("text/plain"));
+          const rawIndex = event.dataTransfer?.getData("text/plain");
+          if (rawIndex === undefined || rawIndex === null || rawIndex.trim() === "") return;
+          const fromIndex = Number(rawIndex);
           if (!Number.isInteger(fromIndex)) return;
           draftPortlets = moveDashboardPortletToPosition(draftPortlets, fromIndex, originalIndex);
           renderLayout();
