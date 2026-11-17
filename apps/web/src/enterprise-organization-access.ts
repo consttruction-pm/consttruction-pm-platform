@@ -4,6 +4,8 @@ type Team = { team_id: string; name: string; owner_user_id: string; status: stri
 type Membership = { team_id: string; user_id: string; role: string; status: string; scope_project_ids: string[]; revision: number; created_at: string; revoked_at: string | null };
 type EligibleUser = { user_id: string; email: string; display_name: string };
 type Account = { user_id: string; email: string; display_name: string; active: boolean; created_at: string };
+type OBSNode = { obs_id: string; parent_obs_id: string | null; code: string; name: string; manager_user_id: string; sequence_number: number };
+type ProjectAccessAssignment = { profile_id: string; profile_name: string; obs_id: string; revision: number };
 type SecurityProfile = { profile_id: string; name: string; description: string; scope: "global" | "project"; active: boolean; is_default: boolean; revision: number; privileges: string[] };
 type ProfileAssignment = { user_id: string; email: string; display_name: string; obs_id: string; revision: number; assigned_by: string; assigned_at: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[] };
 type GlobalUserAccess = { tenant_id: string; user_id: string; profile_id: string; module_access: string[]; resource_access_mode: "none" | "all" | "selected"; resource_root_ids: string[]; revision: number; assigned_by: string; assigned_at: string };
@@ -56,6 +58,11 @@ const COPY = {
     selectResources: "Select up to five resource roots (unavailable until the global resource hierarchy is configured)",
     resourceAccessNote: "Module access controls which application modules are available. Project data still requires the matching OBS/project security profile. Selected resource access is not enabled until CUBI has an enterprise-wide resource hierarchy.",
     saveGlobalAccess: "Save user access", globalAccessSaved: "Global user access updated.",
+    assignDefaultProjectTitle: "Assign OBS with the default Project profile",
+    obsSelect: "Responsible OBS", obsAssignmentRevision: "Current assignment revision (for replacement)",
+    assignDefaultProject: "Assign OBS", defaultProjectAssigned: "OBS access assigned using the current default Project profile.",
+    currentObsAssignments: "Current OBS assignments", noObsAssignments: "No OBS assignments for this account.",
+    noObsNodes: "No OBS nodes are available. Configure the tenant OBS hierarchy first.",
     selfDeactivateError: "You cannot deactivate your own account.",
   },
   fa: {
@@ -104,6 +111,11 @@ const COPY = {
     selectResources: "انتخاب حداکثر پنج ریشه منابع (تا زمان پیکربندی سلسله‌مراتب سراسری منابع غیرفعال است)",
     resourceAccessNote: "دسترسی ماژول‌ها بخش‌های قابل استفاده برنامه را تعیین می‌کند. دسترسی به داده پروژه همچنان به پروفایل امنیتی OBS/پروژه نیاز دارد. انتخاب منابع تا ایجاد سلسله‌مراتب سراسری منابع کوبی فعال نیست.",
     saveGlobalAccess: "ذخیره دسترسی کاربر", globalAccessSaved: "دسترسی سراسری کاربر به‌روزرسانی شد.",
+    assignDefaultProjectTitle: "اختصاص OBS با پروفایل پیش‌فرض پروژه",
+    obsSelect: "OBS مسئول", obsAssignmentRevision: "نسخه تخصیص فعلی (برای جایگزینی)",
+    assignDefaultProject: "اختصاص OBS", defaultProjectAssigned: "دسترسی OBS با پروفایل پیش‌فرض فعلی پروژه اختصاص یافت.",
+    currentObsAssignments: "تخصیص‌های فعلی OBS", noObsAssignments: "برای این حساب تخصیص OBS ثبت نشده است.",
+    noObsNodes: "گره OBS موجود نیست. ابتدا ساختار OBS سازمان را پیکربندی کنید.",
     selfDeactivateError: "امکان غیرفعال‌سازی حساب خودتان وجود ندارد.",
   },
 } as const;
@@ -198,11 +210,26 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let selectedProfileId = "";
   let selectedGlobalAccessUserId = "";
   let globalUserAccess: GlobalUserAccess | null = null;
+  let obsNodes: OBSNode[] = [];
+  let selectedProjectUserId = "";
+  let selectedProjectObsId = "";
+  let userProjectAssignments: ProjectAccessAssignment[] = [];
   let canManageSecurityProfiles = false;
   let selectedTeamId = "";
   let busy = false;
   let notice = "";
   let failure = "";
+
+  const loadUserProjectAssignments = async () => {
+    if (!selectedProjectUserId) { userProjectAssignments = []; return; }
+    const result = await api<{ assignments: ProjectAccessAssignment[] }>(
+      `/api/enterprise/users/${encodeURIComponent(selectedProjectUserId)}/project-access`,
+    );
+    userProjectAssignments = Array.isArray(result.assignments) ? result.assignments : [];
+    if (!userProjectAssignments.some((item) => item.obs_id === selectedProjectObsId)) {
+      selectedProjectObsId = "";
+    }
+  };
 
   const loadGlobalUserAccess = async () => {
     if (!selectedGlobalAccessUserId) { globalUserAccess = null; return; }
