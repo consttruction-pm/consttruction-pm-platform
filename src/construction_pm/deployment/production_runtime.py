@@ -47,6 +47,11 @@ from ..identity_session import (
 from ..p6_cost_account_api import P6CostAccountAPI
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
+from ..p6_project_security_api import P6ProjectSecurityAPI
+from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
+from ..p6_associated_resource_api import P6AssociatedResourceAPI
+from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
+from ..p6_resource_master_repository import PostgresP6ResourceRepository
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -296,16 +301,32 @@ class ProductionRuntime:
         connection = self.connection
         project_role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
         global_security_repository = PostgresP6GlobalSecurityRepository(connection)
-        policy = P6GlobalSecurityAuthorizationPolicy(
-            global_security_repository, project_role_policy
-        )
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
+        project_repository = PostgresProjectRepository(connection)
+        def project_obs_lookup(tenant_id: str, project_id: str) -> str | None:
+            row = connection.execute(
+                "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            ).fetchone()
+            return None if row is None or not row[0] else str(row[0])
+        project_security_repository = PostgresP6ProjectSecurityRepository(
+            connection, project_obs_lookup=project_obs_lookup,
+            obs_repository=obs_node_repository,
+        )
+        associated_resource_repository = PostgresP6AssociatedResourceRepository(connection)
+        policy = P6GlobalSecurityAuthorizationPolicy(
+            global_security_repository, project_role_policy,
+            obs_project_access=project_security_repository,
+            associated_resource_access=associated_resource_repository,
+        )
+        project_security_api = P6ProjectSecurityAPI(project_security_repository, policy)
+        associated_resource_api = P6AssociatedResourceAPI(associated_resource_repository, policy)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
-                PostgresProjectRepository(connection),
+                project_repository,
                 policy,
                 cost_accounts=cost_account_repository,
                 obs_nodes=obs_node_repository,
@@ -365,6 +386,8 @@ class ProductionRuntime:
                 checkout_lease=checkout_lease,
             ),
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
+            p6_project_security_api=project_security_api,
+            p6_associated_resource_api=associated_resource_api,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,
