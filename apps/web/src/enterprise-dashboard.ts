@@ -538,6 +538,7 @@ export async function mountEnterpriseDashboard(
   }
   function openManageDialog(): void {
     if (!activeDefinition) return;
+    let layoutOrder = activeDefinition.portlets.map((_, index) => index);
     const dialog = node("dialog", "ced-dialog");
     const inner = node("div", "ced-dialog-inner");
     const title = node("h2", "", t.manage);
@@ -550,7 +551,7 @@ export async function mountEnterpriseDashboard(
       const descriptionInput = dialog.querySelector<HTMLTextAreaElement>("[name=dashboard-description]");
       const rowsInput = dialog.querySelector<HTMLInputElement>("[name=max-rows]");
       const lockInput = dialog.querySelector<HTMLInputElement>("[name=filter-lock]");
-      const nextPortlets = readEditorPortlets(dialog, activeDefinition.portlets);
+      const nextPortlets = readEditorPortlets(dialog, activeDefinition.portlets, layoutOrder);
       if (!validateDashboardLayout(nextPortlets)) {
         panel.prepend(node("p", "ced-error", "Invalid or overlapping portlet layout."));
         return;
@@ -653,11 +654,36 @@ export async function mountEnterpriseDashboard(
       );
     }
     function renderLayout(): void {
-      const list = node("div");
-      activeDefinition!.portlets.forEach((portlet) => {
-        list.append(node("p", "ced-muted", `${portletLabel(portlet.type_id)} · ${portlet.layout.w === 12 ? t.wide : t.narrow} · row ${portlet.layout.y + 1}`));
+      const list = node("div", "ced-section");
+      const move = (from: number, to: number): void => {
+        if (to < 0 || to >= layoutOrder.length) return;
+        layoutOrder = reorderDashboardPortlets(layoutOrder, from, to);
+        renderLayout();
+      };
+      layoutOrder.forEach((originalIndex, position) => {
+        const portlet = activeDefinition!.portlets[originalIndex];
+        const row = node("div", "ced-panel ced-row ced-section");
+        row.append(node("strong", "", portletLabel(portlet.type_id)));
+        row.append(node("span", "ced-muted", portlet.layout.w === 12 ? t.wide : t.narrow));
+        const up = button(t.moveUp, () => move(position, position - 1));
+        const down = button(t.moveDown, () => move(position, position + 1));
+        up.disabled = position === 0;
+        down.disabled = position === layoutOrder.length - 1;
+        row.append(up, down);
+        row.draggable = true;
+        row.addEventListener("dragstart", (event) => {
+          event.dataTransfer?.setData("text/plain", String(position));
+          if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        });
+        row.addEventListener("dragover", (event) => event.preventDefault());
+        row.addEventListener("drop", (event) => {
+          event.preventDefault();
+          const from = Number(event.dataTransfer?.getData("text/plain"));
+          move(from, position);
+        });
+        list.append(row);
       });
-      panel.append(list, node("p", "ced-muted", "Narrow/Wide layout follows the two-column dashboard grid. Width can be changed in Content."));
+      panel.append(list, node("p", "ced-muted", "Use the arrow controls or drag and drop to reorder portlets. Narrow/Wide sizing is configured in Content."));
     }
     function renderAccess(): void {
       const mode = node("div", "ced-panel");
@@ -672,9 +698,11 @@ export async function mountEnterpriseDashboard(
     activateSection(0);
     dialog.showModal();
   }
-  function readEditorPortlets(dialog: HTMLDialogElement, original: EnterpriseDashboardPortlet[]): EnterpriseDashboardPortlet[] {
+  function readEditorPortlets(dialog: HTMLDialogElement, original: EnterpriseDashboardPortlet[], order: readonly number[] = original.map((_, index) => index)): EnterpriseDashboardPortlet[] {
     const result: EnterpriseDashboardPortlet[] = [];
-    for (const [index, portlet] of original.entries()) {
+    for (const index of order) {
+      const portlet = original[index];
+      if (!portlet) continue;
       const row = dialog.querySelector<HTMLElement>(`[data-existing-portlet-index="${index}"]`);
       if (!row) continue;
       const title = row.querySelector<HTMLInputElement>(`[name="portlet-title-${index}"]`)?.value ?? portlet.title ?? "";
@@ -688,6 +716,7 @@ export async function mountEnterpriseDashboard(
         layout: { ...portlet.layout, x, w: width },
       });
     }
+    result.forEach((item, index) => { item.layout = { ...item.layout, y: index * 4 }; });
     const nextY = Math.max(0, ...result.map((item) => item.layout.y + item.layout.h));
     let addedIndex = 0;
     for (const row of dialog.querySelectorAll<HTMLElement>("[data-new-portlet]")) {
