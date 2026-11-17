@@ -198,3 +198,35 @@ def test_postgres_dashboard_create_and_audit_are_atomic_on_rollback():
             (tenant, dashboard_id),
         ).fetchone()
         assert int(history[0]) == 0
+
+
+def test_postgres_dashboard_listing_has_deterministic_revision_and_id_order():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        second = repository.create(
+            make_dashboard(tenant, "dashboard-b"),
+            idempotency_key="create-b",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        first = repository.create(
+            make_dashboard(tenant, "dashboard-a"),
+            idempotency_key="create-a",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        assert [item.dashboard.dashboard_id for item in repository.list_for_tenant(tenant)] == [
+            "dashboard-a", "dashboard-b"
+        ]
+        repository.update(
+            replace(second.dashboard, title="Updated dashboard B"),
+            expected_revision=1,
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(minutes=2),
+        )
+        assert [item.dashboard.dashboard_id for item in repository.list_for_tenant(tenant)] == [
+            "dashboard-b", "dashboard-a"
+        ]
