@@ -704,10 +704,16 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["additionalProperties"] is False
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
     assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert "restrict_filter_override" in schema["required"]
+    assert "global" in schema["properties"]["visibility"]["enum"]
+    assert schema["$defs"]["layout"]["properties"]["x"]["enum"] == [0, 6]
+    assert schema["$defs"]["layout"]["properties"]["w"]["enum"] == [6, 12]
     assert schema["$defs"]["portlet_read_response"]["additionalProperties"] is False
     assert schema["$defs"]["portlet_read_response"]["properties"]["freshness_state"]["enum"] == [
         "fresh", "stale", "missing", "unknown"
     ]
+    assert "filtered_out" in schema["$defs"]["portlet_read_response"]["required"]
+    assert "applied_filters" in schema["$defs"]["portlet_read_response"]["required"]
     assert schema["$defs"]["dashboard_read_response"]["properties"]["contract_version"]["const"] == (
         "cubi-enterprise-dashboard-read.v1"
     )
