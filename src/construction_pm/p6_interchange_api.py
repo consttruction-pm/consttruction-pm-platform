@@ -6,6 +6,7 @@ from typing import Any, Mapping, Sequence
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_interchange_adapter import P6InterchangeAdapter, P6InterchangeCodec
 from .p6_interchange_mapping import P6InterchangeCompatibilityError, P6InterchangeMapper
 from .p6_mapping_registry import P6MappingFormat, P6MappingRegistryApplicationService
@@ -68,6 +69,7 @@ class P6InterchangeAPI:
     ) -> Any:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        require_project_privilege(self.authorization_policy, auth_context, "export_project_data")
         adapter = self._adapter(scope, format)
         document = adapter.export_document(values, scope=scope, extensions=extensions)
         if isinstance(document, bytes):
