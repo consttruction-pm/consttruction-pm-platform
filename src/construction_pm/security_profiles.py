@@ -1183,6 +1183,8 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if profile_id in _RESERVED_PROFILE_IDS:
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
+        if bool(row[5]) and not active:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_REQUIRED")
         if int(row[3]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
         valid = GLOBAL_PRIVILEGES if str(row[1]) == "global" else PROJECT_PRIVILEGES
