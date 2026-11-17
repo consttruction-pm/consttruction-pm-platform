@@ -7,7 +7,6 @@ It does not calculate schedules, grant contractual entitlement, or publish to
 Enterprise/ENT-13. Callers must supply trusted server-side snapshot references.
 """
 
-import hashlib
 import json
 import re
 import sqlite3
@@ -113,6 +112,8 @@ class DelayAnalysisRevision:
             raise DelayAnalysisRecordError("INVALID_CURRENT_DATA_DATE")
         if self.current_data_date < self.baseline_data_date:
             raise DelayAnalysisRecordError("CURRENT_DATA_DATE_PRECEDES_BASELINE")
+        if self.baseline_snapshot_hash == self.current_snapshot_hash:
+            raise DelayAnalysisRecordError("BASELINE_AND_CURRENT_SNAPSHOT_IDENTICAL")
         if self.data_date_basis not in {"APPROVED_CONTEMPORANEOUS_UPDATE", "RECONSTRUCTED"}:
             raise DelayAnalysisRecordError("INVALID_DATA_DATE_BASIS")
         if self.data_date_basis == "RECONSTRUCTED" and not self.data_date_rationale.strip():
@@ -219,6 +220,7 @@ class _SQLDelayAnalysisRecordRepository:
 
     def create_case(self, case: DelayAnalysisCase) -> DelayAnalysisCase:
         case.validate()
+        was_in_transaction = self.connection.in_transaction
         params = (case.scope.tenant_id, case.scope.project_id, case.scope.project_revision,
                   case.case_id, case.idempotency_key, case.request_hash,
                   case.created_by, case.created_at.isoformat())
@@ -235,7 +237,7 @@ class _SQLDelayAnalysisRecordRepository:
         if row is None or tuple(row) != (case.scope.project_revision, case.case_id, case.idempotency_key,
                                         case.request_hash, case.created_by, case.created_at.isoformat()):
             raise DelayAnalysisRecordError("CASE_IDEMPOTENCY_CONFLICT")
-        if not self.postgres and not self.connection.in_transaction:
+        if not self.postgres and not was_in_transaction:
             self.connection.commit()
         return case
 
@@ -244,6 +246,7 @@ class _SQLDelayAnalysisRecordRepository:
         case = self.get_case(revision.scope, revision.case_id)
         if case is None:
             raise DelayAnalysisRecordError("ANALYSIS_CASE_NOT_FOUND")
+        was_in_transaction = self.connection.in_transaction
         existing_revision = self.connection.execute(self._q("""
             SELECT payload_json FROM eng_delay_analysis_revision
             WHERE tenant_id=? AND project_id=? AND case_id=? AND revision_key=?
@@ -275,16 +278,19 @@ class _SQLDelayAnalysisRecordRepository:
                   revision.revision_key)).fetchone()
             if row is None or row[0] != payload:
                 raise DelayAnalysisRecordError("ANALYSIS_REVISION_IDEMPOTENCY_CONFLICT")
-        if not self.postgres and not self.connection.in_transaction:
+        if not self.postgres and not was_in_transaction:
             self.connection.commit()
         return revision
 
     def record_review(self, review: DelayAnalysisReview) -> DelayAnalysisReview:
+        was_in_transaction = self.connection.in_transaction
         revisions = self.list_revisions(review.scope, review.case_id)
         revision = next((item for item in revisions if item.revision == review.revision), None)
         if revision is None:
             raise DelayAnalysisRecordError("ANALYSIS_REVISION_NOT_FOUND")
         review.validate(revision.created_by)
+        if review.reviewed_at < revision.created_at:
+            raise DelayAnalysisRecordError("REVIEW_PRECEDES_ANALYSIS_REVISION")
         self.connection.execute(self._q("""
             INSERT INTO eng_delay_analysis_review
             (tenant_id,project_id,case_id,revision,reviewer_id,decision,rationale,reviewed_at)
@@ -299,7 +305,7 @@ class _SQLDelayAnalysisRecordRepository:
               review.revision, review.reviewer_id)).fetchone()
         if row is None or tuple(row) != (review.decision, review.rationale, review.reviewed_at.isoformat()):
             raise DelayAnalysisRecordError("REVIEW_DECISION_IMMUTABLE_CONFLICT")
-        if not self.postgres and not self.connection.in_transaction:
+        if not self.postgres and not was_in_transaction:
             self.connection.commit()
         return review
 
@@ -351,8 +357,8 @@ def _revision_payload(item: DelayAnalysisRevision) -> str:
 
 
 def _revision_from_payload(scope: BackendScope, value: dict) -> DelayAnalysisRevision:
-    return DelayAnalysisRevision(
-        scope=scope, case_id=value["case_id"] if "case_id" in value else "",
+    revision = DelayAnalysisRevision(
+        scope=scope, case_id=value["case_id"],
         revision=value["revision"], revision_key=value["revision_key"], method=value["method"],
         baseline_snapshot_id=value["baseline_snapshot_id"],
         baseline_snapshot_hash=value["baseline_snapshot_hash"],
@@ -366,6 +372,8 @@ def _revision_from_payload(scope: BackendScope, value: dict) -> DelayAnalysisRev
         result_hash=value["result_hash"], created_by=value["created_by"],
         created_at=datetime.fromisoformat(value["created_at"]),
     )
+    revision.validate()
+    return revision
 
 
 class SQLiteDelayAnalysisRecordRepository(_SQLDelayAnalysisRecordRepository):
