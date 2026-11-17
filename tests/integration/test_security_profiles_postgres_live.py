@@ -888,9 +888,11 @@ def test_eps_responsibility_inherits_project_profile_access_through_eps_ancestor
         assert eps.get_wbs_responsibility(
             tenant, project_id, f"eps-wbs-{suffix}"
         ) == (obs_id, 1)
+        # The immediate parent WBS has an explicit OBS assignment, so it
+        # takes precedence over the inherited EPS responsibility.
         assert eps.get_effective_wbs_responsibility(
             tenant, project_id, f"eps-wbs-inherit-{suffix}"
-        ) == (obs_id, 0, "eps")
+        ) == (obs_id, 1, "wbs_parent")
         eps.assign_wbs_responsibility(
             tenant, project_id, f"eps-wbs-override-{suffix}", other_obs_id,
             actor_user_id=user_id, occurred_at=now,
