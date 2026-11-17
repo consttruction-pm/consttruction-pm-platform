@@ -125,6 +125,24 @@ The filter list is bounded to 20 entries and multi-value selectors to 200 values
 
 Filters are applied as a read-only projection over existing source records. Snapshot project rows are filtered for presentation, but every project in the underlying source snapshot is re-authorized before any snapshot or source-reference metadata is returned. Filtering never bypasses source-record authorization. A row-count summary is recomputed from filtered source rows; no schedule, cost, progress, EVM, risk or KPI calculation is added. Unsupported filter/source combinations fail closed by returning a filtered-out portlet rather than silently showing unfiltered data. Source snapshot identity/revision is preserved.
 
+### 2.6 Filter By UI — ENT-06B implementation slice
+
+The dashboard viewer now exposes a dedicated **Filter by** dialog rather than a single project-ID text box. Its field/operator catalogue is intentionally identical to the backend's closed `_FILTER_RULES` contract:
+
+| Field | Operators | Value control |
+|---|---|---|
+| Portfolio | `eq` | Single text identifier |
+| Project | `eq`, `in` | Single identifier or bounded comma-separated list |
+| Project status | `eq`, `in` | Source-native text value(s) |
+| Portfolio membership | `eq`, `in` | Allow-listed included / on-hold / excluded values |
+| Decision status | `eq`, `in` | Allow-listed decision lifecycle values |
+| Generated after / before | `gte` / `lte` | Local date-time serialized as an ISO timestamp |
+| Include stale data | `eq` | Boolean |
+
+The dialog supports multiple distinct conditions, condition removal, apply and reset. It uses the authenticated dashboard read boundary; the browser does not fetch project/portfolio directories or invent field values. The server remains authoritative for validation, tenant scoping and per-source authorization. Duplicate keys, unsupported keys, invalid operators and invalid enum values are rejected by the backend. The project-code field is intentionally absent because the canonical source contract does not expose it. If the owner locks filter overrides, the dialog and reset action are disabled and the owner lock notice remains visible.
+
+This is a request-scoped viewer override. It does not claim the owner-facing P6 General > Dashboard Filter editor or actor-persistent User Filter save/reset controls; those remain separate follow-up work until the UI client is wired to the dedicated preference endpoints. Browser acceptance and exact-head CI are still required before this slice can be accepted.
+
 ## 3. Oracle Help crosswalk
 
 Official HTML Help is the normative source. Each disposition below is limited to this backend slice.
@@ -152,7 +170,7 @@ Official HTML Help is the normative source. Each disposition below is limited to
 |---|---|---|
 | [About Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm) | Implemented / Partial | P6 defines private User, creator-owned multi-user and privilege-gated global dashboards. CUBI implements private, explicit-user/role and tenant-global visibility; private/multi-user content, layout and access mutations are creator-only, while global mutation is Enterprise-admin-only. Dashboard sharing does not transfer source project access. |
 | [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Partial | Current User maps to private; List of Users maps to explicit user shares; All Users maps to global visibility, restricted to Enterprise administrators. Explicit Enterprise-role sharing is a CUBI extension. The Access tab and user-picker UI remain deferred. |
-| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Partial | Owner-controlled filter restriction, request-scoped overrides and actor-scoped saved User Filter preferences are implemented. Portfolio/project selection and source-backed status/date filters are applied without KPI recalculation. Project-code filtering is deferred because the canonical snapshot contract has no project-code field. |
+| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Partial | The viewer Filter by dialog exposes the backend's exact allow-listed field/operator catalogue, supports multiple conditions, removal, apply/reset and honors the owner filter lock. Portfolio/project selection and source-backed status/date filters are applied without KPI recalculation. Owner-facing Dashboard Filter editing and persistent actor User Filter save/reset UI remain deferred. Project-code filtering is deferred because the canonical snapshot contract has no project-code field. |
 | [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm) | Partial | Narrow/Wide width and left/right/up/down-compatible coordinates are validated; overlap is rejected and read ordering follows saved coordinates. Drag/drop and arrow controls remain UI work. |
 | [Working with Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm) | Partial | Portlet identity, optional title override, layout and typed read response exist. Source mode is `not_exposed` unless a source explicitly supplies Live/Published/Summarized provenance. Expand/collapse, help, refresh, maximize/restore, close, print, toolbars and tooltips remain UI behavior. |
 | [List of Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm) | Partial | The v1 registry deliberately includes only the two stable portfolio source contracts. Personal, project-performance, resource and custom P6 portlets are not silently represented as implemented. |
