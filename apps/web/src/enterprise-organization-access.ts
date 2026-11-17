@@ -785,8 +785,16 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       try {
         accounts = accountList(await api<unknown>("/api/enterprise/users"));
         canAdminAccounts = true;
+        const obsResult = await api<unknown>("/api/enterprise/obs");
+        if (!isRecord(obsResult) || obsResult.contract_version !== "cubi-p6-obs-options.v1"
+            || !Array.isArray(obsResult.obs_nodes)) throw new Error("INVALID_OBS_OPTIONS");
+        obsNodes = obsResult.obs_nodes as OBSNode[];
+        if (!accounts.some((account) => account.user_id === selectedProjectUserId && account.active)) {
+          selectedProjectUserId = accounts.find((account) => account.active)?.user_id ?? "";
+        }
+        await loadUserProjectAssignments();
       } catch (error) {
-        accounts = []; canAdminAccounts = false;
+        accounts = []; obsNodes = []; userProjectAssignments = []; canAdminAccounts = false;
         if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
       }
       try {
