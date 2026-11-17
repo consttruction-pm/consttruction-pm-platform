@@ -113,7 +113,8 @@ def _worker_main(config: dict, queue) -> None:  # pragma: no cover - subprocess
         owner=owner,
         budget=budget,
         engine_identity=(ENGINE, CALCULATION),
-        poll_interval=0.002,
+        poll_interval=float(config.get("poll_interval", 0.002)),
+        idle_polls_before_exit=int(config.get("idle_polls_before_exit", 2)),
         event_sink=sink,
     )
     summary = executor.run_until_idle(timeout=config["timeout"])

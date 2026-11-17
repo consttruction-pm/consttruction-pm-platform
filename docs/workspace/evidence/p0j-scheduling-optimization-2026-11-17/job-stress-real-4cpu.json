@@ -1,0 +1,6418 @@
+{
+  "calculation_identity": "p0g-worker-benchmark",
+  "cancel_fraction": 0.1,
+  "capacity": {
+    "cgroup_cpu_cores": null,
+    "cgroup_memory_limit_bytes": null,
+    "cpu_affinity": 4,
+    "effective_cores": 4.0,
+    "effective_memory_bytes": 5924249600,
+    "memory_available_bytes": 5924249600,
+    "provenance": [
+      "cpu_affinity",
+      "proc_meminfo_MemAvailable"
+    ]
+  },
+  "case_repeats": 3,
+  "case_warmups": 1,
+  "cases": [
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 0.619,
+      "drain_tail_ms_median": 10150.015,
+      "error_count_total": 0,
+      "jobs_per_s_median": 41.472,
+      "pg_connections_max": 34,
+      "queue_wait_p50_ms_median": 1258.451,
+      "queue_wait_p95_ms_median": 2354.033,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status_p50_ms_median": 0.132,
+      "submit_p50_ms_median": 3.984,
+      "submit_p99_ms_median": 14.606,
+      "users": 100,
+      "wall_ms_max": 2655.568,
+      "wall_ms_median": 2652.422,
+      "wall_ms_min": 2610.718,
+      "wall_spread_pct": 1.691,
+      "workers": 1
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 1.222,
+      "drain_tail_ms_median": 10135.314,
+      "error_count_total": 0,
+      "jobs_per_s_median": 80.816,
+      "pg_connections_max": 35,
+      "queue_wait_p50_ms_median": 622.776,
+      "queue_wait_p95_ms_median": 1153.584,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status_p50_ms_median": 0.105,
+      "submit_p50_ms_median": 3.957,
+      "submit_p99_ms_median": 14.882,
+      "users": 100,
+      "wall_ms_max": 1375.289,
+      "wall_ms_median": 1361.124,
+      "wall_ms_min": 1359.912,
+      "wall_spread_pct": 1.13,
+      "workers": 2
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 2.378,
+      "drain_tail_ms_median": 10143.896,
+      "error_count_total": 0,
+      "jobs_per_s_median": 137.865,
+      "pg_connections_max": 38,
+      "queue_wait_p50_ms_median": 329.428,
+      "queue_wait_p95_ms_median": 523.841,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status_p50_ms_median": 0.157,
+      "submit_p50_ms_median": 4.727,
+      "submit_p99_ms_median": 30.943,
+      "users": 100,
+      "wall_ms_max": 805.456,
+      "wall_ms_median": 797.882,
+      "wall_ms_min": 785.392,
+      "wall_spread_pct": 2.515,
+      "workers": 4
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 0.843,
+      "drain_tail_ms_median": 13946.736,
+      "error_count_total": 0,
+      "jobs_per_s_median": 57.68,
+      "pg_connections_max": 35,
+      "queue_wait_p50_ms_median": 6365.146,
+      "queue_wait_p95_ms_median": 11685.504,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status_p50_ms_median": 8.838,
+      "submit_p50_ms_median": 9.945,
+      "submit_p99_ms_median": 199.807,
+      "users": 500,
+      "wall_ms_max": 9623.573,
+      "wall_ms_median": 9535.365,
+      "wall_ms_min": 9340.726,
+      "wall_spread_pct": 2.966,
+      "workers": 1
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 1.195,
+      "drain_tail_ms_median": 10194.588,
+      "error_count_total": 0,
+      "jobs_per_s_median": 80.96,
+      "pg_connections_max": 36,
+      "queue_wait_p50_ms_median": 2982.774,
+      "queue_wait_p95_ms_median": 5315.0,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status_p50_ms_median": 5.859,
+      "submit_p50_ms_median": 17.655,
+      "submit_p99_ms_median": 228.888,
+      "users": 500,
+      "wall_ms_max": 6824.027,
+      "wall_ms_median": 6793.492,
+      "wall_ms_min": 6779.42,
+      "wall_spread_pct": 0.657,
+      "workers": 2
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 2.042,
+      "drain_tail_ms_median": 10145.671,
+      "error_count_total": 0,
+      "jobs_per_s_median": 134.556,
+      "pg_connections_max": 38,
+      "queue_wait_p50_ms_median": 1635.129,
+      "queue_wait_p95_ms_median": 2563.358,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status_p50_ms_median": 6.59,
+      "submit_p50_ms_median": 14.358,
+      "submit_p99_ms_median": 178.258,
+      "users": 500,
+      "wall_ms_max": 4152.228,
+      "wall_ms_median": 4087.505,
+      "wall_ms_min": 4072.279,
+      "wall_spread_pct": 1.956,
+      "workers": 4
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 0.835,
+      "drain_tail_ms_median": 17475.466,
+      "error_count_total": 0,
+      "jobs_per_s_median": 57.479,
+      "pg_connections_max": 35,
+      "queue_wait_p50_ms_median": 12501.552,
+      "queue_wait_p95_ms_median": 22884.098,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status_p50_ms_median": 38.372,
+      "submit_p50_ms_median": 17.217,
+      "submit_p99_ms_median": 596.675,
+      "users": 1000,
+      "wall_ms_max": 19336.308,
+      "wall_ms_median": 19137.326,
+      "wall_ms_min": 18847.488,
+      "wall_spread_pct": 2.554,
+      "workers": 1
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 1.232,
+      "drain_tail_ms_median": 10792.086,
+      "error_count_total": 0,
+      "jobs_per_s_median": 83.726,
+      "pg_connections_max": 36,
+      "queue_wait_p50_ms_median": 5811.298,
+      "queue_wait_p95_ms_median": 10519.684,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status_p50_ms_median": 12.153,
+      "submit_p50_ms_median": 19.716,
+      "submit_p99_ms_median": 518.476,
+      "users": 1000,
+      "wall_ms_max": 13161.59,
+      "wall_ms_median": 13138.033,
+      "wall_ms_min": 13124.406,
+      "wall_spread_pct": 0.283,
+      "workers": 2
+    },
+    {
+      "all_ok": true,
+      "canonical_hash_equal_every_run": true,
+      "cpu_cores_median": 1.952,
+      "drain_tail_ms_median": 10144.528,
+      "error_count_total": 0,
+      "jobs_per_s_median": 129.913,
+      "pg_connections_max": 38,
+      "queue_wait_p50_ms_median": 2972.728,
+      "queue_wait_p95_ms_median": 4974.502,
+      "runs": 3,
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status_p50_ms_median": 15.617,
+      "submit_p50_ms_median": 22.897,
+      "submit_p99_ms_median": 438.5,
+      "users": 1000,
+      "wall_ms_max": 8532.769,
+      "wall_ms_median": 8467.224,
+      "wall_ms_min": 8341.95,
+      "wall_spread_pct": 2.254,
+      "workers": 4
+    }
+  ],
+  "derived_budget": {
+    "capacity": {
+      "cgroup_cpu_cores": null,
+      "cgroup_memory_limit_bytes": null,
+      "cpu_affinity": 4,
+      "effective_cores": 4.0,
+      "effective_memory_bytes": 5924249600,
+      "memory_available_bytes": 5924249600,
+      "provenance": [
+        "cpu_affinity",
+        "proc_meminfo_MemAvailable"
+      ]
+    },
+    "cpu_workers": 4,
+    "jobs_per_core": 1.0,
+    "limiting_factor": "cpu",
+    "max_workers": 64,
+    "memory_reserve_fraction": "0.25",
+    "memory_workers": 8,
+    "per_job_memory_bytes": 536870912,
+    "workers": 4
+  },
+  "engine_version": "cubi-26.0.0",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "87fc5c4a",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "fixture_size": 200,
+  "oversubscription_allowed": false,
+  "resubmit": true,
+  "runs": [
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 8.492,
+        "mean": 6.414,
+        "median": 6.971,
+        "min": 1.911,
+        "p50": 6.962,
+        "p95": 8.492,
+        "p99": 8.492
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 6400,
+        "max": 0.6,
+        "mean": 0.002,
+        "median": 0.001,
+        "min": 0.001,
+        "p50": 0.001,
+        "p95": 0.003,
+        "p99": 0.004
+      },
+      "cpu_seconds_total": 1.552,
+      "cpu_utilisation_cores": 0.606,
+      "drain_tail_ms": 10138.256,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 42.965,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 2439.768,
+        "mean": 1252.688,
+        "median": 1243.569,
+        "min": 51.614,
+        "p50": 1253.824,
+        "p95": 2318.411,
+        "p99": 2419.769
+      },
+      "journey_throughput_users_per_s": 39.059,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 253,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 2412.306,
+        "mean": 1212.096,
+        "median": 1213.452,
+        "min": 6.306,
+        "p50": 1213.452,
+        "p95": 2290.528,
+        "p99": 2388.409
+      },
+      "repeat_index": 0,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 17.58,
+        "mean": 14.454,
+        "median": 14.399,
+        "min": 14.184,
+        "p50": 14.399,
+        "p95": 14.687,
+        "p99": 15.457
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 6280,
+        "max": 6.8,
+        "mean": 0.125,
+        "median": 0.081,
+        "min": 0.047,
+        "p50": 0.081,
+        "p95": 0.176,
+        "p99": 1.376
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 13.012,
+        "mean": 3.884,
+        "median": 3.14,
+        "min": 0.644,
+        "p50": 3.126,
+        "p95": 9.042,
+        "p99": 12.11
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 2560.21,
+      "warmup": true,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 50004,
+      "worker_summaries": [
+        {
+          "cpu_s": 1.551883275,
+          "kind": "SUMMARY",
+          "owner": "p0g-939423",
+          "peak_rss_kb": 50004,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 101,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 100
+          },
+          "wall_s": 12.689547563990345
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 10.274,
+        "mean": 4.685,
+        "median": 4.278,
+        "min": 0.702,
+        "p50": 3.895,
+        "p95": 10.274,
+        "p99": 10.274
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 6470,
+        "max": 0.034,
+        "mean": 0.002,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.005,
+        "p99": 0.006
+      },
+      "cpu_seconds_total": 1.594,
+      "cpu_utilisation_cores": 0.611,
+      "drain_tail_ms": 10133.463,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 42.134,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 2487.084,
+        "mean": 1268.869,
+        "median": 1272.576,
+        "min": 56.037,
+        "p50": 1281.229,
+        "p95": 2362.736,
+        "p99": 2445.245
+      },
+      "journey_throughput_users_per_s": 38.304,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34.0,
+      "pg_samples": 254,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 2454.298,
+        "mean": 1228.567,
+        "median": 1223.777,
+        "min": 6.527,
+        "p50": 1223.777,
+        "p95": 2331.994,
+        "p99": 2429.566
+      },
+      "repeat_index": 1,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 32.543,
+        "mean": 14.8,
+        "median": 14.538,
+        "min": 14.301,
+        "p50": 14.548,
+        "p95": 15.198,
+        "p99": 16.548
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 6350,
+        "max": 7.861,
+        "mean": 0.152,
+        "median": 0.086,
+        "min": 0.049,
+        "p50": 0.086,
+        "p95": 0.263,
+        "p99": 1.705
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 15.961,
+        "mean": 4.276,
+        "median": 3.155,
+        "min": 0.571,
+        "p50": 3.127,
+        "p95": 10.125,
+        "p99": 14.606
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 2610.718,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 52732,
+      "worker_summaries": [
+        {
+          "cpu_s": 1.593851878,
+          "kind": "SUMMARY",
+          "owner": "p0g-939812",
+          "peak_rss_kb": 52732,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 101,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 100
+          },
+          "wall_s": 12.7355199510057
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 9.655,
+        "mean": 5.741,
+        "median": 5.532,
+        "min": 2.631,
+        "p50": 5.341,
+        "p95": 9.655,
+        "p99": 9.655
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 6668,
+        "max": 0.05,
+        "mean": 0.003,
+        "median": 0.003,
+        "min": 0.001,
+        "p50": 0.003,
+        "p95": 0.006,
+        "p99": 0.008
+      },
+      "cpu_seconds_total": 1.644,
+      "cpu_utilisation_cores": 0.62,
+      "drain_tail_ms": 10165.814,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 41.472,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 2533.223,
+        "mean": 1317.998,
+        "median": 1309.15,
+        "min": 73.742,
+        "p50": 1326.143,
+        "p95": 2411.981,
+        "p99": 2515.484
+      },
+      "journey_throughput_users_per_s": 37.701,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 255,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 2514.587,
+        "mean": 1276.065,
+        "median": 1271.809,
+        "min": 15.126,
+        "p50": 1271.809,
+        "p95": 2393.174,
+        "p99": 2490.639
+      },
+      "repeat_index": 2,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 32.693,
+        "mean": 15.185,
+        "median": 14.858,
+        "min": 14.457,
+        "p50": 14.859,
+        "p95": 15.673,
+        "p99": 25.241
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 6548,
+        "max": 8.52,
+        "mean": 0.24,
+        "median": 0.132,
+        "min": 0.049,
+        "p50": 0.132,
+        "p95": 0.724,
+        "p99": 2.961
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 20.665,
+        "mean": 5.212,
+        "median": 4.051,
+        "min": 0.784,
+        "p50": 3.984,
+        "p95": 11.938,
+        "p99": 17.749
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 2652.422,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 53340,
+      "worker_summaries": [
+        {
+          "cpu_s": 1.643813776,
+          "kind": "SUMMARY",
+          "owner": "p0g-940155",
+          "peak_rss_kb": 53340,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 101,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 100
+          },
+          "wall_s": 12.809323372028302
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 7.047,
+        "mean": 4.028,
+        "median": 3.856,
+        "min": 0.388,
+        "p50": 3.793,
+        "p95": 7.047,
+        "p99": 7.047
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 6545,
+        "max": 0.055,
+        "mean": 0.003,
+        "median": 0.003,
+        "min": 0.001,
+        "p50": 0.003,
+        "p95": 0.006,
+        "p99": 0.008
+      },
+      "cpu_seconds_total": 1.644,
+      "cpu_utilisation_cores": 0.619,
+      "drain_tail_ms": 10150.015,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 41.422,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 2513.646,
+        "mean": 1291.332,
+        "median": 1295.32,
+        "min": 62.131,
+        "p50": 1307.393,
+        "p95": 2374.306,
+        "p99": 2472.715
+      },
+      "journey_throughput_users_per_s": 37.657,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 255,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 2475.805,
+        "mean": 1249.497,
+        "median": 1258.451,
+        "min": 5.007,
+        "p50": 1258.451,
+        "p95": 2354.033,
+        "p99": 2450.472
+      },
+      "repeat_index": 3,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 31.714,
+        "mean": 15.083,
+        "median": 14.859,
+        "min": 14.393,
+        "p50": 14.876,
+        "p95": 15.613,
+        "p99": 16.323
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 6425,
+        "max": 8.292,
+        "mean": 0.23,
+        "median": 0.133,
+        "min": 0.051,
+        "p50": 0.133,
+        "p95": 0.499,
+        "p99": 2.984
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 15.45,
+        "mean": 5.466,
+        "median": 4.652,
+        "min": 0.433,
+        "p50": 4.627,
+        "p95": 11.136,
+        "p99": 12.191
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 2655.568,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 53620,
+      "worker_summaries": [
+        {
+          "cpu_s": 1.643561127,
+          "kind": "SUMMARY",
+          "owner": "p0g-940500",
+          "peak_rss_kb": 53620,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 101,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 100
+          },
+          "wall_s": 12.796034580998821
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 9.187,
+        "mean": 5.336,
+        "median": 6.231,
+        "min": 1.396,
+        "p50": 6.061,
+        "p95": 9.187,
+        "p99": 9.187
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 3294,
+        "max": 0.151,
+        "mean": 0.003,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.006,
+        "p99": 0.009
+      },
+      "cpu_seconds_total": 1.712,
+      "cpu_utilisation_cores": 1.235,
+      "drain_tail_ms": 10143.939,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 79.39,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 1216.231,
+        "mean": 634.519,
+        "median": 639.681,
+        "min": 56.264,
+        "p50": 642.241,
+        "p95": 1142.524,
+        "p99": 1196.526
+      },
+      "journey_throughput_users_per_s": 72.172,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 36,
+      "pg_connections_median": 35.0,
+      "pg_samples": 230,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 1180.568,
+        "mean": 599.246,
+        "median": 603.976,
+        "min": 5.467,
+        "p50": 603.976,
+        "p95": 1121.069,
+        "p99": 1164.299
+      },
+      "repeat_index": 0,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 31.894,
+        "mean": 15.413,
+        "median": 14.891,
+        "min": 14.415,
+        "p50": 14.894,
+        "p95": 17.559,
+        "p99": 31.712
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 3174,
+        "max": 8.254,
+        "mean": 0.333,
+        "median": 0.134,
+        "min": 0.049,
+        "p50": 0.134,
+        "p95": 1.654,
+        "p99": 4.108
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 19.538,
+        "mean": 4.971,
+        "median": 4.535,
+        "min": 0.541,
+        "p50": 4.508,
+        "p95": 9.69,
+        "p99": 16.265
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 1385.569,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 53756,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.8457068,
+          "kind": "SUMMARY",
+          "owner": "p0g-940844",
+          "peak_rss_kb": 53756,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.496851067000534
+        },
+        {
+          "cpu_s": 0.8658865330000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-940843",
+          "peak_rss_kb": 53756,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 51,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.520758369995747
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 12.16,
+        "mean": 5.124,
+        "median": 3.545,
+        "min": 0.676,
+        "p50": 2.446,
+        "p95": 12.16,
+        "p99": 12.16
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 3412,
+        "max": 0.065,
+        "mean": 0.002,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.005,
+        "p99": 0.008
+      },
+      "cpu_seconds_total": 1.693,
+      "cpu_utilisation_cores": 1.245,
+      "drain_tail_ms": 10163.566,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 80.888,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 1235.104,
+        "mean": 655.618,
+        "median": 657.525,
+        "min": 54.458,
+        "p50": 659.209,
+        "p95": 1193.866,
+        "p99": 1234.993
+      },
+      "journey_throughput_users_per_s": 73.534,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35,
+      "pg_samples": 229,
+      "queue_wait_ms": {
+        "count": 100,
+        "max": 1217.083,
+        "mean": 625.7,
+        "median": 624.185,
+        "min": 20.223,
+        "p50": 632.225,
+        "p95": 1160.898,
+        "p99": 1204.614
+      },
+      "repeat_index": 1,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 32.709,
+        "mean": 15.254,
+        "median": 14.771,
+        "min": 14.383,
+        "p50": 14.772,
+        "p95": 16.078,
+        "p99": 31.726
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 0,
+        "cancelled_terminal": 10,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 3292,
+        "max": 9.15,
+        "mean": 0.242,
+        "median": 0.105,
+        "min": 0.049,
+        "p50": 0.105,
+        "p95": 0.71,
+        "p99": 3.498
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 15.766,
+        "mean": 5.009,
+        "median": 3.979,
+        "min": 0.592,
+        "p50": 3.957,
+        "p95": 11.95,
+        "p99": 14.882
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 1359.912,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 53804,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.844373287,
+          "kind": "SUMMARY",
+          "owner": "p0g-941187",
+          "peak_rss_kb": 53804,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.501766582980053
+        },
+        {
+          "cpu_s": 0.848284024,
+          "kind": "SUMMARY",
+          "owner": "p0g-941186",
+          "peak_rss_kb": 53804,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.512867115001427
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 16.789,
+        "mean": 7.778,
+        "median": 8.423,
+        "min": 1.504,
+        "p50": 7.961,
+        "p95": 16.789,
+        "p99": 16.789
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 3372,
+        "max": 4.679,
+        "mean": 0.01,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.006,
+        "p99": 0.009
+      },
+      "cpu_seconds_total": 1.681,
+      "cpu_utilisation_cores": 1.222,
+      "drain_tail_ms": 10135.314,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 79.983,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 1219.765,
+        "mean": 656.89,
+        "median": 657.754,
+        "min": 60.941,
+        "p50": 661.18,
+        "p95": 1174.11,
+        "p99": 1218.215
+      },
+      "journey_throughput_users_per_s": 72.712,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35,
+      "pg_samples": 229,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 1200.061,
+        "mean": 619.152,
+        "median": 621.452,
+        "min": 7.033,
+        "p50": 621.452,
+        "p95": 1153.584,
+        "p99": 1187.839
+      },
+      "repeat_index": 2,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 32.536,
+        "mean": 15.514,
+        "median": 14.871,
+        "min": 14.406,
+        "p50": 14.875,
+        "p95": 17.031,
+        "p99": 30.914
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 3252,
+        "max": 15.337,
+        "mean": 0.376,
+        "median": 0.126,
+        "min": 0.051,
+        "p50": 0.126,
+        "p95": 1.427,
+        "p99": 7.068
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 22.545,
+        "mean": 9.224,
+        "median": 8.378,
+        "min": 0.653,
+        "p50": 8.063,
+        "p95": 18.353,
+        "p99": 21.603
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 1375.289,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 53868,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.834206047,
+          "kind": "SUMMARY",
+          "owner": "p0g-941533",
+          "peak_rss_kb": 53868,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.48966615300742
+        },
+        {
+          "cpu_s": 0.846434077,
+          "kind": "SUMMARY",
+          "owner": "p0g-941532",
+          "peak_rss_kb": 53868,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 51,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.501226627995493
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 5.426,
+        "mean": 3.657,
+        "median": 3.721,
+        "min": 1.432,
+        "p50": 3.629,
+        "p95": 5.426,
+        "p99": 5.426
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 3337,
+        "max": 0.065,
+        "mean": 0.002,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.004,
+        "p99": 0.007
+      },
+      "cpu_seconds_total": 1.661,
+      "cpu_utilisation_cores": 1.22,
+      "drain_tail_ms": 10134.857,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 80.816,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 1233.769,
+        "mean": 637.822,
+        "median": 641.917,
+        "min": 55.59,
+        "p50": 650.708,
+        "p95": 1175.843,
+        "p99": 1215.55
+      },
+      "journey_throughput_users_per_s": 73.469,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35,
+      "pg_samples": 229,
+      "queue_wait_ms": {
+        "count": 100,
+        "max": 1202.03,
+        "mean": 609.122,
+        "median": 608.339,
+        "min": 12.223,
+        "p50": 622.776,
+        "p95": 1141.976,
+        "p99": 1189.622
+      },
+      "repeat_index": 3,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 32.565,
+        "mean": 15.225,
+        "median": 14.697,
+        "min": 14.366,
+        "p50": 14.7,
+        "p95": 17.294,
+        "p99": 30.502
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 0,
+        "cancelled_terminal": 10,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 3217,
+        "max": 7.6,
+        "mean": 0.202,
+        "median": 0.097,
+        "min": 0.049,
+        "p50": 0.097,
+        "p95": 0.527,
+        "p99": 2.611
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 15.863,
+        "mean": 4.614,
+        "median": 3.967,
+        "min": 0.601,
+        "p50": 3.929,
+        "p95": 10.275,
+        "p99": 12.223
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 1361.124,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 53876,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.8293611320000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-941876",
+          "peak_rss_kb": 53844,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.477209905016934
+        },
+        {
+          "cpu_s": 0.831464776,
+          "kind": "SUMMARY",
+          "owner": "p0g-941875",
+          "peak_rss_kb": 53876,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 50,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 50
+          },
+          "wall_s": 11.487280923989601
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 17.433,
+        "mean": 7.167,
+        "median": 6.459,
+        "min": 4.029,
+        "p50": 6.415,
+        "p95": 17.433,
+        "p99": 17.433
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 1815,
+        "max": 3.368,
+        "mean": 0.025,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.006,
+        "p99": 0.922
+      },
+      "cpu_seconds_total": 1.856,
+      "cpu_utilisation_cores": 2.352,
+      "drain_tail_ms": 10136.959,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 139.432,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 620.032,
+        "mean": 341.174,
+        "median": 344.053,
+        "min": 55.359,
+        "p50": 344.62,
+        "p95": 577.703,
+        "p99": 595.728
+      },
+      "journey_throughput_users_per_s": 126.756,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37.0,
+      "pg_samples": 218,
+      "queue_wait_ms": {
+        "count": 101,
+        "max": 583.356,
+        "mean": 306.697,
+        "median": 308.053,
+        "min": 9.952,
+        "p50": 308.053,
+        "p95": 555.025,
+        "p99": 578.109
+      },
+      "repeat_index": 0,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 36.362,
+        "mean": 16.695,
+        "median": 15.488,
+        "min": 14.54,
+        "p50": 15.488,
+        "p95": 25.273,
+        "p99": 35.279
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 1,
+        "cancelled_terminal": 9,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 1695,
+        "max": 13.057,
+        "mean": 0.573,
+        "median": 0.144,
+        "min": 0.05,
+        "p50": 0.144,
+        "p95": 3.094,
+        "p99": 6.431
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 20.87,
+        "mean": 6.31,
+        "median": 5.17,
+        "min": 0.896,
+        "p50": 5.078,
+        "p95": 15.996,
+        "p99": 19.259
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 788.918,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 54120,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.44344533799999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-942219",
+          "peak_rss_kb": 53968,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 24,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 4,
+            "stopped": false,
+            "succeeded": 24
+          },
+          "wall_s": 10.885533393011428
+        },
+        {
+          "cpu_s": 0.478437269,
+          "kind": "SUMMARY",
+          "owner": "p0g-942222",
+          "peak_rss_kb": 54120,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.90153973698034
+        },
+        {
+          "cpu_s": 0.461070979,
+          "kind": "SUMMARY",
+          "owner": "p0g-942224",
+          "peak_rss_kb": 53972,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 3,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.901096222019987
+        },
+        {
+          "cpu_s": 0.472832639,
+          "kind": "SUMMARY",
+          "owner": "p0g-942220",
+          "peak_rss_kb": 53968,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 26
+          },
+          "wall_s": 10.915377254015766
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 23.307,
+        "mean": 9.397,
+        "median": 7.468,
+        "min": 1.802,
+        "p50": 4.717,
+        "p95": 23.307,
+        "p99": 23.307
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 1771,
+        "max": 0.522,
+        "mean": 0.003,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.006,
+        "p99": 0.032
+      },
+      "cpu_seconds_total": 1.937,
+      "cpu_utilisation_cores": 2.405,
+      "drain_tail_ms": 10151.157,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 136.569,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 578.802,
+        "mean": 327.696,
+        "median": 316.65,
+        "min": 61.482,
+        "p50": 319.063,
+        "p95": 555.555,
+        "p99": 577.091
+      },
+      "journey_throughput_users_per_s": 124.153,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 38,
+      "pg_connections_median": 37.0,
+      "pg_samples": 218,
+      "queue_wait_ms": {
+        "count": 103,
+        "max": 554.768,
+        "mean": 284.745,
+        "median": 285.518,
+        "min": 4.093,
+        "p50": 285.518,
+        "p95": 523.841,
+        "p99": 546.567
+      },
+      "repeat_index": 1,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 38.682,
+        "mean": 17.18,
+        "median": 16.037,
+        "min": 14.772,
+        "p50": 16.057,
+        "p95": 21.041,
+        "p99": 38.386
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 3,
+        "cancelled_terminal": 7,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 1651,
+        "max": 13.425,
+        "mean": 0.445,
+        "median": 0.166,
+        "min": 0.054,
+        "p50": 0.166,
+        "p95": 1.946,
+        "p99": 4.099
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 27.343,
+        "mean": 6.212,
+        "median": 4.133,
+        "min": 0.676,
+        "p50": 4.078,
+        "p95": 20.643,
+        "p99": 24.272
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 805.456,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 53960,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.485112561,
+          "kind": "SUMMARY",
+          "owner": "p0g-942572",
+          "peak_rss_kb": 53908,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.924604310974246
+        },
+        {
+          "cpu_s": 0.484975642,
+          "kind": "SUMMARY",
+          "owner": "p0g-942576",
+          "peak_rss_kb": 53920,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.93476909500896
+        },
+        {
+          "cpu_s": 0.477755098,
+          "kind": "SUMMARY",
+          "owner": "p0g-942571",
+          "peak_rss_kb": 53960,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 4,
+            "stopped": false,
+            "succeeded": 24
+          },
+          "wall_s": 10.93126030699932
+        },
+        {
+          "cpu_s": 0.48922135299999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-942574",
+          "peak_rss_kb": 53960,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 5,
+            "stopped": false,
+            "succeeded": 26
+          },
+          "wall_s": 10.943605426989961
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 10.986,
+        "mean": 5.335,
+        "median": 5.075,
+        "min": 2.074,
+        "p50": 4.972,
+        "p95": 10.986,
+        "p99": 10.986
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 1800,
+        "max": 9.762,
+        "mean": 0.029,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.004,
+        "p99": 0.043
+      },
+      "cpu_seconds_total": 1.867,
+      "cpu_utilisation_cores": 2.378,
+      "drain_tail_ms": 10143.896,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 140.058,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 581.826,
+        "mean": 343.953,
+        "median": 363.496,
+        "min": 50.507,
+        "p50": 364.516,
+        "p95": 550.02,
+        "p99": 580.748
+      },
+      "journey_throughput_users_per_s": 127.325,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37,
+      "pg_samples": 217,
+      "queue_wait_ms": {
+        "count": 103,
+        "max": 552.176,
+        "mean": 301.061,
+        "median": 329.428,
+        "min": 6.671,
+        "p50": 329.428,
+        "p95": 523.321,
+        "p99": 546.635
+      },
+      "repeat_index": 2,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 41.829,
+        "mean": 16.61,
+        "median": 15.16,
+        "min": 14.419,
+        "p50": 15.163,
+        "p95": 21.01,
+        "p99": 39.049
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 3,
+        "cancelled_terminal": 7,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 1680,
+        "max": 22.674,
+        "mean": 0.867,
+        "median": 0.146,
+        "min": 0.053,
+        "p50": 0.147,
+        "p95": 5.289,
+        "p99": 10.814
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 32.074,
+        "mean": 6.773,
+        "median": 4.974,
+        "min": 0.489,
+        "p50": 4.727,
+        "p95": 19.583,
+        "p99": 30.943
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 785.392,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 54000,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.468274763,
+          "kind": "SUMMARY",
+          "owner": "p0g-942928",
+          "peak_rss_kb": 54000,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.894167655002093
+        },
+        {
+          "cpu_s": 0.45607032799999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-942924",
+          "peak_rss_kb": 53996,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 3,
+            "stopped": false,
+            "succeeded": 24
+          },
+          "wall_s": 10.901951585983625
+        },
+        {
+          "cpu_s": 0.453873383,
+          "kind": "SUMMARY",
+          "owner": "p0g-942926",
+          "peak_rss_kb": 54000,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.90878992699436
+        },
+        {
+          "cpu_s": 0.489071881,
+          "kind": "SUMMARY",
+          "owner": "p0g-942923",
+          "peak_rss_kb": 53996,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 27,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 26
+          },
+          "wall_s": 10.92102197400527
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 10,
+        "max": 14.651,
+        "mean": 6.708,
+        "median": 6.249,
+        "min": 1.053,
+        "p50": 6.186,
+        "p95": 14.651,
+        "p99": 14.651
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 1770,
+        "max": 29.683,
+        "mean": 0.246,
+        "median": 0.002,
+        "min": 0.001,
+        "p50": 0.002,
+        "p95": 0.01,
+        "p99": 9.719
+      },
+      "cpu_seconds_total": 1.872,
+      "cpu_utilisation_cores": 2.347,
+      "drain_tail_ms": 10122.627,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 137.865,
+      "jobs_created": 110,
+      "journey_ms": {
+        "count": 100,
+        "max": 586.302,
+        "mean": 355.85,
+        "median": 368.87,
+        "min": 54.205,
+        "p50": 369.547,
+        "p95": 556.319,
+        "p99": 572.547
+      },
+      "journey_throughput_users_per_s": 125.332,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37,
+      "pg_samples": 217,
+      "queue_wait_ms": {
+        "count": 102,
+        "max": 538.11,
+        "mean": 315.534,
+        "median": 334.866,
+        "min": 5.728,
+        "p50": 333.513,
+        "p95": 529.5,
+        "p99": 533.827
+      },
+      "repeat_index": 3,
+      "results_found": 100,
+      "run_ms": {
+        "count": 100,
+        "max": 50.702,
+        "mean": 17.042,
+        "median": 15.575,
+        "min": 14.503,
+        "p50": 15.576,
+        "p95": 21.283,
+        "p99": 43.186
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 10,
+        "cancelled": 2,
+        "cancelled_terminal": 8,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 110,
+        "succeeded": 100
+      },
+      "states": {
+        "CANCELLED": 10,
+        "SUCCEEDED": 100
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 1650,
+        "max": 39.275,
+        "mean": 1.399,
+        "median": 0.157,
+        "min": 0.051,
+        "p50": 0.157,
+        "p95": 8.91,
+        "p99": 22.989
+      },
+      "submit_ms": {
+        "count": 110,
+        "max": 48.396,
+        "mean": 8.803,
+        "median": 5.449,
+        "min": 0.604,
+        "p50": 5.421,
+        "p95": 38.698,
+        "p99": 44.503
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 10,
+        "failed": 0,
+        "succeeded": 100
+      },
+      "users": 100,
+      "wall_ms": 797.882,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 54128,
+      "worker_summaries": [
+        {
+          "cpu_s": 0.478106802,
+          "kind": "SUMMARY",
+          "owner": "p0g-943273",
+          "peak_rss_kb": 53984,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.887363496993203
+        },
+        {
+          "cpu_s": 0.45782154399999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-943275",
+          "peak_rss_kb": 53980,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.90609481401043
+        },
+        {
+          "cpu_s": 0.478302967,
+          "kind": "SUMMARY",
+          "owner": "p0g-943272",
+          "peak_rss_kb": 54128,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 26,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.910288174025482
+        },
+        {
+          "cpu_s": 0.45812212700000005,
+          "kind": "SUMMARY",
+          "owner": "p0g-943277",
+          "peak_rss_kb": 53980,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 25,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 3,
+            "stopped": false,
+            "succeeded": 25
+          },
+          "wall_s": 10.908813289017417
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 13.69,
+        "mean": 5.846,
+        "median": 5.514,
+        "min": 0.658,
+        "p50": 5.406,
+        "p95": 12.199,
+        "p99": 13.69
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 62561,
+        "max": 424.901,
+        "mean": 20.3,
+        "median": 1.836,
+        "min": 0.001,
+        "p50": 1.836,
+        "p95": 84.58,
+        "p99": 155.068
+      },
+      "cpu_seconds_total": 7.968,
+      "cpu_utilisation_cores": 0.841,
+      "drain_tail_ms": 13771.523,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 58.082,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 8919.003,
+        "mean": 5677.589,
+        "median": 6368.712,
+        "min": 53.129,
+        "p50": 6369.255,
+        "p95": 8614.647,
+        "p99": 8735.413
+      },
+      "journey_throughput_users_per_s": 52.801,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 447,
+      "queue_wait_ms": {
+        "count": 500,
+        "max": 12228.162,
+        "mean": 6272.756,
+        "median": 6330.691,
+        "min": 5.836,
+        "p50": 6343.264,
+        "p95": 11699.145,
+        "p99": 12153.835
+      },
+      "repeat_index": 0,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 33.657,
+        "mean": 15.516,
+        "median": 15.522,
+        "min": 14.278,
+        "p50": 15.523,
+        "p95": 16.319,
+        "p99": 17.48
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 0,
+        "cancelled_terminal": 50,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 163,
+        "queued": 163,
+        "submitted": 550,
+        "succeeded": 337
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 61961,
+        "max": 429.7,
+        "mean": 24.642,
+        "median": 8.908,
+        "min": 0.062,
+        "p50": 8.908,
+        "p95": 89.42,
+        "p99": 159.598
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 221.091,
+        "mean": 20.412,
+        "median": 9.596,
+        "min": 0.76,
+        "p50": 9.592,
+        "p95": 89.858,
+        "p99": 139.565
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 9469.445,
+      "warmup": true,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 54028,
+      "worker_summaries": [
+        {
+          "cpu_s": 7.968317901000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-943624",
+          "peak_rss_kb": 54028,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.231916115997592
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 18.02,
+        "mean": 6.831,
+        "median": 6.276,
+        "min": 1.63,
+        "p50": 6.269,
+        "p95": 12.001,
+        "p99": 18.02
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 63045,
+        "max": 515.881,
+        "mean": 20.163,
+        "median": 1.841,
+        "min": 0.001,
+        "p50": 1.841,
+        "p95": 84.889,
+        "p99": 155.197
+      },
+      "cpu_seconds_total": 7.976,
+      "cpu_utilisation_cores": 0.854,
+      "drain_tail_ms": 13946.736,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 58.882,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 8825.491,
+        "mean": 5699.515,
+        "median": 6424.444,
+        "min": 61.13,
+        "p50": 6426.198,
+        "p95": 8604.904,
+        "p99": 8704.535
+      },
+      "journey_throughput_users_per_s": 53.529,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 34,
+      "pg_samples": 447,
+      "queue_wait_ms": {
+        "count": 501,
+        "max": 12099.202,
+        "mean": 6288.321,
+        "median": 6365.146,
+        "min": 9.27,
+        "p50": 6365.146,
+        "p95": 11685.504,
+        "p99": 12072.027
+      },
+      "repeat_index": 1,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 32.685,
+        "mean": 15.504,
+        "median": 15.54,
+        "min": 14.331,
+        "p50": 15.54,
+        "p95": 16.344,
+        "p99": 17.307
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 1,
+        "cancelled_terminal": 49,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 165,
+        "queued": 165,
+        "submitted": 550,
+        "succeeded": 335
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 62445,
+        "max": 521.237,
+        "mean": 24.439,
+        "median": 8.838,
+        "min": 0.06,
+        "p50": 8.838,
+        "p95": 89.546,
+        "p99": 160.034
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 267.63,
+        "mean": 23.46,
+        "median": 9.761,
+        "min": 1.326,
+        "p50": 9.72,
+        "p95": 95.486,
+        "p99": 199.807
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 9340.726,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 60760,
+      "worker_summaries": [
+        {
+          "cpu_s": 7.976059852,
+          "kind": "SUMMARY",
+          "owner": "p0g-945144",
+          "peak_rss_kb": 60760,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.27820644399617
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 16.629,
+        "mean": 6.369,
+        "median": 5.989,
+        "min": 1.131,
+        "p50": 5.882,
+        "p95": 14.046,
+        "p99": 16.629
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 62534,
+        "max": 471.023,
+        "mean": 20.571,
+        "median": 2.41,
+        "min": 0.001,
+        "p50": 2.408,
+        "p95": 84.844,
+        "p99": 149.13
+      },
+      "cpu_seconds_total": 8.043,
+      "cpu_utilisation_cores": 0.843,
+      "drain_tail_ms": 13950.632,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 57.68,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 8913.295,
+        "mean": 5716.139,
+        "median": 6449.458,
+        "min": 53.778,
+        "p50": 6458.357,
+        "p95": 8639.372,
+        "p99": 8765.572
+      },
+      "journey_throughput_users_per_s": 52.436,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34.0,
+      "pg_samples": 450,
+      "queue_wait_ms": {
+        "count": 501,
+        "max": 12210.982,
+        "mean": 6309.336,
+        "median": 6383.468,
+        "min": 7.388,
+        "p50": 6383.468,
+        "p95": 11704.409,
+        "p99": 12148.392
+      },
+      "repeat_index": 2,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 33.089,
+        "mean": 15.707,
+        "median": 15.586,
+        "min": 14.349,
+        "p50": 15.587,
+        "p95": 16.836,
+        "p99": 26.004
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 1,
+        "cancelled_terminal": 49,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 164,
+        "queued": 164,
+        "submitted": 550,
+        "succeeded": 336
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 61934,
+        "max": 473.551,
+        "mean": 24.883,
+        "median": 9.314,
+        "min": 0.066,
+        "p50": 9.314,
+        "p95": 89.75,
+        "p99": 153.844
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 360.42,
+        "mean": 28.327,
+        "median": 11.255,
+        "min": 0.556,
+        "p50": 11.213,
+        "p95": 124.677,
+        "p99": 199.53
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 9535.365,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 63532,
+      "worker_summaries": [
+        {
+          "cpu_s": 8.042860695,
+          "kind": "SUMMARY",
+          "owner": "p0g-946698",
+          "peak_rss_kb": 63532,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.476540705014486
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 15.256,
+        "mean": 6.511,
+        "median": 5.81,
+        "min": 1.826,
+        "p50": 5.793,
+        "p95": 12.463,
+        "p99": 15.256
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 62569,
+        "max": 634.325,
+        "mean": 20.071,
+        "median": 1.482,
+        "min": 0.001,
+        "p50": 1.482,
+        "p95": 85.03,
+        "p99": 153.523
+      },
+      "cpu_seconds_total": 7.96,
+      "cpu_utilisation_cores": 0.827,
+      "drain_tail_ms": 13685.008,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 57.151,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 8778.81,
+        "mean": 5648.57,
+        "median": 6384.689,
+        "min": 35.066,
+        "p50": 6385.825,
+        "p95": 8533.825,
+        "p99": 8635.898
+      },
+      "journey_throughput_users_per_s": 51.956,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 445,
+      "queue_wait_ms": {
+        "count": 500,
+        "max": 12108.709,
+        "mean": 6243.193,
+        "median": 6318.627,
+        "min": 13.268,
+        "p50": 6331.232,
+        "p95": 11612.258,
+        "p99": 12034.677
+      },
+      "repeat_index": 3,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 33.215,
+        "mean": 15.499,
+        "median": 15.49,
+        "min": 14.339,
+        "p50": 15.491,
+        "p95": 16.303,
+        "p99": 17.358
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 0,
+        "cancelled_terminal": 50,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 161,
+        "queued": 161,
+        "submitted": 550,
+        "succeeded": 339
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 61969,
+        "max": 636.006,
+        "mean": 24.381,
+        "median": 8.622,
+        "min": 0.065,
+        "p50": 8.622,
+        "p95": 89.65,
+        "p99": 158.015
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 244.718,
+        "mean": 23.298,
+        "median": 9.949,
+        "min": 0.667,
+        "p50": 9.945,
+        "p95": 101.926,
+        "p99": 200.867
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 9623.573,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 63404,
+      "worker_summaries": [
+        {
+          "cpu_s": 7.959863629,
+          "kind": "SUMMARY",
+          "owner": "p0g-948348",
+          "peak_rss_kb": 63404,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.299009170004865
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 23.186,
+        "mean": 8.039,
+        "median": 6.727,
+        "min": 0.434,
+        "p50": 6.666,
+        "p95": 18.424,
+        "p99": 23.186
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 41001,
+        "max": 349.775,
+        "mean": 13.823,
+        "median": 0.004,
+        "min": 0.001,
+        "p50": 0.004,
+        "p95": 65.461,
+        "p99": 122.533
+      },
+      "cpu_seconds_total": 8.092,
+      "cpu_utilisation_cores": 1.194,
+      "drain_tail_ms": 10199.425,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 81.191,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 5877.162,
+        "mean": 3082.958,
+        "median": 3130.713,
+        "min": 42.597,
+        "p50": 3134.824,
+        "p95": 5560.185,
+        "p99": 5833.161
+      },
+      "journey_throughput_users_per_s": 73.81,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 36,
+      "pg_connections_median": 35,
+      "pg_samples": 329,
+      "queue_wait_ms": {
+        "count": 501,
+        "max": 5644.852,
+        "mean": 3015.192,
+        "median": 3078.272,
+        "min": 8.723,
+        "p50": 3078.272,
+        "p95": 5481.434,
+        "p99": 5631.142
+      },
+      "repeat_index": 0,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 37.158,
+        "mean": 16.091,
+        "median": 15.97,
+        "min": 14.454,
+        "p50": 15.97,
+        "p95": 17.147,
+        "p99": 20.016
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 1,
+        "cancelled_terminal": 49,
+        "failed": 0,
+        "leased": 2,
+        "poll_deadline": 0,
+        "poll_timeout": 3,
+        "queued": 1,
+        "submitted": 550,
+        "succeeded": 497
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 40401,
+        "max": 354.295,
+        "mean": 17.204,
+        "median": 5.354,
+        "min": 0.053,
+        "p50": 5.354,
+        "p95": 70.258,
+        "p99": 126.578
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 241.054,
+        "mean": 23.304,
+        "median": 12.566,
+        "min": 0.735,
+        "p50": 12.522,
+        "p95": 87.295,
+        "p99": 192.793
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 6774.122,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 65624,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.044352816,
+          "kind": "SUMMARY",
+          "owner": "p0g-949865",
+          "peak_rss_kb": 65624,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.9520700580033
+        },
+        {
+          "cpu_s": 4.047293387,
+          "kind": "SUMMARY",
+          "owner": "p0g-949864",
+          "peak_rss_kb": 65476,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.964095869014272
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 37.831,
+        "mean": 9.234,
+        "median": 8.747,
+        "min": 1.784,
+        "p50": 8.732,
+        "p95": 17.276,
+        "p99": 37.831
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 38096,
+        "max": 475.502,
+        "mean": 15.233,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 70.457,
+        "p99": 141.534
+      },
+      "cpu_seconds_total": 8.175,
+      "cpu_utilisation_cores": 1.198,
+      "drain_tail_ms": 10202.555,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 80.598,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 5850.702,
+        "mean": 3007.777,
+        "median": 3036.927,
+        "min": 57.258,
+        "p50": 3048.587,
+        "p95": 5402.485,
+        "p99": 5667.25
+      },
+      "journey_throughput_users_per_s": 73.271,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35,
+      "pg_samples": 329,
+      "queue_wait_ms": {
+        "count": 501,
+        "max": 5489.304,
+        "mean": 2924.6,
+        "median": 2982.774,
+        "min": 4.632,
+        "p50": 2982.774,
+        "p95": 5315.0,
+        "p99": 5471.858
+      },
+      "repeat_index": 1,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 39.675,
+        "mean": 16.277,
+        "median": 16.111,
+        "min": 14.49,
+        "p50": 16.111,
+        "p95": 17.813,
+        "p99": 21.964
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 1,
+        "cancelled_terminal": 49,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 37496,
+        "max": 476.527,
+        "mean": 18.854,
+        "median": 6.078,
+        "min": 0.051,
+        "p50": 6.078,
+        "p95": 74.949,
+        "p99": 144.628
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 385.865,
+        "mean": 36.288,
+        "median": 17.674,
+        "min": 0.862,
+        "p50": 17.655,
+        "p95": 128.275,
+        "p99": 230.314
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 6824.027,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 66704,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.077942128,
+          "kind": "SUMMARY",
+          "owner": "p0g-951357",
+          "peak_rss_kb": 66696,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 17.012784551014192
+        },
+        {
+          "cpu_s": 4.097052961,
+          "kind": "SUMMARY",
+          "owner": "p0g-951356",
+          "peak_rss_kb": 66704,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 17.01636967199738
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 20.307,
+        "mean": 7.032,
+        "median": 5.128,
+        "min": 0.942,
+        "p50": 5.005,
+        "p95": 17.257,
+        "p99": 20.307
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 38319,
+        "max": 511.206,
+        "mean": 16.252,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 75.787,
+        "p99": 150.051
+      },
+      "cpu_seconds_total": 8.099,
+      "cpu_utilisation_cores": 1.195,
+      "drain_tail_ms": 10194.588,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 81.128,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 6130.234,
+        "mean": 3098.268,
+        "median": 3144.286,
+        "min": 34.635,
+        "p50": 3152.607,
+        "p95": 5584.66,
+        "p99": 5883.365
+      },
+      "journey_throughput_users_per_s": 73.753,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35,
+      "pg_samples": 329,
+      "queue_wait_ms": {
+        "count": 500,
+        "max": 5637.875,
+        "mean": 3028.918,
+        "median": 3095.751,
+        "min": 4.586,
+        "p50": 3101.345,
+        "p95": 5484.029,
+        "p99": 5630.077
+      },
+      "repeat_index": 2,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 37.488,
+        "mean": 16.124,
+        "median": 16.086,
+        "min": 14.617,
+        "p50": 16.088,
+        "p95": 17.208,
+        "p99": 18.952
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 0,
+        "cancelled_terminal": 50,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 37719,
+        "max": 461.875,
+        "mean": 19.959,
+        "median": 5.859,
+        "min": 0.055,
+        "p50": 5.859,
+        "p95": 80.918,
+        "p99": 153.126
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 522.783,
+        "mean": 28.777,
+        "median": 12.156,
+        "min": 0.742,
+        "p50": 12.124,
+        "p95": 123.512,
+        "p99": 228.888
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 6779.42,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 67388,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.052112397,
+          "kind": "SUMMARY",
+          "owner": "p0g-952836",
+          "peak_rss_kb": 67228,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.954734291008208
+        },
+        {
+          "cpu_s": 4.046883810000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-952837",
+          "peak_rss_kb": 67388,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.964307857007952
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 20.275,
+        "mean": 9.944,
+        "median": 9.68,
+        "min": 1.267,
+        "p50": 9.468,
+        "p95": 18.205,
+        "p99": 20.275
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 39553,
+        "max": 477.001,
+        "mean": 13.75,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 66.102,
+        "p99": 126.269
+      },
+      "cpu_seconds_total": 8.101,
+      "cpu_utilisation_cores": 1.192,
+      "drain_tail_ms": 10146.645,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 80.96,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 5815.074,
+        "mean": 2983.568,
+        "median": 2999.845,
+        "min": 80.053,
+        "p50": 3001.454,
+        "p95": 5394.196,
+        "p99": 5603.918
+      },
+      "journey_throughput_users_per_s": 73.6,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 36,
+      "pg_connections_median": 35.0,
+      "pg_samples": 328,
+      "queue_wait_ms": {
+        "count": 502,
+        "max": 5459.671,
+        "mean": 2900.646,
+        "median": 2936.19,
+        "min": 5.232,
+        "p50": 2932.005,
+        "p95": 5289.499,
+        "p99": 5442.33
+      },
+      "repeat_index": 3,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 39.694,
+        "mean": 16.153,
+        "median": 15.948,
+        "min": 14.414,
+        "p50": 15.953,
+        "p95": 17.332,
+        "p99": 24.475
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 2,
+        "cancelled_terminal": 48,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 38953,
+        "max": 480.462,
+        "mean": 17.155,
+        "median": 5.599,
+        "min": 0.056,
+        "p50": 5.599,
+        "p95": 69.837,
+        "p99": 129.672
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 366.934,
+        "mean": 35.0,
+        "median": 19.794,
+        "min": 0.76,
+        "p50": 19.723,
+        "p95": 118.528,
+        "p99": 187.284
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 6793.492,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 67860,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.05185775,
+          "kind": "SUMMARY",
+          "owner": "p0g-954322",
+          "peak_rss_kb": 67860,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.91961350798374
+        },
+        {
+          "cpu_s": 4.048648968,
+          "kind": "SUMMARY",
+          "owner": "p0g-954323",
+          "peak_rss_kb": 67860,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 16.927718797000125
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 37.118,
+        "mean": 11.174,
+        "median": 9.876,
+        "min": 0.275,
+        "p50": 9.699,
+        "p95": 26.899,
+        "p99": 37.118
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 20278,
+        "max": 410.852,
+        "mean": 15.277,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 73.825,
+        "p99": 136.109
+      },
+      "cpu_seconds_total": 8.369,
+      "cpu_utilisation_cores": 2.05,
+      "drain_tail_ms": 10141.095,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 134.761,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 2896.499,
+        "mean": 1613.782,
+        "median": 1737.534,
+        "min": 52.676,
+        "p50": 1738.125,
+        "p95": 2654.541,
+        "p99": 2735.558
+      },
+      "journey_throughput_users_per_s": 122.51,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37,
+      "pg_samples": 277,
+      "queue_wait_ms": {
+        "count": 502,
+        "max": 2596.465,
+        "mean": 1534.761,
+        "median": 1676.318,
+        "min": 8.221,
+        "p50": 1673.35,
+        "p95": 2555.701,
+        "p99": 2581.944
+      },
+      "repeat_index": 0,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 59.561,
+        "mean": 18.849,
+        "median": 17.564,
+        "min": 14.713,
+        "p50": 17.579,
+        "p95": 25.099,
+        "p99": 31.066
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 2,
+        "cancelled_terminal": 48,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 19678,
+        "max": 413.44,
+        "mean": 19.421,
+        "median": 6.988,
+        "min": 0.054,
+        "p50": 6.987,
+        "p95": 77.95,
+        "p99": 139.903
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 327.773,
+        "mean": 29.663,
+        "median": 15.25,
+        "min": 0.446,
+        "p50": 15.212,
+        "p95": 121.591,
+        "p99": 207.997
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 4081.288,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 68060,
+      "worker_summaries": [
+        {
+          "cpu_s": 2.082067982,
+          "kind": "SUMMARY",
+          "owner": "p0g-955800",
+          "peak_rss_kb": 68044,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 125,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 17,
+            "stopped": false,
+            "succeeded": 125
+          },
+          "wall_s": 14.190981859021122
+        },
+        {
+          "cpu_s": 2.157770105,
+          "kind": "SUMMARY",
+          "owner": "p0g-955803",
+          "peak_rss_kb": 68056,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 130,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 8,
+            "stopped": false,
+            "succeeded": 129
+          },
+          "wall_s": 14.200868274987442
+        },
+        {
+          "cpu_s": 2.072847301,
+          "kind": "SUMMARY",
+          "owner": "p0g-955801",
+          "peak_rss_kb": 68056,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 124,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 16,
+            "stopped": false,
+            "succeeded": 123
+          },
+          "wall_s": 14.202459952997742
+        },
+        {
+          "cpu_s": 2.055941163,
+          "kind": "SUMMARY",
+          "owner": "p0g-955805",
+          "peak_rss_kb": 68060,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 123,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 21,
+            "stopped": false,
+            "succeeded": 123
+          },
+          "wall_s": 14.207843809999758
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 17.845,
+        "mean": 7.294,
+        "median": 6.349,
+        "min": 0.696,
+        "p50": 6.233,
+        "p95": 15.401,
+        "p99": 17.845
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 21813,
+        "max": 403.219,
+        "mean": 14.197,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 63.018,
+        "p99": 137.619
+      },
+      "cpu_seconds_total": 8.366,
+      "cpu_utilisation_cores": 2.015,
+      "drain_tail_ms": 10145.671,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 132.459,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 3013.388,
+        "mean": 1674.862,
+        "median": 1766.821,
+        "min": 61.924,
+        "p50": 1767.309,
+        "p95": 2780.803,
+        "p99": 2856.065
+      },
+      "journey_throughput_users_per_s": 120.417,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37.0,
+      "pg_samples": 278,
+      "queue_wait_ms": {
+        "count": 502,
+        "max": 2776.913,
+        "mean": 1601.683,
+        "median": 1719.236,
+        "min": 7.828,
+        "p50": 1718.816,
+        "p95": 2718.23,
+        "p99": 2763.072
+      },
+      "repeat_index": 1,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 54.806,
+        "mean": 19.042,
+        "median": 17.924,
+        "min": 14.761,
+        "p50": 17.973,
+        "p95": 25.815,
+        "p99": 30.111
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 2,
+        "cancelled_terminal": 48,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 21213,
+        "max": 408.271,
+        "mean": 18.184,
+        "median": 6.59,
+        "min": 0.058,
+        "p50": 6.59,
+        "p95": 69.239,
+        "p99": 143.829
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 270.639,
+        "mean": 24.676,
+        "median": 14.855,
+        "min": 0.503,
+        "p50": 14.847,
+        "p95": 83.292,
+        "p99": 175.571
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 4152.228,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 68220,
+      "worker_summaries": [
+        {
+          "cpu_s": 2.125418828,
+          "kind": "SUMMARY",
+          "owner": "p0g-957281",
+          "peak_rss_kb": 68216,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 128,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 13,
+            "stopped": false,
+            "succeeded": 127
+          },
+          "wall_s": 14.270518430974334
+        },
+        {
+          "cpu_s": 2.047214979,
+          "kind": "SUMMARY",
+          "owner": "p0g-957279",
+          "peak_rss_kb": 68216,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 123,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 25,
+            "stopped": false,
+            "succeeded": 123
+          },
+          "wall_s": 14.274461160995997
+        },
+        {
+          "cpu_s": 2.1242860919999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-957277",
+          "peak_rss_kb": 68220,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 127,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 22,
+            "stopped": false,
+            "succeeded": 126
+          },
+          "wall_s": 14.284742428018944
+        },
+        {
+          "cpu_s": 2.069133359,
+          "kind": "SUMMARY",
+          "owner": "p0g-957276",
+          "peak_rss_kb": 68208,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 124,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 23,
+            "stopped": false,
+            "succeeded": 124
+          },
+          "wall_s": 14.287918937014183
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 29.589,
+        "mean": 7.89,
+        "median": 8.478,
+        "min": 0.371,
+        "p50": 8.349,
+        "p95": 16.366,
+        "p99": 29.589
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 21182,
+        "max": 496.697,
+        "mean": 13.463,
+        "median": 0.005,
+        "min": 0.001,
+        "p50": 0.005,
+        "p95": 59.585,
+        "p99": 134.797
+      },
+      "cpu_seconds_total": 8.345,
+      "cpu_utilisation_cores": 2.042,
+      "drain_tail_ms": 10145.571,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 134.556,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 2885.358,
+        "mean": 1597.739,
+        "median": 1706.33,
+        "min": 57.444,
+        "p50": 1707.024,
+        "p95": 2640.76,
+        "p99": 2788.892
+      },
+      "journey_throughput_users_per_s": 122.324,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37,
+      "pg_samples": 277,
+      "queue_wait_ms": {
+        "count": 503,
+        "max": 2607.786,
+        "mean": 1520.559,
+        "median": 1635.129,
+        "min": 7.704,
+        "p50": 1635.129,
+        "p95": 2563.358,
+        "p99": 2602.563
+      },
+      "repeat_index": 2,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 49.69,
+        "mean": 18.902,
+        "median": 17.976,
+        "min": 14.817,
+        "p50": 17.983,
+        "p95": 25.182,
+        "p99": 30.165
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 3,
+        "cancelled_terminal": 47,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 20582,
+        "max": 503.444,
+        "mean": 17.421,
+        "median": 6.69,
+        "min": 0.061,
+        "p50": 6.689,
+        "p95": 66.076,
+        "p99": 136.653
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 259.227,
+        "mean": 26.09,
+        "median": 13.454,
+        "min": 0.573,
+        "p50": 13.4,
+        "p95": 103.948,
+        "p99": 183.151
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 4087.505,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 68252,
+      "worker_summaries": [
+        {
+          "cpu_s": 2.100975284,
+          "kind": "SUMMARY",
+          "owner": "p0g-958788",
+          "peak_rss_kb": 68244,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 127,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 17,
+            "stopped": false,
+            "succeeded": 127
+          },
+          "wall_s": 14.20728635499836
+        },
+        {
+          "cpu_s": 2.032214873,
+          "kind": "SUMMARY",
+          "owner": "p0g-958787",
+          "peak_rss_kb": 68100,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 122,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 23,
+            "stopped": false,
+            "succeeded": 121
+          },
+          "wall_s": 14.218007205985487
+        },
+        {
+          "cpu_s": 2.094867752,
+          "kind": "SUMMARY",
+          "owner": "p0g-958792",
+          "peak_rss_kb": 68104,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 126,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 19,
+            "stopped": false,
+            "succeeded": 125
+          },
+          "wall_s": 14.217686075979145
+        },
+        {
+          "cpu_s": 2.1168304129999997,
+          "kind": "SUMMARY",
+          "owner": "p0g-958790",
+          "peak_rss_kb": 68252,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 128,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 12,
+            "stopped": false,
+            "succeeded": 127
+          },
+          "wall_s": 14.221055480011273
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 50,
+        "max": 18.052,
+        "mean": 6.714,
+        "median": 5.633,
+        "min": 0.494,
+        "p50": 5.536,
+        "p95": 15.086,
+        "p99": 18.052
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 22451,
+        "max": 377.361,
+        "mean": 11.181,
+        "median": 0.004,
+        "min": 0.001,
+        "p50": 0.004,
+        "p95": 53.975,
+        "p99": 118.81
+      },
+      "cpu_seconds_total": 8.356,
+      "cpu_utilisation_cores": 2.052,
+      "drain_tail_ms": 10155.499,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 135.06,
+      "jobs_created": 550,
+      "journey_ms": {
+        "count": 500,
+        "max": 2848.477,
+        "mean": 1572.312,
+        "median": 1617.043,
+        "min": 36.001,
+        "p50": 1620.305,
+        "p95": 2610.034,
+        "p99": 2738.854
+      },
+      "journey_throughput_users_per_s": 122.781,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 38,
+      "pg_connections_median": 37,
+      "pg_samples": 277,
+      "queue_wait_ms": {
+        "count": 501,
+        "max": 2597.867,
+        "mean": 1504.662,
+        "median": 1557.869,
+        "min": 4.27,
+        "p50": 1557.869,
+        "p95": 2513.217,
+        "p99": 2579.079
+      },
+      "repeat_index": 3,
+      "results_found": 500,
+      "run_ms": {
+        "count": 500,
+        "max": 56.039,
+        "mean": 19.127,
+        "median": 18.044,
+        "min": 14.844,
+        "p50": 18.047,
+        "p95": 26.707,
+        "p99": 32.043
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 50,
+        "cancelled": 1,
+        "cancelled_terminal": 49,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 550,
+        "succeeded": 500
+      },
+      "states": {
+        "CANCELLED": 50,
+        "SUCCEEDED": 500
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 21851,
+        "max": 378.043,
+        "mean": 14.686,
+        "median": 4.987,
+        "min": 0.055,
+        "p50": 4.987,
+        "p95": 59.532,
+        "p99": 122.313
+      },
+      "submit_ms": {
+        "count": 550,
+        "max": 258.562,
+        "mean": 25.101,
+        "median": 14.549,
+        "min": 0.582,
+        "p50": 14.358,
+        "p95": 87.647,
+        "p99": 178.258
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 50,
+        "failed": 0,
+        "succeeded": 500
+      },
+      "users": 500,
+      "wall_ms": 4072.279,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 68576,
+      "worker_summaries": [
+        {
+          "cpu_s": 2.1428262200000003,
+          "kind": "SUMMARY",
+          "owner": "p0g-960277",
+          "peak_rss_kb": 68572,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 128,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 12,
+            "stopped": false,
+            "succeeded": 128
+          },
+          "wall_s": 14.183176272985293
+        },
+        {
+          "cpu_s": 2.046552122,
+          "kind": "SUMMARY",
+          "owner": "p0g-960275",
+          "peak_rss_kb": 68572,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 123,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 16,
+            "stopped": false,
+            "succeeded": 123
+          },
+          "wall_s": 14.19538564098184
+        },
+        {
+          "cpu_s": 2.049439039,
+          "kind": "SUMMARY",
+          "owner": "p0g-960273",
+          "peak_rss_kb": 68572,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 123,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 18,
+            "stopped": false,
+            "succeeded": 122
+          },
+          "wall_s": 14.196382781025022
+        },
+        {
+          "cpu_s": 2.117276252,
+          "kind": "SUMMARY",
+          "owner": "p0g-960272",
+          "peak_rss_kb": 68576,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 127,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 17,
+            "stopped": false,
+            "succeeded": 127
+          },
+          "wall_s": 14.218069030001061
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 19.486,
+        "mean": 8.261,
+        "median": 7.631,
+        "min": 1.588,
+        "p50": 7.644,
+        "p95": 15.55,
+        "p99": 19.336
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 122882,
+        "max": 1798.289,
+        "mean": 65.923,
+        "median": 32.338,
+        "min": 0.001,
+        "p50": 32.334,
+        "p95": 254.498,
+        "p99": 434.124
+      },
+      "cpu_seconds_total": 15.841,
+      "cpu_utilisation_cores": 0.831,
+      "drain_tail_ms": 17314.356,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 57.671,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 17545.396,
+        "mean": 11237.039,
+        "median": 12689.998,
+        "min": 32.479,
+        "p50": 12698.417,
+        "p95": 16999.101,
+        "p99": 17233.001
+      },
+      "journey_throughput_users_per_s": 52.429,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 685,
+      "queue_wait_ms": {
+        "count": 1000,
+        "max": 23547.242,
+        "mean": 12333.244,
+        "median": 12506.211,
+        "min": 4.425,
+        "p50": 12518.572,
+        "p95": 22761.914,
+        "p99": 23507.128
+      },
+      "repeat_index": 0,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 31.977,
+        "mean": 15.504,
+        "median": 15.628,
+        "min": 14.255,
+        "p50": 15.629,
+        "p95": 16.384,
+        "p99": 18.164
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 0,
+        "cancelled_terminal": 100,
+        "failed": 0,
+        "leased": 1,
+        "poll_deadline": 0,
+        "poll_timeout": 320,
+        "queued": 319,
+        "submitted": 1100,
+        "succeeded": 680
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 121682,
+        "max": 1807.817,
+        "mean": 70.546,
+        "median": 37.362,
+        "min": 0.065,
+        "p50": 37.362,
+        "p95": 259.265,
+        "p99": 437.94
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 920.765,
+        "mean": 80.174,
+        "median": 18.047,
+        "min": 0.638,
+        "p50": 18.051,
+        "p95": 307.458,
+        "p99": 564.23
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 19073.584,
+      "warmup": true,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 68476,
+      "worker_summaries": [
+        {
+          "cpu_s": 15.841291219,
+          "kind": "SUMMARY",
+          "owner": "p0g-961744",
+          "peak_rss_kb": 68476,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 1000,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 1000
+          },
+          "wall_s": 36.377863494009944
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 25.747,
+        "mean": 8.021,
+        "median": 7.354,
+        "min": 1.01,
+        "p50": 7.419,
+        "p95": 15.716,
+        "p99": 19.813
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 123316,
+        "max": 1124.009,
+        "mean": 65.467,
+        "median": 33.124,
+        "min": 0.001,
+        "p50": 33.126,
+        "p95": 252.552,
+        "p99": 430.697
+      },
+      "cpu_seconds_total": 15.976,
+      "cpu_utilisation_cores": 0.835,
+      "drain_tail_ms": 17475.466,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 57.479,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 17683.104,
+        "mean": 11217.703,
+        "median": 12701.045,
+        "min": 60.865,
+        "p50": 12701.231,
+        "p95": 16952.358,
+        "p99": 17261.717
+      },
+      "journey_throughput_users_per_s": 52.254,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 34.0,
+      "pg_samples": 690,
+      "queue_wait_ms": {
+        "count": 1001,
+        "max": 23757.516,
+        "mean": 12339.184,
+        "median": 12501.552,
+        "min": 7.278,
+        "p50": 12501.552,
+        "p95": 22884.098,
+        "p99": 23671.161
+      },
+      "repeat_index": 1,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 36.592,
+        "mean": 15.577,
+        "median": 15.579,
+        "min": 14.334,
+        "p50": 15.579,
+        "p95": 16.316,
+        "p99": 19.342
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 1,
+        "cancelled_terminal": 99,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 319,
+        "queued": 319,
+        "submitted": 1100,
+        "succeeded": 681
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 122116,
+        "max": 1131.402,
+        "mean": 70.098,
+        "median": 38.122,
+        "min": 0.065,
+        "p50": 38.123,
+        "p95": 256.533,
+        "p99": 434.838
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 930.452,
+        "mean": 76.592,
+        "median": 17.202,
+        "min": 0.656,
+        "p50": 17.217,
+        "p95": 310.292,
+        "p99": 596.675
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 19137.326,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 72424,
+      "worker_summaries": [
+        {
+          "cpu_s": 15.975671684,
+          "kind": "SUMMARY",
+          "owner": "p0g-964721",
+          "peak_rss_kb": 72424,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 1001,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 1000
+          },
+          "wall_s": 36.602552772994386
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 35.882,
+        "mean": 6.902,
+        "median": 5.711,
+        "min": 1.417,
+        "p50": 5.722,
+        "p95": 12.806,
+        "p99": 26.744
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 126920,
+        "max": 1362.172,
+        "mean": 63.743,
+        "median": 35.124,
+        "min": 0.001,
+        "p50": 35.126,
+        "p95": 229.357,
+        "p99": 415.095
+      },
+      "cpu_seconds_total": 15.871,
+      "cpu_utilisation_cores": 0.842,
+      "drain_tail_ms": 17820.876,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 58.363,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 17546.318,
+        "mean": 11301.055,
+        "median": 12706.664,
+        "min": 59.08,
+        "p50": 12710.372,
+        "p95": 17127.995,
+        "p99": 17316.163
+      },
+      "journey_throughput_users_per_s": 53.057,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 34,
+      "pg_connections_median": 34,
+      "pg_samples": 695,
+      "queue_wait_ms": {
+        "count": 1000,
+        "max": 24428.081,
+        "mean": 12540.741,
+        "median": 12606.84,
+        "min": 15.98,
+        "p50": 12620.001,
+        "p95": 23507.188,
+        "p99": 24333.527
+      },
+      "repeat_index": 2,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 33.933,
+        "mean": 15.506,
+        "median": 15.516,
+        "min": 14.327,
+        "p50": 15.517,
+        "p95": 16.286,
+        "p99": 21.794
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 0,
+        "cancelled_terminal": 100,
+        "failed": 0,
+        "leased": 1,
+        "poll_deadline": 0,
+        "poll_timeout": 327,
+        "queued": 326,
+        "submitted": 1100,
+        "succeeded": 673
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 125720,
+        "max": 1366.963,
+        "mean": 68.438,
+        "median": 39.881,
+        "min": 0.068,
+        "p50": 39.881,
+        "p95": 235.193,
+        "p99": 419.666
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 712.16,
+        "mean": 45.509,
+        "median": 14.927,
+        "min": 1.187,
+        "p50": 14.959,
+        "p95": 165.644,
+        "p99": 294.422
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 18847.488,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 74936,
+      "worker_summaries": [
+        {
+          "cpu_s": 15.870867499000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-967698",
+          "peak_rss_kb": 74936,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 1000,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 1000
+          },
+          "wall_s": 36.65754003301845
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 27.881,
+        "mean": 9.453,
+        "median": 8.596,
+        "min": 2.885,
+        "p50": 8.621,
+        "p95": 17.466,
+        "p99": 19.768
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 121809,
+        "max": 1607.375,
+        "mean": 66.022,
+        "median": 33.15,
+        "min": 0.001,
+        "p50": 33.15,
+        "p95": 256.351,
+        "p99": 431.051
+      },
+      "cpu_seconds_total": 15.967,
+      "cpu_utilisation_cores": 0.826,
+      "drain_tail_ms": 17362.073,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 56.888,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 17751.676,
+        "mean": 11165.862,
+        "median": 12503.633,
+        "min": 54.028,
+        "p50": 12530.126,
+        "p95": 17038.041,
+        "p99": 17228.221
+      },
+      "journey_throughput_users_per_s": 51.716,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 34.0,
+      "pg_samples": 692,
+      "queue_wait_ms": {
+        "count": 1001,
+        "max": 23481.684,
+        "mean": 12217.51,
+        "median": 12342.877,
+        "min": 6.993,
+        "p50": 12342.877,
+        "p95": 22685.094,
+        "p99": 23421.886
+      },
+      "repeat_index": 3,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 34.68,
+        "mean": 15.563,
+        "median": 15.584,
+        "min": 14.304,
+        "p50": 15.585,
+        "p95": 16.396,
+        "p99": 17.378
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 1,
+        "cancelled_terminal": 99,
+        "failed": 0,
+        "leased": 2,
+        "poll_deadline": 0,
+        "poll_timeout": 311,
+        "queued": 309,
+        "submitted": 1100,
+        "succeeded": 689
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 120609,
+        "max": 1611.687,
+        "mean": 70.717,
+        "median": 38.372,
+        "min": 0.065,
+        "p50": 38.372,
+        "p95": 260.141,
+        "p99": 434.984
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 952.283,
+        "mean": 83.145,
+        "median": 20.769,
+        "min": 1.049,
+        "p50": 20.773,
+        "p95": 328.367,
+        "p99": 640.423
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 19336.308,
+      "warmup": false,
+      "worker_exitcodes": [
+        0
+      ],
+      "worker_peak_rss_kb_max": 78440,
+      "worker_summaries": [
+        {
+          "cpu_s": 15.966762352,
+          "kind": "SUMMARY",
+          "owner": "p0g-970693",
+          "peak_rss_kb": 78440,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 1001,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 1000
+          },
+          "wall_s": 36.68786041199928
+        }
+      ],
+      "workers_requested": 1,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 24.509,
+        "mean": 10.497,
+        "median": 9.947,
+        "min": 0.507,
+        "p50": 9.978,
+        "p95": 19.497,
+        "p99": 21.65
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 78407,
+        "max": 1101.826,
+        "mean": 49.159,
+        "median": 6.014,
+        "min": 0.001,
+        "p50": 6.014,
+        "p95": 206.576,
+        "p99": 374.083
+      },
+      "cpu_seconds_total": 16.189,
+      "cpu_utilisation_cores": 1.234,
+      "drain_tail_ms": 10876.443,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 83.849,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 11291.876,
+        "mean": 5834.196,
+        "median": 5902.953,
+        "min": 40.794,
+        "p50": 5907.26,
+        "p95": 10454.207,
+        "p99": 10659.398
+      },
+      "journey_throughput_users_per_s": 76.226,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35.0,
+      "pg_samples": 452,
+      "queue_wait_ms": {
+        "count": 1001,
+        "max": 10831.037,
+        "mean": 5707.265,
+        "median": 5745.681,
+        "min": 3.653,
+        "p50": 5745.681,
+        "p95": 10541.973,
+        "p99": 10809.151
+      },
+      "repeat_index": 0,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 38.92,
+        "mean": 16.281,
+        "median": 16.115,
+        "min": 14.404,
+        "p50": 16.115,
+        "p95": 17.403,
+        "p99": 21.155
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 1,
+        "cancelled_terminal": 99,
+        "failed": 0,
+        "leased": 1,
+        "poll_deadline": 0,
+        "poll_timeout": 75,
+        "queued": 74,
+        "submitted": 1100,
+        "succeeded": 925
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 77207,
+        "max": 1110.099,
+        "mean": 53.583,
+        "median": 12.743,
+        "min": 0.064,
+        "p50": 12.743,
+        "p95": 210.727,
+        "p99": 377.525
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 1041.765,
+        "mean": 73.818,
+        "median": 24.592,
+        "min": 0.615,
+        "p50": 24.642,
+        "p95": 282.708,
+        "p99": 497.321
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 13118.886,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 80260,
+      "worker_summaries": [
+        {
+          "cpu_s": 8.092767302,
+          "kind": "SUMMARY",
+          "owner": "p0g-973663",
+          "peak_rss_kb": 80260,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.97157282999251
+        },
+        {
+          "cpu_s": 8.095823971,
+          "kind": "SUMMARY",
+          "owner": "p0g-973664",
+          "peak_rss_kb": 80260,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 0,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.98354200797621
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 25.368,
+        "mean": 10.487,
+        "median": 10.113,
+        "min": 2.106,
+        "p50": 10.21,
+        "p95": 20.009,
+        "p99": 23.304
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 77880,
+        "max": 1357.362,
+        "mean": 50.084,
+        "median": 5.121,
+        "min": 0.001,
+        "p50": 5.124,
+        "p95": 209.928,
+        "p99": 382.129
+      },
+      "cpu_seconds_total": 16.165,
+      "cpu_utilisation_cores": 1.232,
+      "drain_tail_ms": 10792.086,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 83.813,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 11059.57,
+        "mean": 5866.158,
+        "median": 5935.551,
+        "min": 56.327,
+        "p50": 5936.675,
+        "p95": 10393.396,
+        "p99": 10617.774
+      },
+      "journey_throughput_users_per_s": 76.194,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 36,
+      "pg_connections_median": 35,
+      "pg_samples": 451,
+      "queue_wait_ms": {
+        "count": 1001,
+        "max": 10829.945,
+        "mean": 5741.71,
+        "median": 5811.298,
+        "min": 6.896,
+        "p50": 5811.298,
+        "p95": 10519.684,
+        "p99": 10797.108
+      },
+      "repeat_index": 1,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 41.932,
+        "mean": 16.233,
+        "median": 16.082,
+        "min": 14.455,
+        "p50": 16.083,
+        "p95": 17.456,
+        "p99": 19.238
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 1,
+        "cancelled_terminal": 99,
+        "failed": 0,
+        "leased": 1,
+        "poll_deadline": 0,
+        "poll_timeout": 74,
+        "queued": 73,
+        "submitted": 1100,
+        "succeeded": 926
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 76680,
+        "max": 1361.723,
+        "mean": 54.55,
+        "median": 12.213,
+        "min": 0.055,
+        "p50": 12.213,
+        "p95": 214.188,
+        "p99": 385.106
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 702.177,
+        "mean": 71.018,
+        "median": 19.71,
+        "min": 0.79,
+        "p50": 19.716,
+        "p95": 287.005,
+        "p99": 530.21
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 13124.406,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 80484,
+      "worker_summaries": [
+        {
+          "cpu_s": 8.071874037,
+          "kind": "SUMMARY",
+          "owner": "p0g-976561",
+          "peak_rss_kb": 80484,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.889636060979683
+        },
+        {
+          "cpu_s": 8.093043671,
+          "kind": "SUMMARY",
+          "owner": "p0g-976560",
+          "peak_rss_kb": 80484,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.905308143992443
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 30.72,
+        "mean": 9.723,
+        "median": 9.138,
+        "min": 1.302,
+        "p50": 9.18,
+        "p95": 18.716,
+        "p99": 21.891
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 79035,
+        "max": 1352.609,
+        "mean": 49.311,
+        "median": 5.293,
+        "min": 0.001,
+        "p50": 5.293,
+        "p95": 208.632,
+        "p99": 385.567
+      },
+      "cpu_seconds_total": 16.151,
+      "cpu_utilisation_cores": 1.229,
+      "drain_tail_ms": 10789.707,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 83.726,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 10985.923,
+        "mean": 5886.232,
+        "median": 5974.681,
+        "min": 60.2,
+        "p50": 5981.832,
+        "p95": 10416.359,
+        "p99": 10771.307
+      },
+      "journey_throughput_users_per_s": 76.115,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 35,
+      "pg_connections_median": 35.0,
+      "pg_samples": 452,
+      "queue_wait_ms": {
+        "count": 1000,
+        "max": 10902.082,
+        "mean": 5771.836,
+        "median": 5835.625,
+        "min": 13.937,
+        "p50": 5842.01,
+        "p95": 10568.84,
+        "p99": 10863.911
+      },
+      "repeat_index": 2,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 38.252,
+        "mean": 16.23,
+        "median": 16.133,
+        "min": 14.508,
+        "p50": 16.133,
+        "p95": 17.379,
+        "p99": 18.643
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 0,
+        "cancelled_terminal": 100,
+        "failed": 0,
+        "leased": 1,
+        "poll_deadline": 0,
+        "poll_timeout": 83,
+        "queued": 82,
+        "submitted": 1100,
+        "succeeded": 917
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 77835,
+        "max": 1353.775,
+        "mean": 53.642,
+        "median": 12.153,
+        "min": 0.063,
+        "p50": 12.153,
+        "p95": 212.421,
+        "p99": 387.709
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 762.165,
+        "mean": 75.017,
+        "median": 19.337,
+        "min": 0.837,
+        "p50": 19.346,
+        "p95": 305.463,
+        "p99": 518.476
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 13138.033,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 81332,
+      "worker_summaries": [
+        {
+          "cpu_s": 8.074353965,
+          "kind": "SUMMARY",
+          "owner": "p0g-979461",
+          "peak_rss_kb": 81332,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.905457423010375
+        },
+        {
+          "cpu_s": 8.076622385,
+          "kind": "SUMMARY",
+          "owner": "p0g-979460",
+          "peak_rss_kb": 81328,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 500,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 2,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.915593326993985
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 25.313,
+        "mean": 10.341,
+        "median": 9.644,
+        "min": 1.697,
+        "p50": 9.742,
+        "p95": 20.746,
+        "p99": 24.587
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 78419,
+        "max": 1311.145,
+        "mean": 48.586,
+        "median": 3.592,
+        "min": 0.001,
+        "p50": 3.592,
+        "p95": 204.548,
+        "p99": 374.039
+      },
+      "cpu_seconds_total": 16.233,
+      "cpu_utilisation_cores": 1.233,
+      "drain_tail_ms": 10851.094,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 83.577,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 10719.362,
+        "mean": 5788.485,
+        "median": 5885.846,
+        "min": 71.379,
+        "p50": 5885.873,
+        "p95": 10227.863,
+        "p99": 10541.906
+      },
+      "journey_throughput_users_per_s": 75.979,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 36,
+      "pg_connections_median": 35,
+      "pg_samples": 451,
+      "queue_wait_ms": {
+        "count": 1002,
+        "max": 10774.81,
+        "mean": 5670.769,
+        "median": 5683.404,
+        "min": 4.928,
+        "p50": 5676.133,
+        "p95": 10432.794,
+        "p99": 10751.326
+      },
+      "repeat_index": 3,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 39.508,
+        "mean": 16.361,
+        "median": 16.168,
+        "min": 14.387,
+        "p50": 16.168,
+        "p95": 17.521,
+        "p99": 28.208
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 2,
+        "cancelled_terminal": 98,
+        "failed": 0,
+        "leased": 2,
+        "poll_deadline": 0,
+        "poll_timeout": 82,
+        "queued": 80,
+        "submitted": 1100,
+        "succeeded": 918
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 77219,
+        "max": 1315.9,
+        "mean": 53.026,
+        "median": 11.715,
+        "min": 0.061,
+        "p50": 11.715,
+        "p95": 208.946,
+        "p99": 377.436
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 1140.155,
+        "mean": 71.165,
+        "median": 20.333,
+        "min": 0.488,
+        "p50": 20.371,
+        "p95": 277.291,
+        "p99": 500.659
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 13161.59,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 82468,
+      "worker_summaries": [
+        {
+          "cpu_s": 8.112706567,
+          "kind": "SUMMARY",
+          "owner": "p0g-982356",
+          "peak_rss_kb": 82468,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 3,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 23.991894178005168
+        },
+        {
+          "cpu_s": 8.119808285,
+          "kind": "SUMMARY",
+          "owner": "p0g-982355",
+          "peak_rss_kb": 82468,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 501,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 1,
+            "stopped": false,
+            "succeeded": 500
+          },
+          "wall_s": 24.002345629996853
+        }
+      ],
+      "workers_requested": 2,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 35.556,
+        "mean": 11.608,
+        "median": 10.642,
+        "min": 0.639,
+        "p50": 10.741,
+        "p95": 25.677,
+        "p99": 30.322
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 43504,
+        "max": 1099.469,
+        "mean": 45.22,
+        "median": 7.925,
+        "min": 0.001,
+        "p50": 7.928,
+        "p95": 187.142,
+        "p99": 363.034
+      },
+      "cpu_seconds_total": 16.61,
+      "cpu_utilisation_cores": 1.943,
+      "drain_tail_ms": 10238.99,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 128.687,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 5917.221,
+        "mean": 3082.264,
+        "median": 3190.383,
+        "min": 59.759,
+        "p50": 3192.218,
+        "p95": 5215.363,
+        "p99": 5401.929
+      },
+      "journey_throughput_users_per_s": 116.988,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37.0,
+      "pg_samples": 356,
+      "queue_wait_ms": {
+        "count": 1002,
+        "max": 5117.168,
+        "mean": 2927.881,
+        "median": 3057.086,
+        "min": 9.188,
+        "p50": 3055.447,
+        "p95": 5009.463,
+        "p99": 5095.445
+      },
+      "repeat_index": 0,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 54.151,
+        "mean": 19.525,
+        "median": 18.265,
+        "min": 14.909,
+        "p50": 18.273,
+        "p95": 27.07,
+        "p99": 34.281
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 2,
+        "cancelled_terminal": 98,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 1100,
+        "succeeded": 1000
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 42304,
+        "max": 1104.53,
+        "mean": 50.145,
+        "median": 15.872,
+        "min": 0.057,
+        "p50": 15.873,
+        "p95": 191.832,
+        "p99": 366.517
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 814.622,
+        "mean": 68.006,
+        "median": 25.535,
+        "min": 0.723,
+        "p50": 25.543,
+        "p95": 279.481,
+        "p99": 435.881
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 8547.894,
+      "warmup": true,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 82760,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.06131573,
+          "kind": "SUMMARY",
+          "owner": "p0g-985242",
+          "peak_rss_kb": 82760,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 245,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 55,
+            "stopped": false,
+            "succeeded": 244
+          },
+          "wall_s": 18.743644386006054
+        },
+        {
+          "cpu_s": 4.197304969,
+          "kind": "SUMMARY",
+          "owner": "p0g-985247",
+          "peak_rss_kb": 82760,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 254,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 45,
+            "stopped": false,
+            "succeeded": 254
+          },
+          "wall_s": 18.75151055798051
+        },
+        {
+          "cpu_s": 4.187672461,
+          "kind": "SUMMARY",
+          "owner": "p0g-985245",
+          "peak_rss_kb": 82760,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 253,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 46,
+            "stopped": false,
+            "succeeded": 252
+          },
+          "wall_s": 18.76412618800532
+        },
+        {
+          "cpu_s": 4.163591251,
+          "kind": "SUMMARY",
+          "owner": "p0g-985243",
+          "peak_rss_kb": 82760,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 56,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 18.773569999000756
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 31.645,
+        "mean": 11.157,
+        "median": 10.344,
+        "min": 1.141,
+        "p50": 10.378,
+        "p95": 24.418,
+        "p99": 30.651
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 44355,
+        "max": 977.172,
+        "mean": 42.761,
+        "median": 4.788,
+        "min": 0.001,
+        "p50": 4.788,
+        "p95": 182.389,
+        "p99": 335.692
+      },
+      "cpu_seconds_total": 16.531,
+      "cpu_utilisation_cores": 1.937,
+      "drain_tail_ms": 10230.401,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 128.915,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 5698.793,
+        "mean": 3025.159,
+        "median": 3147.055,
+        "min": 49.308,
+        "p50": 3147.809,
+        "p95": 5136.708,
+        "p99": 5441.756
+      },
+      "journey_throughput_users_per_s": 117.195,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37.0,
+      "pg_samples": 356,
+      "queue_wait_ms": {
+        "count": 1002,
+        "max": 5064.877,
+        "mean": 2877.929,
+        "median": 2974.433,
+        "min": 5.715,
+        "p50": 2972.728,
+        "p95": 4974.502,
+        "p99": 5052.165
+      },
+      "repeat_index": 1,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 57.37,
+        "mean": 19.639,
+        "median": 18.466,
+        "min": 14.844,
+        "p50": 18.471,
+        "p95": 26.912,
+        "p99": 34.765
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 2,
+        "cancelled_terminal": 98,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 1100,
+        "succeeded": 1000
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 43155,
+        "max": 983.426,
+        "mean": 47.552,
+        "median": 13.51,
+        "min": 0.058,
+        "p50": 13.51,
+        "p95": 186.924,
+        "p99": 337.028
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 825.759,
+        "mean": 63.338,
+        "median": 22.784,
+        "min": 0.703,
+        "p50": 22.798,
+        "p95": 250.09,
+        "p99": 438.5
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 8532.769,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 83132,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.108891095,
+          "kind": "SUMMARY",
+          "owner": "p0g-988167",
+          "peak_rss_kb": 83132,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 249,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 51,
+            "stopped": false,
+            "succeeded": 248
+          },
+          "wall_s": 18.728137274010805
+        },
+        {
+          "cpu_s": 4.115959107,
+          "kind": "SUMMARY",
+          "owner": "p0g-988162",
+          "peak_rss_kb": 83132,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 48,
+            "stopped": false,
+            "succeeded": 249
+          },
+          "wall_s": 18.743446314998437
+        },
+        {
+          "cpu_s": 4.1449663359999995,
+          "kind": "SUMMARY",
+          "owner": "p0g-988163",
+          "peak_rss_kb": 83128,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 51,
+            "stopped": false,
+            "succeeded": 251
+          },
+          "wall_s": 18.74140689300839
+        },
+        {
+          "cpu_s": 4.161026934000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-988165",
+          "peak_rss_kb": 83132,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 252,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 46,
+            "stopped": false,
+            "succeeded": 252
+          },
+          "wall_s": 18.750521333015058
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 33.392,
+        "mean": 10.555,
+        "median": 9.23,
+        "min": 0.436,
+        "p50": 9.395,
+        "p95": 22.157,
+        "p99": 27.709
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 47223,
+        "max": 942.118,
+        "mean": 39.629,
+        "median": 9.468,
+        "min": 0.001,
+        "p50": 9.468,
+        "p95": 167.723,
+        "p99": 318.241
+      },
+      "cpu_seconds_total": 16.53,
+      "cpu_utilisation_cores": 1.952,
+      "drain_tail_ms": 10144.528,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 129.913,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 5921.937,
+        "mean": 3060.971,
+        "median": 3188.373,
+        "min": 58.514,
+        "p50": 3189.938,
+        "p95": 5232.892,
+        "p99": 5392.492
+      },
+      "journey_throughput_users_per_s": 118.102,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 38,
+      "pg_connections_median": 37.0,
+      "pg_samples": 354,
+      "queue_wait_ms": {
+        "count": 1002,
+        "max": 5150.292,
+        "mean": 2925.325,
+        "median": 3063.117,
+        "min": 8.985,
+        "p50": 3059.514,
+        "p95": 5059.962,
+        "p99": 5124.571
+      },
+      "repeat_index": 2,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 71.835,
+        "mean": 19.651,
+        "median": 18.459,
+        "min": 14.698,
+        "p50": 18.462,
+        "p95": 27.06,
+        "p99": 34.473
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 2,
+        "cancelled_terminal": 98,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 1100,
+        "succeeded": 1000
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 46023,
+        "max": 955.522,
+        "mean": 44.176,
+        "median": 15.939,
+        "min": 0.056,
+        "p50": 15.939,
+        "p95": 171.888,
+        "p99": 322.876
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 814.063,
+        "mean": 58.005,
+        "median": 22.862,
+        "min": 0.543,
+        "p50": 22.897,
+        "p95": 230.667,
+        "p99": 362.516
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 8467.224,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 82156,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.110956046,
+          "kind": "SUMMARY",
+          "owner": "p0g-991084",
+          "peak_rss_kb": 82156,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 249,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 46,
+            "stopped": false,
+            "succeeded": 248
+          },
+          "wall_s": 18.57943309401162
+        },
+        {
+          "cpu_s": 4.065515671,
+          "kind": "SUMMARY",
+          "owner": "p0g-991082",
+          "peak_rss_kb": 82152,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 246,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 45,
+            "stopped": false,
+            "succeeded": 246
+          },
+          "wall_s": 18.58312104700599
+        },
+        {
+          "cpu_s": 4.227018664,
+          "kind": "SUMMARY",
+          "owner": "p0g-991081",
+          "peak_rss_kb": 82152,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 257,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 43,
+            "stopped": false,
+            "succeeded": 256
+          },
+          "wall_s": 18.590468504000455
+        },
+        {
+          "cpu_s": 4.1266155730000005,
+          "kind": "SUMMARY",
+          "owner": "p0g-991086",
+          "peak_rss_kb": 82156,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 51,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 18.597613024991006
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    },
+    {
+      "cancel_ms": {
+        "count": 100,
+        "max": 32.491,
+        "mean": 12.373,
+        "median": 11.493,
+        "min": 1.576,
+        "p50": 11.582,
+        "p95": 25.613,
+        "p99": 31.943
+      },
+      "canonical_hash": "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf",
+      "client_pool_size": 32,
+      "client_pool_wait_ms": {
+        "count": 42653,
+        "max": 1039.859,
+        "mean": 43.035,
+        "median": 7.564,
+        "min": 0.001,
+        "p50": 7.564,
+        "p95": 177.535,
+        "p99": 336.897
+      },
+      "cpu_seconds_total": 16.517,
+      "cpu_utilisation_cores": 1.98,
+      "drain_tail_ms": 10131.972,
+      "error_count": 0,
+      "errors": [],
+      "job_throughput_jobs_per_s": 131.864,
+      "jobs_created": 1100,
+      "journey_ms": {
+        "count": 1000,
+        "max": 5559.849,
+        "mean": 2922.922,
+        "median": 3034.632,
+        "min": 47.921,
+        "p50": 3036.203,
+        "p95": 5048.573,
+        "p99": 5265.556
+      },
+      "journey_throughput_users_per_s": 119.876,
+      "ok": true,
+      "output_hashes_observed": [
+        "2719a62c5717fbd11a022e107f53b97660097d14ad607be571e29740e6b8eacf"
+      ],
+      "output_matches_engine": true,
+      "oversubscribed": false,
+      "pending_after_drain": 0,
+      "pg_connections_max": 37,
+      "pg_connections_median": 37.0,
+      "pg_samples": 350,
+      "queue_wait_ms": {
+        "count": 1001,
+        "max": 4940.317,
+        "mean": 2780.603,
+        "median": 2877.998,
+        "min": 8.582,
+        "p50": 2877.998,
+        "p95": 4849.946,
+        "p99": 4921.012
+      },
+      "repeat_index": 3,
+      "results_found": 1000,
+      "run_ms": {
+        "count": 1000,
+        "max": 48.966,
+        "mean": 19.527,
+        "median": 18.447,
+        "min": 14.711,
+        "p50": 18.448,
+        "p95": 26.836,
+        "p99": 33.221
+      },
+      "scripted_outcomes": {
+        "cancel_requested": 100,
+        "cancelled": 1,
+        "cancelled_terminal": 99,
+        "failed": 0,
+        "leased": 0,
+        "poll_deadline": 0,
+        "poll_timeout": 0,
+        "queued": 0,
+        "submitted": 1100,
+        "succeeded": 1000
+      },
+      "states": {
+        "CANCELLED": 100,
+        "SUCCEEDED": 1000
+      },
+      "status": "ok",
+      "status_ms": {
+        "count": 41453,
+        "max": 1039.939,
+        "mean": 47.926,
+        "median": 15.617,
+        "min": 0.06,
+        "p50": 15.617,
+        "p95": 182.32,
+        "p99": 338.48
+      },
+      "submit_ms": {
+        "count": 1100,
+        "max": 616.288,
+        "mean": 62.91,
+        "median": 24.177,
+        "min": 0.657,
+        "p50": 24.199,
+        "p95": 235.863,
+        "p99": 468.018
+      },
+      "success_failure_cancel_counts": {
+        "cancelled": 100,
+        "failed": 0,
+        "succeeded": 1000
+      },
+      "users": 1000,
+      "wall_ms": 8341.95,
+      "warmup": false,
+      "worker_exitcodes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "worker_peak_rss_kb_max": 82116,
+      "worker_summaries": [
+        {
+          "cpu_s": 4.122267078,
+          "kind": "SUMMARY",
+          "owner": "p0g-993995",
+          "peak_rss_kb": 82116,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 250,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 38,
+            "stopped": false,
+            "succeeded": 250
+          },
+          "wall_s": 18.442918879009085
+        },
+        {
+          "cpu_s": 4.134647125000001,
+          "kind": "SUMMARY",
+          "owner": "p0g-993999",
+          "peak_rss_kb": 82116,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 251,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 33,
+            "stopped": false,
+            "succeeded": 251
+          },
+          "wall_s": 18.453046811016975
+        },
+        {
+          "cpu_s": 4.173899811,
+          "kind": "SUMMARY",
+          "owner": "p0g-993994",
+          "peak_rss_kb": 82116,
+          "summary": {
+            "cancelled": 0,
+            "claimed": 253,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 39,
+            "stopped": false,
+            "succeeded": 253
+          },
+          "wall_s": 18.454965451004682
+        },
+        {
+          "cpu_s": 4.086024643999999,
+          "kind": "SUMMARY",
+          "owner": "p0g-993997",
+          "peak_rss_kb": 82116,
+          "summary": {
+            "cancelled": 1,
+            "claimed": 247,
+            "failed": 0,
+            "idle_polls": 1000,
+            "lease_lost": 0,
+            "retried": 0,
+            "skipped": 47,
+            "stopped": false,
+            "succeeded": 246
+          },
+          "wall_s": 18.45951032100129
+        }
+      ],
+      "workers_requested": 4,
+      "workers_terminated_at_deadline": []
+    }
+  ],
+  "seed": 20261117,
+  "stress_label": "p0j-job-stress",
+  "suppliable_workers": 4
+}

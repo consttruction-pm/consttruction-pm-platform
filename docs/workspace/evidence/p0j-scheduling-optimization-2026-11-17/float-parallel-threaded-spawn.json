@@ -1,0 +1,262 @@
+{
+  "allow_spawn": true,
+  "calculation": "p0j-float-parallel",
+  "cases": [
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 10116
+      },
+      "runs": [
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 1
+          },
+          "children_peak_rss_kb": 49952,
+          "hash": [
+            "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 1844.474,
+          "min_ms": 1836.31,
+          "p95_ms": 1870.791,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            1870.791,
+            1843.897,
+            1850.667,
+            1844.474,
+            1836.31
+          ],
+          "speedup_vs_1": 1.0,
+          "spread_pct": 1.869,
+          "workers": 1
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 7,
+            "extra_active": 0,
+            "extra_peak": 1,
+            "peak": 1,
+            "workers": 2
+          },
+          "children_peak_rss_kb": 95404,
+          "hash": [
+            "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 2165.245,
+          "min_ms": 2152.164,
+          "p95_ms": 2187.856,
+          "pool_slots_used": 2,
+          "pool_start_methods": [
+            "spawn"
+          ],
+          "samples_ms": [
+            2152.164,
+            2165.245,
+            2173.132,
+            2152.44,
+            2187.856
+          ],
+          "speedup_vs_1": 0.852,
+          "spread_pct": 1.648,
+          "workers": 2
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 21,
+            "extra_active": 0,
+            "extra_peak": 3,
+            "peak": 1,
+            "workers": 4
+          },
+          "children_peak_rss_kb": 95648,
+          "hash": [
+            "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 2470.658,
+          "min_ms": 2461.548,
+          "p95_ms": 2485.019,
+          "pool_slots_used": 4,
+          "pool_start_methods": [
+            "spawn"
+          ],
+          "samples_ms": [
+            2478.692,
+            2461.548,
+            2469.818,
+            2485.019,
+            2470.658
+          ],
+          "speedup_vs_1": 0.747,
+          "spread_pct": 0.95,
+          "workers": 4
+        }
+      ],
+      "size": 5000
+    },
+    {
+      "counts": {
+        "activities": 25000,
+        "relationships": 50600
+      },
+      "runs": [
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 1
+          },
+          "children_peak_rss_kb": 95648,
+          "hash": [
+            "c12b0931e80762dda1c5745c5b4d8b094efe3dd7c1e398dc6452d9864409e900"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 9436.752,
+          "min_ms": 9416.242,
+          "p95_ms": 9515.37,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            9436.752,
+            9515.37,
+            9416.242,
+            9434.229,
+            9479.957
+          ],
+          "speedup_vs_1": 1.0,
+          "spread_pct": 1.05,
+          "workers": 1
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 7,
+            "extra_active": 0,
+            "extra_peak": 1,
+            "peak": 1,
+            "workers": 2
+          },
+          "children_peak_rss_kb": 227408,
+          "hash": [
+            "c12b0931e80762dda1c5745c5b4d8b094efe3dd7c1e398dc6452d9864409e900"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 10170.561,
+          "min_ms": 10075.869,
+          "p95_ms": 10248.545,
+          "pool_slots_used": 2,
+          "pool_start_methods": [
+            "spawn"
+          ],
+          "samples_ms": [
+            10151.359,
+            10170.561,
+            10200.179,
+            10248.545,
+            10075.869
+          ],
+          "speedup_vs_1": 0.928,
+          "spread_pct": 1.698,
+          "workers": 2
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 21,
+            "extra_active": 0,
+            "extra_peak": 3,
+            "peak": 1,
+            "workers": 4
+          },
+          "children_peak_rss_kb": 231500,
+          "hash": [
+            "c12b0931e80762dda1c5745c5b4d8b094efe3dd7c1e398dc6452d9864409e900"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 10311.509,
+          "min_ms": 10253.876,
+          "p95_ms": 10344.135,
+          "pool_slots_used": 4,
+          "pool_start_methods": [
+            "spawn"
+          ],
+          "samples_ms": [
+            10264.883,
+            10344.135,
+            10331.727,
+            10311.509,
+            10253.876
+          ],
+          "speedup_vs_1": 0.915,
+          "spread_pct": 0.875,
+          "workers": 4
+        }
+      ],
+      "size": 25000
+    }
+  ],
+  "context": "thread",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "87fc5c4a",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "generated_at": "2026-11-17T03:32:16.013144+00:00",
+  "hardware": {
+    "affinity": 4,
+    "effective_capacity": {
+      "cgroup_cpu_cores": null,
+      "cgroup_memory_limit_bytes": null,
+      "cpu_affinity": 4,
+      "effective_cores": 4.0,
+      "effective_memory_bytes": 5928357888,
+      "memory_available_bytes": 5928357888,
+      "provenance": [
+        "cpu_affinity",
+        "proc_meminfo_MemAvailable"
+      ]
+    },
+    "note": "Worker counts above the effective affinity are simulated quotas; this process can only run one OS thread per permitted CPU.",
+    "nproc": 4
+  },
+  "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+  "repeats": 5,
+  "shape": "mixed",
+  "start_methods": [
+    "fork",
+    "spawn",
+    "forkserver"
+  ],
+  "warmups": 2
+}

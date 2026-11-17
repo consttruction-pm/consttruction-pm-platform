@@ -26,6 +26,7 @@ from construction_pm.schedule_calculation_context_repository import CalculationC
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.time_schedule import FloatExecutionPolicy
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
 from construction_pm.scheduling.schedule_checks import build_schedule_check_payload
@@ -48,6 +49,10 @@ class AuthoritativeScheduleQueryProvider:
     # snapshot enables post-leveling cost recalculation. The evaluator receives
     # them as immutable LevelingCostInputs and reads no repository itself.
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
+    # Execution-only float settings. The policy can change elapsed time but not
+    # a calculated value; the calculation run identity stays identical for any
+    # worker count.
+    float_execution: FloatExecutionPolicy | None = None
 
     def execute(
         self,
@@ -149,6 +154,7 @@ class AuthoritativeScheduleQueryProvider:
                 calendar_registry,
                 leveling_input=leveling_input,
                 cost_inputs=cost_inputs,
+                float_execution=self.float_execution,
             )
         except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core

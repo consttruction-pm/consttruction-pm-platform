@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "87fc5c4a",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 50000,
+        "relationships": 95786
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 16813.132,
+        "median_ms": 16594.17,
+        "min_ms": 16567.236,
+        "p95_ms": 16813.132
+      },
+      "fixture_build_ms": 2523.97,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+      "peak_rss_kb": 219040,
+      "project_finish": "2600-12-25T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 50000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 16814.199,
+        "median_ms": 16595.099,
+        "min_ms": 16568.286,
+        "p95_ms": 16814.199
+      }
+    },
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 100000,
+        "relationships": 191483
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 33671.951,
+        "median_ms": 33639.857,
+        "min_ms": 33312.693,
+        "p95_ms": 33671.951
+      },
+      "fixture_build_ms": 5158.755,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+      "peak_rss_kb": 387880,
+      "project_finish": "3175-12-11T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 33673.784,
+        "median_ms": 33641.927,
+        "min_ms": 33314.624,
+        "p95_ms": 33673.784
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

@@ -1,0 +1,190 @@
+{
+  "allow_spawn": false,
+  "calculation": "p0j-float-parallel",
+  "cases": [
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 10116
+      },
+      "runs": [
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 1
+          },
+          "children_peak_rss_kb": 49852,
+          "hash": [
+            "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 1859.805,
+          "min_ms": 1843.126,
+          "p95_ms": 1872.009,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            1865.315,
+            1843.126,
+            1872.009,
+            1859.805,
+            1857.454
+          ],
+          "speedup_vs_1": 1.0,
+          "spread_pct": 1.553,
+          "workers": 1
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 4
+          },
+          "children_peak_rss_kb": 49852,
+          "hash": [
+            "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 1859.079,
+          "min_ms": 1848.449,
+          "p95_ms": 1871.066,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            1861.933,
+            1859.079,
+            1851.273,
+            1871.066,
+            1848.449
+          ],
+          "speedup_vs_1": 1.0,
+          "spread_pct": 1.217,
+          "workers": 4
+        }
+      ],
+      "size": 5000
+    },
+    {
+      "counts": {
+        "activities": 25000,
+        "relationships": 50600
+      },
+      "runs": [
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 1
+          },
+          "children_peak_rss_kb": 49852,
+          "hash": [
+            "c12b0931e80762dda1c5745c5b4d8b094efe3dd7c1e398dc6452d9864409e900"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 9490.514,
+          "min_ms": 9440.736,
+          "p95_ms": 9551.641,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            9464.295,
+            9551.641,
+            9440.736,
+            9503.478,
+            9490.514
+          ],
+          "speedup_vs_1": 1.0,
+          "spread_pct": 1.169,
+          "workers": 1
+        },
+        {
+          "budget": {
+            "acquired_total": 7,
+            "active": 0,
+            "extra_acquired_total": 0,
+            "extra_active": 0,
+            "extra_peak": 0,
+            "peak": 1,
+            "workers": 4
+          },
+          "children_peak_rss_kb": 49852,
+          "hash": [
+            "c12b0931e80762dda1c5745c5b4d8b094efe3dd7c1e398dc6452d9864409e900"
+          ],
+          "hash_equals_sequential": true,
+          "identical_hash": true,
+          "median_ms": 9463.98,
+          "min_ms": 9388.369,
+          "p95_ms": 9475.532,
+          "pool_slots_used": 1,
+          "pool_start_methods": [],
+          "samples_ms": [
+            9463.98,
+            9411.371,
+            9465.484,
+            9475.532,
+            9388.369
+          ],
+          "speedup_vs_1": 1.003,
+          "spread_pct": 0.921,
+          "workers": 4
+        }
+      ],
+      "size": 25000
+    }
+  ],
+  "context": "thread",
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "87fc5c4a",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "generated_at": "2026-11-17T03:36:32.649017+00:00",
+  "hardware": {
+    "affinity": 4,
+    "effective_capacity": {
+      "cgroup_cpu_cores": null,
+      "cgroup_memory_limit_bytes": null,
+      "cpu_affinity": 4,
+      "effective_cores": 4.0,
+      "effective_memory_bytes": 5928165376,
+      "memory_available_bytes": 5928165376,
+      "provenance": [
+        "cpu_affinity",
+        "proc_meminfo_MemAvailable"
+      ]
+    },
+    "note": "Worker counts above the effective affinity are simulated quotas; this process can only run one OS thread per permitted CPU.",
+    "nproc": 4
+  },
+  "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+  "repeats": 5,
+  "shape": "mixed",
+  "start_methods": [
+    "fork",
+    "spawn",
+    "forkserver"
+  ],
+  "warmups": 2
+}

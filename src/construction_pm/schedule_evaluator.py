@@ -32,7 +32,12 @@ from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.schedule_checks import ScheduleCheckFinding, evaluate_schedule_checks
 from .scheduling.schedule_options import ScheduleMode
 from .scheduling.time_forward_pass import TimeScheduledActivity
-from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
+from .scheduling.time_schedule import (
+    FloatExecutionPolicy,
+    TimeScheduleOptions,
+    TimeScheduleResult,
+    time_schedule,
+)
 
 
 class ScheduleEvaluationError(ValueError):
@@ -80,6 +85,7 @@ def evaluate_schedule_snapshot(
     *,
     leveling_input: SchedulerLevelingInput | None = None,
     cost_inputs: LevelingCostInputs | None = None,
+    float_execution: FloatExecutionPolicy | None = None,
 ) -> ScheduleEvaluationResult:
     """Materialize and evaluate one immutable snapshot.
 
@@ -124,6 +130,7 @@ def evaluate_schedule_snapshot(
         calculation_context,
         leveling_input=leveling_input,
         cost_inputs=cost_inputs,
+        float_execution=float_execution,
     )
 
 
@@ -134,6 +141,7 @@ def _evaluate_materialized(
     *,
     leveling_input: SchedulerLevelingInput | None = None,
     cost_inputs: LevelingCostInputs | None = None,
+    float_execution: FloatExecutionPolicy | None = None,
 ) -> ScheduleEvaluationResult:
     source = materialized.schedule_input
     try:
@@ -284,6 +292,7 @@ def _evaluate_materialized(
                     else None
                 ),
             ),
+            float_policy=float_execution,
         )
         run_identity = _run_identity(
             snapshot.snapshot_hash,

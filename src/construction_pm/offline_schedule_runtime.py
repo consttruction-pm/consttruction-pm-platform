@@ -48,6 +48,8 @@ from .scheduling.calendar_exceptions import CalendarException, CalendarException
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+from .scheduling.time_schedule import FloatExecutionPolicy
+from .scheduling_execution_budget import detect_effective_capacity
 
 
 OFFLINE_BUNDLE_SCHEMA = "construction-pm/offline-schedule-bundle/v1"
@@ -378,6 +380,19 @@ class OfflineScheduleBundle:
         return bundle
 
 
+def _default_float_workers() -> int:
+    """Slots an offline process may use for the independent float pass.
+
+    The pass only leaves the current process when it is provably safe; a
+    single-threaded offline run may fork up to the capacity the kernel reports,
+    and a threaded embedder falls back to the exact sequential loop.
+    """
+    try:
+        return max(1, int(detect_effective_capacity().effective_cores))
+    except (OSError, ValueError):
+        return 1
+
+
 def _snapshot_payload_text(text: str) -> dict[str, Any]:
     try:
         payload = json.loads(text)
@@ -533,11 +548,25 @@ class OfflineSchedulingRuntime:
     Execution holds the network guard; no repository or transport is accepted.
     """
 
-    def __init__(self, bundle: OfflineScheduleBundle) -> None:
+    def __init__(
+        self,
+        bundle: OfflineScheduleBundle,
+        *,
+        float_execution: FloatExecutionPolicy | None = None,
+    ) -> None:
         if not isinstance(bundle, OfflineScheduleBundle):
             raise TypeError("bundle must be an OfflineScheduleBundle")
+        if float_execution is not None and not isinstance(
+            float_execution, FloatExecutionPolicy
+        ):
+            raise TypeError("float_execution must be a FloatExecutionPolicy")
         self._bundle = bundle
         self._snapshot, self._context, self._registry = self._reconstruct(bundle)
+        self._float_execution = (
+            float_execution
+            if float_execution is not None
+            else FloatExecutionPolicy(workers=_default_float_workers())
+        )
 
     @property
     def bundle(self) -> OfflineScheduleBundle:
@@ -633,6 +662,7 @@ class OfflineSchedulingRuntime:
                     self._snapshot,
                     self._context,
                     self._registry,
+                    float_execution=self._float_execution,
                 )
         except OfflineNetworkAccessError:
             raise
