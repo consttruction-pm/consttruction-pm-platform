@@ -459,7 +459,7 @@ class ProjectLifecycleHttpRoutes:
         associated_root = "/api/admin/p6/users/"
         if not (
             (self._p6_project_security_api is not None and route.startswith(profile_root))
-            or (self._p6_associated_resource_api is not None and route.startswith(associated_root) and route.endswith("/associated-resource"))
+            or (self._p6_associated_resource_api is not None and (route == "/api/admin/p6/associated-resources" or (route.startswith(associated_root) and route.endswith("/associated-resource"))))
         ):
             return None
         try:
@@ -526,6 +526,8 @@ class ProjectLifecycleHttpRoutes:
                     )
                     return self._json(200, {"deleted": True})
 
+            if route == "/api/admin/p6/associated-resources" and self._p6_associated_resource_api is not None and method == "GET":
+                return self._json(200, self._p6_associated_resource_api.list_resources(auth_context=auth))
             if route.startswith(associated_root) and self._p6_associated_resource_api is not None:
                 user_id = route[len(associated_root):-len("/associated-resource")].strip("/")
                 if not user_id:
