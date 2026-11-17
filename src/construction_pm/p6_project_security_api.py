@@ -31,6 +31,8 @@ def _profile_dto(profile: P6ProjectSecurityProfile) -> dict[str, Any]:
         "active": profile.active,
         "revision": profile.revision,
         "is_default": profile.is_default,
+        "built_in": profile.built_in,
+        "description": profile.description,
         "privileges": [
             {"code": code, **labels[code]} for code in profile.privileges
         ],
@@ -41,6 +43,14 @@ def _profile_dto(profile: P6ProjectSecurityProfile) -> dict[str, Any]:
 class P6ProjectSecurityAPI:
     repository: P6ProjectSecurityRepository
     authorization_policy: Any
+
+    def ensure_builtin_profile(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_admin(self.authorization_policy, auth_context)
+        profile = self.repository.ensure_builtin_profile(
+            auth_context.tenant_id, actor_id=auth_context.user_id
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
 
     def list_profiles(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_admin(self.authorization_policy, auth_context)
