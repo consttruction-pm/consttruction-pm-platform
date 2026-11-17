@@ -1910,3 +1910,65 @@ def test_global_user_module_access_is_revisioned_and_shares_canonical_assignment
         assert len(audit) == 1
         assert audit[0][2]["module_access"] == ["projects", "resources"]
         connection.rollback()
+
+
+def test_global_default_profile_is_assigned_to_existing_and_new_users():
+    suffix = uuid.uuid4().hex
+    tenant = f"global-default-bootstrap-{suffix}"
+    admin_id = f"global-default-admin-{suffix}"
+    existing_id = f"global-default-existing-{suffix}"
+    new_id = f"global-default-new-{suffix}"
+    later_id = f"global-default-later-{suffix}"
+    now = datetime.now(timezone.utc)
+    with _connect() as connection:
+        identity = PostgresIdentityStore(connection)
+        identity.initialize()
+        PostgresP6OBSRepository(connection).initialize()
+        initialize_security_profile_schema(connection)
+        identity.upsert_user(_identity_user(admin_id, tenant, "enterprise_admin"))
+        identity.upsert_user(_identity_user(existing_id, tenant, "planner"))
+
+        bootstrap_first_admin_superuser(
+            connection, tenant_id=tenant, user_id=admin_id,
+            supplied_token="bootstrap-secret-" + "x" * 40,
+            configured_token="bootstrap-secret-" + "x" * 40,
+            occurred_at=now,
+        )
+        profiles = PostgresSecurityProfileRepository(connection)
+        default_profile = profiles.get_default_global_profile(tenant)
+        assert default_profile.profile_id == "p6-no-global-privileges"
+        assert default_profile.is_default is True
+        existing_access = profiles.get_global_user_access(tenant, existing_id)
+        assert existing_access["profile_id"] == "p6-no-global-privileges"
+        assert existing_access["module_access"] == []
+        assert existing_access["resource_access_mode"] == "none"
+
+        admin_access = profiles.get_global_user_access(tenant, admin_id)
+        assert admin_access["profile_id"] == "p6-admin-superuser"
+        assert set(admin_access["module_access"]) == {
+            "projects", "portfolios", "resources", "enterprise_reports",
+            "integration_api", "p6_analytics", "p6_professional",
+            "team_member", "timesheet", "visualizer", "web_services",
+        }
+        assert admin_access["resource_access_mode"] == "all"
+
+        identity.upsert_user(_identity_user(new_id, tenant, "planner"))
+        new_access = profiles.get_global_user_access(tenant, new_id)
+        assert new_access["profile_id"] == "p6-no-global-privileges"
+        assert new_access["revision"] == 1
+
+        custom = profiles.create_profile(
+            tenant_id=tenant, profile_id=f"later-default-{suffix}",
+            name="Later Default", scope="global",
+            actor_user_id=admin_id, occurred_at=now,
+        )
+        custom = profiles.set_default(
+            tenant_id=tenant, profile_id=custom.profile_id, is_default=True,
+            expected_revision=custom.revision, actor_user_id=admin_id, occurred_at=now,
+        )
+        assert custom.is_default is True
+        identity.upsert_user(_identity_user(later_id, tenant, "planner"))
+        later_access = profiles.get_global_user_access(tenant, later_id)
+        assert later_access["profile_id"] == custom.profile_id
+        assert profiles.get_global_user_access(tenant, existing_id)["profile_id"] == "p6-no-global-privileges"
+        connection.rollback()
