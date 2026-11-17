@@ -403,6 +403,23 @@ SECURITY_PROFILE_SCHEMA = (
     WHERE obs_id=''
     """,
     """
+    DO $cubi$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM p6_security_profile_assignments
+            WHERE obs_id<>'' GROUP BY tenant_id,user_id,obs_id HAVING count(*)>1
+        ) THEN
+            RAISE EXCEPTION 'P6_SECURITY_PROFILE_DUPLICATE_OBS_ASSIGNMENTS_REQUIRE_RECONCILIATION';
+        END IF;
+    END;
+    $cubi$
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profile_one_project_per_user_obs
+    ON p6_security_profile_assignments (tenant_id,user_id,obs_id)
+    WHERE obs_id<>''
+    """,
+    """
     CREATE OR REPLACE FUNCTION cubi_p6_security_profile_assignment_guard()
     RETURNS trigger LANGUAGE plpgsql AS $$
     DECLARE profile_scope TEXT; profile_active BOOLEAN;
@@ -1266,6 +1283,10 @@ class PostgresSecurityProfileRepository:
             ).fetchone()
             if node is None:
                 raise SecurityProfileError("SECURITY_PROFILE_OBS_NOT_FOUND")
+        self._connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"p6-security-profile-assignment:{tenant_id}:{user_id}:{obs_id}",),
+        )
         existing = self._connection.execute(
             "SELECT revision FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s FOR UPDATE",
@@ -1281,6 +1302,43 @@ class PostgresSecurityProfileRepository:
                 (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
             )
         else:
+            if scope == "project":
+                occupied_project = self._connection.execute(
+                    "SELECT profile_id,revision FROM p6_security_profile_assignments "
+                    "WHERE tenant_id=%s AND user_id=%s AND obs_id=%s FOR UPDATE",
+                    (tenant_id, user_id, obs_id),
+                ).fetchone()
+                if occupied_project is not None:
+                    previous_profile_id, previous_revision = str(occupied_project[0]), int(occupied_project[1])
+                    if expected_revision is None or previous_revision != expected_revision:
+                        raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
+                    if previous_profile_id in _ADMIN_ONLY_PROFILE_IDS:
+                        actor_is_admin_superuser = self._connection.execute(
+                            "SELECT 1 FROM p6_security_profile_assignments a "
+                            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+                            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.profile_id=%s "
+                            "AND a.obs_id='' AND p.scope='global' AND p.active=TRUE",
+                            (tenant_id, actor_user_id, ADMIN_SUPERUSER_PROFILE_ID),
+                        ).fetchone()
+                        if actor_is_admin_superuser is None:
+                            raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_ASSIGNER_REQUIRED")
+                    revision = expected_revision + 1
+                    self._connection.execute(
+                        "UPDATE p6_security_profile_assignments SET profile_id=%s,revision=%s,"
+                        "assigned_by=%s,assigned_at=%s "
+                        "WHERE tenant_id=%s AND profile_id=%s AND user_id=%s AND obs_id=%s",
+                        (profile_id, revision, actor_user_id, occurred_at,
+                         tenant_id, previous_profile_id, user_id, obs_id),
+                    )
+                    self._audit(
+                        tenant_id, actor_user_id, profile_id, "profile_assigned",
+                        {"profile_id": previous_profile_id, "user_id": user_id,
+                         "obs_id": obs_id, "revision": previous_revision},
+                        {"profile_id": profile_id, "user_id": user_id,
+                         "obs_id": obs_id, "revision": revision},
+                        occurred_at,
+                    )
+                    return revision
             if scope == "global":
                 occupied = self._connection.execute(
                     "SELECT profile_id,revision FROM p6_security_profile_assignments "
@@ -1333,6 +1391,19 @@ class PostgresSecurityProfileRepository:
                     {"user_id": user_id, "obs_id": obs_id, "revision": revision},
                     occurred_at)
         return revision
+
+    def assign_default_project_profile(
+        self, *, tenant_id: str, user_id: str, obs_id: str,
+        actor_user_id: str, occurred_at: Any, expected_revision: int | None = None,
+    ) -> int:
+        default_profile = self.get_default_project_profile(tenant_id)
+        if default_profile is None or not default_profile.active:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_PROFILE_REQUIRED")
+        return self.assign(
+            tenant_id=tenant_id, profile_id=default_profile.profile_id,
+            user_id=user_id, obs_id=obs_id, expected_revision=expected_revision,
+            actor_user_id=actor_user_id, occurred_at=occurred_at,
+        )
 
     def get_global_user_access(self, tenant_id: str, user_id: str) -> dict[str, Any]:
         row = self._connection.execute(
