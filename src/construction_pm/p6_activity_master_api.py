@@ -13,6 +13,7 @@ from .application.authorization import (
 )
 from .activity_master_repository import ActivityMaster, ActivityMasterRepository
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .project_checkout import (
     ProjectCheckoutLease,
     require_project_write_ownership,
@@ -98,6 +99,7 @@ class P6ActivityMasterAPI:
         _require_scope(activity.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=0))
 
@@ -117,6 +119,7 @@ class P6ActivityMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
