@@ -704,6 +704,13 @@ class EnterpriseDashboardApplicationService:
                 sorted(f"{item.source_id}:{item.revision}" for item in snapshot.source_refs)
             )
             source_snapshot_id = snapshot.snapshot_id
+            # Authorize the complete source snapshot before exposing its identity,
+            # revision set, freshness, filtered state, or any preserved source_refs.
+            # A request filter must never hide unauthorized source records from this
+            # check and then leak snapshot metadata to a dashboard-only viewer.
+            self._authorize_source_projects(
+                session_id, session, tuple(item.project_id for item in snapshot.projects)
+            )
             project_rows = list(snapshot.projects)
             if "decision_status" in filters:
                 filtered_out = True
@@ -728,11 +735,6 @@ class EnterpriseDashboardApplicationService:
             display_rows = project_rows[:max_rows_per_portlet]
             truncated = len(project_rows) > max_rows_per_portlet
             if not filtered_out:
-                # The returned snapshot retains its source_refs; re-authorize every
-                # project in that source snapshot before exposing any of its references.
-                self._authorize_source_projects(
-                    session_id, session, tuple(item.project_id for item in snapshot.projects)
-                )
                 snapshot_data = snapshot.as_dict()
                 snapshot_data["projects"] = [item.as_dict() for item in display_rows]
                 summary = {
